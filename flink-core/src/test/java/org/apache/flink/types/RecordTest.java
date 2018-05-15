@@ -707,7 +707,7 @@ public class RecordTest {
 					Assert.fail("Value at position " + pos + " expected to be null in " + Arrays.toString(expected));
 				}
 			} else {
-				final Value retrieved = rec.getField(pos, e.getClass().newInstance());
+				final Value retrieved = rec.getField(pos, e.getClass().getDeclaredConstructor().newInstance());
 				if (!(e.equals(retrieved))) {
 					Assert.assertEquals("Wrong value at position " + pos + " in " + Arrays.toString(expected), e, retrieved);
 				}
@@ -724,7 +724,7 @@ public class RecordTest {
 					Assert.fail("Value at position " + pos + " expected to be null in " + Arrays.toString(expected));
 				}
 			} else {
-				final Value retrieved = e.getClass().newInstance();
+				final Value retrieved = e.getClass().getDeclaredConstructor().newInstance();
 				if (!rec.getFieldInto(pos, retrieved)) {
 					Assert.fail("Value at position " + pos + " expected to be not null in " + Arrays.toString(expected));
 				}

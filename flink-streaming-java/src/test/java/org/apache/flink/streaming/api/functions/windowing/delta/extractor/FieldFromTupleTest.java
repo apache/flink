@@ -47,6 +47,8 @@ import org.apache.flink.api.java.tuple.Tuple9;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
+
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -65,10 +67,11 @@ public class FieldFromTupleTest {
 	}
 
 	@Test
-	public void testSingleFieldExtraction() throws InstantiationException, IllegalAccessException {
+	public void testSingleFieldExtraction() throws InstantiationException, IllegalAccessException,
+		NoSuchMethodException, InvocationTargetException {
 		// extract single fields
 		for (int i = 0; i < Tuple.MAX_ARITY; i++) {
-			Tuple current = (Tuple) CLASSES[i].newInstance();
+			Tuple current = (Tuple) CLASSES[i].getDeclaredConstructor().newInstance();
 			for (int j = 0; j < i; j++) {
 				current.setField(testStrings[j], j);
 			}

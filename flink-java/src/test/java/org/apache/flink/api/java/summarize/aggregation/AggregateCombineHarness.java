@@ -100,7 +100,7 @@ public abstract class AggregateCombineHarness<T, R, A extends Aggregator<T, R>> 
 		try {
 			// Instantiate a generic type
 			// http://stackoverflow.com/questions/75175/create-instance-of-generic-type-in-java
-			return (A) ((Class) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[2]).newInstance();
+			return (A) ((Class) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[2]).getDeclaredConstructor().newInstance();
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Could not initialize aggregator", e);

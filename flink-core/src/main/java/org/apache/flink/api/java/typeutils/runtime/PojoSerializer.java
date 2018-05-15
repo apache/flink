@@ -193,7 +193,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 			return null;
 		}
 		try {
-			T t = clazz.newInstance();
+			T t = clazz.getDeclaredConstructor().newInstance();
 			initializeFields(t);
 			return t;
 		}
@@ -225,7 +225,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		if (actualType == clazz) {
 			T target;
 			try {
-				target = (T) from.getClass().newInstance();
+				target = (T) from.getClass().getDeclaredConstructor().newInstance();
 			}
 			catch (Throwable t) {
 				throw new RuntimeException("Cannot instantiate class.", t);

@@ -22,6 +22,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 
 /**
  * Record oriented reader for immutable types.
@@ -84,9 +85,9 @@ public class RecordReader<T extends IOReadableWritable> extends AbstractRecordRe
 
 	private T instantiateRecordType() {
 		try {
-			return recordType.newInstance();
+			return recordType.getDeclaredConstructor().newInstance();
 		}
-		catch (InstantiationException | IllegalAccessException e) {
+		catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException("Cannot instantiate class " + recordType.getName(), e);
 		}
 	}

@@ -59,7 +59,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	@Override
 	public T createInstance() {
 		try {
-			T t = tupleClass.newInstance();
+			T t = tupleClass.getDeclaredConstructor().newInstance();
 		
 			for (int i = 0; i < arity; i++) {
 				t.setField(fieldSerializers[i].createInstance(), i);
@@ -76,7 +76,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	public T createInstance(Object[] fields) {
 
 		try {
-			T t = tupleClass.newInstance();
+			T t = tupleClass.getDeclaredConstructor().newInstance();
 
 			for (int i = 0; i < arity; i++) {
 				t.setField(fields[i], i);
@@ -150,7 +150,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	
 	private T instantiateRaw() {
 		try {
-			return tupleClass.newInstance();
+			return tupleClass.getDeclaredConstructor().newInstance();
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate tuple.", e);

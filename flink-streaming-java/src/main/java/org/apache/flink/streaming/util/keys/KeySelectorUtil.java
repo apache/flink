@@ -181,7 +181,7 @@ public final class KeySelectorUtil {
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			Tuple key = Tuple.getTupleClass(keyLength).newInstance();
+			Tuple key = Tuple.getTupleClass(keyLength).getDeclaredConstructor().newInstance();
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
@@ -221,7 +221,7 @@ public final class KeySelectorUtil {
 
 		@Override
 		public Tuple getKey(IN value) throws Exception {
-			Tuple key = tupleClass.newInstance();
+			Tuple key = tupleClass.getDeclaredConstructor().newInstance();
 			for (int i = 0; i < fields.length; i++) {
 				key.setField(Array.get(value, fields[i]), i);
 			}

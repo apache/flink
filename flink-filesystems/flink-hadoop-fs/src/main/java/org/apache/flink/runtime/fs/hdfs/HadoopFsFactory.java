@@ -109,7 +109,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 
 			LOG.debug("Instantiating for file system scheme {} Hadoop File System {}", scheme, fsClass.getName());
 
-			final org.apache.hadoop.fs.FileSystem hadoopFs = fsClass.newInstance();
+			final org.apache.hadoop.fs.FileSystem hadoopFs = fsClass.getDeclaredConstructor().newInstance();
 
 			// -- (4) create the proper URI to initialize the file system
 

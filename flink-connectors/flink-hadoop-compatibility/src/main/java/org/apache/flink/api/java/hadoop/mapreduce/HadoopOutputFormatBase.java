@@ -240,7 +240,7 @@ public abstract class HadoopOutputFormatBase<K, V, T> extends HadoopOutputFormat
 		}
 
 		try {
-			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K, V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapreduceOutputFormat = (org.apache.hadoop.mapreduce.OutputFormat<K, V>) Class.forName(hadoopOutputFormatClassName, true, Thread.currentThread().getContextClassLoader()).getDeclaredConstructor().newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop output format", e);
 		}

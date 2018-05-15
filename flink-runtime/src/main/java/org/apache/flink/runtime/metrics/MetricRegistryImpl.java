@@ -142,7 +142,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 					}
 
 					Class<?> reporterClass = Class.forName(className);
-					MetricReporter reporterInstance = (MetricReporter) reporterClass.newInstance();
+					MetricReporter reporterInstance = (MetricReporter) reporterClass.getDeclaredConstructor().newInstance();
 
 					MetricConfig metricConfig = new MetricConfig();
 					reporterConfig.addAllToProperties(metricConfig);
