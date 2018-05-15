@@ -199,7 +199,7 @@ public class CheckpointCoordinator {
 
 		// sanity checks
 		checkNotNull(checkpointStateBackend);
-		checkArgument(baseInterval > 0, "Checkpoint timeout must be larger than zero");
+		checkArgument(baseInterval > 0, "Checkpoint base interval must be larger than zero");
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
