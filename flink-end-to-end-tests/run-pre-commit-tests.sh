@@ -47,6 +47,11 @@ EXIT_CODE=0
 # fi
 
 if [ $EXIT_CODE == 0 ]; then
+    run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
     run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh"
     EXIT_CODE=$?
 fi
