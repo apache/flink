@@ -312,4 +312,8 @@ public class AkkaRpcServiceTest extends TestLogger {
 			// expected
 		}
 	}
+
+	@Test
+	public void testVersionIncompatibility() {
+	}
 }

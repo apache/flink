@@ -33,6 +33,8 @@ import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
+import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 
 import akka.actor.ActorIdentity;
 import akka.actor.ActorRef;
@@ -82,6 +84,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class AkkaRpcService implements RpcService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcService.class);
+
+	static final int VERSION = 1;
 
 	static final String MAXIMUM_FRAME_SIZE_PATH = "akka.remote.netty.tcp.maximum-frame-size";
 
@@ -138,6 +142,10 @@ public class AkkaRpcService implements RpcService {
 
 	public ActorSystem getActorSystem() {
 		return actorSystem;
+	}
+
+	protected int getVersion() {
+		return VERSION;
 	}
 
 	@Override
@@ -200,9 +208,9 @@ public class AkkaRpcService implements RpcService {
 		final Props akkaRpcActorProps;
 
 		if (rpcEndpoint instanceof FencedRpcEndpoint) {
-			akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture);
+			akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());
 		} else {
-			akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture);
+			akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture, getVersion());
 		}
 
 		ActorRef actorRef;
@@ -418,28 +426,38 @@ public class AkkaRpcService implements RpcService {
 
 		final CompletableFuture<ActorIdentity> identifyFuture = FutureUtils.toJava(identify);
 
-		return identifyFuture.thenApplyAsync(
+		final CompletableFuture<ActorRef> actorRefFuture = identifyFuture.thenApply(
 			(ActorIdentity actorIdentity) -> {
 				if (actorIdentity.getRef() == null) {
 					throw new CompletionException(new RpcConnectionException("Could not connect to rpc endpoint under address " + address + '.'));
 				} else {
-					ActorRef actorRef = actorIdentity.getRef();
-
-					InvocationHandler invocationHandler = invocationHandlerFactory.apply(actorRef);
-
-					// Rather than using the System ClassLoader directly, we derive the ClassLoader
-					// from this class . That works better in cases where Flink runs embedded and all Flink
-					// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
-					ClassLoader classLoader = getClass().getClassLoader();
-
-					@SuppressWarnings("unchecked")
-					C proxy = (C) Proxy.newProxyInstance(
-						classLoader,
-						new Class<?>[]{clazz},
-						invocationHandler);
-
-					return proxy;
+					return actorIdentity.getRef();
 				}
+			});
+
+		final CompletableFuture<HandshakeSuccessMessage> handshakeFuture = actorRefFuture.thenCompose(
+			(ActorRef actorRef) -> FutureUtils.toJava(
+				Patterns
+					.ask(actorRef, new RemoteHandshakeMessage(clazz, getVersion()), timeout.toMilliseconds())
+					.<HandshakeSuccessMessage>mapTo(ClassTag$.MODULE$.<HandshakeSuccessMessage>apply(HandshakeSuccessMessage.class))));
+
+		return actorRefFuture.thenCombineAsync(
+			handshakeFuture,
+			(ActorRef actorRef, HandshakeSuccessMessage ignored) -> {
+				InvocationHandler invocationHandler = invocationHandlerFactory.apply(actorRef);
+
+				// Rather than using the System ClassLoader directly, we derive the ClassLoader
+				// from this class . That works better in cases where Flink runs embedded and all Flink
+				// code is loaded dynamically (for example from an OSGI bundle) through a custom ClassLoader
+				ClassLoader classLoader = getClass().getClassLoader();
+
+				@SuppressWarnings("unchecked")
+				C proxy = (C) Proxy.newProxyInstance(
+					classLoader,
+					new Class<?>[]{clazz},
+					invocationHandler);
+
+				return proxy;
 			},
 			actorSystem.dispatcher());
 	}
