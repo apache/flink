@@ -1294,7 +1294,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				final ChainedDriver<?, ?> ct;
 				try {
 					Class<? extends ChainedDriver<?, ?>> ctc = config.getChainedTask(i);
-					ct = ctc.newInstance();
+					ct = ctc.getDeclaredConstructor().newInstance();
 				}
 				catch (Exception ex) {
 					throw new RuntimeException("Could not instantiate chained task driver.", ex);

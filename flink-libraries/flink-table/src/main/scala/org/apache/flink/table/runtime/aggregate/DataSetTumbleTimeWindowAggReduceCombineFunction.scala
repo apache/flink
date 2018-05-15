@@ -70,7 +70,7 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
       genPreAggregations.name,
       genPreAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
-    preAggfunction = clazz.newInstance()
+    preAggfunction = clazz.getDeclaredConstructor().newInstance()
   }
 
   /**

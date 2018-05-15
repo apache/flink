@@ -102,7 +102,7 @@ class ExpressionReducer(config: TableConfig)
       resultType)
 
     val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
-    val function = clazz.newInstance()
+    val function = clazz.getDeclaredConstructor().newInstance()
 
     // execute
     val reduced = function.map(EMPTY_ROW)

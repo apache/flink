@@ -106,7 +106,7 @@ public class EventWithAggregatorsTest {
 			baos.close();
 
 			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(new ByteArrayInputStream(data));
-			IterationEventWithAggregators newEvent = event.getClass().newInstance();
+			IterationEventWithAggregators newEvent = event.getClass().getDeclaredConstructor().newInstance();
 			newEvent.read(in);
 			in.close();
 

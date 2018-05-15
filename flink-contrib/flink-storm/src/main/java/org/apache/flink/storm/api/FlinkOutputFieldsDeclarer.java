@@ -25,6 +25,7 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.utils.Utils;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 
@@ -107,10 +108,8 @@ final class FlinkOutputFieldsDeclarer implements OutputFieldsDeclarer {
 
 		if (numberOfAttributes <= 24) {
 			try {
-				t = Tuple.getTupleClass(numberOfAttributes + 1).newInstance();
-			} catch (final InstantiationException e) {
-				throw new RuntimeException(e);
-			} catch (final IllegalAccessException e) {
+				t = Tuple.getTupleClass(numberOfAttributes + 1).getDeclaredConstructor().newInstance();
+			} catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 				throw new RuntimeException(e);
 			}
 		} else {

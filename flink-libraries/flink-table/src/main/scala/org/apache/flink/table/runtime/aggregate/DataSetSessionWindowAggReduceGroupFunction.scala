@@ -76,7 +76,7 @@ class DataSetSessionWindowAggReduceGroupFunction(
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()

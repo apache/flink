@@ -30,6 +30,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -66,11 +67,11 @@ public class StormTupleTest extends AbstractTest {
 	}
 
 	@Test
-	public void tupleTest() throws InstantiationException, IllegalAccessException {
+	public void tupleTest() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		for (int numberOfAttributes = 0; numberOfAttributes < 26; ++numberOfAttributes) {
 			final Object[] data = new Object[numberOfAttributes];
 
-			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).getDeclaredConstructor().newInstance();
 			for (int i = 0; i < numberOfAttributes; ++i) {
 				data[i] = this.r.nextInt();
 				flinkTuple.setField(data[i], i);
@@ -90,11 +91,11 @@ public class StormTupleTest extends AbstractTest {
 	}
 
 	@Test
-	public void tupleTestWithTaskId() throws InstantiationException, IllegalAccessException {
+	public void tupleTestWithTaskId() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		for (int numberOfAttributes = 1; numberOfAttributes < 26; ++numberOfAttributes) {
 			final Object[] data = new Object[numberOfAttributes];
 
-			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes).getDeclaredConstructor().newInstance();
 			for (int i = 0; i < numberOfAttributes - 1; ++i) {
 				data[i] = this.r.nextInt();
 				flinkTuple.setField(data[i], i);
@@ -322,7 +323,7 @@ public class StormTupleTest extends AbstractTest {
 	@Test
 	public void testContains() throws Exception {
 		Fields schema = new Fields("a1", "a2");
-		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).newInstance(),
+		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).getDeclaredConstructor().newInstance(),
 				schema, -1, null, null, null);
 
 		Assert.assertTrue(tuple.contains("a1"));
@@ -341,7 +342,7 @@ public class StormTupleTest extends AbstractTest {
 	@Test
 	public void testFieldIndex() throws Exception {
 		Fields schema = new Fields("a1", "a2");
-		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).newInstance(),
+		StormTuple<Object> tuple = new StormTuple<Object>(Tuple.getTupleClass(1).getDeclaredConstructor().newInstance(),
 				schema, -1, null, null, null);
 
 		Assert.assertEquals(0, tuple.fieldIndex("a1"));
@@ -350,7 +351,7 @@ public class StormTupleTest extends AbstractTest {
 
 	@Test
 	public void testSelect() throws Exception {
-		Tuple tuple = Tuple.getTupleClass(arity).newInstance();
+		Tuple tuple = Tuple.getTupleClass(arity).getDeclaredConstructor().newInstance();
 		Values values = new Values();
 
 		ArrayList<String> attributeNames = new ArrayList<String>(arity);
@@ -637,7 +638,7 @@ public class StormTupleTest extends AbstractTest {
 
 		assert (index < arity);
 
-		Tuple tuple = Tuple.getTupleClass(arity).newInstance();
+		Tuple tuple = Tuple.getTupleClass(arity).getDeclaredConstructor().newInstance();
 		tuple.setField(value, index);
 
 		ArrayList<String> attributeNames = new ArrayList<String>(arity);

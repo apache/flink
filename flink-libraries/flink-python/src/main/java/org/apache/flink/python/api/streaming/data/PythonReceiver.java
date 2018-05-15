@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
@@ -130,8 +131,9 @@ public class PythonReceiver<OUT> implements Serializable {
 
 	public static Tuple createTuple(int size) {
 		try {
-			return Tuple.getTupleClass(size).newInstance();
-		} catch (InstantiationException | IllegalAccessException e) {
+			return Tuple.getTupleClass(size).getDeclaredConstructor().newInstance();
+		} catch (InstantiationException | IllegalAccessException
+			| NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}

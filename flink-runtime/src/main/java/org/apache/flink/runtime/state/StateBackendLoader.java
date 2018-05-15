@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -142,13 +143,14 @@ public class StateBackendLoader {
 							Class.forName(factoryClassName, false, classLoader)
 									.asSubclass(StateBackendFactory.class);
 
-					factory = clazz.newInstance();
+					factory = clazz.getDeclaredConstructor().newInstance();
 				}
 				catch (ClassNotFoundException e) {
 					throw new DynamicCodeLoadingException(
 							"Cannot find configured state backend factory class: " + backendName, e);
 				}
-				catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+				catch (ClassCastException | InstantiationException | IllegalAccessException
+					| NoSuchMethodException | InvocationTargetException e) {
 					throw new DynamicCodeLoadingException("The class configured under '" +
 							CheckpointingOptions.STATE_BACKEND.key() + "' is not a valid state backend factory (" +
 							backendName + ')', e);

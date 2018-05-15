@@ -150,7 +150,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 
 				while (!serializedRecords.isEmpty()) {
 					SerializationTestType expected = serializedRecords.poll();
-					SerializationTestType actual = expected.getClass().newInstance();
+					SerializationTestType actual = expected.getClass().getDeclaredConstructor().newInstance();
 
 					if (deserializer.getNextRecord(actual).isFullRecord()) {
 						Assert.assertEquals(expected, actual);
@@ -175,7 +175,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 		while (!serializedRecords.isEmpty()) {
 			SerializationTestType expected = serializedRecords.poll();
 
-			SerializationTestType actual = expected.getClass().newInstance();
+			SerializationTestType actual = expected.getClass().getDeclaredConstructor().newInstance();
 			RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
 
 			Assert.assertTrue(result.isFullRecord());

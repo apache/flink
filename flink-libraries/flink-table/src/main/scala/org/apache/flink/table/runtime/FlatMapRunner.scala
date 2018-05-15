@@ -43,7 +43,7 @@ class FlatMapRunner(
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatMapFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
   }

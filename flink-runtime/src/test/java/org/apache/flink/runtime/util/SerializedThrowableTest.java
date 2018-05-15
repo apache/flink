@@ -101,7 +101,7 @@ public class SerializedThrowableTest {
 					new ProtectionDomain(new CodeSource(null, (Certificate[]) null), new Permissions()));
 			
 			// create an instance of the exception (no message, no cause)
-			Exception userException = clazz.asSubclass(Exception.class).newInstance();
+			Exception userException = clazz.asSubclass(Exception.class).getDeclaredConstructor().newInstance();
 			
 			// check that we cannot simply copy the exception
 			try {

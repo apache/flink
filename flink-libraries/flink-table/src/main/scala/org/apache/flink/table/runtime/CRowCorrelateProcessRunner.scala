@@ -51,7 +51,7 @@ class CRowCorrelateProcessRunner(
     LOG.debug(s"Compiling TableFunctionCollector: $collectorName \n\n Code:\n$collectorCode")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, collectorName, collectorCode)
     LOG.debug("Instantiating TableFunctionCollector.")
-    collector = clazz.newInstance().asInstanceOf[TableFunctionCollector[_]]
+    collector = clazz.getDeclaredConstructor().newInstance().asInstanceOf[TableFunctionCollector[_]]
     this.cRowWrapper = new CRowWrappingCollector()
 
     LOG.debug(s"Compiling ProcessFunction: $processName \n\n Code:\n$processCode")

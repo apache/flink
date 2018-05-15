@@ -185,7 +185,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
 		this.driver = driver;
 		driver.setup(this);
 
-		this.stub = (S)stubClass.newInstance();
+		this.stub = (S)stubClass.getDeclaredConstructor().newInstance();
 
 		// regular running logic
 		this.running = true;

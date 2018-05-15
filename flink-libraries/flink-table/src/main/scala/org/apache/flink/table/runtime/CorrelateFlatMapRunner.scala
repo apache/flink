@@ -45,7 +45,7 @@ class CorrelateFlatMapRunner[IN, OUT](
     LOG.debug(s"Compiling TableFunctionCollector: $collectorName \n\n Code:\n$collectorCode")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, collectorName, collectorCode)
     LOG.debug("Instantiating TableFunctionCollector.")
-    collector = clazz.newInstance().asInstanceOf[TableFunctionCollector[_]]
+    collector = clazz.getDeclaredConstructor().newInstance().asInstanceOf[TableFunctionCollector[_]]
 
     LOG.debug(s"Compiling FlatMapFunction: $flatMapName \n\n Code:\n$flatMapCode")
     val flatMapClazz = compile(getRuntimeContext.getUserCodeClassLoader, flatMapName, flatMapCode)

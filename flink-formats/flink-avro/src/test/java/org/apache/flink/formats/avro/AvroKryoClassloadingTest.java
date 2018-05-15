@@ -82,7 +82,7 @@ public class AvroKryoClassloadingTest {
 		final Method m = userLoadedAvroClass.getMethod("addAvroGenericDataArrayRegistration", LinkedHashMap.class);
 
 		final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
-		m.invoke(userLoadedAvroClass.newInstance(), map);
+		m.invoke(userLoadedAvroClass.getDeclaredConstructor().newInstance(), map);
 
 		assertEquals(1, map.size());
 	}
