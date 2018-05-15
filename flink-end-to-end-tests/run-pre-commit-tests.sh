@@ -81,6 +81,11 @@ if [ $EXIT_CODE == 0 ]; then
     EXIT_CODE=$?
 fi
 
+if [ $EXIT_CODE == 0 ]; then
+    run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
+    EXIT_CODE=$?
+fi
+
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE
