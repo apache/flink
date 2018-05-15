@@ -48,7 +48,7 @@ class CRowProcessRunner(
     LOG.debug(s"Compiling ProcessFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating ProcessFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
 

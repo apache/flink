@@ -88,7 +88,7 @@ class NonWindowInnerJoin(
       genJoinFuncName,
       genJoinFuncCode)
     LOG.debug("Instantiating JoinFunction.")
-    joinFunction = clazz.newInstance()
+    joinFunction = clazz.getDeclaredConstructor().newInstance()
 
     // initialize left and right state, the first element of tuple2 indicates how many rows of
     // this row, while the second element represents the expired time of this row.

@@ -54,7 +54,7 @@ class ProcTimeUnboundedOver(
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
     function.open(getRuntimeContext)
 
     output = new CRow(function.createOutputRow(), true)
