@@ -58,7 +58,7 @@ public class RpcConnectionTest extends TestLogger {
 		RpcService rpcService = null;
 		try {
 			actorSystem = AkkaUtils.createActorSystem(
-					new Configuration(), Option.apply(new Tuple2<String, Object>("localhost", 0)));
+					new Configuration(), Option.<Tuple2<String, Object>>apply(new Tuple2<>("localhost", 0)));
 
 			// we start the RPC service with a very long timeout to ensure that the test
 			// can only pass if the connection problem is not recognized merely via a timeout
