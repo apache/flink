@@ -25,16 +25,19 @@ import org.apache.avro.specific.SpecificRecord;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-
 /**
  * Deserialization schema that deserializes from Avro binary format using {@link SchemaCoder}.
  *
  * @param <T> type of record it produces
  */
 public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSchema<T> {
+
+	private static final long serialVersionUID = -884738268437806062L;
+
+	/** Provider for schema coder. Used for initializing in each task. */
 	private final SchemaCoder.SchemaCoderProvider schemaCoderProvider;
+
+	/** Coder used for reading schema from incoming stream. */
 	private transient SchemaCoder schemaCoder;
 
 	/**
@@ -47,10 +50,8 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
 	 *                            schema reading
 	 */
-	protected RegistryAvroDeserializationSchema(
-		Class<T> recordClazz,
-		@Nullable Schema reader,
-		SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+	protected RegistryAvroDeserializationSchema(Class<T> recordClazz, @Nullable Schema reader,
+			SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, reader);
 		this.schemaCoderProvider = schemaCoderProvider;
 		this.schemaCoder = schemaCoderProvider.get();
@@ -60,6 +61,7 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 	public T deserialize(byte[] message) {
 		// read record
 		try {
+			checkAvroInitialized();
 			getInputStream().setBuffer(message);
 			Schema writerSchema = schemaCoder.readSchema(getInputStream());
 			Schema readerSchema = getReaderSchema();
@@ -75,8 +77,11 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 		}
 	}
 
-	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-		ois.defaultReadObject();
-		this.schemaCoder = schemaCoderProvider.get();
+	@Override
+	void checkAvroInitialized() {
+		super.checkAvroInitialized();
+		if (schemaCoder == null) {
+			this.schemaCoder = schemaCoderProvider.get();
+		}
 	}
 }

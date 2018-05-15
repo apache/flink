@@ -81,7 +81,7 @@ under the License.
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>com.fasterxml.jackson.core</pattern>
-									<shadedPattern>org.apache.flink.shaded.com.fasterxml.jackson.core</shadedPattern>
+									<shadedPattern>org.apache.flink.formats.avro.registry.confluent.shaded.com.fasterxml.jackson.core</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

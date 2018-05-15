@@ -26,6 +26,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -56,7 +57,24 @@ public class ConfluentSchemaRegistryCoderTest {
 
 		assertEquals(schema, readSchema);
 		assertEquals(0, byteInStream.available());
+	}
 
+	@Test(expected = IOException.class)
+	public void testMagicByteVerification() throws Exception {
+		MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+		int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
+
+		ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
+		ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+		DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+		dataOutputStream.writeByte(5);
+		dataOutputStream.writeInt(schemaId);
+		dataOutputStream.flush();
+
+		ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
+		coder.readSchema(byteInStream);
+
+		// exception is thrown
 	}
 
 }

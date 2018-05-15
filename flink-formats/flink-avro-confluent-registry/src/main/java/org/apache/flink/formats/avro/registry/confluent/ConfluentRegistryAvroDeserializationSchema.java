@@ -35,10 +35,11 @@ import javax.annotation.Nullable;
  *
  * @param <T> type of record it produces
  */
-public class ConfluentRegistryAvroDeserializationSchema<T>
-	extends RegistryAvroDeserializationSchema<T> {
+public class ConfluentRegistryAvroDeserializationSchema<T> extends RegistryAvroDeserializationSchema<T> {
 
 	private static final int DEFAULT_IDENTITY_MAP_CAPACITY = 1000;
+
+	private static final long serialVersionUID = -1671641202177852775L;
 
 	/**
 	 * Creates a Avro deserialization schema.
@@ -49,10 +50,8 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 	 *                            {@link GenericRecord}
 	 * @param schemaCoderProvider provider for schema coder that reads writer schema from Confluent Schema Registry
 	 */
-	private ConfluentRegistryAvroDeserializationSchema(
-		Class<T> recordClazz,
-		@Nullable Schema reader,
-		SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+	private ConfluentRegistryAvroDeserializationSchema(Class<T> recordClazz, @Nullable Schema reader,
+			SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, reader, schemaCoderProvider);
 	}
 
@@ -64,8 +63,7 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 	 * @param url    url of schema registry to connect
 	 * @return deserialized record in form of {@link GenericRecord}
 	 */
-	public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(
-		Schema schema, String url) {
+	public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(Schema schema, String url) {
 		return forGeneric(schema, url, DEFAULT_IDENTITY_MAP_CAPACITY);
 	}
 
@@ -78,8 +76,8 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 	 * @param identityMapCapacity maximum number of cached schema versions (default: 1000)
 	 * @return deserialized record in form of {@link GenericRecord}
 	 */
-	public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(
-		Schema schema, String url, int identityMapCapacity) {
+	public static ConfluentRegistryAvroDeserializationSchema<GenericRecord> forGeneric(Schema schema, String url,
+			int identityMapCapacity) {
 		return new ConfluentRegistryAvroDeserializationSchema<>(
 			GenericRecord.class,
 			schema,
@@ -94,8 +92,8 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 	 * @param url    url of schema registry to connect
 	 * @return deserialized record
 	 */
-	public static <T extends SpecificRecord> ConfluentRegistryAvroDeserializationSchema<T> forSpecific(
-		Class<T> tClass, String url) {
+	public static <T extends SpecificRecord> ConfluentRegistryAvroDeserializationSchema<T> forSpecific(Class<T> tClass,
+			String url) {
 		return forSpecific(tClass, url, DEFAULT_IDENTITY_MAP_CAPACITY);
 	}
 
@@ -108,8 +106,8 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 	 * @param identityMapCapacity maximum number of cached schema versions (default: 1000)
 	 * @return deserialized record
 	 */
-	public static <T extends SpecificRecord> ConfluentRegistryAvroDeserializationSchema<T> forSpecific(
-		Class<T> tClass, String url, int identityMapCapacity) {
+	public static <T extends SpecificRecord> ConfluentRegistryAvroDeserializationSchema<T> forSpecific(Class<T> tClass,
+			String url, int identityMapCapacity) {
 		return new ConfluentRegistryAvroDeserializationSchema<>(
 			tClass,
 			null,
@@ -119,10 +117,11 @@ public class ConfluentRegistryAvroDeserializationSchema<T>
 
 	private static class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
 
+		private static final long serialVersionUID = 4023134423033312666L;
 		private final String url;
 		private final int identityMapCapacity;
 
-		private CachedSchemaCoderProvider(String url, int identityMapCapacity) {
+		CachedSchemaCoderProvider(String url, int identityMapCapacity) {
 			this.url = url;
 			this.identityMapCapacity = identityMapCapacity;
 		}

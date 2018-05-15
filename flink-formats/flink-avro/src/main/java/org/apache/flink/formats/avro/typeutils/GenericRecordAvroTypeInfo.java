@@ -37,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class GenericRecordAvroTypeInfo extends TypeInformation<GenericRecord> {
 
+	private static final long serialVersionUID = 4141977586453820650L;
+
 	private transient Schema schema;
 
 	public GenericRecordAvroTypeInfo(Schema schema) {

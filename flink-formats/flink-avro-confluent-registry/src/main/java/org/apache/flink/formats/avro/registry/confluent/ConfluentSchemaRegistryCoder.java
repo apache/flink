@@ -24,6 +24,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import org.apache.avro.Schema;
 
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -48,7 +49,7 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 		DataInputStream dataInputStream = new DataInputStream(in);
 
 		if (dataInputStream.readByte() != 0) {
-			throw new RuntimeException("Unknown data format. Magic number does not match");
+			throw new IOException("Unknown data format. Magic number does not match");
 		} else {
 			int schemaId = dataInputStream.readInt();
 

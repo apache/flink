@@ -27,7 +27,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
@@ -49,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -85,6 +85,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/** The class of the type that is serialized by this serializer. */
 	private final Class<T> type;
 
+	private final String schemaString;
+
 	// -------- runtime fields, non-serializable, lazily initialized -----------
 
 	private transient GenericDatumWriter<T> writer;
@@ -96,7 +98,6 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient GenericData avroData;
 
 	private transient Schema schema;
-	private final String schemaString;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
 	private transient AvroSchemaSerializerConfigSnapshot configSnapshot;
@@ -112,7 +113,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * For serializing {@link GenericData.Record} use {@link AvroSerializer#AvroSerializer(Class, Schema)}
 	 */
 	public AvroSerializer(Class<T> type) {
-		Preconditions.checkArgument(!isGenericRecord(type),
+		checkArgument(!isGenericRecord(type),
 			"For GenericData.Record use constructor with explicit schema.");
 		this.type = checkNotNull(type);
 		this.schemaString = null;
@@ -125,8 +126,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	 * {@link AvroSerializer#AvroSerializer(Class)}
 	 */
 	public AvroSerializer(Class<T> type, Schema schema) {
-		Preconditions.checkArgument(
-			isGenericRecord(type),
+		checkArgument(isGenericRecord(type),
 			"For classes other than GenericData.Record use constructor without explicit schema.");
 		this.type = checkNotNull(type);
 		this.schema = checkNotNull(schema);
@@ -312,7 +312,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public TypeSerializer<T> duplicate() {
 		if (schemaString != null) {
-			return new AvroSerializer<>(type, new Schema.Parser().parse(schemaString));
+			return new AvroSerializer<>(type, schema);
 		} else {
 			return new AvroSerializer<>(type);
 
