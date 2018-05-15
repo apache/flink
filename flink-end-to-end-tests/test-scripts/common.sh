@@ -240,6 +240,23 @@ function wait_job_running {
   done
 }
 
+function wait_job_terminal_state {
+  local job=$1
+  local terminal_state=$2
+
+  echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
+
+  while : ; do
+    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+
+    if [[ -z $N ]]; then
+      sleep 1
+    else
+      break
+    fi
+  done
+}
+
 function take_savepoint {
   "$FLINK_DIR"/bin/flink savepoint $1 $2
 }
@@ -373,6 +390,27 @@ function wait_oper_metric_num_in_records {
 
       if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
         echo "Waiting for job to process up to 200 records, current progress: $NUM_RECORDS records ..."
+        sleep 1
+      else
+        break
+      fi
+    done
+}
+
+function wait_num_checkpoints {
+    JOB=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+    while : ; do
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
         sleep 1
       else
         break
