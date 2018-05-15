@@ -32,7 +32,6 @@ import com.amazonaws.services.kinesis.model.ListShardsRequest;
 import com.amazonaws.services.kinesis.model.ListShardsResult;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Assert;
@@ -142,7 +141,9 @@ public class KinesisProxyTest {
 		doReturn(responseWithMoreData)
 				.when(mockClient)
 				.listShards(argThat(initialListShardsRequestMatcher()));
-		doReturn(responseFinal).when(mockClient).listShards(argThat(listShardsNextToken(NEXT_TOKEN)));
+		doReturn(responseFinal).
+						when(mockClient).
+						listShards(argThat(listShardsNextToken(NEXT_TOKEN)));
 		HashMap<String, String> streamHashMap =
 				createInitialSubscribedStreamsToLastDiscoveredShardsState(Arrays.asList(fakeStreamName));
 		GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
@@ -183,7 +184,7 @@ public class KinesisProxyTest {
 		@Override
 		protected boolean matchesSafely(final ListShardsRequest listShardsRequest, final Description description) {
 			if (shardId == null) {
-				if (StringUtils.isNotEmpty(listShardsRequest.getExclusiveStartShardId())) {
+				if (listShardsRequest.getExclusiveStartShardId() != null) {
 					return false;
 				}
 			} else {
@@ -192,9 +193,9 @@ public class KinesisProxyTest {
 				}
 			}
 
-			if (StringUtils.isNotEmpty(listShardsRequest.getNextToken())) {
-				if (StringUtils.isNotEmpty(listShardsRequest.getStreamName())
-								|| StringUtils.isNotEmpty(listShardsRequest.getExclusiveStartShardId())) {
+			if (listShardsRequest.getNextToken() != null) {
+				if (!(listShardsRequest.getStreamName() == null
+								&& listShardsRequest.getExclusiveStartShardId() == null)) {
 					return false;
 				}
 

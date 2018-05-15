@@ -338,7 +338,7 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Invalid value given for list shards operation base backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.SHARDS_LIST_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
@@ -349,7 +349,7 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Invalid value given for list shards operation max backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.SHARDS_LIST_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
@@ -360,7 +360,7 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Invalid value given for list shards operation backoff exponential constant");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}

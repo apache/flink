@@ -134,16 +134,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 		this.listShardsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.SHARDS_LIST_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.DEFAULT_SHARDS_LIST_BACKOFF_BASE)));
+				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE)));
 		this.listShardsMaxBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.SHARDS_LIST_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.DEFAULT_SHARDS_LIST_BACKOFF_MAX)));
+				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX)));
 		this.listShardsExpConstant = Double.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.DEFAULT_SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT)));
+				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
 
 		this.getRecordsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
@@ -362,6 +362,9 @@ public class KinesisProxy implements KinesisProxyInterface {
 		do {
 			listShardsResult = listShards(streamName, lastSeenShardId, startShardToken);
 			if (listShardsResult == null) {
+			  // In case we have exceptions while retrieving all shards, ensure that incomplete shard list is not returned.
+				// Hence clearing the incomplete shard list before returning it.
+				shardsOfStream.clear();
 				return shardsOfStream;
 			}
 			List<Shard> shards = listShardsResult.getShards();
@@ -406,6 +409,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		// are taken up.
 		while (listShardsResults == null) { // retry until we get a result
 			try {
+
 				listShardsResults = kinesisClient.listShards(listShardsRequest);
 			} catch (LimitExceededException le) {
 				long backoffMillis = fullJitterBackoff(
@@ -415,8 +419,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 				Thread.sleep(backoffMillis);
 			} catch (ResourceInUseException reInUse) {
 				if (LOG.isWarnEnabled()) {
-					// List Shards will throw an exception if stream in not in active state. Will return
-					LOG.warn("The stream is currently not in active state. Reusing the older state "
+					// List Shards will throw an exception if stream in not in active state. Return and re-use previous state available.
+					LOG.info("The stream is currently not in active state. Reusing the older state "
 							+ "for the time being");
 					break;
 				}
@@ -435,7 +439,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		if (startShardId != null && listShardsResults != null) {
 			List<Shard> shards = listShardsResults.getShards();
 			Iterator<Shard> shardItr = shards.iterator();
-			while (shardItr.hasNext()){
+			while (shardItr.hasNext()) {
 				if (StreamShardHandle.compareShardIds(shardItr.next().getShardId(), startShardId) <= 0) {
 					shardItr.remove();
 				}

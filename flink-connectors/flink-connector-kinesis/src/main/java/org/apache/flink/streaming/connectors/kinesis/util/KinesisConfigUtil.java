@@ -142,13 +142,13 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARDS_LIST_BACKOFF_BASE,
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_BASE,
 			"Invalid value given for list shards operation base backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARDS_LIST_BACKOFF_MAX,
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_MAX,
 			"Invalid value given for list shards operation max backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.SHARDS_LIST_BACKOFF_EXPONENTIAL_CONSTANT,
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
 			"Invalid value given for list shards operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		if (config.containsKey(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS)) {
