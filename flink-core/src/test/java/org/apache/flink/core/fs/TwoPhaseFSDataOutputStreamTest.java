@@ -23,6 +23,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.util.Random;
 
 /**
@@ -40,24 +41,39 @@ public class TwoPhaseFSDataOutputStreamTest {
 		final Path targetFile = new Path(tmpPath, "target");
 		final FileSystem fileSystem = targetFile.getFileSystem();
 
-		byte[] expectedData = new byte[512];
+		byte[] expectedData = new byte[102400];
 		new Random().nextBytes(expectedData);
 
-		testWriteData(false, expectedData, targetFile);
-
-		try {
-			testWriteData(false, expectedData, targetFile);
-			Assert.fail("Should fail because the target file is already exists, and we are using NO_OVERWRITE model");
-		} catch (Exception expected) {
-			// we expected it.
-		}
+		writeData(false, expectedData, targetFile);
 
 		Assert.assertTrue(fileSystem.exists(targetFile));
 
-		try (FSDataInputStream inputStream = fileSystem.open(targetFile)) {
-			byte[] data = new byte[512];
-			Assert.assertEquals(512, inputStream.read(data));
-			Assert.assertArrayEquals(expectedData, data);
+		byte[] data = new byte[102400];
+		readData(data, targetFile);
+		Assert.assertArrayEquals(expectedData, data);
+	}
+
+	@Test
+	public void testWriteMode() throws Exception {
+
+		final String tmpPath = temporaryFolder.newFolder("testTwoPhaseFSDataOutputStream").getPath();
+		final Path targetFile = new Path(tmpPath, "target");
+		try (TwoPhaseFSDataOutputStream outputStream = new TwoPhaseFSDataOutputStream(targetFile.getFileSystem(), targetFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+			outputStream.closeAndPublish();
+		} catch (Exception ex) {
+			Assert.fail("failed to create TwoPhaseFSDataOutputStream with WriteMode.NO_OVERWRITE.");
+		}
+
+		try (TwoPhaseFSDataOutputStream outputStream = new TwoPhaseFSDataOutputStream(targetFile.getFileSystem(), targetFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+			Assert.fail("should fail to create TwoPhaseFSDataOutputStream because the target file is already exists.");
+		} catch (IOException expected) {
+			//expected this exception.
+		}
+
+		try (TwoPhaseFSDataOutputStream outputStream = new TwoPhaseFSDataOutputStream(targetFile.getFileSystem(), targetFile, FileSystem.WriteMode.OVERWRITE)) {
+			Assert.fail("should fail to create TwoPhaseFSDataOutputStream with WriteMode.OVERWRITE.");
+		} catch (IllegalArgumentException expected) {
+			//expected this exception.
 		}
 	}
 
@@ -72,14 +88,14 @@ public class TwoPhaseFSDataOutputStreamTest {
 		new Random().nextBytes(expectedData);
 
 		try {
-			testWriteData(true, expectedData, targetFile);
+			writeData(true, expectedData, targetFile);
 			Assert.fail("Should fail because we have triggered an exception.");
 		} catch (Exception expected) {
 			Assert.assertFalse(fileSystem.exists(targetFile));
 		}
 	}
 
-	private void testWriteData(boolean triggerException, byte[] data, Path targetFile) throws Exception {
+	private void writeData(boolean triggerException, byte[] data, Path targetFile) throws Exception {
 
 		final FileSystem fileSystem = targetFile.getFileSystem();
 
@@ -94,7 +110,18 @@ public class TwoPhaseFSDataOutputStreamTest {
 				throw new Exception("Trigger exception on purpose.");
 			}
 
-			outputStream.commit();
+			outputStream.closeAndPublish();
+		}
+	}
+
+	private void readData(byte[] data, Path targetFile) throws Exception {
+		try (FSDataInputStream inputStream = targetFile.getFileSystem().open(targetFile)) {
+			int totalSize = data.length;
+			int len;
+			int pos = 0;
+			while (pos < totalSize && (len = inputStream.read(data, pos, totalSize - pos)) > 0) {
+				pos += len;
+			}
 		}
 	}
 }

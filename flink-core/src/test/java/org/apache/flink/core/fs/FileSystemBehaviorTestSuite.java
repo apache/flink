@@ -231,30 +231,6 @@ public abstract class FileSystemBehaviorTestSuite {
 				assertFalse(fs.exists(file2));
 			}
 		}
-
-		// regenerate the expectedData to start a new round test
-		new Random().nextBytes(expectedData);
-
-		// valid the content is as expected after overwriting the file.
-		{
-			createFileAtomically(file, WriteMode.OVERWRITE, expectedData, false);
-			resultData = new byte[102400];
-			readFromFile(file, resultData);
-			assertArrayEquals(expectedData, resultData);
-		}
-
-		// test the atomic feature of the FileSystem#createAtomically(...) with mode WriteMode.OVERWRITE
-		{
-			try {
-				createFileAtomically(file, WriteMode.OVERWRITE, expectedData, true);
-				fail("should throw an exception on purpose.");
-			} catch (Exception ex) {
-				resultData = new byte[102400];
-				readFromFile(file, resultData);
-				// the writing(with mode WriteMode.OVERWRITE) failure shouldn't broke the content of the existing file.
-				assertArrayEquals(expectedData, resultData);
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -287,7 +263,7 @@ public abstract class FileSystemBehaviorTestSuite {
 			if (throwException) {
 				throw new RuntimeException("throws exception on purpose.");
 			}
-			((TwoPhaseFSDataOutputStream) outputStream).commit();
+			((TwoPhaseFSDataOutputStream) outputStream).closeAndPublish();
 		}
 	}
 

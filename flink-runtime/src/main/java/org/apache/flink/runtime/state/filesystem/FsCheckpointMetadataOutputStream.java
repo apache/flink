@@ -142,7 +142,7 @@ public final class FsCheckpointMetadataOutputStream extends CheckpointMetadataOu
 					} catch (Exception ignored) {}
 
 					if (out instanceof TwoPhaseFSDataOutputStream) {
-						((TwoPhaseFSDataOutputStream) out).commit();
+						((TwoPhaseFSDataOutputStream) out).closeAndPublish();
 					}
 
 					out.close();

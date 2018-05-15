@@ -20,6 +20,7 @@ package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+
 import org.apache.hadoop.conf.Configuration;
 
 /**

@@ -21,23 +21,24 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /**
  * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhaseFSDataOutputStream} will
  * lead the {@link #targetFile} to be invisible.
- * PHASE 1, write the data into the {@link #preparingFile}.
+ *
+ * <p>PHASE 1, write the data into the {@link #preparingFile}.
  * PHASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
  */
 @Internal
 public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseFSDataOutputStream.class);
-
-	private static final String PREPARING_FILE_SUFFIX = "_tmp";
 
 	/**
 	 * the target file system.
@@ -59,16 +60,16 @@ public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
 	 */
 	private final FSDataOutputStream preparedOutputStream;
 
-	enum PhraseType {PREPARE, COMMIT}
-
-	private PhraseType currentPhrase;
+	private volatile boolean closed;
 
 	public TwoPhaseFSDataOutputStream(FileSystem fs, Path f, FileSystem.WriteMode writeMode) throws IOException {
 
+		Preconditions.checkArgument(FileSystem.WriteMode.OVERWRITE != writeMode, "WriteMode.OVERWRITE is unsupported yet.");
+
 		this.fs = fs;
 		this.targetFile = f;
-		this.preparingFile = new Path(f.getPath() + PREPARING_FILE_SUFFIX);
-		this.currentPhrase = PhraseType.PREPARE;
+		this.preparingFile = generateTemporaryFilename(f);
+		this.closed = false;
 
 		if (writeMode == FileSystem.WriteMode.NO_OVERWRITE && fs.exists(targetFile)) {
 			throw new IOException("Target file " + targetFile + " is already exists.");
@@ -84,49 +85,75 @@ public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
 
 	@Override
 	public void write(int b) throws IOException {
-		checkPhrase(PhraseType.PREPARE);
 		this.preparedOutputStream.write(b);
 	}
 
 	@Override
 	public void flush() throws IOException {
-		checkPhrase(PhraseType.PREPARE);
 		this.preparedOutputStream.flush();
 	}
 
 	@Override
 	public void sync() throws IOException {
-		checkPhrase(PhraseType.PREPARE);
 		this.preparedOutputStream.sync();
 	}
 
+	/**
+	 * Does the cleanup things, close the stream and delete the {@link #preparingFile}.
+	 */
 	@Override
 	public void close() throws IOException {
-		try {
-			checkPhrase(PhraseType.COMMIT);
-			this.preparedOutputStream.close();
-			this.fs.rename(preparingFile, targetFile);
-		} catch (Exception e) {
-			this.preparedOutputStream.close();
-			if (fs.exists(preparingFile)) {
-				try {
-					fs.delete(preparingFile, false);
-				} catch (Throwable ignored) {
-					LOG.warn("Failed to delete the preparing file {" + preparingFile + "}.", ignored);
-				}
+		if (!closed) {
+			closed = true;
+			try {
+				this.preparedOutputStream.close();
+			} catch (Exception e) {
+				tryToCleanUpPreparingFile();
+				throw e;
 			}
-			throw e;
 		}
 	}
 
-	private void checkPhrase(PhraseType phrase) {
-		if (currentPhrase != phrase) {
-			throw new IllegalStateException("we are not in " + phrase + " phrase currently.");
+	/**
+	 * This means "close on success", it close the stream and rename the {@link #preparingFile} to the {@link #targetFile},
+	 * it also do the cleanup when some exception occur during the operation.
+	 */
+	public void closeAndPublish() throws IOException {
+		synchronized (this) {
+			if (!closed) {
+				try {
+					this.preparedOutputStream.close();
+					if (!this.fs.rename(preparingFile, targetFile)) {
+						// For some file system, it just return false without any exception to
+						// indicate the failed operation, we raise it manually here.
+						throw new IOException("Failed to rename " + preparingFile + " to " + targetFile + " atomically.");
+					}
+				} catch (Exception e) {
+					tryToCleanUpPreparingFile();
+					throw e;
+				} finally {
+					closed = true;
+				}
+			} else {
+				throw new IOException("Stream has already been closed and discarded.");
+			}
 		}
 	}
 
-	public void commit() {
-		currentPhrase = PhraseType.COMMIT;
+	private void tryToCleanUpPreparingFile() throws IOException {
+		if (fs.exists(preparingFile)) {
+			try {
+				if (!fs.delete(preparingFile, false) && fs.exists(preparingFile)) {
+					LOG.warn("Failed to delete the preparing file {" + preparingFile + "}.");
+				}
+			} catch (Throwable ignored) {
+				LOG.warn("Failed to delete the preparing file {" + preparingFile + "}.", ignored);
+			}
+		}
+	}
+
+	Path generateTemporaryFilename(Path targetFile) throws IOException {
+		return new Path(targetFile.getPath() + "." + UUID.randomUUID());
 	}
 
 	@VisibleForTesting
