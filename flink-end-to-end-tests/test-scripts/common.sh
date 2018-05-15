@@ -380,6 +380,17 @@ function wait_oper_metric_num_in_records {
     done
 }
 
+# Starts the timer. Note that nested timers are not supported.
+function start_timer {
+    SECONDS=0
+}
+
+# prints the number of minutes and seconds that have elapsed since the last call to start_timer
+function end_timer {
+    duration=$SECONDS
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+}
+
 # make sure to clean up even in case of failures
 function cleanup {
   stop_cluster

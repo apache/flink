@@ -41,56 +41,70 @@ if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Wordcount end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_batch_wordcount.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Kafka end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_streaming_kafka010.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running class loading end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_streaming_classloader.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Shaded Hadoop S3A end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_shaded_hadoop_s3a.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Shaded Presto S3 end-to-end test\n"
     printf "==============================================================================\n"
+  start_timer
     $END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Hadoop-free Wordcount end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     CLUSTER_MODE=cluster $END_TO_END_DIR/test-scripts/test_hadoop_free.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running Streaming Python Wordcount end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 

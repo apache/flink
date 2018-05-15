@@ -43,8 +43,10 @@ EXIT_CODE=0
 #     printf "\n==============================================================================\n"
 #     printf "Running my fancy nightly end-to-end test\n"
 #     printf "==============================================================================\n"
+#     start_timer
 #     $END_TO_END_DIR/test-scripts/test_something_very_fancy.sh
 #     EXIT_CODE=$?
+#     end_timer
 # fi
 
 
@@ -52,112 +54,140 @@ if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running HA end-to-end test\n"
     printf "==============================================================================\n"
+    start_timer
     $END_TO_END_DIR/test-scripts/test_ha.sh
     EXIT_CODE=$?
+    end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, async, no parallelism change) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, sync, no parallelism change) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, async, scale up) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, sync, scale up) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, async, scale down) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (file, sync, scale down) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (rocks, no parallelism change) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (rocks, scale up) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Resuming Savepoint (rocks, scale down) end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running DataSet allround nightly end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   $END_TO_END_DIR/test-scripts/test_batch_allround.sh
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Streaming SQL nightly end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   $END_TO_END_DIR/test-scripts/test_streaming_sql.sh
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running Streaming bucketing nightly end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   $END_TO_END_DIR/test-scripts/test_streaming_bucketing.sh
   EXIT_CODE=$?
+  end_timer
 fi
 
 if [ $EXIT_CODE == 0 ]; then
   printf "\n==============================================================================\n"
   printf "Running stateful stream job upgrade nightly end-to-end test\n"
   printf "==============================================================================\n"
+  start_timer
   $END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4
   EXIT_CODE=$?
+  end_timer
 fi
 
 # Exit code for Travis build success/failure
