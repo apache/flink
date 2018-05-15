@@ -44,7 +44,7 @@ abstract class OuterJoinRunner(
     LOG.debug(s"Compiling FlatJoinFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatJoinFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
   }
 
   override def getProducedType: TypeInformation[Row] = returnType

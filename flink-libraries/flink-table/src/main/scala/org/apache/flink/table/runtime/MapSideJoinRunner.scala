@@ -42,7 +42,7 @@ abstract class MapSideJoinRunner[IN1, IN2, SINGLE_IN, MULTI_IN, OUT](
     LOG.debug(s"Compiling FlatJoinFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatJoinFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
     broadcastSet = retrieveBroadcastSet
   }
 

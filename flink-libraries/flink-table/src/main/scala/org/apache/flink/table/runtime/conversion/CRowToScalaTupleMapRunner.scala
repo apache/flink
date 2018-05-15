@@ -45,7 +45,7 @@ class CRowToScalaTupleMapRunner(
     LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating MapFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
   }
 
   override def map(in: CRow): (Boolean, Any) =

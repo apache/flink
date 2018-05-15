@@ -71,7 +71,7 @@ class DataSetSlideWindowAggReduceCombineFunction(
       genPreAggregations.name,
       genPreAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
-    preAggfunction = clazz.newInstance()
+    preAggfunction = clazz.getDeclaredConstructor().newInstance()
   }
 
   override def combine(records: Iterable[Row]): Row = {

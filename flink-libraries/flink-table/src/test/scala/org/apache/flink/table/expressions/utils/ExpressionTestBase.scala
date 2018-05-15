@@ -141,7 +141,7 @@ abstract class ExpressionTestBase {
 
     // compile and evaluate
     val clazz = new TestCompiler[MapFunction[Any, Row], Row]().compile(genFunc)
-    val mapper = clazz.newInstance()
+    val mapper = clazz.getDeclaredConstructor().newInstance()
 
     val isRichFunction = mapper.isInstanceOf[RichFunction]
 

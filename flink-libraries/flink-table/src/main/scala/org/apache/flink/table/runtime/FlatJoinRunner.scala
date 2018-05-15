@@ -41,7 +41,7 @@ class FlatJoinRunner[IN1, IN2, OUT](
     LOG.debug(s"Compiling FlatJoinFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatJoinFunction.")
-    function = clazz.newInstance()
+    function = clazz.getDeclaredConstructor().newInstance()
   }
 
   override def join(first: IN1, second: IN2, out: Collector[OUT]): Unit =

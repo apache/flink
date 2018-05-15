@@ -109,7 +109,7 @@ abstract class TimeBoundedStreamJoin(
       genJoinFuncName,
       genJoinFuncCode)
     LOG.debug("Instantiating JoinFunction.")
-    joinFunction = clazz.newInstance()
+    joinFunction = clazz.getDeclaredConstructor().newInstance()
 
     joinCollector = new EmitAwareCollector()
     joinCollector.setCRowChange(true)

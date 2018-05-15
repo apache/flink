@@ -42,7 +42,7 @@ class ValuesInputFormat(
     LOG.debug(s"Compiling GenericInputFormat: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating GenericInputFormat.")
-    format = clazz.newInstance()
+    format = clazz.getDeclaredConstructor().newInstance()
   }
 
   override def reachedEnd(): Boolean = format.reachedEnd()
