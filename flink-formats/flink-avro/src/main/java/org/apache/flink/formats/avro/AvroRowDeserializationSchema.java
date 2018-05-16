@@ -18,6 +18,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -76,12 +77,16 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	 */
 	private SpecificRecord record;
 
+	/** Type information describing the result type.
+	 *
+	 */
+	private final TypeInformation<Row> typeInfo;
 	/**
 	 * Creates a Avro deserialization schema for the given record.
 	 *
 	 * @param recordClazz Avro record class used to deserialize Avro's record to Flink's row
 	 */
-	public AvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz) {
+	public AvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz, TypeInformation<Row> typeInfo) {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
 		this.recordClazz = recordClazz;
 		this.schema = SpecificData.get().getSchema(recordClazz);
@@ -89,6 +94,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
 		this.inputStream = new MutableByteArrayInputStream();
 		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+		this.typeInfo = typeInfo;
 	}
 
 	@Override
@@ -110,6 +116,8 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		oos.writeObject(recordClazz);
 	}
 
+
+
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
 		this.recordClazz = (Class<? extends SpecificRecord>) ois.readObject();
@@ -118,6 +126,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
 		this.inputStream = new MutableByteArrayInputStream();
 		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+	}
+
+	@Override
+	public TypeInformation<Row> getProducedType() {
+		return typeInfo;
 	}
 
 	/**
