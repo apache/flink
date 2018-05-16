@@ -36,7 +36,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksIterator;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -48,7 +47,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the RocksIteratorWrapper.
  */
-public class RocksDBRocksIteratorWrapperTest {
+public class RocksDBRocksIteratorForKeysWrapperTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -119,7 +118,7 @@ public class RocksDBRocksIteratorWrapperTest {
 
 			try (
 				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
-				RocksIterator iterator = keyedStateBackend.db.newIterator(handle);
+				RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(keyedStateBackend.db, handle);
 				RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<K> iteratorWrapper =
 					new RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<>(
 						iterator,
