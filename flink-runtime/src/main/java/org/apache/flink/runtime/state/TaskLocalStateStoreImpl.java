@@ -190,17 +190,20 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
 		}
 
-		snapshot = (snapshot != NULL_DUMMY) ? snapshot : null;
-
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Found entry for local state for checkpoint {} in subtask ({} - {} - {}) : {}",
-				checkpointID, jobID, jobVertexID, subtaskIndex, snapshot);
-		} else if (LOG.isDebugEnabled()) {
-			LOG.debug("Found entry for local state for checkpoint {} in subtask ({} - {} - {})",
+		if (snapshot != null) {
+			if (LOG.isTraceEnabled()) {
+				LOG.trace("Found registered local state for checkpoint {} in subtask ({} - {} - {}) : {}",
+					checkpointID, jobID, jobVertexID, subtaskIndex, snapshot);
+			} else if (LOG.isDebugEnabled()) {
+				LOG.debug("Found registered local state for checkpoint {} in subtask ({} - {} - {})",
+					checkpointID, jobID, jobVertexID, subtaskIndex);
+			}
+		} else {
+			LOG.debug("Did not find registered local state for checkpoint {} in subtask ({} - {} - {})",
 				checkpointID, jobID, jobVertexID, subtaskIndex);
 		}
 
-		return snapshot;
+		return (snapshot != NULL_DUMMY) ? snapshot : null;
 	}
 
 	@Override
@@ -357,6 +360,7 @@ public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 			", allocationID=" + allocationID +
 			", subtaskIndex=" + subtaskIndex +
 			", localRecoveryConfig=" + localRecoveryConfig +
+			", storedCheckpointIDs=" + storedTaskStateByCheckpointID.keySet() +
 			'}';
 	}
 }
