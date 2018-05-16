@@ -320,6 +320,39 @@ function s3_delete {
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
 
+# This function starts the given number of task managers and monitors their processes. If a task manager process goes
+# away a replacement is started.
+function tm_watchdog {
+  local expectedTm=$1
+  while true;
+  do
+    runningTm=`jps | grep -Eo 'TaskManagerRunner|TaskManager' | wc -l`;
+    count=$((expectedTm-runningTm))
+    for (( c=0; c<count; c++ ))
+    do
+      $FLINK_DIR/bin/taskmanager.sh start > /dev/null
+    done
+    sleep 5;
+  done
+}
+
+# Kills all job manager.
+function jm_kill_all {
+  kill_all 'StandaloneSessionClusterEntrypoint'
+}
+
+# Kills all task manager.
+function tm_kill_all {
+  kill_all 'TaskManagerRunner|TaskManager'
+}
+
+# Kills all processes that match the given name.
+function kill_all {
+  local pid=`jps | grep -E "${1}" | cut -d " " -f 1`
+  kill ${pid} 2> /dev/null
+  wait ${pid} 2> /dev/null
+}
+
 function kill_random_taskmanager {
   KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
   kill -9 "$KILL_TM"
@@ -401,12 +434,14 @@ function wait_num_checkpoints {
     done
 }
 
-# make sure to clean up even in case of failures
+# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
 function cleanup {
   stop_cluster
-  check_all_pass
-  rm -rf $TEST_DATA_DIR
-  rm -f $FLINK_DIR/log/*
+  tm_kill_all
+  jm_kill_all
+  rm -rf $TEST_DATA_DIR 2> /dev/null
   revert_default_config
+  check_all_pass
+  rm -rf $FLINK_DIR/log/* 2> /dev/null
 }
 trap cleanup EXIT
