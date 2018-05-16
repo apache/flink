@@ -30,6 +30,8 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+source "$(dirname "$0")"/test-scripts/common.sh
+
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd )`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
