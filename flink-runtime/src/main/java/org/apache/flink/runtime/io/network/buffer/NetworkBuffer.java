@@ -31,6 +31,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
@@ -182,9 +183,20 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	protected short _getShortLE(int index) {
+		return memorySegment.getShortLittleEndian(index);
+	}
+
+	@Override
 	protected int _getUnsignedMedium(int index) {
 		// from UnpooledDirectByteBuf:
 		return (getByte(index) & 0xff) << 16 | (getByte(index + 1) & 0xff) << 8 | getByte(index + 2) & 0xff;
+	}
+
+	@Override
+	protected int _getUnsignedMediumLE(int index) {
+		// from UnpooledDirectByteBuf:
+		return getByte(index) & 255 | (getByte(index + 1) & 255) << 8 | (getByte(index + 2) & 255) << 16;
 	}
 
 	@Override
@@ -193,8 +205,18 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	protected int _getIntLE(int index) {
+		return memorySegment.getIntLittleEndian(index);
+	}
+
+	@Override
 	protected long _getLong(int index) {
 		return memorySegment.getLongBigEndian(index);
+	}
+
+	@Override
+	protected long _getLongLE(int index) {
+		return memorySegment.getLongLittleEndian(index);
 	}
 
 	@Override
@@ -208,6 +230,11 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	protected void _setShortLE(int index, int value) {
+		memorySegment.putShortLittleEndian(index, (short) value);
+	}
+
+	@Override
 	protected void _setMedium(int index, int value) {
 		// from UnpooledDirectByteBuf:
 		setByte(index, (byte) (value >>> 16));
@@ -216,13 +243,31 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	protected void _setMediumLE(int index, int value){
+		// from UnpooledDirectByteBuf:
+		setByte(index, (byte) value);
+		setByte(index + 1, (byte) (value >>> 8));
+		setByte(index + 2, (byte) (value >>> 16));
+	}
+
+	@Override
 	protected void _setInt(int index, int value) {
 		memorySegment.putIntBigEndian(index, value);
 	}
 
 	@Override
+	protected void _setIntLE(int index, int value) {
+		memorySegment.putIntLittleEndian(index, value);
+	}
+
+	@Override
 	protected void _setLong(int index, long value) {
 		memorySegment.putLongBigEndian(index, value);
+	}
+
+	@Override
+	protected void _setLongLE(int index, long value) {
+		memorySegment.putLongLittleEndian(index, value);
 	}
 
 	@Override
@@ -357,6 +402,18 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	public int getBytes(int index, FileChannel out, long position, int length) throws IOException {
+		// adapted from UnpooledDirectByteBuf:
+		checkIndex(index, length);
+		if (length == 0) {
+			return 0;
+		}
+
+		ByteBuffer tmpBuf = memorySegment.wrap(index, length);
+		return out.write(tmpBuf, position);
+	}
+
+	@Override
 	public ByteBuf setBytes(int index, ByteBuf src, int srcIndex, int length) {
 		// from UnpooledDirectByteBuf:
 		checkSrcIndex(index, length, srcIndex, src.capacity());
@@ -419,6 +476,19 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 		ByteBuffer tmpBuf = memorySegment.wrap(index, length);
 		try {
 			return in.read(tmpBuf);
+		} catch (ClosedChannelException ignored) {
+			return -1;
+		}
+	}
+
+	@Override
+	public int setBytes(int index, FileChannel in, long position, int length) throws IOException {
+		// adapted from UnpooledDirectByteBuf:
+		checkIndex(index, length);
+
+		ByteBuffer tmpBuf = memorySegment.wrap(index, length);
+		try {
+			return in.read(tmpBuf, position);
 		} catch (ClosedChannelException ignored) {
 			return -1;
 		}

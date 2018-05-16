@@ -217,7 +217,7 @@ public class BufferTest extends AbstractByteBufTest {
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
 		assertEquals(10, slice.getSizeUnsafe());
-		assertSame(buffer, slice.unwrap());
+		assertSame(buffer, slice.unwrap().unwrap());
 
 		// slice indices should be independent:
 		buffer.setSize(8);
@@ -245,7 +245,7 @@ public class BufferTest extends AbstractByteBufTest {
 		assertEquals(0, slice.getReaderIndex());
 		assertEquals(10, slice.getSize());
 		assertEquals(10, slice.getSizeUnsafe());
-		assertSame(buffer, slice.unwrap());
+		assertSame(buffer, slice.unwrap().unwrap());
 
 		// slice indices should be independent:
 		buffer.setSize(8);

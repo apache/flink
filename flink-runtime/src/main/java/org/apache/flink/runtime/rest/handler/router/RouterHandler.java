@@ -73,7 +73,7 @@ public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
 
 		// Route
 		HttpMethod method = httpRequest.getMethod();
-		QueryStringDecoder qsd = new QueryStringDecoder(httpRequest.getUri());
+		QueryStringDecoder qsd = new QueryStringDecoder(httpRequest.uri());
 		RouteResult<?> routeResult = router.route(method, qsd.path(), qsd.parameters());
 
 		if (routeResult == null) {

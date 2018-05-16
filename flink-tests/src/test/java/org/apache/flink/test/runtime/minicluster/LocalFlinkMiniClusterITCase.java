@@ -54,7 +54,11 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 		// This is a daemon thread spawned by netty's ThreadLocalRandom class if no
 		// initialSeedUniquifier is set yet and it is sometimes spawned before this test and
 		// sometimes during this test.
-		"initialSeedUniquifierGenerator"
+		"initialSeedUniquifierGenerator",
+		// This thread quits only on JVM because of static field
+		// io.netty.buffer.PooledByteBufAllocator.DEFAULT
+		// https://github.com/netty/netty/issues/7759
+		"ObjectCleanerThread"
 	};
 
 	@Test

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.router;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
+import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCounted;
 
 import java.util.Optional;
@@ -40,7 +41,7 @@ public class RoutedRequest<T> implements ReferenceCounted {
 		this.result = checkNotNull(result);
 		this.request = checkNotNull(request);
 		this.requestAsReferenceCounted = Optional.ofNullable((request instanceof ReferenceCounted) ? (ReferenceCounted) request : null);
-		this.queryStringDecoder = new QueryStringDecoder(request.getUri());
+		this.queryStringDecoder = new QueryStringDecoder(request.uri());
 	}
 
 	public RouteResult<T> getRouteResult() {
@@ -91,6 +92,22 @@ public class RoutedRequest<T> implements ReferenceCounted {
 	public ReferenceCounted retain(int arg0) {
 		if (requestAsReferenceCounted.isPresent()) {
 			requestAsReferenceCounted.get().retain(arg0);
+		}
+		return this;
+	}
+
+	@Override
+	public ReferenceCounted touch() {
+		if (requestAsReferenceCounted.isPresent()) {
+			ReferenceCountUtil.touch(requestAsReferenceCounted.get());
+		}
+		return this;
+	}
+
+	@Override
+	public ReferenceCounted touch(Object hint) {
+		if (requestAsReferenceCounted.isPresent()) {
+			ReferenceCountUtil.touch(requestAsReferenceCounted.get(), hint);
 		}
 		return this;
 	}
