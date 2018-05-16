@@ -47,7 +47,6 @@ EXIT_CODE=0
 #     EXIT_CODE=$?
 # fi
 
-
 if [ $EXIT_CODE == 0 ]; then
     printf "\n==============================================================================\n"
     printf "Running HA end-to-end test\n"
@@ -173,6 +172,14 @@ if [ $EXIT_CODE == 0 ]; then
   printf "Running Streaming bucketing nightly end-to-end test\n"
   printf "==============================================================================\n"
   $END_TO_END_DIR/test-scripts/test_streaming_bucketing.sh
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  printf "\n==============================================================================\n"
+  printf "Running connected components iterations with high parallelism nightly end-to-end test\n"
+  printf "==============================================================================\n"
+  PARALLELISM=25 $END_TO_END_DIR/test-scripts/test_high_parallelism_iterations.sh
   EXIT_CODE=$?
 fi
 

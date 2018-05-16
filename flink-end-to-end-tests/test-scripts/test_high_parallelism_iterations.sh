@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-PARALLELISM="${PARALLELISM:-100}"
+PARALLELISM="${PARALLELISM:-25}"
 
 TEST=flink-high-parallelism-iterations-test
 TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
@@ -41,12 +41,15 @@ echo "taskmanager.network.netty.client.numThreads: 1" >> $FLINK_DIR/conf/flink-c
 
 echo "taskmanager.numberOfTaskSlots: 1" >> $FLINK_DIR/conf/flink-conf.yaml
 
+print_mem_use
 start_cluster
+print_mem_use
 
 let TMNUM=$PARALLELISM-1
 echo "Start $TMNUM more task managers"
 for i in `seq 1 $TMNUM`; do
     $FLINK_DIR/bin/taskmanager.sh start
+    print_mem_use
 done
 
 function test_cleanup {
@@ -56,7 +59,9 @@ function test_cleanup {
   trap "" EXIT
 
   stop_cluster
+  print_mem_use
   $FLINK_DIR/bin/taskmanager.sh stop-all
+  print_mem_use
 
   # revert our modifications to the Flink distribution
   mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
