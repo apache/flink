@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -27,6 +27,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -46,12 +47,10 @@ public class OperatorSnapshotFutures {
 	@Nonnull
 	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture;
 
+	private Callable<Tuple2<Boolean, Exception>> snapshotTimerCallable;
+
 	public OperatorSnapshotFutures() {
-		this(
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()));
+		this(null, null, null, null);
 	}
 
 	public OperatorSnapshotFutures(
@@ -141,5 +140,13 @@ public class OperatorSnapshotFutures {
 		if (exception != null) {
 			throw exception;
 		}
+	}
+
+	public Callable<Tuple2<Boolean, Exception>> getSnapshotTimerCallable() {
+		return snapshotTimerCallable;
+	}
+
+	public void setSnapshotTimerCallable(Callable<Tuple2<Boolean, Exception>> snapshotTimerCallable) {
+		this.snapshotTimerCallable = snapshotTimerCallable;
 	}
 }

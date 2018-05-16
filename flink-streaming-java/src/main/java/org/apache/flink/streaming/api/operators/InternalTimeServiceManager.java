@@ -21,8 +21,10 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -111,9 +113,12 @@ public class InternalTimeServiceManager<K, N> {
 
 	//////////////////				Fault Tolerance Methods				///////////////////
 
-	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+	public void snapshotStateForKeyGroup(DataOutputView stream, KeyGroupsList allKeyGroups,
+									Map<String, ? extends HeapInternalTimerService<?, ?>> timerServiceMap,
+									Map<String, Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]>> epQueueMap, KeyedStateCheckpointOutputStream out) throws IOException {
 		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
-			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx);
+			new InternalTimerServiceSerializationProxy<>((Map<String, HeapInternalTimerService<K, N>>) timerServiceMap,
+				allKeyGroups, epQueueMap, out);
 
 		serializationProxy.write(stream);
 	}
@@ -154,5 +159,10 @@ public class InternalTimeServiceManager<K, N> {
 			count += timerService.numEventTimeTimers();
 		}
 		return count;
+	}
+
+	public Map<String, HeapInternalTimerService<K, N>> shallowCopyTimerServices() {
+		Map<String, HeapInternalTimerService<K, N>> ret = new HashMap<>(timerServices);
+		return ret;
 	}
 }

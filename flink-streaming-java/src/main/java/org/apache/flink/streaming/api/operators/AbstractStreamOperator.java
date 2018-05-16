@@ -26,6 +26,8 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -71,7 +73,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.concurrent.Callable;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class
@@ -355,14 +362,15 @@ public abstract class AbstractStreamOperator<OUT>
 
 		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
-		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
+		try {
+			StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
 				timestamp,
 				factory,
 				keyGroupRange,
-				getContainingTask().getCancelables())) {
+				getContainingTask().getCancelables());
 
-			snapshotState(snapshotContext);
+			snapshotState(snapshotContext, snapshotInProgress);
 
 			snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
 			snapshotInProgress.setOperatorStateRawFuture(snapshotContext.getOperatorStateStreamFuture());
@@ -395,7 +403,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 *
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
-	public void snapshotState(StateSnapshotContext context) throws Exception {
+	public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 		if (getKeyedStateBackend() != null) {
 			KeyedStateCheckpointOutputStream out;
 
@@ -405,26 +413,54 @@ public abstract class AbstractStreamOperator<OUT>
 				throw new Exception("Could not open raw keyed operator state stream for " +
 					getOperatorName() + '.', exception);
 			}
-
-			try {
-				KeyGroupsList allKeyGroups = out.getKeyGroupList();
-				for (int keyGroupIdx : allKeyGroups) {
-					out.startNewKeyGroup(keyGroupIdx);
-
-					timeServiceManager.snapshotStateForKeyGroup(
-						new DataOutputViewStreamWrapper(out), keyGroupIdx);
-				}
-			} catch (Exception exception) {
-				throw new Exception("Could not write timer service of " + getOperatorName() +
-					" to checkpoint state stream.", exception);
-			} finally {
-				try {
-					out.close();
-				} catch (Exception closeException) {
-					LOG.warn("Could not close raw keyed operator state stream for {}. This " +
-						"might have prevented deleting some state data.", getOperatorName(), closeException);
-				}
+			//shallow copy timerServices
+			Map<String, ? extends HeapInternalTimerService<?, ?>> timerServiceMap = timeServiceManager.shallowCopyTimerServices();
+			Map<String, Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]>> epQueueMap = new HashMap<>(timerServiceMap.size());
+			//deep copy timer queue
+			for (Map.Entry<String, ? extends HeapInternalTimerService<?, ?>> e : timerServiceMap.entrySet()) {
+				String key = e.getKey();
+				HeapInternalTimerService timerService = e.getValue();
+				KeyGroupsList localKeyGroupRange = timerService.getLocalKeyGroupRange();
+				int totalKeyGroups = timerService.getTotalKeyGroups();
+				int localKeyGroupRangeStartIdx = timerService.getLocalKeyGroupRangeStartIdx();
+				PriorityQueue<InternalTimer<?, ?>> eventTimeQueue = timerService.getEventTimeTimersQueue();
+				//copy action
+				InternalTimer[] eventTimeQueueArray = eventTimeQueue.toArray(new InternalTimer[0]);
+				PriorityQueue<InternalTimer<?, ?>> processingTimeQueue = timerService.getProcessingTimeTimersQueue();
+				//copy action
+				InternalTimer[] processingTimeQueueArray = processingTimeQueue.toArray(new InternalTimer[0]);
+				Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]> epQueueTuple = new Tuple5<>(localKeyGroupRange, totalKeyGroups, localKeyGroupRangeStartIdx, eventTimeQueueArray, processingTimeQueueArray);
+				epQueueMap.put(key, epQueueTuple);
 			}
+			Callable<Tuple2<Boolean, Exception>> snapshotTimerCallable = new Callable() {
+				@Override
+				public Tuple2<Boolean, Exception> call() {
+					try {
+						KeyGroupsList allKeyGroups = out.getKeyGroupList();
+						timeServiceManager.snapshotStateForKeyGroup(
+							new DataOutputViewStreamWrapper(out), allKeyGroups, timerServiceMap, epQueueMap, out);
+						return new Tuple2<>(true, null);
+					} catch (Exception exception) {
+						Exception retException = new Exception("Could not write timer service of " + getOperatorName() +
+							" to checkpoint state stream.", exception);
+						return new Tuple2<>(false, retException);
+					} finally {
+						try {
+							out.close();
+						} catch (Exception closeException) {
+							LOG.warn("Could not close raw keyed operator state stream for {}. This " +
+								"might have prevented deleting some state data.", getOperatorName(), closeException);
+						}
+						StateSnapshotContextSynchronousImpl snapshotContext = (StateSnapshotContextSynchronousImpl) context;
+						try {
+							snapshotContext.close();
+						} catch (IOException e) {
+							LOG.warn("could not close snapshotContext", e);
+						}
+					}
+				}
+			};
+			snapshotInProgress.setSnapshotTimerCallable(snapshotTimerCallable);
 		}
 	}
 

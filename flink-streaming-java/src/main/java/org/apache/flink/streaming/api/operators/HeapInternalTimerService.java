@@ -292,17 +292,16 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/**
 	 * Snapshots the timers (both processing and event time ones) for a given {@code keyGroupIdx}.
 	 *
-	 * @param keyGroupIdx the id of the key-group to be put in the snapshot.
 	 * @return a snapshot containing the timers for the given key-group, and the serializers for them
 	 */
-	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
+	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(Set<InternalTimer<K, N>> eventTimeTimers, Set<InternalTimer<K, N>> processingTimeTimers) {
 		return new InternalTimersSnapshot<>(
 				keySerializer,
 				keySerializer.snapshotConfiguration(),
 				namespaceSerializer,
 				namespaceSerializer.snapshotConfiguration(),
-				getEventTimeTimerSetForKeyGroup(keyGroupIdx),
-				getProcessingTimeTimerSetForKeyGroup(keyGroupIdx));
+				eventTimeTimers,
+				processingTimeTimers);
 	}
 
 	/**
@@ -358,7 +357,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 * @param keyGroupIdx the index of the key group we are interested in.
 	 * @return the set of registered timers for the key-group.
 	 */
-	private Set<InternalTimer<K, N>> getEventTimeTimerSetForKeyGroup(int keyGroupIdx) {
+	@VisibleForTesting
+	public Set<InternalTimer<K, N>> getEventTimeTimerSetForKeyGroup(int keyGroupIdx) {
 		int localIdx = getIndexForKeyGroup(keyGroupIdx);
 		Set<InternalTimer<K, N>> timers = eventTimeTimersByKeyGroup[localIdx];
 		if (timers == null) {
@@ -386,7 +386,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 * @param keyGroupIdx the index of the key group we are interested in.
 	 * @return the set of registered timers for the key-group.
 	 */
-	private Set<InternalTimer<K, N>> getProcessingTimeTimerSetForKeyGroup(int keyGroupIdx) {
+	@VisibleForTesting
+	public Set<InternalTimer<K, N>> getProcessingTimeTimerSetForKeyGroup(int keyGroupIdx) {
 		int localIdx = getIndexForKeyGroup(keyGroupIdx);
 		Set<InternalTimer<K, N>> timers = processingTimeTimersByKeyGroup[localIdx];
 		if (timers == null) {
@@ -444,6 +445,14 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		return this.localKeyGroupRangeStartIdx;
 	}
 
+	public KeyGroupsList getLocalKeyGroupRange() {
+		return localKeyGroupRange;
+	}
+
+	public int getTotalKeyGroups() {
+		return totalKeyGroups;
+	}
+
 	@VisibleForTesting
 	public Set<InternalTimer<K, N>>[] getEventTimeTimersPerKeyGroup() {
 		return this.eventTimeTimersByKeyGroup;
@@ -452,5 +461,13 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	@VisibleForTesting
 	public Set<InternalTimer<K, N>>[] getProcessingTimeTimersPerKeyGroup() {
 		return this.processingTimeTimersByKeyGroup;
+	}
+
+	public PriorityQueue<InternalTimer<K, N>> getProcessingTimeTimersQueue() {
+		return processingTimeTimersQueue;
+	}
+
+	public PriorityQueue<InternalTimer<K, N>> getEventTimeTimersQueue() {
+		return eventTimeTimersQueue;
 	}
 }

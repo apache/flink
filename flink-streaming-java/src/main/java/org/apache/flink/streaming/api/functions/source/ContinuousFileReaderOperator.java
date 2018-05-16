@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -389,8 +390,8 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	//	---------------------			Checkpointing			--------------------------
 
 	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-		super.snapshotState(context);
+	public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
+		super.snapshotState(context, snapshotInProgress);
 
 		checkState(checkpointedState != null,
 			"The operator state has not been properly initialized.");

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.TestLogger;
@@ -335,7 +336,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 			counterState.add(counter);
 		}
 	}
@@ -353,7 +354,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 		}
 	}
 }
