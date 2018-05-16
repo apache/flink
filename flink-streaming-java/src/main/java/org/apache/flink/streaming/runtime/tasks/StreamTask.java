@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -41,13 +40,11 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.runtime.util.OperatorSubtaskDescriptionText;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
@@ -211,9 +208,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		this.timerService = timeProvider;
 		this.configuration = new StreamConfig(getTaskConfiguration());
-		this.streamRecordWriters = createStreamRecordWriters(
-			configuration,
-			environment);
+		this.streamRecordWriters = createStreamRecordWriters(configuration, environment);
 	}
 
 	// ------------------------------------------------------------------------
@@ -541,10 +536,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return operatorChain;
 	}
 
-	Output<StreamRecord<OUT>> getHeadOutput() {
-		return operatorChain.getChainEntryPoint();
-	}
-
 	RecordWriterOutput<?>[] getStreamOutputs() {
 		return operatorChain.getStreamOutputs();
 	}
@@ -748,15 +739,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	protected CheckpointExceptionHandlerFactory createCheckpointExceptionHandlerFactory() {
 		return new CheckpointExceptionHandlerFactory();
-	}
-
-	private String createOperatorIdentifier(StreamOperator<?> operator) {
-		TaskInfo taskInfo = getEnvironment().getTaskInfo();
-		return new OperatorSubtaskDescriptionText(
-			operator.getOperatorID(),
-			operator.getClass().getSimpleName(),
-			taskInfo.getIndexOfThisSubtask(),
-			taskInfo.getNumberOfParallelSubtasks()).toString();
 	}
 
 	/**
