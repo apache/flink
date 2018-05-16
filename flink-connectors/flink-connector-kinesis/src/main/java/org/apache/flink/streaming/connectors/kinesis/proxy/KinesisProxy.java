@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
@@ -78,16 +79,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 	private static final Random seed = new Random();
 
 	// ------------------------------------------------------------------------
-	//  describeStream() related performance settings
+	//  listShards() related performance settings
 	// ------------------------------------------------------------------------
 
-	/** Base backoff millis for the describe stream operation. */
+	/** Base backoff millis for the list shards operation. */
 	private final long listShardsBaseBackoffMillis;
 
-	/** Maximum backoff millis for the describe stream operation. */
+	/** Maximum backoff millis for the list shards operation. */
 	private final long listShardsMaxBackoffMillis;
 
-	/** Exponential backoff power constant for the describe stream operation. */
+	/** Exponential backoff power constant for the list shards operation. */
 	private final double listShardsExpConstant;
 
 	// ------------------------------------------------------------------------
@@ -129,21 +130,22 @@ public class KinesisProxy implements KinesisProxyInterface {
 	 */
 	protected KinesisProxy(Properties configProps) {
 		checkNotNull(configProps);
+		KinesisConfigUtil.replaceDeprecatedConsumerKeys(configProps);
 
 		this.kinesisClient = createKinesisClient(configProps);
 
 		this.listShardsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_BASE,
-				Long.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE)));
+				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
+				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_BASE)));
 		this.listShardsMaxBackoffMillis = Long.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_MAX,
-				Long.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX)));
+				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
+				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_MAX)));
 		this.listShardsExpConstant = Double.valueOf(
 			configProps.getProperty(
-				ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
-				Double.toString(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)));
+				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
+				Double.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT)));
 
 		this.getRecordsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
@@ -362,7 +364,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		do {
 			listShardsResult = listShards(streamName, lastSeenShardId, startShardToken);
 			if (listShardsResult == null) {
-			  // In case we have exceptions while retrieving all shards, ensure that incomplete shard list is not returned.
+				// In case we have exceptions while retrieving all shards, ensure that incomplete shard list is not returned.
 				// Hence clearing the incomplete shard list before returning it.
 				shardsOfStream.clear();
 				return shardsOfStream;
@@ -433,7 +435,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 				break;
 			}
 		}
-    // Kinesalite (mock implementation of Kinesis) does not correctly exclude shards before
+		// Kinesalite (mock implementation of Kinesis) does not correctly exclude shards before
 		// the exclusive start shard id in the returned shards list; check if we need to remove
 		// these erroneously returned shards.
 		if (startShardId != null && listShardsResults != null) {

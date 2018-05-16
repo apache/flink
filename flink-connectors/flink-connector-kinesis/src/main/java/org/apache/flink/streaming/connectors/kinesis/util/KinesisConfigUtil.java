@@ -142,13 +142,13 @@ public class KinesisConfigUtil {
 		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS,
 			"Invalid value given for shard discovery sleep interval in milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_BASE,
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
 			"Invalid value given for list shards operation base backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_MAX,
+		validateOptionalPositiveLongProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
 			"Invalid value given for list shards operation max backoff milliseconds. Must be a valid non-negative long value.");
 
-		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.DESCRIBE_STREAM_BACKOFF_EXPONENTIAL_CONSTANT,
+		validateOptionalPositiveDoubleProperty(config, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
 			"Invalid value given for list shards operation backoff exponential constant. Must be a valid non-negative double value.");
 
 		if (config.containsKey(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS)) {
@@ -177,6 +177,25 @@ public class KinesisConfigUtil {
 			configProps.setProperty(AGGREGATION_MAX_COUNT,
 					configProps.getProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT));
 			configProps.remove(ProducerConfigConstants.AGGREGATION_MAX_COUNT);
+		}
+		return configProps;
+	}
+
+	public static Properties replaceDeprecatedConsumerKeys(Properties configProps) {
+		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE)) {
+			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
+							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE));
+			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE);
+		}
+		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX)) {
+			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
+							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX));
+			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX);
+		}
+		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)) {
+			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
+							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT));
+			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT);
 		}
 		return configProps;
 	}

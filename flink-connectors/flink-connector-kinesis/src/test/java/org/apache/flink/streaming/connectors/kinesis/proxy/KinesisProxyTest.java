@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import com.amazonaws.ClientConfigurationFactory;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -218,6 +219,23 @@ public class KinesisProxyTest {
 	}
 
 	@Test
+	public void testCustomConfigurationOverride() {
+		Properties configProps = new Properties();
+		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		KinesisProxy proxy = new KinesisProxy(configProps) {
+			@Override
+			protected AmazonKinesis createKinesisClient(Properties configProps) {
+				ClientConfiguration clientConfig = new ClientConfigurationFactory().getConfig();
+				clientConfig.setSocketTimeout(10000);
+				return AWSUtil.createKinesisClient(configProps, clientConfig);
+			}
+		};
+		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient, "clientConfiguration");
+		assertEquals(10000, clientConfiguration.getSocketTimeout());
+	}
+
+	@Test
 	public void testClientConfigOverride() {
 
 		Properties configProps = new Properties();
@@ -228,7 +246,8 @@ public class KinesisProxyTest {
 
 		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
 		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient,
-						"clientConfiguration");
+			"clientConfiguration");
 		assertEquals(9999, clientConfiguration.getSocketTimeout());
 	}
+
 }
