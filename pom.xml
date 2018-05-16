@@ -259,15 +259,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<!-- Don't upgrade for now. Netty versions >= 4.0.28.Final
-				contain an improvement by Netty, which slices a Netty buffer
-				instead of doing a memory copy [1] in the
-				LengthFieldBasedFrameDecoder. In some situations, this
-				interacts badly with our Netty pipeline leading to OutOfMemory
-				errors.
-
-				[1] https://github.com/netty/netty/issues/3704 -->
-				<version>4.0.27.Final-2.0</version>
+				<version>4.1.24.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
