@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.tests.artificialstate.ArtificalOperatorStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.ArtificialKeyedStateMapper;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialListStateBuilder;
 import org.apache.flink.streaming.tests.artificialstate.builder.ArtificialStateBuilder;
@@ -53,6 +54,13 @@ import java.util.List;
  * <p>Program parameters:
  * <ul>
  *     <li>test.semantics (String, default - 'exactly-once'): This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'.</li>
+ *     <li>test.simulate_failure (boolean, default - false): This configures whether or not to simulate failures by throwing exceptions within the job.</li>
+ *     <li>test.simulate_failure.num_records (long, default - 100L): The number of records to process before throwing an exception, per job execution attempt.
+ *         Only relevant if configured to simulate failures.</li>
+ *     <li>test.simulate_failure.num_checkpoints (long, default - 1L): The number of complete checkpoints before throwing an exception, per job execution attempt.
+ *         Only relevant if configured to simulate failures.</li>
+ *     <li>test.simulate_failure.max_failures (int, default - 1): The maximum number of times to fail the job. This also takes into account failures that
+ *         were not triggered by the job's own failure simulation, e.g. TaskManager or JobManager failures. Only relevant if configured to simulate failures.</li>
  *     <li>environment.checkpoint_interval (long, default - 1000): the checkpoint interval.</li>
  *     <li>environment.externalize_checkpoint (boolean, default - false): whether or not checkpoints should be externalized.</li>
  *     <li>environment.externalize_checkpoint.cleanup (String, default - 'retain'): Configures the cleanup mode for externalized checkpoints. Can be 'retain' or 'delete'.</li>
@@ -76,6 +84,33 @@ class DataStreamAllroundTestJobFactory {
 		.key("test.semantics")
 		.defaultValue("exactly-once")
 		.withDescription("This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'");
+
+	private static final ConfigOption<Boolean> TEST_SIMULATE_FAILURE = ConfigOptions
+		.key("test.simulate_failure")
+		.defaultValue(false)
+		.withDescription("This configures whether or not to simulate failures by throwing exceptions within the job.");
+
+	private static final ConfigOption<Long> TEST_SIMULATE_FAILURE_NUM_RECORDS = ConfigOptions
+		.key("test.simulate_failure.num_records")
+		.defaultValue(100L)
+		.withDescription(
+			"The number of records to process before throwing an exception, per job execution attempt." +
+				" Only relevant if configured to simulate failures.");
+
+	private static final ConfigOption<Long> TEST_SIMULATE_FAILURE_NUM_CHECKPOINTS = ConfigOptions
+		.key("test.simulate_failure.num_checkpoints")
+		.defaultValue(1L)
+		.withDescription(
+			"The number of complete checkpoints before throwing an exception, per job execution attempt." +
+				" Only relevant if configured to simulate failures.");
+
+	private static final ConfigOption<Integer> TEST_SIMULATE_FAILURE_MAX_FAILURES = ConfigOptions
+		.key("test.simulate_failure.max_failures")
+		.defaultValue(1)
+		.withDescription(
+			"The maximum number of times to fail the job. This also takes into account failures that were not triggered" +
+				" by the job's own failure simulation, e.g. TaskManager or JobManager failures." +
+				" Only relevant if configured to simulate failures.");
 
 	private static final ConfigOption<Long> ENVIRONMENT_CHECKPOINT_INTERVAL = ConfigOptions
 		.key("environment.checkpoint_interval")
@@ -272,6 +307,24 @@ class DataStreamAllroundTestJobFactory {
 		return new SemanticsCheckMapper(validatorFunction);
 	}
 
+	static boolean isSimulateFailures(ParameterTool pt) {
+		return pt.getBoolean(TEST_SIMULATE_FAILURE.key(), TEST_SIMULATE_FAILURE.defaultValue());
+	}
+
+	static MapFunction<Event, Event> createExceptionThrowingFailureMapper(ParameterTool pt) {
+		return new ExceptionThrowingFailureMapper<>(
+			pt.getLong(
+				TEST_SIMULATE_FAILURE_NUM_RECORDS.key(),
+				TEST_SIMULATE_FAILURE_NUM_RECORDS.defaultValue()),
+			pt.getLong(
+				TEST_SIMULATE_FAILURE_NUM_CHECKPOINTS.key(),
+				TEST_SIMULATE_FAILURE_NUM_CHECKPOINTS.defaultValue()),
+			pt.getInt(
+				TEST_SIMULATE_FAILURE_MAX_FAILURES.key(),
+				TEST_SIMULATE_FAILURE_MAX_FAILURES.defaultValue()));
+
+	}
+
 	static <IN, OUT, STATE> ArtificialKeyedStateMapper<IN, OUT> createArtificialKeyedStateMapper(
 		MapFunction<IN, OUT> mapFunction,
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
@@ -283,6 +336,12 @@ class DataStreamAllroundTestJobFactory {
 			artificialStateBuilders.add(createListStateBuilder(inputAndOldStateToNewState, typeSerializer));
 		}
 		return new ArtificialKeyedStateMapper<>(mapFunction, artificialStateBuilders);
+	}
+
+	static <IN, OUT> ArtificalOperatorStateMapper<IN, OUT> createArtificialOperatorStateMapper(
+		MapFunction<IN, OUT> mapFunction) {
+
+		return new ArtificalOperatorStateMapper<>(mapFunction);
 	}
 
 	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(

@@ -17,6 +17,25 @@
 # limitations under the License.
 ################################################################################
 
+################################################################################
+# This end-to-end test verifies that manually taking a savepoint of a running
+# job and resuming from it works properly. It allows resuming the job with
+# a different parallelism than the original execution.
+#
+# Using the general purpose DataStream job, the test covers savepointing and
+# resuming when using different state backends (file, RocksDB), as well as the
+# following types of states:
+#  - Operator re-partitionable list state
+#  - Broadcast state
+#  - Union state
+#  - Keyed state (ValueState)
+#
+# The general purpose DataStream job is self-verifiable, such that if any
+# unexpected error occurs during savepoints or restores, exceptions will be
+# thrown; if exactly-once is violated, alerts will be sent to output (and
+# caught by the test script to fail the job).
+################################################################################
+
 if [ -z $1 ] || [ -z $2 ]; then
   echo "Usage: ./test_resume_savepoint.sh <original_dop> <new_dop>"
   exit 1

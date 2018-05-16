@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
@@ -29,9 +30,12 @@ import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
 import java.util.Collections;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialOperatorStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createExceptionThrowingFailureMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
 /**
@@ -43,13 +47,18 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
  *     <li>A generic Kryo input type.</li>
  *     <li>A state type for which we register a {@link KryoSerializer}.</li>
  *     <li>Operators with {@link ValueState}.</li>
+ *     <li>Operators with union state.</li>
+ *     <li>Operators with broadcast state.</li>
  * </ul>
  *
  * <p>The cli job configuration options are described in {@link DataStreamAllroundTestJobFactory}.
  *
  */
 public class DataStreamAllroundTestProgram {
-	private static final String STATE_OPER_NAME = "ArtificalKeyedStateMapper";
+	private static final String KEYED_STATE_OPER_NAME = "ArtificalKeyedStateMapper";
+	private static final String OPERATOR_STATE_OPER_NAME = "ArtificalOperatorStateMapper";
+	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
+	private static final String FAILURE_MAPPER_NAME = "ExceptionThrowingFailureMapper";
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -58,7 +67,7 @@ public class DataStreamAllroundTestProgram {
 
 		setupEnvironment(env, pt);
 
-		env.addSource(createEventSource(pt))
+		DataStream<Event> eventStream = env.addSource(createEventSource(pt))
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
 			.map(createArtificialKeyedStateMapper(
@@ -66,20 +75,33 @@ public class DataStreamAllroundTestProgram {
 					(MapFunction<Event, Event>) in -> in,
 					// state is verified and updated per event as a wrapped ComplexPayload state object
 					(Event first, ComplexPayload second) -> {
-							if (second != null && !second.getStrPayload().equals(STATE_OPER_NAME)) {
+							if (second != null && !second.getStrPayload().equals(KEYED_STATE_OPER_NAME)) {
 								System.out.println("State is set or restored incorrectly");
 							}
-							return new ComplexPayload(first, STATE_OPER_NAME);
+							return new ComplexPayload(first, KEYED_STATE_OPER_NAME);
 						},
 					Collections.singletonList(
 						new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
 				)
 			)
-			.name(STATE_OPER_NAME)
-			.returns(Event.class)
-			.keyBy(Event::getKey)
+			.name(KEYED_STATE_OPER_NAME)
+			.returns(Event.class);
+
+		DataStream<Event> eventStream2 = eventStream
+			.map(createArtificialOperatorStateMapper((MapFunction<Event, Event>) in -> in))
+			.name(OPERATOR_STATE_OPER_NAME)
+			.returns(Event.class);
+
+		if (isSimulateFailures(pt)) {
+			eventStream2 = eventStream2
+				.map(createExceptionThrowingFailureMapper(pt))
+				.setParallelism(1)
+				.name(FAILURE_MAPPER_NAME);
+		}
+
+		eventStream2.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
-			.name("SemanticsCheckMapper")
+			.name(SEMANTICS_CHECK_MAPPER_NAME)
 			.addSink(new PrintSinkFunction<>());
 
 		env.execute("General purpose test job");
