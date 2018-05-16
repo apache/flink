@@ -157,9 +157,9 @@ function start_cluster {
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" 2> /dev/null || true)
 
-    if [[ "$QUERY_RESULT" == "" ]]; then
-      echo "Dispatcher/TaskManagers are not yet up"
-    elif [[ "$QUERY_RESULT" != "{\"taskmanagers\":[]}" ]]; then
+    # ensure the taskmanagers field is there at all and is not empty
+    if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
+
       echo "Dispatcher REST endpoint is up."
       break
     fi
