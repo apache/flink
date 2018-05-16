@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -770,7 +771,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public static int numberSnapshotCalls = 0;
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 			ListState<Integer> partitionableState =
 				getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
 			partitionableState.clear();

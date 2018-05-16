@@ -19,14 +19,21 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.core.io.PostVersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,12 +52,14 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	private ClassLoader userCodeClassLoader;
 
 	/** Properties of restored timer services. */
+	private KeyGroupsList allKeyGroups;
 	private int keyGroupIdx;
 	private int totalKeyGroups;
 	private KeyGroupsList localKeyGroupRange;
 	private KeyContext keyContext;
 	private ProcessingTimeService processingTimeService;
-
+	private Map<String, Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]>> epQueueMap;
+	private KeyedStateCheckpointOutputStream out;
 	/**
 	 * Constructor to use when restoring timer services.
 	 */
@@ -77,10 +86,14 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	 */
 	public InternalTimerServiceSerializationProxy(
 			Map<String, HeapInternalTimerService<K, N>> timerServices,
-			int keyGroupIdx) {
-
+			KeyGroupsList allKeyGroups,
+			Map<String, Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]>> epQueueMap,
+			KeyedStateCheckpointOutputStream out) {
 		this.timerServices = checkNotNull(timerServices);
-		this.keyGroupIdx = keyGroupIdx;
+		this.allKeyGroups = allKeyGroups;
+		this.epQueueMap = epQueueMap;
+		this.out = out;
+
 	}
 
 	@Override
@@ -90,18 +103,50 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		super.write(out);
-
-		out.writeInt(timerServices.size());
-		for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
+		Map<String, Tuple2<Set<InternalTimer<K, N>>[], Set<InternalTimer<K, N>>[]>> epTimersKeyGroups = new HashMap<>(epQueueMap.size() * 2);
+		for (Map.Entry<String, Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]>> entry : epQueueMap.entrySet()) {
 			String serviceName = entry.getKey();
-			HeapInternalTimerService<K, N> timerService = entry.getValue();
-
-			out.writeUTF(serviceName);
-			InternalTimersSnapshotReaderWriters
-				.getWriterForVersion(VERSION, timerService.snapshotTimersForKeyGroup(keyGroupIdx))
-				.writeTimersSnapshot(out);
+			Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]> epQueue = entry.getValue();
+			Set<InternalTimer<K, N>>[] eventTimeTimersByKeyGroup = buildTimersKeyGroup(epQueue.f0, epQueue.f1, epQueue.f2, epQueue.f3);
+			Set<InternalTimer<K, N>>[] processingTimeTimersByKeyGroup = buildTimersKeyGroup(epQueue.f0, epQueue.f1, epQueue.f2, epQueue.f4);
+			Tuple2<Set<InternalTimer<K, N>>[], Set<InternalTimer<K, N>>[]> epTimersKeyGroup = new Tuple2<>(eventTimeTimersByKeyGroup, processingTimeTimersByKeyGroup);
+			epTimersKeyGroups.put(serviceName, epTimersKeyGroup);
 		}
+		for (int keyGroupIdx : allKeyGroups) {
+			this.out.startNewKeyGroup(keyGroupIdx);
+			super.write(out);
+
+			out.writeInt(timerServices.size());
+			for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
+				String serviceName = entry.getKey();
+				HeapInternalTimerService<K, N> timerService = entry.getValue();
+				Tuple2<Set<InternalTimer<K, N>>[], Set<InternalTimer<K, N>>[]> epTimersKeyGroup = epTimersKeyGroups.get(serviceName);
+				Tuple5<KeyGroupsList, Integer, Integer, InternalTimer[], InternalTimer[]> epQueue = epQueueMap.get(serviceName);
+				Integer localKeyGroupRangeStartIdx = epQueue.f2;
+				int localIdx = keyGroupIdx - localKeyGroupRangeStartIdx;
+				Set<InternalTimer<K, N>> eventTimeTimers = epTimersKeyGroup.f0[localIdx];
+				Set<InternalTimer<K, N>> processingTimeTimers = epTimersKeyGroup.f1[localIdx];
+				out.writeUTF(serviceName);
+				InternalTimersSnapshotReaderWriters
+					.getWriterForVersion(VERSION, timerService.snapshotTimersForKeyGroup(eventTimeTimers, processingTimeTimers))
+					.writeTimersSnapshot(out);
+			}
+		}
+	}
+
+	private Set<InternalTimer<K, N>>[] buildTimersKeyGroup(KeyGroupsList localKeyGroupRange, Integer totalKeyGroups, Integer localKeyGroupRangeStartIdx, InternalTimer[] timers) {
+		int localKeyGroups = localKeyGroupRange.getNumberOfKeyGroups();
+		Set<InternalTimer<K, N>>[] ret = new HashSet[localKeyGroups];
+		for (int i = 0; i < ret.length; i++) {
+			ret[i] = new HashSet<>();
+		}
+		for (InternalTimer timer : timers) {
+			int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalKeyGroups);
+			int localIdx = keyGroupIdx - localKeyGroupRangeStartIdx;
+			Set<InternalTimer<K, N>> timerSet = ret[localIdx];
+			timerSet.add(timer);
+		}
+		return ret;
 	}
 
 	@Override

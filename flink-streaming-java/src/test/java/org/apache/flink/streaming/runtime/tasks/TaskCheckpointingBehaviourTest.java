@@ -74,6 +74,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.SerializedValue;
@@ -435,7 +436,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 			OperatorStateCheckpointOutputStream outStream = context.getRawOperatorStateOutput();
 
 			IN_CHECKPOINT_LATCH.trigger();

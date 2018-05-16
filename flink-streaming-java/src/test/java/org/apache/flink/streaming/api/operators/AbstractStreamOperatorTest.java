@@ -540,7 +540,8 @@ public class AbstractStreamOperatorTest {
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		// lets fail when calling the actual snapshotState method
-		doThrow(failingException).when(operator).snapshotState(eq(context));
+		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
+		doThrow(failingException).when(operator).snapshotState(eq(context), snapshotInProgress);
 
 		try {
 			operator.snapshotState(

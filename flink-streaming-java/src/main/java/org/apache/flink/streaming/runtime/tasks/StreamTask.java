@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -70,6 +71,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -850,6 +852,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					OperatorID operatorID = entry.getKey();
 					OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
+					Tuple2<Boolean, Exception> snapshotTimerResult = null;
+					Callable<Tuple2<Boolean, Exception>> snapshotTimerCallable = snapshotInProgress.getSnapshotTimerCallable();
+					if (snapshotTimerCallable != null) {
+						snapshotTimerResult = snapshotTimerCallable.call();
+						if (!snapshotTimerResult.f0) {
+							throw snapshotTimerResult.f1;
+						}
+					}
 					// finalize the async part of all by executing all snapshot runnables
 					OperatorSnapshotFinalizer finalizedSnapshots =
 						new OperatorSnapshotFinalizer(snapshotInProgress);

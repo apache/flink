@@ -606,7 +606,8 @@ public class HeapInternalTimerServiceTest {
 		Map<Integer, byte[]> snapshot = new HashMap<>();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			try (ByteArrayOutputStream outStream = new ByteArrayOutputStream()) {
-				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
+				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(timerService.getEventTimeTimerSetForKeyGroup(keyGroupIndex),
+					timerService.getProcessingTimeTimerSetForKeyGroup(keyGroupIndex));
 
 				InternalTimersSnapshotReaderWriters
 					.getWriterForVersion(snapshotVersion, timersSnapshot)
@@ -686,7 +687,8 @@ public class HeapInternalTimerServiceTest {
 		Map<Integer, byte[]> snapshot2 = new HashMap<>();
 		for (Integer keyGroupIndex : testKeyGroupRange) {
 			try (ByteArrayOutputStream outStream = new ByteArrayOutputStream()) {
-				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(keyGroupIndex);
+				InternalTimersSnapshot<?, ?> timersSnapshot = timerService.snapshotTimersForKeyGroup(timerService.getEventTimeTimerSetForKeyGroup(keyGroupIndex),
+					timerService.getProcessingTimeTimerSetForKeyGroup(keyGroupIndex));
 
 				InternalTimersSnapshotReaderWriters
 					.getWriterForVersion(snapshotVersion, timersSnapshot)
