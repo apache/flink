@@ -158,15 +158,13 @@ public class TaskExecutorLocalStateStoresManager {
 
 				taskStateManagers.put(taskKey, taskLocalStateStore);
 
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Registered new local state store with configuration {} for {} - {} - {} under allocation id {}.",
-						localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
-				}
+
+				LOG.debug("Registered new local state store with configuration {} for {} - {} - {} under allocation " +
+						"id {}.", localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
+
 			} else {
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Found existing local state store for {} - {} - {} under allocation id {}.",
-						jobId, jobVertexID, subtaskIndex, allocationID);
-				}
+				LOG.debug("Found existing local state store for {} - {} - {} under allocation id {}: {}",
+					jobId, jobVertexID, subtaskIndex, allocationID, taskLocalStateStore);
 			}
 
 			return taskLocalStateStore;
