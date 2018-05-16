@@ -99,7 +99,6 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
@@ -322,7 +321,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
 
-		RocksIterator iterator = db.newIterator(columnInfo.f0);
+		RocksIteratorWrapper iterator = getRocksIterator(db, columnInfo.f0);
 		iterator.seekToFirst();
 
 		final RocksIteratorForKeysWrapper<K> iteratorWrapper = new RocksIteratorForKeysWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
@@ -734,7 +733,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					restoreInstance((IncrementalLocalKeyedStateHandle) rawStateHandle);
 				} else {
 					throw new IllegalStateException("Unexpected state handle type, " +
-						"expected " + IncrementalKeyedStateHandle.class +
+						"expected " + IncrementalKeyedStateHandle.class + " or " + IncrementalLocalKeyedStateHandle.class +
 						", but found " + rawStateHandle.getClass());
 				}
 			}
@@ -1079,7 +1078,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						ColumnFamilyHandle targetColumnFamilyHandle = registeredStateMetaInfoEntry.f0;
 
-						try (RocksIterator iterator = restoreDb.newIterator(columnFamilyHandle)) {
+						try (RocksIteratorWrapper iterator = getRocksIterator(restoreDb, columnFamilyHandle)) {
 
 							int startKeyGroup = stateBackend.getKeyGroupRange().getStartKeyGroup();
 							byte[] startKeyGroupPrefixBytes = new byte[stateBackend.keyGroupPrefixBytes];
@@ -1309,7 +1308,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int count = 0;
 
 		for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column : kvStateInformation.values()) {
-			try (RocksIterator rocksIterator = db.newIterator(column.f0)) {
+			try (RocksIteratorWrapper rocksIterator = getRocksIterator(db, column.f0)) {
 				rocksIterator.seekToFirst();
 
 				while (rocksIterator.isValid()) {
@@ -1357,7 +1356,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		RocksDBMergeIterator(List<Tuple2<RocksIterator, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) {
+		RocksDBMergeIterator(List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) throws RocksDBException {
 			Preconditions.checkNotNull(kvStateIterators);
 			Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
 
@@ -1369,8 +1368,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				PriorityQueue<MergeIterator> iteratorPriorityQueue =
 					new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
 
-				for (Tuple2<RocksIterator, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
-					final RocksIterator rocksIterator = rocksIteratorWithKVStateId.f0;
+				for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
+					final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
 					rocksIterator.seekToFirst();
 					if (rocksIterator.isValid()) {
 						iteratorPriorityQueue.offer(new MergeIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
@@ -1398,15 +1397,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * Advance the iterator. Should only be called if {@link #isValid()} returned true. Valid can only chance after
 		 * calls to {@link #next()}.
 		 */
-		public void next() {
+		public void next() throws RocksDBException {
 			newKeyGroup = false;
 			newKVState = false;
 
-			final RocksIterator rocksIterator = currentSubIterator.getIterator();
+			final RocksIteratorWrapper rocksIterator = currentSubIterator.getIterator();
 			rocksIterator.next();
 
 			byte[] oldKey = currentSubIterator.getCurrentKey();
 			if (rocksIterator.isValid()) {
+
 				currentSubIterator.currentKey = rocksIterator.key();
 
 				if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
@@ -1523,13 +1523,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @param iterator  The #RocksIterator to wrap .
 		 * @param kvStateId Id of the K/V state to which this iterator belongs.
 		 */
-		MergeIterator(RocksIterator iterator, int kvStateId) {
+		MergeIterator(RocksIteratorWrapper iterator, int kvStateId) {
 			this.iterator = Preconditions.checkNotNull(iterator);
 			this.currentKey = iterator.key();
 			this.kvStateId = kvStateId;
 		}
 
-		private final RocksIterator iterator;
+		private final RocksIteratorWrapper iterator;
 		private byte[] currentKey;
 		private final int kvStateId;
 
@@ -1541,7 +1541,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.currentKey = currentKey;
 		}
 
-		public RocksIterator getIterator() {
+		public RocksIteratorWrapper getIterator() {
 			return iterator;
 		}
 
@@ -1556,13 +1556,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * Adapter class to bridge between {@link RocksIterator} and {@link Iterator} to iterate over the keys. This class
+	 * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over the keys. This class
 	 * is not thread safe.
 	 *
 	 * @param <K> the type of the iterated objects, which are keys in RocksDB.
 	 */
 	static class RocksIteratorForKeysWrapper<K> implements Iterator<K>, AutoCloseable {
-		private final RocksIterator iterator;
+		private final RocksIteratorWrapper iterator;
 		private final String state;
 		private final TypeSerializer<K> keySerializer;
 		private final int keyGroupPrefixBytes;
@@ -1571,7 +1571,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private K nextKey;
 
 		RocksIteratorForKeysWrapper(
-			RocksIterator iterator,
+			RocksIteratorWrapper iterator,
 			String state,
 			TypeSerializer<K> keySerializer,
 			int keyGroupPrefixBytes,
@@ -1588,8 +1588,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public boolean hasNext() {
-			while (nextKey == null && iterator.isValid()) {
-				try {
+			try {
+				while (nextKey == null && iterator.isValid()) {
+
 					byte[] key = iterator.key();
 					if (isMatchingNameSpace(key)) {
 						ByteArrayInputStreamWithPos inputStream =
@@ -1603,9 +1604,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						nextKey = value;
 					}
 					iterator.next();
-				} catch (IOException e) {
-					throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
 				}
+			} catch (Exception e) {
+				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
 			}
 			return nextKey != null;
 		}
@@ -1878,7 +1879,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		private List<ColumnFamilyHandle> copiedColumnFamilyHandles;
 
-		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
+		private List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
 
 		private CheckpointStreamWithResultProvider checkpointStreamWithResultProvider;
 		private DataOutputView outputView;
@@ -1937,7 +1938,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @throws IOException
 		 */
-		public void writeDBSnapshot() throws IOException, InterruptedException {
+		public void writeDBSnapshot() throws IOException, InterruptedException, RocksDBException {
 
 			if (null == snapshot) {
 				throw new IOException("No snapshot available. Might be released due to cancellation.");
@@ -1975,7 +1976,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			checkpointStreamWithResultProvider = null;
 
 			if (null != kvStateIterators) {
-				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
+				for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
 					IOUtils.closeQuietly(kvStateIterator.f0);
 				}
 				kvStateIterators = null;
@@ -2010,7 +2011,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (ColumnFamilyHandle columnFamilyHandle : copiedColumnFamilyHandles) {
 
 				kvStateIterators.add(
-					new Tuple2<>(stateBackend.db.newIterator(columnFamilyHandle, readOptions), kvStateId));
+					new Tuple2<>(getRocksIterator(stateBackend.db, columnFamilyHandle, readOptions), kvStateId));
 
 				++kvStateId;
 			}
@@ -2028,7 +2029,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			serializationProxy.write(outputView);
 		}
 
-		private void writeKVStateData() throws IOException, InterruptedException {
+		private void writeKVStateData() throws IOException, InterruptedException, RocksDBException {
 
 			byte[] previousKey = null;
 			byte[] previousValue = null;
@@ -2527,5 +2528,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 		}
+	}
+
+	public static RocksIteratorWrapper getRocksIterator(RocksDB db) {
+		return new RocksIteratorWrapper(db.newIterator());
+	}
+
+	public static RocksIteratorWrapper getRocksIterator(
+		RocksDB db,
+		ColumnFamilyHandle columnFamilyHandle) {
+		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
+	}
+
+	public static RocksIteratorWrapper getRocksIterator(
+		RocksDB db,
+		ColumnFamilyHandle columnFamilyHandle,
+		ReadOptions readOptions) {
+		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
 	}
 }
