@@ -193,7 +193,7 @@ function run_ha_test() {
         # kill the JM and wait for watchdog to
         # create a new one which will take over
         kill_jm
-        sleep 60
+        sleep 30
     done
 
     verify_logs ${OUTPUT} ${JM_KILLS}
