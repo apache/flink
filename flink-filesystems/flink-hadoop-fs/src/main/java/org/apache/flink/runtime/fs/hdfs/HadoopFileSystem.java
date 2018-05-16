@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.core.fs.AtomicCreatingFsDataOutputStream;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -25,6 +26,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.TwoPhaseFSDataOutputStream;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.net.URI;
@@ -150,13 +153,13 @@ public class HadoopFileSystem extends FileSystem {
 	 * - throw unsupported operations exception for others.
 	 */
 	@Override
-	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
+	public AtomicCreatingFsDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
 		final String schema = this.fs.getScheme();
 
 		if (schema.equals("file") || schema.equals("hdfs")) {
 			return new TwoPhaseFSDataOutputStream(this, f, overwriteMode);
 		} else if (schema.equals("s3")) {
-			return create(f, overwriteMode);
+			return new S3AtomicCreatingFsDataOutputStreamWrapper(create(f, overwriteMode));
 		} else {
 			throw new UnsupportedOperationException("Unsupported create atomically for schema" + schema);
 		}
@@ -253,4 +256,48 @@ public class HadoopFileSystem extends FileSystem {
 		}
 	}
 
+	/**
+	 * Simple wrapper around {@link AtomicCreatingFsDataOutputStream} to support S3.
+	 */
+	private static class S3AtomicCreatingFsDataOutputStreamWrapper extends AtomicCreatingFsDataOutputStream {
+
+		private final FSDataOutputStream outputStream;
+
+		public S3AtomicCreatingFsDataOutputStreamWrapper(
+			@Nonnull FSDataOutputStream fsDataOutputStream) {
+			this.outputStream = fsDataOutputStream;
+		}
+
+		@Override
+		public long getPos() throws IOException {
+			return outputStream.getPos();
+		}
+
+		@Override
+		public void write(int b) throws IOException {
+			outputStream.write(b);
+		}
+
+		@Override
+		public void flush() throws IOException {
+			outputStream.flush();
+		}
+
+		@Override
+		public void sync() throws IOException {
+			outputStream.sync();
+		}
+
+		@Override
+		public void close() throws IOException {
+			// In AtomicCreatingFsDataOutputStream the `close()` method doesn't mean
+			// "close on success", it just used for cleaning the held resource. For s3
+			// we do nothing here.
+		}
+
+		@Override
+		public void closeAndPublish() throws IOException {
+			outputStream.close();
+		}
+	}
 }

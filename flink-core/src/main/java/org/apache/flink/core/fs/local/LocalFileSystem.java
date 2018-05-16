@@ -26,6 +26,7 @@
 package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.AtomicCreatingFsDataOutputStream;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -277,7 +278,7 @@ public class LocalFileSystem extends FileSystem {
 	}
 
 	@Override
-	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
+	public AtomicCreatingFsDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
 		return new TwoPhaseFSDataOutputStream(this, f, overwriteMode);
 	}
 

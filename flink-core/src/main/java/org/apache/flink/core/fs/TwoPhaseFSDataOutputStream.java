@@ -20,8 +20,8 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +36,7 @@ import java.util.UUID;
  * PHASE 2, close the {@link #preparingFile} and rename it to the {@link #targetFile}.
  */
 @Internal
-public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
+public class TwoPhaseFSDataOutputStream extends AtomicCreatingFsDataOutputStream {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TwoPhaseFSDataOutputStream.class);
 
@@ -46,7 +46,7 @@ public class TwoPhaseFSDataOutputStream extends FSDataOutputStream {
 	private final FileSystem fs;
 
 	/**
-	 * the target file which the preparing file will be renamed to in the close().
+	 * the target file which the preparing file will be renamed to in the {@link #closeAndPublish()}.
 	 */
 	private final Path targetFile;
 

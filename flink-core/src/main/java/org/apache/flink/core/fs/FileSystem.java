@@ -648,7 +648,7 @@ public abstract class FileSystem {
 	 *                     a file already exists at that path and the write mode indicates to not
 	 *                     overwrite the file.
 	 */
-	public abstract FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException;
+	public abstract AtomicCreatingFsDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException;
 
 	/**
 	 * Renames the file/directory src to dst.

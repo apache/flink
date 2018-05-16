@@ -24,29 +24,25 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link FSDataOutputStream} that is used to
+ * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link AtomicCreatingFsDataOutputStream} that is used to
  * implement a safety net against unclosed streams.
  *
  * <p>See {@link SafetyNetCloseableRegistry} for more details on how this is utilized.
  */
 @Internal
-public class ClosingFSDataOutputStream
-		extends FSDataOutputStreamWrapper
-		implements WrappingProxyCloseable<FSDataOutputStream> {
+public class ClosingAtomicCreatingFSDataOutputStream
+		extends AtomicCreatingFsDataOutputStream
+		implements WrappingProxyCloseable<AtomicCreatingFsDataOutputStream> {
 
 	private final SafetyNetCloseableRegistry registry;
 	private final String debugString;
+	private AtomicCreatingFsDataOutputStream outputStream;
 
 	private volatile boolean closed;
 
-	public ClosingFSDataOutputStream(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
-		this(delegate, registry, "");
-	}
-
-	private ClosingFSDataOutputStream(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugString) throws IOException {
-		super(delegate);
+	private ClosingAtomicCreatingFSDataOutputStream(
+			AtomicCreatingFsDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugString) throws IOException {
+		this.outputStream = delegate;
 		this.registry = Preconditions.checkNotNull(registry);
 		this.debugString = Preconditions.checkNotNull(debugString);
 		this.closed = false;
@@ -57,11 +53,40 @@ public class ClosingFSDataOutputStream
 	}
 
 	@Override
+	public long getPos() throws IOException {
+		return outputStream.getPos();
+	}
+
+	@Override
+	public void write(int b) throws IOException {
+		outputStream.write(b);
+	}
+
+	@Override
+	public void flush() throws IOException {
+		outputStream.flush();
+	}
+
+	@Override
+	public void sync() throws IOException {
+		outputStream.sync();
+	}
+
+	@Override
 	public void close() throws IOException {
 		if (!closed) {
 			closed = true;
 			registry.unregisterCloseable(this);
 			outputStream.close();
+		}
+	}
+
+	@Override
+	public void closeAndPublish() throws IOException {
+		if (!closed) {
+			closed = true;
+			registry.unregisterCloseable(this);
+			outputStream.closeAndPublish();
 		}
 	}
 
@@ -77,8 +102,8 @@ public class ClosingFSDataOutputStream
 			return true;
 		}
 
-		if (obj instanceof ClosingFSDataOutputStream) {
-			return outputStream.equals(((ClosingFSDataOutputStream) obj).outputStream);
+		if (obj instanceof ClosingAtomicCreatingFSDataOutputStream) {
+			return outputStream.equals(((ClosingAtomicCreatingFSDataOutputStream) obj).outputStream);
 		}
 
 		return false;
@@ -86,19 +111,19 @@ public class ClosingFSDataOutputStream
 
 	@Override
 	public String toString() {
-		return "ClosingFSDataOutputStream(" + outputStream.toString() + ") : " + debugString;
+		return "ClosingAtomicCreatingFSDataOutputStream(" + outputStream.toString() + ") : " + debugString;
 	}
 
-	public static ClosingFSDataOutputStream wrapSafe(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry) throws IOException {
-		return wrapSafe(delegate, registry, "");
-	}
+	public static ClosingAtomicCreatingFSDataOutputStream wrapSafe(
+			AtomicCreatingFsDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException {
 
-	public static ClosingFSDataOutputStream wrapSafe(
-			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException {
-
-		ClosingFSDataOutputStream outputStream = new ClosingFSDataOutputStream(delegate, registry, debugInfo);
+		ClosingAtomicCreatingFSDataOutputStream outputStream = new ClosingAtomicCreatingFSDataOutputStream(delegate, registry, debugInfo);
 		registry.registerCloseable(outputStream);
+		return outputStream;
+	}
+
+	@Override
+	public AtomicCreatingFsDataOutputStream getWrappedDelegate() {
 		return outputStream;
 	}
 }

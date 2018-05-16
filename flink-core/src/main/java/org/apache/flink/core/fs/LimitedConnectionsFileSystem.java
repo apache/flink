@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
@@ -273,8 +274,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	}
 
 	@Override
-	public FSDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
-		return createOutputStream(() -> originalFs.createAtomically(f, overwriteMode));
+	public AtomicCreatingFsDataOutputStream createAtomically(Path f, WriteMode overwriteMode) throws IOException {
+		return createAtomicCreatingOutputStream(() -> originalFs.createAtomically(f, overwriteMode));
 	}
 
 	@Override
@@ -305,6 +306,15 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 
 		final SupplierWithException<OutStream, IOException> wrappedStreamOpener =
 				() -> new OutStream(streamOpener.get(), this);
+
+		return createStream(wrappedStreamOpener, openOutputStreams, true);
+	}
+
+	private AtomicCreatingFsDataOutputStream createAtomicCreatingOutputStream(
+		final SupplierWithException<AtomicCreatingFsDataOutputStream, IOException> streamOpener) throws IOException {
+
+		final SupplierWithException<OutStream, IOException> wrappedStreamOpener =
+			() -> new OutStream(streamOpener.get(), this);
 
 		return createStream(wrappedStreamOpener, openOutputStreams, true);
 	}
@@ -396,7 +406,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			final HashSet<T> openStreams,
 			final boolean output) throws IOException {
 
-		final int outputLimit = output && maxNumOpenInputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
+		final int outputLimit = output && maxNumOpenOutputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
 		final int inputLimit = !output && maxNumOpenInputStreams > 0 ? maxNumOpenInputStreams : Integer.MAX_VALUE;
 		final int totalLimit = maxNumOpenStreamsTotal > 0 ? maxNumOpenStreamsTotal : Integer.MAX_VALUE;
 		final int outputCredit = output ? 1 : 0;
@@ -707,7 +717,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	 * (via {@link LimitedConnectionsFileSystem#unregisterOutputStream(OutStream)}
 	 * upon closing.
 	 */
-	private static final class OutStream extends FSDataOutputStream implements StreamWithTimeout {
+	private static final class OutStream extends AtomicCreatingFsDataOutputStream implements StreamWithTimeout {
 
 		/** The original data output stream to write to. */
 		private final FSDataOutputStream originalStream;
@@ -788,6 +798,25 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			if (closed.compareAndSet(false, true)) {
 				try {
 					originalStream.close();
+				}
+				catch (IOException e) {
+					handleIOException(e);
+				}
+				finally {
+					fs.unregisterOutputStream(this);
+				}
+			}
+		}
+
+		@Override
+		public void closeAndPublish() throws IOException {
+
+			Preconditions.checkArgument(originalStream instanceof AtomicCreatingFsDataOutputStream,
+				"Can't call closeAndPublish() of " + originalStream.getClass());
+
+			if (closed.compareAndSet(false, true)) {
+				try {
+					((AtomicCreatingFsDataOutputStream) originalStream).closeAndPublish();
 				}
 				catch (IOException e) {
 					handleIOException(e);
