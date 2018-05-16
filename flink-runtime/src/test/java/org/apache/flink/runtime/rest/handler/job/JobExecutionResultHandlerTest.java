@@ -33,7 +33,6 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -41,7 +40,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -57,7 +55,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JobExecutionResultHandler}.
  */
-@Category(New.class)
 public class JobExecutionResultHandlerTest extends TestLogger {
 
 	private static final JobID TEST_JOB_ID = new JobID();
