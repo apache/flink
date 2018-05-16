@@ -25,7 +25,8 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -39,8 +40,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
@@ -154,7 +153,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new RouterHandler(router, responseHeaders);
+					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
 					if (sslEngineFactory != null) {
@@ -166,7 +165,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 						.addLast(new FileUploadHandler(uploadDir))
 						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
 						.addLast(new ChunkedWriteHandler())
-						.addLast(handler.name(), handler)
+						.addLast(handler.getName(), handler)
 						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
 			};
@@ -381,16 +380,16 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler) {
 		switch (specificationHandler.f0.getHttpMethod()) {
 			case GET:
-				router.GET(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addGet(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case POST:
-				router.POST(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPost(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case DELETE:
-				router.DELETE(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addDelete(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case PATCH:
-				router.PATCH(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPatch(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			default:
 				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
