@@ -797,7 +797,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<time size>)
+  .timeWindow(<duration>)
   .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -830,7 +830,7 @@ val input: DataStream[SensorReading] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<time size>)
+  .timeWindow(<duration>)
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
@@ -860,7 +860,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<time size>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -913,7 +913,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<time size>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -959,7 +959,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<time size>)
+  .timeWindow(<duration>)
   .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -995,7 +995,7 @@ val input: DataStream[SensorReading] = ...
 
 input
  .keyBy(<key selector>)
- .timeWindow(<time size>)
+ .timeWindow(<duration>)
  .fold (
     ("", 0L, 0),
     (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
