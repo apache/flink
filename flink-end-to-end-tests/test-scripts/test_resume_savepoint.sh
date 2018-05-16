@@ -33,8 +33,8 @@ else
   NUM_SLOTS=$NEW_DOP
 fi
 
-STATE_BACKEND_TYPE=${STATE_BACKEND_TYPE:-file}
-STATE_BACKEND_FILE_ASYNC=${STATE_BACKEND_FILE_ASYNC:-true}
+STATE_BACKEND_TYPE=${3:-file}
+STATE_BACKEND_FILE_ASYNC=${4:-true}
 
 backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
