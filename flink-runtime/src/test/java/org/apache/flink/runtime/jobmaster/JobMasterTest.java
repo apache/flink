@@ -90,6 +90,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -243,17 +244,21 @@ public class JobMasterTest extends TestLogger {
 			resourceManagerId,
 			rmResourceId,
 			fastHeartbeatInterval,
-			"localhost",
+			resourceManagerAddress,
 			"localhost");
 
 		final CompletableFuture<Tuple3<JobMasterId, ResourceID, JobID>> jobManagerRegistrationFuture = new CompletableFuture<>();
 		final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
+		final CountDownLatch registrationAttempts = new CountDownLatch(2);
 
-		resourceManagerGateway.setRegisterJobManagerConsumer(tuple -> jobManagerRegistrationFuture.complete(
-			Tuple3.of(
-				tuple.f0,
-				tuple.f1,
-				tuple.f3)));
+		resourceManagerGateway.setRegisterJobManagerConsumer(tuple -> {
+			jobManagerRegistrationFuture.complete(
+				Tuple3.of(
+					tuple.f0,
+					tuple.f1,
+					tuple.f3));
+			registrationAttempts.countDown();
+		});
 
 		resourceManagerGateway.setDisconnectJobManagerConsumer(tuple -> disconnectedJobManagerFuture.complete(tuple.f0));
 
@@ -286,6 +291,9 @@ public class JobMasterTest extends TestLogger {
 
 			// heartbeat timeout should trigger disconnect JobManager from ResourceManager
 			assertThat(disconnectedJobManager, Matchers.equalTo(jobGraph.getJobID()));
+
+			// the JobMaster should try to reconnect to the RM
+			registrationAttempts.await();
 		} finally {
 			jobManagerSharedServices.shutdown();
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
