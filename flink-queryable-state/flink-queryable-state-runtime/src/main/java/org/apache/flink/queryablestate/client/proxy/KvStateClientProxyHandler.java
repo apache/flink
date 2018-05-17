@@ -225,7 +225,9 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 
 			return location;
 		} else {
-			return FutureUtils.completedExceptionally(new UnknownLocationException("Could not contact the state location oracle to retrieve the state location."));
+			return FutureUtils.completedExceptionally(
+				new UnknownLocationException("Could not contact the state location oracle to retrieve the state location for state="
+					+ queryableStateName + " of job=" + jobId + ", the caused reason maybe the state is not ready or there is no job exists."));
 		}
 	}
 
