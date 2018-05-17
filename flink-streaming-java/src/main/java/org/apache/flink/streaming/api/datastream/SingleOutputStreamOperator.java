@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * {@code SingleOutputStreamOperator} represents a user defined transformation
@@ -225,14 +226,23 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	}
 
 	/**
-	 * Sets the maximum time frequency (ms) for the flushing of the output
-	 * buffer. By default the output buffers flush only when they are full.
+	 * Sets the buffering timeout for data produced by this operation.
+	 * The timeout defines how long data may linger in a partially full buffer
+	 * before being sent over the network.
+	 *
+	 * <p>Lower timeouts lead to lower tail latencies, but may affect throughput.
+	 * Timeouts of 1 ms still sustain high throughput, even for jobs with high parallelism.
+	 *
+	 * <p>A value of '-1' means that the default buffer timeout should be used. A value
+	 * of '0' indicates that no buffering should happen, and all records/events should be
+	 * immediately sent through the network, without additional buffering.
 	 *
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 * @return The operator with buffer timeout set.
 	 */
 	public SingleOutputStreamOperator<T> setBufferTimeout(long timeoutMillis) {
+		checkArgument(timeoutMillis >= -1, "timeout must be >= -1");
 		transformation.setBufferTimeout(timeoutMillis);
 		return this;
 	}
