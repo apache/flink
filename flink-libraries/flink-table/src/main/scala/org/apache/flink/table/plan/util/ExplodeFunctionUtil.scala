@@ -24,92 +24,208 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, 
 import org.apache.flink.api.java.typeutils.{MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.functions.TableFunction
 
-import scala.collection.JavaConverters._
-
 class ObjectExplodeTableFunc extends TableFunction[Object] {
   def eval(arr: Array[Object]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Object, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class FloatExplodeTableFunc extends TableFunction[Float] {
   def eval(arr: Array[Float]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Float, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class ShortExplodeTableFunc extends TableFunction[Short] {
   def eval(arr: Array[Short]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Short, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 class IntExplodeTableFunc extends TableFunction[Int] {
   def eval(arr: Array[Int]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Int, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class LongExplodeTableFunc extends TableFunction[Long] {
   def eval(arr: Array[Long]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Long, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class DoubleExplodeTableFunc extends TableFunction[Double] {
   def eval(arr: Array[Double]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Double, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class ByteExplodeTableFunc extends TableFunction[Byte] {
   def eval(arr: Array[Byte]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Byte, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
+      }
+    }
   }
 }
 
 class BooleanExplodeTableFunc extends TableFunction[Boolean] {
   def eval(arr: Array[Boolean]): Unit = {
-    arr.foreach(collect)
+    if (null != arr) {
+      var i = 0
+      while (i < arr.length) {
+        collect(arr(i))
+        i += 1
+      }
+    }
   }
 
   def eval(map: util.Map[Boolean, Integer]): Unit = {
-    CommonCollect.collect(map, collect)
-  }
-}
-
-object CommonCollect {
-  def collect[T](map: util.Map[T, Integer], collectFunc: (T) => Unit): Unit = {
-    map.asScala.foreach{ e =>
-      for (i <- 0 until e._2) {
-        collectFunc(e._1)
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while(it.hasNext) {
+        val item = it.next()
+        var i = 0
+        while (i < item.getValue) {
+          collect(item.getKey)
+          i += 1
+        }
       }
     }
   }
@@ -138,7 +254,6 @@ object ExplodeFunctionUtil {
       case BasicTypeInfo.FLOAT_TYPE_INFO => new FloatExplodeTableFunc
       case BasicTypeInfo.DOUBLE_TYPE_INFO => new DoubleExplodeTableFunc
       case BasicTypeInfo.BYTE_TYPE_INFO => new ByteExplodeTableFunc
-      case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
       case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
       case _ => new ObjectExplodeTableFunc
     }

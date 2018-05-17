@@ -109,7 +109,7 @@ class LogicalUnnestRule(
                 ImmutableList.of(new RelDataTypeFieldImpl("f0", 0, componentType)))
             case _: RelRecordType => componentType
             case _ => throw TableException(
-              s"Unsupported multiset component type in UNNEST: ${componentType.toString}")
+              s"Unsupported component type in UNNEST: ${componentType.toString}")
           }
 
           // create table function scan

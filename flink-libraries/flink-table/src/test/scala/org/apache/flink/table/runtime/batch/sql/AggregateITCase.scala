@@ -368,7 +368,7 @@ class AggregateITCase(
   }
 
   @Test
-  def testUnnestMultisetFromTumbleWindowAggregateCollectResult(): Unit = {
+  def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -385,7 +385,7 @@ class AggregateITCase(
     val view1 = tEnv.sqlQuery(sqlQuery)
     tEnv.registerTable("v1", view1)
 
-    val sqlQuery1 = "SELECT b, s FROM v1 t1, unnest(t1.`set`) AS A(s) where b < 3"
+    val sqlQuery1 = "SELECT b, s FROM v1, unnest(v1.`set`) AS A(s) where b < 3"
     val result = tEnv.sqlQuery(sqlQuery1).toDataSet[Row].collect()
 
     val expected = Seq(
