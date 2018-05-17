@@ -46,6 +46,7 @@ under the License.
 		<module>flink-elasticsearch1-test</module>
 		<module>flink-elasticsearch2-test</module>
 		<module>flink-elasticsearch5-test</module>
+		<module>flink-quickstart-test</module>
 	</modules>
 
 	<build>
