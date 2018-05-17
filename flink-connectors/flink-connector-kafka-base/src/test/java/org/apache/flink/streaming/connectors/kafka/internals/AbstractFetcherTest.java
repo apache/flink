@@ -29,14 +29,22 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
+import org.powermock.api.mockito.PowerMockito;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -390,6 +398,102 @@ public class AbstractFetcherTest {
 		assertEquals(100, sourceContext.getLatestWatermark().getTimestamp());
 	}
 
+	@Test
+	public void testConcurrentPartitionsDiscoveryAndLoopFetching() throws Exception {
+		// test data
+		final KafkaTopicPartition testPartition = new KafkaTopicPartition("test", 42);
+
+		final Map<KafkaTopicPartition, Long> testCommitData = new HashMap<>();
+		testCommitData.put(testPartition, 11L);
+
+		// ----- create the test fetcher -----
+
+		@SuppressWarnings("unchecked")
+		SourceContext<String> sourceContext = PowerMockito.mock(SourceContext.class);
+		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
+			Collections.singletonMap(testPartition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+
+		final TestFetcher<String> fetcher = new TestFetcher<>(
+			sourceContext,
+			partitionsWithInitialOffsets,
+			null, /* periodic assigner */
+			null, /* punctuated assigner */
+			new TestProcessingTimeService(),
+			10);
+
+		// ----- run the fetcher -----
+
+		final AtomicReference<Throwable> error = new AtomicReference<>();
+		int fetchTasks = 5;
+		final CountDownLatch latch = new CountDownLatch(fetchTasks);
+		ExecutorService service = Executors.newFixedThreadPool(fetchTasks + 1);
+
+		service.submit(new Thread("fetcher runner") {
+			@Override
+			public void run() {
+				try {
+					latch.await();
+					fetcher.runFetchLoop();
+				} catch (Throwable t) {
+					error.set(t);
+				}
+			}
+		});
+
+		for (int i = 0; i < fetchTasks; i++) {
+			service.submit(new Thread("add partitions " + i) {
+				@Override
+				public void run() {
+					try {
+						List<KafkaTopicPartition> newPartitions = new ArrayList<>();
+						for (int i = 0; i < 1000; i++) {
+							newPartitions.add(testPartition);
+						}
+						fetcher.addDiscoveredPartitions(newPartitions);
+						latch.countDown();
+						for (int i = 0; i < 100; i++) {
+							fetcher.addDiscoveredPartitions(newPartitions);
+							Thread.sleep(1L);
+						}
+					} catch (Throwable t) {
+						error.set(t);
+					}
+				}
+			});
+		}
+
+		service.awaitTermination(1L, TimeUnit.SECONDS);
+
+		// ----- trigger the offset commit -----
+
+		final AtomicReference<Throwable> commitError = new AtomicReference<>();
+		final Thread committer = new Thread("committer runner") {
+			@Override
+			public void run() {
+				try {
+					fetcher.commitInternalOffsetsToKafka(testCommitData, PowerMockito.mock(KafkaCommitCallback.class));
+				} catch (Throwable t) {
+					commitError.set(t);
+				}
+			}
+		};
+		committer.start();
+
+		// ----- ensure that the committer finishes in time  -----
+		committer.join(30000);
+		assertFalse("The committer did not finish in time", committer.isAlive());
+
+		// check that there were no errors in the fetcher
+		final Throwable fetcherError = error.get();
+		if (fetcherError != null) {
+			throw new Exception("Exception in the fetcher", fetcherError);
+		}
+		final Throwable committerError = commitError.get();
+		if (committerError != null) {
+			throw new Exception("Exception in the committer", committerError);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test mocks
 	// ------------------------------------------------------------------------
@@ -416,9 +520,16 @@ public class AbstractFetcherTest {
 				false);
 		}
 
+		/**
+		 * Emulation of partition's iteration which is required for
+		 * {@link AbstractFetcherTest#testConcurrentPartitionsDiscoveryAndLoopFetching}
+		 * @throws Exception
+		 */
 		@Override
 		public void runFetchLoop() throws Exception {
-			throw new UnsupportedOperationException();
+			for (KafkaTopicPartitionState ignored: subscribedPartitionStates()) {
+				Thread.sleep(10L);
+			}
 		}
 
 		@Override
