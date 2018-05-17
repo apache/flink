@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -57,6 +58,49 @@ import static org.junit.Assert.assertTrue;
  * specific tests.
  */
 public class StreamGraphGeneratorTest {
+
+	@Test
+	public void testBufferTimeout() {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		env.setBufferTimeout(77); // set timeout to some recognizable number
+
+		env
+			.fromElements(1, 2, 3, 4, 5)
+
+			.map(value -> value)
+				.setBufferTimeout(-1)
+				.name("A")
+			.map(value -> value)
+				.setBufferTimeout(0)
+				.name("B")
+			.map(value -> value)
+				.setBufferTimeout(12)
+				.name("C")
+			.map(value -> value)
+				.name("D");
+
+		final StreamGraph sg = env.getStreamGraph();
+		for (StreamNode node : sg.getStreamNodes()) {
+			switch (node.getOperatorName()) {
+
+				case "A":
+					assertEquals(77L, node.getBufferTimeout().longValue());
+					break;
+				case "B":
+					assertEquals(0L, node.getBufferTimeout().longValue());
+					break;
+				case "C":
+					assertEquals(12L, node.getBufferTimeout().longValue());
+					break;
+				case "D":
+					assertEquals(77L, node.getBufferTimeout().longValue());
+					break;
+				default:
+					assertTrue(node.getOperator() instanceof StreamSource);
+			}
+		}
+	}
 
 	/**
 	 * This tests whether virtual Transformations behave correctly.
