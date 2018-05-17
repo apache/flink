@@ -111,8 +111,9 @@ public class AWSUtil {
 	 *
 	 * @param configProps the configuration properties
 	 * @param configPrefix the prefix of the config properties for this credentials provider,
-	 *                     e.g. aws.credentials.provider, aws.credentials.provider.role.provider,
-	 *                     and so on.
+	 *                     e.g. aws.credentials.provider for the base credentials provider,
+	 *                     aws.credentials.provider.role.provider for the credentials provider
+	 *                     for assuming a role, and so on.
 	 */
 	private static AWSCredentialsProvider getCredentialsProvider(final Properties configProps, final String configPrefix) {
 		CredentialProvider credentialProviderType;
@@ -163,6 +164,7 @@ public class AWSUtil {
 			case ASSUME_ROLE:
 				final AWSSecurityTokenService baseCredentials = AWSSecurityTokenServiceClientBuilder.standard()
 						.withCredentials(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix)))
+						.withRegion(configProps.getProperty(AWSConfigConstants.AWS_REGION))
 						.build();
 				return new STSAssumeRoleSessionCredentialsProvider.Builder(
 						configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)),
