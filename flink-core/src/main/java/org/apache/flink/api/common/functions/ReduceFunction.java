@@ -45,6 +45,7 @@ import java.io.Serializable;
  * @param <T> Type of the elements that this function processes.
  */
 @Public
+@FunctionalInterface
 public interface ReduceFunction<T> extends Function, Serializable {
 
 	/**

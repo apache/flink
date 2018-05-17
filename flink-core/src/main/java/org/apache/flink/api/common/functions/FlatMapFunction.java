@@ -40,6 +40,7 @@ import java.io.Serializable;
  * @param <O> Type of the returned elements.
  */
 @Public
+@FunctionalInterface
 public interface FlatMapFunction<T, O> extends Function, Serializable {
 
 	/**

@@ -43,6 +43,7 @@ import java.io.Serializable;
  */
 @Public
 @Deprecated
+@FunctionalInterface
 public interface FoldFunction<O, T> extends Function, Serializable {
 
 	/**

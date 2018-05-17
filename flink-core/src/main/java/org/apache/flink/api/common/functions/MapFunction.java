@@ -40,6 +40,7 @@ import java.io.Serializable;
  * @param <O> Type of the returned elements.
  */
 @Public
+@FunctionalInterface
 public interface MapFunction<T, O> extends Function, Serializable {
 
 	/**

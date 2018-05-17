@@ -37,6 +37,7 @@ import java.io.Serializable;
  * @param <OUT> The data type emitted by the combine function.
  */
 @Public
+@FunctionalInterface
 public interface CombineFunction<IN, OUT> extends Function, Serializable {
 
 	/**

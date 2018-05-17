@@ -40,6 +40,7 @@ import java.io.Serializable;
  * @param <T> The type of the filtered elements.
  */
 @Public
+@FunctionalInterface
 public interface FilterFunction<T> extends Function, Serializable {
 
 	/**

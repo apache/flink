@@ -46,6 +46,7 @@ import java.io.Serializable;
  * @param <O> The data type of the returned elements.
  */
 @Public
+@FunctionalInterface
 public interface CoGroupFunction<IN1, IN2, O> extends Function, Serializable {
 
 	/**

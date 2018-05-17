@@ -51,6 +51,7 @@ import java.io.Serializable;
  * @param <OUT> The type of the result elements.
  */
 @Public
+@FunctionalInterface
 public interface JoinFunction<IN1, IN2, OUT> extends Function, Serializable {
 
 	/**

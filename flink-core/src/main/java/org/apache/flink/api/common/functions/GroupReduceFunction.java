@@ -48,6 +48,7 @@ import java.io.Serializable;
  * @param <O> The type of the elements returned by the user-defined function.
  */
 @Public
+@FunctionalInterface
 public interface GroupReduceFunction<T, O> extends Function, Serializable {
 
 	/**

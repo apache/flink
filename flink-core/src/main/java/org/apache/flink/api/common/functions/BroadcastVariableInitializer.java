@@ -70,6 +70,7 @@ import org.apache.flink.annotation.Public;
  * @param <O> The type of the transformed broadcast variable.
  */
 @Public
+@FunctionalInterface
 public interface BroadcastVariableInitializer<T, O> {
 
 	/**
