@@ -344,7 +344,7 @@ object FlinkTypeFactory {
         throw TableException("Character type is not supported.")
 
       case _@t =>
-        throw TableException(s"Type is not supported: $t")
+        throw TableException(s"Type is not supported: ${t.getTypeClass.getTypeName}")
   }
 
   /**
