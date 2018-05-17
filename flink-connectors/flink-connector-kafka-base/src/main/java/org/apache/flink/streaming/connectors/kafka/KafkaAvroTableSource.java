@@ -85,12 +85,8 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 
 	@Override
 	protected AvroRowDeserializationSchema getDeserializationSchema() {
-		return new AvroRowDeserializationSchema(avroRecordClass, tableSchemaToReturnType(schema));
-	}
-
-	/** Converts the table schema into into the return type. */
-	private static RowTypeInfo tableSchemaToReturnType(TableSchema tableSchema) {
-		return new RowTypeInfo(tableSchema.getTypes(), tableSchema.getColumnNames());
+		return new AvroRowDeserializationSchema(avroRecordClass,
+			new RowTypeInfo(schema.getTypes(), schema.getColumnNames()));
 	}
 
 	@Override

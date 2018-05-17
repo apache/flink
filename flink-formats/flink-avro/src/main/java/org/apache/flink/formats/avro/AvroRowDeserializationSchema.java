@@ -116,8 +116,6 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		oos.writeObject(recordClazz);
 	}
 
-
-
 	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
 		this.recordClazz = (Class<? extends SpecificRecord>) ois.readObject();
