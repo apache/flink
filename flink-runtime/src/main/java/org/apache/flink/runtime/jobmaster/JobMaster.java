@@ -1260,20 +1260,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		if (resourceManagerAddress != null) {
-			log.info("Attempting to register at ResourceManager {}", resourceManagerAddress);
-
-			resourceManagerConnection = new ResourceManagerConnection(
-				log,
-				jobGraph.getJobID(),
-				resourceId,
-				getAddress(),
-				getFencingToken(),
-				resourceManagerAddress,
-				resourceManagerId,
-				scheduledExecutorService);
-
-			resourceManagerConnection.start();
+			createResourceManagerConnection(resourceManagerAddress, resourceManagerId);
 		}
+	}
+
+	private void createResourceManagerConnection(String resourceManagerAddress, ResourceManagerId resourceManagerId) {
+		log.info("Attempting to register at ResourceManager {}", resourceManagerAddress);
+
+		resourceManagerConnection = new ResourceManagerConnection(
+			log,
+			jobGraph.getJobID(),
+			resourceId,
+			getAddress(),
+			getFencingToken(),
+			resourceManagerAddress,
+			resourceManagerId,
+			scheduledExecutorService);
+
+		resourceManagerConnection.start();
 	}
 
 	private void establishResourceManagerConnection(final JobMasterRegistrationSuccess success) {
@@ -1605,9 +1609,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			runAsync(() -> {
 				log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
 
-				closeResourceManagerConnection(
-					new TimeoutException(
-						"The heartbeat of ResourceManager with id " + resourceId + " timed out."));
+				if (establishedResourceManagerConnection != null && establishedResourceManagerConnection.getResourceManagerResourceID().equals(resourceId)) {
+					final String resourceManagerAddress = establishedResourceManagerConnection.getResourceManagerGateway().getAddress();
+					final ResourceManagerId resourceManagerId = establishedResourceManagerConnection.getResourceManagerId();
+
+					closeResourceManagerConnection(
+						new TimeoutException(
+							"The heartbeat of ResourceManager with id " + resourceId + " timed out."));
+
+					createResourceManagerConnection(resourceManagerAddress, resourceManagerId);
+				}
 			});
 		}
 

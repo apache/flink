@@ -77,6 +77,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
 import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
+import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskException;
@@ -99,6 +100,9 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -184,6 +188,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final HardwareDescription hardwareDescription;
 
+	@Nullable
+	private UUID currentRegistrationTimeoutId;
+
 	public TaskExecutor(
 			RpcService rpcService,
 			TaskManagerConfiguration taskManagerConfiguration,
@@ -229,8 +236,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			rpcService.getScheduledExecutor(),
 			log);
 
-		hardwareDescription = HardwareDescription.extractFromSystem(
+		this.hardwareDescription = HardwareDescription.extractFromSystem(
 			taskExecutorServices.getMemoryManager().getMemorySize());
+
+		this.currentRegistrationTimeoutId = null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -253,6 +262,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		// start the job leader service
 		jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
+
+		startRegistrationTimeout();
 	}
 
 	/**
@@ -264,7 +275,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		Throwable throwable = null;
 
-		if (isConnectedToResourceManager()) {
+		if (resourceManagerConnection != null) {
 			resourceManagerConnection.close();
 		}
 
@@ -870,22 +881,26 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		// establish a connection to the new leader
 		if (newLeaderAddress != null) {
-			log.info("Attempting to register at ResourceManager {} ({})", newLeaderAddress, newResourceManagerId);
-			resourceManagerConnection =
-				new TaskExecutorToResourceManagerConnection(
-					log,
-					getRpcService(),
-					getAddress(),
-					getResourceID(),
-					taskSlotTable.createSlotReport(getResourceID()),
-					taskManagerLocation.dataPort(),
-					hardwareDescription,
-					newLeaderAddress,
-					newResourceManagerId,
-					getMainThreadExecutor(),
-					new ResourceManagerRegistrationListener());
-			resourceManagerConnection.start();
+			createResourceManagerConnection(newLeaderAddress, newResourceManagerId);
 		}
+	}
+
+	private void createResourceManagerConnection(String newLeaderAddress, ResourceManagerId newResourceManagerId) {
+		log.info("Attempting to register at ResourceManager {} ({})", newLeaderAddress, newResourceManagerId);
+		resourceManagerConnection =
+			new TaskExecutorToResourceManagerConnection(
+				log,
+				getRpcService(),
+				getAddress(),
+				getResourceID(),
+				taskSlotTable.createSlotReport(getResourceID()),
+				taskManagerLocation.dataPort(),
+				hardwareDescription,
+				newLeaderAddress,
+				newResourceManagerId,
+				getMainThreadExecutor(),
+				new ResourceManagerRegistrationListener());
+		resourceManagerConnection.start();
 	}
 
 	private void establishResourceManagerConnection(
@@ -911,6 +926,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			clusterInformation.getBlobServerPort());
 
 		blobCacheService.setBlobServerAddress(blobServerAddress);
+
+		stopRegistrationTimeout();
 	}
 
 	private void closeResourceManagerConnection(Exception cause) {
@@ -940,6 +957,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 			resourceManagerConnection.close();
 			resourceManagerConnection = null;
+		}
+
+		startRegistrationTimeout();
+	}
+
+	private void startRegistrationTimeout() {
+		final Time maxRegistrationDuration = taskManagerConfiguration.getMaxRegistrationDuration();
+
+		if (maxRegistrationDuration != null) {
+			final UUID newRegistrationTimeoutId = UUID.randomUUID();
+			currentRegistrationTimeoutId = newRegistrationTimeoutId;
+			scheduleRunAsync(() -> registrationTimeout(newRegistrationTimeoutId), maxRegistrationDuration);
+		}
+	}
+
+	private void stopRegistrationTimeout() {
+		currentRegistrationTimeoutId = null;
+	}
+
+	private void registrationTimeout(@Nonnull UUID registrationTimeoutId) {
+		if (registrationTimeoutId.equals(currentRegistrationTimeoutId)) {
+			final Time maxRegistrationDuration = taskManagerConfiguration.getMaxRegistrationDuration();
+
+			onFatalError(
+				new RegistrationTimeoutException(
+					String.format("Could not register at the ResourceManager within the specified maximum " +
+						"registration duration %s. This indicates a problem with this instance. Terminating now.",
+						maxRegistrationDuration)));
 		}
 	}
 
@@ -1550,9 +1595,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				if (resourceManagerConnection != null && resourceManagerConnection.getResourceManagerId().equals(resourceId)) {
 					log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
 
+					final String resourceManagerAddress = resourceManagerConnection.getTargetAddress();
+					final ResourceManagerId resourceManagerId = resourceManagerConnection.getTargetLeaderId();
+
 					closeResourceManagerConnection(
 						new TimeoutException(
 							"The heartbeat of ResourceManager with id " + resourceId + " timed out."));
+
+					// try to reconnect to old ResourceManager
+					createResourceManagerConnection(resourceManagerAddress, resourceManagerId);
 				} else {
 					log.debug("Received heartbeat timeout for outdated ResourceManager id {}. Ignoring the timeout.", resourceId);
 				}

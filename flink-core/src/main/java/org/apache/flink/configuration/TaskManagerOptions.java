@@ -139,7 +139,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<String> REGISTRATION_TIMEOUT =
 		key("taskmanager.registration.timeout")
-			.defaultValue("Inf")
+			.defaultValue("5 min")
 			.withDeprecatedKeys("taskmanager.maxRegistrationDuration")
 			.withDescription("Defines the timeout for the TaskManager registration. If the duration is" +
 				" exceeded without a successful registration, then the TaskManager terminates.");
