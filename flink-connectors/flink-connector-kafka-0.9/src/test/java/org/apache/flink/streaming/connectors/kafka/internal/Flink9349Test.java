@@ -29,6 +29,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.junit.Test;
@@ -51,14 +52,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.anyLong;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
- * Unit tests for the {@link Kafka09Fetcher}.
+ * Unit tests for the {@link Flink9349Test}.
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(KafkaConsumerThread.class)
@@ -107,7 +108,6 @@ public class Flink9349Test {
 			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
-
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 			sourceContext,
 			partitionsWithInitialOffsets,
@@ -131,34 +131,31 @@ public class Flink9349Test {
 		final CountDownLatch latch = new CountDownLatch(fetchTasks);
 		ExecutorService service = Executors.newFixedThreadPool(fetchTasks + 1);
 
-		service.submit(new Thread("fetcher runner " ) {
-
+		service.submit(new Thread("fetcher runner ") {
 			@Override
 			public void run() {
 				try {
 					latch.await();
 					fetcher.runFetchLoop();
-
 				} catch (Throwable t) {
 					error.set(t);
 				}
 			}
 		});
-		for(int i = 0; i < fetchTasks; i++){
+		for (int i = 0; i < fetchTasks; i++) {
 			service.submit(new Thread("add partitions " + i) {
 
 				@Override
 				public void run() {
 					try {
 						List<KafkaTopicPartition> newPartitions = new ArrayList<>();
-						for(int i = 0; i < 1000; i++)     {
+						for (int i = 0; i < 1000; i++) {
 							newPartitions.add(testPartition);
 						}
 						fetcher.addDiscoveredPartitions(newPartitions);
 						latch.countDown();
 						//latch.await();
-						for(int i = 0; i < 100; i++){
-
+						for (int i = 0; i < 100; i++) {
 							fetcher.addDiscoveredPartitions(newPartitions);
 							Thread.sleep(1L);
 						}
@@ -166,7 +163,8 @@ public class Flink9349Test {
 						error.set(t);
 					}
 				}
-			});     }
+			});
+		}
 
 		service.awaitTermination(1L, TimeUnit.SECONDS);
 
@@ -194,7 +192,6 @@ public class Flink9349Test {
 
 		// ----- test done, wait till the fetcher is done for a clean shutdown -----
 		fetcher.cancel();
-
 
 		// check that there were no errors in the fetcher
 		final Throwable fetcherError = error.get();
