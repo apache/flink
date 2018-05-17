@@ -219,6 +219,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
+						final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
+						libraryCacheManager.unregisterJob(jobGraph.getJobID());
+
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
 								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
@@ -246,8 +249,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 */
 	@Override
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-		// complete the result future with the terminal execution graph
 		unregisterJobFromHighAvailability();
+		// complete the result future with the terminal execution graph
 		resultFuture.complete(executionGraph);
 	}
 
