@@ -33,9 +33,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -495,7 +495,11 @@ public abstract class AbstractFetcher<T, KPH> {
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
-		List<KafkaTopicPartitionState<KPH>> partitionStates = new LinkedList<>();
+		/**
+		 *  CopyOnWrite as adding discovered partitions could happen in parallel
+		 *  with different threads iterating by {@link AbstractFetcher#subscribedPartitionStates} results
+		 */
+		List<KafkaTopicPartitionState<KPH>> partitionStates = new CopyOnWriteArrayList<>();
 
 		switch (timestampWatermarkMode) {
 			case NO_TIMESTAMPS_WATERMARKS: {
