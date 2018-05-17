@@ -39,7 +39,7 @@ class JoinITCase(
   extends TableProgramsCollectionTestBase(configMode) {
 
   @Test
-  def testJoin(): Unit = {
+  def testInnerJoin(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e"
@@ -57,7 +57,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithFilter(): Unit = {
+  def testInnerJoinWithFilter(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -97,7 +97,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithMultipleKeys(): Unit = {
+  def testInnerJoinWithMultipleKeys(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -118,7 +118,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithAlias(): Unit = {
+  def testInnerJoinWithAlias(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -140,7 +140,7 @@ class JoinITCase(
   }
 
   @Test
-  def testDataSetJoinWithAggregation(): Unit = {
+  def testInnerJoinWithAggregation(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -160,7 +160,7 @@ class JoinITCase(
   }
 
   @Test
-  def testTableJoinWithAggregation(): Unit = {
+  def testInnerJoinWithAggregation2(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
