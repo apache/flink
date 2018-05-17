@@ -29,10 +29,9 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.auth.profile.internal.securitytoken.RoleInfo;
-import com.amazonaws.auth.profile.internal.securitytoken.STSProfileCredentialsServiceProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -43,6 +42,8 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerFactory;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext;
 import com.fasterxml.jackson.databind.deser.DeserializerFactory;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -160,11 +161,15 @@ public class AWSUtil {
 				};
 
 			case ASSUME_ROLE:
-				return new STSProfileCredentialsServiceProvider(new RoleInfo()
-						.withRoleArn(configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)))
-						.withRoleSessionName(configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
+				final AWSSecurityTokenService baseCredentials = AWSSecurityTokenServiceClientBuilder.standard()
+						.withCredentials(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix)))
+						.build();
+				return new STSAssumeRoleSessionCredentialsProvider.Builder(
+						configProps.getProperty(AWSConfigConstants.roleArn(configPrefix)),
+						configProps.getProperty(AWSConfigConstants.roleSessionName(configPrefix)))
 						.withExternalId(configProps.getProperty(AWSConfigConstants.externalId(configPrefix)))
-						.withLongLivedCredentialsProvider(getCredentialsProvider(configProps, AWSConfigConstants.roleCredentialsProvider(configPrefix))));
+						.withStsClient(baseCredentials)
+						.build();
 
 			default:
 			case AUTO:
