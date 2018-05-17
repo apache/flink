@@ -47,7 +47,7 @@ import java.util.Map;
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 5.x.
  */
 @Internal
-public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
+public class Elasticsearch5ApiCallBridge extends ElasticsearchApiCallBridge {
 
 	private static final long serialVersionUID = -5222683870097809633L;
 
@@ -66,7 +66,7 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public Client createClient(Map<String, String> clientConfig) {
+	public AutoCloseable createClient(Map<String, String> clientConfig) {
 		Settings settings = Settings.builder().put(clientConfig)
 			.put(NetworkModule.HTTP_TYPE_KEY, Netty3Plugin.NETTY_HTTP_TRANSPORT_NAME)
 			.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty3Plugin.NETTY_TRANSPORT_NAME)
@@ -87,6 +87,11 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 		}
 
 		return transportClient;
+	}
+
+	@Override
+	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder((Client) client, listener);
 	}
 
 	@Override
@@ -123,10 +128,4 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 
 		builder.setBackoffPolicy(backoffPolicy);
 	}
-
-	@Override
-	public void cleanup() {
-		// nothing to cleanup
-	}
-
 }
