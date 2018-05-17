@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
@@ -96,4 +98,13 @@ public interface LibraryCacheManager {
 	 * Shutdown method which may release created class loaders.
 	 */
 	void shutdown();
+
+	/**
+	 * True if the LibraryCacheManager has a user code class loader registered
+	 * for the given job id.
+	 *
+	 * @param jobId identifying the job for which to check the class loader
+	 * @return true if the user code class loader for the given job has been registered. Otherwise false.
+	 */
+	boolean hasClassLoader(@Nonnull JobID jobId);
 }

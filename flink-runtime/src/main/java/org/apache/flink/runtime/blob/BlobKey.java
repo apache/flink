@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A BLOB key uniquely identifies a BLOB.
  */
-abstract class BlobKey implements Serializable, Comparable<BlobKey> {
+public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	private static final long serialVersionUID = 3847117712521785209L;
 

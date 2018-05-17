@@ -368,7 +368,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 
 			// files are cached now for the given TTL - remove from server so that they are not re-downloaded
 			if (jobId != null) {
-				server.cleanupJob(jobId);
+				server.cleanupJob(jobId, true);
 			} else {
 				server.deleteFromCache(key1);
 				server.deleteFromCache(key2);
