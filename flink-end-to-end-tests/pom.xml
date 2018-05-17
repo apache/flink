@@ -44,6 +44,7 @@ under the License.
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
+		<module>flink-quickstart-test</module>
 	</modules>
 
 	<build>
