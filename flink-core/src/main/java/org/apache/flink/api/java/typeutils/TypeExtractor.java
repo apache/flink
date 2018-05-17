@@ -1924,7 +1924,16 @@ public class TypeExtractor {
 				pojoFields.add(new PojoField(field, ti));
 			} catch (InvalidTypesException e) {
 				Class<?> genericClass = Object.class;
-				if(isClassType(fieldType)) {
+				// use information about bounds if available
+				if (fieldType instanceof TypeVariable) {
+					TypeVariable<?> typeVar = (TypeVariable<?>) fieldType;
+					// we take the first bound (usually the class), everything is better than Object
+					if (typeVar.getBounds().length > 0 && isClassType(typeVar.getBounds()[0])) {
+						genericClass = typeToClass(typeVar.getBounds()[0]);
+					}
+				}
+				// use raw type
+				else if (isClassType(fieldType)) {
 					genericClass = typeToClass(fieldType);
 				}
 				pojoFields.add(new PojoField(field, new GenericTypeInfo<OUT>((Class<OUT>) genericClass)));

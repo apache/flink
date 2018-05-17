@@ -35,6 +35,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -877,4 +878,57 @@ public class PojoTypeExtractionTest {
 		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
 	}
 
+	/**
+	 * POJO with a bounded generic parameter.
+	 *
+	 * @param <T> generic parameter bounded by one type
+	 */
+	public static class BoundedPojo<T extends Tuple2<Integer, String>> {
+
+		public T someKey;
+
+		public BoundedPojo() {}
+
+		public BoundedPojo(T someKey) {
+			this.someKey = someKey;
+		}
+	}
+
+	@Test
+	public void testBoundedPojos() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(BoundedPojo.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
+		Assert.assertEquals(BoundedPojo.class, pti.getTypeClass());
+		Assert.assertTrue(pti.getPojoFieldAt(0).getTypeInformation() instanceof GenericTypeInfo);
+		TypeInformation<?> fti = pti.getPojoFieldAt(0).getTypeInformation();
+		Assert.assertEquals(Tuple2.class, fti.getTypeClass());
+	}
+
+	/**
+	 * POJO with a bounded generic parameter.
+	 *
+	 * @param <T> generic parameter bounded by two types
+	 */
+	public static class MultiBoundedPojo<T extends Tuple2<Integer, String> & Serializable> {
+
+		public T someKey;
+
+		public MultiBoundedPojo() {}
+
+		public MultiBoundedPojo(T someKey) {
+			this.someKey = someKey;
+		}
+	}
+
+	@Test
+	public void testMultiBoundedPojos() {
+		TypeInformation<?> ti = TypeExtractor.createTypeInfo(MultiBoundedPojo.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
+		Assert.assertEquals(MultiBoundedPojo.class, pti.getTypeClass());
+		Assert.assertTrue(pti.getPojoFieldAt(0).getTypeInformation() instanceof GenericTypeInfo);
+		TypeInformation<?> fti = pti.getPojoFieldAt(0).getTypeInformation();
+		Assert.assertEquals(Tuple2.class, fti.getTypeClass());
+	}
 }
