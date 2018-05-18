@@ -55,6 +55,9 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	/** Output stream for the raw keyed state. */
 	private KeyedStateCheckpointOutputStream keyedStateCheckpointOutputStream;
 
+	/** Output stream for the raw keyed state meta. */
+	private OperatorStateCheckpointOutputStream keyedStateCheckpointMetaOutputStream;
+
 	/** Output stream for the raw operator state. */
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
 
@@ -110,6 +113,14 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	}
 
 	@Override
+	public OperatorStateCheckpointOutputStream getRawKeyedOperatorStateMetaOutput() throws Exception {
+		if (null == keyedStateCheckpointMetaOutputStream) {
+			keyedStateCheckpointMetaOutputStream = new OperatorStateCheckpointOutputStream(openAndRegisterNewStream());
+		}
+		return keyedStateCheckpointMetaOutputStream;
+	}
+
+	@Override
 	public OperatorStateCheckpointOutputStream getRawOperatorStateOutput() throws Exception {
 		if (null == operatorStateCheckpointOutputStream) {
 			operatorStateCheckpointOutputStream = new OperatorStateCheckpointOutputStream(openAndRegisterNewStream());
@@ -124,6 +135,12 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		return toDoneFutureOfSnapshotResult(keyGroupsStateHandle);
 	}
 
+	@Nonnull
+	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getKeyedStateMetaStreamFuture() throws IOException {
+		OperatorStateHandle keyGroupsStateMetaHandle =
+			closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointMetaOutputStream);
+		return toDoneFutureOfSnapshotResult(keyGroupsStateMetaHandle);
+	}
 	@Nonnull
 	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateStreamFuture() throws IOException {
 		OperatorStateHandle operatorStateHandle =
@@ -167,6 +184,14 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 				closeAndUnregisterStream(keyedStateCheckpointOutputStream);
 			} catch (IOException e) {
 				exception = new IOException("Could not close the raw keyed state checkpoint output stream.", e);
+			}
+		}
+
+		if(keyedStateCheckpointMetaOutputStream != null) {
+			try {
+				closeAndUnregisterStream(keyedStateCheckpointMetaOutputStream);
+			} catch(IOException e) {
+				exception = new IOException("Could not close the raw keyed state meta checkpoint output stream.", e);
 			}
 		}
 

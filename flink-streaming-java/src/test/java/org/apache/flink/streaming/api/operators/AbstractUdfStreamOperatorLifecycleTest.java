@@ -257,9 +257,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		}
 
 		@Override
-		public void snapshotState(StateSnapshotContext context) throws Exception {
+		public void snapshotState(StateSnapshotContext context, OperatorSnapshotFutures snapshotInProgress) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::snapshotState");
-			super.snapshotState(context);
+			super.snapshotState(context, snapshotInProgress);
 		}
 
 		@Override

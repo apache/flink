@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -39,11 +40,18 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 	private final long timestamp;
 	private final K key;
 	private final N namespace;
+	private final String hashKey;
 
-	public InternalTimer(long timestamp, K key, N namespace) {
+	private int createVersion = -1;
+	private Integer deleteVersion = -1;
+
+	public InternalTimer(long timestamp, K key, N namespace, int createVersion, int deleteVersion) {
 		this.timestamp = timestamp;
 		this.key = key;
 		this.namespace = namespace;
+		this.createVersion = createVersion;
+		this.deleteVersion = deleteVersion;
+		hashKey = buildHashKey(key.toString(), namespace.toString(), timestamp);
 	}
 
 	public long getTimestamp() {
@@ -97,6 +105,32 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 				'}';
 	}
 
+	public String buildHashKey() {
+		return this.hashKey;
+	}
+
+	public static String buildHashKey(String key, String namespace, long timestamp) {
+		return key + ":" + namespace + ":" + timestamp;
+	}
+
+	public void markDelete(int deleteVersion) {
+		synchronized (this.deleteVersion) {
+			this.deleteVersion = deleteVersion;
+		}
+	}
+
+	public int getDeleteVersion() {
+		synchronized (this.deleteVersion) {
+			return deleteVersion;
+		}
+	}
+
+	public int getCreateVersion() {
+		return createVersion;
+	}
+
+
+
 	/**
 	 * A {@link TypeSerializer} used to serialize/deserialize a {@link InternalTimer}.
 	 */
@@ -130,7 +164,7 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 
 		@Override
 		public InternalTimer<K, N> copy(InternalTimer<K, N> from) {
-			return new InternalTimer<>(from.timestamp, from.key, from.namespace);
+			return new InternalTimer<>(from.timestamp, from.key, from.namespace, from.createVersion, from.deleteVersion);
 		}
 
 		@Override
@@ -149,6 +183,9 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 			keySerializer.serialize(record.key, target);
 			namespaceSerializer.serialize(record.namespace, target);
 			LongSerializer.INSTANCE.serialize(record.timestamp, target);
+			//added
+			IntSerializer.INSTANCE.serialize(record.createVersion, target);
+			IntSerializer.INSTANCE.serialize(record.deleteVersion, target);
 		}
 
 		@Override
@@ -156,7 +193,11 @@ public class InternalTimer<K, N> implements Comparable<InternalTimer<K, N>> {
 			K key = keySerializer.deserialize(source);
 			N namespace = namespaceSerializer.deserialize(source);
 			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
-			return new InternalTimer<>(timestamp, key, namespace);
+			//added
+			Integer createVersion = IntSerializer.INSTANCE.deserialize(source);
+			Integer deleteVersion = IntSerializer.INSTANCE.deserialize(source);
+
+			return new InternalTimer<>(timestamp, key, namespace, createVersion, deleteVersion);
 		}
 
 		@Override

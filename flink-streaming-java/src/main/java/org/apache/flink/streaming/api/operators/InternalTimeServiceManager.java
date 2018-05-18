@@ -21,7 +21,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -32,6 +33,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * An entity keeping all the time-related services available to all operators extending the
@@ -54,12 +61,20 @@ public class InternalTimeServiceManager<K, N> {
 
 	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
 
+	private final AtomicInteger stateTableVersion;
+	private final TreeSet<Integer> snapshotVersions;
+	private final ReadWriteLock svLock = new ReentrantReadWriteLock(true);
+	private final Lock readLock = svLock.readLock();
+	private final Lock writeLock = svLock.writeLock();
+
 	InternalTimeServiceManager(
 			int totalKeyGroups,
 			KeyGroupsList localKeyGroupRange,
 			KeyContext keyContext,
-			ProcessingTimeService processingTimeService) {
-
+			ProcessingTimeService processingTimeService,
+			AtomicInteger stateTableVersion,
+			TreeSet<Integer> snapshotVersions
+			) {
 		Preconditions.checkArgument(totalKeyGroups > 0);
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
@@ -68,6 +83,9 @@ public class InternalTimeServiceManager<K, N> {
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
 		this.timerServices = new HashMap<>();
+
+		this.stateTableVersion = stateTableVersion;
+		this.snapshotVersions = snapshotVersions;
 	}
 
 	/**
@@ -96,7 +114,7 @@ public class InternalTimeServiceManager<K, N> {
 		HeapInternalTimerService<K, N> timerService = timerServices.get(name);
 		if (timerService == null) {
 			timerService = new HeapInternalTimerService<>(totalKeyGroups,
-				localKeyGroupRange, keyContext, processingTimeService);
+				localKeyGroupRange, keyContext, processingTimeService, this);
 			timerServices.put(name, timerService);
 		}
 		timerService.startTimerService(keySerializer, namespaceSerializer, triggerable);
@@ -111,17 +129,18 @@ public class InternalTimeServiceManager<K, N> {
 
 	//////////////////				Fault Tolerance Methods				///////////////////
 
-	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
-		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
-			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx);
-
-		serializationProxy.write(stream);
-	}
+//	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx, int snapshotVersion) throws IOException {
+//		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
+//			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx, snapshotVersion, this);
+//
+//		serializationProxy.write(stream);
+//	}
 
 	public void restoreStateForKeyGroup(
-			InputStream stream,
-			int keyGroupIdx,
-			ClassLoader userCodeClassLoader) throws IOException {
+		InputStream stream,
+		int keyGroupIdx,
+		ClassLoader userCodeClassLoader,
+		Tuple2<Integer, Integer> timerCounts) throws IOException {
 
 		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(
@@ -131,7 +150,10 @@ public class InternalTimeServiceManager<K, N> {
 				localKeyGroupRange,
 				keyContext,
 				processingTimeService,
-				keyGroupIdx);
+				keyGroupIdx,
+				this.stateTableVersion.intValue(),
+				this);
+		serializationProxy.setCounts(timerCounts);
 
 		serializationProxy.read(stream);
 	}
@@ -154,5 +176,60 @@ public class InternalTimeServiceManager<K, N> {
 			count += timerService.numEventTimeTimers();
 		}
 		return count;
+	}
+
+	public Tuple4<Integer, Map<String, HeapInternalTimerService>, Integer, TreeSet<Integer>> startOneSnapshotState() {
+		writeLock.lock();
+		try {
+			snapshotVersions.add(stateTableVersion.incrementAndGet());
+			Map<String, HeapInternalTimerService> serviceMap = new HashMap<>(this.timerServices); //shallow copy name and service
+			Integer copyStateTableVersion = stateTableVersion.intValue();
+			TreeSet<Integer>  copySnapshotVersions = new TreeSet<>(snapshotVersions);
+			Tuple4<Integer, Map<String, HeapInternalTimerService>, Integer, TreeSet<Integer>> ret = new
+				Tuple4<>(stateTableVersion.intValue(), serviceMap, copyStateTableVersion, copySnapshotVersions);
+			return ret;
+		}
+		finally {
+			writeLock.unlock();
+		}
+
+	}
+
+	public void stopOneSnapshotState(int snapshotVersion) {
+		writeLock.lock();
+		try {
+			snapshotVersions.remove(snapshotVersion);
+		}
+		finally {
+			writeLock.unlock();
+		}
+	}
+
+	public int getMinRunningSnapshotVersion() {
+		readLock.lock();
+		try {
+			return snapshotVersions.size() == 0 ? 0 : snapshotVersions.first();
+		}
+		finally {
+			readLock.unlock();
+		}
+	}
+
+	public Set<Integer> getSnapshotVersions() {
+		return snapshotVersions;
+	}
+
+	public AtomicInteger getStateTableVersion() {
+		readLock.lock();
+		try {
+			return stateTableVersion;
+		}
+		finally {
+			readLock.unlock();
+		}
+	}
+
+	public Lock getReadLock() {
+		return readLock;
 	}
 }

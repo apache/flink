@@ -516,12 +516,14 @@ public class StreamTaskTest extends TestLogger {
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
+		OperatorStateHandle rawKeyedStateMetaHandle = mock(OperatorStreamStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 
 		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawKeyedStateHandle)),
+			DoneFuture.of(SnapshotResult.of(rawKeyedStateMetaHandle)),
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
 
@@ -562,12 +564,14 @@ public class StreamTaskTest extends TestLogger {
 		// check that the subtask state contains the expected state handles
 		assertEquals(StateObjectCollection.singleton(managedKeyedStateHandle), subtaskState.getManagedKeyedState());
 		assertEquals(StateObjectCollection.singleton(rawKeyedStateHandle), subtaskState.getRawKeyedState());
+		assertEquals(StateObjectCollection.singleton(rawKeyedStateMetaHandle), subtaskState.getRawKeyedStateMeta());
 		assertEquals(StateObjectCollection.singleton(managedOperatorStateHandle), subtaskState.getManagedOperatorState());
 		assertEquals(StateObjectCollection.singleton(rawOperatorStateHandle), subtaskState.getRawOperatorState());
 
 		// check that the state handles have not been discarded
 		verify(managedKeyedStateHandle, never()).discardState();
 		verify(rawKeyedStateHandle, never()).discardState();
+		verify(rawKeyedStateMetaHandle, never()).discardState();
 		verify(managedOperatorStateHandle, never()).discardState();
 		verify(rawOperatorStateHandle, never()).discardState();
 
@@ -579,6 +583,7 @@ public class StreamTaskTest extends TestLogger {
 		// the state handles
 		verify(managedKeyedStateHandle, never()).discardState();
 		verify(rawKeyedStateHandle, never()).discardState();
+		verify(rawKeyedStateMetaHandle, never()).discardState();
 		verify(managedOperatorStateHandle, never()).discardState();
 		verify(rawOperatorStateHandle, never()).discardState();
 	}
@@ -620,12 +625,14 @@ public class StreamTaskTest extends TestLogger {
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
+		OperatorStateHandle rawKeyedStateMetaHandle = mock(OperatorStreamStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 
 		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawKeyedStateHandle)),
+			DoneFuture.of(SnapshotResult.of(rawKeyedStateMetaHandle)),
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
 
@@ -670,6 +677,7 @@ public class StreamTaskTest extends TestLogger {
 		// check that the state handles have been discarded
 		verify(managedKeyedStateHandle).discardState();
 		verify(rawKeyedStateHandle).discardState();
+		verify(rawKeyedStateMetaHandle).discardState();
 		verify(managedOperatorStateHandle).discardState();
 		verify(rawOperatorStateHandle).discardState();
 	}

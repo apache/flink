@@ -97,11 +97,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		OperatorStateHandle managedOpHandle = mock(OperatorStreamStateHandle.class);
 		OperatorStateHandle rawOpHandle = mock(OperatorStreamStateHandle.class);
 
+		//TODO:
 		final OperatorSubtaskState operatorSubtaskState = spy(new OperatorSubtaskState(
 			managedOpHandle,
 			rawOpHandle,
 			managedKeyedHandle,
-			rawKeyedHandle));
+			rawKeyedHandle,
+			null));
 
 		TaskStateSnapshot subtaskState = spy(new TaskStateSnapshot());
 		subtaskState.putSubtaskStateByOperatorID(new OperatorID(), operatorSubtaskState);

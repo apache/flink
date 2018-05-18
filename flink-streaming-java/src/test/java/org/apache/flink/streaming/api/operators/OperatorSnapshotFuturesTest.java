@@ -60,6 +60,12 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 		RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture =
 			spy(DoneFuture.of(keyedStateRawResult));
 
+		OperatorStateHandle keyedRawStateMetaHandle = mock(OperatorStreamStateHandle.class);
+		SnapshotResult<OperatorStateHandle> keyedStateMetaRawResult =
+			SnapshotResult.of(keyedRawStateMetaHandle);
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> keyedStateMetaRawFuture =
+			spy(DoneFuture.of(keyedStateMetaRawResult));
+
 		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStreamStateHandle.class);
 		SnapshotResult<OperatorStateHandle> operatorStateManagedResult =
 			SnapshotResult.of(operatorManagedStateHandle);
@@ -75,6 +81,7 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 		operatorSnapshotResult = new OperatorSnapshotFutures(
 			keyedStateManagedFuture,
 			keyedStateRawFuture,
+			keyedStateMetaRawFuture,
 			operatorStateManagedFuture,
 			operatorStateRawFuture);
 

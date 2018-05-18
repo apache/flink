@@ -140,11 +140,13 @@ public class StateInitializationContextImplTest {
 			operatorStateHandles.add(operatorStateHandle);
 		}
 
+		//TODO:
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
 			StateObjectCollection.empty(),
 			new StateObjectCollection<>(operatorStateHandles),
 			StateObjectCollection.empty(),
-			new StateObjectCollection<>(keyedStateHandles));
+			new StateObjectCollection<>(keyedStateHandles),
+			StateObjectCollection.empty());
 
 		OperatorID operatorID = new OperatorID();
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
@@ -177,7 +179,8 @@ public class StateInitializationContextImplTest {
 			protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
 				AbstractKeyedStateBackend<K> keyedStatedBackend,
 				KeyContext keyContext,
-				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+				Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+				Iterable<StatePartitionStreamProvider> rawKeyedStateMetaInputs) throws Exception {
 
 				// We do not initialize a timer service manager here, because it would already consume the raw keyed
 				// state as part of initialization. For the purpose of this test, we want an unconsumed raw keyed

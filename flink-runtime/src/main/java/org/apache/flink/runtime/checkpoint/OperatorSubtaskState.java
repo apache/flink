@@ -80,6 +80,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	@Nonnull
 	private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
+	@Nonnull
+	private final StateObjectCollection<OperatorStateHandle> rawKeyedStateMeta;
 	/**
 	 * The state size. This is also part of the deserialized state handle.
 	 * We store it here in order to not deserialize the state handle when
@@ -95,6 +97,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
 			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
 			StateObjectCollection.empty());
 	}
 
@@ -102,17 +105,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
 		@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
 		@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
-		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState) {
+		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState,
+		@Nonnull StateObjectCollection<OperatorStateHandle> rawKeyedStateMeta) {
 
 		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
 		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
 		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
 		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
+		this.rawKeyedStateMeta = Preconditions.checkNotNull(rawKeyedStateMeta);
 
 		long calculateStateSize = managedOperatorState.getStateSize();
 		calculateStateSize += rawOperatorState.getStateSize();
 		calculateStateSize += managedKeyedState.getStateSize();
 		calculateStateSize += rawKeyedState.getStateSize();
+		calculateStateSize += rawKeyedStateMeta.getStateSize();
 		stateSize = calculateStateSize;
 	}
 
@@ -124,13 +130,15 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		@Nullable OperatorStateHandle managedOperatorState,
 		@Nullable OperatorStateHandle rawOperatorState,
 		@Nullable KeyedStateHandle managedKeyedState,
-		@Nullable KeyedStateHandle rawKeyedState) {
+		@Nullable KeyedStateHandle rawKeyedState,
+		@Nullable OperatorStateHandle rawKeyedStateMeta) {
 
 		this(
 			singletonOrEmptyOnNull(managedOperatorState),
 			singletonOrEmptyOnNull(rawOperatorState),
 			singletonOrEmptyOnNull(managedKeyedState),
-			singletonOrEmptyOnNull(rawKeyedState));
+			singletonOrEmptyOnNull(rawKeyedState),
+			singletonOrEmptyOnNull(rawKeyedStateMeta));
 	}
 
 	private static <T extends StateObject> StateObjectCollection<T> singletonOrEmptyOnNull(T element) {
@@ -171,6 +179,14 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		return rawKeyedState;
 	}
 
+	/**
+	 * Return a handler to the raw keyed state meta.
+     */
+	@Nonnull
+	public StateObjectCollection<OperatorStateHandle> getRawKeyedStateMeta() {
+		return rawKeyedStateMeta;
+	}
+
 	@Override
 	public void discardState() {
 		try {
@@ -179,11 +195,13 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 						managedOperatorState.size() +
 						rawOperatorState.size() +
 						managedKeyedState.size() +
-						rawKeyedState.size());
+						rawKeyedState.size() +
+						rawKeyedStateMeta.size());
 			toDispose.addAll(managedOperatorState);
 			toDispose.addAll(rawOperatorState);
 			toDispose.addAll(managedKeyedState);
 			toDispose.addAll(rawKeyedState);
+			toDispose.addAll(rawKeyedStateMeta);
 			StateUtil.bestEffortDiscardAllStateObjects(toDispose);
 		} catch (Exception e) {
 			LOG.warn("Error while discarding operator states.", e);
@@ -236,7 +254,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		if (!getManagedKeyedState().equals(that.getManagedKeyedState())) {
 			return false;
 		}
-		return getRawKeyedState().equals(that.getRawKeyedState());
+		if (!getRawKeyedState().equals(that.getRawKeyedState())) {
+			return false;
+		}
+		return getRawKeyedStateMeta().equals(that.getRawKeyedStateMeta());
 	}
 
 	@Override
@@ -245,6 +266,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		result = 31 * result + getRawOperatorState().hashCode();
 		result = 31 * result + getManagedKeyedState().hashCode();
 		result = 31 * result + getRawKeyedState().hashCode();
+		result = 31 * result + getRawKeyedStateMeta().hashCode();
 		result = 31 * result + (int) (getStateSize() ^ (getStateSize() >>> 32));
 		return result;
 	}
@@ -256,6 +278,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			", operatorStateFromStream=" + rawOperatorState +
 			", keyedStateFromBackend=" + managedKeyedState +
 			", keyedStateFromStream=" + rawKeyedState +
+			", keyedStateMetaFromStream=" + rawKeyedStateMeta +
 			", stateSize=" + stateSize +
 			'}';
 	}
@@ -264,6 +287,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 		return managedOperatorState.hasState()
 			|| rawOperatorState.hasState()
 			|| managedKeyedState.hasState()
-			|| rawKeyedState.hasState();
+			|| rawKeyedState.hasState()
+			|| rawKeyedStateMeta.hasState();
 	}
 }

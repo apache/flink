@@ -154,6 +154,7 @@ public class StreamTaskStateInitializerImplTest {
 
 		Random random = new Random(0x42);
 
+		//TODO:
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
 			new OperatorStreamStateHandle(
 				Collections.singletonMap(
@@ -170,7 +171,8 @@ public class StreamTaskStateInitializerImplTest {
 						OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)),
 				CheckpointTestUtils.createDummyStreamStateHandle(random)),
 			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
-			CheckpointTestUtils.createDummyKeyGroupStateHandle(random));
+			CheckpointTestUtils.createDummyKeyGroupStateHandle(random),
+			null);
 
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
 
@@ -274,7 +276,8 @@ public class StreamTaskStateInitializerImplTest {
 				protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
 					AbstractKeyedStateBackend<K> keyedStatedBackend,
 					KeyContext keyContext,
-					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
+					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+					Iterable<StatePartitionStreamProvider> rawKeyedStateMetaInputs) throws Exception {
 					return null;
 				}
 			};

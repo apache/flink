@@ -67,6 +67,7 @@ public class TaskStateSnapshotTest extends TestLogger {
 			stateHandle,
 			null,
 			null,
+			null,
 			null
 		);
 
@@ -109,6 +110,7 @@ public class TaskStateSnapshotTest extends TestLogger {
 			stateHandle_1,
 			null,
 			null,
+			null,
 			null
 		);
 
@@ -116,6 +118,7 @@ public class TaskStateSnapshotTest extends TestLogger {
 		OperatorSubtaskState nonEmptyOperatorSubtaskState_2 = new OperatorSubtaskState(
 			null,
 			stateHandle_2,
+			null,
 			null,
 			null
 		);

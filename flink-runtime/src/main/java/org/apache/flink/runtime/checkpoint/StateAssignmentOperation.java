@@ -155,7 +155,8 @@ public class StateAssignmentOperation {
 
 		Map<OperatorInstanceID, List<KeyedStateHandle>> newManagedKeyedState = new HashMap<>();
 		Map<OperatorInstanceID, List<KeyedStateHandle>> newRawKeyedState = new HashMap<>();
-
+		Map<OperatorID, List<OperatorStateHandle>> rawKeyedStateMetaMap = new HashMap<>();
+		collectRawKeyedStateMeta(operatorStates, rawKeyedStateMetaMap);
 		reDistributeKeyedStates(
 			operatorStates,
 			newParallelism,
@@ -180,7 +181,24 @@ public class StateAssignmentOperation {
 			newRawOperatorStates,
 			newManagedKeyedState,
 			newRawKeyedState,
+			rawKeyedStateMetaMap,
 			newParallelism);
+	}
+
+	private void collectRawKeyedStateMeta(List<OperatorState> operatorStates, Map<OperatorID, List<OperatorStateHandle>> rawKeyedStateMetas) {
+		for (OperatorState operatorState : operatorStates) {
+			List<OperatorStateHandle> rawKeyedStateMeta = null;
+			for (int i = 0; i < operatorState.getParallelism(); i++) {
+				OperatorSubtaskState operatorSubtaskState = operatorState.getState(i);
+				if (operatorSubtaskState != null) {
+					if (rawKeyedStateMeta == null) {
+						rawKeyedStateMeta = new ArrayList<>();
+					}
+					rawKeyedStateMeta.addAll(operatorSubtaskState.getRawKeyedStateMeta());
+				}
+				rawKeyedStateMetas.put(operatorState.getOperatorID(), rawKeyedStateMeta);
+			}
+		}
 	}
 
 	private void assignTaskStateToExecutionJobVertices(
@@ -189,6 +207,7 @@ public class StateAssignmentOperation {
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subRawOperatorState,
 			Map<OperatorInstanceID, List<KeyedStateHandle>> subManagedKeyedState,
 			Map<OperatorInstanceID, List<KeyedStateHandle>> subRawKeyedState,
+			Map<OperatorID, List<OperatorStateHandle>> rawKeyedStateMetaMap,
 			int newParallelism) {
 
 		List<OperatorID> operatorIDs = executionJobVertex.getOperatorIDs();
@@ -203,13 +222,14 @@ public class StateAssignmentOperation {
 
 			for (OperatorID operatorID : operatorIDs) {
 				OperatorInstanceID instanceID = OperatorInstanceID.of(subTaskIndex, operatorID);
-
+				List<OperatorStateHandle> rawKeyedStateMeta = rawKeyedStateMetaMap.get(operatorID);
 				OperatorSubtaskState operatorSubtaskState = operatorSubtaskStateFrom(
 					instanceID,
 					subManagedOperatorState,
 					subRawOperatorState,
 					subManagedKeyedState,
-					subRawKeyedState);
+					subRawKeyedState,
+					rawKeyedStateMeta);
 
 				if (operatorSubtaskState.hasState()) {
 					statelessTask = false;
@@ -229,7 +249,8 @@ public class StateAssignmentOperation {
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subManagedOperatorState,
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subRawOperatorState,
 			Map<OperatorInstanceID, List<KeyedStateHandle>> subManagedKeyedState,
-			Map<OperatorInstanceID, List<KeyedStateHandle>> subRawKeyedState) {
+			Map<OperatorInstanceID, List<KeyedStateHandle>> subRawKeyedState,
+			List<OperatorStateHandle> rawKeyedStateMeta) {
 
 		if (!subManagedOperatorState.containsKey(instanceID) &&
 			!subRawOperatorState.containsKey(instanceID) &&
@@ -245,7 +266,8 @@ public class StateAssignmentOperation {
 			new StateObjectCollection<>(subManagedOperatorState.getOrDefault(instanceID, Collections.emptyList())),
 			new StateObjectCollection<>(subRawOperatorState.getOrDefault(instanceID, Collections.emptyList())),
 			new StateObjectCollection<>(subManagedKeyedState.getOrDefault(instanceID, Collections.emptyList())),
-			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, Collections.emptyList())));
+			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(rawKeyedStateMeta));
 	}
 
 	private static boolean isHeadOperator(int opIdx, List<OperatorID> operatorIDs) {

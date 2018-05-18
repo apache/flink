@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -27,6 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -41,26 +41,29 @@ public class OperatorSnapshotFutures {
 	private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture;
 
 	@Nonnull
+	private RunnableFuture<SnapshotResult<OperatorStateHandle>> keyedStateMetaRawFuture;
+
+	@Nonnull
 	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture;
 
 	@Nonnull
 	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture;
 
+	private Callable<Boolean> snapshotTimerCallable;
+
 	public OperatorSnapshotFutures() {
-		this(
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()),
-			DoneFuture.of(SnapshotResult.empty()));
+		this(null, null, null, null, null);
 	}
 
 	public OperatorSnapshotFutures(
 		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
 		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
+		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> keyedStateMetaRawFuture,
 		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
 		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
 		this.keyedStateRawFuture = keyedStateRawFuture;
+		this.keyedStateMetaRawFuture = keyedStateMetaRawFuture;
 		this.operatorStateManagedFuture = operatorStateManagedFuture;
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
@@ -83,6 +86,16 @@ public class OperatorSnapshotFutures {
 	public void setKeyedStateRawFuture(
 		@Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture) {
 		this.keyedStateRawFuture = keyedStateRawFuture;
+	}
+
+	@Nonnull
+	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getKeyedStateMetaRawFuture() {
+		return keyedStateMetaRawFuture;
+	}
+
+	public void setKeyedStateMetaRawFuture(
+		@Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> keyedStateMetaRawFuture) {
+		this.keyedStateMetaRawFuture = keyedStateMetaRawFuture;
 	}
 
 	@Nonnull
@@ -131,6 +144,14 @@ public class OperatorSnapshotFutures {
 		}
 
 		try {
+			StateUtil.discardStateFuture(getKeyedStateMetaRawFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel raw keyed state meta future.", e),
+				exception);
+		}
+
+		try {
 			StateUtil.discardStateFuture(getOperatorStateRawFuture());
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(
@@ -141,5 +162,25 @@ public class OperatorSnapshotFutures {
 		if (exception != null) {
 			throw exception;
 		}
+	}
+
+	public boolean hasKeyedState() {
+		return keyedStateManagedFuture != null || keyedStateRawFuture != null;
+	}
+
+	public boolean hasOperatorState() {
+		return operatorStateManagedFuture != null || operatorStateRawFuture != null;
+	}
+
+	public boolean hasState() {
+		return hasKeyedState() || hasOperatorState();
+	}
+
+	public Callable<Boolean> getSnapshotTimerCallable() {
+		return snapshotTimerCallable;
+	}
+
+	public void setSnapshotTimerCallable(Callable<Boolean> snapshotTimerCallable) {
+		this.snapshotTimerCallable = snapshotTimerCallable;
 	}
 }
