@@ -522,7 +522,7 @@ public class AbstractFetcherTest {
 
 		/**
 		 * Emulation of partition's iteration which is required for
-		 * {@link AbstractFetcherTest#testConcurrentPartitionsDiscoveryAndLoopFetching}
+		 * {@link AbstractFetcherTest#testConcurrentPartitionsDiscoveryAndLoopFetching}.
 		 * @throws Exception
 		 */
 		@Override
