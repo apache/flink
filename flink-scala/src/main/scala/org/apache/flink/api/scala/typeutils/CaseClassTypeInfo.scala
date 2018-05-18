@@ -23,11 +23,10 @@ import java.util.regex.{Matcher, Pattern}
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.operators.Keys
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType.{FlatFieldDescriptor, InvalidFieldReferenceException, TypeComparatorBuilder}
 import org.apache.flink.api.common.typeutils._
-import Keys.ExpressionKeys
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 
 import scala.collection.JavaConverters._

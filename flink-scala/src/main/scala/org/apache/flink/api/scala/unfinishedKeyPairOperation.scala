@@ -21,9 +21,9 @@ package org.apache.flink.api.scala
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Keys
+import org.apache.flink.api.common.operators.Keys.{ExpressionKeys, SelectorFunctionKeys}
 
 import org.apache.flink.api.java.functions.KeySelector
-import Keys.ExpressionKeys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
@@ -87,7 +87,7 @@ private[flink] abstract class UnfinishedKeyPairOperation[L, R, O](
       val cleanFun = leftInput.clean(fun)
       def getKey(in: L) = cleanFun(in)
     }
-    val leftKey = new Keys.SelectorFunctionKeys[L, K](keyExtractor, leftInput.getType, keyType)
+    val leftKey = new SelectorFunctionKeys[L, K](keyExtractor, leftInput.getType, keyType)
     new HalfUnfinishedKeyPairOperation[L, R, O](this, leftKey)
   }
 }
@@ -136,7 +136,7 @@ private[flink] class HalfUnfinishedKeyPairOperation[L, R, O](
       val cleanFun = unfinished.leftInput.clean(fun)
       def getKey(in: R) = cleanFun(in)
     }
-    val rightKey = new Keys.SelectorFunctionKeys[R, K](
+    val rightKey = new SelectorFunctionKeys[R, K](
       keyExtractor,
       unfinished.rightInput.getType,
       keyType)
