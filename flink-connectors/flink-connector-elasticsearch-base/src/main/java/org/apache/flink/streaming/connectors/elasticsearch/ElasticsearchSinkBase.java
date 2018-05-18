@@ -59,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The version specific API calls for different Elasticsearch versions should be defined by a concrete implementation of
  * a {@link ElasticsearchApiCallBridge}, which is provided to the constructor of this class. This call bridge is used,
- * for example, to create a Elasticsearch {@link Client}, handle failed item responses, etc.
+ * for example, to create a Elasticsearch {@link Client} or {@RestHighLevelClient}, handle failed item responses, etc.
  *
  * @param <T> Type of the elements handled by this sink
  */
@@ -155,7 +155,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private boolean flushOnCheckpoint = true;
 
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
-	private transient BulkProcessorIndexer requestIndexer;
+	private transient RequestIndexer requestIndexer;
 
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
@@ -176,7 +176,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private AtomicLong numPendingRequests = new AtomicLong(0);
 
 	/** Elasticsearch client created using the call bridge. */
-	private transient Client client;
+	private transient AutoCloseable client;
 
 	/** Bulk processor to buffer and send requests to Elasticsearch, created using the client. */
 	private transient BulkProcessor bulkProcessor;
@@ -286,7 +286,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
-		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
+		requestIndexer = callBridge.createRequestIndex(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override
@@ -341,7 +341,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	protected BulkProcessor buildBulkProcessor(BulkProcessor.Listener listener) {
 		checkNotNull(listener);
 
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(client, listener);
+		BulkProcessor.Builder bulkProcessorBuilder = callBridge.createBulkProcessorBuilder(client, listener);
 
 		// This makes flush() blocking
 		bulkProcessorBuilder.setConcurrentRequests(0);

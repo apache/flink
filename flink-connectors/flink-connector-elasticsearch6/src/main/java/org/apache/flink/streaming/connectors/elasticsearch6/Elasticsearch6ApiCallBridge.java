@@ -15,77 +15,62 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch2;
+package org.apache.flink.streaming.connectors.elasticsearch6;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
-import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
+ * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions.
  */
-@Internal
-public class Elasticsearch2ApiCallBridge extends ElasticsearchApiCallBridge {
+public class Elasticsearch6ApiCallBridge extends ElasticsearchApiCallBridge {
 
-	private static final long serialVersionUID = 2638252694744361079L;
+	private static final long serialVersionUID = -5222683870097809633L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch2ApiCallBridge.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch6ApiCallBridge.class);
 
 	/**
-	 * User-provided transport addresses.
-	 *
-	 * <p>We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 2.x.
+	 * User-provided HTTP Host.
 	 */
-	private final List<InetSocketAddress> transportAddresses;
+	private final List<HttpHost> httpHosts;
 
-	Elasticsearch2ApiCallBridge(List<InetSocketAddress> transportAddresses) {
-		Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
-		this.transportAddresses = transportAddresses;
+	Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts) {
+		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
+		this.httpHosts = httpHosts;
 	}
 
 	@Override
 	public AutoCloseable createClient(Map<String, String> clientConfig) {
-		Settings settings = Settings.settingsBuilder().put(clientConfig).build();
+		RestHighLevelClient rhlClient =
+			new RestHighLevelClient(RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()])));
 
-		TransportClient transportClient = TransportClient.builder().settings(settings).build();
-		for (TransportAddress address : ElasticsearchUtils.convertInetSocketAddresses(transportAddresses)) {
-			transportClient.addTransportAddress(address);
-		}
+		LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
 
-		// verify that we actually are connected to a cluster
-		if (transportClient.connectedNodes().isEmpty()) {
-			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch TransportClient with connected nodes {}", transportClient.connectedNodes());
-		}
-
-		return transportClient;
+		return rhlClient;
 	}
 
 	@Override
 	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
-		return BulkProcessor.builder((Client) client, listener);
+		RestHighLevelClient rhlClient = (RestHighLevelClient) client;
+		return BulkProcessor.builder(rhlClient::bulkAsync, listener);
 	}
 
 	@Override
@@ -123,9 +108,10 @@ public class Elasticsearch2ApiCallBridge extends ElasticsearchApiCallBridge {
 		builder.setBackoffPolicy(backoffPolicy);
 	}
 
-	@Override
-	public void cleanup() {
-		// nothing to cleanup
+	public RequestIndexer createRequestIndex(
+		BulkProcessor bulkProcessor,
+		boolean flushOnCheckpoint,
+		AtomicLong numPendingRequests) {
+		return new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
-
 }
