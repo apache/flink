@@ -81,6 +81,15 @@ if [ $EXIT_CODE == 0 ]; then
     EXIT_CODE=$?
 fi
 
+if [ $EXIT_CODE == 0 ]; then
+    run_test "JAVA QuickStart package build test" "$END_TO_END_DIR/test-scripts/test_build_quickstart_java.sh"
+    EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    run_test "SCALA QuickStart package build test" "$END_TO_END_DIR/test-scripts/test_build_quickstart_scala.sh"
+    EXIT_CODE=$?
+fi
 
 # Exit code for Travis build success/failure
 exit $EXIT_CODE

@@ -46,6 +46,7 @@ You can scaffold a new project via either of the following two methods:
 <ul class="nav nav-tabs" style="border-bottom: none;">
     <li class="active"><a href="#sbt_template" data-toggle="tab">Use the <strong>sbt template</strong></a></li>
     <li><a href="#quickstart-script-sbt" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
+    <li><a href="#quickstart-compressed" data-toggle="tab">Download the <strong>compressed version</strong></a></li>
 </ul>
 
 <div class="tab-content">
@@ -61,6 +62,15 @@ You can scaffold a new project via either of the following two methods:
     $ bash <(curl https://flink.apache.org/q/sbt-quickstart.sh)
     {% endhighlight %}
     This will create a Flink project in the <strong>specified</strong> project directory.
+    </div>
+        <div class="tab-pane" id="quickstart-compressed">
+            <p style="border-radius: 5px; padding: 5px">
+            {% if site.is_stable %}
+                Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-scala.zip">Here</a>
+                {% else %}
+                Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-scala-SNAPSHOT.zip">Here</a>
+            {% endif %}
+            </p>
     </div>
 </div>
 
@@ -124,6 +134,7 @@ Use one of the following commands to __create a project__:
 <ul class="nav nav-tabs" style="border-bottom: none;">
     <li class="active"><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
     <li><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
+    <li><a href="#quickstart-compressed" data-toggle="tab">Download the <strong>compressed version</strong></a></li>
 </ul>
 
 <div class="tab-content">
@@ -138,13 +149,22 @@ Use one of the following commands to __create a project__:
     This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
-{% highlight bash %}
-{% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
-{% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
-{% endif %}
-{% endhighlight %}
+        {% highlight bash %}
+        {% if site.is_stable %}
+            $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+        {% else %}
+            $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
+        {% endif %}
+        {% endhighlight %}
+    </div>
+    <div class="tab-pane" id="quickstart-compressed">
+        <p style="border-radius: 5px; padding: 5px">
+        {% if site.is_stable %}
+            Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-scala.zip">Here</a>
+            {% else %}
+            Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-scala-SNAPSHOT.zip">Here</a>
+        {% endif %}
+        </p>
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">

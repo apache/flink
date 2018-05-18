@@ -40,33 +40,43 @@ Use one of the following commands to __create a project__:
 <ul class="nav nav-tabs" style="border-bottom: none;">
     <li class="active"><a href="#maven-archetype" data-toggle="tab">Use <strong>Maven archetypes</strong></a></li>
     <li><a href="#quickstart-script" data-toggle="tab">Run the <strong>quickstart script</strong></a></li>
+    <li><a href="#quickstart-compressed" data-toggle="tab">Download the <strong>compressed version</strong></a></li>
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
-      -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
-      -DarchetypeVersion={{site.version}}
-    {% endhighlight %}
+        {% highlight bash %}
+        $ mvn archetype:generate                               \
+        -DarchetypeGroupId=org.apache.flink              \
+        -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+        -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
+        -DarchetypeVersion={{site.version}}
+        {% endhighlight %}
         This allows you to <strong>name your newly created project</strong>. It will interactively ask you for the groupId, artifactId, and package name.
     </div>
     <div class="tab-pane" id="quickstart-script">
-    {% highlight bash %}
-{% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash
-{% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
-{% endif %}
-    {% endhighlight %}
-
+        {% highlight bash %}
+        {% if site.is_stable %}
+        $ curl https://flink.apache.org/q/quickstart.sh | bash
+        {% else %}
+        $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
+        {% endif %}
+        {% endhighlight %}
+    </div>
+    <div class="tab-pane" id="quickstart-compressed">
+        <p style="border-radius: 5px; padding: 5px">
+        {% if site.is_stable %}
+            Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-java.zip">Here</a>
+            {% else %}
+            Download compressed version of QuickStart <a href="https://flink.apache.org/q/quickstart-java-SNAPSHOT.zip">Here</a>
+        {% endif %}
+        </p>
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
         <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
     </p>
     {% endunless %}
+
 </div>
 
 ## Inspect Project
