@@ -21,11 +21,14 @@ package org.apache.flink.formats.avro.registry.confluent;
 import org.apache.flink.formats.avro.SchemaCoder;
 
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
+import static java.lang.String.format;
 
 /**
  * Reads schema using Confluent Schema Registry protocol.
@@ -45,7 +48,7 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 	}
 
 	@Override
-	public Schema readSchema(InputStream in) throws Exception {
+	public Schema readSchema(InputStream in) throws IOException {
 		DataInputStream dataInputStream = new DataInputStream(in);
 
 		if (dataInputStream.readByte() != 0) {
@@ -53,7 +56,11 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 		} else {
 			int schemaId = dataInputStream.readInt();
 
-			return schemaRegistryClient.getById(schemaId);
+			try {
+				return schemaRegistryClient.getById(schemaId);
+			} catch (RestClientException e) {
+				throw new IOException(format("Could not find schema with id %s in registry", schemaId), e);
+			}
 		}
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.avro.Schema;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 
@@ -28,7 +29,7 @@ import java.io.Serializable;
  * Used by {@link RegistryAvroDeserializationSchema}.
  */
 public interface SchemaCoder {
-	Schema readSchema(InputStream in) throws Exception;
+	Schema readSchema(InputStream in) throws IOException;
 
 	/**
 	 * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in

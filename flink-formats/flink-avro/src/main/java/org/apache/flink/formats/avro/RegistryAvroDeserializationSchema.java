@@ -25,6 +25,8 @@ import org.apache.avro.specific.SpecificRecord;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+
 /**
  * Deserialization schema that deserializes from Avro binary format using {@link SchemaCoder}.
  *
@@ -58,9 +60,7 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 	}
 
 	@Override
-	public T deserialize(byte[] message) {
-		// read record
-		try {
+	public T deserialize(byte[] message) throws IOException {
 			checkAvroInitialized();
 			getInputStream().setBuffer(message);
 			Schema writerSchema = schemaCoder.readSchema(getInputStream());
@@ -72,9 +72,6 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
 			datumReader.setExpected(readerSchema);
 
 			return datumReader.read(null, getDecoder());
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to deserialize Row.", e);
-		}
 	}
 
 	@Override
