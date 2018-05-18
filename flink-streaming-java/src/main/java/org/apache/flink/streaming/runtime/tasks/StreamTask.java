@@ -154,7 +154,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected ProcessingTimeService timerService;
 
 	/** The map of user-defined accumulators of this task. */
-	private Map<String, Accumulator<?, ?>> accumulatorMap;
+	private final Map<String, Accumulator<?, ?>> accumulatorMap;
 
 	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
@@ -208,6 +208,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		this.timerService = timeProvider;
 		this.configuration = new StreamConfig(getTaskConfiguration());
+		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.streamRecordWriters = createStreamRecordWriters(configuration, environment);
 	}
 
@@ -254,8 +255,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			stateBackend = createStateBackend();
 			checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
-
-			accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 
 			// if the clock is not already set, then assign a default TimeServiceProvider
 			if (timerService == null) {
