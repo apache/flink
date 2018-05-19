@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
 import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
 import org.apache.flink.table.api.TableSchema;
