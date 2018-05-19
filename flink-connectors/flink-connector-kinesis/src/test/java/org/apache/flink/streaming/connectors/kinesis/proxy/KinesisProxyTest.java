@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import com.amazonaws.ClientConfigurationFactory;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -27,6 +26,7 @@ import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonServiceException.ErrorType;
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.ClientConfigurationFactory;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.ListShardsRequest;
@@ -157,7 +157,6 @@ public class KinesisProxyTest {
 		List<StreamShardHandle> actualShardList =
 				shardListResult.getRetrievedShardListOfStream(fakeStreamName);
 		List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
-		System.out.println(actualShardList.toString());
 		assertThat(actualShardList, hasSize(4));
 		for (int i = 0; i < 4; i++) {
 			StreamShardHandle shardHandle =

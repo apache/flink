@@ -28,9 +28,13 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -72,6 +76,8 @@ public class KinesisConfigUtil {
 
 	/** Default values for ThreadPoolSize. **/
 	protected static final int DEFAULT_THREAD_POOL_SIZE = 10;
+
+	private static final Logger LOG = LoggerFactory.getLogger(KinesisConfigUtil.class);
 
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
@@ -182,20 +188,18 @@ public class KinesisConfigUtil {
 	}
 
 	public static Properties replaceDeprecatedConsumerKeys(Properties configProps) {
-		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE)) {
-			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE,
-							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE));
-			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE);
-		}
-		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX)) {
-			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX,
-							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX));
-			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX);
-		}
-		if (configProps.containsKey(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT)) {
-			configProps.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
-							configProps.getProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT));
-			configProps.remove(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT);
+		HashMap<String, String> deprecatedOldKeyToNewKeys = new HashMap<>();
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX);
+		deprecatedOldKeyToNewKeys.put(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT);
+		for (Map.Entry<String, String> entry : deprecatedOldKeyToNewKeys.entrySet()) {
+			String deprecatedOldKey = entry.getKey();
+			String newKey = entry.getValue();
+			if (configProps.containsKey(deprecatedOldKey)) {
+				LOG.warn("Please note {} property has been deprecated. Please use the {} new property key", deprecatedOldKey, newKey);
+				configProps.setProperty(newKey, configProps.getProperty(deprecatedOldKey));
+				configProps.remove(deprecatedOldKey);
+			}
 		}
 		return configProps;
 	}
