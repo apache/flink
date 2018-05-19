@@ -233,7 +233,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		}
 
 		checkAndPropagateAsyncError();
-		checkQueueLimit();
+		enforceQueueLimit();
 		checkAndPropagateAsyncError();
 
 		String stream = defaultStream;
@@ -348,7 +348,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * We don't want to flush _all_ records at this point since that would
 	 * break record aggregation.
 	 */
-	private void checkQueueLimit() {
+	private void enforceQueueLimit() {
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
 			producer.flush();
 			try {
