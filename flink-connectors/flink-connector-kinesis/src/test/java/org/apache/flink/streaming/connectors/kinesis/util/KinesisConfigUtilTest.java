@@ -131,8 +131,10 @@ public class KinesisConfigUtilTest {
 
 	@Test
 	public void testMissingAwsRegionInConfig() {
+		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
+		exception.expectMessage(expectedMessage);
 
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
