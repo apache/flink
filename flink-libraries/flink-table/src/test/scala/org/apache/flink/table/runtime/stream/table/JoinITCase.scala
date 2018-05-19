@@ -515,17 +515,77 @@ class JoinITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
-  def testRightJoin(): Unit = {
+  @Test
+  def testRightJoinWithMultipleKeys(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
     env.setStateBackend(getStateBackend)
 
-    val leftTable = env.fromCollection(List((1, 2))).toTable(tEnv, 'a, 'b)
-    val rightTable = env.fromCollection(List((1, 2))).toTable(tEnv, 'bb, 'c)
+    val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    leftTable.rightOuterJoin(rightTable, 'a ==='bb).toAppendStream[Row]
+    val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 'h).select('c, 'g)
+
+    val expected = Seq(
+      "Hi,Hallo", "Hello,Hallo Welt", "null,Hallo Welt wie",
+      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "null,BCD", "null,CDE",
+      "null,DEF", "null,EFG", "null,FGH", "null,GHI", "I am fine.,HIJ",
+      "I am fine.,IJK", "null,JKL", "null,KLM")
+    val results = joinT.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testRightJoinWithNonEquiJoinPred(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    env.setStateBackend(getStateBackend)
+
+    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b <= 'h).select('c, 'g)
+
+    val expected = Seq(
+      "Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt wie gehts?", "Hello world,ABC",
+      "Hello world,BCD", "I am fine.,HIJ", "I am fine.,IJK",
+      "Hello world, how are you?,null", "Luke Skywalker,null", "Comment#1,null", "Comment#2,null",
+      "Comment#3,null", "Comment#4,null", "Comment#5,null", "Comment#6,null", "Comment#7,null",
+      "Comment#8,null", "Comment#9,null", "Comment#10,null", "Comment#11,null", "Comment#12,null",
+      "Comment#13,null", "Comment#14,null", "Comment#15,null")
+    val results = joinT.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testRightJoinWithLeftLocalPred(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    env.setStateBackend(getStateBackend)
+
+    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val joinT = ds1.rightOuterJoin(ds2, 'a === 'd && 'b === 2).select('c, 'g)
+
+    val expected = Seq(
+      "Hello,Hallo Welt", "Hello,Hallo Welt wie",
+      "Hello world,Hallo Welt wie gehts?", "Hello world,ABC", "Hello world,BCD",
+      "Hi,null", "Hello world, how are you?,null", "I am fine.,null", "Luke Skywalker,null",
+      "Comment#1,null", "Comment#2,null", "Comment#3,null", "Comment#4,null", "Comment#5,null",
+      "Comment#6,null", "Comment#7,null", "Comment#8,null", "Comment#9,null", "Comment#10,null",
+      "Comment#11,null", "Comment#12,null", "Comment#13,null", "Comment#14,null", "Comment#15,null")
+    val results = joinT.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test(expected = classOf[TableException])

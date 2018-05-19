@@ -398,7 +398,7 @@ FROM Orders INNER JOIN Product ON Orders.productId = Product.id
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported. Right and full joins are not supported in streaming yet.</p>
+        <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported. Full join is not supported in streaming yet.</p>
         <p><b>Note:</b> The order of joins is not optimized. Tables are joined in the order in which they are specified in the FROM clause. Make sure to specify tables in an order that does not yield a cross join (Cartesian product) which are not supported and would cause a query to fail.</p>
 {% highlight sql %}
 SELECT *
