@@ -21,7 +21,6 @@
 source "$(dirname "$0")"/common.sh
 
 projectVersion=`mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^([0-9]+.[0-9]+(.[0-9]+)?(-[a-zA-Z0-9]+)?)$'`
-projectVersion=1.4.1
 snapshotPrefix=`echo ${projectVersion} | grep -Eo "\-SNAPSHOT"`
 
 TEST_PROGRAM_JAR=$TEST_DATA_DIR/flink-quickstart/target/flink-quickstart-0.1${snapshotPrefix}.jar
@@ -49,7 +48,6 @@ if [[ `grep -c "org/apache/flink/api/java" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/streaming/experimental" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/streaming/runtime" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/streaming/util" contentsInJar.txt` -eq '0' ]]; then
-
     echo "Success: There are no flink core classes are contained in the jar."
 else
     echo "Failure: There are flink core classes are contained in the jar."
@@ -57,30 +55,13 @@ else
     exit 1
 fi
 
-
 if [[ `grep -c "org/apache/flink/quickstart/BatchJob.class" contentsInJar.txt` -eq '0' && \
-      `grep -c "org/apache/flink/quickstart/SocketTextStreamWordCount.class" contentsInJar.txt` -eq '0' && \
-      `grep -c "org/apache/flink/quickstart/WordCount.class" contentsInJar.txt` -eq '0' && \
       `grep -c "org/apache/flink/quickstart/StreamingJob.class" contentsInJar.txt` -eq '0' ]]; then
-
-    echo "Failure: One of quickstart classes [ BatchJob or SocketTextStreamWordCount or WordCount or StreamingJob] are not included in the jar. "
+    echo "Failure: One of quickstart classes [ BatchJob or StreamingJob] are not included in the jar. "
     PASS=""
     exit 1
 else
-    echo "Success: All quickstart classes [ BatchJob and SocketTextStreamWordCount and WordCount and StreamingJob] are included in the jar."
-fi
-
-start_cluster
-
-$FLINK_DIR/bin/flink run -c org.apache.flink.quickstart.WordCount $TEST_PROGRAM_JAR > testResutls.txt
-
-
-if [[ `grep -e '\,\d' testResutls.txt | tr -d '\n'}` == '(against,1)(and,1)(arms,1)(arrows,1)(be,2)(is,1)(nobler,1)(not,1)(of,2)(outrageous,1)(sea,1)(the,3)(tis,1)(troubles,1)(whether,1)(a,1)(fortune,1)(in,1)(mind,1)(or,2)(question,1)(slings,1)(suffer,1)(take,1)(that,1)(to,4)' ]]; then
-    echo "Success"
-else
-    echo "Failure"
-        PASS=""
-    exit 1
+    echo "Success: All quickstart classes [ BatchJob and StreamingJob] are included in the jar."
 fi
 
 cd $TEST_DATA_DIR/flink-quickstart
