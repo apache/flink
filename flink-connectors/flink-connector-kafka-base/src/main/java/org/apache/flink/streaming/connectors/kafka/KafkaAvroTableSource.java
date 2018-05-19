@@ -47,8 +47,6 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 
 	private Map<String, String> fieldMapping;
 
-	private final TableSchema schema;
-
 	/**
 	 * Creates a generic Kafka Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
 	 *
@@ -70,7 +68,6 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 			AvroRecordClassConverter.convert(avroRecordClass));
 
 		this.avroRecordClass = avroRecordClass;
-		this.schema = schema;
 	}
 
 	@Override
@@ -85,8 +82,7 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 
 	@Override
 	protected AvroRowDeserializationSchema getDeserializationSchema() {
-		return new AvroRowDeserializationSchema(avroRecordClass,
-			new RowTypeInfo(schema.getTypes(), schema.getColumnNames()));
+		return new AvroRowDeserializationSchema(avroRecordClass, AvroRecordClassConverter.convert(avroRecordClass));
 	}
 
 	@Override
