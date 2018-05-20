@@ -89,7 +89,7 @@ public class FlinkPulsarProducer<IN>
 
 	// -------------------------------- Runtime fields ------------------------------------------
 
-	/** KafkaProducer instance. */
+	/** Pulsar Producer instance. */
 	protected transient Producer producer;
 
 	/** The callback than handles error propagation or logging callbacks. */
