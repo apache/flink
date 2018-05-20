@@ -104,6 +104,10 @@ The command line can be used to
 
         ./bin/flink list -r
 
+-   List all existing jobs (including their JobIDs):
+
+        ./bin/flink list -a
+
 -   List running Flink jobs inside Flink YARN session:
 
         ./bin/flink list -m yarn-cluster -yid <yarnApplicationID> -r
