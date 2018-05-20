@@ -30,6 +30,8 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -53,12 +55,42 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 	public void testList() throws Exception {
 		// test list properly
 		{
-			String[] parameters = {"-r", "-s"};
+			String[] parameters = {"-r", "-s", "-a"};
 			ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			testFrontend.list(parameters);
 			Mockito.verify(clusterClient, times(1))
 				.listJobs();
+		}
+
+		// test configure all job
+		{
+			String[] parameters = {"-a"};
+			ListOptions options = new ListOptions(CliFrontendParser.parse(
+				CliFrontendParser.getListCommandOptions(), parameters, true));
+			assertTrue(options.getOther());
+			assertTrue(options.getRunning());
+			assertTrue(options.getScheduled());
+		}
+
+		// test configure running job
+		{
+			String[] parameters = {"-r"};
+			ListOptions options = new ListOptions(CliFrontendParser.parse(
+				CliFrontendParser.getListCommandOptions(), parameters, true));
+			assertFalse(options.getOther());
+			assertTrue(options.getRunning());
+			assertFalse(options.getScheduled());
+		}
+
+		// test configure scheduled job
+		{
+			String[] parameters = {"-s"};
+			ListOptions options = new ListOptions(CliFrontendParser.parse(
+				CliFrontendParser.getListCommandOptions(), parameters, true));
+			assertFalse(options.getOther());
+			assertFalse(options.getRunning());
+			assertTrue(options.getScheduled());
 		}
 	}
 

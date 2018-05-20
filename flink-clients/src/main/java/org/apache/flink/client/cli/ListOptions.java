@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.commons.cli.CommandLine;
 
+import static org.apache.flink.client.cli.CliFrontendParser.ALL_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.RUNNING_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SCHEDULED_OPTION;
 
@@ -30,11 +31,13 @@ public class ListOptions extends CommandLineOptions {
 
 	private final boolean running;
 	private final boolean scheduled;
+	private final boolean other;
 
 	public ListOptions(CommandLine line) {
 		super(line);
-		this.running = line.hasOption(RUNNING_OPTION.getOpt());
-		this.scheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
+		this.other = line.hasOption(ALL_OPTION.getOpt());
+		this.running = line.hasOption(RUNNING_OPTION.getOpt()) || this.other;
+		this.scheduled = line.hasOption(SCHEDULED_OPTION.getOpt()) || this.other;
 	}
 
 	public boolean getRunning() {
@@ -43,5 +46,9 @@ public class ListOptions extends CommandLineOptions {
 
 	public boolean getScheduled() {
 		return scheduled;
+	}
+
+	public boolean getOther() {
+		return other;
 	}
 }

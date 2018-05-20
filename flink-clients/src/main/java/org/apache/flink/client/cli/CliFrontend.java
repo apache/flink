@@ -394,14 +394,17 @@ public class CliFrontend {
 
 		final boolean running;
 		final boolean scheduled;
+		final boolean other;
 
 		// print running and scheduled jobs if not option supplied
-		if (!listOptions.getRunning() && !listOptions.getScheduled()) {
+		if (!listOptions.getRunning() && !listOptions.getScheduled() && !listOptions.getOther()) {
 			running = true;
 			scheduled = true;
+			other = false;
 		} else {
 			running = listOptions.getRunning();
 			scheduled = listOptions.getScheduled();
+			other = listOptions.getOther();
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
@@ -409,14 +412,15 @@ public class CliFrontend {
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
-			clusterClient -> listJobs(clusterClient, running, scheduled));
+			clusterClient -> listJobs(clusterClient, running, scheduled, other));
 
 	}
 
 	private <T> void listJobs(
 			ClusterClient<T> clusterClient,
 			boolean running,
-			boolean scheduled) throws FlinkException {
+			boolean scheduled,
+			boolean other) throws FlinkException {
 		Collection<JobStatusMessage> jobDetails;
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
@@ -436,11 +440,15 @@ public class CliFrontend {
 
 		final List<JobStatusMessage> runningJobs = new ArrayList<>();
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
+		final List<JobStatusMessage> otherJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
 			if (details.getJobState() == JobStatus.CREATED) {
 				scheduledJobs.add(details);
-			} else {
+			} else if (details.getJobState() == JobStatus.RUNNING
+				|| details.getJobState() == JobStatus.RESTARTING){
 				runningJobs.add(details);
+			} else {
+				otherJobs.add(details);
 			}
 		});
 
@@ -470,6 +478,18 @@ public class CliFrontend {
 				for (JobStatusMessage scheduledJob : scheduledJobs) {
 					System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
 						+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
+				}
+				System.out.println("--------------------------------------------------------------");
+			}
+		}
+		if (other) {
+			if (otherJobs.size() != 0) {
+				otherJobs.sort(startTimeComparator);
+
+				System.out.println("------------------------- Other Jobs -------------------------");
+				for (JobStatusMessage otherJob : otherJobs) {
+					System.out.println(dateFormat.format(new Date(otherJob.getStartTime()))
+						+ " : " + otherJob.getJobId() + " : " + otherJob.getJobName() + " (" + otherJob.getJobState() + ")");
 				}
 				System.out.println("--------------------------------------------------------------");
 			}
