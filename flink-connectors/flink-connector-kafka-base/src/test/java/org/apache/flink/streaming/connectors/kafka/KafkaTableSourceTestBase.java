@@ -62,6 +62,7 @@ public abstract class KafkaTableSourceTestBase {
 	private static final String TOPIC = "testTopic";
 	private static final TableSchema SCHEMA = new TableSchema(FIELD_NAMES, FIELD_TYPES);
 	private static final Properties PROPS = createSourceProperties();
+	private static final DeserializationSchema DESERIALIZER = mock(DeserializationSchema.class);
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -202,39 +203,39 @@ public abstract class KafkaTableSourceTestBase {
 
 		// test the default behavior
 		KafkaTableSource source = spy(b.build());
-		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+		when(source.createKafkaConsumer(TOPIC, PROPS, DESERIALIZER))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
 
-		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
+		verify(source.getKafkaConsumer(TOPIC, PROPS, DESERIALIZER)).setStartFromGroupOffsets();
 
 		// test reading from earliest
 		b.fromEarliest();
 		source = spy(b.build());
-		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+		when(source.createKafkaConsumer(TOPIC, PROPS, DESERIALIZER))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
 
-		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromEarliest();
+		verify(source.getKafkaConsumer(TOPIC, PROPS, DESERIALIZER)).setStartFromEarliest();
 
 		// test reading from latest
 		b.fromLatest();
 		source = spy(b.build());
-		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+		when(source.createKafkaConsumer(TOPIC, PROPS, DESERIALIZER))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
-		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromLatest();
+		verify(source.getKafkaConsumer(TOPIC, PROPS, DESERIALIZER)).setStartFromLatest();
 
 		// test reading from group offsets
 		b.fromGroupOffsets();
 		source = spy(b.build());
-		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+		when(source.createKafkaConsumer(TOPIC, PROPS, DESERIALIZER))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
-		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
+		verify(source.getKafkaConsumer(TOPIC, PROPS, DESERIALIZER)).setStartFromGroupOffsets();
 
 		// test reading from given offsets
 		b.fromSpecificOffsets(mock(Map.class));
 		source = spy(b.build());
-		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+		when(source.createKafkaConsumer(TOPIC, PROPS, DESERIALIZER))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
-		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromSpecificOffsets(any(Map.class));
+		verify(source.getKafkaConsumer(TOPIC, PROPS, DESERIALIZER)).setStartFromSpecificOffsets(any(Map.class));
 	}
 
 	protected abstract KafkaTableSource.Builder getBuilder();

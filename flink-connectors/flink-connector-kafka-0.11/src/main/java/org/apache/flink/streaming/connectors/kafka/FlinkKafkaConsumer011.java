@@ -20,9 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -62,7 +60,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer011(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(Collections.singletonList(topic), valueDeserializer, props);
+		super(topic, valueDeserializer, props);
 	}
 
 	/**
@@ -79,7 +77,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer011(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(Collections.singletonList(topic), deserializer, props);
+		super(topic, deserializer, props);
 	}
 
 	/**
@@ -95,7 +93,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer011(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		super(topics, deserializer, props);
 	}
 
 	/**
@@ -131,7 +129,7 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer011(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		super(subscriptionPattern, valueDeserializer, props);
 	}
 
 	/**

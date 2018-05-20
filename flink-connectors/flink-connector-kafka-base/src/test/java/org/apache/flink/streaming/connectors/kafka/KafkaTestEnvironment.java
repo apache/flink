@@ -127,19 +127,19 @@ public abstract class KafkaTestEnvironment {
 	public abstract List<KafkaServer> getBrokers();
 
 	// -- consumer / producer instances:
-	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> deserializationSchema, Properties props) {
+	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(topics, new KeyedDeserializationSchemaWrapper<T>(deserializationSchema), props);
 	}
 
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, KeyedDeserializationSchema<T> readSchema, Properties props) {
-		return getConsumer(Collections.singletonList(topic), readSchema, props);
+		return getConsumer(Collections.singletonList(topic), new KeyedDeserializationSchemaWrapper<T>(readSchema), props);
 	}
 
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(String topic, DeserializationSchema<T> deserializationSchema, Properties props) {
 		return getConsumer(Collections.singletonList(topic), deserializationSchema, props);
 	}
 
-	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props);
+	public abstract <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, DeserializationSchema<T> readSchema, Properties props);
 
 	public abstract <K, V> Collection<ConsumerRecord<K, V>> getAllRecordsFromTopic(
 			Properties properties,

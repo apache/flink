@@ -130,7 +130,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties used to configure the Kafka consumer client, and the ZooKeeper client.
 	 */
 	public FlinkKafkaConsumer08(String topic, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(Collections.singletonList(topic), deserializer, props);
+		this(Collections.singletonList(topic), new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**
@@ -146,7 +146,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer08(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		this(topics, null, deserializer, props);
 	}
 
 	/**
@@ -162,7 +162,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer08(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(topics, null, deserializer, props);
+		this(topics, null, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**
@@ -182,7 +182,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer08(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		this(null, subscriptionPattern, valueDeserializer, props);
 	}
 
 	/**
@@ -205,13 +205,13 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer08(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(null, subscriptionPattern, deserializer, props);
+		this(null, subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	private FlinkKafkaConsumer08(
 			List<String> topics,
 			Pattern subscriptionPattern,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties props) {
 
 		super(

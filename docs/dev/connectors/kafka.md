@@ -145,15 +145,19 @@ stream = env
 ### The `DeserializationSchema`
 
 The Flink Kafka Consumer needs to know how to turn the binary data in Kafka into Java/Scala objects. The
-`DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
-method gets called for each Kafka message, passing the value from Kafka.
+`DeserializationSchema` allows users to specify such a schema. The `T deserialize(...)`
+method gets called for each Kafka message, passing the value from Kafka. There are two variants of the `T deserialize(...)`
+ method, for backwards compatibility the `T deserialize(byte[] message)` still exists, and the
+ `T deserialize(ConsumerRecordMetaInfo consumerRecord)` method which hasbesides the message some more kafka meta information,
+  such as the key, topic, partition, offset and depending on the kafka version the timestamp. 
 
 It is usually helpful to start from the `AbstractDeserializationSchema`, which takes care of describing the
 produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
 to implement the `getProducedType(...)` method themselves.
 
-For accessing both the key and value of the Kafka message, the `KeyedDeserializationSchema` has
-the following deserialize method ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)`.
+For accessing the kafka meta information the `T deserialize(ConsumerRecordMetaInfo consumerRecord)` is preferred but the 
+`KeyedDeserializationSchema` with the following deserialize method
+ ` T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)` is still available for backwards compatibility reasons.
 
 For convenience, Flink provides the following schemas:
 

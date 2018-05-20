@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -38,7 +39,6 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Assert;
@@ -372,7 +372,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			super(
 				Arrays.asList("dummy-topic"),
 				null,
-				(KeyedDeserializationSchema< T >) mock(KeyedDeserializationSchema.class),
+				(DeserializationSchema< T >) mock(DeserializationSchema.class),
 				discoveryInterval,
 				false);
 

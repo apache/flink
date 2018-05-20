@@ -20,13 +20,13 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 
@@ -68,7 +68,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	// ------------------------------------------------------------------------
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	private final KeyedDeserializationSchema<T> deserializer;
+	private final DeserializationSchema<T> deserializer;
 
 	/** The properties that configure the Kafka connection. */
 	private final Properties kafkaConfig;
@@ -94,7 +94,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long autoCommitInterval,
 			MetricGroup consumerMetricGroup,
@@ -387,7 +387,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			ExceptionProxy errorHandler) throws IOException, ClassNotFoundException {
 		// each thread needs its own copy of the deserializer, because the deserializer is
 		// not necessarily thread safe
-		final KeyedDeserializationSchema<T> clonedDeserializer =
+		final DeserializationSchema<T> clonedDeserializer =
 				InstantiationUtil.clone(deserializer, runtimeContext.getUserCodeClassLoader());
 
 		// seed thread with list of fetch partitions (otherwise it would shut down immediately again

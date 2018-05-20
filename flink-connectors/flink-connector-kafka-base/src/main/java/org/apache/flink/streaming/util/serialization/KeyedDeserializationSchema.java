@@ -30,6 +30,7 @@ import java.io.Serializable;
  *
  * @param <T> The type created by the keyed deserialization schema.
  */
+@Deprecated
 @PublicEvolving
 public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 

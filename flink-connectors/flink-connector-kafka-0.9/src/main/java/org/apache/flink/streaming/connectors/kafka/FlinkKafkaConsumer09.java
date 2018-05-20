@@ -137,7 +137,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, DeserializationSchema<T> deserializer, Properties props) {
-		this(topics, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
+		this(topics, null, deserializer, props);
 	}
 
 	/**
@@ -153,7 +153,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 *           The properties that are used to configure both the fetcher and the offset handler.
 	 */
 	public FlinkKafkaConsumer09(List<String> topics, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(topics, null, deserializer, props);
+		this(topics, null, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	/**
@@ -173,7 +173,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer09(Pattern subscriptionPattern, DeserializationSchema<T> valueDeserializer, Properties props) {
-		this(subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(valueDeserializer), props);
+		this(null, subscriptionPattern, valueDeserializer, props);
 	}
 
 	/**
@@ -196,13 +196,13 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	 */
 	@PublicEvolving
 	public FlinkKafkaConsumer09(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
-		this(null, subscriptionPattern, deserializer, props);
+		this(null, subscriptionPattern, new KeyedDeserializationSchemaWrapper<>(deserializer), props);
 	}
 
 	private FlinkKafkaConsumer09(
 			List<String> topics,
 			Pattern subscriptionPattern,
-			KeyedDeserializationSchema<T> deserializer,
+			DeserializationSchema<T> deserializer,
 			Properties props) {
 
 		super(

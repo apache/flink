@@ -43,13 +43,24 @@ import java.io.Serializable;
 public interface DeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Deserializes the byte message.
+	 * @deprecated This method still exist so the Flink API isn't broken and will be called by the default
+	 * implementation of the {@link #deserialize(ConsumerRecordMetaInfo)} method. By implementing the
+	 * {@link #deserialize(ConsumerRecordMetaInfo)} method you have access to all meta information of the kafka message.
+	 */
+	@Deprecated
+	T deserialize(byte[] message) throws IOException;
+
+	/**
+	 * Deserializes the message with access to the meta information of the kafka message, like key, value, topic,
+	 * partition, offset and timestamp.
 	 *
-	 * @param message The message, as a byte array.
+	 * @param consumerRecordMetaInfossage The message, as a {@link ConsumerRecordMetaInfo}.
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	T deserialize(byte[] message) throws IOException;
+	default T deserialize(ConsumerRecordMetaInfo consumerRecordMetaInfossage) throws IOException {
+		return deserialize(consumerRecordMetaInfossage.getMessage());
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
