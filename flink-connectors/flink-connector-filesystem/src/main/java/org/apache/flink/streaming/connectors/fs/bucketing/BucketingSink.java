@@ -631,7 +631,7 @@ public class BucketingSink<T>
 			}
 
 			// verify that truncate actually works
-			Path testPath = new Path(UUID.randomUUID().toString());
+			Path testPath = new Path(basePath, UUID.randomUUID().toString());
 			try (FSDataOutputStream outputStream = fs.create(testPath)) {
 				outputStream.writeUTF("hello");
 			} catch (IOException e) {
