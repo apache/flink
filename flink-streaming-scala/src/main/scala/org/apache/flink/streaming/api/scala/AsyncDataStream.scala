@@ -21,8 +21,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AsyncDataStream => JavaAsyncDataStream}
-import org.apache.flink.streaming.api.functions.async.{ResultFuture => JavaResultFuture}
-import org.apache.flink.streaming.api.functions.async.{AsyncFunction => JavaAsyncFunction}
+import org.apache.flink.streaming.api.functions.async.{TimeoutAwareAsyncFunction, AsyncFunction => JavaAsyncFunction, ResultFuture => JavaResultFuture}
 import org.apache.flink.streaming.api.scala.async.{AsyncFunction, JavaResultFutureWrapper, ResultFuture}
 import org.apache.flink.util.Preconditions
 
@@ -67,9 +66,12 @@ object AsyncDataStream {
       capacity: Int)
     : DataStream[OUT] = {
 
-    val javaAsyncFunction = new JavaAsyncFunction[IN, OUT] {
+    val javaAsyncFunction = new TimeoutAwareAsyncFunction[IN, OUT] {
       override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
         asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper(resultFuture))
+      }
+      override def timeout(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.timeout(input, new JavaResultFutureWrapper(resultFuture))
       }
     }
 
@@ -120,6 +122,7 @@ object AsyncDataStream {
     * @tparam IN Type of the input record
     * @tparam OUT Type of the output record
     * @return the resulting stream containing the asynchronous results
+    * @deprecated please use [[AsyncFunction]] for timeout handling.
     */
   def unorderedWait[IN, OUT: TypeInformation](
       input: DataStream[IN],
@@ -162,6 +165,7 @@ object AsyncDataStream {
     * @tparam IN Type of the input record
     * @tparam OUT Type of the output record
     * @return the resulting stream containing the asynchronous results
+    * @deprecated please use [[AsyncFunction]] for timeout handling.
     */
   def unorderedWait[IN, OUT: TypeInformation](
     input: DataStream[IN],
@@ -194,9 +198,12 @@ object AsyncDataStream {
       capacity: Int)
     : DataStream[OUT] = {
 
-    val javaAsyncFunction = new JavaAsyncFunction[IN, OUT] {
+    val javaAsyncFunction = new TimeoutAwareAsyncFunction[IN, OUT] {
       override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
         asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper[OUT](resultFuture))
+      }
+      override def timeout(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
       }
     }
 
@@ -245,6 +252,7 @@ object AsyncDataStream {
     * @tparam IN Type of the input record
     * @tparam OUT Type of the output record
     * @return the resulting stream containing the asynchronous results
+    * @deprecated please use [[AsyncFunction]] for timeout handling.
     */
   def orderedWait[IN, OUT: TypeInformation](
     input: DataStream[IN],
@@ -285,6 +293,7 @@ object AsyncDataStream {
     * @tparam IN Type of the input record
     * @tparam OUT Type of the output record
     * @return the resulting stream containing the asynchronous results
+    * @deprecated please use [[AsyncFunction]] for timeout handling.
     */
   def orderedWait[IN, OUT: TypeInformation](
     input: DataStream[IN],

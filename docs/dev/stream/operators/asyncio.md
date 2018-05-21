@@ -193,7 +193,8 @@ The following two parameters control the asynchronous operations:
 ### Timeout Handling
 
 When a async I/O request times out, an exception is thrown and job is restarted. 
-If you want to handle timeouts, please use `TimeoutAwareAsyncFunction` instead of `AsyncFunction`.
+If you want to handle timeouts, please use `TimeoutAwareAsyncFunction` instead of `AsyncFunction` for Java API,
+override `AsyncFunction#timeout` for Scala API.
 
 
 ### Order of Results
