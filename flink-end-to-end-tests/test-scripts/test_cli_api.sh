@@ -20,15 +20,15 @@
 source "$(dirname "$0")"/common.sh
 
 start_cluster
-$FLINK_DIR/bin/taskmanager.sh start
-$FLINK_DIR/bin/taskmanager.sh start
-$FLINK_DIR/bin/taskmanager.sh start
 
 # Test for CLI commands.
 # verify only the return code the content correctness of the API results.
 PERIODIC_JOB_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-api-test/target/PeriodicStreamingJob.jar
 JOB_ID_REGEX_EXTRACTOR=".*JobID ([0-9,a-f]*)"
 SAVE_POINT_REGEX_EXTRACTOR=".*Savepoint stored in (.*)\\."
+JOB_INFO_PACT_DATA_SOURCE_REGEX_EXTRACTOR="\"pact\": \"(Data Source)\""
+JOB_INFO_PACT_DATA_SINK_REGEX_EXTRACTOR="\"pact\": \"(Data Sink)\""
+JOB_LIST_REGEX_EXTRACTOR_BY_STATUS="([0-9,a-f]*) :"
 
 EXIT_CODE=0
 
@@ -52,6 +52,35 @@ function extract_savepoint_path_from_savepoint_return() {
     echo "$SAVEPOINT_PATH"
 }
 
+function extract_valid_pact_from_job_info_return() {
+    PACT_MATCH=0
+    if [[ $1 =~ $JOB_INFO_PACT_DATA_SOURCE_REGEX_EXTRACTOR ]];
+        then
+            PACT_MATCH=$PACT_MATCH
+        else
+            PACT_MATCH=-1
+        fi
+    if [[ $1 =~ $JOB_INFO_PACT_DATA_SINK_REGEX_EXTRACTOR ]];
+        then
+            PACT_MATCH=$PACT_MATCH
+        else
+            PACT_MATCH=-1
+        fi
+    echo ${PACT_MATCH}
+}
+
+function extract_valid_job_list_by_type_from_job_list_return() {
+    JOB_LIST_MATCH=0
+    JOB_LIST_REGEX_EXTRACTOR="$JOB_LIST_REGEX_EXTRACTOR_BY_STATUS $2 $3"
+    if [[ $1 =~ $JOB_LIST_REGEX_EXTRACTOR ]];
+        then
+            JOB_LIST_MATCH=$JOB_LIST_MATCH
+        else
+            JOB_LIST_MATCH=-1
+        fi
+    echo ${JOB_LIST_MATCH}
+}
+
 function cleanup_cli_test() {
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
@@ -68,7 +97,7 @@ if [ $EXIT_CODE == 0 ]; then
 fi
 
 printf "\n==============================================================================\n"
-printf "Test run with complex parameter set\n"
+printf "Test job launch with complex parameter set\n"
 printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
     eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 -q -d \
@@ -83,59 +112,71 @@ printf "\n======================================================================
 printf "Test information APIs\n"
 printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink info $FLINK_DIR/examples/batch/WordCount.jar"
-    EXIT_CODE=$?
-fi
-if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink list"
-    EXIT_CODE=$?
-fi
-if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink list -s"
-    EXIT_CODE=$?
-fi
-if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink list -r"
-    EXIT_CODE=$?
+    RETURN=`$FLINK_DIR/bin/flink info $FLINK_DIR/examples/batch/WordCount.jar`
+    echo "job info returns: $RETURN"
+    PACT_MATCH=`extract_valid_pact_from_job_info_return "$RETURN"`
+    echo "job info regex match: $PACT_MATCH"
+    if [[ $PACT_MATCH == -1 ]]; then # expect at least a Data Source and a Data Sink pact match
+        EXIT_CODE=-1
+    else
+        EXIT_CODE=0
+    fi
 fi
 
 printf "\n==============================================================================\n"
 printf "Test operation on running streaming jobs\n"
 printf "==============================================================================\n"
+JOB_ID=""
 if [ $EXIT_CODE == 0 ]; then
     RETURN=`$FLINK_DIR/bin/flink run -d \
         $PERIODIC_JOB_JAR --outputPath file:///${TEST_DATA_DIR}/out/result`
     echo "job submission returns: $RETURN"
     JOB_ID=`extract_job_id_from_job_submission_return "$RETURN"`
-    eval "$FLINK_DIR/bin/flink cancel ${JOB_ID}"
-    EXIT_CODE=$?
+    EXIT_CODE=$? # expect matching job id extraction
 fi
 
 printf "\n==============================================================================\n"
-printf "Test savepoint for a running streaming jobs\n"
+printf "Test list API on a streaming job \n"
 printf "==============================================================================\n"
-SAVEPOINT_JOB_ID=""
-SAVEPOINT_PATH=""
 if [ $EXIT_CODE == 0 ]; then
-    RETURN=`$FLINK_DIR/bin/flink run -d \
-        $PERIODIC_JOB_JAR --outputPath file:///${TEST_DATA_DIR}/out/result`
-    echo "job submission returns: $RETURN"
-    SAVEPOINT_JOB_ID=`extract_job_id_from_job_submission_return "$RETURN"`
-    EXIT_CODE=$?
+    RETURN=`$FLINK_DIR/bin/flink list -a`
+    echo "job list all returns: $RETURN"
+    JOB_LIST_MATCH=`extract_valid_job_list_by_type_from_job_list_return "$RETURN" "Flink Streaming Job" ""`
+    echo "job list all regex match: $JOB_LIST_MATCH"
+    if [[ $JOB_LIST_MATCH == -1 ]]; then # expect match for all job
+        EXIT_CODE=-1
+    else
+        EXIT_CODE=0
+    fi
 fi
 if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink savepoint ${SAVEPOINT_JOB_ID} file:///${TEST_DATA_DIR}/savepoint"
-    EXIT_CODE=$?
+    RETURN=`$FLINK_DIR/bin/flink list -r`
+    echo "job list running returns: $RETURN"
+    JOB_LIST_MATCH=`extract_valid_job_list_by_type_from_job_list_return "$RETURN" "Flink Streaming Job" "\(RUNNING\)"`
+    echo "job list running regex match: $JOB_LIST_MATCH"
+    if [[ $JOB_LIST_MATCH == -1 ]]; then # expect match for running job
+        EXIT_CODE=-1
+    else
+        EXIT_CODE=0
+    fi
 fi
 if [ $EXIT_CODE == 0 ]; then
-    RETURN=`$FLINK_DIR/bin/flink cancel -s file:///${TEST_DATA_DIR}/savepoint ${SAVEPOINT_JOB_ID}`
-    echo "job savepoint returns: $RETURN"
-    SAVEPOINT_PATH=`extract_savepoint_path_from_savepoint_return "$RETURN"`
-    EXIT_CODE=$?
+    RETURN=`$FLINK_DIR/bin/flink list -s`
+    echo "job list scheduled returns: $RETURN"
+    JOB_LIST_MATCH=`extract_valid_job_list_by_type_from_job_list_return "$RETURN" "Flink Streaming Job" "\(CREATED\)"`
+    echo "job list scheduled regex match: $JOB_LIST_MATCH"
+    if [[ $JOB_LIST_MATCH == -1 ]]; then # expect no match for scheduled job
+        EXIT_CODE=0
+    else
+        EXIT_CODE=-1
+    fi
 fi
+
+printf "\n==============================================================================\n"
+printf "Test canceling a running streaming jobs\n"
+printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
-    eval "$FLINK_DIR/bin/flink run -s ${SAVEPOINT_PATH} -d \
-        ${PERIODIC_JOB_JAR} --outputPath file:///${TEST_DATA_DIR}/out/result"
+    eval "$FLINK_DIR/bin/flink cancel ${JOB_ID}"
     EXIT_CODE=$?
 fi
 
