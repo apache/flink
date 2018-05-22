@@ -91,7 +91,14 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 
 	@Override
 	public void run(SourceContext<Event> ctx) throws Exception {
+		if (keyRanges.size() > 0) {
+			runActive(ctx);
+		} else {
+			runIdle(ctx);
+		}
+	}
 
+	private void runActive(SourceContext<Event> ctx) throws Exception {
 		Random random = new Random();
 
 		// this holds the current event time, from which generated events can up to +/- (maxOutOfOrder).
@@ -128,6 +135,27 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 					Thread.sleep(sleepTime);
 				} else if (elementsBeforeSleep > 1) {
 					--elementsBeforeSleep;
+				}
+			}
+		}
+	}
+
+	private void runIdle(SourceContext<Event> ctx) throws Exception {
+		ctx.markAsTemporarilyIdle();
+
+		// just wait until this source is canceled
+		final Object waitLock = new Object();
+		while (running) {
+			try {
+				//noinspection SynchronizationOnLocalVariableOrMethodParameter
+				synchronized (waitLock) {
+					waitLock.wait();
+				}
+			}
+			catch (InterruptedException e) {
+				if (!running) {
+					// restore the interrupted state, and fall through the loop
+					Thread.currentThread().interrupt();
 				}
 			}
 		}
