@@ -184,18 +184,12 @@ if [ $EXIT_CODE == 0 ]; then
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running local recovery and sticky scheduling nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh
+  run_test "Local recovery and sticky scheduling nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Quickstarts nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_quickstarts.sh
+  run_test "Quickstarts nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_quickstarts.sh"
   EXIT_CODE=$?
 fi
 
