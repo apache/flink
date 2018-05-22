@@ -17,11 +17,27 @@
 # limitations under the License.
 ################################################################################
 
+if [ -z $1 ] || [ -z $2 ]; then
+ echo "Usage: ./test_resume_externalized_checkpoints.sh <original_dop> <new_dop> <state_backend_setting> <state_backend_file_async_setting> <state_backend_rocks_incremental_setting>"
+ exit 1
+fi
+
 source "$(dirname "$0")"/common.sh
 
-STATE_BACKEND_TYPE=${1:-file}
-STATE_BACKEND_FILE_ASYNC=${2:-true}
+ORIGINAL_DOP=$1
+NEW_DOP=$2
+STATE_BACKEND_TYPE=${3:-file}
+STATE_BACKEND_FILE_ASYNC=${4:-true}
+STATE_BACKEND_ROCKS_INCREMENTAL=${5:-false}
 
+if (( $ORIGINAL_DOP >= $NEW_DOP )); then
+ NUM_SLOTS=$ORIGINAL_DOP
+else
+ NUM_SLOTS=$NEW_DOP
+fi
+
+backup_config
+change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
 setup_flink_slf4j_metric_reporter
 start_cluster
 
@@ -44,13 +60,14 @@ CHECKPOINT_DIR_URI="file://$CHECKPOINT_DIR"
 
 # run the DataStream allroundjob
 TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
+DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.externalize_checkpoint true \
   --environment.externalize_checkpoint.cleanup retain \
   --state_backend $STATE_BACKEND_TYPE \
   --state_backend.checkpoint_directory $CHECKPOINT_DIR_URI \
   --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+  --state_backend.rocks.incremental $STATE_BACKEND_ROCKS_INCREMENTAL \
   --sequence_generator_source.sleep_time 15 \
   --sequence_generator_source.sleep_after_elements 1 \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
@@ -78,13 +95,14 @@ if (( $NUM_CHECKPOINTS > 1 )); then
 fi
 
 echo "Restoring job with externalized checkpoint at $CHECKPOINT_PATH ..."
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $CHECKPOINT_PATH -d $TEST_PROGRAM_JAR \
+DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $CHECKPOINT_PATH -d -p $NEW_DOP $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.externalize_checkpoint true \
   --environment.externalize_checkpoint.cleanup retain \
   --state_backend $STATE_BACKEND_TYPE \
   --state_backend.checkpoint_directory $CHECKPOINT_DIR_URI \
   --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+  --state_backend.rocks.incremental $STATE_BACKEND_ROCKS_INCREMENTAL \
   --sequence_generator_source.sleep_time 15 \
   --sequence_generator_source.sleep_after_elements 1 \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
