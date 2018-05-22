@@ -20,15 +20,32 @@
 set -o pipefail
 
 if [[ -z $TEST_DATA_DIR ]]; then
-  echo "Must run common.sh before kafka-common.sh."
+  echo "Must run common.sh before elasticsearch-common.sh."
   exit 1
 fi
 
+function setup_elasticsearch {
+    mkdir -p $TEST_DATA_DIR
+
+    local downloadUrl=$1
+
+    # start downloading Elasticsearch
+    echo "Downloading Elasticsearch from $downloadUrl ..."
+    curl "$downloadUrl" > $TEST_DATA_DIR/elasticsearch.tar.gz
+
+    local elasticsearchDir=$TEST_DATA_DIR/elasticsearch
+    mkdir -p $elasticsearchDir
+    tar xzf $TEST_DATA_DIR/elasticsearch.tar.gz -C $elasticsearchDir --strip-components=1
+
+    # start Elasticsearch cluster
+    $elasticsearchDir/bin/elasticsearch &
+}
+
 function verify_elasticsearch_process_exist {
-    ELASTICSEARCH_PROCESS=$(jps | grep Elasticsearch | awk '{print $2}')
+    local elasticsearchProcess=$(jps | grep Elasticsearch | awk '{print $2}')
 
     # make sure the elasticsearch node is actually running
-    if [ "$ELASTICSEARCH_PROCESS" != "Elasticsearch" ]; then
+    if [ "$elasticsearchProcess" != "Elasticsearch" ]; then
       echo "Elasticsearch node is not running."
       PASS=""
       exit 1
@@ -38,25 +55,26 @@ function verify_elasticsearch_process_exist {
 }
 
 function verify_result {
+    local numRecords=$1
+
     if [ -f "$TEST_DATA_DIR/output" ]; then
         rm $TEST_DATA_DIR/output
     fi
 
-    curl 'localhost:9200/index/_search?q=*&pretty&size=21' > $TEST_DATA_DIR/output
+    while : ; do
+      curl 'localhost:9200/index/_search?q=*&pretty&size=21' > $TEST_DATA_DIR/output
 
-    if [ -n "$(grep '\"total\" : 21' $TEST_DATA_DIR/output)" ]; then
-        echo "Elasticsearch end to end test pass."
-    else
-        echo "Elasticsearch end to end test failed."
-        PASS=""
-        exit 1
-    fi
+      if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
+          echo "Elasticsearch end to end test pass."
+          break
+      else
+          echo "Waiting for Elasticsearch records ..."
+          sleep 1
+      fi
+    done
 }
 
 function shutdown_elasticsearch_cluster {
    pid=$(jps | grep Elasticsearch | awk '{print $1}')
-   kill -SIGTERM $pid
-
-   # make sure to run regular cleanup as well
-   cleanup
+   kill -9 $pid
 }

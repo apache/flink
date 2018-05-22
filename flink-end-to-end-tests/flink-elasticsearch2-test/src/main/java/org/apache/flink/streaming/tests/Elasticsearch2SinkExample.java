@@ -44,9 +44,9 @@ public class Elasticsearch2SinkExample {
 
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 2) {
+		if (parameterTool.getNumberOfParameters() < 3) {
 			System.out.println("Missing parameters!\n" +
-				"Usage: --index <index> --type <type>");
+				"Usage: --numRecords --index <index> --type <type>");
 			return;
 		}
 
@@ -54,12 +54,13 @@ public class Elasticsearch2SinkExample {
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(5000);
 
-		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-			@Override
-			public String map(Long value) throws Exception {
-				return "message #" + value;
-			}
-		});
+		DataStream<String> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
+			.map(new MapFunction<Long, String>() {
+				@Override
+				public String map(Long value) throws Exception {
+					return "message #" + value;
+				}
+			});
 
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put("cluster.name", "elasticsearch");
