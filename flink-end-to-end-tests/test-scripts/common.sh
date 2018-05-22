@@ -168,14 +168,7 @@ function start_cluster {
   done
 }
 
-function stop_cluster {
-  "$FLINK_DIR"/bin/stop-cluster.sh
-
-  # stop zookeeper only if there are processes running
-  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
-    "$FLINK_DIR"/bin/zookeeper.sh stop
-  fi
-
+function check_logs_for_errors {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -195,6 +188,9 @@ function stop_cluster {
     cat $FLINK_DIR/log/*
     PASS=""
   fi
+}
+
+function check_logs_for_exceptions {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -217,12 +213,27 @@ function stop_cluster {
     cat $FLINK_DIR/log/*
     PASS=""
   fi
+}
 
+function check_logs_for_non_empty_out_files {
   if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
     PASS=""
   fi
+}
+
+function stop_cluster {
+  "$FLINK_DIR"/bin/stop-cluster.sh
+
+  # stop zookeeper only if there are processes running
+  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
+    "$FLINK_DIR"/bin/zookeeper.sh stop
+  fi
+
+  check_logs_for_errors
+  check_logs_for_exceptions
+  check_logs_for_non_empty_out_files
 }
 
 function wait_job_running {
