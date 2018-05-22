@@ -407,4 +407,33 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
   }
+
+  @Test
+  def testBetweenExpressions(): Unit = {
+    // between
+    testTableApi(2.between(1, 3), "2.BETWEEN(1, 3)", "true")
+    testTableApi(2.between(2, 2), "2.BETWEEN(2, 2)", "true")
+    testTableApi(2.1.between(2.0, 3.0), "2.1.BETWEEN(2.0, 3.0)", "true")
+    testTableApi(2.1.between(2.1, 2.1), "2.1.BETWEEN(2.1, 2.1)", "true")
+    testTableApi("b".between("a", "c"), "'b'.BETWEEN('a', 'c')", "true")
+    testTableApi("b".between("b", "c"), "'b'.BETWEEN('b', 'c')", "true")
+    testTableApi(
+      "2018-05-05".toDate.between("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.between('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "true"
+    )
+
+    // not between
+    testTableApi(2.notBetween(1, 3), "2.notBetween(1, 3)", "false")
+    testTableApi(2.notBetween(2, 2), "2.notBetween(2, 2)", "false")
+    testTableApi(2.1.notBetween(2.0, 3.0), "2.1.notBetween(2.0, 3.0)", "false")
+    testTableApi(2.1.notBetween(2.1, 2.1), "2.1.notBetween(2.1, 2.1)", "false")
+    testTableApi("b".notBetween("a", "c"), "'b'.notBetween('a', 'c')", "false")
+    testTableApi("b".notBetween("b", "c"), "'b'.notBetween('b', 'c')", "false")
+    testTableApi(
+      "2018-05-05".toDate.notBetween("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.notBetween('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "false"
+    )
+  }
 }

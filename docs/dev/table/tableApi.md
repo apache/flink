@@ -1885,6 +1885,32 @@ BOOLEAN.isNotFalse
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+    ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given expression is between lowerBound and upperBound, both included. False otherwise.
+               The given expression and lowerBound and upperBound must be all numeric type or identical comparable type.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+      ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if given expression is not between lowerBound and upperBound, both included. False otherwise.
+               The given expression and lowerBound and upperBound must be all numeric type or identical comparable type.
+        </p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
