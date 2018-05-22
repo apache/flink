@@ -15,37 +15,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch.examples;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.transport.TransportAddress;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * This example shows how to use the Elasticsearch Sink. Before running it you must ensure that
- * you have a cluster named "elasticsearch" running or change the cluster name in the config map.
+ * End to end test for Elasticsearch2Sink.
  */
-@SuppressWarnings("serial")
-public class ElasticsearchSinkExample {
+public class Elasticsearch2SinkExample {
 
 	public static void main(String[] args) throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+		if (parameterTool.getNumberOfParameters() < 2) {
+			System.out.println("Missing parameters!\n" +
+				"Usage: --index <index> --type <type>");
+			return;
+		}
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.enableCheckpointing(5000);
 
 		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
 			@Override
@@ -59,26 +66,26 @@ public class ElasticsearchSinkExample {
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
-		List<TransportAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
+		List<InetSocketAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>() {
+		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>(){
 			@Override
-			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-				indexer.add(createIndexRequest(element));
+			public void process(String element, RuntimeContext ctx, org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer indexer) {
+				indexer.add(createIndexRequest(element, parameterTool));
 			}
 		}));
 
-		env.execute("Elasticsearch Sink Example");
+		env.execute("Elasticsearch2.x end to end sink test example");
 	}
 
-	private static IndexRequest createIndexRequest(String element) {
+	private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
 		Map<String, Object> json = new HashMap<>();
 		json.put("data", element);
 
 		return Requests.indexRequest()
-			.index("my-index")
-			.type("my-type")
+			.index(parameterTool.getRequired("index"))
+			.type(parameterTool.getRequired("type"))
 			.id(element)
 			.source(json);
 	}
