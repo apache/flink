@@ -49,7 +49,7 @@ function stop_cluster_and_watchdog() {
 function verify_logs() {
     local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
-    local test_has_errors
+    local test_has_errors=1
 
     # verify that we have no alerts
     if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then

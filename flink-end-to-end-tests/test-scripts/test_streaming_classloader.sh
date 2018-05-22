@@ -18,6 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
+test_has_errors=1
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-parent-child-classloading-test/target/ClassLoaderTestProgram.jar
 
