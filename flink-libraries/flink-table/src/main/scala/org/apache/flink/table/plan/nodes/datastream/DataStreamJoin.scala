@@ -139,16 +139,19 @@ class DataStreamJoin(
     val rightDataStream =
       right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    val (connectOperator, nullCheck) = joinType match {
-      case JoinRelType.INNER | JoinRelType.LEFT => (leftDataStream.connect(rightDataStream), false)
+    val connectOperator = joinType match {
+      case JoinRelType.INNER | JoinRelType.LEFT | JoinRelType.RIGHT =>
+        leftDataStream.connect(rightDataStream)
       case _ =>
         throw TableException(s"Unsupported join type '$joinType'. Currently only " +
-          s"non-window inner/left joins with at least one equality predicate are supported")
+          s"non-window inner/left/right joins with at least one equality predicate are supported")
     }
 
+    // NullableInput will always be false, because the runtime join function will make sure
+    // the codegen function won't process null inputs
     val generator = new FunctionCodeGenerator(
       config,
-      nullCheck,
+      false,
       leftSchema.typeInfo,
       Some(rightSchema.typeInfo))
     val conversion = generator.generateConverterResultExpression(
@@ -188,7 +191,7 @@ class DataStreamJoin(
           genFunction.name,
           genFunction.code,
           queryConfig)
-      case JoinRelType.LEFT if joinInfo.isEqui =>
+      case JoinRelType.LEFT | JoinRelType.RIGHT if joinInfo.isEqui =>
         new NonWindowLeftRightJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
@@ -197,7 +200,7 @@ class DataStreamJoin(
           genFunction.code,
           joinType == JoinRelType.LEFT,
           queryConfig)
-      case JoinRelType.LEFT =>
+      case JoinRelType.LEFT | JoinRelType.RIGHT =>
         new NonWindowLeftRightJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
