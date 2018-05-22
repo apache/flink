@@ -34,7 +34,6 @@ import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.metrics.MetricRegistryImpl
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.yarn.configuration.YarnConfigOptions
 
