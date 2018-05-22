@@ -23,6 +23,7 @@ STATE_BACKEND_TYPE=${1:-file}
 STATE_BACKEND_FILE_ASYNC=${2:-true}
 SIMULATE_FAILURE=${3:-false}
 
+backup_config
 setup_flink_slf4j_metric_reporter
 start_cluster
 
