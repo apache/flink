@@ -131,6 +131,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
@@ -207,6 +208,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Nullable
 	private String lastInternalSavepoint;
+
+	@Nullable
+	private ResourceManagerAddress resourceManagerAddress;
 
 	@Nullable
 	private ResourceManagerConnection resourceManagerConnection;
@@ -888,13 +892,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Exception cause) {
 
 		if (isConnectingToResourceManager(resourceManagerId)) {
-			closeResourceManagerConnection(cause);
+			reconnectToResourceManager(cause);
 		}
 	}
 
 	private boolean isConnectingToResourceManager(ResourceManagerId resourceManagerId) {
-		return resourceManagerConnection != null
-				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerId);
+		return resourceManagerAddress != null
+				&& resourceManagerAddress.getResourceManagerId().equals(resourceManagerId);
 	}
 
 	@Override
@@ -999,9 +1003,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		setNewFencingToken(newJobMasterId);
 
+		startJobMasterServices();
+
 		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
 
-		startJobMasterServices();
 		resetAndScheduleExecutionGraph();
 
 		return Acknowledge.get();
@@ -1010,6 +1015,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private void startJobMasterServices() throws Exception {
 		// start the slot pool make sure the slot pool now accepts messages for this leader
 		slotPool.start(getFencingToken(), getAddress());
+
+		//TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start
+		// try to reconnect to previously known leader
+		reconnectToResourceManager(new FlinkException("Starting JobMaster component."));
 
 		// job is ready to go, try to establish connection with resource manager
 		//   - activate leader retrieval for the resource manager
@@ -1072,8 +1081,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			ExecutionGraph newExecutionGraph,
 			JobManagerJobMetricGroup newJobManagerJobMetricGroup) {
 		validateRunsInMainThread();
-		Preconditions.checkState(executionGraph.getState().isTerminalState());
-		Preconditions.checkState(jobManagerJobMetricGroup == null);
+		checkState(executionGraph.getState().isTerminalState());
+		checkState(jobManagerJobMetricGroup == null);
 
 		executionGraph = newExecutionGraph;
 		jobManagerJobMetricGroup = newJobManagerJobMetricGroup;
@@ -1103,7 +1112,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void scheduleExecutionGraph() {
-		Preconditions.checkState(jobStatusListener == null);
+		checkState(jobStatusListener == null);
 		// register self as job status change listener
 		jobStatusListener = new JobManagerJobStatusListener();
 		executionGraph.registerJobStatusListener(jobStatusListener);
@@ -1239,33 +1248,40 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 	}
 
-	private void notifyOfNewResourceManagerLeader(final String resourceManagerAddress, final ResourceManagerId resourceManagerId) {
-		if (resourceManagerConnection != null) {
-			if (resourceManagerAddress != null) {
-				if (Objects.equals(resourceManagerAddress, resourceManagerConnection.getTargetAddress())
-					&& Objects.equals(resourceManagerId, resourceManagerConnection.getTargetLeaderId())) {
-					// both address and leader id are not changed, we can keep the old connection
-					return;
-				}
+	private void notifyOfNewResourceManagerLeader(final String newResourceManagerAddress, final ResourceManagerId resourceManagerId) {
+		resourceManagerAddress = createResourceManagerAddress(newResourceManagerAddress, resourceManagerId);
 
-				log.info("ResourceManager leader changed from {} to {}. Registering at new leader.",
-					resourceManagerConnection.getTargetAddress(), resourceManagerAddress);
+		reconnectToResourceManager(new FlinkException(String.format("ResourceManager leader changed to new address %s", resourceManagerAddress)));
+	}
 
-				closeResourceManagerConnection(new Exception(
-					"ResourceManager leader changed to new address " + resourceManagerAddress));
-			} else {
-				log.info("Current ResourceManager {} lost leader status. Waiting for new ResourceManager leader.",
-					resourceManagerConnection.getTargetAddress());
-			}
-		}
-
-		if (resourceManagerAddress != null) {
-			createResourceManagerConnection(resourceManagerAddress, resourceManagerId);
+	@Nullable
+	private ResourceManagerAddress createResourceManagerAddress(@Nullable String newResourceManagerAddress, @Nullable ResourceManagerId resourceManagerId) {
+		if (newResourceManagerAddress != null) {
+			// the contract is: address == null <=> id == null
+			checkNotNull(resourceManagerId);
+			return new ResourceManagerAddress(newResourceManagerAddress, resourceManagerId);
+		} else {
+			return null;
 		}
 	}
 
-	private void createResourceManagerConnection(String resourceManagerAddress, ResourceManagerId resourceManagerId) {
-		log.info("Attempting to register at ResourceManager {}", resourceManagerAddress);
+	private void reconnectToResourceManager(Exception cause) {
+		closeResourceManagerConnection(cause);
+		tryConnectToResourceManager();
+	}
+
+	private void tryConnectToResourceManager() {
+		if (resourceManagerAddress != null) {
+			connectToResourceManager();
+		}
+	}
+
+	private void connectToResourceManager() {
+		assert(resourceManagerAddress != null);
+		assert(resourceManagerConnection == null);
+		assert(establishedResourceManagerConnection == null);
+
+		log.info("Connecting to ResourceManager {}", resourceManagerAddress);
 
 		resourceManagerConnection = new ResourceManagerConnection(
 			log,
@@ -1273,8 +1289,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			resourceId,
 			getAddress(),
 			getFencingToken(),
-			resourceManagerAddress,
-			resourceManagerId,
+			resourceManagerAddress.getAddress(),
+			resourceManagerAddress.getResourceManagerId(),
 			scheduledExecutorService);
 
 		resourceManagerConnection.start();
@@ -1295,7 +1311,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 			establishedResourceManagerConnection = new EstablishedResourceManagerConnection(
 				resourceManagerGateway,
-				success.getResourceManagerId(),
 				resourceManagerResourceId);
 
 			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
@@ -1541,7 +1556,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		protected void onRegistrationSuccess(final JobMasterRegistrationSuccess success) {
-			runAsync(() -> establishResourceManagerConnection(success));
+			runAsync(() -> {
+				// filter out replace connections
+				if (this == resourceManagerConnection) {
+					establishResourceManagerConnection(success);
+				}
+			});
 		}
 
 		@Override
@@ -1610,14 +1630,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
 
 				if (establishedResourceManagerConnection != null && establishedResourceManagerConnection.getResourceManagerResourceID().equals(resourceId)) {
-					final String resourceManagerAddress = establishedResourceManagerConnection.getResourceManagerGateway().getAddress();
-					final ResourceManagerId resourceManagerId = establishedResourceManagerConnection.getResourceManagerId();
-
-					closeResourceManagerConnection(
-						new TimeoutException(
-							"The heartbeat of ResourceManager with id " + resourceId + " timed out."));
-
-					createResourceManagerConnection(resourceManagerAddress, resourceManagerId);
+					reconnectToResourceManager(
+						new JobMasterException(
+							String.format("The heartbeat of ResourceManager with id %s timed out.", resourceId)));
 				}
 			});
 		}
