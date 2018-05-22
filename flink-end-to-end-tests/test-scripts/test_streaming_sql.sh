@@ -42,9 +42,6 @@ function sql_cleanup() {
 
   # remove flink-table from lib folder
   rm $FLINK_DIR/lib/flink-table*jar
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT
