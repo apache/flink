@@ -288,9 +288,9 @@ function check_result_hash {
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
-    PASS=""
     echo "head hexdump of actual:"
     head $outfile_prefix* | hexdump -c
+    exit 1
   else
     echo "pass $name"
     # Output files are left behind in /tmp
