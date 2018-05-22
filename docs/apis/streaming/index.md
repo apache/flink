@@ -1592,9 +1592,6 @@ The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to 
 Please refer to [execution configuration]({{ site.baseurl }}/apis/common/index.html#execution-configuration)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
-- `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.
-    `areTimestampsEnabled()` returns the current value.
-
 - `setAutoWatermarkInterval(long milliseconds)`: Set the interval for automatic watermark emission. You can
     get the current value with `long getAutoWatermarkInterval()`
 
