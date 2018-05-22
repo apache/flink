@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, DescriptorProperties, Schema}
 import org.junit.{Before, Test}
 import org.junit.Assert._
 
@@ -133,20 +134,27 @@ class InMemoryExternalCatalogTest {
   }
 
   private def createTableInstance(): ExternalCatalogTable = {
-    val schema = new TableSchema(
-      Array("first", "second"),
-      Array(
-        BasicTypeInfo.STRING_TYPE_INFO,
-        BasicTypeInfo.INT_TYPE_INFO
-      )
-    )
-    ExternalCatalogTable("csv", schema)
+    val connDesc = new TestConnectorDesc
+    val schemaDesc = new Schema()
+      .field("first", BasicTypeInfo.STRING_TYPE_INFO)
+      .field("second", BasicTypeInfo.INT_TYPE_INFO)
+    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
   }
 
   private def createTableInstance(
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]]): ExternalCatalogTable = {
-    val schema = new TableSchema(fieldNames, fieldTypes)
-    ExternalCatalogTable("csv", schema)
+    val connDesc = new TestConnectorDesc
+    val schemaDesc = new Schema()
+    fieldNames.zipWithIndex.foreach { case (fieldName, index) =>
+      schemaDesc.field(fieldName, fieldTypes(index))
+    }
+    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
   }
+
+  class TestConnectorDesc extends ConnectorDescriptor("test", version = 1, formatNeeded = false) {
+    override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
+    }
+  }
+
 }
