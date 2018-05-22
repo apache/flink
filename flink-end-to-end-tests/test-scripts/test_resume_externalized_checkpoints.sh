@@ -34,9 +34,6 @@ function test_cleanup {
   trap "" EXIT
 
   rollback_flink_slf4j_metric_reporter
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT

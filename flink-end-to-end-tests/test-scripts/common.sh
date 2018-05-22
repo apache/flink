@@ -230,10 +230,6 @@ function stop_cluster {
   if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
     "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
-
-  check_logs_for_errors
-  check_logs_for_exceptions
-  check_logs_for_non_empty_out_files
 }
 
 function wait_job_running {
@@ -299,15 +295,6 @@ function check_result_hash {
     echo "pass $name"
     # Output files are left behind in /tmp
   fi
-}
-
-function check_all_pass {
-  if [[ ! "$PASS" ]]
-  then
-    echo "One or more tests FAILED."
-    exit 1
-  fi
-  echo "All tests PASS"
 }
 
 function s3_put {
@@ -471,35 +458,3 @@ function end_timer {
     duration=$SECONDS
     echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
 }
-
-#######################################
-# Prints the given description, runs the given test and prints how long the execution took.
-# Arguments:
-#   $1: description of the test
-#   $2: command to execute
-#######################################
-function run_test {
-    description="$1"
-    command="$2"
-
-    printf "\n==============================================================================\n"
-    printf "Running ${description}\n"
-    printf "==============================================================================\n"
-    start_timer
-    ${command}
-    exit_code="$?"
-    end_timer
-    return "${exit_code}"
-}
-
-# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
-function cleanup {
-  stop_cluster
-  tm_kill_all
-  jm_kill_all
-  rm -rf $TEST_DATA_DIR 2> /dev/null
-  revert_default_config
-  check_all_pass
-  rm -rf $FLINK_DIR/log/* 2> /dev/null
-}
-trap cleanup EXIT

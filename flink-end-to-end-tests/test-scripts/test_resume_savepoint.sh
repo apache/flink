@@ -69,9 +69,6 @@ function test_cleanup {
 
   # revert our modifications to the Flink distribution
   rm ${FLINK_DIR}/lib/flink-metrics-slf4j-*.jar
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT

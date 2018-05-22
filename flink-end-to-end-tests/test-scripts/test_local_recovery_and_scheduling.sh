@@ -53,8 +53,6 @@ function cleanup_after_test {
     #
     kill ${watchdog_pid} 2> /dev/null
     wait ${watchdog_pid} 2> /dev/null
-    #
-    cleanup
 }
 
 # Calls the cleanup step for this tests and exits with an error.

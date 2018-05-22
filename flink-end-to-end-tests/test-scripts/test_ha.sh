@@ -42,7 +42,6 @@ function stop_cluster_and_watchdog() {
             wait ${TM_WATCHDOG_PID} 2> /dev/null
         fi
 
-        cleanup
         CLEARED=1
     fi
 }
