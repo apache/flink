@@ -30,33 +30,33 @@ function run_test {
     command="$2"
 
     printf "\n==============================================================================\n"
-    printf "Running ${description}\n"
+    printf "Running '${description}'\n"
     printf "==============================================================================\n"
     start_timer
     ${command}
     exit_code="$?"
-    end_timer
+    time_elapsed=$(end_timer)
 
     check_logs_for_errors
     check_logs_for_exceptions
     check_logs_for_non_empty_out_files
 
+    cleanup
+
     if [[ ${exit_code} == 0 ]]; then
         if [[ ! "$PASS" ]]; then
-            echo "FAIL: Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files"
+            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
             exit_code=1
         else
-            echo "PASS: Test exited with exit code 0"
+            printf "\n[PASS] '${description}' passed after ${time_elapsed}! Test exited with exit code 0.\n\n"
         fi
     else
         if [[ ! "$PASS" ]]; then
-            echo "FAIL: Test exited with exit code ${exit_code} and the logs contained errors, exceptions or non-empty .out files"
+            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code} and the logs contained errors, exceptions or non-empty .out files\n\n"
         else
-            echo "FAIL: Test exited with exit code ${exit_code}"
+            printf "\n[PASS] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
         fi
     fi
-
-    cleanup
 
     if [[ ${exit_code} != 0 ]]; then
         exit "${exit_code}"

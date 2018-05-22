@@ -456,5 +456,5 @@ function start_timer {
 # prints the number of minutes and seconds that have elapsed since the last call to start_timer
 function end_timer {
     duration=$SECONDS
-    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds"
 }
