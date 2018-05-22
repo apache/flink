@@ -34,14 +34,14 @@ function check_logs {
 
     if [ ${failed_local_recovery} -ne 0 ]
     then
-        PASS=""
         echo "FAILURE: Found ${failed_local_recovery} failed attempt(s) for local recovery of correctly scheduled task(s)."
+        exit 1
     fi
 
     if [ ${attempt_local_recovery} -eq 0 ]
     then
-        PASS=""
         echo "FAILURE: Found no attempt for local recovery. Configuration problem?"
+        exit 1
     fi
 }
 

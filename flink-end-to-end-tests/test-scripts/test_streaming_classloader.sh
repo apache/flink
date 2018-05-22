@@ -51,7 +51,7 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  PASS=""
+  test_has_errors=""
 fi
 
 # This verifies that Flink classes are still resolved from the parent because the default
@@ -81,7 +81,7 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  PASS=""
+  test_has_errors=""
 fi
 
 echo "Testing child-first class loading"
@@ -110,5 +110,9 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  PASS=""
+  test_has_errors=""
+fi
+
+if [[ ! ${test_has_errors} ]]; then
+    exit 1
 fi

@@ -61,7 +61,6 @@ function verify_output {
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED FOR KEY: --$expected--"
     echo -e "ACTUAL: --$2--"
-    PASS=""
     exit 1
   fi
 }
@@ -87,7 +86,6 @@ modify_num_partitions test-input 2
 
 if (( $(get_num_partitions test-input) != 2 )); then
   echo "Failed adding a partition to test-input topic."
-  PASS=""
   exit 1
 fi
 
@@ -98,7 +96,6 @@ send_messages_to_kafka "elephant,13,64213\ngiraffe,9,65555\nbee,5,65647\nsquirre
 # verify that our assumption that the new partition actually has written messages is correct
 if (( $(get_partition_end_offset test-input 1) == 0 )); then
   echo "The newly created partition does not have any new messages, and therefore partition discovery cannot be verified."
-  PASS=""
   exit 1
 fi
 

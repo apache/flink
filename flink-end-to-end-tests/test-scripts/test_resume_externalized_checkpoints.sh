@@ -88,14 +88,12 @@ CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]*)
 
 if [ -z $CHECKPOINT_PATH ]; then
   echo "Expected an externalized checkpoint to be present, but none exists."
-  PASS=""
   exit 1
 fi
 
 NUM_CHECKPOINTS=$(echo $CHECKPOINT_PATH | wc -l | tr -d ' ')
 if (( $NUM_CHECKPOINTS > 1 )); then
   echo "Expected only exactly 1 externalized checkpoint to be present, but $NUM_CHECKPOINTS exists."
-  PASS=""
   exit 1
 fi
 
