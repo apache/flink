@@ -1797,6 +1797,30 @@ ANY.in(TABLE)
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight java %}
+    ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+      ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 
@@ -3334,6 +3358,30 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+    ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+      ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
       </td>
     </tr>
 
