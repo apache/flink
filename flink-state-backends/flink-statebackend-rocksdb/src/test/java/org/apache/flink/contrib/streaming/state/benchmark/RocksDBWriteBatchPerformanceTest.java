@@ -71,9 +71,9 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
 
-	private final String KEY_PREFIX = "key";
+	private static final String KEY_PREFIX = "key";
 
-	private final String VALUE = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+	private static final String VALUE = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
 	@Test(timeout = 2000)
 	@RetryOnFailure(times = 3)
@@ -88,8 +88,8 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
 		log.info("--------------> put VS WriteBatch with disableWAL=false <--------------");
 
-		long t1 = benchMarkHelper(data, false, WRITE_TYPE.PUT);
-		long t2 = benchMarkHelper(data, false, WRITE_TYPE.WRITE_BATCH);
+		long t1 = benchMarkHelper(data, false, WRITETYPE.PUT);
+		long t2 = benchMarkHelper(data, false, WRITETYPE.WRITE_BATCH);
 
 		log.info("Single Put with disableWAL is false for {} records costs {}" , num, t1);
 		log.info("WriteBatch with disableWAL is false for {} records costs {}" , num, t2);
@@ -98,8 +98,8 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
 		log.info("--------------> put VS WriteBatch with disableWAL=true <--------------");
 
-		t1 = benchMarkHelper(data, true, WRITE_TYPE.PUT);
-		t2 = benchMarkHelper(data, true, WRITE_TYPE.WRITE_BATCH);
+		t1 = benchMarkHelper(data, true, WRITETYPE.PUT);
+		t2 = benchMarkHelper(data, true, WRITETYPE.WRITE_BATCH);
 
 		log.info("Single Put with disableWAL is true for {} records costs {}" , num, t1);
 		log.info("WriteBatch with disableWAL is true for {} records costs {}" , num, t2);
@@ -107,9 +107,9 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 		Assert.assertTrue(t2 < t1);
 	}
 
-	private enum WRITE_TYPE {PUT, WRITE_BATCH}
+	private enum WRITETYPE {PUT, WRITE_BATCH}
 
-	private long benchMarkHelper(List<Tuple2<byte[], byte[]>> data, boolean disableWAL, WRITE_TYPE type) throws Exception {
+	private long benchMarkHelper(List<Tuple2<byte[], byte[]>> data, boolean disableWAL, WRITETYPE type) throws Exception {
 		final File rocksDir = folder.newFolder();
 
 		// ensure the RocksDB library is loaded to a distinct location each retry
