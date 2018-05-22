@@ -84,11 +84,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Used for TableType configuration -->
-		<dependency>
-			<groupId>commons-configuration</groupId>
-			<artifactId>commons-configuration</artifactId>
-		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>jcl-over-slf4j</artifactId>
@@ -154,24 +149,6 @@ under the License.
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<!-- Used for TableType classpath discovery -->
-		<dependency>
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-			<scope>compile</scope>
 		</dependency>
 
 		<!-- Used for date/time formatting -->
