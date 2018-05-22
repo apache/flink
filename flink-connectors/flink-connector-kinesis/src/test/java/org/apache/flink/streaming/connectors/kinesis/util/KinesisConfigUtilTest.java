@@ -157,6 +157,22 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
+	public void testAwsRegionOrEndpointInConfig() {
+		String expectedMessage = String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+			AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION);
+		exception.expect(IllegalArgumentException.class);
+		exception.expectMessage(expectedMessage);
+
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east");
+		testConfig.setProperty(AWSConfigConstants.AWS_ENDPOINT, "fake");
+		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
+		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		KinesisConfigUtil.validateAwsConfiguration(testConfig);
+	}
+
+	@Test
 	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Please set values for AWS Access Key ID ('" + AWSConfigConstants.AWS_ACCESS_KEY_ID + "') " +
