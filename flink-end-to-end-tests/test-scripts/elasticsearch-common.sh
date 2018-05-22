@@ -47,7 +47,6 @@ function verify_elasticsearch_process_exist {
     # make sure the elasticsearch node is actually running
     if [ "$elasticsearchProcess" != "Elasticsearch" ]; then
       echo "Elasticsearch node is not running."
-      PASS=""
       exit 1
     else
       echo "Elasticsearch node is running."

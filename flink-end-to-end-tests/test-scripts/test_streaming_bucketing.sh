@@ -36,9 +36,6 @@ function bucketing_cleanup() {
 
   # restore default logging level
   sed -i -e 's/log4j.logger.org.apache.flink=DEBUG/#log4j.logger.org.apache.flink=INFO/g' $FLINK_DIR/conf/log4j.properties
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap bucketing_cleanup INT
 trap bucketing_cleanup EXIT

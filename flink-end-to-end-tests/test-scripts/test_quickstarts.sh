@@ -81,7 +81,6 @@ if [[ `grep -c "org/apache/flink/api/java" contentsInJar.txt` -eq '0' && \
     echo "Success: There are no flink core classes are contained in the jar."
 else
     echo "Failure: There are flink core classes are contained in the jar."
-    PASS=""
     exit 1
 fi
 
@@ -90,7 +89,6 @@ if [[ `grep -c "org/apache/flink/quickstart/StreamingJob.class" contentsInJar.tx
       `grep -c "org/apache/flink/streaming/connectors/elasticsearch5" contentsInJar.txt` -eq '0' ]]; then
 
     echo "Failure: Since Elasticsearch5SinkExample.class and other user classes are not included in the jar. "
-    PASS=""
     exit 1
 else
     echo "Success: Elasticsearch5SinkExample.class and other user classes are included in the jar."
