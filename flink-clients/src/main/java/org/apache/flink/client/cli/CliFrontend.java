@@ -392,19 +392,19 @@ public class CliFrontend {
 			return;
 		}
 
-		final boolean running;
-		final boolean scheduled;
-		final boolean other;
+		final boolean showRunning;
+		final boolean showScheduled;
+		final boolean showRemaining;
 
 		// print running and scheduled jobs if not option supplied
-		if (!listOptions.getRunning() && !listOptions.getScheduled() && !listOptions.getOther()) {
-			running = true;
-			scheduled = true;
-			other = false;
+		if (!listOptions.showRunning() && !listOptions.showScheduled() && !listOptions.showAll()) {
+			showRunning = true;
+			showScheduled = true;
+			showRemaining = false;
 		} else {
-			running = listOptions.getRunning();
-			scheduled = listOptions.getScheduled();
-			other = listOptions.getOther();
+			showRunning = listOptions.showRunning();
+			showScheduled = listOptions.showScheduled();
+			showRemaining = listOptions.showAll();
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
@@ -412,15 +412,15 @@ public class CliFrontend {
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
-			clusterClient -> listJobs(clusterClient, running, scheduled, other));
+			clusterClient -> listJobs(clusterClient, showRunning, showScheduled, showRemaining));
 
 	}
 
 	private <T> void listJobs(
 			ClusterClient<T> clusterClient,
-			boolean running,
-			boolean scheduled,
-			boolean other) throws FlinkException {
+			boolean showRunning,
+			boolean showScheduled,
+			boolean showRemaining) throws FlinkException {
 		Collection<JobStatusMessage> jobDetails;
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
@@ -440,7 +440,7 @@ public class CliFrontend {
 
 		final List<JobStatusMessage> runningJobs = new ArrayList<>();
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
-		final List<JobStatusMessage> otherJobs = new ArrayList<>();
+		final List<JobStatusMessage> remainingJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
 			if (details.getJobState() == JobStatus.CREATED) {
 				scheduledJobs.add(details);
@@ -448,11 +448,11 @@ public class CliFrontend {
 				|| details.getJobState() == JobStatus.RESTARTING){
 				runningJobs.add(details);
 			} else {
-				otherJobs.add(details);
+				remainingJobs.add(details);
 			}
 		});
 
-		if (running) {
+		if (showRunning) {
 			if (runningJobs.size() == 0) {
 				System.out.println("No running jobs.");
 			}
@@ -467,7 +467,7 @@ public class CliFrontend {
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
-		if (scheduled) {
+		if (showScheduled) {
 			if (scheduledJobs.size() == 0) {
 				System.out.println("No scheduled jobs.");
 			}
@@ -482,14 +482,15 @@ public class CliFrontend {
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
-		if (other) {
-			if (otherJobs.size() != 0) {
-				otherJobs.sort(startTimeComparator);
+		if (showRemaining) {
+			if (remainingJobs.size() != 0) {
+				remainingJobs.sort(startTimeComparator);
 
-				System.out.println("------------------------- Other Jobs -------------------------");
-				for (JobStatusMessage otherJob : otherJobs) {
-					System.out.println(dateFormat.format(new Date(otherJob.getStartTime()))
-						+ " : " + otherJob.getJobId() + " : " + otherJob.getJobName() + " (" + otherJob.getJobState() + ")");
+				System.out.println("----------------------- Remaining Jobs -----------------------");
+				for (JobStatusMessage remainingJob : remainingJobs) {
+					System.out.println(dateFormat.format(new Date(remainingJob.getStartTime()))
+						+ " : " + remainingJob.getJobId() + " : " + remainingJob.getJobName()
+						+ " (" + remainingJob.getJobState() + ")");
 				}
 				System.out.println("--------------------------------------------------------------");
 			}

@@ -68,9 +68,9 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 			String[] parameters = {"-a"};
 			ListOptions options = new ListOptions(CliFrontendParser.parse(
 				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertTrue(options.getOther());
-			assertTrue(options.getRunning());
-			assertTrue(options.getScheduled());
+			assertTrue(options.showAll());
+			assertTrue(options.showRunning());
+			assertTrue(options.showScheduled());
 		}
 
 		// test configure running job
@@ -78,9 +78,9 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 			String[] parameters = {"-r"};
 			ListOptions options = new ListOptions(CliFrontendParser.parse(
 				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.getOther());
-			assertTrue(options.getRunning());
-			assertFalse(options.getScheduled());
+			assertFalse(options.showAll());
+			assertTrue(options.showRunning());
+			assertFalse(options.showScheduled());
 		}
 
 		// test configure scheduled job
@@ -88,9 +88,9 @@ public class CliFrontendListTest extends CliFrontendTestBase {
 			String[] parameters = {"-s"};
 			ListOptions options = new ListOptions(CliFrontendParser.parse(
 				CliFrontendParser.getListCommandOptions(), parameters, true));
-			assertFalse(options.getOther());
-			assertFalse(options.getRunning());
-			assertTrue(options.getScheduled());
+			assertFalse(options.showAll());
+			assertFalse(options.showRunning());
+			assertTrue(options.showScheduled());
 		}
 	}
 

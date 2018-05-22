@@ -29,26 +29,26 @@ import static org.apache.flink.client.cli.CliFrontendParser.SCHEDULED_OPTION;
  */
 public class ListOptions extends CommandLineOptions {
 
-	private final boolean running;
-	private final boolean scheduled;
-	private final boolean other;
+	private final boolean showRunning;
+	private final boolean showScheduled;
+	private final boolean showAll;
 
 	public ListOptions(CommandLine line) {
 		super(line);
-		this.other = line.hasOption(ALL_OPTION.getOpt());
-		this.running = line.hasOption(RUNNING_OPTION.getOpt()) || this.other;
-		this.scheduled = line.hasOption(SCHEDULED_OPTION.getOpt()) || this.other;
+		this.showAll = line.hasOption(ALL_OPTION.getOpt());
+		this.showRunning = line.hasOption(RUNNING_OPTION.getOpt()) || this.showAll;
+		this.showScheduled = line.hasOption(SCHEDULED_OPTION.getOpt()) || this.showAll;
 	}
 
-	public boolean getRunning() {
-		return running;
+	public boolean showRunning() {
+		return showRunning;
 	}
 
-	public boolean getScheduled() {
-		return scheduled;
+	public boolean showScheduled() {
+		return showScheduled;
 	}
 
-	public boolean getOther() {
-		return other;
+	public boolean showAll() {
+		return showAll;
 	}
 }
