@@ -619,7 +619,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						.getProducer()
 						.getCurrentExecutionAttempt();
 
-				if (producerExecution.getAttemptId() == resultPartitionId.getProducerId()) {
+				if (producerExecution.getAttemptId().equals(resultPartitionId.getProducerId())) {
 					return CompletableFuture.completedFuture(producerExecution.getState());
 				} else {
 					return FutureUtils.completedExceptionally(new PartitionProducerDisposedException(resultPartitionId));
