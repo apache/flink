@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.elasticsearch5.examples;
+package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
@@ -36,14 +37,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This example shows how to use the Elasticsearch Sink. Before running it you must ensure that
- * you have a cluster named "elasticsearch" running or change the name of cluster in the config map.
+ * End to end test for Elasticsearch5Sink.
  */
-public class ElasticsearchSinkExample {
-
+public class Elasticsearch5SinkExample {
 	public static void main(String[] args) throws Exception {
 
+		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+		if (parameterTool.getNumberOfParameters() < 2) {
+			System.out.println("Missing parameters!\n" +
+				"Usage: --index <index> --type <type>");
+			return;
+		}
+
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableSysoutLogging();
+		env.enableCheckpointing(5000);
 
 		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
 			@Override
@@ -63,20 +72,20 @@ public class ElasticsearchSinkExample {
 		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>() {
 			@Override
 			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-				indexer.add(createIndexRequest(element));
+				indexer.add(createIndexRequest(element, parameterTool));
 			}
 		}));
 
-		env.execute("Elasticsearch Sink Example");
+		env.execute("Elasticsearch5.x end to end sink test example");
 	}
 
-	private static IndexRequest createIndexRequest(String element) {
+	private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
 		Map<String, Object> json = new HashMap<>();
 		json.put("data", element);
 
 		return Requests.indexRequest()
-			.index("my-index")
-			.type("my-type")
+			.index(parameterTool.getRequired("index"))
+			.type(parameterTool.getRequired("type"))
 			.id(element)
 			.source(json);
 	}
