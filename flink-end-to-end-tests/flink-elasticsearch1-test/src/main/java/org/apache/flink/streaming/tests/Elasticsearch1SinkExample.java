@@ -41,13 +41,14 @@ import java.util.Map;
  * End to end test for Elasticsearch1Sink.
  */
 public class Elasticsearch1SinkExample {
+
 	public static void main(String[] args) throws Exception {
 
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 2) {
+		if (parameterTool.getNumberOfParameters() < 3) {
 			System.out.println("Missing parameters!\n" +
-				"Usage: --index <index> --type <type>");
+				"Usage: --numRecords <numRecords> --index <index> --type <type>");
 			return;
 		}
 
@@ -55,12 +56,13 @@ public class Elasticsearch1SinkExample {
 		env.getConfig().disableSysoutLogging();
 		env.enableCheckpointing(5000);
 
-		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-			@Override
-			public String map(Long value) throws Exception {
-				return "message # " + value;
-			}
-		});
+		DataStream<String> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
+			.map(new MapFunction<Long, String>() {
+				@Override
+				public String map(Long value) throws Exception {
+					return "message # " + value;
+				}
+			});
 
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put("cluster.name", "elasticsearch");
