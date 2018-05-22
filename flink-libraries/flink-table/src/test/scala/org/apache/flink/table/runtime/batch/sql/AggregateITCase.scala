@@ -368,6 +368,36 @@ class AggregateITCase(
   }
 
   @Test
+  def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT b, COLLECT(b) as `set`" +
+        "FROM T " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
+
+    val view1 = tEnv.sqlQuery(sqlQuery)
+    tEnv.registerTable("v1", view1)
+
+    val sqlQuery1 = "SELECT b, s FROM v1, unnest(v1.`set`) AS A(s) where b < 3"
+    val result = tEnv.sqlQuery(sqlQuery1).toDataSet[Row].collect()
+
+    val expected = Seq(
+      "1,1",
+      "2,2",
+      "2,2"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
   def testTumbleWindowWithProperties(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
