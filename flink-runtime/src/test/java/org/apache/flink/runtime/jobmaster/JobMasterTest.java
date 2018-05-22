@@ -70,6 +70,7 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -89,6 +90,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -520,6 +522,94 @@ public class JobMasterTest extends TestLogger {
 
 			// check that we start registering at the second RM
 			secondJobManagerRegistration.await();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests that we continue reconnecting to the latest known RM after a disconnection
+	 * message.
+	 */
+	@Test
+	public void testReconnectionAfterDisconnect() throws Exception {
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+		jobMaster.start(jobMasterId, testingTimeout);
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final BlockingQueue<JobMasterId> registrationsQueue = new ArrayBlockingQueue<>(1);
+
+			testingResourceManagerGateway.setRegisterJobManagerConsumer(
+				jobMasterIdResourceIDStringJobIDTuple4 -> registrationsQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+
+			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			final ResourceManagerId resourceManagerId = testingResourceManagerGateway.getFencingToken();
+			rmLeaderRetrievalService.notifyListener(
+				testingResourceManagerGateway.getAddress(),
+				resourceManagerId.toUUID());
+
+			// wait for first registration attempt
+			final JobMasterId firstRegistrationAttempt = registrationsQueue.take();
+
+			assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+
+			assertThat(registrationsQueue.isEmpty(), is(true));
+			jobMasterGateway.disconnectResourceManager(resourceManagerId, new FlinkException("Test exception"));
+
+			// wait for the second registration attempt after the disconnect call
+			assertThat(registrationsQueue.take(), equalTo(jobMasterId));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	/**
+	 * Tests that the a JM connects to the leading RM after regaining leadership.
+	 */
+	@Test
+	public void testResourceManagerConnectionAfterRegainingLeadership() throws Exception {
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build());
+
+		jobMaster.start(jobMasterId, testingTimeout);
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+
+			final BlockingQueue<JobMasterId> registrationQueue = new ArrayBlockingQueue<>(1);
+			testingResourceManagerGateway.setRegisterJobManagerConsumer(
+				jobMasterIdResourceIDStringJobIDTuple4 -> registrationQueue.offer(jobMasterIdResourceIDStringJobIDTuple4.f0));
+
+			final String resourceManagerAddress = testingResourceManagerGateway.getAddress();
+			rpcService.registerGateway(resourceManagerAddress, testingResourceManagerGateway);
+
+			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, testingResourceManagerGateway.getFencingToken().toUUID());
+
+			final JobMasterId firstRegistrationAttempt = registrationQueue.take();
+
+			assertThat(firstRegistrationAttempt, equalTo(jobMasterId));
+
+			jobMaster.suspend(new FlinkException("Test exception."), testingTimeout).get();
+
+			final JobMasterId jobMasterId2 = JobMasterId.generate();
+
+			jobMaster.start(jobMasterId2, testingTimeout).get();
+
+			final JobMasterId secondRegistrationAttempt = registrationQueue.take();
+
+			assertThat(secondRegistrationAttempt, equalTo(jobMasterId2));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
