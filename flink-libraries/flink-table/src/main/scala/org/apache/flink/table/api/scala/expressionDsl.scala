@@ -809,6 +809,23 @@ trait ImplicitExpressionOperations {
     */
   def sha2(hashLength: Expression) = Sha2(expr, hashLength)
 
+  /**
+    * Returns the Between with lower bound included and upper bound included.
+    * @param lowerBound
+    * @param upperBound
+    * @return Returns the Between with lower bound included and upper bound included
+    */
+  def between(lowerBound: Expression, upperBound: Expression) =
+    Between(expr, lowerBound, upperBound)
+
+  /**
+    * Returns the not Between with lower bound included and upper bound included.
+    * @param lowerBound
+    * @param upperBound
+    * @return Returns the NotBetween with lower bound included and upper bound included
+    */
+  def notBetween(lowerBound: Expression, upperBound: Expression) =
+    NotBetween(expr, lowerBound, upperBound)
 }
 
 /**
