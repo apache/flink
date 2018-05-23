@@ -350,7 +350,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 */
 	private void enforceQueueLimit() {
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
-			producer.flush();
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
