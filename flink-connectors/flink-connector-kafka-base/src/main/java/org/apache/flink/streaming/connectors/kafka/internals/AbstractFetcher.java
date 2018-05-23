@@ -228,6 +228,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 
 		for (KafkaTopicPartitionState<KPH> newPartitionState : newPartitionStates) {
+			// the ordering is crucial here; first register the state holder, then
+			// push it to the partitions queue to be read
 			subscribedPartitionStates.add(newPartitionState);
 			unassignedPartitionsQueue.add(newPartitionState);
 		}
@@ -495,10 +497,8 @@ public abstract class AbstractFetcher<T, KPH> {
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
-		/**
-		 *  CopyOnWrite as adding discovered partitions could happen in parallel
-		 *  with different threads iterating by {@link AbstractFetcher#subscribedPartitionStates} results
-		 */
+		// CopyOnWrite as adding discovered partitions could happen in parallel
+		// while different threads iterate the partitions list
 		List<KafkaTopicPartitionState<KPH>> partitionStates = new CopyOnWriteArrayList<>();
 
 		switch (timestampWatermarkMode) {
