@@ -347,6 +347,12 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		// the default implementation does nothing and accepts the checkpoint
+		// this is purely for subclasses to override
+	}
+
+	@Override
 	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
 			CheckpointStreamFactory factory) throws Exception {
 
