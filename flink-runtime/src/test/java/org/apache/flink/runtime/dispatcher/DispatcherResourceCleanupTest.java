@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -54,6 +56,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -64,6 +67,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -101,6 +105,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
 
+	private SingleRunningJobsRegistry runningJobsRegistry;
+
+	private TestingHighAvailabilityServices highAvailabilityServices;
+
+	private OneShotLatch clearedJobLatch;
+
 	private TestingDispatcher dispatcher;
 
 	private DispatcherGateway dispatcherGateway;
@@ -134,9 +144,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		configuration = new Configuration();
 		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices = new TestingHighAvailabilityServices();
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
+		clearedJobLatch = new OneShotLatch();
+		runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
+		highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
 
 		storedBlobFuture = new CompletableFuture<>();
 		deleteAllFuture = new CompletableFuture<>();
@@ -269,6 +282,79 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		}
 
 		assertThat(deleteAllFuture.isDone(), is(false));
+	}
+
+	/**
+	 * Tests that the {@link RunningJobsRegistry} entries are cleared after the
+	 * job reached a terminal state.
+	 */
+	@Test
+	public void testRunningJobsRegistryCleanup() throws Exception {
+		submitJob();
+
+		runningJobsRegistry.setJobRunning(jobId);
+		assertThat(runningJobsRegistry.contains(jobId), is(true));
+
+		resultFuture.complete(new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).setJobID(jobId).build());
+
+		// wait for the clearing
+		clearedJobLatch.await();
+
+		assertThat(runningJobsRegistry.contains(jobId), is(false));
+	}
+
+	private static final class SingleRunningJobsRegistry implements RunningJobsRegistry {
+
+		@Nonnull
+		private final JobID expectedJobId;
+
+		@Nonnull
+		private final OneShotLatch clearedJobLatch;
+
+		private JobSchedulingStatus jobSchedulingStatus = JobSchedulingStatus.PENDING;
+
+		private boolean containsJob = false;
+
+		private SingleRunningJobsRegistry(@Nonnull JobID expectedJobId, @Nonnull OneShotLatch clearedJobLatch) {
+			this.expectedJobId = expectedJobId;
+			this.clearedJobLatch = clearedJobLatch;
+		}
+
+		@Override
+		public void setJobRunning(JobID jobID) {
+			checkJobId(jobID);
+			containsJob = true;
+			jobSchedulingStatus = JobSchedulingStatus.RUNNING;
+		}
+
+		private void checkJobId(JobID jobID) {
+			Preconditions.checkArgument(expectedJobId.equals(jobID));
+		}
+
+		@Override
+		public void setJobFinished(JobID jobID) {
+			checkJobId(jobID);
+			containsJob = true;
+			jobSchedulingStatus = JobSchedulingStatus.DONE;
+		}
+
+		@Override
+		public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
+			checkJobId(jobID);
+			return jobSchedulingStatus;
+		}
+
+		public boolean contains(JobID jobId) {
+			checkJobId(jobId);
+			return containsJob;
+		}
+
+		@Override
+		public void clearJob(JobID jobID) {
+			checkJobId(jobID);
+			containsJob = false;
+			clearedJobLatch.trigger();
+		}
 	}
 
 	private static final class TestingDispatcher extends Dispatcher {
