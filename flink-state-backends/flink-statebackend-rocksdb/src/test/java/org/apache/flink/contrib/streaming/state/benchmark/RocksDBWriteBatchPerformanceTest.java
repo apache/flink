@@ -24,7 +24,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBWriteBatchWrapper;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -94,8 +93,6 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 		log.info("Single Put with disableWAL is false for {} records costs {}" , num, t1);
 		log.info("WriteBatch with disableWAL is false for {} records costs {}" , num, t2);
 
-		Assert.assertTrue(t2 < t1);
-
 		log.info("--------------> put VS WriteBatch with disableWAL=true <--------------");
 
 		t1 = benchMarkHelper(data, true, WRITETYPE.PUT);
@@ -103,8 +100,6 @@ public class RocksDBWriteBatchPerformanceTest extends TestLogger {
 
 		log.info("Single Put with disableWAL is true for {} records costs {}" , num, t1);
 		log.info("WriteBatch with disableWAL is true for {} records costs {}" , num, t2);
-
-		Assert.assertTrue(t2 < t1);
 	}
 
 	private enum WRITETYPE {PUT, WRITE_BATCH}
