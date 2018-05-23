@@ -349,7 +349,12 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * break record aggregation.
 	 */
 	private void enforceQueueLimit() {
+		int attempt = 0;
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
+			if (attempt >= 10) {
+				LOG.warn("Flushing to enforce queue limit takes unusually long, still not done after {} attempts.", attempt);
+			}
+			attempt++;
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
