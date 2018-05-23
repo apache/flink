@@ -1557,7 +1557,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		@Override
 		protected void onRegistrationSuccess(final JobMasterRegistrationSuccess success) {
 			runAsync(() -> {
-				// filter out replace connections
+				// filter out outdated connections
+				//noinspection ObjectEquality
 				if (this == resourceManagerConnection) {
 					establishResourceManagerConnection(success);
 				}
