@@ -36,6 +36,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
@@ -93,8 +95,10 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -362,12 +366,21 @@ public class YarnResourceManagerTest extends TestLogger {
 				.registerTaskExecutor(
 					taskHost,
 					taskManagerResourceId,
-					slotReport,
 					dataPort,
 					hardwareDescription,
 					Time.seconds(10L))
+				.thenCompose(
+					(RegistrationResponse response) -> {
+						assertThat(response, instanceOf(TaskExecutorRegistrationSuccess.class));
+						final TaskExecutorRegistrationSuccess success = (TaskExecutorRegistrationSuccess) response;
+						return rmGateway.sendSlotReport(
+							taskManagerResourceId,
+							success.getRegistrationId(),
+							slotReport,
+							Time.seconds(10L));
+					})
 				.handleAsync(
-					(RegistrationResponse response, Throwable throwable) -> rmServices.slotManager.getNumberRegisteredSlots(),
+					(Acknowledge ignored, Throwable throwable) -> rmServices.slotManager.getNumberRegisteredSlots(),
 					resourceManager.getMainThreadExecutorForTesting());
 
 			final int numberRegisteredSlots = numberRegisteredSlotsFuture.get();
