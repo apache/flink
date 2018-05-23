@@ -181,7 +181,7 @@ public class ExampleIntegrationTest extends AbstractTestBase {
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-class ExampleIntegrationTest extends ScalaStreamingMultipleProgramsTestBase {
+class ExampleIntegrationTest extends AbstractTestBase {
 
     @Test
     def testMultiply(): Unit = {
