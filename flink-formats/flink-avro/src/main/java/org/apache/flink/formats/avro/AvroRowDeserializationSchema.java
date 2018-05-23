@@ -17,7 +17,6 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
@@ -33,6 +32,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 
 import java.io.IOException;

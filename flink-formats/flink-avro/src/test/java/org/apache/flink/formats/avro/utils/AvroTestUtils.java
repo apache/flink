@@ -18,7 +18,6 @@
 
 package org.apache.flink.formats.avro.utils;
 
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.generated.Address;
@@ -34,6 +33,7 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

@@ -18,13 +18,13 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.Test;
 
 import java.io.IOException;
