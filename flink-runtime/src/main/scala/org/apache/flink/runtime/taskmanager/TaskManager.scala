@@ -1051,13 +1051,6 @@ class TaskManager(
     if (network.getKvStateRegistry != null) {
       network.getKvStateRegistry.unregisterListener()
     }
-    
-    // failsafe shutdown of the metrics registry
-    try {
-      taskManagerMetricGroup.close()
-    } catch {
-      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
-    }
   }
 
   protected def handleJobManagerDisconnect(msg: String): Unit = {
