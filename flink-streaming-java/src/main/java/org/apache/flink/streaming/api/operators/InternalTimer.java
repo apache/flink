@@ -23,8 +23,8 @@ import org.apache.flink.annotation.Internal;
 /**
  * Internal interface for in-flight timers.
  *
- * @param <K> type of the timer key.
- * @param <N> type of the timer namespace.
+ * @param <K> Type of the keys to which timers are scoped.
+ * @param <N> Type of the namespace to which timers are scoped.
  */
 @Internal
 public interface InternalTimer<K, N> {

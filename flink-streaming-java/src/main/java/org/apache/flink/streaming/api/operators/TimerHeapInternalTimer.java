@@ -47,7 +47,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 	private final N namespace;
 
 	/**
-	 * This field holds the current physical index if this timer when it is managed by a timer heap so that we can
+	 * This field holds the current physical index of this timer when it is managed by a timer heap so that we can
 	 * support fast deletes.
 	 */
 	private transient int timerHeapIndex;
@@ -153,7 +153,18 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 
 		@Override
 		public TypeSerializer<InternalTimer<K, N>> duplicate() {
-			return this;
+
+			final TypeSerializer<K> keySerializerDuplicate = keySerializer.duplicate();
+			final TypeSerializer<N> namespaceSerializerDuplicate = namespaceSerializer.duplicate();
+
+			if (keySerializerDuplicate == keySerializer &&
+				namespaceSerializerDuplicate == namespaceSerializer) {
+				// all delegate serializers seem stateless, so this is also stateless.
+				return this;
+			} else {
+				// at least one delegate serializer seems to be stateful, so we return a new instance.
+				return new TimerSerializer<>(keySerializerDuplicate, namespaceSerializerDuplicate);
+			}
 		}
 
 		@Override

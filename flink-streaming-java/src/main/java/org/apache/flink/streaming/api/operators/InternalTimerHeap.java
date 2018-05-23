@@ -126,7 +126,7 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 
 		if (getDedupMapForKeyGroup(timer).putIfAbsent(timer, timer) == null) {
 			final int newSize = ++this.size;
-			checkCapacity(newSize);
+			growIfRequired(newSize);
 			moveElementToIdx(timer, newSize);
 			siftUp(newSize);
 			return true;
@@ -183,15 +183,15 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 	}
 
 	@Override
-	public boolean contains(@Nullable Object o) {
-		return (o instanceof TimerHeapInternalTimer)
-			&& getDedupMapForKeyGroup((TimerHeapInternalTimer<?, ?>) o).containsKey(o);
+	public boolean contains(@Nullable Object toCheck) {
+		return (toCheck instanceof TimerHeapInternalTimer)
+			&& getDedupMapForKeyGroup((TimerHeapInternalTimer<?, ?>) toCheck).containsKey(toCheck);
 	}
 
 	@Override
-	public boolean remove(@Nullable Object o) {
-		if (o instanceof TimerHeapInternalTimer) {
-			return removeInternal((TimerHeapInternalTimer<?, ?>) o);
+	public boolean remove(@Nullable Object toRemove) {
+		if (toRemove instanceof TimerHeapInternalTimer) {
+			return removeInternal((TimerHeapInternalTimer<?, ?>) toRemove);
 		}
 		return false;
 	}
@@ -203,15 +203,14 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 			return true;
 		}
 
-		if (timers.size() > queue.length) {
-			checkCapacity(timers.size());
-		}
+		final int oldSize = size();
+		resizeForBulkLoad(oldSize + timers.size());
 
 		for (TimerHeapInternalTimer<K, N> k : timers) {
 			add(k);
 		}
 
-		return true;
+		return oldSize != size();
 	}
 
 	@Nonnull
@@ -242,7 +241,7 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 		for (Object o : toRemove) {
 			remove(o);
 		}
-		return size() == oldSize;
+		return oldSize != size();
 	}
 
 	/**
@@ -326,20 +325,19 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 	/**
 	 * This method adds all the given timers to the heap.
 	 */
-	void restoreTimers(Collection<? extends InternalTimer<K, N>> toAdd) {
-		if (toAdd == null) {
+	void addRestoredTimers(Collection<? extends InternalTimer<K, N>> restoredTimers) {
+
+		if (restoredTimers == null) {
 			return;
 		}
 
-		if (toAdd.size() > queue.length) {
-			checkCapacity(toAdd.size());
-		}
+		resizeForBulkLoad(restoredTimers.size());
 
-		for (InternalTimer<K, N> k : toAdd) {
-			if (k instanceof TimerHeapInternalTimer) {
-				add((TimerHeapInternalTimer<K, N>) k);
+		for (InternalTimer<K, N> timer : restoredTimers) {
+			if (timer instanceof TimerHeapInternalTimer) {
+				add((TimerHeapInternalTimer<K, N>) timer);
 			} else {
-				scheduleTimer(k.getTimestamp(), k.getKey(), k.getNamespace());
+				scheduleTimer(timer.getTimestamp(), timer.getKey(), timer.getNamespace());
 			}
 		}
 	}
@@ -458,22 +456,31 @@ public class InternalTimerHeap<K, N> implements Queue<TimerHeapInternalTimer<K, 
 		return keyGroup - keyGroupRange.getStartKeyGroup();
 	}
 
-	private void checkCapacity(int requested) {
+	private void growIfRequired(int requiredSize) {
 		int oldArraySize = queue.length;
 
-		if (requested >= oldArraySize) {
+		if (requiredSize >= oldArraySize) {
 			final int grow = (oldArraySize < 64) ? oldArraySize + 2 : oldArraySize >> 1;
-			int newArraySize = oldArraySize + grow;
-			if (newArraySize - MAX_ARRAY_SIZE > 0) {
-				if (newArraySize < 0 || requested > MAX_ARRAY_SIZE) {
-					throw new OutOfMemoryError("Required timer heap exceeds maximum size!");
-				} else {
-					newArraySize = MAX_ARRAY_SIZE;
-				}
-			}
-			queue = Arrays.copyOf(queue, newArraySize);
+			resizeQueueArray(oldArraySize + grow);
 		}
 		// TODO implement shrinking as well?
+	}
+
+	private void resizeForBulkLoad(int maxTotalSize) {
+		if (maxTotalSize > queue.length) {
+			resizeQueueArray(maxTotalSize + (maxTotalSize >>> 3));
+		}
+	}
+
+	private void resizeQueueArray(int newArraySize) {
+		if (newArraySize - MAX_ARRAY_SIZE > 0) {
+			if (newArraySize < 0 || newArraySize > MAX_ARRAY_SIZE) {
+				throw new OutOfMemoryError("Required timer heap exceeds maximum size!");
+			} else {
+				newArraySize = MAX_ARRAY_SIZE;
+			}
+		}
+		queue = Arrays.copyOf(queue, newArraySize);
 	}
 
 	/**

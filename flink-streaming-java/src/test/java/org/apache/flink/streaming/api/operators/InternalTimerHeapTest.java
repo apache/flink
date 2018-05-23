@@ -243,7 +243,8 @@ public class InternalTimerHeapTest {
 		InternalTimerHeap<Integer, VoidNamespace> timerPriorityQueue =
 			newPriorityQueue(1);
 
-		timerPriorityQueue.addAll(twoTimesTimerSet);
+		Assert.assertTrue(timerPriorityQueue.addAll(twoTimesTimerSet));
+		Assert.assertFalse(timerPriorityQueue.addAll(twoTimesTimerSet));
 
 		Assert.assertEquals(timerSet.size(), timerPriorityQueue.size());
 
