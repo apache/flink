@@ -43,7 +43,6 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link AbstractFetcher}.
@@ -66,7 +65,7 @@ public class AbstractFetcherTest {
 			originalPartitions,
 			null,
 			null,
-			mock(TestProcessingTimeService.class),
+			new TestProcessingTimeService(),
 			0);
 
 		synchronized (sourceContext.getCheckpointLock()) {
@@ -104,7 +103,7 @@ public class AbstractFetcherTest {
 			originalPartitions,
 			null, /* periodic watermark assigner */
 			null, /* punctuated watermark assigner */
-			mock(TestProcessingTimeService.class),
+			new TestProcessingTimeService(),
 			0);
 
 		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates().get(0);
