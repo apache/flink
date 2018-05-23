@@ -81,7 +81,7 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 
 	@Override
 	protected AvroRowDeserializationSchema getDeserializationSchema() {
-		return new AvroRowDeserializationSchema(avroRecordClass, AvroRecordClassConverter.convert(avroRecordClass));
+		return new AvroRowDeserializationSchema(avroRecordClass);
 	}
 
 	@Override

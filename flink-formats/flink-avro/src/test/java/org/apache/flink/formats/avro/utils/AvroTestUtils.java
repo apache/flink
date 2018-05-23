@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.utils;
 
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.generated.Address;
@@ -64,7 +65,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests a simple Avro data types without nesting.
 	 */
-	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getSimpleTestData() {
+	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getSimpleTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -80,7 +81,7 @@ public final class AvroTestUtils {
 		rowAddr.setField(3, "Test State");
 		rowAddr.setField(4, "12345");
 
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = Address.class;
 		t.f1 = addr;
 		t.f2 = rowAddr;
@@ -91,7 +92,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests all Avro data types as well as nested types.
 	 */
-	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getComplexTestData() {
+	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getComplexTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -142,7 +143,7 @@ public final class AvroTestUtils {
 		rowUser.setField(13, null);
 		rowUser.setField(14, rowAddr);
 
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = User.class;
 		t.f1 = user;
 		t.f2 = rowUser;
