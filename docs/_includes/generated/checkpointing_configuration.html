@@ -40,7 +40,7 @@
         <tr>
             <td><h5>state.checkpoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>The default directory used for checkpoints. Used by the state backends that write checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).</td>
+            <td>The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).</td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.num-retained</h5></td>

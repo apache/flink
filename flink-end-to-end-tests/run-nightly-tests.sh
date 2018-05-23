@@ -30,6 +30,8 @@ if [ -z "$FLINK_DIR" ] ; then
     exit 1
 fi
 
+source "$(dirname "$0")"/test-scripts/common.sh
+
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd )`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
@@ -40,147 +42,154 @@ EXIT_CODE=0
 # Template for adding a test:
 
 # if [ $EXIT_CODE == 0 ]; then
-#     printf "\n==============================================================================\n"
-#     printf "Running my fancy nightly end-to-end test\n"
-#     printf "==============================================================================\n"
-#     $END_TO_END_DIR/test-scripts/test_something_very_fancy.sh
-#     EXIT_CODE=$?
+#    run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
+#    EXIT_CODE=$?
 # fi
 
 
 if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running HA end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_ha.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, async, no parallelism change) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  run_test "Running HA (file, async) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha.sh file true false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, sync, no parallelism change) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  run_test "Running HA (file, sync) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha.sh file false false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, async, scale up) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  run_test "Running HA (rocks, non-incremental) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha.sh rocks true false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, sync, scale up) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  run_test "Running HA (rocks, incremental) end-to-end test" "$END_TO_END_DIR/test-scripts/test_ha.sh rocks true true"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, async, scale down) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  run_test "Resuming Savepoint (file, async, no parallelism change) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2 file true"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (file, sync, scale down) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  run_test "Resuming Savepoint (file, sync, no parallelism change) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2 file false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (rocks, no parallelism change) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2
+  run_test "Resuming Savepoint (file, async, scale up) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4 file true"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (rocks, scale up) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4
+  run_test "Resuming Savepoint (file, sync, scale up) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4 file false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Savepoint (rocks, scale down) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2
+  run_test "Resuming Savepoint (file, async, scale down) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2 file true"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Externalized Checkpoint (file, async) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=true $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  run_test "Resuming Savepoint (file, sync, scale down) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2 file false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Externalized Checkpoint (file, sync) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=file STATE_BACKEND_FILE_ASYNC=false $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  run_test "Resuming Savepoint (rocks, no parallelism change) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 2 rocks"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Resuming Externalized Checkpoint (rocks) end-to-end test\n"
-  printf "==============================================================================\n"
-  STATE_BACKEND_TYPE=rocks $END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh
+  run_test "Resuming Savepoint (rocks, scale up) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 2 4 rocks"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running DataSet allround nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_batch_allround.sh
+  run_test "Resuming Savepoint (rocks, scale down) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_savepoint.sh 4 2 rocks"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Streaming SQL nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_streaming_sql.sh
+  run_test "Resuming Externalized Checkpoint (file, async) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh file true false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running Streaming bucketing nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_streaming_bucketing.sh
+  run_test "Resuming Externalized Checkpoint (file, sync) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh file false false"
   EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-  printf "\n==============================================================================\n"
-  printf "Running stateful stream job upgrade nightly end-to-end test\n"
-  printf "==============================================================================\n"
-  $END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4
+  run_test "Resuming Externalized Checkpoint (rocks) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh rocks false"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Resuming Externalized Checkpoint after terminal failure (file, async) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh file true true"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Resuming Externalized Checkpoint after terminal failure (file, sync) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh file false true"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Resuming Externalized Checkpoint after terminal failure (rocks) end-to-end test" "$END_TO_END_DIR/test-scripts/test_resume_externalized_checkpoints.sh rocks true"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "DataSet allround end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_allround.sh"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Streaming SQL end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_sql.sh"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Streaming bucketing end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_bucketing.sh"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Stateful stream job upgrade end-to-end test" "$END_TO_END_DIR/test-scripts/test_stateful_stream_job_upgrade.sh 2 4"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test \
+    "Elasticsearch (v1.7.1) sink end-to-end test" \
+    "$END_TO_END_DIR/test-scripts/test_streaming_elasticsearch.sh 1 https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1.7.1.tar.gz"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test \
+    "Elasticsearch (v2.3.5) sink end-to-end test" \
+    "$END_TO_END_DIR/test-scripts/test_streaming_elasticsearch.sh 2 https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/tar/elasticsearch/2.3.5/elasticsearch-2.3.5.tar.gz"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test \
+    "Elasticsearch (v5.1.2) sink end-to-end test" \
+    "$END_TO_END_DIR/test-scripts/test_streaming_elasticsearch.sh 5 https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.1.2.tar.gz"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Local recovery and sticky scheduling nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_local_recovery_and_scheduling.sh"
+  EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+  run_test "Quickstarts nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_quickstarts.sh"
   EXIT_CODE=$?
 fi
 

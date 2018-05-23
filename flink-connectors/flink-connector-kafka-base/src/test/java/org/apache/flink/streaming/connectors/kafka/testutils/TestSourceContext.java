@@ -25,7 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 /**
  * Test {@link org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}.
  */
-public final class TestSourceContext<T> implements SourceFunction.SourceContext<T> {
+public class TestSourceContext<T> implements SourceFunction.SourceContext<T> {
 
 	private final Object checkpointLock = new Object();
 	private final Object watermarkLock = new Object();

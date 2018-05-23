@@ -51,7 +51,7 @@ import java.util.Date;
  * }</pre>
  *
  * <p>This will create for example the following bucket path:
- * {@code /base/1976-12-31-14/}
+ * {@code /base/1976-12-31--14/}
  *
  * @deprecated use {@link org.apache.flink.streaming.connectors.fs.bucketing.DateTimeBucketer} instead.
  */

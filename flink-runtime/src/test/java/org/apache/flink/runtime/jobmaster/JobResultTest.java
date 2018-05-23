@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -33,7 +31,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link JobResult}.
  */
-@Category(New.class)
 public class JobResultTest extends TestLogger {
 
 	@Test

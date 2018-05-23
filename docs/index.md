@@ -41,12 +41,12 @@ Apache Flink is an open source platform for distributed stream and batch data pr
 
 Before putting your Flink job into production, read the [Production Readiness Checklist](ops/production_ready.html).
 
-## Migration Guide
+## Release Notes
 
-For users of earlier versions of Apache Flink, we recommend the [API migration guide](dev/migration.html).
-While all parts of the API that were marked as public and stable are still supported (the public API is backwards compatible), we suggest migrating applications to the newer interfaces where applicable.
+Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
 
-For users that plan to upgrade a Flink system in production, we recommend reading the guide on [upgrading Apache Flink](ops/upgrading.html).
+* [Release notes for Flink 1.6](release-notes/flink-1.6.html).
+* [Release notes for Flink 1.5](release-notes/flink-1.5.html).
 
 ## External Resources
 

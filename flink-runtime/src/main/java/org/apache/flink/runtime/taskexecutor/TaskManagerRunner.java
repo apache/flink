@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 
@@ -56,6 +58,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -69,9 +73,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * It constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
  * and starts them.
  */
-public class TaskManagerRunner implements FatalErrorHandler {
+public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerRunner.class);
+
+	private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
 	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
 
@@ -97,6 +103,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	private final ExecutorService executor;
 
 	private final TaskExecutor taskManager;
+
+	private final CompletableFuture<Void> terminationFuture;
+
+	private boolean shutdown;
 
 	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
 		this.configuration = checkNotNull(configuration);
@@ -137,6 +147,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			blobCacheService,
 			false,
 			this);
+
+		this.terminationFuture = new CompletableFuture<>();
+		this.shutdown = false;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -147,19 +160,37 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		taskManager.start();
 	}
 
-	public void shutDown() throws Exception {
-		shutDownInternally();
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		synchronized (lock) {
+			if (!shutdown) {
+				shutdown = true;
+
+				taskManager.shutDown();
+				final CompletableFuture<Void> taskManagerTerminationFuture = taskManager.getTerminationFuture();
+
+				final CompletableFuture<Void> serviceTerminationFuture = FutureUtils.composeAfterwards(
+					taskManagerTerminationFuture,
+					this::shutDownServices);
+
+				serviceTerminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							terminationFuture.completeExceptionally(throwable);
+						} else {
+							terminationFuture.complete(null);
+						}
+					});
+			}
+		}
+
+		return terminationFuture;
 	}
 
-	protected void shutDownInternally() throws Exception {
-		Exception exception = null;
-
+	private CompletableFuture<Void> shutDownServices() {
 		synchronized (lock) {
-			try {
-				taskManager.shutDown();
-			} catch (Exception e) {
-				exception = e;
-			}
+			Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+			Exception exception = null;
 
 			try {
 				blobCacheService.close();
@@ -174,32 +205,26 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			}
 
 			try {
-				rpcService.stopService().get();
-			} catch (InterruptedException ie) {
-				exception = ExceptionUtils.firstOrSuppressed(ie, exception);
-
-				Thread.currentThread().interrupt();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			try {
 				highAvailabilityServices.close();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			ExecutorUtils.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
+			terminationFutures.add(rpcService.stopService());
+
+			terminationFutures.add(ExecutorUtils.nonBlockingShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor));
 
 			if (exception != null) {
-				throw exception;
+				terminationFutures.add(FutureUtils.completedExceptionally(exception));
 			}
+
+			return FutureUtils.completeAll(terminationFutures);
 		}
 	}
 
 	// export the termination future for caller to know it is terminated
 	public CompletableFuture<Void> getTerminationFuture() {
-		return taskManager.getTerminationFuture();
+		return terminationFuture;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -210,12 +235,21 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	public void onFatalError(Throwable exception) {
 		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", exception);
 
-		try {
-			shutDown();
-		} catch (Throwable t) {
-			LOG.error("Could not properly shut down TaskManager.", t);
-		}
+		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
+			terminateJVM();
+		} else {
+			closeAsync();
 
+			FutureUtils.orTimeout(terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+			terminationFuture.whenComplete(
+				(Void ignored, Throwable throwable) -> {
+					terminateJVM();
+				});
+		}
+	}
+
+	protected void terminateJVM() {
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}
 

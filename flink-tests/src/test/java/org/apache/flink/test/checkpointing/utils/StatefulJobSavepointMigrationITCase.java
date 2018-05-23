@@ -21,26 +21,17 @@ package org.apache.flink.test.checkpointing.utils;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -59,9 +50,7 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /**
  * Migration ITCases for a stateful job. The tests are parameterized to cover
@@ -130,13 +119,13 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 		OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> timelyOperator;
 
 		if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
-			nonParallelSource = new CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
-			parallelSource = new CheckpointingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
+			nonParallelSource = new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
+			parallelSource = new MigrationTestUtils.CheckpointingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
 			flatMap = new CheckpointingKeyedStateFlatMap();
 			timelyOperator = new CheckpointingTimelyStatefulOperator();
 		} else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
-			nonParallelSource = new CheckingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
-			parallelSource = new CheckingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
+			nonParallelSource = new MigrationTestUtils.CheckingNonParallelSourceWithListState(NUM_SOURCE_ELEMENTS);
+			parallelSource = new MigrationTestUtils.CheckingParallelSourceWithUnionListState(NUM_SOURCE_ELEMENTS);
 			flatMap = new CheckingKeyedStateFlatMap();
 			timelyOperator = new CheckingTimelyStatefulOperator();
 		} else {
@@ -152,7 +141,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
 				timelyOperator).uid("CheckpointingTimelyStatefulOperator1")
-			.addSink(new AccumulatorCountingSink<>());
+			.addSink(new MigrationTestUtils.AccumulatorCountingSink<>());
 
 		env
 			.addSource(parallelSource).uid("CheckpointingSource2")
@@ -163,24 +152,24 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 				"timely_stateful_operator",
 				new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
 				timelyOperator).uid("CheckpointingTimelyStatefulOperator2")
-			.addSink(new AccumulatorCountingSink<>());
+			.addSink(new MigrationTestUtils.AccumulatorCountingSink<>());
 
 		if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
 			executeAndSavepoint(
 				env,
 				"src/test/resources/" + getSavepointPath(testMigrateVersion, testStateBackend),
-				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
+				new Tuple2<>(MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
 		} else {
 			restoreAndExecute(
 				env,
 				getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
-				new Tuple2<>(CheckingNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
-				new Tuple2<>(CheckingParallelSourceWithUnionListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, parallelism),
+				new Tuple2<>(MigrationTestUtils.CheckingNonParallelSourceWithListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, 1),
+				new Tuple2<>(MigrationTestUtils.CheckingParallelSourceWithUnionListState.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, parallelism),
 				new Tuple2<>(CheckingKeyedStateFlatMap.SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESS_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_EVENT_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
 				new Tuple2<>(CheckingTimelyStatefulOperator.SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2),
-				new Tuple2<>(AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
+				new Tuple2<>(MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS * 2));
 		}
 	}
 
@@ -192,261 +181,6 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 				return "new-stateful-udf-migration-itcase-flink" + savepointVersion + "-savepoint";
 			default:
 				throw new UnsupportedOperationException();
-		}
-	}
-
-	private static class CheckpointingNonParallelSourceWithListState
-		implements SourceFunction<Tuple2<Long, Long>>, CheckpointedFunction {
-
-		static final ListStateDescriptor<String> STATE_DESCRIPTOR =
-			new ListStateDescriptor<>("source-state", StringSerializer.INSTANCE);
-
-		static final String CHECKPOINTED_STRING = "Here be dragons!";
-		static final String CHECKPOINTED_STRING_1 = "Here be more dragons!";
-		static final String CHECKPOINTED_STRING_2 = "Here be yet more dragons!";
-		static final String CHECKPOINTED_STRING_3 = "Here be the mostest dragons!";
-
-		private static final long serialVersionUID = 1L;
-
-		private volatile boolean isRunning = true;
-
-		private final int numElements;
-
-		private transient ListState<String> unionListState;
-
-		CheckpointingNonParallelSourceWithListState(int numElements) {
-			this.numElements = numElements;
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			unionListState.clear();
-			unionListState.add(CHECKPOINTED_STRING);
-			unionListState.add(CHECKPOINTED_STRING_1);
-			unionListState.add(CHECKPOINTED_STRING_2);
-			unionListState.add(CHECKPOINTED_STRING_3);
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			unionListState = context.getOperatorStateStore().getListState(
-				STATE_DESCRIPTOR);
-		}
-
-		@Override
-		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-			ctx.emitWatermark(new Watermark(0));
-
-			synchronized (ctx.getCheckpointLock()) {
-				for (long i = 0; i < numElements; i++) {
-					ctx.collect(new Tuple2<>(i, i));
-				}
-			}
-
-			// don't emit a final watermark so that we don't trigger the registered event-time
-			// timers
-			while (isRunning) {
-				Thread.sleep(20);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			isRunning = false;
-		}
-	}
-
-	private static class CheckingNonParallelSourceWithListState
-		extends RichSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
-
-		private static final long serialVersionUID = 1L;
-
-		static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingNonParallelSourceWithListState.class + "_RESTORE_CHECK";
-
-		private volatile boolean isRunning = true;
-
-		private final int numElements;
-
-		CheckingNonParallelSourceWithListState(int numElements) {
-			this.numElements = numElements;
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			ListState<String> unionListState = context.getOperatorStateStore().getListState(
-				CheckpointingNonParallelSourceWithListState.STATE_DESCRIPTOR);
-
-			if (context.isRestored()) {
-				assertThat(unionListState.get(),
-					containsInAnyOrder(
-						CheckpointingNonParallelSourceWithListState.CHECKPOINTED_STRING,
-						CheckpointingNonParallelSourceWithListState.CHECKPOINTED_STRING_1,
-						CheckpointingNonParallelSourceWithListState.CHECKPOINTED_STRING_2,
-						CheckpointingNonParallelSourceWithListState.CHECKPOINTED_STRING_3));
-
-				getRuntimeContext().addAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, new IntCounter());
-				getRuntimeContext().getAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR).add(1);
-			} else {
-				throw new RuntimeException(
-					"This source should always be restored because it's only used when restoring from a savepoint.");
-			}
-		}
-
-		@Override
-		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-			// immediately trigger any set timers
-			ctx.emitWatermark(new Watermark(1000));
-
-			synchronized (ctx.getCheckpointLock()) {
-				for (long i = 0; i < numElements; i++) {
-					ctx.collect(new Tuple2<>(i, i));
-				}
-			}
-
-			while (isRunning) {
-				Thread.sleep(20);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			isRunning = false;
-		}
-	}
-
-	private static class CheckpointingParallelSourceWithUnionListState
-		extends RichSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
-
-		static final ListStateDescriptor<String> STATE_DESCRIPTOR =
-			new ListStateDescriptor<>("source-state", StringSerializer.INSTANCE);
-
-		static final String[] CHECKPOINTED_STRINGS = {
-			"Here be dragons!",
-			"Here be more dragons!",
-			"Here be yet more dragons!",
-			"Here be the mostest dragons!" };
-
-		private static final long serialVersionUID = 1L;
-
-		private volatile boolean isRunning = true;
-
-		private final int numElements;
-
-		private transient ListState<String> unionListState;
-
-		CheckpointingParallelSourceWithUnionListState(int numElements) {
-			this.numElements = numElements;
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			unionListState.clear();
-
-			for (String s : CHECKPOINTED_STRINGS) {
-				if (s.hashCode() % getRuntimeContext().getNumberOfParallelSubtasks() == getRuntimeContext().getIndexOfThisSubtask()) {
-					unionListState.add(s);
-				}
-			}
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			unionListState = context.getOperatorStateStore().getUnionListState(
-				STATE_DESCRIPTOR);
-		}
-
-		@Override
-		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-			ctx.emitWatermark(new Watermark(0));
-
-			synchronized (ctx.getCheckpointLock()) {
-				for (long i = 0; i < numElements; i++) {
-					if (i % getRuntimeContext().getNumberOfParallelSubtasks() == getRuntimeContext().getIndexOfThisSubtask()) {
-						ctx.collect(new Tuple2<>(i, i));
-					}
-				}
-			}
-
-			// don't emit a final watermark so that we don't trigger the registered event-time
-			// timers
-			while (isRunning) {
-				Thread.sleep(20);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			isRunning = false;
-		}
-	}
-
-	private static class CheckingParallelSourceWithUnionListState
-		extends RichParallelSourceFunction<Tuple2<Long, Long>> implements CheckpointedFunction {
-
-		private static final long serialVersionUID = 1L;
-
-		static final String SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR = CheckingParallelSourceWithUnionListState.class + "_RESTORE_CHECK";
-
-		private volatile boolean isRunning = true;
-
-		private final int numElements;
-
-		CheckingParallelSourceWithUnionListState(int numElements) {
-			this.numElements = numElements;
-		}
-
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-
-		}
-
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			ListState<String> unionListState = context.getOperatorStateStore().getUnionListState(
-				CheckpointingNonParallelSourceWithListState.STATE_DESCRIPTOR);
-
-			if (context.isRestored()) {
-				assertThat(unionListState.get(),
-					containsInAnyOrder(CheckpointingParallelSourceWithUnionListState.CHECKPOINTED_STRINGS));
-
-				getRuntimeContext().addAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, new IntCounter());
-				getRuntimeContext().getAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR).add(1);
-			} else {
-				throw new RuntimeException(
-					"This source should always be restored because it's only used when restoring from a savepoint.");
-			}
-		}
-
-		@Override
-		public void run(SourceContext<Tuple2<Long, Long>> ctx) throws Exception {
-
-			// immediately trigger any set timers
-			ctx.emitWatermark(new Watermark(1000));
-
-			synchronized (ctx.getCheckpointLock()) {
-				for (long i = 0; i < numElements; i++) {
-					if (i % getRuntimeContext().getNumberOfParallelSubtasks() == getRuntimeContext().getIndexOfThisSubtask()) {
-						ctx.collect(new Tuple2<>(i, i));
-					}
-				}
-			}
-
-			while (isRunning) {
-				Thread.sleep(20);
-			}
-		}
-
-		@Override
-		public void cancel() {
-			isRunning = false;
 		}
 	}
 
@@ -609,26 +343,4 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 			getRuntimeContext().getAccumulator(SUCCESSFUL_PROCESSING_TIME_CHECK_ACCUMULATOR).add(1);
 		}
 	}
-
-	private static class AccumulatorCountingSink<T> extends RichSinkFunction<T> {
-		private static final long serialVersionUID = 1L;
-
-		static final String NUM_ELEMENTS_ACCUMULATOR = AccumulatorCountingSink.class + "_NUM_ELEMENTS";
-
-		int count = 0;
-
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-
-			getRuntimeContext().addAccumulator(NUM_ELEMENTS_ACCUMULATOR, new IntCounter());
-		}
-
-		@Override
-		public void invoke(T value, Context context) throws Exception {
-			count++;
-			getRuntimeContext().getAccumulator(NUM_ELEMENTS_ACCUMULATOR).add(1);
-		}
-	}
-
 }

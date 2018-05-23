@@ -508,9 +508,11 @@ Table result = left.join(right).where("a = d").select("a, b, e");
       <td>
         <strong>Outer Joins</strong><br>
         <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+        <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined. Full join is not supported in streaming yet.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -1792,6 +1794,30 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+    ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+      ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
       </td>
     </tr>
 
@@ -3332,6 +3358,30 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+    ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+      ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
       </td>
     </tr>
 

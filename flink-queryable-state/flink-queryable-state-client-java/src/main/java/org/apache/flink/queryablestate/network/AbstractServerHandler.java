@@ -303,7 +303,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 					LOG.debug("Request {} was successfully answered after {} ms.", request, durationMillis);
 					stats.reportSuccessfulRequest(durationMillis);
 				} else {
-					LOG.debug("Request {} failed after {} ms : ", request, durationMillis, future.cause());
+					LOG.debug("Request {} failed after {} ms due to: {}", request, durationMillis, future.cause());
 					stats.reportFailedRequest();
 				}
 			}

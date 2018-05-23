@@ -300,7 +300,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			verifyContents(server, jobId2, key2, data);
 			checkFileCountForJob(1, jobId2, server);
 
-			server.cleanupJob(jobId1);
+			server.cleanupJob(jobId1, true);
 
 			verifyDeleted(server, jobId1, key1a);
 			verifyDeleted(server, jobId1, key1b);
@@ -308,14 +308,14 @@ public class BlobServerDeleteTest extends TestLogger {
 			verifyContents(server, jobId2, key2, data);
 			checkFileCountForJob(1, jobId2, server);
 
-			server.cleanupJob(jobId2);
+			server.cleanupJob(jobId2, true);
 
 			checkFileCountForJob(0, jobId1, server);
 			verifyDeleted(server, jobId2, key2);
 			checkFileCountForJob(0, jobId2, server);
 
 			// calling a second time should not fail
-			server.cleanupJob(jobId2);
+			server.cleanupJob(jobId2, true);
 		}
 	}
 

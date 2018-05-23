@@ -310,7 +310,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				taskInformation.getMaxNumberOfSubtaks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
-				attemptNumber);
+				attemptNumber,
+				String.valueOf(slotAllocationId));
 
 		this.jobId = jobInformation.getJobId();
 		this.vertexId = taskInformation.getJobVertexId();

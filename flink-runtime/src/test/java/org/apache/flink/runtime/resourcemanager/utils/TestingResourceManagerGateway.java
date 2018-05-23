@@ -109,6 +109,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestSlotConsumer = null;
 	}
 
+	public ResourceID getOwnResourceId() {
+		return ownResourceId;
+	}
+
 	public void setRequestSlotFuture(CompletableFuture<Acknowledge> slotFuture) {
 		this.slotFutureReference.set(slotFuture);
 	}

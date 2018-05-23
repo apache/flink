@@ -22,6 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -76,6 +78,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -87,7 +90,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -96,7 +99,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.ArgumentCaptor;
@@ -115,12 +117,15 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -138,7 +143,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@Category(New.class)
 public class TaskExecutorTest extends TestLogger {
 
 	@Rule
@@ -305,9 +309,11 @@ public class TaskExecutorTest extends TestLogger {
 			new ClusterInformation("localhost", 1234));
 
 		final CompletableFuture<ResourceID> taskExecutorRegistrationFuture = new CompletableFuture<>();
+		final CountDownLatch registrationAttempts = new CountDownLatch(2);
 		rmGateway.setRegisterTaskExecutorFunction(
 			registration -> {
 				taskExecutorRegistrationFuture.complete(registration.f1);
+				registrationAttempts.countDown();
 				return CompletableFuture.completedFuture(registrationResponse);
 			});
 
@@ -355,6 +361,9 @@ public class TaskExecutorTest extends TestLogger {
 
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
 			assertThat(taskExecutorDisconnectFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS), equalTo(taskManagerLocation.getResourceID()));
+
+			// the TaskExecutor should try to reconnect to the RM
+			registrationAttempts.await();
 
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
@@ -1385,6 +1394,90 @@ public class TaskExecutorTest extends TestLogger {
 			// wait that the job leader retrieval service for jobId stopped becaue it should get removed
 			stopFuture.get();
 			assertThat(jobLeaderService.containsJob(jobId), is(false));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test
+	public void testMaximumRegistrationDuration() throws Exception {
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			new TaskManagerServicesBuilder().build(),
+			new HeartbeatServices(1000L, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		taskExecutor.start();
+
+		try {
+			final Throwable error = testingFatalErrorHandler.getErrorFuture().get();
+			assertThat(error, is(notNullValue()));
+			assertThat(ExceptionUtils.stripExecutionException(error), instanceOf(RegistrationTimeoutException.class));
+
+			testingFatalErrorHandler.clearError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test
+	public void testMaximumRegistrationDurationAfterConnectionLoss() throws Exception {
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "100 ms");
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+
+		final long heartbeatInterval = 10L;
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			taskManagerServices,
+			new HeartbeatServices(heartbeatInterval, 10L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		taskExecutor.start();
+
+		final CompletableFuture<ResourceID> registrationFuture = new CompletableFuture<>();
+		final OneShotLatch secondRegistration = new OneShotLatch();
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+				tuple -> {
+					if (registrationFuture.complete(tuple.f1)) {
+						return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
+							new InstanceID(),
+							testingResourceManagerGateway.getOwnResourceId(),
+							heartbeatInterval,
+							new ClusterInformation("localhost", 1234)));
+					} else {
+						secondRegistration.trigger();
+						return CompletableFuture.completedFuture(new RegistrationResponse.Decline("Only the first registration should succeed."));
+					}
+				}
+			);
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), UUID.randomUUID());
+
+			final ResourceID registrationResourceId = registrationFuture.get();
+
+			assertThat(registrationResourceId, equalTo(taskManagerServices.getTaskManagerLocation().getResourceID()));
+
+			secondRegistration.await();
+
+			final Throwable error = testingFatalErrorHandler.getErrorFuture().get();
+			assertThat(error, is(notNullValue()));
+			assertThat(ExceptionUtils.stripExecutionException(error), instanceOf(RegistrationTimeoutException.class));
+
+			testingFatalErrorHandler.clearError();
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}

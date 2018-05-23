@@ -243,9 +243,13 @@ public class KinesisConfigUtil {
 			}
 		}
 
-		if (!config.containsKey(AWSConfigConstants.AWS_REGION)) {
-			throw new IllegalArgumentException("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
-		} else {
+		if (!(config.containsKey(AWSConfigConstants.AWS_REGION) ^ config.containsKey(ConsumerConfigConstants.AWS_ENDPOINT))) {
+			// per validation in AwsClientBuilder
+			throw new IllegalArgumentException(String.format("Either AWS region ('%s') or AWS endpoint ('%s') must be set in the config.",
+				AWSConfigConstants.AWS_REGION, AWSConfigConstants.AWS_REGION));
+		}
+
+		if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
 			// specified AWS Region name must be recognizable
 			if (!AWSUtil.isValidRegion(config.getProperty(AWSConfigConstants.AWS_REGION))) {
 				StringBuilder sb = new StringBuilder();
