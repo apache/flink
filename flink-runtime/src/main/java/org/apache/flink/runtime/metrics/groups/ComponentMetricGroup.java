@@ -21,9 +21,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Abstract {@link org.apache.flink.metrics.MetricGroup} for system components (e.g.,
  * TaskManager, Job, Task, Operator).
@@ -51,30 +48,6 @@ public abstract class ComponentMetricGroup<P extends AbstractMetricGroup<?>> ext
 	public ComponentMetricGroup(MetricRegistry registry, String[] scope, P parent) {
 		super(registry, scope, parent);
 	}
-
-	@Override
-	public Map<String, String> getAllVariables() {
-		if (variables == null) { // avoid synchronization for common case
-			synchronized (this) {
-				if (variables == null) {
-					Map<String, String> tmpVariables = new HashMap<>();
-					putVariables(tmpVariables);
-					if (parent != null) { // not true for Job-/TaskManagerMetricGroup
-						tmpVariables.putAll(parent.getAllVariables());
-					}
-					variables = tmpVariables;
-				}
-			}
-		}
-		return variables;
-	}
-
-	/**
-	 * Enters all variables specific to this ComponentMetricGroup and their associated values into the map.
-	 *
-	 * @param variables map to enter variables and their values into
-     */
-	protected abstract void putVariables(Map<String, String> variables);
 
 	/**
 	 * Closes the component group by removing and closing all metrics and subgroups
