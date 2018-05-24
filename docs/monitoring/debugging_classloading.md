@@ -65,13 +65,11 @@ classes are loaded dynamically when the jobs are submitted.
 
 Flink uses a hierarchy of ClassLoaders for loading classes from the user-code jar(s). The user-code
 ClassLoader has a reference to the parent ClassLoader, which is the default Java ClassLoader in most
-cases. By default, Java ClassLoaders will first look for classes in the parent ClassLoader and then in
-the child ClassLoader for cases where we have a hierarchy of ClassLoaders. This is problematic if you
-have in your user jar a version of a library that conflicts with a version that comes with Flink. You can
-change this behaviour by configuring the ClassLoader resolution order via
-`classloader.resolve-order: child-first` in the Flink config. However, Flink classes will still
-be resolved through the parent ClassLoader first, although you can also configure this via
-`classloader.parent-first-patterns` (see [config](../ops/config.html))
+cases. In Flink by default, Java ClassLoaders will first look for classes in the child ClassLoader and then
+in the parent ClassLoader for cases where we have a hierarchy of ClassLoaders. You can change this behaviour
+by configuring the ClassLoader resolution order via `classloader.resolve-order: parent-first` in the Flink
+config. However, Flink classes are still resolved through the parent ClassLoader first, although you can also
+configure this via `classloader.parent-first-patterns` (see [config](../ops/config.html))
 
 
 ## Avoiding Dynamic Classloading
