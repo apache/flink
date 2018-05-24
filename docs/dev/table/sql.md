@@ -551,7 +551,7 @@ FROM (
     <tr>
       <td>
         <strong>In</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
       Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
@@ -1093,7 +1093,7 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
       </td>
     </tr>
 
@@ -1104,7 +1104,7 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
 
