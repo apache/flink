@@ -94,6 +94,20 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	// ------------------------------------------------------------------------
 
 	/**
+	 * This method is called when the operator should do a snapshot, before it emits its
+	 * own checkpoint barrier. This method is intended not for any actual state persistence,
+	 * but only for emitting some data before emitting the checkpoint barrier.
+	 *
+	 * <p><b>Important:</b> This method should not be used for any actual state snapshot logic, because
+	 * it will inherently be within the synchronous part of the operator's checkpoint. If heavy work is done
+	 * withing this method, it will affect latency and downstream checkpoint alignments.
+	 *
+	 * @param checkpointId The ID of the checkpoint.
+	 * @throws Exception Throwing an exception here causes the operator to fail and go into recovery.
+	 */
+	void prepareSnapshotPreBarrier(long checkpointId) throws Exception;
+
+	/**
 	 * Called to draw a state snapshot from the operator.
 	 *
 	 * @return a runnable future to the state handle that points to the snapshotted state. For synchronous implementations,

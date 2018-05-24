@@ -611,15 +611,23 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (isRunning) {
 				// we can do a checkpoint
 
-				// Since both state checkpointing and downstream barrier emission occurs in this
-				// lock scope, they are an atomic operation regardless of the order in which they occur.
-				// Given this, we immediately emit the checkpoint barriers, so the downstream operators
-				// can start their checkpoint work as soon as possible
+				// All of the following steps happen as an atomic step from the perspective of barriers and
+				// records/watermarks/timers/callbacks.
+				// We generally try to emit the checkpoint barrier as soon as possible to not affect downstream
+				// checkpoint alignments
+
+				// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
+				//           The pre-barrier work should be nothing or minimal in the common case.
+				operatorChain.prepareSnapshotPreBarrier(checkpointMetaData.getCheckpointId());
+
+				// Step (2): Send the checkpoint barrier downstream
 				operatorChain.broadcastCheckpointBarrier(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions);
 
+				// Step (3): Take the state snapshot. This should be largely asynchronous, to not
+				//           impact progress of the streaming topology
 				checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics);
 				return true;
 			}
