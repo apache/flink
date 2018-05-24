@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils._
+import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
 
 /**
@@ -210,6 +211,8 @@ class SqlExpressionTest extends ExpressionTestBase {
   @Test
   def testTypeConversionFunctions(): Unit = {
     testSqlApi("CAST(2 AS DOUBLE)", "2.0")
+    testSqlApi("CAST(Func20(42) AS DOUBLE)", "42.0")
+    testSqlApi("CAST(Func21(245) AS Int)", "245")
   }
 
   @Test
@@ -246,6 +249,11 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CARDINALITY(ARRAY[TRUE, TRUE, FALSE])", "3")
     testSqlApi("ELEMENT(ARRAY['HELLO WORLD'])", "HELLO WORLD")
   }
+
+  override def functions: Map[String, ScalarFunction] = Map(
+    "Func20" -> Func20,
+    "Func21" -> Func21
+  )
 
   override def testData: Any = new Row(0)
 

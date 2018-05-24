@@ -24,7 +24,7 @@ import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
@@ -729,6 +729,14 @@ object ScalarOperators {
             s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
       }
 
+    // Generic type class -> any other type which is assignable.
+    case (s: GenericTypeInfo[_], t: TypeInformation[_])
+      if s.getTypeClass.isAssignableFrom(t.getTypeClass) => {
+      val targetTypeTerm = targetType.getTypeClass.getCanonicalName
+      generateUnaryOperatorIfNotNull(nullCheck, targetType, operand) {
+        (operandTerm) => s"($targetTypeTerm) ($operandTerm)"
+      }
+    }
     // internal temporal casting
     // Date -> Integer
     // Time -> Integer

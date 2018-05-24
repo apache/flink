@@ -290,6 +290,18 @@ object Func19 extends ScalarFunction {
 
 }
 
+object Func20 extends ScalarFunction {
+  def eval(i: Int): Object = {
+    double2Double(i)
+  }
+}
+
+object Func21 extends ScalarFunction {
+  def eval(i: Int): Object = {
+    new Integer(i)
+  }
+}
+
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)
