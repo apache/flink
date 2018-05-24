@@ -302,7 +302,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 		}
 
 		try {
-			this.mapreduceInputFormat = (org.apache.hadoop.mapreduce.InputFormat<K, V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).newInstance();
+			this.mapreduceInputFormat = (org.apache.hadoop.mapreduce.InputFormat<K, V>) Class.forName(hadoopInputFormatClassName, true, Thread.currentThread().getContextClassLoader()).getDeclaredConstructor().newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to instantiate the hadoop input format", e);
 		}

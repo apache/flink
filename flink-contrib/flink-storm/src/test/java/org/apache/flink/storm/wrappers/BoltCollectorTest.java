@@ -25,6 +25,7 @@ import org.apache.storm.tuple.Values;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +40,7 @@ public class BoltCollectorTest extends AbstractTest {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
-	public void testBoltStormCollector() throws InstantiationException, IllegalAccessException {
+	public void testBoltStormCollector() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		for (int numberOfAttributes = -1; numberOfAttributes < 26; ++numberOfAttributes) {
 			final Output flinkCollector = mock(Output.class);
 			Tuple flinkTuple = null;
@@ -57,7 +58,7 @@ public class BoltCollectorTest extends AbstractTest {
 
 			} else {
 				collector = new BoltCollector(attributes, -1, flinkCollector);
-				flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+				flinkTuple = Tuple.getTupleClass(numberOfAttributes).getDeclaredConstructor().newInstance();
 
 				for (int i = 0; i < numberOfAttributes; ++i) {
 					tuple.add(new Integer(this.r.nextInt()));
@@ -81,7 +82,7 @@ public class BoltCollectorTest extends AbstractTest {
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	@Test
-	public void testBoltStormCollectorWithTaskId() throws InstantiationException, IllegalAccessException {
+	public void testBoltStormCollectorWithTaskId() throws InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
 		for (int numberOfAttributes = 0; numberOfAttributes < 25; ++numberOfAttributes) {
 			final Output flinkCollector = mock(Output.class);
 			final int taskId = 42;
@@ -93,7 +94,7 @@ public class BoltCollectorTest extends AbstractTest {
 			BoltCollector<?> collector = new BoltCollector(attributes, taskId, flinkCollector);
 
 			final Values tuple = new Values();
-			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes + 1).newInstance();
+			final Tuple flinkTuple = Tuple.getTupleClass(numberOfAttributes + 1).getDeclaredConstructor().newInstance();
 
 			for (int i = 0; i < numberOfAttributes; ++i) {
 				tuple.add(new Integer(this.r.nextInt()));

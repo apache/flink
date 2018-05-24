@@ -127,7 +127,7 @@ public class BoltWrapperTest extends AbstractTest {
 		if (numberOfAttributes == -1) {
 			rawTuple = "test";
 		} else {
-			flinkTuple = Tuple.getTupleClass(numberOfAttributes).newInstance();
+			flinkTuple = Tuple.getTupleClass(numberOfAttributes).getDeclaredConstructor().newInstance();
 		}
 
 		final String[] schema;

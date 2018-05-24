@@ -1297,7 +1297,7 @@ public class BucketingSink<T>
 			final Class<? extends FileSystem> fsClass = FileSystem.getFileSystemClass(fsUri.getScheme(), finalConf);
 			final FileSystem fs;
 			try {
-				fs = fsClass.newInstance();
+				fs = fsClass.getDeclaredConstructor().newInstance();
 			}
 			catch (Exception e) {
 				throw new IOException("Cannot instantiate the Hadoop file system", e);

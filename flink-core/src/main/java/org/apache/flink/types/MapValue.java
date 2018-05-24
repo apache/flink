@@ -20,6 +20,7 @@
 package org.apache.flink.types;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,13 +84,13 @@ public abstract class MapValue<K extends Value, V extends Value> implements Valu
 
 		try {
 			for (; size > 0; size--) {
-				final K key = this.keyClass.newInstance();
-				final V val = this.valueClass.newInstance();
+				final K key = this.keyClass.getDeclaredConstructor().newInstance();
+				final V val = this.valueClass.getDeclaredConstructor().newInstance();
 				key.read(in);
 				val.read(in);
 				this.map.put(key, val);
 			}
-		} catch (final InstantiationException | IllegalAccessException e) {
+		} catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}

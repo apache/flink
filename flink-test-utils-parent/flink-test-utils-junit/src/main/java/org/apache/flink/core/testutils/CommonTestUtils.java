@@ -170,7 +170,7 @@ public class CommonTestUtils {
 	public static Serializable createObjectForClassNotInClassPath(ClassLoader targetClassLoader) {
 		try {
 			Class<? extends Serializable> clazz = createClassNotInClassPath(targetClassLoader);
-			return clazz.newInstance();
+			return clazz.getDeclaredConstructor().newInstance();
 		}
 		catch (Exception e) {
 			throw new AssertionError("test setup broken", e);

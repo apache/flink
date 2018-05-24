@@ -33,6 +33,7 @@ import org.apache.avro.specific.SpecificDatumWriter;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -131,8 +132,8 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)) {
 			datumWriter = new SpecificDatumWriter<E>(avroValueType);
 			try {
-				schema = ((org.apache.avro.specific.SpecificRecordBase) avroValueType.newInstance()).getSchema();
-			} catch (InstantiationException | IllegalAccessException e) {
+				schema = ((org.apache.avro.specific.SpecificRecordBase) avroValueType.getDeclaredConstructor().newInstance()).getSchema();
+			} catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 				throw new RuntimeException(e.getMessage());
 			}
 		} else if (org.apache.avro.generic.GenericRecord.class.isAssignableFrom(avroValueType)) {

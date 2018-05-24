@@ -108,7 +108,7 @@ public class DataInputOutputSerializerTest {
 
 		for (SerializationTestType expected : reference) {
 			try {
-				SerializationTestType actual = expected.getClass().newInstance();
+				SerializationTestType actual = expected.getClass().getDeclaredConstructor().newInstance();
 				actual.read(deserializer);
 
 				Assert.assertEquals(expected, actual);

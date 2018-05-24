@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
 import org.apache.flink.storm.util.SplitStreamType;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -94,10 +95,9 @@ abstract class AbstractStormCollector<OUT> {
 				try {
 					this.outputTuple.put(outputStream.getKey(),
 							org.apache.flink.api.java.tuple.Tuple.getTupleClass(numAtt)
-							.newInstance());
-				} catch (final InstantiationException e) {
-					throw new RuntimeException(e);
-				} catch (final IllegalAccessException e) {
+							.getDeclaredConstructor().newInstance());
+				} catch (final InstantiationException | IllegalAccessException
+					| NoSuchMethodException | InvocationTargetException e) {
 					throw new RuntimeException(e);
 				}
 

@@ -20,6 +20,7 @@
 package org.apache.flink.types;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -93,14 +94,12 @@ public abstract class ListValue<V extends Value> implements Value, List<V> {
 
 		try {
 			for (; size > 0; size--) {
-				final V val = this.valueClass.newInstance();
+				final V val = this.valueClass.getDeclaredConstructor().newInstance();
 				val.read(in);
 
 				this.list.add(val);
 			}
-		} catch (final InstantiationException e) {
-			throw new RuntimeException(e);
-		} catch (final IllegalAccessException e) {
+		} catch (final InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
 			throw new RuntimeException(e);
 		}
 	}
