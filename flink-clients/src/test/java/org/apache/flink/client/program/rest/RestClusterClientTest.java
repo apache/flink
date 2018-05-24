@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
@@ -369,7 +370,7 @@ public class RestClusterClientTest extends TestLogger {
 	public void testSubmitJobAndWaitForExecutionResult() throws Exception {
 		final TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
-				new RestHandlerException("should trigger retry", HttpResponseStatus.NOT_FOUND),
+				new RestHandlerException("should trigger retry", HttpResponseStatus.SERVICE_UNAVAILABLE),
 				JobExecutionResultResponseBody.inProgress(),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
@@ -707,6 +708,104 @@ public class RestClusterClientTest extends TestLogger {
 		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
 		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
 		assertThat(webMonitorBaseUrl.getPort(), equalTo(manualPort));
+	}
+
+	/**
+	 * Tests that the send operation is being retried.
+	 */
+	@Test
+	public void testRetriableSendOperationIfConnectionErrorOrServiceUnavailable() throws Exception {
+		final PingRestHandler pingRestHandler = new PingRestHandler(
+			FutureUtils.completedExceptionally(new RestHandlerException("test exception", HttpResponseStatus.SERVICE_UNAVAILABLE)),
+			CompletableFuture.completedFuture(EmptyResponseBody.getInstance()));
+
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(pingRestHandler)) {
+			final AtomicBoolean firstPollFailed = new AtomicBoolean();
+			failHttpRequest = (messageHeaders, messageParameters, requestBody) ->
+				messageHeaders instanceof PingRestHandlerHeaders && !firstPollFailed.getAndSet(true);
+
+			restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
+		}
+	}
+
+	/**
+	 * Tests that the send operation is not being retried when receiving a NOT_FOUND return code.
+	 */
+	@Test
+	public void testSendIsNotRetriableIfHttpNotFound() throws Exception {
+		final String exceptionMessage = "test exception";
+		final PingRestHandler pingRestHandler = new PingRestHandler(
+			FutureUtils.completedExceptionally(new RestHandlerException(exceptionMessage, HttpResponseStatus.NOT_FOUND)));
+
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(pingRestHandler)) {
+			try {
+				restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
+				fail("The rest request should have failed.");
+			}  catch (Exception e) {
+				assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
+			}
+		}
+	}
+
+	private class PingRestHandler extends TestHandler<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		private final Queue<CompletableFuture<EmptyResponseBody>> responseQueue;
+
+		private PingRestHandler(CompletableFuture<EmptyResponseBody> ... responses) {
+			super(PingRestHandlerHeaders.INSTANCE);
+			responseQueue = new ArrayDeque<>(Arrays.asList(responses));
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			final CompletableFuture<EmptyResponseBody> result = responseQueue.poll();
+
+			if (result != null) {
+				return result;
+			} else {
+				return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+			}
+		}
+	}
+
+	private static final class PingRestHandlerHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		static final PingRestHandlerHeaders INSTANCE = new PingRestHandlerHeaders();
+
+		@Override
+		public Class<EmptyResponseBody> getResponseClass() {
+			return EmptyResponseBody.class;
+		}
+
+		@Override
+		public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public String getDescription() {
+			return "foobar";
+		}
+
+		@Override
+		public Class<EmptyRequestBody> getRequestClass() {
+			return EmptyRequestBody.class;
+		}
+
+		@Override
+		public EmptyMessageParameters getUnresolvedMessageParameters() {
+			return EmptyMessageParameters.getInstance();
+		}
+
+		@Override
+		public HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.GET;
+		}
+
+		@Override
+		public String getTargetRestEndpointURL() {
+			return "/foobar";
+		}
 	}
 
 	private class TestAccumulatorHandler extends TestHandler<EmptyRequestBody, JobAccumulatorsInfo, JobAccumulatorsMessageParameters> {
