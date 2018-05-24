@@ -15,92 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.table.api.stream.table
+package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
-import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.junit.Test
 
 class SetOperatorsTest extends TableTestBase {
 
   @Test
-  def testFilterUnionTranspose(): Unit = {
-    val util = streamTestUtil()
-    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
-    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
-
-    val result = left.unionAll(right)
-      .where('a > 0)
-      .groupBy('b)
-      .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
-
-    val expected = unaryNode(
-      "DataStreamCalc",
-        unaryNode(
-          "DataStreamGroupAggregate",
-          binaryNode(
-            "DataStreamUnion",
-            unaryNode(
-              "DataStreamCalc",
-              streamTableNode(0),
-              term("select", "a", "b", "c"),
-              term("where", ">(a, 0)")
-            ),
-            unaryNode(
-              "DataStreamCalc",
-              streamTableNode(1),
-              term("select", "a", "b", "c"),
-              term("where", ">(a, 0)")
-            ),
-            term("union all", "a", "b", "c")
-          ),
-          term("groupBy", "b"),
-          term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
-        ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
-    )
-
-    util.verifyTable(result, expected)
-  }
-
-  @Test
-  def testProjectUnionTranspose(): Unit = {
-    val util = streamTestUtil()
-    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
-    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
-
-    val result = left.select('a, 'b, 'c)
-      .unionAll(right.select('a, 'b, 'c))
-      .select('b, 'c)
-
-    val expected = binaryNode(
-      "DataStreamUnion",
-      unaryNode(
-        "DataStreamCalc",
-        streamTableNode(0),
-        term("select", "b", "c")
-      ),
-      unaryNode(
-        "DataStreamCalc",
-        streamTableNode(1),
-        term("select", "b", "c")
-      ),
-      term("union all", "b", "c")
-    )
-
-    util.verifyTable(result, expected)
-  }
-
-  @Test
   def testInUncorrelated(): Unit = {
     val streamUtil = streamTestUtil()
-    val tableA = streamUtil.addTable[(Int, Long, String)]('a, 'b, 'c)
-    val tableB = streamUtil.addTable[(Int, String)]('x, 'y)
+    streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
+    streamUtil.addTable[(Int, String)]("tableB", 'x, 'y)
 
-    val result = tableA.where('a.in(tableB.select('x)))
+    val sqlQuery =
+      s"""
+         |SELECT * FROM tableA
+         |WHERE a IN (SELECT x FROM tableB)
+       """.stripMargin
 
     val expected =
       unaryNode(
@@ -125,17 +60,20 @@ class SetOperatorsTest extends TableTestBase {
         term("select", "a", "b", "c")
       )
 
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testInUncorrelatedWithConditionAndAgg(): Unit = {
     val streamUtil = streamTestUtil()
-    val tableA = streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
-    val tableB = streamUtil.addTable[(Int, String)]("tableB", 'x, 'y)
+    streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
+    streamUtil.addTable[(Int, String)]("tableB", 'x, 'y)
 
-    val result = tableA
-      .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
+    val sqlQuery =
+      s"""
+         |SELECT * FROM tableA
+         |WHERE a IN (SELECT SUM(x) FROM tableB GROUP BY y HAVING y LIKE '%Hanoi%')
+       """.stripMargin
 
     val expected =
       unaryNode(
@@ -156,32 +94,36 @@ class SetOperatorsTest extends TableTestBase {
                   term("where", "LIKE(y, '%Hanoi%')")
                 ),
                 term("groupBy", "y"),
-                term("select", "y, SUM(x) AS TMP_0")
+                term("select", "y, SUM(x) AS EXPR$0")
               ),
-              term("select", "TMP_0")
+              term("select", "EXPR$0")
             ),
-            term("groupBy", "TMP_0"),
-            term("select", "TMP_0")
+            term("groupBy", "EXPR$0"),
+            term("select", "EXPR$0")
           ),
-          term("where", "=(a, TMP_0)"),
-          term("join", "a", "b", "c", "TMP_0"),
+          term("where", "=(a, EXPR$0)"),
+          term("join", "a", "b", "c", "EXPR$0"),
           term("joinType", "InnerJoin")
         ),
         term("select", "a", "b", "c")
       )
 
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifySql(sqlQuery, expected)
   }
 
   @Test
   def testInWithMultiUncorrelatedCondition(): Unit = {
     val streamUtil = streamTestUtil()
-    val tableA = streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
-    val tableB = streamUtil.addTable[(Int, String)]("tableB", 'x, 'y)
-    val tableC = streamUtil.addTable[(Long, Int)]("tableC", 'w, 'z)
+    streamUtil.addTable[(Int, Long, String)]("tableA", 'a, 'b, 'c)
+    streamUtil.addTable[(Int, String)]("tableB", 'x, 'y)
+    streamUtil.addTable[(Long, Int)]("tableC", 'w, 'z)
 
-    val result = tableA
-      .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
+    val sqlQuery =
+      s"""
+         |SELECT * FROM tableA
+         |WHERE a IN (SELECT x FROM tableB)
+         |AND b IN (SELECT w FROM tableC)
+       """.stripMargin
 
     val expected =
       unaryNode(
@@ -222,10 +164,10 @@ class SetOperatorsTest extends TableTestBase {
           term("where", "=(b, w)"),
           term("join", "a", "b", "c", "w"),
           term("joinType", "InnerJoin")
-        ),
+      ),
         term("select", "a", "b", "c")
       )
 
-    streamUtil.verifyTable(result, expected)
+    streamUtil.verifySql(sqlQuery, expected)
   }
 }
