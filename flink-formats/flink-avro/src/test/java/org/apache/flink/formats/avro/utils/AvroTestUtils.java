@@ -33,7 +33,6 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.avro.specific.SpecificRecordBase;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -71,7 +70,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests a simple Avro data types without nesting.
 	 */
-	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getSimpleTestData() {
+	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getSimpleTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -87,7 +86,7 @@ public final class AvroTestUtils {
 		rowAddr.setField(3, "Test State");
 		rowAddr.setField(4, "12345");
 
-		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = Address.class;
 		t.f1 = addr;
 		t.f2 = rowAddr;
@@ -98,7 +97,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests all Avro data types as well as nested types.
 	 */
-	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getComplexTestData() {
+	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getComplexTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -149,7 +148,7 @@ public final class AvroTestUtils {
 		rowUser.setField(13, null);
 		rowUser.setField(14, rowAddr);
 
-		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = User.class;
 		t.f1 = user;
 		t.f2 = rowUser;
