@@ -23,12 +23,11 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
-
 import grizzled.slf4j.Logger
 
 /** An extension of the TaskManager that listens for additional YARN related
@@ -44,7 +43,7 @@ class YarnTaskManager(
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup: TaskManagerMetricGroup)
+    metricRegistry: MetricRegistry)
   extends TaskManager(
     config,
     resourceID,
@@ -55,7 +54,7 @@ class YarnTaskManager(
     taskManagerLocalStateStoresManager,
     numberOfSlots,
     highAvailabilityServices,
-    taskManagerMetricGroup) {
+    metricRegistry) {
 
   override def handleMessage: Receive = {
     super.handleMessage

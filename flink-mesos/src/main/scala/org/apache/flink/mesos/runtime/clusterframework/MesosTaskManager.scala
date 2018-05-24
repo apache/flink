@@ -23,6 +23,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
@@ -41,7 +42,7 @@ class MesosTaskManager(
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    taskManagerMetricGroup : TaskManagerMetricGroup)
+    metricRegistry: MetricRegistry)
   extends TaskManager(
     config,
     resourceID,
@@ -52,7 +53,7 @@ class MesosTaskManager(
     taskManagerLocalStateStoresManager,
     numberOfSlots,
     highAvailabilityServices,
-    taskManagerMetricGroup) {
+    metricRegistry) {
 
   override def handleMessage: Receive = {
     super.handleMessage

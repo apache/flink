@@ -46,6 +46,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
+import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.metrics.groups.{JobManagerMetricGroup, TaskManagerMetricGroup}
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
@@ -243,11 +244,6 @@ class LocalFlinkMiniCluster(
       EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
       EnvironmentInformation.getMaxJvmHeapMemory)
 
-    val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
-      metricRegistryOpt.get,
-      taskManagerServices.getTaskManagerLocation(),
-      taskManagerServices.getNetworkEnvironment())
-
     val props = getTaskManagerProps(
       taskManagerClass,
       taskManagerConfiguration,
@@ -257,7 +253,7 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
       taskManagerServices.getTaskManagerStateStore,
-      taskManagerMetricGroup)
+      metricRegistryOpt.get)
 
     system.actorOf(props, taskManagerActorName)
   }
@@ -322,7 +318,7 @@ class LocalFlinkMiniCluster(
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
     taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
-    taskManagerMetricGroup: TaskManagerMetricGroup): Props = {
+    metricRegistry: MetricRegistry): Props = {
 
     TaskManager.getTaskManagerProps(
       taskManagerClass,
@@ -334,7 +330,7 @@ class LocalFlinkMiniCluster(
       networkEnvironment,
       taskManagerLocalStateStoresManager,
       highAvailabilityServices,
-      taskManagerMetricGroup)
+      metricRegistry)
   }
 
   def getResourceManagerProps(

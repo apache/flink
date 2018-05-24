@@ -44,7 +44,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
@@ -179,7 +178,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				storesManager,
 				numberOfSlots,
 				highAvailabilityServices,
-				new TaskManagerMetricGroup(NoOpMetricRegistry.INSTANCE, connectionInfo.getHostname(), connectionInfo.getResourceID().getResourceIdString()));
+				NoOpMetricRegistry.INSTANCE);
 
 			taskManager = actorSystem.actorOf(tmProps);
 
