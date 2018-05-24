@@ -69,10 +69,10 @@ cases. By default, Java ClassLoaders will first look for classes in the parent C
 the child ClassLoader for cases where we have a hierarchy of ClassLoaders. This is problematic if you
 have in your user jar a version of a library that conflicts with a version that comes with Flink. You can
 change this behaviour by configuring the ClassLoader resolution order via
-`classloader.resolve-order: child-first` in the Flink config. However, Flink classes will still
-be resolved through the parent ClassLoader first, although you can also configure this via
-`classloader.parent-first-patterns` (see [config](../ops/config.html))
-
+[classloader.resolve-order](../ops/config.html#classloader-resolve-order) in the Flink config.
+Note that certain classes are always resolved through the parent ClassLoader first, which can be configured via
+[classloader.parent-first-patterns-default](../ops/config.html#classloader-parent-first-patterns-default) and
+[classloader.parent-first-patterns-additional](../ops/config.html#classloader-parent-first-patterns-additional).
 
 ## Avoiding Dynamic Classloading
 
