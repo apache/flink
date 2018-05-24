@@ -18,6 +18,8 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.AbstractDeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -30,6 +32,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 
 import java.io.IOException;
@@ -77,11 +80,16 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	private SpecificRecord record;
 
 	/**
+	 * Type information describing the result type.
+	 */
+	private transient TypeInformation<Row> typeInfo;
+
+	/**
 	 * Creates a Avro deserialization schema for the given record.
 	 *
 	 * @param recordClazz Avro record class used to deserialize Avro's record to Flink's row
 	 */
-	public AvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz) {
+	public AvroRowDeserializationSchema(Class<? extends SpecificRecordBase> recordClazz) {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
 		this.recordClazz = recordClazz;
 		this.schema = SpecificData.get().getSchema(recordClazz);
@@ -89,6 +97,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
 		this.inputStream = new MutableByteArrayInputStream();
 		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+		this.typeInfo = AvroRecordClassConverter.convert(recordClazz);
 	}
 
 	@Override
@@ -118,6 +127,11 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
 		this.inputStream = new MutableByteArrayInputStream();
 		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+	}
+
+	@Override
+	public TypeInformation<Row> getProducedType() {
+		return typeInfo;
 	}
 
 	/**

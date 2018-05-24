@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Types;
 
 import org.apache.avro.Schema;
@@ -72,6 +73,10 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 
 		// check field mapping
 		assertNull(source.getFieldMapping());
+
+		// check if DataStream type matches with TableSource.getReturnType()
+		assertEquals(source.getReturnType(),
+			source.getDataStream(StreamExecutionEnvironment.getExecutionEnvironment()).getType());
 	}
 
 	@Test
@@ -117,6 +122,10 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		assertEquals("otherField1", fieldMapping.get("field1"));
 		assertEquals("otherField2", fieldMapping.get("field2"));
 		assertEquals("otherField3", fieldMapping.get("field3"));
+
+		// check if DataStream type matches with TableSource.getReturnType()
+		assertEquals(source.getReturnType(),
+			source.getDataStream(StreamExecutionEnvironment.getExecutionEnvironment()).getType());
 	}
 
 	/**
