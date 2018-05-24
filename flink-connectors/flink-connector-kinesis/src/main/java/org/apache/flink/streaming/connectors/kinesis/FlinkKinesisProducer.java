@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.TimeoutLatch;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.amazonaws.services.kinesis.producer.Attempt;
@@ -84,6 +85,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 	/* Our Kinesis instance for each parallel Flink sink */
 	private transient KinesisProducer producer;
+
+	/* Backpressuring waits for this latch, triggered by record callback */
+	private transient TimeoutLatch backpressureLatch;
 
 	/* Callback handling failures */
 	private transient FutureCallback<UserRecordResult> callback;
@@ -194,9 +198,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
 
 		producer = getKinesisProducer(producerConfig);
+		backpressureLatch = new TimeoutLatch();
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
 			public void onSuccess(UserRecordResult result) {
+				backpressureLatch.trigger();
 				if (!result.isSuccessful()) {
 					if (failOnError) {
 						// only remember the first thrown exception
@@ -211,6 +217,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 			@Override
 			public void onFailure(Throwable t) {
+				backpressureLatch.trigger();
 				if (failOnError) {
 					thrownException = t;
 				} else {
@@ -352,11 +359,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		int attempt = 0;
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
 			if (attempt >= 10) {
-				LOG.warn("Flushing to enforce queue limit takes unusually long, still not done after {} attempts.", attempt);
+				LOG.warn("Waiting for the queue length to drop below the limit takes unusually long, still not done after {} attempts.", attempt);
 			}
 			attempt++;
 			try {
-				Thread.sleep(500);
+				backpressureLatch.await(100);
 			} catch (InterruptedException e) {
 				LOG.warn("Flushing was interrupted.");
 				break;
@@ -375,7 +382,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				LOG.warn("Flushing was interrupted.");
-
 				break;
 			}
 		}

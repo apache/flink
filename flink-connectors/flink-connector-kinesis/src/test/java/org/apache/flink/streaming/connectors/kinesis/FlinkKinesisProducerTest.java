@@ -293,8 +293,8 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg1.start();
-		msg1.sync(1000);
-		assertFalse("Flush triggered before reaching queue limit", producer.flushLatch.isTriggered());
+		msg1.trySync(100);
+		assertFalse("Flush triggered before reaching queue limit", msg1.isAlive());
 
 		// consume msg-1 so that queue is empty again
 		producer.getPendingRecordFutures().get(0).set(result);
@@ -306,8 +306,8 @@ public class FlinkKinesisProducerTest {
 			}
 		};
 		msg2.start();
-		msg2.sync(1000);
-		assertFalse("Flush triggered before reaching queue limit", producer.flushLatch.isTriggered());
+		msg2.trySync(100);
+		assertFalse("Flush triggered before reaching queue limit", msg2.isAlive());
 
 		CheckedThread moreElementsThread = new CheckedThread() {
 			@Override
@@ -320,20 +320,21 @@ public class FlinkKinesisProducerTest {
 		};
 		moreElementsThread.start();
 
-		producer.waitUntilFlushStarted();
+		moreElementsThread.trySync(100);
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-2 from the queue, leaving msg-3 in the queue and msg-4 blocked
 		producer.getPendingRecordFutures().get(1).set(result);
 
-		producer.waitUntilFlushStarted();
+		moreElementsThread.trySync(100);
 		assertTrue("Producer should still block, but doesn't", moreElementsThread.isAlive());
 
 		// consume msg-3, blocked msg-4 can be inserted into the queue and block is released
 		producer.getPendingRecordFutures().get(2).set(result);
 
-		// If this runs into timeout, the producer blocks although it should not.
-		moreElementsThread.sync();
+		moreElementsThread.trySync(100);
+
+		assertFalse("Prodcuer still blocks although the queue is flushed", moreElementsThread.isAlive());
 
 		producer.getPendingRecordFutures().get(3).set(result);
 
