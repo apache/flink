@@ -21,6 +21,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -91,6 +94,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 	/* Callback handling failures */
 	private transient FutureCallback<UserRecordResult> callback;
+
+	/* Counts how often we have to wait for KPL because we are above the queue limit */
+	private transient Counter backpressureCycles;
 
 	/* Field for async exception */
 	private transient volatile Throwable thrownException;
@@ -198,6 +204,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
 
 		producer = getKinesisProducer(producerConfig);
+
+		final MetricGroup kinesisMectricGroup = getRuntimeContext().getMetricGroup().addGroup("kinesisProducer");
+		backpressureCycles = kinesisMectricGroup.counter("backpressureCycles");
+		kinesisMectricGroup.gauge("outstandingRecordsCount", producer::getOutstandingRecordsCount);
+
 		backpressureLatch = new TimeoutLatch();
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
@@ -358,6 +369,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	private void enforceQueueLimit() {
 		int attempt = 0;
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
+			backpressureCycles.inc();
 			if (attempt >= 10) {
 				LOG.warn("Waiting for the queue length to drop below the limit takes unusually long, still not done after {} attempts.", attempt);
 			}
