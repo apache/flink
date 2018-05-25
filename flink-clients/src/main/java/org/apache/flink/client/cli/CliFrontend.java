@@ -850,7 +850,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleArgException(CliArgsException e) {
-		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
+		LOG.error("Invalid command line arguments.", e);
 
 		System.out.println(e.getMessage());
 		System.out.println();
@@ -865,6 +865,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleParametrizationException(ProgramParametrizationException e) {
+		LOG.error("Program has not been parametrized properly.", e);
 		System.err.println(e.getMessage());
 		return 1;
 	}
