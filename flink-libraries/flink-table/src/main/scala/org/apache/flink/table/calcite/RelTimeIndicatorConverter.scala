@@ -47,45 +47,12 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       .asInstanceOf[FlinkTypeFactory]
       .createTypeFromTypeInfo(SqlTimeTypeInfo.TIMESTAMP, isNullable = false)
 
-  override def visit(intersect: LogicalIntersect): RelNode =
-    throw new TableException("Logical intersect in a stream environment is not supported yet.")
+  override def visit(intersect: LogicalIntersect): RelNode = {
+    visitSetOp(intersect)
+  }
 
   override def visit(union: LogicalUnion): RelNode = {
-    // visit children and update inputs
-    val inputs = union.getInputs.map(_.accept(this))
-
-    // make sure that time indicator types match
-    val inputTypes = inputs.map(_.getRowType)
-
-    val head = inputTypes.head.getFieldList.map(_.getType)
-
-    val isValid = inputTypes.forall { t =>
-      val fieldTypes = t.getFieldList.map(_.getType)
-
-      fieldTypes.zip(head).forall { case (l, r) =>
-        // check if time indicators match
-        if (isTimeIndicatorType(l) && isTimeIndicatorType(r)) {
-          val leftTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-          val rightTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
-          leftTime == rightTime
-        }
-        // one side is not an indicator
-        else if (isTimeIndicatorType(l) || isTimeIndicatorType(r)) {
-          false
-        }
-        // uninteresting types
-        else {
-          true
-        }
-      }
-    }
-
-    if (!isValid) {
-      throw new ValidationException(
-        "Union fields with time attributes have different types.")
-    }
-
-    LogicalUnion.create(inputs, union.all)
+    visitSetOp(union)
   }
 
   override def visit(aggregate: LogicalAggregate): RelNode = convertAggregate(aggregate)
@@ -205,6 +172,44 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       correlate.getCorrelationId,
       correlate.getRequiredColumns,
       correlate.getJoinType)
+  }
+
+  private def visitSetOp(setOp: SetOp): RelNode = {
+    // visit children and update inputs
+    val inputs = setOp.getInputs.map(_.accept(this))
+
+    // make sure that time indicator types match
+    val inputTypes = inputs.map(_.getRowType)
+
+    val head = inputTypes.head.getFieldList.map(_.getType)
+
+    val isValid = inputTypes.forall { t =>
+      val fieldTypes = t.getFieldList.map(_.getType)
+
+      fieldTypes.zip(head).forall { case (l, r) =>
+        // check if time indicators match
+        if (isTimeIndicatorType(l) && isTimeIndicatorType(r)) {
+          val leftTime = l.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+          val rightTime = r.asInstanceOf[TimeIndicatorRelDataType].isEventTime
+          leftTime == rightTime
+        }
+        // one side is not an indicator
+        else if (isTimeIndicatorType(l) || isTimeIndicatorType(r)) {
+          false
+        }
+        // uninteresting types
+        else {
+          true
+        }
+      }
+    }
+
+    if (!isValid) {
+      throw new ValidationException(
+        "SetOp fields with time attributes have different types.")
+    }
+
+    setOp.copy(setOp.getTraitSet, inputs, setOp.all)
   }
 
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {

@@ -341,10 +341,6 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Intersect on stream tables is currently not supported.")
-    }
-
     val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
     if (left.output.length != right.output.length) {
       failValidation(s"Intersect two tables of different column sizes:" +

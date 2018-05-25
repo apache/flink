@@ -228,4 +228,85 @@ class SetOperatorsTest extends TableTestBase {
 
     streamUtil.verifyTable(result, expected)
   }
+
+  @Test
+  def testFilterIntersectTranspose(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.intersect(right)
+      .where('a > 0)
+      .groupBy('b)
+      .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        binaryNode(
+          "DataStreamIntersect",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          term("Intersect", "a", "b", "c")
+        ),
+        term("groupBy", "b"),
+        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+      ),
+      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testFilterIntersectAllTranspose(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.intersectAll(right)
+      .where('a > 0)
+      .groupBy('b)
+      .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamGroupAggregate",
+        binaryNode(
+          "DataStreamIntersect",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c"),
+            term("where", ">(a, 0)")
+          ),
+          term("IntersectAll", "a", "b", "c")
+        ),
+        term("groupBy", "b"),
+        term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+      ),
+      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
 }

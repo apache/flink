@@ -30,6 +30,7 @@ import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
+import scala.util.Random
 
 class SetOperatorsITCase extends AbstractTestBase {
 
@@ -227,5 +228,90 @@ class SetOperatorsITCase extends AbstractTestBase {
     )
 
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  def testIntersect(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.clear
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "Hi"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((2, 2L, "Hello"))
+    data.+=((3, 2L, "Hello world!"))
+    val ds2 = env.fromCollection(Random.shuffle(data)).toTable(tEnv, 'a, 'b, 'c)
+
+    val result = ds1.intersect(ds2).select('c).toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("Hi", "Hello")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testIntersectAll(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.clear
+
+    val data1 = new mutable.MutableList[Int]
+    data1 += (1, 1, 1, 2, 2, 3, 3, 3, 4)
+    val data2 = new mutable.MutableList[Int]
+    data2 += (1, 2, 2, 3, 3, 3, 4, 4, 4, 4)
+    val ds1 = env.fromCollection(data1).toTable(tEnv, 'c)
+    val ds2 = env.fromCollection(data2).toTable(tEnv, 'c)
+
+    val result = ds1.intersectAll(ds2).select('c).toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("1", "2", "2", "3", "3", "3", "4")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testIntersectWithDifferentFieldNames(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.clear
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'e, 'f, 'g)
+
+    val result = ds1.intersect(ds2).select('c).toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("Hi", "Hello", "Hello world")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testIntersectWithScalarExpression(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.clear
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .select('a + 1, 'b, 'c)
+    val ds2 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .select('a + 1, 'b, 'c)
+
+    val result = ds1.intersect(ds2).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("2,1,Hi", "3,2,Hello", "4,2,Hello world")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

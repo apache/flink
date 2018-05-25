@@ -216,8 +216,6 @@ class SetOperatorsITCase(
   }
 
   @Test
-  @Ignore
-  // calcite sql parser doesn't support INTERSECT ALL
   def testIntersectAll(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)

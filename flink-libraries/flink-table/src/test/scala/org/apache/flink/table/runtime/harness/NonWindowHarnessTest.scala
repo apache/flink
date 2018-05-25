@@ -22,14 +22,20 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
+import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
+import org.apache.flink.table.runtime.setop.NonWindowIntersect
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.junit.Test
+
 
 class NonWindowHarnessTest extends HarnessTestBase {
 
@@ -151,6 +157,67 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(Row.of(10L: JLong, 5: JInt), true), 10))
 
     verify(expectedOutput, result, new RowResultSortComparator())
+
+    testHarness.close()
+  }
+
+  @Test
+  def testNonWindowIntersect(): Unit = {
+
+    val resultType = new RowTypeInfo(
+      Types.STRING
+    )
+
+    val nonWindowIntersectFunc = new NonWindowIntersect(
+      resultType,
+      queryConfig,
+      all = false
+    )
+
+    val operator = new KeyedCoProcessOperator[String, CRow, CRow, CRow](nonWindowIntersectFunc)
+
+    val testHarness = new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
+      operator,
+      new TupleRowKeySelector[String](0),
+      new TupleRowKeySelector[String](0),
+      Types.STRING,
+      1, 1, 0
+    )
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    testHarness.open()
+
+    // register cleanup timer with 3001
+    testHarness.setProcessingTime(1L)
+    testHarness.processElement1(new StreamRecord[CRow](CRow(Row.of("aaa"), change = true)))
+    testHarness.processElement1(new StreamRecord[CRow](CRow(Row.of("bbb"), change = true)))
+    testHarness.setProcessingTime(100L)
+    testHarness.processElement1(new StreamRecord[CRow](CRow(Row.of("ccc"), change = true)))
+
+    testHarness.processElement2(new StreamRecord[CRow](CRow(Row.of("aaa"), change = true)))
+
+    // left 'aaa' intersect with right 'aaa'
+    expectedOutput.add(new StreamRecord[CRow](CRow(Row.of("aaa"), change = true)))
+
+    // register cleanup timer with 4000
+    testHarness.setProcessingTime(1000L)
+
+    testHarness.processElement2(new StreamRecord[CRow](CRow(Row.of("aaa"), change = false)))
+    expectedOutput.add(new StreamRecord[CRow](CRow(Row.of("aaa"), change = false)))
+
+    // expire left records 'aaa' and 'bbb'
+    testHarness.setProcessingTime(3002L)
+
+    // this record intersect nothing
+    testHarness.processElement2(new StreamRecord[CRow](CRow(Row.of("aaa"), change = true)))
+    // this record intersect nothing
+    testHarness.processElement2(new StreamRecord[CRow](CRow(Row.of("bbb"), change = true)))
+
+    // right 'ccc' intersect with left 'ccc'
+    testHarness.processElement2(new StreamRecord[CRow](CRow(Row.of("ccc"), change = true)))
+    expectedOutput.add(new StreamRecord[CRow](CRow(Row.of("ccc"), change = true)))
+
+    verify(expectedOutput, testHarness.getOutput, new RowResultSortComparator())
 
     testHarness.close()
   }

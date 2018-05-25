@@ -46,4 +46,26 @@ class SetOperatorsStringExpressionTest extends TableTestBase {
     val resJava = t1.unionAll(t2.select("int, long, string")).filter("int < 2").select("int")
     verifyTableEquals(resJava, resScala)
   }
+
+  @Test
+  def testIntersect(): Unit = {
+    val util = streamTestUtil()
+    val t1 = util.addTable[(Int, Long, String)]('int, 'long, 'string)
+    val t2 = util.addTable[(Int, Long, String)]('int, 'long, 'string)
+
+    val resScala = t1.intersect(t2).select('int)
+    val resJava = t1.intersect(t2).select("int")
+    verifyTableEquals(resJava, resScala)
+  }
+
+  @Test
+  def testIntersectAll(): Unit = {
+    val util = streamTestUtil()
+    val t1 = util.addTable[(Int, Long, String)]('int, 'long, 'string)
+    val t2 = util.addTable[(Int, Long, String)]('int, 'long, 'string)
+
+    val resScala = t1.intersectAll(t2).select('int)
+    val resJava = t1.intersectAll(t2).select("int")
+    verifyTableEquals(resJava, resScala)
+  }
 }

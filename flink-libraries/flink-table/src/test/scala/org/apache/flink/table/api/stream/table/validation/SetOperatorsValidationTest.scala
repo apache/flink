@@ -19,9 +19,12 @@
 package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
@@ -80,5 +83,45 @@ class SetOperatorsValidationTest extends TableTestBase {
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.unionAll(ds2)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testIntersectWithRowtimeField(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val WatermarkExtractor = new AssignerWithPunctuatedWatermarks[(Int, Long, String)]() {
+
+      override def checkAndGetNextWatermark(
+        lastElement: (Int, Long, String),
+        extractedTimestamp: Long): Watermark = {
+        new Watermark(extractedTimestamp - 1)
+      }
+
+      override def extractTimestamp(
+        element: (Int, Long, String),
+        previousElementTimestamp: Long): Long = {
+        element._2
+      }
+    }
+
+    val ds1 = StreamTestData
+      .getSmall3TupleDataStream(env)
+      .assignTimestampsAndWatermarks(WatermarkExtractor)
+      .toTable(tEnv, 'a, 'b.rowtime, 'c)
+
+    val ds2 = StreamTestData
+      .getSmall3TupleDataStream(env)
+      .assignTimestampsAndWatermarks(WatermarkExtractor)
+      .toTable(tEnv, 'x, 'y.rowtime, 'z)
+
+    val result = ds1.intersect(ds2)
+    val results = result.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
   }
 }
