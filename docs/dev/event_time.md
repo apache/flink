@@ -180,6 +180,8 @@ Once a watermark reaches an operator, the operator can advance its internal *eve
 
 <img src="{{ site.baseurl }}/fig/stream_watermark_out_of_order.svg" alt="A data stream with events (out of order) and watermarks" class="center" width="65%" />
 
+Note that event time is inherited by a freshly created stream element (or elements) from either the event that produced them or
+from watermark that triggered creation of those elements.
 
 ## Watermarks in Parallel Streams
 
@@ -218,5 +220,18 @@ with late elements in event time windows.
 
 Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
 watermarks at runtime.
+
+## How operators are processing watermarks
+
+As a general rule, operators are required to completely process a given watermark before forwarding it downstream. For example,
+`WindowOperator` will first evaluate which windows should be fired, and only after producing all of the output triggered by
+the watermark will the watermark itself be sent downstream. In other words, all elements produced due to occurrence of a watermark
+will be emitted before the watermark.
+
+The same rule applies to `TwoInputStreamOperator`. However, in this case the current watermark of the operator is defined as
+the minimum of both of its inputs.
+
+The details of this behavior are defined by the implementations of the `OneInputStreamOperator#processWatermark`,
+`TwoInputStreamOperator#processWatermark1` and `TwoInputStreamOperator#processWatermark2` methods.
 
 {% top %}
