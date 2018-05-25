@@ -85,14 +85,14 @@ fi
 setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.1.2.tar.gz"
 verify_elasticsearch_process_exist
 
-function shutdownAndCleanup {
+function shutdown_and_cleanup {
     shutdown_elasticsearch_cluster
 
     # make sure to run regular cleanup as well
     cleanup
 }
-trap shutdownAndCleanup INT
-trap shutdownAndCleanup EXIT
+trap shutdown_and_cleanup INT
+trap shutdown_and_cleanup EXIT
 
 TEST_PROGRAM_JAR=$TEST_DATA_DIR/flink-java-project/target/flink-java-project-0.1.jar
 

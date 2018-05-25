@@ -61,8 +61,9 @@ function verify_result {
         rm $TEST_DATA_DIR/output
     fi
 
-    while : ; do
-      curl 'localhost:9200/index/_search?q=*&pretty&size=21' > $TEST_DATA_DIR/output
+    # make sure can terminate properly with control-C.
+    while [ $? -ne 130 ]; do
+      curl 'localhost:9200/index/_search?q=*&pretty&size=20' > $TEST_DATA_DIR/output
 
       if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
           echo "Elasticsearch end to end test pass."
