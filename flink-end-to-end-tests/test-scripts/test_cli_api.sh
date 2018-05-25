@@ -20,6 +20,9 @@
 source "$(dirname "$0")"/common.sh
 
 start_cluster
+$FLINK_DIR/bin/taskmanager.sh start
+$FLINK_DIR/bin/taskmanager.sh start
+$FLINK_DIR/bin/taskmanager.sh start
 
 # Test for CLI commands.
 # verify only the return code the content correctness of the API results.
@@ -81,31 +84,48 @@ function extract_valid_job_list_by_type_from_job_list_return() {
     echo ${JOB_LIST_MATCH}
 }
 
+function extract_task_manager_slot_request_count() {
+    COUNT=`grep "Receive slot request" $FLINK_DIR/log/*taskexecutor*.log | wc -l`
+    echo $COUNT
+}
+
 function cleanup_cli_test() {
-  stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
 
   cleanup
 }
 
-printf "\n==============================================================================\n"
-printf "Test default job launch with non-detach mode\n"
-printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Test default job launch with non-detach mode\n"
+    printf "==============================================================================\n"
     eval "$FLINK_DIR/bin/flink run $FLINK_DIR/examples/batch/WordCount.jar"
     EXIT_CODE=$?
 fi
 
-printf "\n==============================================================================\n"
-printf "Test job launch with complex parameter set\n"
-printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Test job launch with complex parameter set\n"
+    printf "==============================================================================\n"
     eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 -q -d \
       -c org.apache.flink.examples.java.wordcount.WordCount \
       $FLINK_DIR/examples/batch/WordCount.jar \
       --input file:///$FLINK_DIR/README.txt \
       --output file:///${TEST_DATA_DIR}/out/result"
     EXIT_CODE=$?
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    printf "\n==============================================================================\n"
+    printf "Validate job launch parallelism configuration\n"
+    printf "==============================================================================\n"
+    RECEIVED_TASKMGR_REQUEST=`extract_task_manager_slot_request_count`
+    # expected 1 from default launch and 4 from complex parameter set.
+    if [[ $RECEIVED_TASKMGR_REQUEST == 5 ]]; then
+        EXIT_CODE=0
+    else
+        EXIT_CODE=-1
+    fi
 fi
 
 printf "\n==============================================================================\n"
