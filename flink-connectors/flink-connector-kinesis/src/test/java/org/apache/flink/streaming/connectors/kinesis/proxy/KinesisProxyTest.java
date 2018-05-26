@@ -62,27 +62,6 @@ import static org.mockito.Mockito.mock;
  * Test for methods in the {@link KinesisProxy} class.
  */
 public class KinesisProxyTest {
-	private static final String NEXT_TOKEN = "NextToken";
-	private static final String fakeStreamName = "fake-stream";
-	private Set<String> shardIdSet;
-	private List<Shard> shards;
-
-	protected static HashMap<String, String>
-	createInitialSubscribedStreamsToLastDiscoveredShardsState(List<String> streams) {
-		HashMap<String, String> initial = new HashMap<>();
-		for (String stream : streams) {
-			initial.put(stream, null);
-		}
-		return initial;
-	}
-
-	private static ListShardsRequestMatcher initialListShardsRequestMatcher() {
-		return new ListShardsRequestMatcher(null, null);
-	}
-
-	private static ListShardsRequestMatcher listShardsNextToken(final String nextToken) {
-		return new ListShardsRequestMatcher(null, nextToken);
-	}
 
 	@Test
 	public void testIsRecoverableExceptionWithProvisionedThroughputExceeded() {
@@ -120,9 +99,9 @@ public class KinesisProxyTest {
 						"shardId-000000000001",
 						"shardId-000000000002",
 						"shardId-000000000003");
-		shardIdSet = new HashSet<>(shardIds);
-		shards =
-				shardIds
+		String nextToken = "NextToken";
+		String fakeStreamName = "fake-stream";
+		List<Shard> shards = shardIds
 						.stream()
 						.map(shardId -> new Shard().withShardId(shardId))
 						.collect(Collectors.toList());
@@ -136,7 +115,7 @@ public class KinesisProxyTest {
 		Whitebox.setInternalState(kinesisProxy, "kinesisClient", mockClient);
 
 		ListShardsResult responseWithMoreData =
-				new ListShardsResult().withShards(shards.subList(0, 2)).withNextToken(NEXT_TOKEN);
+				new ListShardsResult().withShards(shards.subList(0, 2)).withNextToken(nextToken);
 		ListShardsResult responseFinal =
 				new ListShardsResult().withShards(shards.subList(2, shards.size())).withNextToken(null);
 		doReturn(responseWithMoreData)
@@ -144,7 +123,7 @@ public class KinesisProxyTest {
 				.listShards(argThat(initialListShardsRequestMatcher()));
 		doReturn(responseFinal).
 						when(mockClient).
-						listShards(argThat(listShardsNextToken(NEXT_TOKEN)));
+						listShards(argThat(listShardsNextToken(nextToken)));
 		HashMap<String, String> streamHashMap =
 				createInitialSubscribedStreamsToLastDiscoveredShardsState(Arrays.asList(fakeStreamName));
 		GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
@@ -170,6 +149,55 @@ public class KinesisProxyTest {
 				actualShardList,
 				containsInAnyOrder(
 						expectedStreamShard.toArray(new StreamShardHandle[actualShardList.size()])));
+	}
+
+	@Test
+	public void testCustomConfigurationOverride() {
+		Properties configProps = new Properties();
+		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		KinesisProxy proxy = new KinesisProxy(configProps) {
+			@Override
+			protected AmazonKinesis createKinesisClient(Properties configProps) {
+				ClientConfiguration clientConfig = new ClientConfigurationFactory().getConfig();
+				clientConfig.setSocketTimeout(10000);
+				return AWSUtil.createKinesisClient(configProps, clientConfig);
+			}
+		};
+		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient, "clientConfiguration");
+		assertEquals(10000, clientConfiguration.getSocketTimeout());
+	}
+
+	@Test
+	public void testClientConfigOverride() {
+
+		Properties configProps = new Properties();
+		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		configProps.setProperty(AWSUtil.AWS_CLIENT_CONFIG_PREFIX + "socketTimeout", "9999");
+
+		KinesisProxyInterface proxy = KinesisProxy.create(configProps);
+
+		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
+		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient,
+			"clientConfiguration");
+		assertEquals(9999, clientConfiguration.getSocketTimeout());
+	}
+
+	protected static HashMap<String, String>
+	createInitialSubscribedStreamsToLastDiscoveredShardsState(List<String> streams) {
+		HashMap<String, String> initial = new HashMap<>();
+		for (String stream : streams) {
+			initial.put(stream, null);
+		}
+		return initial;
+	}
+
+	private static ListShardsRequestMatcher initialListShardsRequestMatcher() {
+		return new ListShardsRequestMatcher(null, null);
+	}
+
+	private static ListShardsRequestMatcher listShardsNextToken(final String nextToken) {
+		return new ListShardsRequestMatcher(null, nextToken);
 	}
 
 	private static class ListShardsRequestMatcher extends TypeSafeDiagnosingMatcher<ListShardsRequest> {
@@ -216,37 +244,4 @@ public class KinesisProxyTest {
 							.appendText(" and empty nextToken");
 		}
 	}
-
-	@Test
-	public void testCustomConfigurationOverride() {
-		Properties configProps = new Properties();
-		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		KinesisProxy proxy = new KinesisProxy(configProps) {
-			@Override
-			protected AmazonKinesis createKinesisClient(Properties configProps) {
-				ClientConfiguration clientConfig = new ClientConfigurationFactory().getConfig();
-				clientConfig.setSocketTimeout(10000);
-				return AWSUtil.createKinesisClient(configProps, clientConfig);
-			}
-		};
-		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
-		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient, "clientConfiguration");
-		assertEquals(10000, clientConfiguration.getSocketTimeout());
-	}
-
-	@Test
-	public void testClientConfigOverride() {
-
-		Properties configProps = new Properties();
-		configProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		configProps.setProperty(AWSUtil.AWS_CLIENT_CONFIG_PREFIX + "socketTimeout", "9999");
-
-		KinesisProxyInterface proxy = KinesisProxy.create(configProps);
-
-		AmazonKinesis kinesisClient = Whitebox.getInternalState(proxy, "kinesisClient");
-		ClientConfiguration clientConfiguration = Whitebox.getInternalState(kinesisClient,
-			"clientConfiguration");
-		assertEquals(9999, clientConfiguration.getSocketTimeout());
-	}
-
 }
