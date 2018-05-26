@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
@@ -70,11 +72,15 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
 
-		for (Path jarFile: jarFiles) {
+		for (Path jarFile : jarFiles) {
 			jobGraph.addJar(jarFile);
 		}
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
+
+		for (Tuple2<String, DistributedCache.DistributedCacheEntry> file : cacheFile) {
+			jobGraph.addUserArtifact(file.f0, file.f1);
+		}
 
 		return jobExecutor.executeJobBlocking(jobGraph);
 	}

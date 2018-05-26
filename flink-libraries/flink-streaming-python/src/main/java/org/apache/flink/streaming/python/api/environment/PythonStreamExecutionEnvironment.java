@@ -21,17 +21,11 @@ package org.apache.flink.streaming.python.api.environment;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.python.PythonOptions;
 import org.apache.flink.streaming.python.api.datastream.PythonDataStream;
 import org.apache.flink.streaming.python.api.functions.PythonGeneratorFunction;
 import org.apache.flink.streaming.python.api.functions.PythonIteratorFunction;
@@ -61,7 +55,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * A thin wrapper layer over {@link StreamExecutionEnvironment}.
@@ -78,12 +71,10 @@ public class PythonStreamExecutionEnvironment {
 	private static final Logger LOG = LoggerFactory.getLogger(PythonStreamExecutionEnvironment.class);
 	private final StreamExecutionEnvironment env;
 	private final Path pythonTmpCachePath;
-	private final Path tmpDistributedDir;
 
-	PythonStreamExecutionEnvironment(StreamExecutionEnvironment env, Path tmpLocalDir, Path tmpDistributedDir, String scriptName) {
+	PythonStreamExecutionEnvironment(StreamExecutionEnvironment env, Path tmpLocalDir, String scriptName) {
 		this.env = env;
 		this.pythonTmpCachePath = tmpLocalDir;
-		this.tmpDistributedDir = tmpDistributedDir;
 		env.getConfig().setGlobalJobParameters(new PythonJobParameters(scriptName));
 		registerJythonSerializers(this.env);
 	}
@@ -252,7 +243,6 @@ public class PythonStreamExecutionEnvironment {
 	public JobExecutionResult execute() throws Exception {
 		distributeFiles();
 		JobExecutionResult result = this.env.execute();
-		cleanupDistributedFiles();
 		return result;
 	}
 
@@ -265,33 +255,11 @@ public class PythonStreamExecutionEnvironment {
 	public JobExecutionResult execute(String job_name) throws Exception {
 		distributeFiles();
 		JobExecutionResult result = this.env.execute(job_name);
-		cleanupDistributedFiles();
 		return result;
 	}
 
 	private void distributeFiles() throws IOException {
-		Path remoteRootDir;
-		if (this.env instanceof LocalStreamEnvironment) {
-			remoteRootDir = new Path(PythonOptions.DC_TMP_DIR.defaultValue());
-		} else {
-			remoteRootDir = tmpDistributedDir;
-		}
-		Path remoteDir = new Path(remoteRootDir, "flink_cache_" + UUID.randomUUID());
-
-		FileCache.copy(pythonTmpCachePath, remoteDir, true);
-
-		this.env.registerCachedFile(remoteDir.toUri().toString(), PythonConstants.FLINK_PYTHON_DC_ID);
+		this.env.registerCachedFile(pythonTmpCachePath.getPath(), PythonConstants.FLINK_PYTHON_DC_ID);
 	}
 
-	private void cleanupDistributedFiles() throws IOException {
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : this.env.getCachedFiles()) {
-			Path fileUri = new Path(e.f1.filePath);
-			FileSystem fs = fileUri.getFileSystem();
-			LOG.debug(String.format("Cleaning up cached path: %s, uriPath: %s, fileSystem: %s",
-				e.f1.filePath,
-				fileUri.getPath(),
-				fs.getClass().getName()));
-			fs.delete(new Path(fileUri.getPath()), true);
-		}
-	}
 }

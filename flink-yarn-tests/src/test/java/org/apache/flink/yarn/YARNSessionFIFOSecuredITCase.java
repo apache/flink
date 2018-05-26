@@ -33,6 +33,7 @@ import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,6 +101,7 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		SecureTestEnvironment.cleanup();
 	}
 
+	@Test(timeout = 60000) // timeout after a minute.
 	@Override
 	public void testDetachedMode() throws InterruptedException, IOException {
 		super.testDetachedMode();

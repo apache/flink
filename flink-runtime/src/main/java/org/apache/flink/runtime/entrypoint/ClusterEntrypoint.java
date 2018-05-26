@@ -42,6 +42,7 @@ import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -241,6 +242,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 						LOG.info("Could not properly terminate the Dispatcher.", throwable);
 					}
 
+					// This is the general shutdown path. If a separate more specific shutdown was
+					// already triggered, this will do nothing
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
@@ -304,14 +307,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				DispatcherGateway.class,
-				DispatcherId::new,
+				DispatcherId::fromUuid,
 				10,
 				Time.milliseconds(50L));
 
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				ResourceManagerGateway.class,
-				ResourceManagerId::new,
+				ResourceManagerId::fromUuid,
 				10,
 				Time.milliseconds(50L));
 
@@ -344,6 +347,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
 
+			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
+
 			dispatcher = createDispatcher(
 				configuration,
 				rpcService,
@@ -355,7 +360,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestBaseUrl());
+				webMonitorEndpoint.getRestBaseUrl(),
+				historyServerArchivist);
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();
@@ -578,7 +584,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return terminationFuture;
 	}
 
-	private void shutDownAndTerminate(
+	protected void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
 		@Nullable String diagnostics,
@@ -655,7 +661,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress) throws Exception;
+		@Nullable String restAddress,
+		HistoryServerArchivist historyServerArchivist) throws Exception;
 
 	protected abstract ResourceManager<?> createResourceManager(
 		Configuration configuration,
@@ -704,7 +711,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		final int restPort = clusterConfiguration.getRestPort();
 
 		if (restPort >= 0) {
-			configuration.setInteger(RestOptions.REST_PORT, restPort);
+			configuration.setInteger(RestOptions.PORT, restPort);
 		}
 
 		return configuration;

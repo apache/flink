@@ -81,7 +81,7 @@ to enable support for Scala projects and files:
    files for the IDE to work with but without installing libraries.
 8. Build the Project (Build -> Make Project)
 
-### Checkstyle
+### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
@@ -111,6 +111,10 @@ clicking the "Check Module" button. The scan should report no errors.
 <span class="label label-info">Note</span> Some modules are not fully covered by checkstyle,
 which include `flink-core`, `flink-optimizer`, and `flink-runtime`.
 Nevertheless please make sure that code you add/modify in these modules still conforms to the checkstyle rules.
+
+### Checkstyle For Scala
+
+Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle_config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
 
 ## Eclipse
 

@@ -48,6 +48,7 @@ import org.apache.flink.client.program.PreviewPlanEnvironment;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -710,7 +711,7 @@ public abstract class StreamExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
 		}
 		return fromCollection(Arrays.asList(data), typeInfo);
 	}
@@ -743,7 +744,7 @@ public abstract class StreamExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + type.getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
 		}
 		return fromCollection(Arrays.asList(data), typeInfo);
 	}
@@ -784,7 +785,7 @@ public abstract class StreamExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + first.getClass()
 					+ "; please specify the TypeInformation manually via "
-					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)");
+					+ "StreamExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
 		}
 		return fromCollection(data, typeInfo);
 	}
@@ -1670,7 +1671,7 @@ public abstract class StreamExecutionEnvironment {
 	 * the same JVM as the environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+	 * <p>If the configuration key 'rest.port' was set in the configuration, that particular
 	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
 	@PublicEvolving
@@ -1678,6 +1679,11 @@ public abstract class StreamExecutionEnvironment {
 		checkNotNull(conf, "conf");
 
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+
+		if (!conf.contains(RestOptions.PORT)) {
+			// explicitly set this option so that it's not set to 0 later
+			conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+		}
 
 		return createLocalEnvironment(defaultLocalParallelism, conf);
 	}

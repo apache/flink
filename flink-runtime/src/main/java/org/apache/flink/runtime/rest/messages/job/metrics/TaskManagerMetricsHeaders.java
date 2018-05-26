@@ -47,4 +47,8 @@ public final class TaskManagerMetricsHeaders extends
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Provides access to task manager metrics.";
+	}
 }

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -34,48 +34,43 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.experimental.categories.Category;
-
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Simple {@link TaskExecutorGateway} implementation for testing purposes.
  */
-@Category(New.class)
 public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final String address;
 
 	private final String hostname;
 
-	private volatile Consumer<ResourceID> heartbeatJobManagerConsumer;
+	private final Consumer<ResourceID> heartbeatJobManagerConsumer;
 
-	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
+	private final BiConsumer<JobID, Throwable> disconnectJobManagerConsumer;
 
-	public TestingTaskExecutorGateway() {
-		this("foobar:1234", "foobar");
-	}
+	private final BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer;
 
-	public TestingTaskExecutorGateway(String address, String hostname) {
+	private final Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction;
+
+	TestingTaskExecutorGateway(String address, String hostname, Consumer<ResourceID> heartbeatJobManagerConsumer, BiConsumer<JobID, Throwable> disconnectJobManagerConsumer, BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer, Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
-	}
-
-	public void setHeartbeatJobManagerConsumer(Consumer<ResourceID> heartbeatJobManagerConsumer) {
-		this.heartbeatJobManagerConsumer = heartbeatJobManagerConsumer;
-	}
-
-	public void setDisconnectJobManagerConsumer(Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer) {
-		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
+		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
+		this.disconnectJobManagerConsumer = Preconditions.checkNotNull(disconnectJobManagerConsumer);
+		this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
+		this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
 	}
 
 	@Override
 	public CompletableFuture<Acknowledge> requestSlot(SlotID slotId, JobID jobId, AllocationID allocationId, String targetAddress, ResourceManagerId resourceManagerId, Time timeout) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
+		return requestSlotFunction.apply(Tuple5.of(slotId, jobId, allocationId, targetAddress, resourceManagerId));
 	}
 
 	@Override
@@ -91,7 +86,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
-		return CompletableFuture.completedFuture(Acknowledge.get());
+		return submitTaskConsumer.apply(tdd, jobMasterId);
 	}
 
 	@Override
@@ -126,11 +121,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void heartbeatFromJobManager(ResourceID heartbeatOrigin) {
-		final Consumer<ResourceID> currentHeartbeatJobManagerConsumer = heartbeatJobManagerConsumer;
-
-		if (currentHeartbeatJobManagerConsumer != null) {
-			currentHeartbeatJobManagerConsumer.accept(heartbeatOrigin);
-		}
+		heartbeatJobManagerConsumer.accept(heartbeatOrigin);
 	}
 
 	@Override
@@ -140,11 +131,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectJobManager(JobID jobId, Exception cause) {
-		final Consumer<Tuple2<JobID, Throwable>> currentDisconnectJobManagerConsumer = disconnectJobManagerConsumer;
-
-		if (currentDisconnectJobManagerConsumer != null) {
-			currentDisconnectJobManagerConsumer.accept(Tuple2.of(jobId, cause));
-		}
+		disconnectJobManagerConsumer.accept(jobId, cause);
 	}
 
 	@Override

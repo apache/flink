@@ -29,13 +29,11 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -52,7 +50,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test cases for the {@link SlotSharingManager}.
  */
-@Category(New.class)
 public class SlotSharingManagerTest extends TestLogger {
 
 	private static final SlotSharingGroupId SLOT_SHARING_GROUP_ID = new SlotSharingGroupId();
@@ -105,7 +102,7 @@ public class SlotSharingManagerTest extends TestLogger {
 
 		assertTrue(slotSharingManager.contains(slotRequestId));
 
-		assertTrue(rootSlot.release(new FlinkException("Test exception")));
+		rootSlot.release(new FlinkException("Test exception"));
 
 		// check that we return the allocated slot
 		assertEquals(allocatedSlotRequestId, slotReleasedFuture.get());
@@ -194,7 +191,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertFalse(singleTaskSlotFuture.isDone());
 
 		FlinkException testException = new FlinkException("Test exception");
-		assertTrue(singleTaskSlot.release(testException));
+		singleTaskSlot.release(testException);
 
 		// check that we fail the single task slot future
 		assertTrue(singleTaskSlotFuture.isCompletedExceptionally());
@@ -203,7 +200,7 @@ public class SlotSharingManagerTest extends TestLogger {
 		// the root slot has still one child
 		assertTrue(slotSharingManager.contains(rootSlotRequestId));
 
-		assertTrue(multiTaskSlot.release(testException));
+		multiTaskSlot.release(testException);
 
 		assertEquals(allocatedSlotRequestId, releasedSlotFuture.get());
 		assertFalse(slotSharingManager.contains(rootSlotRequestId));

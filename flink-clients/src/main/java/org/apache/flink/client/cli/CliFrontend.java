@@ -37,6 +37,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -276,8 +277,8 @@ public class CliFrontend {
 					if (clusterId == null && !client.isDetached()) {
 						// terminate the cluster only if we have started it before and if it's not detached
 						try {
-							clusterDescriptor.terminateCluster(client.getClusterId());
-						} catch (FlinkException e) {
+							client.shutDownCluster();
+						} catch (final Exception e) {
 							LOG.info("Could not properly terminate the Flink cluster.", e);
 						}
 					}
@@ -849,7 +850,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleArgException(CliArgsException e) {
-		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
+		LOG.error("Invalid command line arguments.", e);
 
 		System.out.println(e.getMessage());
 		System.out.println();
@@ -864,6 +865,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleParametrizationException(ProgramParametrizationException e) {
+		LOG.error("Program has not been parametrized properly.", e);
 		System.err.println(e.getMessage());
 		return 1;
 	}
@@ -1141,6 +1143,8 @@ public class CliFrontend {
 	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
 		config.setString(JobManagerOptions.ADDRESS, address.getHostString());
 		config.setInteger(JobManagerOptions.PORT, address.getPort());
+		config.setString(RestOptions.ADDRESS, address.getHostString());
+		config.setInteger(RestOptions.PORT, address.getPort());
 	}
 
 	public static List<CustomCommandLine<?>> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {

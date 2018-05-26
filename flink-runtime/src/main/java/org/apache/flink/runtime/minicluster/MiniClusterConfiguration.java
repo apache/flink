@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.Preconditions;
@@ -167,10 +168,10 @@ public class MiniClusterConfiguration {
 
 		public MiniClusterConfiguration build() {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
-			modifiedConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			modifiedConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
 			modifiedConfiguration.setString(
-				RestOptions.REST_ADDRESS,
-				modifiedConfiguration.getString(RestOptions.REST_ADDRESS, "localhost"));
+				RestOptions.ADDRESS,
+				modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
 
 			return new MiniClusterConfiguration(
 				modifiedConfiguration,

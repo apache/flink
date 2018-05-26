@@ -46,7 +46,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -162,7 +161,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			network.start();
 
 			TaskExecutorLocalStateStoresManager storesManager = new TaskExecutorLocalStateStoresManager(
-				LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+				false,
 				ioManager.getSpillingDirectories(),
 				Executors.directExecutor());
 

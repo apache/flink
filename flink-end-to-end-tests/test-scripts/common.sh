@@ -39,26 +39,41 @@ cd $TEST_ROOT
 export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
+function backup_config() {
+    # back up the masters and flink-conf.yaml
+    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
+    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+}
+
 function revert_default_config() {
 
     # revert our modifications to the masters file
     if [ -f $FLINK_DIR/conf/masters.bak ]; then
-        rm $FLINK_DIR/conf/masters
-        mv $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
+        mv -f $FLINK_DIR/conf/masters.bak $FLINK_DIR/conf/masters
     fi
 
     # revert our modifications to the Flink conf yaml
     if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
-        rm $FLINK_DIR/conf/flink-conf.yaml
-        mv $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
+        mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
     fi
+}
+
+function set_conf() {
+    CONF_NAME=$1
+    VAL=$2
+    echo "$CONF_NAME: $VAL" >> $FLINK_DIR/conf/flink-conf.yaml
+}
+
+function change_conf() {
+    CONF_NAME=$1
+    OLD_VAL=$2
+    NEW_VAL=$3
+    sed -i -e "s/${CONF_NAME}: ${OLD_VAL}/${CONF_NAME}: ${NEW_VAL}/" ${FLINK_DIR}/conf/flink-conf.yaml
 }
 
 function create_ha_config() {
 
-    # back up the masters and flink-conf.yaml
-    cp $FLINK_DIR/conf/masters $FLINK_DIR/conf/masters.bak
-    cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
+    backup_config
 
     # clean up the dir that will be used for zookeeper storage
     # (see high-availability.zookeeper.storageDir below)
@@ -82,7 +97,6 @@ function create_ha_config() {
     jobmanager.heap.mb: 1024
     taskmanager.heap.mb: 1024
     taskmanager.numberOfTaskSlots: 4
-    parallelism.default: 1
 
     #==============================================================================
     # High Availability
@@ -98,7 +112,7 @@ function create_ha_config() {
     # Web Frontend
     #==============================================================================
 
-    web.port: 8081
+    rest.port: 8081
 EOL
 }
 
@@ -142,9 +156,9 @@ function start_cluster {
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" 2> /dev/null || true)
 
-    if [[ "$QUERY_RESULT" == "" ]]; then
-      echo "Dispatcher/TaskManagers are not yet up"
-    elif [[ "$QUERY_RESULT" != "{\"taskmanagers\":[]}" ]]; then
+    # ensure the taskmanagers field is there at all and is not empty
+    if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
+
       echo "Dispatcher REST endpoint is up."
       break
     fi
@@ -158,7 +172,7 @@ function stop_cluster {
   "$FLINK_DIR"/bin/stop-cluster.sh
 
   # stop zookeeper only if there are processes running
-  if ! [ `jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l` -eq 0 ]; then
+  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
     "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
 
@@ -196,6 +210,8 @@ function stop_cluster {
       | grep -v "Caused by: java.lang.ClassNotFoundException: org.apache.hadoop.conf.Configuration" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/yarn/exceptions/YarnException" \
       | grep -v "java.lang.NoClassDefFoundError: org/apache/hadoop/conf/Configuration" \
+      | grep -v "java.lang.Exception: Execution was suspended" \
+      | grep -v "Caused by: java.lang.Exception: JobManager is shutting down" \
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
@@ -223,6 +239,23 @@ function wait_job_running {
   done
 }
 
+function wait_job_terminal_state {
+  local job=$1
+  local terminal_state=$2
+
+  echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
+
+  while : ; do
+    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+
+    if [[ -z $N ]]; then
+      sleep 1
+    else
+      break
+    fi
+  done
+}
+
 function take_savepoint {
   "$FLINK_DIR"/bin/flink savepoint $1 $2
 }
@@ -236,8 +269,15 @@ function check_result_hash {
   local outfile_prefix=$2
   local expected=$3
 
-  local actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}' \
-    || LC_ALL=C sort $outfile_prefix* | md5 -q) || exit 2  # OSX
+  local actual
+  if [ "`command -v md5`" != "" ]; then
+    actual=$(LC_ALL=C sort $outfile_prefix* | md5 -q)
+  elif [ "`command -v md5sum`" != "" ]; then
+    actual=$(LC_ALL=C sort $outfile_prefix* | md5sum | awk '{print $1}')
+  else
+    echo "Neither 'md5' nor 'md5sum' binary available."
+    exit 2
+  fi
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
@@ -296,12 +336,159 @@ function s3_delete {
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
 
-# make sure to clean up even in case of failures
+# This function starts the given number of task managers and monitors their processes. If a task manager process goes
+# away a replacement is started.
+function tm_watchdog {
+  local expectedTm=$1
+  while true;
+  do
+    runningTm=`jps | grep -Eo 'TaskManagerRunner|TaskManager' | wc -l`;
+    count=$((expectedTm-runningTm))
+    for (( c=0; c<count; c++ ))
+    do
+      $FLINK_DIR/bin/taskmanager.sh start > /dev/null
+    done
+    sleep 5;
+  done
+}
+
+# Kills all job manager.
+function jm_kill_all {
+  kill_all 'StandaloneSessionClusterEntrypoint'
+}
+
+# Kills all task manager.
+function tm_kill_all {
+  kill_all 'TaskManagerRunner|TaskManager'
+}
+
+# Kills all processes that match the given name.
+function kill_all {
+  local pid=`jps | grep -E "${1}" | cut -d " " -f 1`
+  kill ${pid} 2> /dev/null
+  wait ${pid} 2> /dev/null
+}
+
+function kill_random_taskmanager {
+  KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
+  kill -9 "$KILL_TM"
+  echo "TaskManager $KILL_TM killed."
+}
+
+function setup_flink_slf4j_metric_reporter() {
+  INTERVAL="${1:-1 SECONDS}"
+  cp $FLINK_DIR/opt/flink-metrics-slf4j-*.jar $FLINK_DIR/lib/
+  set_conf "metrics.reporter.slf4j.class" "org.apache.flink.metrics.slf4j.Slf4jReporter"
+  set_conf "metrics.reporter.slf4j.interval" "${INTERVAL}"
+}
+
+function rollback_flink_slf4j_metric_reporter() {
+  rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
+}
+
+function get_metric_processed_records {
+  OPERATOR=$1
+  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
+  if [ -z $N ]; then
+    N=0
+  fi
+  echo $N
+}
+
+function get_num_metric_samples {
+  OPERATOR=$1
+  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
+  if [ -z $N ]; then
+    N=0
+  fi
+  echo $N
+}
+
+function wait_oper_metric_num_in_records {
+    OPERATOR=$1
+    MAX_NUM_METRICS="${2:-200}"
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
+    OLD_NUM_METRICS=${3:-${NUM_METRICS}}
+    # monitor the numRecordsIn metric of the state machine operator in the second execution
+    # we let the test finish once the second restore execution has processed 200 records
+    while : ; do
+      NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
+      NUM_RECORDS=$(get_metric_processed_records ${OPERATOR})
+
+      # only account for metrics that appeared in the second execution
+      if (( $OLD_NUM_METRICS >= $NUM_METRICS )) ; then
+        NUM_RECORDS=0
+      fi
+
+      if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
+        echo "Waiting for job to process up to 200 records, current progress: $NUM_RECORDS records ..."
+        sleep 1
+      else
+        break
+      fi
+    done
+}
+
+function wait_num_checkpoints {
+    JOB=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+    while : ; do
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        break
+      fi
+    done
+}
+
+# Starts the timer. Note that nested timers are not supported.
+function start_timer {
+    SECONDS=0
+}
+
+# prints the number of minutes and seconds that have elapsed since the last call to start_timer
+function end_timer {
+    duration=$SECONDS
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+}
+
+#######################################
+# Prints the given description, runs the given test and prints how long the execution took.
+# Arguments:
+#   $1: description of the test
+#   $2: command to execute
+#######################################
+function run_test {
+    description="$1"
+    command="$2"
+
+    printf "\n==============================================================================\n"
+    printf "Running ${description}\n"
+    printf "==============================================================================\n"
+    start_timer
+    ${command}
+    exit_code="$?"
+    end_timer
+    return "${exit_code}"
+}
+
+# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
 function cleanup {
   stop_cluster
-  check_all_pass
-  rm -rf $TEST_DATA_DIR
-  rm $FLINK_DIR/log/*
+  tm_kill_all
+  jm_kill_all
+  rm -rf $TEST_DATA_DIR 2> /dev/null
   revert_default_config
+  check_all_pass
+  rm -rf $FLINK_DIR/log/* 2> /dev/null
 }
 trap cleanup EXIT

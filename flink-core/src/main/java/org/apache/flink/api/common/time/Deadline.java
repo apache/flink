@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.time;
 
 import org.apache.flink.annotation.Internal;
@@ -26,14 +27,16 @@ import java.time.Duration;
  */
 @Internal
 public class Deadline {
+
+	/** The deadline, relative to {@link System#nanoTime()}. */
 	private final long timeNanos;
 
-	private Deadline(Duration time) {
-		this.timeNanos = time.toNanos();
+	private Deadline(long deadline) {
+		this.timeNanos = deadline;
 	}
 
 	public Deadline plus(Duration other) {
-		return new Deadline(Duration.ofNanos(timeNanos).plus(other));
+		return new Deadline(Math.addExact(timeNanos, other.toNanos()));
 	}
 
 	/**
@@ -41,7 +44,7 @@ public class Deadline {
 	 * has passed.
 	 */
 	public Duration timeLeft() {
-		return Duration.ofNanos(timeNanos).minus(Duration.ofNanos(System.nanoTime()));
+		return Duration.ofNanos(Math.subtractExact(timeNanos, System.nanoTime()));
 	}
 
 	/**
@@ -55,14 +58,25 @@ public class Deadline {
 	 * Determines whether the deadline is in the past, i.e. whether the time left is negative.
 	 */
 	public boolean isOverdue() {
-		return timeNanos - System.nanoTime() < 0;
+		return timeNanos < System.nanoTime();
 	}
+
+	// ------------------------------------------------------------------------
+	//  Creating Deadlines
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Constructs a {@link Deadline} that has now as the deadline. Use this and then extend via
 	 * {@link #plus(Duration)} to specify a deadline in the future.
 	 */
 	public static Deadline now() {
-		return new Deadline(Duration.ofNanos(System.nanoTime()));
+		return new Deadline(System.nanoTime());
+	}
+
+	/**
+	 * Constructs a Deadline that is a given duration after now.
+	 */
+	public static Deadline fromNow(Duration duration) {
+		return new Deadline(Math.addExact(System.nanoTime(), duration.toNanos()));
 	}
 }

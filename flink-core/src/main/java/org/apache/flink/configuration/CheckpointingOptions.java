@@ -67,11 +67,11 @@ public class CheckpointingOptions {
 				" this option.");
 
 	/**
-	 * This option configures local recovery for this state backend.
+	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
 	 */
-	public static final ConfigOption<String> LOCAL_RECOVERY = ConfigOptions
+	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
 		.key("state.backend.local-recovery")
-		.defaultValue("DISABLED");
+		.defaultValue(false);
 
 	/**
 	 * The config parameter defining the root directories for storing file-based state for local recovery.
@@ -93,14 +93,15 @@ public class CheckpointingOptions {
 			.withDescription("The default directory for savepoints. Used by the state backends that write savepoints to" +
 				" file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
-	/** The default directory used for checkpoints. Used by the state backends that write
-	 * checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
+	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
+	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
 			.withDeprecatedKeys("state.backend.fs.checkpointdir")
-			.withDescription("The default directory used for checkpoints. Used by the state backends that write" +
-				" checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
+			.withDescription("The default directory used for storing the data files and meta data of checkpoints " +
+				"in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes" +
+				"(i.e. all TaskManagers and JobManagers).");
 
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */

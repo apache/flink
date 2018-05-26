@@ -50,7 +50,8 @@ public class StandaloneDispatcher extends Dispatcher {
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress) throws Exception {
+			@Nullable String restAddress,
+			HistoryServerArchivist historyServerArchivist) throws Exception {
 		super(
 			rpcService,
 			endpointId,
@@ -65,6 +66,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			restAddress);
+			restAddress,
+			historyServerArchivist);
 	}
 }

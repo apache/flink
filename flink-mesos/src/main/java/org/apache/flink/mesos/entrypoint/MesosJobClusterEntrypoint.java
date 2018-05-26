@@ -25,6 +25,7 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameter
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -179,6 +180,9 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 				}
 			});
 	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {}
 
 	public static void main(String[] args) {
 		// startup checks and logging

@@ -101,7 +101,7 @@ You can also run Mesos without DC/OS.
 
 ### Installing Mesos
 
-Please follow the [instructions on how to setup Mesos on the official website](http://mesos.apache.org/documentation/latest/getting-started/).
+Please follow the [instructions on how to setup Mesos on the official website](http://mesos.apache.org/getting-started/).
 
 After installation you have to configure the set of master and agent nodes by creating the files `MESOS_HOME/etc/mesos/masters` and `MESOS_HOME/etc/mesos/slaves`.
 These files contain in each row a single hostname on which the respective component will be started (assuming SSH access to these nodes).
@@ -187,7 +187,7 @@ For example:
         -Dmesos.master=master.foobar.org:5050 \
         -Djobmanager.heap.mb=1024 \
         -Djobmanager.rpc.port=6123 \
-        -Djobmanager.web.port=8081 \
+        -Drest.port=8081 \
         -Dmesos.initial-tasks=10 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
         -Dtaskmanager.heap.mb=3500 \
@@ -211,7 +211,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Djobmanager.web.port=8081 -Dmesos.initial-tasks=1 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.initial-tasks=1 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }

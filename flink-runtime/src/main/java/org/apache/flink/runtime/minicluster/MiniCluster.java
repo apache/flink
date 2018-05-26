@@ -40,6 +40,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -324,13 +325,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 					jobManagerRpcService,
 					DispatcherGateway.class,
-					DispatcherId::new,
+					DispatcherId::fromUuid,
 					20,
 					Time.milliseconds(20L));
 				final RpcGatewayRetriever<ResourceManagerId, ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					jobManagerRpcService,
 					ResourceManagerGateway.class,
-					ResourceManagerId::new,
+					ResourceManagerId::fromUuid,
 					20,
 					Time.milliseconds(20L));
 
@@ -357,6 +358,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost");
 
+				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, dispatcherRestEndpoint);
+
 				dispatcher = new StandaloneDispatcher(
 					jobManagerRpcService,
 					Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
@@ -370,7 +373,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					new MemoryArchivedExecutionGraphStore(),
 					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
-					dispatcherRestEndpoint.getRestBaseUrl());
+					dispatcherRestEndpoint.getRestBaseUrl(),
+					historyServerArchivist);
 
 				dispatcher.start();
 
@@ -579,6 +583,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	public void runDetached(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
+		uploadUserArtifacts(job);
+
 		final CompletableFuture<JobSubmissionResult> submissionFuture = submitJob(job);
 
 		try {
@@ -602,6 +608,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	public JobExecutionResult executeJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
+		uploadUserArtifacts(job);
 		final CompletableFuture<JobSubmissionResult> submissionFuture = submitJob(job);
 
 		final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
@@ -621,6 +628,15 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			throw new JobExecutionException(job.getJobID(), e.getCause());
 		} catch (IOException | ClassNotFoundException e) {
 			throw new JobExecutionException(job.getJobID(), e);
+		}
+	}
+
+	private void uploadUserArtifacts(JobGraph job) throws JobExecutionException {
+		try {
+			final InetSocketAddress blobAddress = new InetSocketAddress(InetAddress.getLocalHost(), blobServer.getPort());
+			job.uploadUserArtifacts(blobAddress, miniClusterConfiguration.getConfiguration());
+		} catch (IOException e) {
+			throw new JobExecutionException(job.getJobID(), "Could not upload user artifacts", e);
 		}
 	}
 
@@ -675,7 +691,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			CompletableFuture<List<PermanentBlobKey>> jarUploadFuture = uploadJarFiles(currentDispatcherGateway, job.getJobID(), job.getUserJars());
 			return jarUploadFuture.thenAccept(blobKeys -> {
 					for (PermanentBlobKey blobKey : blobKeys) {
-						job.addBlob(blobKey);
+						job.addUserJarBlobKey(blobKey);
 					}
 				});
 		} else {
@@ -690,7 +706,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				InetSocketAddress blobServerAddress = new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort);
 
 				try {
-					return BlobClient.uploadJarFiles(blobServerAddress, miniClusterConfiguration.getConfiguration(), jobId, jars);
+					return BlobClient.uploadFiles(blobServerAddress, miniClusterConfiguration.getConfiguration(), jobId, jars);
 				} catch (IOException ioe) {
 					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
 				}

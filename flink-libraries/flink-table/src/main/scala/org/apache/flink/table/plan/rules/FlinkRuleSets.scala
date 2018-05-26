@@ -88,8 +88,6 @@ object FlinkRuleSets {
     AggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
-    // expand distinct aggregate to normal aggregate with groupby
-    AggregateExpandDistinctAggregatesRule.JOIN,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     AggregateReduceFunctionsRule.INSTANCE,
@@ -138,7 +136,6 @@ object FlinkRuleSets {
     FlinkLogicalNativeTableScan.CONVERTER
   )
 
-
   /**
     * RuleSet to normalize plans for batch / DataSet execution
     */
@@ -155,7 +152,10 @@ object FlinkRuleSets {
     // Transform window to LogicalWindowAggregate
     DataSetLogicalWindowAggregateRule.INSTANCE,
     WindowPropertiesRule.INSTANCE,
-    WindowPropertiesHavingRule.INSTANCE
+    WindowPropertiesHavingRule.INSTANCE,
+
+    // expand distinct aggregate to normal aggregate with groupby
+    AggregateExpandDistinctAggregatesRule.JOIN
   )
 
   /**

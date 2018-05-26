@@ -123,6 +123,27 @@ class UpdatingPlanCheckerTest {
   }
 
   @Test
+  def testForwardBothKeysForLeftJoin1(): Unit = {
+    val util = new UpdatePlanCheckerUtil()
+    val table = util.addTable[(Int, Int)]('pk, 'a)
+
+    val lTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
+
+    val rTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.min as 'r5)
+
+    val resultTable = lTableWithPk
+      .leftOuterJoin(rTableWithPk)
+      .where('l2 === 'r2 && 'l4 === 'r3 && 'l4 === 'r5 && 'l5 === 'r4)
+      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
+
+    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "l4", "r2", "r3", "r5"))
+  }
+
+  @Test
   def testForwardBothKeysForJoin2(): Unit = {
     val util = new UpdatePlanCheckerUtil()
     val table = util.addTable[(Int, Int)]('pk, 'a)
@@ -137,6 +158,27 @@ class UpdatingPlanCheckerTest {
 
     val resultTable = lTableWithPk
       .join(rTableWithPk)
+      .where('l5 === 'r4)
+      .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
+
+    util.verifyTableUniqueKey(resultTable, Seq("l1", "l2", "l3", "r2", "r3"))
+  }
+
+  @Test
+  def testForwardBothKeysForLeftJoin2(): Unit = {
+    val util = new UpdatePlanCheckerUtil()
+    val table = util.addTable[(Int, Int)]('pk, 'a)
+
+    val lTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'l1, 'pk as 'l2, 'pk as 'l3, 'a.max as 'l4, 'a.min as 'l5)
+
+    val rTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'r2, 'pk as 'r3, 'a.max as 'r1, 'a.min as 'r4, 'a.count as 'r5)
+
+    val resultTable = lTableWithPk
+      .leftOuterJoin(rTableWithPk)
       .where('l5 === 'r4)
       .select('l1, 'l2, 'l3, 'l4, 'l5, 'r1, 'r2, 'r3, 'r4, 'r5)
 
@@ -165,7 +207,49 @@ class UpdatingPlanCheckerTest {
   }
 
   @Test
+  def testJoinKeysEqualsLeftKeysForLeftJoin(): Unit = {
+    val util = new UpdatePlanCheckerUtil()
+    val table = util.addTable[(Int, Int)]('pk, 'a)
+
+    val lTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'leftpk, 'a.max as 'lefta)
+
+    val rTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'rightpk, 'a.max as 'righta)
+
+    val resultTable = lTableWithPk
+      .leftOuterJoin(rTableWithPk)
+      .where('leftpk === 'righta)
+      .select('rightpk, 'lefta, 'righta)
+
+    util.verifyTableUniqueKey(resultTable, Seq("rightpk", "righta"))
+  }
+
+  @Test
   def testJoinKeysEqualsRightKeys(): Unit = {
+    val util = new UpdatePlanCheckerUtil()
+    val table = util.addTable[(Int, Int)]('pk, 'a)
+
+    val lTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'leftpk, 'a.max as 'lefta)
+
+    val rTableWithPk = table
+      .groupBy('pk)
+      .select('pk as 'rightpk, 'a.max as 'righta)
+
+    val resultTable = lTableWithPk
+      .join(rTableWithPk)
+      .where('lefta === 'rightpk)
+      .select('leftpk, 'lefta, 'righta)
+
+    util.verifyTableUniqueKey(resultTable, Seq("leftpk", "lefta"))
+  }
+
+  @Test
+  def testJoinKeysEqualsRightKeysForLeftJoin(): Unit = {
     val util = new UpdatePlanCheckerUtil()
     val table = util.addTable[(Int, Int)]('pk, 'a)
 
@@ -200,6 +284,24 @@ class UpdatingPlanCheckerTest {
     val resultTable = lTable
       .join(rTable)
       .where('a === 'aa)
+      .select('a, 'aa, 'b, 'bb)
+
+    util.verifyTableUniqueKey(resultTable, Nil)
+  }
+
+  @Test
+  def testNonKeysJoin2(): Unit = {
+    val util = new UpdatePlanCheckerUtil()
+    val table = util.addTable[(Int, Int)]('a, 'b)
+
+    val lTable = table
+      .select('a as 'a, 'b as 'b)
+
+    val rTable = table
+      .select('a as 'aa, 'b as 'bb)
+
+    val resultTable = lTable
+      .leftOuterJoin(rTable, 'a === 'aa)
       .select('a, 'aa, 'b, 'bb)
 
     util.verifyTableUniqueKey(resultTable, Nil)

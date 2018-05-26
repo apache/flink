@@ -25,6 +25,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -99,7 +100,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 		final Configuration config = new Configuration();
 
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
 		UUID id = UUID.randomUUID();
 		final File checkpointDir = TEMP_FOLDER.newFolder("checkpoints_" + id).getAbsoluteFile();
@@ -143,7 +144,13 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				Integer numFinished = (Integer) accumulators.get(acc.f0).get();
+				OptionalFailure<Object> accumOpt = accumulators.get(acc.f0);
+				if (accumOpt == null) {
+					allDone = false;
+					break;
+				}
+
+				Integer numFinished = (Integer) accumOpt.get();
 				if (numFinished == null) {
 					allDone = false;
 					break;

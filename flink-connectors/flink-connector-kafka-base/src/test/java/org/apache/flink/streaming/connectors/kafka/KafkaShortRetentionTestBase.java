@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -218,13 +218,12 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 		@Override
 		public TypeInformation<String> getProducedType() {
-			return TypeInfoParser.parse("String");
+			return Types.STRING;
 		}
 	}
 
 	/**
 	 * Ensure that the consumer is properly failing if "auto.offset.reset" is set to "none".
-	 * @throws Exception
 	 */
 	public void runFailOnAutoOffsetResetNone() throws Exception {
 		final String topic = "auto-offset-reset-none-test";

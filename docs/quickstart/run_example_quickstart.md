@@ -366,7 +366,7 @@ $ bin/flink run -c wikiedits.WikipediaAnalysis path/to/wikiedits-0.1.jar
 
 The output of that command should look similar to this, if everything went according to plan:
 
-```
+{% highlight plain %}
 03/08/2016 15:09:27 Job execution switched to status RUNNING.
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to SCHEDULED
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to DEPLOYING
@@ -374,7 +374,7 @@ The output of that command should look similar to this, if everything went accor
 03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to DEPLOYING
 03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to RUNNING
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to RUNNING
-```
+{% endhighlight %}
 
 You can see how the individual operators start running. There are only two, because
 the operations after the window get folded into one operation for performance reasons. In Flink

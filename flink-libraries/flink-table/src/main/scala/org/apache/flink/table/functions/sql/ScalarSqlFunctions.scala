@@ -103,12 +103,49 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val SHA224 = new SqlFunction(
+    "SHA224",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
   val SHA256 = new SqlFunction(
     "SHA256",
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.ARG0_NULLABLE,
     InferTypes.RETURN_TYPE,
     OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val SHA384 = new SqlFunction(
+    "SHA384",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val SHA512 = new SqlFunction(
+    "SHA512",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val SHA2 = new SqlFunction(
+    "SHA2",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.sequence("'(DATA, HASH_LENGTH)'",
+      OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
     SqlFunctionCategory.STRING
   )
 

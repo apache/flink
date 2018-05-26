@@ -72,5 +72,5 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
 	 * @param clusterId identifying the cluster to shut down
 	 * @throws FlinkException if the cluster could not be terminated
 	 */
-	void terminateCluster(T clusterId) throws FlinkException;
+	void killCluster(T clusterId) throws FlinkException;
 }

@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
@@ -1209,7 +1209,7 @@ abstract class CodeGenerator(
           case ObjectFieldAccessor(field) =>
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}")
+              generateTerm(fieldType, s"$inputTerm.${field.getName}")
             }
             // Object
             else {
@@ -1238,7 +1238,7 @@ abstract class CodeGenerator(
             val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
             // primitive
             if (isFieldPrimitive(field)) {
-              generateNonNullLiteral(fieldType, reflectiveAccessCode)
+              generateTerm(fieldType, reflectiveAccessCode)
             }
             // Object
             else {
@@ -1255,16 +1255,16 @@ abstract class CodeGenerator(
 
   private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
     if (nullCheck) {
       val wrappedCode = s"""
         |$resultTypeTerm $resultTerm = $defaultValue;
-        |boolean $nullTerm = true;
         |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType, literal = true)
+
+      // mark this expression as a constant literal
+      GeneratedExpression(resultTerm, ALWAYS_NULL, wrappedCode, resultType, literal = true)
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
@@ -1274,30 +1274,38 @@ abstract class CodeGenerator(
       literalType: TypeInformation[_],
       literalCode: String)
     : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val nullTerm = newName("isNull")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
 
-    val resultCode = if (nullCheck) {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |boolean $nullTerm = false;
-        |""".stripMargin
-    } else {
-      s"""
-        |$resultTypeTerm $resultTerm = $literalCode;
-        |""".stripMargin
-    }
-
-    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType, literal = true)
+    // mark this expression as a constant literal
+    generateTerm(literalType, literalCode).copy(literal = true)
   }
 
   private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {
     GeneratedExpression(
       qualifyEnum(enum),
-      "false",
-      "",
+      NEVER_NULL,
+      NO_CODE,
       new GenericTypeInfo(enum.getDeclaringClass))
+  }
+
+  /**
+    * Generates access to a term (e.g. a field) that does not require unboxing logic.
+    *
+    * @param fieldType type of field
+    * @param fieldTerm expression term of field (already unboxed)
+    * @return internal unboxed field representation
+    */
+  private[flink] def generateTerm(
+      fieldType: TypeInformation[_],
+      fieldTerm: String)
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+
+    val resultCode = s"""
+        |$resultTypeTerm $resultTerm = $fieldTerm;
+        |""".stripMargin
+
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, fieldType)
   }
 
   /**
@@ -1887,7 +1895,7 @@ abstract class CodeGenerator(
   }
 
   /**
-    * Adds a reusable MessageDigest to the member area of the generated [[Function]].
+    * Adds a known reusable MessageDigest to the member area of the generated [[Function]].
     *
     * @return member variable term
     */
@@ -1896,20 +1904,69 @@ abstract class CodeGenerator(
 
     val field =
       s"""
-         |final java.security.MessageDigest $fieldTerm;
-         |""".stripMargin
+        |final java.security.MessageDigest $fieldTerm;
+        |""".stripMargin
     reusableMemberStatements.add(field)
 
-    val fieldInit =
+    val init =
       s"""
-         |try {
-         |  $fieldTerm = java.security.MessageDigest.getInstance("$algorithm");
-         |} catch (java.security.NoSuchAlgorithmException e) {
-         |  throw new RuntimeException("Algorithm for '$algorithm' is not available.", e);
-         |}
-         |""".stripMargin
+        |try {
+        |  $fieldTerm = java.security.MessageDigest.getInstance("$algorithm");
+        |} catch (java.security.NoSuchAlgorithmException e) {
+        |  throw new RuntimeException("Algorithm for '$algorithm' is not available.", e);
+        |}
+        |""".stripMargin
 
-    reusableInitStatements.add(fieldInit)
+    reusableInitStatements.add(init)
+    fieldTerm
+  }
+
+  /**
+    * Adds a constant SHA2 reusable MessageDigest to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableSha2MessageDigest(constant: GeneratedExpression): String = {
+    require(constant.literal, "Literal expected")
+    val fieldTerm = newName("messageDigest")
+
+    val field =
+        s"""
+           |final java.security.MessageDigest $fieldTerm;
+           |""".stripMargin
+      reusableMemberStatements.add(field)
+
+    val bitLen = constant.resultTerm
+    val init = s"""
+      |if ($bitLen == 224 || $bitLen == 256 || $bitLen == 384 || $bitLen == 512) {
+      |  try {
+      |    $fieldTerm = java.security.MessageDigest.getInstance("SHA-" + $bitLen);
+      |  } catch (java.security.NoSuchAlgorithmException e) {
+      |    throw new RuntimeException(
+      |      "Algorithm for 'SHA-" + $bitLen + "' is not available.", e);
+      |  }
+      |} else {
+      |  throw new RuntimeException("Unsupported algorithm.");
+      |}
+      |""".stripMargin
+
+    val nullableInit = if (nullCheck) {
+      s"""
+        |${constant.code}
+        |if (${constant.nullTerm}) {
+        |  $fieldTerm = null;
+        |} else {
+        |  $init
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+         |${constant.code}
+         |$init
+         |""".stripMargin
+    }
+    reusableInitStatements.add(nullableInit)
+
     fieldTerm
   }
 }

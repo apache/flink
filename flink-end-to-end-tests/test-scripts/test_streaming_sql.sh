@@ -32,6 +32,10 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR -outputPath file://${TEST_DATA_DIR}/out/result
 
 function sql_cleanup() {
+  # don't call ourselves again for another signal interruption
+  trap "exit -1" INT
+  # don't call ourselves again for normal exit
+  trap "" EXIT
 
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all

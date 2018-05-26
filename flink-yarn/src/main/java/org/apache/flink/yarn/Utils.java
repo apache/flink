@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -156,7 +157,7 @@ public final class Utils {
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.info("Copying from " + localSrcPath + " to " + dst);
+		LOG.debug("Copying from {} to {}", localSrcPath, dst);
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
@@ -170,6 +171,29 @@ public final class Utils {
 		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
 
 		return Tuple2.of(dst, resource);
+	}
+
+	/**
+	 * Deletes the YARN application files, e.g., Flink binaries, libraries, etc., from the remote
+	 * filesystem.
+	 *
+	 * @param env The environment variables.
+	 */
+	public static void deleteApplicationFiles(final Map<String, String> env) {
+		final String applicationFilesDir = env.get(YarnConfigKeys.FLINK_YARN_FILES);
+		if (!StringUtils.isNullOrWhitespaceOnly(applicationFilesDir)) {
+			final org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(applicationFilesDir);
+			try {
+				final org.apache.flink.core.fs.FileSystem fileSystem = path.getFileSystem();
+				if (!fileSystem.delete(path, true)) {
+					LOG.error("Deleting yarn application files under {} was unsuccessful.", applicationFilesDir);
+				}
+			} catch (final IOException e) {
+				LOG.error("Could not properly delete yarn application files directory {}.", applicationFilesDir, e);
+			}
+		} else {
+			LOG.debug("No yarn application files directory set. Therefore, cannot clean up the data.");
+		}
 	}
 
 	/**
@@ -381,16 +405,16 @@ public final class Utils {
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
 		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		log.info("TM:remote keytab path obtained {}", remoteKeytabPath);
-
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		log.info("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
-
 		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		log.info("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
-
 		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
-		log.info("TM:remote krb5 path obtained {}", remoteKrb5Path);
+
+		if (log.isDebugEnabled()) {
+			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
+			log.debug("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
+			log.debug("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
+			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
+		}
 
 		String classPathString = env.get(ENV_FLINK_CLASSPATH);
 		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
@@ -450,7 +474,7 @@ public final class Utils {
 					homeDirPath,
 					"").f1;
 
-				log.info("Prepared local resource for modified yaml: {}", flinkConf);
+				log.debug("Prepared local resource for modified yaml: {}", flinkConf);
 			} finally {
 				try {
 					FileUtils.deleteFileOrDirectory(taskManagerConfigFile);
@@ -497,7 +521,11 @@ public final class Utils {
 				flinkConfig, tmParams, ".", ApplicationConstants.LOG_DIR_EXPANSION_VAR,
 				hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
 
-		log.info("Starting TaskManagers with command: " + launchCommand);
+		if (log.isDebugEnabled()) {
+			log.debug("Starting TaskManagers with command: " + launchCommand);
+		} else {
+			log.info("Starting TaskManagers");
+		}
 
 		ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 		ctx.setCommands(Collections.singletonList(launchCommand));

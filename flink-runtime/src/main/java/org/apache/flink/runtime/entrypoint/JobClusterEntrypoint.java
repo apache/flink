@@ -21,10 +21,12 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -44,6 +46,7 @@ import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -98,7 +101,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			@Nullable String metricQueryServicePath,
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress) throws Exception {
+			@Nullable String restAddress,
+			HistoryServerArchivist historyServerArchivist) throws Exception {
 
 		final JobGraph jobGraph = retrieveJobGraph(configuration);
 
@@ -106,7 +110,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 		final ExecutionMode executionMode = ExecutionMode.valueOf(executionModeValue);
 
-		return new MiniDispatcher(
+		final MiniDispatcher dispatcher = new MiniDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME,
 			configuration,
@@ -120,9 +124,16 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 			fatalErrorHandler,
 			restAddress,
+			historyServerArchivist,
 			jobGraph,
 			executionMode);
+
+		registerShutdownActions(dispatcher.getJobTerminationFuture());
+
+		return dispatcher;
 	}
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
+
+	protected abstract void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture);
 }

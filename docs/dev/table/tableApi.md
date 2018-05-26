@@ -508,9 +508,11 @@ Table result = left.join(right).where("a = d").select("a, b, e");
       <td>
         <strong>Outer Joins</strong><br>
         <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
+        <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined. Full join is not supported in streaming yet.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -815,7 +817,7 @@ Table result = left.minusAll(right);
     <tr>
       <td>
         <strong>In</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
         <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
@@ -830,6 +832,8 @@ Table result = left.select("a, b, c").where("a.in(" + right + ")");
 tableEnv.registerTable("RightTable", right);
 Table result = left.select("a, b, c").where("a.in(RightTable)");
 {% endhighlight %}
+
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -940,7 +944,7 @@ val result = left.minusAll(right)
     <tr>
       <td>
         <strong>In</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
         <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
@@ -949,6 +953,7 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a)
 val result = left.select('a, 'b, 'c).where('a.in(right))
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1791,7 +1796,32 @@ ANY.in(TABLE)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
+        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
       </td>
     </tr>
 
@@ -2028,6 +2058,19 @@ NUMERIC.log10()
       </td>
       <td>
         <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1.log()
+numeric1.log(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the logarithm of a given numeric value.</p>
+        <p>If called without a parameter, this function returns the natural logarithm of <code>numeric1</code>. If called with a parameter <code>numeric2</code>, this function returns the logarithm of <code>numeric1</code> to the base <code>numeric2</code>. <code>numeric1</code> must be greater than 0. <code>numeric2</code> must be greater than 1.</p>
       </td>
     </tr>
 
@@ -3070,7 +3113,18 @@ STRING.sha1()
       </td>
     </tr>
 
-        <tr>
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha224()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
       <td>
         {% highlight java %}
 STRING.sha256()
@@ -3078,6 +3132,40 @@ STRING.sha256()
       </td>
       <td>
         <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha384()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha512()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha2(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (either 224, 256, 384, or 512). Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>.
+        </p>
       </td>
     </tr>
 
@@ -3274,6 +3362,31 @@ ANY.in(TABLE)
       </td>
       <td>
         <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression. Note: This operation is not supported in a streaming environment yet.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.between(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.notBetween(lowerBound, upperBound)
+    {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if the given expression is not between <i>lowerBound</i> and <i>upperBound</i> (both inclusive). False otherwise. The parameters must be numeric types or identical comparable types.
+        </p>
       </td>
     </tr>
 
@@ -3509,6 +3622,19 @@ NUMERIC.log10()
       </td>
       <td>
         <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.log()
+numeric1.log(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the logarithm of a given numeric value.</p>
+        <p>If called without a parameter, this function returns the natural logarithm of <code>numeric1</code>. If called with a parameter <code>numeric2</code>, this function returns the logarithm of <code>numeric1</code> to the base <code>numeric2</code>. <code>numeric1</code> must be greater than 0. <code>numeric2</code> must be greater than 1.</p>
       </td>
     </tr>
 
@@ -4503,7 +4629,18 @@ STRING.sha1()
       </td>
     </tr>
 
-        <tr>
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha224()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
       <td>
         {% highlight scala %}
 STRING.sha256()
@@ -4513,7 +4650,40 @@ STRING.sha256()
         <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha384()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>    
 
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha512()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha2(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (either 224, 256, 384, or 512). Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>.
+        </p>
+      </td>
+    </tr>
     </tbody>
 </table>
 

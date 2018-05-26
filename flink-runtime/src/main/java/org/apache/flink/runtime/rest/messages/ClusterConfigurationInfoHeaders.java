@@ -69,4 +69,9 @@ public final class ClusterConfigurationInfoHeaders implements MessageHeaders<Emp
 	public static ClusterConfigurationInfoHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the cluster configuration.";
+	}
 }

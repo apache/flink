@@ -20,6 +20,7 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -67,6 +68,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Generator for the Rest API documentation.
@@ -154,7 +157,7 @@ public class RestAPIDocGenerator {
 			sb.append("      <td class=\"text-left\">Response code: <code>" + spec.getResponseStatusCode() + "</code></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td colspan=\"2\">" + "description" + "</td>\n");
+			sb.append("      <td colspan=\"2\">" + escapeCharacters(spec.getDescription()) + "</td>\n");
 			sb.append("    </tr>\n");
 		}
 		if (!pathParameterList.isEmpty()) {
@@ -313,7 +316,9 @@ public class RestAPIDocGenerator {
 
 		static {
 			config = new Configuration();
-			config.setString(RestOptions.REST_ADDRESS, "localhost");
+			config.setString(RestOptions.ADDRESS, "localhost");
+			// necessary for loading the web-submission extension
+			config.setString(JobManagerOptions.ADDRESS, "localhost");
 			try {
 				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 			} catch (ConfigurationException e) {

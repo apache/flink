@@ -32,7 +32,7 @@ public class CheckpointStatisticDetailsHeaders implements MessageHeaders<EmptyRe
 
 	private static final CheckpointStatisticDetailsHeaders INSTANCE = new CheckpointStatisticDetailsHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints/:checkpointid";
+	public static final String URL = "/jobs/:jobid/checkpoints/details/:checkpointid";
 
 	private CheckpointStatisticDetailsHeaders() {}
 
@@ -68,5 +68,10 @@ public class CheckpointStatisticDetailsHeaders implements MessageHeaders<EmptyRe
 
 	public static CheckpointStatisticDetailsHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns details for a checkpoint.";
 	}
 }

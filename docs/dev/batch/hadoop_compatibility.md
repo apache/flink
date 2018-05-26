@@ -56,13 +56,13 @@ package.
 Add the following dependency to your `pom.xml` if you want to reuse Mappers
 and Reducers.
 
-~~~xml
+{% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ### Using Hadoop Data Types
 
@@ -88,7 +88,7 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<Tuple2<LongWritable, Text>> input =
@@ -96,12 +96,12 @@ DataSet<Tuple2<LongWritable, Text>> input =
 
 // Do something with the data.
 [...]
-~~~
+{% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 val input: DataSet[(LongWritable, Text)] =
@@ -109,7 +109,7 @@ val input: DataSet[(LongWritable, Text)] =
 
 // Do something with the data.
 [...]
-~~~
+{% endhighlight %}
 
 </div>
 
@@ -128,7 +128,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 // Obtain the result we want to emit
 DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
 
@@ -144,12 +144,12 @@ TextOutputFormat.setOutputPath(job, new Path(outputPath));
 
 // Emit data using the Hadoop TextOutputFormat.
 hadoopResult.output(hadoopOF);
-~~~
+{% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 // Obtain your result to emit.
 val hadoopResult: DataSet[(Text, IntWritable)] = [...]
 
@@ -163,7 +163,7 @@ FileOutputFormat.setOutputPath(hadoopOF.getJobConf, new Path(resultPath))
 hadoopResult.output(hadoopOF)
 
 
-~~~
+{% endhighlight %}
 
 </div>
 
@@ -185,7 +185,7 @@ and can be used as regular Flink [FlatMapFunctions](dataset_transformations.html
 
 The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
-~~~java
+{% highlight java %}
 // Obtain data to process somehow.
 DataSet<Tuple2<Text, LongWritable>> text = [...]
 
@@ -199,7 +199,7 @@ DataSet<Tuple2<Text, LongWritable>> result = text
   .reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(
     new Counter(), new Counter()
   ));
-~~~
+{% endhighlight %}
 
 **Please note:** The Reducer wrapper works on groups as defined by Flink's [groupBy()](dataset_transformations.html#transformations-on-grouped-dataset) operation. It does not consider any custom partitioners, sort or grouping comparators you might have set in the `JobConf`.
 
@@ -207,7 +207,7 @@ DataSet<Tuple2<Text, LongWritable>> result = text
 
 The following example shows a complete WordCount implementation using Hadoop data types, Input- and OutputFormats, and Mapper and Reducer implementations.
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // Set up the Hadoop TextInputFormat.
@@ -245,6 +245,6 @@ result.output(hadoopOF);
 
 // Execute Program
 env.execute("Hadoop WordCount");
-~~~
+{% endhighlight %}
 
 {% top %}

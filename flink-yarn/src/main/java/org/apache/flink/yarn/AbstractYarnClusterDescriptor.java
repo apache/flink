@@ -382,8 +382,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
 
-			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
+			flinkConfiguration.setString(RestOptions.ADDRESS, host);
+			flinkConfiguration.setInteger(RestOptions.PORT, rpcPort);
 
 			return createYarnClusterClient(
 				this,
@@ -412,9 +412,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public void terminateCluster(ApplicationId applicationId) throws FlinkException {
+	public void killCluster(ApplicationId applicationId) throws FlinkException {
 		try {
 			yarnClient.killApplication(applicationId);
+			Utils.deleteApplicationFiles(Collections.singletonMap(
+				YarnConfigKeys.FLINK_YARN_FILES,
+				getYarnFilesDir(applicationId).toUri().toString()));
 		} catch (YarnException | IOException e) {
 			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
 		}
@@ -542,8 +545,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
-		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
+		flinkConfiguration.setString(RestOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -897,8 +900,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		Path yarnFilesDir = new Path(homeDir, ".flink/" + appId + '/');
-
+		final Path yarnFilesDir = getYarnFilesDir(appId);
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
@@ -1083,6 +1085,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	/**
+	 * Returns the Path where the YARN application files should be uploaded to.
+	 *
+	 * @param appId YARN application id
+	 */
+	private Path getYarnFilesDir(final ApplicationId appId) throws IOException {
+		final FileSystem fileSystem = FileSystem.get(yarnConfiguration);
+		final Path homeDir = fileSystem.getHomeDirectory();
+		return new Path(homeDir, ".flink/" + appId + '/');
 	}
 
 	/**

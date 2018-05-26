@@ -21,8 +21,8 @@ package org.apache.flink.runtime.resourcemanager.utils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -50,6 +50,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -78,11 +79,17 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
 
-	private volatile Function<Tuple5<String, ResourceID, SlotReport, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
+	private volatile Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction;
 
 	private volatile Function<Tuple2<ResourceID, FileType>, CompletableFuture<TransientBlobKey>> requestTaskManagerFileUploadFunction;
 
 	private volatile Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer;
+
+	private volatile Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>> sendSlotReportFunction;
+
+	private volatile BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer;
+
+	private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
 
 	public TestingResourceManagerGateway() {
 		this(
@@ -109,6 +116,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestSlotConsumer = null;
 	}
 
+	public ResourceID getOwnResourceId() {
+		return ownResourceId;
+	}
+
 	public void setRequestSlotFuture(CompletableFuture<Acknowledge> slotFuture) {
 		this.slotFutureReference.set(slotFuture);
 	}
@@ -129,7 +140,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
 	}
 
-	public void setRegisterTaskExecutorFunction(Function<Tuple5<String, ResourceID, SlotReport, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
+	public void setRegisterTaskExecutorFunction(Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> registerTaskExecutorFunction) {
 		this.registerTaskExecutorFunction = registerTaskExecutorFunction;
 	}
 
@@ -139,6 +150,18 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	public void setDisconnectTaskExecutorConsumer(Consumer<Tuple2<ResourceID, Throwable>> disconnectTaskExecutorConsumer) {
 		this.disconnectTaskExecutorConsumer = disconnectTaskExecutorConsumer;
+	}
+
+	public void setSendSlotReportFunction(Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>> sendSlotReportFunction) {
+		this.sendSlotReportFunction = sendSlotReportFunction;
+	}
+
+	public void setTaskExecutorHeartbeatConsumer(BiConsumer<ResourceID, SlotReport> taskExecutorHeartbeatConsumer) {
+		this.taskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+	}
+
+	public void setNotifySlotAvailableConsumer(Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer) {
+		this.notifySlotAvailableConsumer = notifySlotAvailableConsumer;
 	}
 
 	@Override
@@ -183,11 +206,22 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<RegistrationResponse> registerTaskExecutor(String taskExecutorAddress, ResourceID resourceId, SlotReport slotReport, int dataPort, HardwareDescription hardwareDescription, Time timeout) {
-		final Function<Tuple5<String, ResourceID, SlotReport, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
+	public CompletableFuture<Acknowledge> sendSlotReport(ResourceID taskManagerResourceId, InstanceID taskManagerRegistrationId, SlotReport slotReport, Time timeout) {
+		final Function<Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>> currentSendSlotReportFunction = sendSlotReportFunction;
+
+		if (currentSendSlotReportFunction != null) {
+			return currentSendSlotReportFunction.apply(Tuple3.of(taskManagerResourceId, taskManagerRegistrationId, slotReport));
+		} else {
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+	}
+
+	@Override
+	public CompletableFuture<RegistrationResponse> registerTaskExecutor(String taskExecutorAddress, ResourceID resourceId, int dataPort, HardwareDescription hardwareDescription, Time timeout) {
+		final Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>> currentFunction = registerTaskExecutorFunction;
 
 		if (currentFunction != null) {
-			return currentFunction.apply(Tuple5.of(taskExecutorAddress, resourceId, slotReport, dataPort, hardwareDescription));
+			return currentFunction.apply(Tuple4.of(taskExecutorAddress, resourceId, dataPort, hardwareDescription));
 		} else {
 			return CompletableFuture.completedFuture(
 				new TaskExecutorRegistrationSuccess(
@@ -200,7 +234,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public void notifySlotAvailable(InstanceID instanceId, SlotID slotID, AllocationID oldAllocationId) {
+		final Consumer<Tuple3<InstanceID, SlotID, AllocationID>> currentNotifySlotAvailableConsumer = notifySlotAvailableConsumer;
 
+		if (currentNotifySlotAvailableConsumer != null) {
+			currentNotifySlotAvailableConsumer.accept(Tuple3.of(instanceId, slotID, oldAllocationId));
+		}
 	}
 
 	@Override
@@ -225,7 +263,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public void heartbeatFromTaskManager(ResourceID heartbeatOrigin, SlotReport slotReport) {
+		final BiConsumer<ResourceID, SlotReport> currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
 
+		if (currentTaskExecutorHeartbeatConsumer != null) {
+			currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, slotReport);
+		}
 	}
 
 	@Override

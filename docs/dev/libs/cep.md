@@ -1454,7 +1454,7 @@ parameters
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 OutputTag<String> outputTag = new OutputTag<String>("side-output"){};
@@ -1474,13 +1474,13 @@ SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
 );
 
 DataStream<TimeoutEvent> timeoutFlatResult = flatResult.getSideOutput(outputTag);
-~~~
+{% endhighlight %}
 
 </div>
 
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
 val outputTag = OutputTag[String]("side-output")
@@ -1492,12 +1492,12 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.select(outp
 }
 
 val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
-~~~
+{% endhighlight %}
 
 The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
 In contrast to the `select` functions, the `flatSelect` functions are called with a `Collector`. You can use the collector to emit an arbitrary number of events.
 
-~~~scala
+{% highlight scala %}
 val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
 
 val outputTag = OutputTag[String]("side-output")
@@ -1511,7 +1511,7 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(
 }
 
 val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
-~~~
+{% endhighlight %}
 
 </div>
 </div>

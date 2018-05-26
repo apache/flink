@@ -43,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * This test ensures that state and state configuration created by Flink 1.3 Avro types
- * that used the PojoSerializer still works.
+ * that used the PojoSerializer still works (in most cases, see notice below).
  *
  * <p><b>Important:</b> Since Avro itself broke class compatibility between 1.7.7 (used in Flink 1.3)
  * and 1.8.2 (used in Flink 1.4), the Avro by Pojo compatibility is broken through Avro already.
@@ -69,7 +69,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 	private static final int NUM_DATA_ENTRIES = 20;
 
 	@Test
-	public void testCompatibilityWithFlink_1_3() throws Exception {
+	public void testCompatibilityWithPojoSerializer() throws Exception {
 
 		// retrieve the old config snapshot
 
@@ -138,7 +138,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 		}
 	}
 
-// run this code on a 1.3 (or earlier) branch to generate the test data
+// run this code to generate the test data
 //	public static void main(String[] args) throws Exception {
 //
 //		AvroTypeInfo<User> typeInfo = new AvroTypeInfo<>(User.class);

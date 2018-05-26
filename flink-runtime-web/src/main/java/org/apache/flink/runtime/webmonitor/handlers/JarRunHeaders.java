@@ -66,4 +66,9 @@ public class JarRunHeaders implements MessageHeaders<EmptyRequestBody, JarRunRes
 	public static JarRunHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
+	}
 }

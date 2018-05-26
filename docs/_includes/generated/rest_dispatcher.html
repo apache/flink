@@ -8,7 +8,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the port of blob server which can be used to upload jars.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -45,6 +45,42 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/cluster</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>DELETE</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Shuts down the cluster</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1674237828">Request</button>
+        <div id="-1674237828" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1489255004">Response</button>
+        <div id="-1489255004" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/config</strong></td>
     </tr>
     <tr>
@@ -52,7 +88,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the configuration of the WebUI.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -101,6 +137,314 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/jars</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns a list of all jars previously uploaded via '/jars/upload'.</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-525177469">Request</button>
+        <div id="-525177469" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1669843955">Response</button>
+        <div id="-1669843955" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo",
+  "properties" : {
+    "address" : {
+      "type" : "string"
+    },
+    "files" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarFileInfo",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "uploaded" : {
+            "type" : "integer"
+          },
+          "entry" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarEntryInfo",
+              "properties" : {
+                "name" : {
+                  "type" : "string"
+                },
+                "description" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jars/upload</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Uploads a jar to the cluster. The jar must be sent as multi-part data. Make sure that the "Content-Type" header is set to "application/x-java-archive", as some http libraries do not add the header by default.
+Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#path/to/flink-job.jar" http://hostname:port/jars/upload'.</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#919877128">Request</button>
+        <div id="919877128" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:FileUpload",
+  "properties" : {
+    "path" : {
+      "type" : "string"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1132420209">Response</button>
+        <div id="1132420209" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarUploadResponseBody",
+  "properties" : {
+    "filename" : {
+      "type" : "string"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "success" ]
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jars/:jarid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>DELETE</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Deletes a jar previously uploaded via '/jars/upload'.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jarid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-974639435">Request</button>
+        <div id="-974639435" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-789656611">Response</button>
+        <div id="-789656611" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jars/:jarid/plan</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the dataflow plan of a job contained in a jar previously uploaded via '/jars/upload'.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jarid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>entry-class</code> (optional): description</li>
+<li><code>parallelism</code> (optional): description</li>
+<li><code>program-args</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-181694384">Request</button>
+        <div id="-181694384" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1311035100">Response</button>
+        <div id="1311035100" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jars/:jarid/run</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Submits a job by running a jar previously uploaded via '/jars/upload'.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jarid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>program-args</code> (optional): description</li>
+<li><code>entry-class</code> (optional): description</li>
+<li><code>parallelism</code> (optional): description</li>
+<li><code>allowNonRestoredState</code> (optional): description</li>
+<li><code>savepointPath</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1936993190">Request</button>
+        <div id="1936993190" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-914083094">Response</button>
+        <div id="-914083094" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunResponseBody",
+  "properties" : {
+    "jobid" : {
+      "type" : "any"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/jobmanager/config</strong></td>
     </tr>
     <tr>
@@ -108,7 +452,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the cluster configuration.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -158,7 +502,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to job manager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Query parameters</td>
@@ -206,7 +550,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all jobs and their current state.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -263,7 +607,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Submits a job. This call is primarily intended to be used by the Flink client.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -311,6 +655,56 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/metrics</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Provides access to aggregated job metrics.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>get</code> (optional): description</li>
+<li><code>agg</code> (optional): description</li>
+<li><code>jobs</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-790902571">Request</button>
+        <div id="-790902571" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#128306770">Response</button>
+        <div id="128306770" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/jobs/overview</strong></td>
     </tr>
     <tr>
@@ -318,7 +712,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all jobs.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -365,7 +759,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -523,7 +917,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Terminates a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -579,7 +973,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -670,7 +1064,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns checkpointing statistics for a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -973,7 +1367,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the checkpointing configuration.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1044,6 +1438,123 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/details/:checkpointid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns details for a checkpoint.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>checkpointid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#2082812513">Request</button>
+        <div id="2082812513" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#59893771">Response</button>
+        <div id="59893771" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+  "properties" : {
+    "id" : {
+      "type" : "integer"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+    },
+    "is_savepoint" : {
+      "type" : "boolean"
+    },
+    "trigger_timestamp" : {
+      "type" : "integer"
+    },
+    "latest_ack_timestamp" : {
+      "type" : "integer"
+    },
+    "state_size" : {
+      "type" : "integer"
+    },
+    "end_to_end_duration" : {
+      "type" : "integer"
+    },
+    "alignment_buffered" : {
+      "type" : "integer"
+    },
+    "num_subtasks" : {
+      "type" : "integer"
+    },
+    "num_acknowledged_subtasks" : {
+      "type" : "integer"
+    },
+    "tasks" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
+        "properties" : {
+          "id" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+          },
+          "latest_ack_timestamp" : {
+            "type" : "integer"
+          },
+          "state_size" : {
+            "type" : "integer"
+          },
+          "end_to_end_duration" : {
+            "type" : "integer"
+          },
+          "alignment_buffered" : {
+            "type" : "integer"
+          },
+          "num_subtasks" : {
+            "type" : "integer"
+          },
+          "num_acknowledged_subtasks" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid</strong></td>
     </tr>
     <tr>
@@ -1051,7 +1562,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns checkpoint statistics for a task and its subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1190,123 +1701,6 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
-      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/:checkpointid</strong></td>
-    </tr>
-    <tr>
-      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
-      <td class="text-left">Response code: <code>200 OK</code></td>
-    </tr>
-    <tr>
-      <td colspan="2">description</td>
-    </tr>
-    <tr>
-      <td colspan="2">Path parameters</td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <ul>
-<li><code>jobid</code> - description</li>
-<li><code>checkpointid</code> - description</li>
-        </ul>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <button data-toggle="collapse" data-target="#-968188818">Request</button>
-        <div id="-968188818" class="collapse">
-          <pre>
-            <code>
-{}            </code>
-          </pre>
-         </div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2">
-        <button data-toggle="collapse" data-target="#1303859736">Response</button>
-        <div id="1303859736" class="collapse">
-          <pre>
-            <code>
-{
-  "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
-  "properties" : {
-    "id" : {
-      "type" : "integer"
-    },
-    "status" : {
-      "type" : "string",
-      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-    },
-    "is_savepoint" : {
-      "type" : "boolean"
-    },
-    "trigger_timestamp" : {
-      "type" : "integer"
-    },
-    "latest_ack_timestamp" : {
-      "type" : "integer"
-    },
-    "state_size" : {
-      "type" : "integer"
-    },
-    "end_to_end_duration" : {
-      "type" : "integer"
-    },
-    "alignment_buffered" : {
-      "type" : "integer"
-    },
-    "num_subtasks" : {
-      "type" : "integer"
-    },
-    "num_acknowledged_subtasks" : {
-      "type" : "integer"
-    },
-    "tasks" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
-        "properties" : {
-          "id" : {
-            "type" : "integer"
-          },
-          "status" : {
-            "type" : "string",
-            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
-          },
-          "latest_ack_timestamp" : {
-            "type" : "integer"
-          },
-          "state_size" : {
-            "type" : "integer"
-          },
-          "end_to_end_duration" : {
-            "type" : "integer"
-          },
-          "alignment_buffered" : {
-            "type" : "integer"
-          },
-          "num_subtasks" : {
-            "type" : "integer"
-          },
-          "num_acknowledged_subtasks" : {
-            "type" : "integer"
-          }
-        }
-      }
-    }
-  }
-}            </code>
-          </pre>
-         </div>
-      </td>
-    </tr>
-  </tbody>
-</table>
-<table class="table table-bordered">
-  <tbody>
-    <tr>
       <td class="text-left" colspan="2"><strong>/jobs/:jobid/config</strong></td>
     </tr>
     <tr>
@@ -1314,7 +1708,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the configuration of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1362,7 +1756,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the non-recoverable exceptions that have been observed by the job. The truncated flag defines whether more exceptions occurred, but are not listed, because the response would otherwise get too big.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1443,7 +1837,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the result of a job execution. Gives access to the execution time of the job and to all accumulators created by this job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1509,7 +1903,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to job metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1567,7 +1961,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the dataflow plan of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1615,7 +2009,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers the rescaling of a job.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1679,7 +2073,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a rescaling operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1745,7 +2139,7 @@
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers a savepoint, and optionally cancels the job afterwards.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1810,7 +2204,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a savepoint operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -1876,7 +2270,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details for a task, with a summary for each of its subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2001,7 +2395,80 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns user-defined accumulators of a task, aggregated across all subtasks.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#485581006">Request</button>
+        <div id="485581006" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1070353054">Response</button>
+        <div id="-1070353054" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexAccumulatorsInfo",
+  "properties" : {
+    "id" : {
+      "type" : "string"
+    },
+    "user-accumulators" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:UserAccumulator",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/accumulators</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns user-defined accumulators of a task, aggregated across all subtasks.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2074,7 +2541,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2156,7 +2623,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to task metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2208,6 +2675,67 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/metrics</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Provides access to aggregated subtask metrics.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>get</code> (optional): description</li>
+<li><code>agg</code> (optional): description</li>
+<li><code>subtasks</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#265134755">Request</button>
+        <div id="265134755" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1184344096">Response</button>
+        <div id="1184344096" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex</strong></td>
     </tr>
     <tr>
@@ -2215,7 +2743,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of the current or latest execution attempt of a subtask.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2313,14 +2841,14 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
-      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/attempt</strong></td>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt</strong></td>
     </tr>
     <tr>
       <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2337,8 +2865,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1633948804">Request</button>
-        <div id="1633948804" class="collapse">
+        <button data-toggle="collapse" data-target="#168850740">Request</button>
+        <div id="168850740" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -2348,8 +2876,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#-384785209">Response</button>
-        <div id="-384785209" class="collapse">
+        <button data-toggle="collapse" data-target="#-1849883273">Response</button>
+        <div id="-1849883273" class="collapse">
           <pre>
             <code>
 {
@@ -2419,14 +2947,14 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
-      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/attempt/accumulators</strong></td>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt/accumulators</strong></td>
     </tr>
     <tr>
       <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2443,8 +2971,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1869002000">Request</button>
-        <div id="1869002000" class="collapse">
+        <button data-toggle="collapse" data-target="#-1303317920">Request</button>
+        <div id="-1303317920" class="collapse">
           <pre>
             <code>
 {}            </code>
@@ -2454,8 +2982,8 @@
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1717045676">Response</button>
-        <div id="1717045676" class="collapse">
+        <button data-toggle="collapse" data-target="#-1455274244">Response</button>
+        <div id="-1455274244" class="collapse">
           <pre>
             <code>
 {
@@ -2507,7 +3035,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to subtask metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2567,7 +3095,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns time-related information for all subtasks of a task.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2652,7 +3180,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns task information aggregated by task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2774,7 +3302,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over the Flink cluster.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -2842,7 +3370,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Triggers the desposal of a savepoint.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -2894,7 +3422,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns the status of a savepoint disposal operation.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -2959,7 +3487,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns an overview over all task managers.</td>
     </tr>
     <tr>
       <td colspan="2">
@@ -3038,6 +3566,56 @@
 <table class="table table-bordered">
   <tbody>
     <tr>
+      <td class="text-left" colspan="2"><strong>/taskmanagers/metrics</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Provides access to aggregated task manager metrics.</td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>get</code> (optional): description</li>
+<li><code>agg</code> (optional): description</li>
+<li><code>taskmanagers</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#521351018">Request</button>
+        <div id="521351018" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1440560359">Response</button>
+        <div id="1440560359" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
       <td class="text-left" colspan="2"><strong>/taskmanagers/:taskmanagerid</strong></td>
     </tr>
     <tr>
@@ -3045,7 +3623,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Returns details for a task manager.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>
@@ -3198,7 +3776,7 @@
       <td class="text-left">Response code: <code>200 OK</code></td>
     </tr>
     <tr>
-      <td colspan="2">description</td>
+      <td colspan="2">Provides access to task manager metrics.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>

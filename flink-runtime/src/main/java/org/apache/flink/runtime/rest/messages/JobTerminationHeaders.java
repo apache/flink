@@ -67,4 +67,9 @@ public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, E
 	public static JobTerminationHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Terminates a job.";
+	}
 }

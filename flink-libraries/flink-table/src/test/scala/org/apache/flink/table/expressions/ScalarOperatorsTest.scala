@@ -407,4 +407,137 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "trueX")
     testTableApi(12.isNull, "12.isNull", "false")
   }
+
+  @Test
+  def testBetween(): Unit = {
+    // between
+    testAllApis(
+      4.between(Null(Types.INT), 3),
+      "4.between(Null(INT), 3)",
+      "4 BETWEEN NULL AND 3",
+      "false"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 12),
+      "4.between(Null(INT), 12)",
+      "4 BETWEEN NULL AND 12",
+      "null"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 3),
+      "4.between(Null(INT), 3)",
+      "4 BETWEEN 5 AND NULL",
+      "false"
+    )
+    testAllApis(
+      4.between(Null(Types.INT), 12),
+      "4.between(Null(INT), 12)",
+      "4 BETWEEN 0 AND NULL",
+      "null"
+    )
+    testAllApis(
+      4.between(1, 3),
+      "4.between(1, 3)",
+      "4 BETWEEN 1 AND 3",
+      "false"
+    )
+    testAllApis(
+      2.between(1, 3),
+      "2.between(1, 3)",
+      "2 BETWEEN 1 AND 3",
+      "true"
+    )
+    testAllApis(
+      2.between(2, 2),
+      "2.between(2, 2)",
+      "2 BETWEEN 2 AND 2",
+      "true"
+    )
+    testAllApis(
+      2.1.between(2.0, 3.0),
+      "2.1.between(2.0, 3.0)",
+      "2.1 BETWEEN 2.0 AND 3.0",
+      "true"
+    )
+    testAllApis(
+      2.1.between(2.1, 2.1),
+      "2.1.between(2.1, 2.1)",
+      "2.1 BETWEEN 2.1 AND 2.1",
+      "true"
+    )
+    testAllApis(
+      "b".between("a", "c"),
+      "'b'.between('a', 'c')",
+      "'b' BETWEEN 'a' AND 'c'",
+      "true"
+    )
+    testAllApis(
+      "b".between("b", "c"),
+      "'b'.between('b', 'c')",
+      "'b' BETWEEN 'b' AND 'c'",
+      "true"
+    )
+    testAllApis(
+      "2018-05-05".toDate.between("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.between('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "DATE '2018-05-05' BETWEEN DATE '2018-05-01' AND DATE '2018-05-10'",
+      "true"
+    )
+
+    // not between
+    testAllApis(
+      2.notBetween(Null(Types.INT), 3),
+      "2.notBetween(Null(INT), 3)",
+      "2 NOT BETWEEN NULL AND 3",
+      "null"
+    )
+    testAllApis(
+      2.notBetween(0, 1),
+      "2.notBetween(0, 1)",
+      "2 NOT BETWEEN 0 AND 1",
+      "true"
+    )
+    testAllApis(
+      2.notBetween(1, 3),
+      "2.notBetween(1, 3)",
+      "2 NOT BETWEEN 1 AND 3",
+      "false"
+    )
+    testAllApis(
+      2.notBetween(2, 2),
+      "2.notBetween(2, 2)",
+      "2 NOT BETWEEN 2 AND 2",
+      "false"
+    )
+    testAllApis(
+      2.1.notBetween(2.0, 3.0),
+      "2.1.notBetween(2.0, 3.0)",
+      "2.1 NOT BETWEEN 2.0 AND 3.0",
+      "false"
+    )
+    testAllApis(
+      2.1.notBetween(2.1, 2.1),
+      "2.1.notBetween(2.1, 2.1)",
+      "2.1 NOT BETWEEN 2.1 AND 2.1",
+      "false"
+    )
+    testAllApis(
+      "b".notBetween("a", "c"),
+      "'b'.notBetween('a', 'c')",
+      "'b' NOT BETWEEN 'a' AND 'c'",
+      "false"
+    )
+    testAllApis(
+      "b".notBetween("b", "c"),
+      "'b'.notBetween('b', 'c')",
+      "'b' NOT BETWEEN 'b' AND 'c'",
+      "false"
+    )
+    testAllApis(
+      "2018-05-05".toDate.notBetween("2018-05-01".toDate, "2018-05-10".toDate),
+      "'2018-05-05'.toDate.notBetween('2018-05-01'.toDate, '2018-05-10'.toDate)",
+      "DATE '2018-05-05' NOT BETWEEN DATE '2018-05-01' AND DATE '2018-05-10'",
+      "false"
+    )
+  }
 }

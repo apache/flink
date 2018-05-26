@@ -400,6 +400,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yj", flinkUberjar.getAbsolutePath(),
 				"-yt", flinkLibFolder.getAbsolutePath(),
 				"-yn", "1",
+				"-ys", "2",
 				"-yjm", "768",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
@@ -551,7 +552,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
 			content = FileUtils.readFileToString(jobmanagerLog);
 			// TM was started with 1024 but we cut off 70% (NOT THE DEFAULT VALUE)
-			String expected = "Starting TaskManagers with command: $JAVA_HOME/bin/java -Xms244m -Xmx244m -XX:MaxDirectMemorySize=780m";
+			String expected = "Starting TaskManagers";
 			Assert.assertTrue("Expected string '" + expected + "' not found in JobManager log: '" + jobmanagerLog + "'",
 				content.contains(expected));
 			expected = " (2/2) (attempt #0) to ";
@@ -590,6 +591,12 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
 			}
 
+			try {
+				LOG.info("testDetachedPerJobYarnClusterInternal: Closing the yarn client");
+				yc.stop();
+			} catch (Exception e) {
+				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while close the yarn client", e);
+			}
 		}
 	}
 

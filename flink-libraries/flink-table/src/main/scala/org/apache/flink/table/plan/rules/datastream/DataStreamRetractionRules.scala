@@ -190,15 +190,6 @@ object DataStreamRetractionRules {
     "SetAccModeRule") {
 
     /**
-      * Checks if a [[RelNode]] produces update and delete changes.
-      */
-    def producesUpdates(relNode: RelNode): Boolean = {
-      relNode match {
-        case dsr: DataStreamRel => dsr.producesUpdates
-      }
-    }
-
-    /**
       * Set [[AccMode.AccRetract]] to a [[RelNode]].
       */
     def setAccRetract(relNode: RelNode): RelNode = {
@@ -207,28 +198,17 @@ object DataStreamRetractionRules {
     }
 
     /**
-      * Checks if a [[RelNode]] consumes retraction messages instead of forwarding them.
-      * The node might or might not produce new retraction messages.
-      * This is checked by [[producesRetractions()]].
+      * Checks if a [[DataStreamRel]] produces retraction messages.
       */
-    def consumesRetractions(relNode: RelNode): Boolean = {
-      relNode match {
-        case dsr: DataStreamRel => dsr.consumesRetractions
-      }
+    def producesRetractions(node: DataStreamRel): Boolean = {
+      sendsUpdatesAsRetraction(node) && node.producesUpdates || node.producesRetractions
     }
 
     /**
-      * Checks if a [[RelNode]] produces retraction messages.
+      * Checks if a [[DataStreamRel]] forwards retraction messages from its children.
       */
-    def producesRetractions(node: RelNode): Boolean = {
-      sendsUpdatesAsRetraction(node) && producesUpdates(node)
-    }
-
-    /**
-      * Checks if a [[RelNode]] forwards retraction messages from its children.
-      */
-    def forwardsRetractions(parent: RelNode, children: Seq[RelNode]): Boolean = {
-      children.exists(c => isAccRetract(c)) && !consumesRetractions(parent)
+    def forwardsRetractions(parent: DataStreamRel, children: Seq[RelNode]): Boolean = {
+      children.exists(c => isAccRetract(c)) && !parent.consumesRetractions
     }
 
     /**

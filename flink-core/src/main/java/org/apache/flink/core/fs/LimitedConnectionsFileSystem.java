@@ -717,7 +717,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		private volatile StreamTimeoutException timeoutException;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
-		private AtomicBoolean closed = new AtomicBoolean();
+		private final AtomicBoolean closed = new AtomicBoolean();
 
 		OutStream(FSDataOutputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);
@@ -843,7 +843,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		private final StreamProgressTracker progressTracker;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
-		private AtomicBoolean closed = new AtomicBoolean();
+		private final AtomicBoolean closed = new AtomicBoolean();
 
 		InStream(FSDataInputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);

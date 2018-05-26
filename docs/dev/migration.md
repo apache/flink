@@ -59,7 +59,7 @@ now clean of specific logger dependencies.
 Example and quickstart archetypes already have loggers specified and should not be affected.
 For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
 
-~~~xml
+{% highlight xml %}
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>slf4j-log4j12</artifactId>
@@ -71,7 +71,7 @@ For other custom projects, make sure to add logger dependencies. For example, in
     <artifactId>log4j</artifactId>
     <version>1.2.17</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Migrating from Flink 1.1 to Flink 1.2
 

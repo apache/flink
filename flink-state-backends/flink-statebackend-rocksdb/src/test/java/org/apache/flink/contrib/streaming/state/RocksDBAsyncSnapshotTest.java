@@ -85,6 +85,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
@@ -327,14 +328,21 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		task.cancel();
 		blockerCheckpointStreamFactory.getBlockerLatch().trigger();
 		testHarness.endInput();
-		Assert.assertTrue(blockerCheckpointStreamFactory.getLastCreatedStream().isClosed());
+
+		ExecutorService threadPool = task.getAsyncOperationsThreadPool();
+		threadPool.shutdown();
+		Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+
+		Set<BlockingCheckpointOutputStream> createdStreams = blockerCheckpointStreamFactory.getAllCreatedStreams();
+
+		for (BlockingCheckpointOutputStream stream : createdStreams) {
+			Assert.assertTrue(
+				"Not all of the " + createdStreams.size() + " created streams have been closed.",
+				stream.isClosed());
+		}
 
 		try {
-			ExecutorService threadPool = task.getAsyncOperationsThreadPool();
-			threadPool.shutdown();
-			Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 			testHarness.waitForTaskCompletion();
-
 			fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
 

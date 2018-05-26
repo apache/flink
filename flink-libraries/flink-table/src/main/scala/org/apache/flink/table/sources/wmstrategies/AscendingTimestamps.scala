@@ -37,4 +37,13 @@ final class AscendingTimestamps extends PeriodicWatermarkAssigner {
   }
 
   override def getWatermark: Watermark = new Watermark(maxTimestamp - 1)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case _: AscendingTimestamps => true
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    classOf[AscendingTimestamps].hashCode()
+  }
 }

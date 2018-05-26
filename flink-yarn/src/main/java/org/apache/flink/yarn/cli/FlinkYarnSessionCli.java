@@ -23,7 +23,6 @@ import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -500,7 +499,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		}
 
 		if (commandLine.hasOption(slots.getOpt())) {
-			effectiveConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
+			effectiveConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, Integer.parseInt(commandLine.getOptionValue(slots.getOpt())));
 		}
 
 		if (isYarnPropertiesFileMode(commandLine)) {
@@ -612,7 +611,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 						}
 
 						try {
-							yarnClusterDescriptor.terminateCluster(yarnApplicationId);
+							yarnClusterDescriptor.killCluster(yarnApplicationId);
 						} catch (FlinkException fe) {
 							LOG.info("Could not properly terminate the Flink cluster.", fe);
 						}
@@ -645,16 +644,12 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							LOG.info("Could not properly close the Yarn application status monitor.", e);
 						}
 
+						clusterClient.shutDownCluster();
+
 						try {
 							clusterClient.shutdown();
 						} catch (Exception e) {
 							LOG.info("Could not properly shutdown cluster client.", e);
-						}
-
-						try {
-							yarnClusterDescriptor.terminateCluster(yarnApplicationId);
-						} catch (FlinkException e) {
-							LOG.info("Could not properly terminate the Flink cluster.", e);
 						}
 
 						// shut down the scheduled executor service

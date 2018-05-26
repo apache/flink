@@ -46,7 +46,7 @@ class JoinITCase(
   extends TableProgramsClusterTestBase(execMode, configMode) {
 
   @Test
-  def testJoin(): Unit = {
+  def testInnerJoin(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -61,7 +61,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithFilter(): Unit = {
+  def testInnerJoinWithFilter(): Unit = {
 
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -77,7 +77,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithJoinFilter(): Unit = {
+  def testInnerJoinWithJoinFilter(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -108,7 +108,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithMultipleKeys(): Unit = {
+  def testInnerJoinWithMultipleKeys(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -126,7 +126,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithAggregation(): Unit = {
+  def testInnerJoinWithAggregation(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
     // use different table env in order to let tmp table ids are the same
@@ -143,7 +143,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithGroupedAggregation(): Unit = {
+  def testInnerJoinWithGroupedAggregation(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -161,7 +161,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinPushThroughJoin(): Unit = {
+  def testInnerJoinPushThroughJoin(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -181,7 +181,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithDisjunctivePred(): Unit = {
+  def testInnerJoinWithDisjunctivePred(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -198,7 +198,7 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithExpressionPreds(): Unit = {
+  def testInnerJoinWithExpressionPreds(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 

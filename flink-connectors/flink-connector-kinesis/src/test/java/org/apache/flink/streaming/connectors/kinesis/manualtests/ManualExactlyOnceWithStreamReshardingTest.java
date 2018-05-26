@@ -90,7 +90,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 
 		final Configuration flinkConfig = new Configuration();
 		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+		flinkConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
 		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16);
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 

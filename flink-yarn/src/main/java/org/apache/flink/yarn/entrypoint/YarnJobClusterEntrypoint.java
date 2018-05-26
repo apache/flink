@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
@@ -51,6 +52,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Entry point for Yarn per-job clusters.
@@ -130,6 +132,17 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			throw new FlinkException("Could not load the JobGraph from file.", e);
 		}
 	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {
+		terminationFuture.thenAccept((status) ->
+			shutDownAndTerminate(status.processExitCode(), status, null, true));
+	}
+
+	// ------------------------------------------------------------------------
+	//  The executable entry point for the Yarn Application Master Process
+	//  for a single Flink job.
+	// ------------------------------------------------------------------------
 
 	public static void main(String[] args) {
 		// startup checks and logging

@@ -113,7 +113,7 @@ public class RemoteExecutor extends PlanExecutor {
 
 		clientConfiguration.setString(JobManagerOptions.ADDRESS, inet.getHostName());
 		clientConfiguration.setInteger(JobManagerOptions.PORT, inet.getPort());
-		clientConfiguration.setInteger(RestOptions.REST_PORT, inet.getPort());
+		clientConfiguration.setInteger(RestOptions.PORT, inet.getPort());
 	}
 
 	// ------------------------------------------------------------------------

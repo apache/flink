@@ -347,6 +347,12 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		// the default implementation does nothing and accepts the checkpoint
+		// this is purely for subclasses to override
+	}
+
+	@Override
 	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
 			CheckpointStreamFactory factory) throws Exception {
 
@@ -654,7 +660,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
 	 */
-	public class CountingOutput implements Output<StreamRecord<OUT>> {
+	public static class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
 

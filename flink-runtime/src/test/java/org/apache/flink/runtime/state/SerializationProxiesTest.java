@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -29,24 +29,16 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class SerializationProxiesTest {
 
 	@Test
@@ -75,7 +67,7 @@ public class SerializationProxiesTest {
 		}
 
 		serializationProxy =
-				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+				new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader(), true);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
@@ -112,26 +104,31 @@ public class SerializationProxiesTest {
 			serialized = out.toByteArray();
 		}
 
-		serializationProxy =
-			new KeyedBackendSerializationProxy<>(Thread.currentThread().getContextClassLoader());
+		Set<String> cnfThrowingSerializerClasses = new HashSet<>();
+		cnfThrowingSerializerClasses.add(IntSerializer.class.getName());
+		cnfThrowingSerializerClasses.add(LongSerializer.class.getName());
+		cnfThrowingSerializerClasses.add(DoubleSerializer.class.getName());
 
-		// mock failure when deserializing serializers
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		// we want to verify restore resilience when serializer presence is not required;
+		// set isSerializerPresenceRequired to false
+		serializationProxy =
+			new KeyedBackendSerializationProxy<>(
+				new ArtificialCNFExceptionThrowingClassLoader(
+					Thread.currentThread().getContextClassLoader(),
+					cnfThrowingSerializerClasses),
+				false);
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
 		}
 
 		Assert.assertEquals(true, serializationProxy.isUsingKeyGroupCompression());
-		Assert.assertEquals(null, serializationProxy.getKeySerializer());
+		Assert.assertTrue(serializationProxy.getKeySerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(keySerializer.snapshotConfiguration(), serializationProxy.getKeySerializerConfigSnapshot());
 
 		for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> meta : serializationProxy.getStateMetaInfoSnapshots()) {
-			Assert.assertEquals(null, meta.getNamespaceSerializer());
-			Assert.assertEquals(null, meta.getStateSerializer());
+			Assert.assertTrue(meta.getNamespaceSerializer() instanceof UnloadableDummyTypeSerializer);
+			Assert.assertTrue(meta.getStateSerializer() instanceof UnloadableDummyTypeSerializer);
 			Assert.assertEquals(namespaceSerializer.snapshotConfiguration(), meta.getNamespaceSerializerConfigSnapshot());
 			Assert.assertEquals(stateSerializer.snapshotConfiguration(), meta.getStateSerializerConfigSnapshot());
 		}
@@ -183,21 +180,23 @@ public class SerializationProxiesTest {
 			serialized = out.toByteArray();
 		}
 
-		// mock failure when deserializing serializer
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		Set<String> cnfThrowingSerializerClasses = new HashSet<>();
+		cnfThrowingSerializerClasses.add(LongSerializer.class.getName());
+		cnfThrowingSerializerClasses.add(DoubleSerializer.class.getName());
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = KeyedBackendStateMetaInfoSnapshotReaderWriters
-				.getReaderForVersion(KeyedBackendSerializationProxy.VERSION, Thread.currentThread().getContextClassLoader())
+				.getReaderForVersion(
+					KeyedBackendSerializationProxy.VERSION,
+					new ArtificialCNFExceptionThrowingClassLoader(
+						Thread.currentThread().getContextClassLoader(),
+						cnfThrowingSerializerClasses))
 				.readStateMetaInfo(new DataInputViewStreamWrapper(in));
 		}
 
 		Assert.assertEquals(name, metaInfo.getName());
-		Assert.assertEquals(null, metaInfo.getNamespaceSerializer());
-		Assert.assertEquals(null, metaInfo.getStateSerializer());
+		Assert.assertTrue(metaInfo.getNamespaceSerializer() instanceof UnloadableDummyTypeSerializer);
+		Assert.assertTrue(metaInfo.getStateSerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(namespaceSerializer.snapshotConfiguration(), metaInfo.getNamespaceSerializerConfigSnapshot());
 		Assert.assertEquals(stateSerializer.snapshotConfiguration(), metaInfo.getStateSerializerConfigSnapshot());
 	}
@@ -325,20 +324,22 @@ public class SerializationProxiesTest {
 			serialized = out.toByteArray();
 		}
 
-		// mock failure when deserializing serializer
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		Set<String> cnfThrowingSerializerClasses = new HashSet<>();
+		cnfThrowingSerializerClasses.add(DoubleSerializer.class.getName());
+		cnfThrowingSerializerClasses.add(StringSerializer.class.getName());
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			metaInfo = OperatorBackendStateMetaInfoSnapshotReaderWriters
-				.getOperatorStateReaderForVersion(OperatorBackendSerializationProxy.VERSION, Thread.currentThread().getContextClassLoader())
+				.getOperatorStateReaderForVersion(
+					OperatorBackendSerializationProxy.VERSION,
+					new ArtificialCNFExceptionThrowingClassLoader(
+						Thread.currentThread().getContextClassLoader(),
+						cnfThrowingSerializerClasses))
 				.readOperatorStateMetaInfo(new DataInputViewStreamWrapper(in));
 		}
 
 		Assert.assertEquals(name, metaInfo.getName());
-		Assert.assertEquals(null, metaInfo.getPartitionStateSerializer());
+		Assert.assertTrue(metaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(stateSerializer.snapshotConfiguration(), metaInfo.getPartitionStateSerializerConfigSnapshot());
 	}
 
@@ -361,22 +362,24 @@ public class SerializationProxiesTest {
 			serialized = out.toByteArray();
 		}
 
-		// mock failure when deserializing serializer
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
+		Set<String> cnfThrowingSerializerClasses = new HashSet<>();
+		cnfThrowingSerializerClasses.add(DoubleSerializer.class.getName());
+		cnfThrowingSerializerClasses.add(StringSerializer.class.getName());
 
 		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
 			broadcastMetaInfo = OperatorBackendStateMetaInfoSnapshotReaderWriters
-					.getBroadcastStateReaderForVersion(OperatorBackendSerializationProxy.VERSION, Thread.currentThread().getContextClassLoader())
+					.getBroadcastStateReaderForVersion(
+						OperatorBackendSerializationProxy.VERSION,
+						new ArtificialCNFExceptionThrowingClassLoader(
+							Thread.currentThread().getContextClassLoader(),
+							cnfThrowingSerializerClasses))
 					.readBroadcastStateMetaInfo(new DataInputViewStreamWrapper(in));
 		}
 
 		Assert.assertEquals(broadcastName, broadcastMetaInfo.getName());
-		Assert.assertEquals(null, broadcastMetaInfo.getKeySerializer());
+		Assert.assertTrue(broadcastMetaInfo.getKeySerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(keySerializer.snapshotConfiguration(), broadcastMetaInfo.getKeySerializerConfigSnapshot());
-		Assert.assertEquals(null, broadcastMetaInfo.getValueSerializer());
+		Assert.assertTrue(broadcastMetaInfo.getValueSerializer() instanceof UnloadableDummyTypeSerializer);
 		Assert.assertEquals(valueSerializer.snapshotConfiguration(), broadcastMetaInfo.getValueSerializerConfigSnapshot());
 	}
 

@@ -25,8 +25,10 @@ import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -38,6 +40,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,9 +56,11 @@ public class MiniClusterResource extends ExternalResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterResource.class);
 
-	private static final String CODEBASE_KEY = "codebase";
+	public static final String CODEBASE_KEY = "codebase";
 
-	private static final String NEW_CODEBASE = "new";
+	public static final String NEW_CODEBASE = "new";
+
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
@@ -67,12 +72,22 @@ public class MiniClusterResource extends ExternalResource {
 
 	private ClusterClient<?> clusterClient;
 
+	private Configuration restClusterClientConfig;
+
 	private int numberSlots = -1;
 
 	private TestEnvironment executionEnvironment;
 
+	private int webUIPort = -1;
+
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
 		this(miniClusterResourceConfiguration, false);
+	}
+
+	public MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final MiniClusterType miniClusterType) {
+		this(miniClusterResourceConfiguration, miniClusterType, false);
 	}
 
 	public MiniClusterResource(
@@ -111,12 +126,21 @@ public class MiniClusterResource extends ExternalResource {
 		return clusterClient;
 	}
 
+	public Configuration getClientConfiguration() {
+		return restClusterClientConfig;
+	}
+
 	public TestEnvironment getTestEnvironment() {
 		return executionEnvironment;
 	}
 
+	public int getWebUIPort() {
+		return webUIPort;
+	}
+
 	@Override
 	public void before() throws Exception {
+		temporaryFolder.create();
 
 		startJobExecutorService(miniClusterType);
 
@@ -129,6 +153,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
+		temporaryFolder.delete();
 
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
@@ -178,7 +203,8 @@ public class MiniClusterResource extends ExternalResource {
 	private void startLegacyMiniCluster() throws Exception {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
@@ -188,10 +214,18 @@ public class MiniClusterResource extends ExternalResource {
 		if (enableClusterClient) {
 			clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
 		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		if (flinkMiniCluster.webMonitor().isDefined()) {
+			webUIPort = flinkMiniCluster.webMonitor().get().getServerPort();
+		}
 	}
 
 	private void startMiniCluster() throws Exception {
 		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
 		// enabled this by default
@@ -204,7 +238,7 @@ public class MiniClusterResource extends ExternalResource {
 		}
 
 		// set rest port to 0 to avoid clashes with concurrent MiniClusters
-		configuration.setInteger(RestOptions.REST_PORT, 0);
+		configuration.setInteger(RestOptions.PORT, 0);
 
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
@@ -217,12 +251,18 @@ public class MiniClusterResource extends ExternalResource {
 		miniCluster.start();
 
 		// update the port of the rest endpoint
-		configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 		jobExecutorService = miniCluster;
 		if (enableClusterClient) {
 			clusterClient = new MiniClusterClient(configuration, miniCluster);
 		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
+		restClientConfig.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		webUIPort = miniCluster.getRestAddress().getPort();
 	}
 
 	/**

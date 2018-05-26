@@ -1317,7 +1317,7 @@ class JobManager(
           log.error(s"Failed to submit job $jobId ($jobName)", t)
 
           libraryCacheManager.unregisterJob(jobId)
-          blobServer.cleanupJob(jobId)
+          blobServer.cleanupJob(jobId, true)
           currentJobs.remove(jobId)
 
           if (executionGraph != null) {
@@ -1759,7 +1759,7 @@ class JobManager(
 
     // remove all job-related BLOBs from local and HA store
     libraryCacheManager.unregisterJob(jobID)
-    blobServer.cleanupJob(jobID)
+    blobServer.cleanupJob(jobID, removeJobFromStateBackend)
 
     jobManagerMetricGroup.removeJob(jobID)
 

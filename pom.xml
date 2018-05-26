@@ -120,7 +120,7 @@ under the License.
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.7.9</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
-		<prometheus.version>0.0.26</prometheus.version>
+		<prometheus.version>0.3.0</prometheus.version>
 		<avro.version>1.8.2</avro.version>
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
@@ -452,7 +452,7 @@ under the License.
 			<dependency>
 				<groupId>org.javassist</groupId>
 				<artifactId>javassist</artifactId>
-				<version>3.18.2-GA</version>
+				<version>3.19.0-GA</version>
 			</dependency>
 
 			<!-- joda time is pulled in different versions by different transitive dependencies-->
@@ -635,6 +635,63 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+
+		<profile>
+			<id>fast</id>
+			<activation>
+				<property>
+					<name>fast</name>
+				</property>
+			</activation>
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.rat</groupId>
+							<artifactId>apache-rat-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-checkstyle-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.scalastyle</groupId>
+							<artifactId>scalastyle-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-enforcer-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-javadoc-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>com.github.siom79.japicmp</groupId>
+							<artifactId>japicmp-maven-plugin</artifactId>
+							<configuration>
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
 
 		<profile>
 			<id>legacyCode</id>
@@ -1107,31 +1164,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<!-- Note: match version with docs/internals/ide_setup.md -->
-						<version>8.4</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>validate</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<configLocation>/tools/maven/checkstyle.xml</configLocation>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
-				</configuration>
 			</plugin>
 			<plugin>
 				<!-- just define the Java version to be used for compiling and plugins -->
@@ -1338,6 +1370,36 @@ under the License.
 
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-checkstyle-plugin</artifactId>
+					<version>2.17</version>
+					<dependencies>
+						<dependency>
+							<groupId>com.puppycrawl.tools</groupId>
+							<artifactId>checkstyle</artifactId>
+							<!-- Note: match version with docs/internals/ide_setup.md -->
+							<version>8.4</version>
+						</dependency>
+					</dependencies>
+					<executions>
+						<execution>
+							<id>validate</id>
+							<phase>validate</phase>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<suppressionsLocation>/tools/maven/suppressions.xml</suppressionsLocation>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<configLocation>/tools/maven/checkstyle.xml</configLocation>
+						<logViolationsToConsole>true</logViolationsToConsole>
+						<failOnViolation>true</failOnViolation>
+					</configuration>
+				</plugin>
+				
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
 					<version>2.9.1</version><!--$NO-MVN-MAN-VER$-->
 					<configuration>
@@ -1467,7 +1529,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.4.0</version>
+								<version>1.5.0</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>

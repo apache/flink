@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
-import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -42,7 +41,6 @@ public class TaskManagerServicesBuilder {
 	private IOManager ioManager;
 	private NetworkEnvironment networkEnvironment;
 	private BroadcastVariableManager broadcastVariableManager;
-	private FileCache fileCache;
 	private TaskSlotTable taskSlotTable;
 	private JobManagerTable jobManagerTable;
 	private JobLeaderService jobLeaderService;
@@ -59,7 +57,6 @@ public class TaskManagerServicesBuilder {
 		ioManager = mock(IOManager.class);
 		networkEnvironment = mock(NetworkEnvironment.class);
 		broadcastVariableManager = new BroadcastVariableManager();
-		fileCache = mock(FileCache.class);
 		taskSlotTable = mock(TaskSlotTable.class);
 		jobManagerTable = new JobManagerTable();
 		jobLeaderService = new JobLeaderService(taskManagerLocation);
@@ -91,11 +88,6 @@ public class TaskManagerServicesBuilder {
 		return this;
 	}
 
-	public TaskManagerServicesBuilder setFileCache(FileCache fileCache) {
-		this.fileCache = fileCache;
-		return this;
-	}
-
 	public TaskManagerServicesBuilder setTaskSlotTable(TaskSlotTable taskSlotTable) {
 		this.taskSlotTable = taskSlotTable;
 		return this;
@@ -123,7 +115,6 @@ public class TaskManagerServicesBuilder {
 			ioManager,
 			networkEnvironment,
 			broadcastVariableManager,
-			fileCache,
 			taskSlotTable,
 			jobManagerTable,
 			jobLeaderService,

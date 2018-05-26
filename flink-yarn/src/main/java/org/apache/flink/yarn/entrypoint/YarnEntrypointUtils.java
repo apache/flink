@@ -32,20 +32,17 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -58,20 +55,7 @@ public class YarnEntrypointUtils {
 			Configuration configuration,
 			String workingDirectory) throws Exception {
 
-		SecurityConfiguration sc;
-
-		//To support Yarn Secure Integration Test Scenario
-		File krb5Conf = new File(workingDirectory, Utils.KRB5_FILE_NAME);
-		if (krb5Conf.exists() && krb5Conf.canRead()) {
-			org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
-			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-
-			sc = new SecurityConfiguration(configuration,
-				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
-		} else {
-			sc = new SecurityConfiguration(configuration);
-		}
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 
 		SecurityUtils.install(sc);
 
@@ -95,7 +79,7 @@ public class YarnEntrypointUtils {
 			ApplicationConstants.Environment.NM_HOST.key());
 
 		configuration.setString(JobManagerOptions.ADDRESS, hostname);
-		configuration.setString(RestOptions.REST_ADDRESS, hostname);
+		configuration.setString(RestOptions.ADDRESS, hostname);
 
 		// TODO: Support port ranges for the AM
 //		final String portRange = configuration.getString(
@@ -115,9 +99,9 @@ public class YarnEntrypointUtils {
 			configuration.setInteger(WebOptions.PORT, 0);
 		}
 
-		if (configuration.getInteger(RestOptions.REST_PORT) >= 0) {
+		if (configuration.getInteger(RestOptions.PORT) >= 0) {
 			// set the REST port to 0 to select it randomly
-			configuration.setInteger(RestOptions.REST_PORT, 0);
+			configuration.setInteger(RestOptions.PORT, 0);
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the

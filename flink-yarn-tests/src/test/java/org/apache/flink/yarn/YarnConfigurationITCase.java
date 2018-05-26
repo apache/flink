@@ -159,10 +159,11 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 					taskManagerInfos = taskManagersInfo.getTaskManagerInfos();
 
-					if (taskManagerInfos.isEmpty()) {
-						Thread.sleep(100L);
-					} else {
+					// wait until the task manager has registered and reported its slots
+					if (hasTaskManagerConnectedAndReportedSlots(taskManagerInfos)) {
 						break;
+					} else {
+						Thread.sleep(100L);
 					}
 				}
 
@@ -184,10 +185,19 @@ public class YarnConfigurationITCase extends YarnTestBase {
 				clusterClient.shutdown();
 			}
 
-			clusterDescriptor.terminateCluster(clusterId);
+			clusterDescriptor.killCluster(clusterId);
 
 		} finally {
 			clusterDescriptor.close();
+		}
+	}
+
+	private boolean hasTaskManagerConnectedAndReportedSlots(Collection<TaskManagerInfo> taskManagerInfos) {
+		if (taskManagerInfos.isEmpty()) {
+			return false;
+		} else {
+			final TaskManagerInfo taskManagerInfo = taskManagerInfos.iterator().next();
+			return taskManagerInfo.getNumberSlots() > 0;
 		}
 	}
 }

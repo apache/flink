@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -61,6 +62,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -110,7 +112,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import akka.dispatch.Futures;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -125,6 +126,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -135,15 +137,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.impl.Promise;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -178,7 +175,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testEarlyCanceling() throws Exception {
-		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
+		Deadline deadline = Deadline.fromNow(Duration.ofMinutes(2));
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setOperatorID(new OperatorID(4711L, 42L));
 		cfg.setStreamOperator(new SlowlyDeserializingOperator());
@@ -194,7 +191,7 @@ public class StreamTaskTest extends TestLogger {
 		Future<ExecutionState> running = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.RUNNING);
 
 		// wait until the task thread reached state RUNNING
-		ExecutionState executionState = Await.result(running, deadline.timeLeft());
+		ExecutionState executionState = running.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		// make sure the task is really running
 		if (executionState != ExecutionState.RUNNING) {
@@ -208,7 +205,7 @@ public class StreamTaskTest extends TestLogger {
 
 		Future<ExecutionState> canceling = testingExecutionStateListener.notifyWhenExecutionState(ExecutionState.CANCELING);
 
-		executionState = Await.result(canceling, deadline.timeLeft());
+		executionState = canceling.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 		// the task should reach state canceled eventually
 		assertTrue(executionState == ExecutionState.CANCELING ||
@@ -332,7 +329,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskInfo mockTaskInfo = mock(TaskInfo.class);
 		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
 		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = new MockEnvironment();
+		Environment mockEnvironment = new MockEnvironmentBuilder().build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -402,7 +399,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		MockEnvironment mockEnvironment = new MockEnvironment();
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
 		StreamTask<?, ?> streamTask = spy(new EmptyStreamTask(mockEnvironment));
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
@@ -505,12 +502,10 @@ public class StreamTaskTest extends TestLogger {
 			null,
 			checkpointResponder);
 
-		MockEnvironment mockEnvironment = new MockEnvironment(
-			"mock-task",
-			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
-			null,
-			16,
-			taskStateManager);
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
+			.setTaskName("mock-task")
+			.setTaskStateManager(taskStateManager)
+			.build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -603,7 +598,7 @@ public class StreamTaskTest extends TestLogger {
 		final OneShotLatch createSubtask = new OneShotLatch();
 		final OneShotLatch completeSubtask = new OneShotLatch();
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		whenNew(OperatorSnapshotFinalizer.class).
 			withAnyArguments().
@@ -689,7 +684,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		// latch blocks until the async checkpoint thread acknowledges
 		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
@@ -769,14 +764,14 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
 		streamConfig.setOperatorID(new OperatorID());
 
-		try (MockEnvironment mockEnvironment = new MockEnvironment(
-				"Test Task",
-				32L * 1024L,
-				new MockInputSplitProvider(),
-				1,
-				taskConfiguration,
-				new ExecutionConfig(),
-				new TestTaskStateManager())) {
+		try (MockEnvironment mockEnvironment =
+				new MockEnvironmentBuilder()
+					.setTaskName("Test Task")
+					.setMemorySize(32L * 1024L)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(1)
+					.setTaskConfiguration(taskConfiguration)
+					.build()) {
 			StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
 			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
 
@@ -858,25 +853,17 @@ public class StreamTaskTest extends TestLogger {
 
 		private ExecutionState executionState = null;
 
-		private final PriorityQueue<Tuple2<ExecutionState, Promise<ExecutionState>>> priorityQueue = new PriorityQueue<>(
-			1,
-			new Comparator<Tuple2<ExecutionState, Promise<ExecutionState>>>() {
-				@Override
-				public int compare(Tuple2<ExecutionState, Promise<ExecutionState>> o1, Tuple2<ExecutionState, Promise<ExecutionState>> o2) {
-					return o1.f0.ordinal() - o2.f0.ordinal();
-				}
-			});
+		private final PriorityQueue<Tuple2<ExecutionState, CompletableFuture<ExecutionState>>> priorityQueue =
+			new PriorityQueue<>(1, Comparator.comparingInt(o -> o.f0.ordinal()));
 
-		public Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
+		Future<ExecutionState> notifyWhenExecutionState(ExecutionState executionState) {
 			synchronized (priorityQueue) {
 				if (this.executionState != null && this.executionState.ordinal() >= executionState.ordinal()) {
-					return Futures.<ExecutionState>successful(executionState);
+					return CompletableFuture.completedFuture(executionState);
 				} else {
-					Promise<ExecutionState> promise = new Promise.DefaultPromise<ExecutionState>();
-
+					CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 					priorityQueue.offer(Tuple2.of(executionState, promise));
-
-					return promise.future();
+					return promise;
 				}
 			}
 		}
@@ -887,9 +874,8 @@ public class StreamTaskTest extends TestLogger {
 				this.executionState = taskExecutionState.getExecutionState();
 
 				while (!priorityQueue.isEmpty() && priorityQueue.peek().f0.ordinal() <= executionState.ordinal()) {
-					Promise<ExecutionState> promise = priorityQueue.poll().f1;
-
-					promise.success(executionState);
+					CompletableFuture<ExecutionState> promise = priorityQueue.poll().f1;
+					promise.complete(executionState);
 				}
 			}
 		}

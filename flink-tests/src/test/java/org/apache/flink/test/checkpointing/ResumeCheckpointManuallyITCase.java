@@ -28,7 +28,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -253,12 +252,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-
-		if (localRecovery) {
-			config.setString(
-				CheckpointingOptions.LOCAL_RECOVERY,
-				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.toString());
-		}
+		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
 
 		// ZooKeeper recovery mode?
 		if (zooKeeperQuorum != null) {
