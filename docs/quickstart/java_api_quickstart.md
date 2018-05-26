@@ -111,7 +111,7 @@ In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit 
 ## Build Project
 
 If you want to __build/package your project__, go to your project directory and
-run the '`mvn clean package`' command.
+run the `mvn clean package` command.
 You will __find a JAR file__ that contains your application, plus connectors and libraries
 that you may have added as dependencies to the application: `target/<artifact-id>-<version>.jar`.
 
@@ -121,7 +121,7 @@ can run time application from the JAR file without additionally specifying the m
 
 ## Next Steps
 
-Write your application!
+Start writing your application and also you can look into [Quickstart]({{ site.baseurl }}/quickstart/setup_quickstart.html) to run an application.
 
 If you are writing a streaming application and you are looking for inspiration what to write,
 take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/quickstart/run_example_quickstart.html#writing-a-flink-program).
