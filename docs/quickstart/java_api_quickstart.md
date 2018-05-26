@@ -131,6 +131,8 @@ For a complete overview over the APIa, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 
+[Here]({{ site.baseurl }}/quickstart/setup_quickstart.html) you can find out how to run an application outside the IDE on a local cluster.
+
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.
