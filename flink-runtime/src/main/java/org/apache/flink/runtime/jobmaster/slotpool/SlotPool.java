@@ -79,7 +79,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The slot pool serves slot request issued by {@link ExecutionGraph}. It will will attempt to acquire new slots
+ * The slot pool serves slot request issued by {@link ExecutionGraph}. It will attempt to acquire new slots
  * from the ResourceManager when it cannot serve a slot request. If no ResourceManager is currently available,
  * or it gets a decline from the ResourceManager, or a request times out, it fails the slot request. The slot pool also
  * holds all the slots that were offered to it and accepted, and can thus provides registered free slots even if the

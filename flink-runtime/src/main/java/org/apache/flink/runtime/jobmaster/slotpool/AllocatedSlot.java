@@ -151,7 +151,7 @@ class AllocatedSlot implements SlotContext {
 	}
 
 	/**
-	 * Returns true if this slot is not being used (e.g. a logical slot is allocated from this slot).
+	 * Returns true if this slot is being used (e.g. a logical slot is allocated from this slot).
 	 *
 	 * @return true if a logical slot is allocated from this slot, otherwise false
 	 */
