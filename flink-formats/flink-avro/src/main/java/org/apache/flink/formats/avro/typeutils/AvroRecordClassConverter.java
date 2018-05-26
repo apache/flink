@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
@@ -30,6 +31,7 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Utilities for Avro record class conversion.
@@ -73,9 +75,37 @@ public class AvroRecordClassConverter {
 			final GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) extracted;
 			if (genericTypeInfo.getTypeClass() == Utf8.class) {
 				return BasicTypeInfo.STRING_TYPE_INFO;
+			} else if (genericTypeInfo.getTypeClass() == Map.class) {
+				// avro map key is always string
+				return Types.MAP(Types.STRING,
+					convertPrimitiveType(schema.getValueType().getType()));
+			} else if (genericTypeInfo.getTypeClass() == List.class &&
+				schema.getType() == Schema.Type.ARRAY) {
+				return Types.LIST(convertPrimitiveType(schema.getElementType().getType()));
 			}
 		}
 		return extracted;
 	}
 
+	/**
+	 * Converts Avro primitive type into corresponding TypeInformation.
+	 */
+	private static TypeInformation convertPrimitiveType(Schema.Type type){
+		TypeInformation ctype = Types.VOID;
+		if (type == Schema.Type.STRING) {
+			ctype = Types.STRING;
+		} else if (type == Schema.Type.INT) {
+			ctype = Types.INT;
+		} else if (type == Schema.Type.LONG) {
+			ctype = Types.LONG;
+		} else if (type == Schema.Type.FLOAT) {
+			ctype = Types.FLOAT;
+		} else if (type == Schema.Type.DOUBLE) {
+			ctype = Types.DOUBLE;
+		} else if (type == Schema.Type.BOOLEAN) {
+			ctype = Types.BOOLEAN;
+		}
+
+		return ctype;
+	}
 }

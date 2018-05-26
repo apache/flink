@@ -20,6 +20,8 @@ package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.User;
@@ -60,9 +62,21 @@ public final class AvroTestUtils {
 		final Schema nullSchema = Schema.create(Schema.Type.NULL);
 
 		for (int i = 0; i < fieldNames.length; i++) {
-			Schema schema = ReflectData.get().getSchema(fieldTypes[i].getTypeClass());
-			Schema unionSchema = Schema.createUnion(Arrays.asList(nullSchema, schema));
-			fieldAssembler.name(fieldNames[i]).type(unionSchema).noDefault();
+			if (fieldTypes[i] instanceof MapTypeInfo) {
+				MapTypeInfo mapTypeInfo = (MapTypeInfo) fieldTypes[i];
+				Schema valueSchema = ReflectData.get().getSchema(mapTypeInfo.getValueTypeInfo().getTypeClass());
+				Schema schema = Schema.createMap(valueSchema);
+				fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
+			} else if (fieldTypes[i] instanceof ListTypeInfo) {
+				ListTypeInfo listTypeInfo = (ListTypeInfo) fieldTypes[i];
+				Schema elementSchema = ReflectData.get().getSchema(listTypeInfo.getElementTypeInfo().getTypeClass());
+				Schema schema = Schema.createArray(elementSchema);
+				fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
+			} else {
+				Schema schema = ReflectData.get().getSchema(fieldTypes[i].getTypeClass());
+				Schema unionSchema = Schema.createUnion(Arrays.asList(nullSchema, schema));
+				fieldAssembler.name(fieldNames[i]).type(unionSchema).noDefault();
+			}
 		}
 
 		return fieldAssembler.endRecord();
