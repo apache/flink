@@ -130,6 +130,7 @@ abstract class NonWindowOuterJoin(
       if (recordNum == 1 && value.change) {
         cRowWrapper.setChange(false)
         collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+        // recover for the next iteration
         cRowWrapper.setChange(true)
       }
       // do normal join
@@ -139,6 +140,8 @@ abstract class NonWindowOuterJoin(
       if (!value.change && recordNum == 0) {
         cRowWrapper.setChange(true)
         collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+        // recover for the next iteration
+        cRowWrapper.setChange(false)
       }
       // clear expired data. Note: clear after join to keep closer to the original semantics
       if (stateCleaningEnabled && curProcessTime >= otherSideCntAndExpiredTime.f1) {

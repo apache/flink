@@ -109,6 +109,7 @@ import org.apache.flink.types.Row
             // retract previous non matched result row
             cRowWrapper.setChange(false)
             collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+            // recover for the next iteration
             cRowWrapper.setChange(true)
           }
           // do normal join
@@ -121,6 +122,8 @@ import org.apache.flink.types.Row
             // output non matched result row
             cRowWrapper.setChange(true)
             collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+            // recover for the next iteration
+            cRowWrapper.setChange(false)
           }
         }
       }
