@@ -142,8 +142,13 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -806,6 +811,44 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Test set user code ClassLoader before calling ProcessingTimeCallback.
+	 */
+	@Test
+	public void testSetsUserCodeClassLoaderForTimerThreadFactory() throws Throwable {
+		syncLatch = new OneShotLatch();
+
+		try (MockEnvironment mockEnvironment =
+			new MockEnvironmentBuilder()
+				.setUserCodeClassLoader(new TestUserCodeClassLoader())
+				.build()) {
+			TimeServiceTask timerServiceTask = new TimeServiceTask(mockEnvironment);
+
+			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
+
+			CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
+				() -> {
+					try {
+						timerServiceTask.invoke();
+					} catch (Exception e) {
+						atomicThrowable.set(e);
+					}
+				},
+				TestingUtils.defaultExecutor());
+
+			// wait until the invoke is complete
+			invokeFuture.get();
+
+			assertThat(timerServiceTask.getClassLoaders(), hasSize(greaterThanOrEqualTo(1)));
+			assertThat(timerServiceTask.getClassLoaders(), everyItem(instanceOf(TestUserCodeClassLoader.class)));
+
+			// check if an exception occurred
+			if (atomicThrowable.get() != null) {
+				throw atomicThrowable.get();
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Utilities
 	// ------------------------------------------------------------------------
@@ -1237,6 +1280,57 @@ public class StreamTaskTest extends TestLogger {
 			throw new Exception("test exception");
 		}
 
+	}
+
+	/**
+	 * A task that register a processing time service callback.
+	 */
+	public static class TimeServiceTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		private final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
+
+		public TimeServiceTask(Environment env) {
+			super(env, null);
+		}
+
+		public List<ClassLoader> getClassLoaders() {
+			return classLoaders;
+		}
+
+		@Override
+		protected void init() throws Exception {
+			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+				@Override
+				public void onProcessingTime(long timestamp) throws Exception {
+					classLoaders.add(Thread.currentThread().getContextClassLoader());
+					syncLatch.trigger();
+				}
+			});
+		}
+
+		@Override
+		protected void run() throws Exception {
+			syncLatch.await();
+		}
+
+		@Override
+		protected void cleanup() throws Exception {
+
+		}
+
+		@Override
+		protected void cancelTask() throws Exception {
+
+		}
+	}
+
+	/**
+	 * A {@link ClassLoader} that delegates everything to {@link ClassLoader#getSystemClassLoader()}.
+	 */
+	private static class TestUserCodeClassLoader extends ClassLoader {
+		public TestUserCodeClassLoader() {
+			super(ClassLoader.getSystemClassLoader());
+		}
 	}
 
 	// ------------------------------------------------------------------------
