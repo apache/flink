@@ -84,8 +84,10 @@ public abstract class RestartStrategyFactory implements Serializable {
 		Configuration flinkConf) throws Exception {
 
 		RestartStrategyFactory restartStrategyFactory = createRestartStrategyFactory(flinkConf);
+
+		//this means flinkConf do not have restart configuration
 		if (restartStrategyFactory instanceof NoRestartStrategy.NoRestartStrategyFactory) {
-			return RestartStrategies.noRestart();
+			return null;
 
 		} else if (restartStrategyFactory instanceof FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory) {
 			long interval = ((FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory) restartStrategyFactory).getDelay();
@@ -101,8 +103,6 @@ public abstract class RestartStrategyFactory implements Serializable {
 				failureStrategy.getFailuresInterval(),
 				failureStrategy.getDelayInterval()
 			);
-		} else if (restartStrategyFactory == null) {
-			return RestartStrategies.fallBackRestart();
 		} else {
 			throw new IllegalArgumentException("Unsupported RestartStrategyFactory " + restartStrategyFactory.toString());
 		}

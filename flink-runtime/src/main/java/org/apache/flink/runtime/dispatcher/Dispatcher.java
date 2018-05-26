@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +31,7 @@ import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -83,6 +86,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.api.common.ExecutionConfig.DEFAULT_RESTART_DELAY;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible
@@ -241,12 +246,45 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				return FutureUtils.completedExceptionally(
 					new JobSubmissionException(jobId, String.format("Job has already been submitted and is in state %s.", jobSchedulingStatus)));
 			} else {
+
+				//  if client disable checkpoint and do not set restart strategy, Restart strategy will be set as in flink-conf.yaml
+				//  in cluster point.
+				setJobgraphRestartStrategy(jobGraph, configuration, true);
 				persistAndRunJob(jobGraph);
 
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			}
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(new FlinkException(String.format("Failed to submit job %s.", jobId), e));
+		}
+	}
+
+	/**
+	 *
+	 * @param job  job graph
+	 * @param configuration configuration in flink-conf.yaml
+	 * @param isClusterPoint whether this is client side or cluster site
+	 */
+	public static void setJobgraphRestartStrategy(JobGraph job, Configuration configuration, boolean isClusterPoint) {
+
+		try {
+			ExecutionConfig config = job.getSerializedExecutionConfig().deserializeValue(
+				Dispatcher.class.getClassLoader());
+
+			if (config.getRestartStrategy() == null) {
+				RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
+					RestartStrategyFactory.createRestartStrategyConfiguration(configuration);
+
+				//FixedDelay will be as default
+				if (restartStrategyConfiguration == null && isClusterPoint) {
+					restartStrategyConfiguration = RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE,
+						DEFAULT_RESTART_DELAY);
+				}
+				config.setRestartStrategy(restartStrategyConfiguration);
+			}
+			job.setExecutionConfig(config);
+		} catch (Exception e) {
+			throw new RuntimeException("Can't get job Restart strategy from flink conf.", e);
 		}
 	}
 

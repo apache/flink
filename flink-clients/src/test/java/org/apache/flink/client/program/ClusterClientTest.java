@@ -246,7 +246,7 @@ public class ClusterClientTest extends TestLogger {
 		try {
 			Assert.assertTrue(jobGraph1.getSerializedExecutionConfig()
 				.deserializeValue(this.getClass().getClassLoader())
-				.getRestartStrategy() instanceof RestartStrategies.NoRestartStrategyConfiguration);
+				.getRestartStrategy() == null);
 		} catch (Exception e) {
 			Assert.fail("deserializedValue get error: " + e);
 		}
