@@ -42,11 +42,19 @@ import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.FunctionValidator;
 import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
@@ -73,6 +81,7 @@ public class ExecutionContext<T> {
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
 	private final CustomCommandLine<T> activeCommandLine;
@@ -100,6 +109,16 @@ public class ExecutionContext<T> {
 						(TableSourceDescriptor) descriptor, classLoader);
 				tableSources.put(name, tableSource);
 			}
+		});
+
+		// generate user-defined functions
+		functions = new HashMap<>();
+		mergedEnv.getFunctions().forEach((name, descriptor) -> {
+			DescriptorProperties properties = new DescriptorProperties(true);
+			descriptor.addProperties(properties);
+			functions.put(
+					name,
+					FunctionValidator.generateUserDefinedFunction(properties, classLoader));
 		});
 
 		// convert deployment options into command line options that describe a cluster
@@ -188,6 +207,7 @@ public class ExecutionContext<T> {
 		private final StreamExecutionEnvironment streamExecEnv;
 		private final TableEnvironment tableEnv;
 
+		@SuppressWarnings("unchecked")
 		private EnvironmentInstance() {
 			// create environments
 			if (mergedEnv.getExecution().isStreamingExecution()) {
@@ -207,6 +227,31 @@ public class ExecutionContext<T> {
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
+
+			// register UDFs
+			if (tableEnv instanceof StreamTableEnvironment) {
+				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction) v);
+					}
+				});
+			} else {
+				BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						batchTableEnvironment.registerFunction(k, (AggregateFunction) v);
+					} else if (v instanceof TableFunction) {
+						batchTableEnvironment.registerFunction(k, (TableFunction) v);
+					}
+				});
+			}
 		}
 
 		public QueryConfig getQueryConfig() {
