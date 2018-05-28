@@ -82,10 +82,7 @@ if [ $EXIT_CODE == 0 ]; then
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Distributed cache end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh
+    run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
     EXIT_CODE=$?
 fi
 
