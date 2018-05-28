@@ -31,7 +31,7 @@ verify_elasticsearch_process_exist
 start_cluster
 
 function test_cleanup {
-  shutdown_elasticsearch_cluster
+  shutdown_elasticsearch_cluster index
 
   # make sure to run regular cleanup as well
    cleanup
@@ -48,4 +48,4 @@ $FLINK_DIR/bin/flink run -p 1 $TEST_ES_JAR \
   --index index \
   --type type
 
-verify_result 20
+verify_result 20 index
