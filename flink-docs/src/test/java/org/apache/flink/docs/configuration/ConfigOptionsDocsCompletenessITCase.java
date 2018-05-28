@@ -116,7 +116,7 @@ public class ConfigOptionsDocsCompletenessITCase {
 	}
 
 	private static Map<String, DocumentedOption> parseDocumentedCommonOptions() throws IOException {
-		Path commonSection = Paths.get("..", "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
+		Path commonSection = Paths.get(System.getProperty("rootDir"), "docs", "_includes", "generated", COMMON_SECTION_FILE_NAME);
 		return parseDocumentedOptionsFromFile(commonSection).stream()
 			.collect(Collectors.toMap(option -> option.key, option -> option, (option1, option2) -> {
 				if (option1.equals(option2)) {
