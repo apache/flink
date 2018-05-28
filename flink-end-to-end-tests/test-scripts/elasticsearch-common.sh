@@ -56,13 +56,14 @@ function verify_elasticsearch_process_exist {
 
 function verify_result {
     local numRecords=$1
+    local index=$2
 
     if [ -f "$TEST_DATA_DIR/output" ]; then
         rm $TEST_DATA_DIR/output
     fi
 
     while : ; do
-      curl 'localhost:9200/index/_search?q=*&pretty&size=21' > $TEST_DATA_DIR/output
+      curl "localhost:9200/$index/_search?q=*&pretty&size=21" > $TEST_DATA_DIR/output
 
       if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/output)" ]; then
           echo "Elasticsearch end to end test pass."
@@ -75,6 +76,8 @@ function verify_result {
 }
 
 function shutdown_elasticsearch_cluster {
+   local index=$1
+   curl -X DELETE "http://localhost:9200/$index"
    pid=$(jps | grep Elasticsearch | awk '{print $1}')
    kill -9 $pid
 }
