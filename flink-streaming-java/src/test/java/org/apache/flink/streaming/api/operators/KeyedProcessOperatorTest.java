@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeDomain;
+import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -185,9 +187,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		testHarness.processWatermark(new Watermark(1));
 		testHarness.processElement(new StreamRecord<>(17, 0L)); // should set timer for 6
+		testHarness.processElement(new StreamRecord<>(13, 0L)); // should set timer for 6
 
 		testHarness.processWatermark(new Watermark(2));
 		testHarness.processElement(new StreamRecord<>(42, 1L)); // should set timer for 7
+		testHarness.processElement(new StreamRecord<>(13, 1L)); // should delete timer
 
 		testHarness.processWatermark(new Watermark(6));
 		testHarness.processWatermark(new Watermark(7));
@@ -196,6 +200,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		expectedOutput.add(new Watermark(1L));
 		expectedOutput.add(new StreamRecord<>("INPUT:17", 0L));
+		expectedOutput.add(new StreamRecord<>("INPUT:13", 0L));
 		expectedOutput.add(new Watermark(2L));
 		expectedOutput.add(new StreamRecord<>("INPUT:42", 1L));
 		expectedOutput.add(new StreamRecord<>("STATE:17", 6L));
@@ -225,8 +230,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		testHarness.setProcessingTime(1);
 		testHarness.processElement(new StreamRecord<>(17)); // should set timer for 6
+		testHarness.processElement(new StreamRecord<>(13)); // should set timer for 6
 
 		testHarness.setProcessingTime(2);
+		testHarness.processElement(new StreamRecord<>(13)); // should delete timer
 		testHarness.processElement(new StreamRecord<>(42)); // should set timer for 7
 
 		testHarness.setProcessingTime(6);
@@ -235,6 +242,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		expectedOutput.add(new StreamRecord<>("INPUT:17"));
+		expectedOutput.add(new StreamRecord<>("INPUT:13"));
 		expectedOutput.add(new StreamRecord<>("INPUT:42"));
 		expectedOutput.add(new StreamRecord<>("STATE:17"));
 		expectedOutput.add(new StreamRecord<>("STATE:42"));
@@ -457,12 +465,23 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
-			out.collect("INPUT:" + value);
-			getRuntimeContext().getState(state).update(value);
-			if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
-				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
+			final TimerService timerService = ctx.timerService();
+			final ValueState<Integer> state = getRuntimeContext().getState(this.state);
+			if (state.value() == null) {
+				out.collect("INPUT:" + value);
+				state.update(value);
+				if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
+					timerService.registerEventTimeTimer(timerService.currentWatermark() + 5);
+				} else {
+					timerService.registerProcessingTimeTimer(timerService.currentProcessingTime() + 5);
+				}
 			} else {
-				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
+				state.clear();
+				if (expectedTimeDomain.equals(TimeDomain.EVENT_TIME)) {
+					timerService.deleteEventTimeTimer(timerService.currentWatermark() + 4);
+				} else {
+					timerService.deleteProcessingTimeTimer(timerService.currentProcessingTime() + 4);
+				}
 			}
 		}
 
@@ -488,8 +507,14 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
-			ctx.timerService().registerProcessingTimeTimer(5);
-			ctx.timerService().registerEventTimeTimer(6);
+			final TimerService timerService = ctx.timerService();
+
+			timerService.registerProcessingTimeTimer(3);
+			timerService.registerEventTimeTimer(4);
+			timerService.registerProcessingTimeTimer(5);
+			timerService.registerEventTimeTimer(6);
+			timerService.deleteProcessingTimeTimer(3);
+			timerService.deleteEventTimeTimer(4);
 		}
 
 		@Override
