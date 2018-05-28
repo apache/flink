@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -75,6 +76,7 @@ public class JobManagerOptions {
 	/**
 	 * JVM heap size (in megabytes) for the JobManager.
 	 */
+	@Documentation.CommonOption
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
 		.defaultValue(1024)

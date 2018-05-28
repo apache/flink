@@ -191,6 +191,7 @@ public class CoreOptions {
 	//  program
 	// ------------------------------------------------------------------------
 
+	@Documentation.CommonOption
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(1);

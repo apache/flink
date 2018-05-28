@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.docs.Documentation;
+
 /**
  * A collection of all configuration options that relate to checkpoints
  * and savepoints.
@@ -29,6 +31,7 @@ public class CheckpointingOptions {
 	// ------------------------------------------------------------------------
 
 	/** The state backend to be used to store and checkpoint state. */
+	@Documentation.CommonOption
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
 			.noDefaultValue()
@@ -86,6 +89,7 @@ public class CheckpointingOptions {
 
 	/** The default directory for savepoints. Used by the state backends that write
 	 * savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
+	@Documentation.CommonOption
 	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
 			.key("state.savepoints.dir")
 			.noDefaultValue()
@@ -95,6 +99,7 @@ public class CheckpointingOptions {
 
 	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
 	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
+	@Documentation.CommonOption
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
 			.noDefaultValue()
