@@ -87,7 +87,7 @@ public class SecurityOptions {
 	/**
 	 * Enable SSL support.
 	 */
-	@Documentation.CommonOption
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("security.ssl.enabled")
 			.defaultValue(false)

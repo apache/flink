@@ -26,6 +26,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -42,8 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Class used for generating code based documentation of configuration parameters.
@@ -98,6 +98,15 @@ public class ConfigOptionsDocGenerator {
 		for (OptionsClassLocation location : locations) {
 			commonOptions.addAll(findCommonOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
 		}
+		commonOptions.sort((o1, o2) -> {
+			int position1 = o1.field.getAnnotation(Documentation.CommonOption.class).position();
+			int position2 = o2.field.getAnnotation(Documentation.CommonOption.class).position();
+			if (position1 == position2) {
+				return o1.option.key().compareTo(o2.option.key());
+			} else {
+				return Integer.compare(position1, position2);
+			}
+		});
 
 		String commonHtmlTable = toHtmlTable(commonOptions);
 		Files.write(Paths.get(outputDirectory, COMMON_SECTION_FILE_NAME), commonHtmlTable.getBytes(StandardCharsets.UTF_8));

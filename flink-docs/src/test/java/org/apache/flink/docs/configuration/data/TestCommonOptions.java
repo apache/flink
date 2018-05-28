@@ -28,13 +28,19 @@ import org.apache.flink.configuration.ConfigOptions;
 public class TestCommonOptions {
 
 	@Documentation.CommonOption
-	public static ConfigOption<Integer> firstOption = ConfigOptions
+	public static final ConfigOption<Integer> COMMON_OPTION = ConfigOptions
 		.key("first.option.a")
 		.defaultValue(2)
-		.withDescription("This is example description for the first option.");
+		.withDescription("This is the description for the common option.");
 
-	public static ConfigOption<String> secondOption = ConfigOptions
+	public static final ConfigOption<String> GENERIC_OPTION = ConfigOptions
 		.key("second.option.a")
 		.noDefaultValue()
-		.withDescription("This is long example description for the second option.");
+		.withDescription("This is the description for the generic option.");
+
+	@Documentation.CommonOption(position = 2)
+	public static final ConfigOption<Integer> COMMON_POSITIONED_OPTION = ConfigOptions
+		.key("third.option.a")
+		.defaultValue(3)
+		.withDescription("This is the description for the positioned common option.");
 }
