@@ -33,6 +33,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Heartbeat manager implementation. The heartbeat manager maintains a map of heartbeat monitors
@@ -64,8 +65,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	/** Map containing the heartbeat monitors associated with the respective resource ID. */
 	private final ConcurrentHashMap<ResourceID, HeartbeatManagerImpl.HeartbeatMonitor<O>> heartbeatTargets;
 
-	/** Execution context used to run future callbacks. */
-	private final Executor executor;
+	/** Supplier provides the execution context used to run future callbacks. */
+	private final Supplier<Executor> executorSupplier;
 
 	/** Running state of the heartbeat manager. */
 	protected volatile boolean stopped;
@@ -77,6 +78,22 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 			Executor executor,
 			ScheduledExecutor scheduledExecutor,
 			Logger log) {
+		this(
+			heartbeatTimeoutIntervalMs,
+			ownResourceID,
+			heartbeatListener,
+			() -> executor,
+			scheduledExecutor,
+			log);
+	}
+
+	public HeartbeatManagerImpl(
+			long heartbeatTimeoutIntervalMs,
+			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
+			Supplier<Executor> executorSupplier,
+			ScheduledExecutor scheduledExecutor,
+			Logger log) {
 		Preconditions.checkArgument(heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout has to be larger than 0.");
 
 		this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
@@ -84,7 +101,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener, "heartbeatListener");
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 		this.log = Preconditions.checkNotNull(log);
-		this.executor = Preconditions.checkNotNull(executor);
+		this.executorSupplier = Preconditions.checkNotNull(executorSupplier);
 		this.heartbeatTargets = new ConcurrentHashMap<>(16);
 
 		stopped = false;
@@ -99,7 +116,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	}
 
 	Executor getExecutor() {
-		return executor;
+		return executorSupplier.get();
 	}
 
 	HeartbeatListener<I, O> getHeartbeatListener() {
@@ -207,7 +224,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 				if (futurePayload != null) {
 					CompletableFuture<Void> sendHeartbeatFuture = futurePayload.thenAcceptAsync(
 						retrievedPayload ->	heartbeatTarget.receiveHeartbeat(getOwnResourceID(), retrievedPayload),
-						executor);
+						getExecutor());
 
 					sendHeartbeatFuture.exceptionally((Throwable failure) -> {
 							log.warn("Could not send heartbeat to target with id {}.", requestOrigin, failure);

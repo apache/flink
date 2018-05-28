@@ -253,14 +253,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
 			new TaskManagerHeartbeatListener(selfGateway),
+			() -> getMainThreadExecutor(),
 			rpcService.getScheduledExecutor(),
 			log);
 
 		this.resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-				resourceId,
-				new ResourceManagerHeartbeatListener(),
-				rpcService.getScheduledExecutor(),
-				log);
+			resourceId,
+			new ResourceManagerHeartbeatListener(),
+			() -> getMainThreadExecutor(),
+			rpcService.getScheduledExecutor(),
+			log);
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();

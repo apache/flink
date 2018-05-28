@@ -24,6 +24,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
+
 /**
  * A {@link HeartbeatServices} that allows the injection of a {@link ScheduledExecutor}.
  */
@@ -41,6 +44,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
 		ResourceID resourceId,
 		HeartbeatListener<I, O> heartbeatListener,
+		Supplier<Executor> executorSupplier,
 		ScheduledExecutor scheduledExecutor,
 		Logger log) {
 

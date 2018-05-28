@@ -26,6 +26,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
+
 /**
  * HeartbeatServices gives access to all services needed for heartbeating. This includes the
  * creation of heartbeat receivers and heartbeat senders.
@@ -52,6 +55,7 @@ public class HeartbeatServices {
 	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
 	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
 	 *                          targets
+	 * @param executorSupplier Supplier provides executor to be used to sending heartbeat
 	 * @param scheduledExecutor Scheduled executor to be used for scheduling heartbeat timeouts
 	 * @param log Logger to be used for the logging
 	 * @param <I> Type of the incoming payload
@@ -61,6 +65,7 @@ public class HeartbeatServices {
 	public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
 		ResourceID resourceId,
 		HeartbeatListener<I, O> heartbeatListener,
+		Supplier<Executor> executorSupplier,
 		ScheduledExecutor scheduledExecutor,
 		Logger log) {
 
@@ -68,7 +73,7 @@ public class HeartbeatServices {
 			heartbeatTimeout,
 			resourceId,
 			heartbeatListener,
-			scheduledExecutor,
+			executorSupplier,
 			scheduledExecutor,
 			log);
 	}
@@ -79,6 +84,7 @@ public class HeartbeatServices {
 	 * @param resourceId Resource Id which identifies the owner of the heartbeat manager
 	 * @param heartbeatListener Listener which will be notified upon heartbeat timeouts for registered
 	 *                          targets
+	 * @param executorSupplier Supplier provides executor to be used to sending heartbeat
 	 * @param scheduledExecutor Scheduled executor to be used for scheduling heartbeat timeouts
 	 * @param log Logger to be used for the logging
 	 * @param <I> Type of the incoming payload
@@ -88,6 +94,7 @@ public class HeartbeatServices {
 	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
 		ResourceID resourceId,
 		HeartbeatListener<I, O> heartbeatListener,
+		Supplier<Executor> executorSupplier,
 		ScheduledExecutor scheduledExecutor,
 		Logger log) {
 
@@ -96,7 +103,7 @@ public class HeartbeatServices {
 			heartbeatTimeout,
 			resourceId,
 			heartbeatListener,
-			scheduledExecutor,
+			executorSupplier,
 			scheduledExecutor,
 			log);
 	}

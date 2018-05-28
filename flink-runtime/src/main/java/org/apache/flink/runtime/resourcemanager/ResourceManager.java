@@ -169,12 +169,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
 			new TaskManagerHeartbeatListener(),
+			() -> getMainThreadExecutor(),
 			rpcService.getScheduledExecutor(),
 			log);
 
 		this.jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
 			new JobManagerHeartbeatListener(),
+			() -> getMainThreadExecutor(),
 			rpcService.getScheduledExecutor(),
 			log);
 

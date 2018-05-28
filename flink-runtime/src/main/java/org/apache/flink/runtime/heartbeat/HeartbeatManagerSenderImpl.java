@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * {@link HeartbeatManager} implementation which regularly requests a heartbeat response from
@@ -47,11 +48,29 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 			Executor executor,
 			ScheduledExecutor scheduledExecutor,
 			Logger log) {
+		this(
+			heartbeatPeriod,
+			heartbeatTimeout,
+			ownResourceID,
+			heartbeatListener,
+			() -> executor,
+			scheduledExecutor,
+			log);
+	}
+
+	public HeartbeatManagerSenderImpl(
+			long heartbeatPeriod,
+			long heartbeatTimeout,
+			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
+			Supplier<Executor> executorSupplier,
+			ScheduledExecutor scheduledExecutor,
+			Logger log) {
 		super(
 			heartbeatTimeout,
 			ownResourceID,
 			heartbeatListener,
-			executor,
+			executorSupplier,
 			scheduledExecutor,
 			log);
 
@@ -60,28 +79,31 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 
 	@Override
 	public void run() {
-		if (!stopped) {
-			log.debug("Trigger heartbeat request.");
-			for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
-				CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
-				final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
+		final Executor executor = getExecutor();
+		executor.execute(() -> {
+			if (!stopped) {
+				log.debug("Trigger heartbeat request.");
+				for (HeartbeatMonitor<O> heartbeatMonitor : getHeartbeatTargets()) {
+					CompletableFuture<O> futurePayload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
+					final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
-				if (futurePayload != null) {
-					CompletableFuture<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(
-						payload -> heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload),
-						getExecutor());
+					if (futurePayload != null) {
+						CompletableFuture<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(
+							payload -> heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload),
+							executor);
 
-					requestHeartbeatFuture.exceptionally(
-						(Throwable failure) -> {
-							log.warn("Could not request the heartbeat from target {}.", heartbeatTarget, failure);
+						requestHeartbeatFuture.exceptionally(
+							(Throwable failure) -> {
+								log.warn("Could not request the heartbeat from target {}.", heartbeatTarget, failure);
 
-							return null;
-						});
-				} else {
-					heartbeatTarget.requestHeartbeat(getOwnResourceID(), null);
+								return null;
+							});
+					} else {
+						heartbeatTarget.requestHeartbeat(getOwnResourceID(), null);
+					}
 				}
 			}
-		}
+		});
 	}
 
 	@Override

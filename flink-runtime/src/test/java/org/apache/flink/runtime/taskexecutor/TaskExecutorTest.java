@@ -128,6 +128,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -476,6 +477,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(heartbeatServices.createHeartbeatManager(
 			eq(taskManagerLocation.getResourceID()),
 			any(HeartbeatListener.class),
+			any(Supplier.class),
 			any(ScheduledExecutor.class),
 			any(Logger.class))).thenAnswer(
 			new Answer<HeartbeatManagerImpl<SlotReport, Void>>() {
@@ -485,9 +487,9 @@ public class TaskExecutorTest extends TestLogger {
 						heartbeatTimeout,
 						taskManagerLocation.getResourceID(),
 						(HeartbeatListener<SlotReport, Void>)invocation.getArguments()[1],
-						(Executor)invocation.getArguments()[2],
-						(ScheduledExecutor)invocation.getArguments()[2],
-						(Logger)invocation.getArguments()[3]));
+						(Supplier<Executor>)invocation.getArguments()[2],
+						(ScheduledExecutor)invocation.getArguments()[3],
+						(Logger)invocation.getArguments()[4]));
 				}
 			}
 		);
@@ -1736,12 +1738,17 @@ public class TaskExecutorTest extends TestLogger {
 		}
 
 		@Override
-		public <I, O> HeartbeatManager<I, O> createHeartbeatManager(ResourceID resourceId, HeartbeatListener<I, O> heartbeatListener, ScheduledExecutor scheduledExecutor, Logger log) {
+		public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
+			ResourceID resourceId,
+			HeartbeatListener<I, O> heartbeatListener,
+			Supplier<Executor> executor,
+			ScheduledExecutor scheduledExecutor,
+			Logger log) {
 			return new RecordingHeartbeatManagerImpl<>(
 				heartbeatTimeout,
 				resourceId,
 				heartbeatListener,
-				scheduledExecutor,
+				executor,
 				scheduledExecutor,
 				log,
 				unmonitoredTargets,
@@ -1770,7 +1777,7 @@ public class TaskExecutorTest extends TestLogger {
 				long heartbeatTimeoutIntervalMs,
 				ResourceID ownResourceID,
 				HeartbeatListener<I, O> heartbeatListener,
-				Executor executor,
+				Supplier<Executor> executor,
 				ScheduledExecutor scheduledExecutor,
 				Logger log,
 				BlockingQueue<ResourceID> unmonitoredTargets,

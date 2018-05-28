@@ -240,12 +240,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
 			resourceId,
 			new JobManagerHeartbeatListener(),
+			() -> getMainThreadExecutor(),
 			rpcService.getScheduledExecutor(),
 			log);
 
 		this.resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
 			resourceId,
 			new ResourceManagerHeartbeatListener(),
+			() -> getMainThreadExecutor(),
 			rpcService.getScheduledExecutor(),
 			log);
 
