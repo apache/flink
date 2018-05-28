@@ -512,6 +512,24 @@ echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 rm $MVN_PID
 rm $MVN_EXIT
 
+# only run dependency-convergence in misc because it is the only profile building all of Flink
+case $TEST in
+	(misc)
+		if [ $EXIT_CODE == 0 ]; then
+			printf "\n\n==============================================================================\n"
+			printf "Checking dependency convergence\n"
+			printf "==============================================================================\n"
+
+			./tools/check_dependency_convergence.sh
+			EXIT_CODE=$?
+		else
+			printf "\n==============================================================================\n"
+			printf "Previous build failure detected, skipping dependency-convergence check.\n"
+			printf "==============================================================================\n"
+		fi
+	;;
+esac
+
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
 
