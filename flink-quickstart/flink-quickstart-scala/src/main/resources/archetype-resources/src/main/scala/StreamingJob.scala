@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala._
  * For a tutorial how to write a Flink streaming application, check the
  * tutorials and examples on the <a href="http://flink.apache.org/docs/stable/">Flink Website</a>.
  *
- * To package your appliation into a JAR file for execution, run
+ * To package your application into a JAR file for execution, run
  * 'mvn clean package' on the command line.
  *
  * If you change the name of the main class (with the public static void main(String[] args))
