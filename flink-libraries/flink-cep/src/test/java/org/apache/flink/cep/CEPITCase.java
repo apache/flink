@@ -21,6 +21,7 @@ package org.apache.flink.cep;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Pattern;
@@ -28,12 +29,16 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 
 import org.junit.After;
 import org.junit.Before;
@@ -50,19 +55,25 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class CEPITCase extends AbstractTestBase {
 
-	private String resultPath;
-	private String expected;
+	private String mainResultPath;
+	private String mainExpected;
 
 	private String lateEventPath;
 	private String expectedLateEvents;
+
+	private String timeoutResultPath;
+	private String timeoutExpected;
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
-		expected = "";
+		mainResultPath = tempFolder.newFile().toURI().toString();
+		mainExpected = "";
+
+		timeoutResultPath = tempFolder.newFile().toURI().toString();
+		timeoutExpected = "";
 
 		lateEventPath = tempFolder.newFile().toURI().toString();
 		expectedLateEvents = "";
@@ -70,7 +81,8 @@ public class CEPITCase extends AbstractTestBase {
 
 	@After
 	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
+		compareResultsByLinesInMemory(mainExpected, mainResultPath);
+		compareResultsByLinesInMemory(timeoutExpected, timeoutResultPath);
 		compareResultsByLinesInMemory(expectedLateEvents, lateEventPath);
 	}
 
@@ -133,10 +145,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// expected sequence of matching event ids
-		expected = "2,6,8";
+		mainExpected = "2,6,8";
 
 		env.execute();
 	}
@@ -208,10 +220,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequences of matching event ids
-		expected = "2,2,2\n3,3,3\n42,42,42";
+		mainExpected = "2,2,2\n3,3,3\n42,42,42";
 
 		env.execute();
 	}
@@ -286,10 +298,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequence of matching event ids
-		expected = "1,5,4";
+		mainExpected = "1,5,4";
 
 		env.execute();
 	}
@@ -375,10 +387,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequences of matching event ids
-		expected = "1,1,1\n2,2,2";
+		mainExpected = "1,1,1\n2,2,2";
 
 		env.execute();
 	}
@@ -408,9 +420,9 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
-		expected = "(0,1)";
+		mainExpected = "(0,1)";
 
 		env.execute();
 	}
@@ -431,9 +443,9 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
-		expected = "3";
+		mainExpected = "3";
 
 		env.execute();
 	}
@@ -512,10 +524,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequences of matching event ids
-		expected = "Left(1.0)\nLeft(2.0)\nLeft(2.0)\nRight(2.0,2.0,2.0)";
+		mainExpected = "Left(1.0)\nLeft(2.0)\nLeft(2.0)\nRight(2.0,2.0,2.0)";
 
 		env.execute();
 	}
@@ -580,10 +592,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// expected sequence of matching event ids
-		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
+		mainExpected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
 
 		env.execute();
 	}
@@ -666,10 +678,10 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequence of matching event ids
-		expected = "1,6,4\n1,5,4";
+		mainExpected = "1,6,4\n1,5,4";
 
 		env.execute();
 	}
@@ -708,9 +720,95 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
 
-		expected = "(1,a)\n(3,a)";
+		mainExpected = "(1,a)\n(3,a)";
+
+		env.execute();
+	}
+
+	@Test
+	public void testFlatSelect() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<Tuple2<Integer, Integer>> input = env.fromElements(
+			new Tuple2<>(0, 1),
+			new Tuple2<>(0, 2));
+
+		Pattern<Tuple2<Integer, Integer>, ?> pattern;
+		pattern = Pattern.<Tuple2<Integer, Integer>>begin("start")
+			.where(new SimpleCondition<Tuple2<Integer, Integer>>() {
+				private static final long serialVersionUID = -1103582570264618087L;
+
+				@Override
+				public boolean filter(Tuple2<Integer, Integer> rec) {
+					return rec.f1 == 1;
+				}
+			});
+
+		PatternStream<Tuple2<Integer, Integer>> pStream = CEP.pattern(input, pattern);
+
+		DataStream<Tuple3<Integer, Integer, Integer>> result = pStream.flatSelect(
+			new PatternFlatSelectFunction<Tuple2<Integer, Integer>, Tuple3<Integer, Integer, Integer>>() {
+				@Override
+				public void flatSelect(Map<String, List<Tuple2<Integer, Integer>>> pattern,
+					Collector<Tuple3<Integer, Integer, Integer>> out) {
+					Tuple2<Integer, Integer> p = pattern.get("start").get(0);
+					out.collect(Tuple3.of(p.f0, p.f1, 0));
+					out.collect(Tuple3.of(p.f0, p.f1, 1));
+				}
+
+			});
+
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
+
+		mainExpected = "(0,1,0)\n(0,1,1)";
+
+		env.execute();
+	}
+
+	@Test
+	public void testFlatTimeoutSelect() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		DataStream<Integer> input = env.fromElements(1, 5, 6)
+			.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Integer>() {
+				@Override
+				public long extractAscendingTimestamp(Integer element) {
+					return element;
+				}
+			});
+
+		Pattern<Integer, ?> pattern = Pattern.<Integer>begin("start")
+			.next("second")
+			.within(Time.milliseconds(4));
+
+		PatternStream<Integer> pStream = CEP.pattern(input, pattern);
+
+		OutputTag<Tuple2<Integer, Integer>> outputTag = new OutputTag<Tuple2<Integer, Integer>>("timeout") {};
+		SingleOutputStreamOperator<Tuple2<String, Integer>> result = pStream.flatSelect(
+			outputTag,
+			new PatternFlatTimeoutFunction<Integer, Tuple2<Integer, Integer>>() {
+				@Override
+				public void timeout(Map<String, List<Integer>> pattern, long timeoutTimestamp,
+					Collector<Tuple2<Integer, Integer>> out) {
+					out.collect(Tuple2.of(pattern.get("start").get(0), 0));
+					out.collect(Tuple2.of(pattern.get("start").get(0), 1));
+				}
+			},
+			new PatternFlatSelectFunction<Integer, Tuple2<String, Integer>>() {
+				@Override
+				public void flatSelect(Map<String, List<Integer>> pattern, Collector<Tuple2<String, Integer>> out) {
+					out.collect(Tuple2.of("start", pattern.get("start").get(0)));
+					out.collect(Tuple2.of("second", pattern.get("second").get(0)));
+				}
+			});
+
+		result.writeAsText(mainResultPath, FileSystem.WriteMode.OVERWRITE);
+		result.getSideOutput(outputTag).writeAsText(timeoutResultPath, FileSystem.WriteMode.OVERWRITE);
+
+		mainExpected = "(start,5)\n(second,6)";
+		timeoutExpected = "(1,0)\n(1,1)\n(6,0)\n(6,1)";
 
 		env.execute();
 	}
