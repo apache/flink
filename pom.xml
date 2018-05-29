@@ -782,6 +782,11 @@ under the License.
 
 		<profile>
 			<id>vendor-repos</id>
+			<activation>
+				<property>
+					<name>vendor-repos</name>
+				</property>
+			</activation>
 			<!-- Add vendor maven repositories -->
 			<repositories>
 				<!-- Cloudera -->
@@ -826,6 +831,11 @@ under the License.
 				to be able to locate the MapR Hadoop / Zookeeper dependencies.
 			-->
 			<id>mapr</id>
+			<activation>
+				<property>
+					<name>mapr</name>
+				</property>
+			</activation>
 
 			<!--
 				use MapR Hadoop / Zookeeper dependencies appropriate for MapR 5.2.0;
@@ -866,6 +876,11 @@ under the License.
 		<profile>
 			<!-- used for SNAPSHOT and regular releases -->
 			<id>docs-and-source</id>
+			<activation>
+				<property>
+					<name>docs-and-source</name>
+				</property>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
@@ -918,6 +933,11 @@ under the License.
 
 		<profile>
 			<id>release</id>
+			<activation>
+				<property>
+					<name>release</name>
+				</property>
+			</activation>
 			<properties>
 				<java.version>1.8</java.version>
 			</properties>
