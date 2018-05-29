@@ -27,16 +27,14 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ReturnListener;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -54,15 +52,10 @@ public class RMQSinkTest {
 	private static final String EXPIRATION = "10000";
 	private static final String MESSAGE_STR = "msg";
 	private static final byte[] MESSAGE = new byte[1];
-	private static Map<String, Object> headers = new HashMap<String, Object>();
-	private static AMQP.BasicProperties props;
-	static {
-		headers.put("Test", new String("My Value"));
-		props = new AMQP.BasicProperties.Builder()
-				.headers(headers)
-				.expiration(EXPIRATION)
-				.build();
-	}
+	private static AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+			.headers(Collections.singletonMap("Test", "My Value"))
+			.expiration(EXPIRATION)
+			.build();
 
 	private RMQConnectionConfig rmqConnectionConfig;
 	private ConnectionFactory connectionFactory;
@@ -70,6 +63,7 @@ public class RMQSinkTest {
 	private Channel channel;
 	private SerializationSchema<String> serializationSchema;
 	private DummyPublishOptions publishOptions;
+	private DummyReturnHandler returnListener;
 
 	@Before
 	public void before() throws Exception {
@@ -82,33 +76,20 @@ public class RMQSinkTest {
 		when(rmqConnectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
 		when(connectionFactory.newConnection()).thenReturn(connection);
 		when(connection.createChannel()).thenReturn(channel);
-		when(rmqConnectionConfig.hasToCreateQueueOnSetup()).thenReturn(true);
 	}
 
 	@Test
-	public void checkCreateQueueOnSetup() throws Exception {
-		RMQConnectionConfig rmqCClocal = new RMQConnectionConfig.Builder()
-				.setUri("amqp://usr:pwd@server:5672/test")
-				.build();
-
-		assertTrue(rmqCClocal.hasToCreateQueueOnSetup());
-	}
-
-	@Test
-	public void checkCreateQueueOnSetupDisabled() throws Exception {
-		RMQConnectionConfig rmqCClocal = new RMQConnectionConfig.Builder()
-				.setUri("amqp://usr:pwd@server:5672/test")
-				.setCreateQueueOnSetup(false)
-				.build();
-
-		assertFalse(rmqCClocal.hasToCreateQueueOnSetup());
-	}
-
-	@Test
-	public void openCallDeclaresQueue() throws Exception {
+	public void openCallDeclaresQueueInStandardMode() throws Exception {
 		createRMQSink();
 
 		verify(channel).queueDeclare(QUEUE_NAME, false, false, false, null);
+	}
+
+	@Test
+	public void openCallDontDeclaresQueueInFeaturedMode() throws Exception {
+		doThrow(Exception.class).when(channel).queueDeclare(null, false, false, false, null);
+
+		createRMQSinkFeatured();
 	}
 
 	@Test
@@ -130,6 +111,14 @@ public class RMQSinkTest {
 	private RMQSink<String> createRMQSinkFeatured() throws Exception {
 		publishOptions = new DummyPublishOptions();
 		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, serializationSchema, publishOptions);
+		rmqSink.open(new Configuration());
+		return rmqSink;
+	}
+
+	private RMQSink<String> createRMQSinkFeaturedReturnHandler() throws Exception {
+		publishOptions = new DummyPublishOptions();
+		returnListener = new DummyReturnHandler();
+		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
@@ -176,7 +165,17 @@ public class RMQSinkTest {
 
 		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
 		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
+				publishOptions.computeProperties(""), MESSAGE);
+	}
+
+	@Test
+	public void invokeFeaturedReturnHandlerPublishBytesToQueue() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkFeaturedReturnHandler();
+
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+		verify(serializationSchema).serialize(MESSAGE_STR);
+		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, true, true,
 				publishOptions.computeProperties(""), MESSAGE);
 	}
 
@@ -184,7 +183,7 @@ public class RMQSinkTest {
 	public void exceptionDuringFeaturedPublishingIsNotIgnored() throws Exception {
 		RMQSink<String> rmqSink = createRMQSinkFeatured();
 
-		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
 				publishOptions.computeProperties(""), MESSAGE);
 		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
 	}
@@ -194,7 +193,7 @@ public class RMQSinkTest {
 		RMQSink<String> rmqSink = createRMQSinkFeatured();
 		rmqSink.setLogFailuresOnly(true);
 
-		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY,
+		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
 				publishOptions.computeProperties(""), MESSAGE);
 		rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
 	}
@@ -213,6 +212,23 @@ public class RMQSinkTest {
 		@Override
 		public String computeExchange(String a) {
 			return EXCHANGE;
+		}
+
+		@Override
+		public boolean computeMandatory(String a) {
+			return true;
+		}
+
+		@Override
+		public boolean computeImmediate(String a) {
+			return true;
+		}
+	}
+
+	private class DummyReturnHandler implements ReturnListener {
+		@Override
+		public void handleReturn(int arg0, String arg1, String arg2, String arg3, BasicProperties arg4, byte[] arg5)
+				throws IOException {
 		}
 	}
 

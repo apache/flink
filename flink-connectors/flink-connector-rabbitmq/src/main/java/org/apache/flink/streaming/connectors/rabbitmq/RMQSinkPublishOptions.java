@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import com.rabbitmq.client.AMQP.BasicProperties;
 
 /**
@@ -24,27 +26,45 @@ import com.rabbitmq.client.AMQP.BasicProperties;
  *
  * @param <IN> The type of the data used by the sink.
  */
-public interface RMQSinkPublishOptions<IN> {
+@PublicEvolving
+public interface RMQSinkPublishOptions<IN> extends java.io.Serializable {
 
 	/**
 	 * Compute the message's routing key from the data.
 	 * @param a The data used by the sink
 	 * @return The routing key of the message
 	 */
-	public String computeRoutingKey(IN a);
+	String computeRoutingKey(IN a);
 
 	/**
 	 * Compute the message's properties from the data.
 	 * @param a The data used by the sink
 	 * @return The message's properties (can be null)
 	 */
-	public BasicProperties computeProperties(IN a);
+	BasicProperties computeProperties(IN a);
 
 	/**
 	 * Compute the exchange from the data.
 	 * @param a The data used by the sink
 	 * @return The exchange to publish the message to
 	 */
-	public String computeExchange(IN a);
+	String computeExchange(IN a);
 
+	/**
+	 * Compute the mandatory flag used in basic.publish method
+	 * See AMQP API help for values.
+	 * A ReturnListener is mandatory if this flag can be true (if not it is ignored and forced to false)
+	 * @param a The data used by the sink
+	 * @return The mandatory flag
+	 */
+	boolean computeMandatory(IN a);
+
+	/**
+	 * Compute the immediate flag
+	 * See AMQP API help for values.
+	 * A ReturnListener is mandatory if this flag can be true (if not it is ignored and forced to false)
+	 * @param a The data used by the sink
+	 * @return The mandatory flag
+	 */
+	boolean computeImmediate(IN a);
 }

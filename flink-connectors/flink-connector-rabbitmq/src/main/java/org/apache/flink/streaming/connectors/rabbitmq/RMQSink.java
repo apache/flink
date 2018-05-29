@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ReturnListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,23 +42,39 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	protected String queueName;
+	private final String queueName;
 	private final RMQConnectionConfig rmqConnectionConfig;
 	protected transient Connection connection;
 	protected transient Channel channel;
 	protected SerializationSchema<IN> schema;
 	protected boolean logFailuresOnly = false;
 
-	protected RMQSinkPublishOptions<IN> messageCompute;
+	private final RMQSinkPublishOptions<IN> messageCompute;
+	private final ReturnListener returnListener;
+
+	/**
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param queueName The queue to publish messages to.
+	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
+	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+     */
+	private RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema,
+			RMQSinkPublishOptions<IN> messageCompute, ReturnListener returnListener) {
+		this.rmqConnectionConfig = rmqConnectionConfig;
+		this.queueName = queueName;
+		this.schema = schema;
+		this.messageCompute = messageCompute;
+		this.returnListener = returnListener;
+	}
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
      */
+	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema) {
-		this(rmqConnectionConfig, schema, null);
-		this.queueName = queueName;
+		this(rmqConnectionConfig, queueName, schema, null, null);
 	}
 
 	/**
@@ -64,12 +82,23 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
 	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
      */
+	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
 			RMQSinkPublishOptions<IN> messageCompute) {
-		this.rmqConnectionConfig = rmqConnectionConfig;
-		this.queueName = null;
-		this.schema = schema;
-		this.messageCompute = messageCompute;
+		this(rmqConnectionConfig, null, schema, messageCompute, null);
+	}
+
+	/**
+	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
+	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
+	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * @param returnListener A ReturnListener implementation object to handle return message event
+	 *                       if messageCompute.computeMandatory() or messageCompute.computeImmediate() should be true
+     */
+	@PublicEvolving
+	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
+			RMQSinkPublishOptions<IN> messageCompute, ReturnListener returnListener) {
+		this(rmqConnectionConfig, null, schema, messageCompute, returnListener);
 	}
 
 	/**
@@ -78,7 +107,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * defining custom queue parameters)
 	 */
 	protected void setupQueue() throws IOException {
-		channel.queueDeclare(queueName, false, false, false, null);
+		if (queueName != null) {
+			channel.queueDeclare(queueName, false, false, false, null);
+		}
 	}
 
 	/**
@@ -102,8 +133,9 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 			if (channel == null) {
 				throw new RuntimeException("None of RabbitMQ channels are available");
 			}
-			if (queueName != null && rmqConnectionConfig.hasToCreateQueueOnSetup()) {
-				setupQueue();
+			setupQueue();
+			if (returnListener != null) {
+				channel.addReturnListener(returnListener);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Error while creating the channel", e);
@@ -128,6 +160,8 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 				String exchange = messageCompute.computeExchange(value);
 				channel.basicPublish((exchange != null) ? exchange : "",
 						(rk != null) ? rk : "",
+						(returnListener != null) && messageCompute.computeMandatory(value),
+						(returnListener != null) && messageCompute.computeImmediate(value),
 						messageCompute.computeProperties(value), msg);
 			}
 
