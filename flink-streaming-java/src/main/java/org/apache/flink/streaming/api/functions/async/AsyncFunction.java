@@ -71,8 +71,11 @@ import java.io.Serializable;
  *
  * @param <IN> The type of the input elements.
  * @param <OUT> The type of the returned elements.
+ *
+ * @deprecated please use {@link TimeoutAwareAsyncFunction} for timeout handling.
  */
 @PublicEvolving
+@Deprecated
 public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 
 	/**
