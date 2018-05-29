@@ -23,8 +23,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink provides a command-line interface to run programs that are packaged
-as JAR files, and control their execution.  The command line interface is part
+Flink provides a Command-Line Interface (CLI) to run programs that are packaged
+as JAR files, and control their execution.  The CLI is part
 of any Flink setup, available in local single node setups and in
 distributed setups. It is located under `<flink-home>/bin/flink`
 and connects by default to the running Flink master (JobManager) that was
@@ -47,50 +47,50 @@ The command line can be used to
 
 ## Examples
 
--   Run example program with no arguments.
+-   Run example program with no arguments:
 
         ./bin/flink run ./examples/batch/WordCount.jar
 
--   Run example program with arguments for input and result files
+-   Run example program with arguments for input and result files:
 
         ./bin/flink run ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with parallelism 16 and arguments for input and result files
+-   Run example program with parallelism 16 and arguments for input and result files:
 
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with flink log output disabled
+-   Run example program with flink log output disabled:
 
-            ./bin/flink run -q ./examples/batch/WordCount.jar
+        ./bin/flink run -q ./examples/batch/WordCount.jar
 
--   Run example program in detached mode
+-   Run example program in detached mode:
 
-            ./bin/flink run -d ./examples/batch/WordCount.jar
+        ./bin/flink run -d ./examples/batch/WordCount.jar
 
 -   Run example program on a specific JobManager:
 
         ./bin/flink run -m myJMHost:8081 \
-                               ./examples/batch/WordCount.jar \
-                               --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
+                             ./examples/batch/WordCount.jar \
+                             --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program with a specific class as an entry point:
 
         ./bin/flink run -c org.apache.flink.examples.java.wordcount.WordCount \
-                               ./examples/batch/WordCount.jar \
-                               --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
+                             ./examples/batch/WordCount.jar \
+                             --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   Run example program using a [per-job YARN cluster]({{site.baseurl}}/ops/deployment/yarn_setup.html#run-a-single-flink-job-on-hadoop-yarn) with 2 TaskManagers:
 
         ./bin/flink run -m yarn-cluster -yn 2 \
-                               ./examples/batch/WordCount.jar \
-                               --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
+                             ./examples/batch/WordCount.jar \
+                             --input hdfs:///user/hamlet.txt --output hdfs:///user/wordcount_out
 
 -   Display the optimized execution plan for the WordCount example program as JSON:
 
         ./bin/flink info ./examples/batch/WordCount.jar \
-                                --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
+                             --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
 -   List scheduled and running jobs (including their JobIDs):
 
@@ -104,7 +104,7 @@ The command line can be used to
 
         ./bin/flink list -r
 
--   List running Flink jobs inside Flink YARN session:
+-   List running jobs inside Flink YARN session:
 
         ./bin/flink list -m yarn-cluster -yid <yarnApplicationID> -r
 
@@ -114,14 +114,14 @@ The command line can be used to
 
 -   Cancel a job with a savepoint:
 
-        ./bin/flink cancel -s [targetDirectory] <jobID>
+        ./bin/flink cancel -s [savepointDirectory] <jobID>
 
 -   Stop a job (streaming jobs only):
 
         ./bin/flink stop <jobID>
 
 
-The difference between cancelling and stopping a (streaming) job is the following:
+**NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
 
 On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
 soon as possible.
@@ -135,7 +135,7 @@ This allows the job to finish processing all inflight data.
 
 ### Savepoints
 
-[Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the command line client:
+[Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the CLI:
 
 #### Trigger a Savepoint
 
@@ -148,7 +148,7 @@ This will trigger a savepoint for the job with ID `jobId`, and returns the path 
 
 Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
 
-If you don't specify a target directory, you need to have [configured a default directory](#configuration) (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)). Otherwise, triggering the savepoint will fail.
+If you don't specify a target directory, you need to have [configured a default directory]({{site.baseurl}}/ops/state/savepoints.html#configuration). Otherwise, triggering the savepoint will fail.
 
 #### Trigger a Savepoint with YARN
 
@@ -158,14 +158,14 @@ If you don't specify a target directory, you need to have [configured a default 
 
 This will trigger a savepoint for the job with ID `jobId` and YARN application ID `yarnAppId`, and returns the path of the created savepoint.
 
-Everything else is the same as described in the above **Trigger a Savepoint** section.
+Everything else is the same as described in the [Trigger a Savepoint]({{site.baseurl}}/ops/cli.html#trigger-a-savepoint) section.
 
 #### Cancel with a savepoint
 
 You can atomically trigger a savepoint and cancel a job.
 
 {% highlight bash %}
-./bin/flink cancel -s  [savepointDirectory] <jobID>
+./bin/flink cancel -s [savepointDirectory] <jobID>
 {% endhighlight %}
 
 If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).

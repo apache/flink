@@ -37,19 +37,19 @@ There are two ways of taking a savepoint from a running streaming application.
 
 * Taking a savepoint and continue processing.
 {% highlight bash %}
-> ./bin/flink savepoint <jobID> [pathToSavepoint]
+$ ./bin/flink savepoint <jobID> [savepointDirectory]
 {% endhighlight %}
 It is recommended to periodically take savepoints in order to be able to restart an application from a previous point in time.
 
 * Taking a savepoint and stopping the application as a single action. 
 {% highlight bash %}
-> ./bin/flink cancel -s [pathToSavepoint] <jobID>
+$ ./bin/flink cancel -s [savepointDirectory] <jobID>
 {% endhighlight %}
 This means that the application is canceled immediately after the savepoint completed, i.e., no other checkpoints are taken after the savepoint.
 
 Given a savepoint taken from an application, the same or a compatible application (see [Application State Compatibility](#application-state-compatibility) section below) can be started from that savepoint. Starting an application from a savepoint means that the state of its operators is initialized with the operator state persisted in the savepoint. This is done by starting an application using a savepoint.
 {% highlight bash %}
-> ./bin/flink run -d -s [pathToSavepoint] ~/application.jar
+$ ./bin/flink run -d -s [savepointPath] ~/application.jar
 {% endhighlight %}
 
 The operators of the started application are initialized with the operator state of the original application (i.e., the application the savepoint was taken from) at the time when the savepoint was taken. The started application continues processing from exactly this point on. 
@@ -68,7 +68,7 @@ When an application is restarted from a savepoint, Flink matches the operator st
 
 {% highlight scala%}
 val mappedEvents: DataStream[(Int, Long)] = events
-  .map(new MyStatefulMapFunc()).uid(“mapper-1”)
+  .map(new MyStatefulMapFunc()).uid("mapper-1")
 {% endhighlight %}
 
 **Note:** Since the operator IDs stored in a savepoint and IDs of operators in the application to start must be equal, it is highly recommended to assign unique IDs to all operators of an application that might be upgraded in the future. This advice applies to all operators, i.e., operators with and without explicitly declared operator state, because some operators have internal state that is not visible to the user. Upgrading an application without assigned operator IDs is significantly more difficult and may only be possible via a low-level workaround using the `setUidHash()` method.
@@ -107,7 +107,7 @@ When upgrading an application by changing its topology, a few things need to be 
 * **Adding a stateful operator:** The state of the operator will be initialized with the default state unless it takes over the state of another operator.
 * **Removing a stateful operator:** The state of the removed operator is lost unless another operator takes it over. When starting the upgraded application, you have to explicitly agree to discard the state.
 * **Changing of input and output types of operators:** When adding a new operator before or behind an operator with internal state, you have to ensure that the input or output type of the stateful operator is not modified to preserve the data type of the internal operator state (see above for details).
-* **Changing operator chaining:** Operators can be chained together for improved performance. When restoring from a savepoint taken since 1.3.x it is possible to modify chains while preserving state consistency. It is possible a break the chain such that a stateful operator is moved out of the chain. It is also possible to append or inject a new or existing stateful operator into a chain, or to modify the operator order within a chain. However, when upgrading a savepoint to 1.3.x it is paramount that the topology did not change in regards to chaining. All operators that are part of a chain should be assigned an ID as described in the [Matching Operator State](#Matching Operator State) section above.
+* **Changing operator chaining:** Operators can be chained together for improved performance. When restoring from a savepoint taken since 1.3.x it is possible to modify chains while preserving state consistency. It is possible a break the chain such that a stateful operator is moved out of the chain. It is also possible to append or inject a new or existing stateful operator into a chain, or to modify the operator order within a chain. However, when upgrading a savepoint to 1.3.x it is paramount that the topology did not change in regards to chaining. All operators that are part of a chain should be assigned an ID as described in the [Matching Operator State](#matching-operator-state) section above.
 
 ## Upgrading the Flink Framework Version
 
@@ -141,7 +141,7 @@ about the steps that we outlined before.
 ### Preconditions
 
 Before starting the migration, please check that the jobs you are trying to migrate are following the
-best practises for [savepoints]({{ site.baseurl }}/ops/state/savepoints.html). Also, check out the 
+best practices for [savepoints]({{ site.baseurl }}/ops/state/savepoints.html). Also, check out the 
 [API Migration Guides]({{ site.baseurl }}/dev/migration.html) to see if there is any API changes related to migrating
 savepoints to newer versions.
 
@@ -172,7 +172,7 @@ First major step in job migration is taking a savepoint of your job running in t
 You can do this with the command:
 
 {% highlight shell %}
-$ bin/flink savepoint :jobId [:targetDirectory]
+$ ./bin/flink savepoint <jobId> [savepointDirectory]
 {% endhighlight %}
 
 For more details, please read the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
@@ -183,7 +183,7 @@ In this step, we update the framework version of the cluster. What this basicall
 the Flink installation with the new version. This step can depend on how you are running Flink in your cluster (e.g. 
 standalone, on Mesos, ...).
 
-If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({{ site.baseurl }}/ops/deployment/cluster_setup.html).
+If you are unfamiliar with installing Flink in your cluster, please read the [clusters and deployment setup documentation]({{ site.baseurl }}/ops/deployment/cluster_setup.html).
 
 ### STEP 3: Resume the job under the new Flink version from savepoint.
 
@@ -191,7 +191,7 @@ As the last step of job migration, you resume from the savepoint taken above on 
 this with the command:
 
 {% highlight shell %}
-$ bin/flink run -s :savepointPath [:runArgs]
+$ ./bin/flink run -s <savepointPath> [runArgs]
 {% endhighlight %}
 
 Again, for more details, please take a look at the [savepoint documentation]({{ site.baseurl }}/ops/state/savepoints.html).
