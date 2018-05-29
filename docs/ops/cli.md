@@ -23,8 +23,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink provides a command-line interface to run programs that are packaged
-as JAR files, and control their execution.  The command line interface is part
+Flink provides a Command-Line Interface (CLI) to run programs that are packaged
+as JAR files, and control their execution.  The CLI is part
 of any Flink setup, available in local single node setups and in
 distributed setups. It is located under `<flink-home>/bin/flink`
 and connects by default to the running Flink master (JobManager) that was
@@ -48,25 +48,25 @@ The command line can be used to
 
 ## Examples
 
--   Run example program with no arguments.
+-   Run example program with no arguments:
 
         ./bin/flink run ./examples/batch/WordCount.jar
 
--   Run example program with arguments for input and result files
+-   Run example program with arguments for input and result files:
 
         ./bin/flink run ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with parallelism 16 and arguments for input and result files
+-   Run example program with parallelism 16 and arguments for input and result files:
 
         ./bin/flink run -p 16 ./examples/batch/WordCount.jar \
                              --input file:///home/user/hamlet.txt --output file:///home/user/wordcount_out
 
--   Run example program with flink log output disabled
+-   Run example program with flink log output disabled:
 
             ./bin/flink run -q ./examples/batch/WordCount.jar
 
--   Run example program in detached mode
+-   Run example program in detached mode:
 
             ./bin/flink run -d ./examples/batch/WordCount.jar
 
@@ -122,7 +122,7 @@ The command line can be used to
         ./bin/flink stop <jobID>
 
 
-The difference between cancelling and stopping a (streaming) job is the following:
+**NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
 
 On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
 soon as possible.
@@ -166,7 +166,7 @@ Everything else is the same as described in the above **Trigger a Savepoint** se
 You can atomically trigger a savepoint and cancel a job.
 
 {% highlight bash %}
-./bin/flink cancel -s  [savepointDirectory] <jobID>
+./bin/flink cancel -s [savepointDirectory] <jobID>
 {% endhighlight %}
 
 If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
