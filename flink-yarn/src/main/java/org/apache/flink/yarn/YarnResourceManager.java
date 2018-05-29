@@ -44,6 +44,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
@@ -51,12 +52,13 @@ import org.apache.hadoop.yarn.api.records.NodeReport;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
-import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +70,7 @@ import java.util.concurrent.ConcurrentMap;
  * The yarn implementation of the resource manager. Used when the system is started
  * via the resource framework YARN.
  */
-public class YarnResourceManager extends ResourceManager<YarnWorkerNode> implements AMRMClientAsync.CallbackHandler {
+public class YarnResourceManager extends ResourceManager<YarnWorkerNode> implements AMRMClientAsync.CallbackHandler, NMClientAsync.CallbackHandler {
 
 	/** The process environment variables. */
 	private final Map<String, String> env;
@@ -107,7 +109,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
 
 	/** Client to communicate with the Node manager and launch TaskExecutor processes. */
-	private NMClient nodeManagerClient;
+	private NMClientAsync nodeManagerClient;
 
 	/** The number of containers requested, but not yet granted. */
 	private int numPendingContainerRequests;
@@ -212,13 +214,13 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		}
 	}
 
-	protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
-		// create the client to communicate with the node managers
-		NMClient nodeManagerClient = NMClient.createNMClient();
-		nodeManagerClient.init(yarnConfiguration);
-		nodeManagerClient.start();
-		nodeManagerClient.cleanupRunningContainersOnStop(true);
-		return nodeManagerClient;
+	protected NMClientAsync createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
+		// create the client to communicate with the node managers.
+		NMClientAsync nodeManagerAsyncClient = NMClientAsync.createNMClientAsync(this);
+		nodeManagerAsyncClient.init(yarnConfiguration);
+		nodeManagerAsyncClient.start();
+		nodeManagerClient.getClient().cleanupRunningContainersOnStop(true);
+		return nodeManagerAsyncClient;
 	}
 
 	@Override
@@ -299,7 +301,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		final Container container = workerNode.getContainer();
 		log.info("Stopping container {}.", container.getId());
 		try {
-			nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
+			nodeManagerClient.stopContainerAsync(container.getId(), container.getNodeId());
 		} catch (final Exception e) {
 			log.warn("Error while calling YARN Node Manager to stop container", e);
 		}
@@ -366,7 +368,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 							containerIdStr,
 							container.getNodeId().getHost());
 
-						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+						nodeManagerClient.startContainerAsync(container, taskExecutorLaunchContext);
 					} catch (Throwable t) {
 						log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
@@ -404,6 +406,39 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	@Override
 	public void onError(Throwable error) {
 		onFatalError(error);
+	}
+
+	@Override
+	public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
+
+	}
+
+	@Override
+	public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
+
+	}
+
+	@Override
+	public void onContainerStopped(ContainerId containerId) {
+		log.info("The container " + containerId + " is stopped.");
+	}
+
+	@Override
+	public void onStartContainerError(ContainerId containerId, Throwable t) {
+		log.error("Error occurred during start the container " + containerId + '.');
+		onFatalError(t);
+	}
+
+	@Override
+	public void onGetContainerStatusError(ContainerId containerId, Throwable t) {
+		log.error("Error occurred during get the container " + containerId + " status.");
+		onFatalError(t);
+	}
+
+	@Override
+	public void onStopContainerError(ContainerId containerId, Throwable t) {
+		log.error("Error occurred during stop the container " + containerId + '.');
+		onFatalError(t);
 	}
 
 	// ------------------------------------------------------------------------
@@ -492,8 +527,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		return taskExecutorLaunchContext;
 	}
 
-
-
 	/**
 	 * Generate priority by given resource profile.
 	 * Priority is only used for distinguishing request of different resource.
@@ -509,5 +542,4 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			return priority;
 		}
 	}
-
 }
