@@ -68,7 +68,7 @@ When an application is restarted from a savepoint, Flink matches the operator st
 
 {% highlight scala%}
 val mappedEvents: DataStream[(Int, Long)] = events
-  .map(new MyStatefulMapFunc()).uid(“mapper-1”)
+  .map(new MyStatefulMapFunc()).uid("mapper-1")
 {% endhighlight %}
 
 **Note:** Since the operator IDs stored in a savepoint and IDs of operators in the application to start must be equal, it is highly recommended to assign unique IDs to all operators of an application that might be upgraded in the future. This advice applies to all operators, i.e., operators with and without explicitly declared operator state, because some operators have internal state that is not visible to the user. Upgrading an application without assigned operator IDs is significantly more difficult and may only be possible via a low-level workaround using the `setUidHash()` method.
@@ -141,7 +141,7 @@ about the steps that we outlined before.
 ### Preconditions
 
 Before starting the migration, please check that the jobs you are trying to migrate are following the
-best practises for [savepoints]({{ site.baseurl }}/ops/state/savepoints.html). Also, check out the 
+best practices for [savepoints]({{ site.baseurl }}/ops/state/savepoints.html). Also, check out the 
 [API Migration Guides]({{ site.baseurl }}/dev/migration.html) to see if there is any API changes related to migrating
 savepoints to newer versions.
 
