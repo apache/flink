@@ -12,4 +12,4 @@ must be aware that this may be subject to conditions declared in the Mozilla Pub
 
 # This version provides a mechanism to handle AMQ Messaging features
 
-One of its Constructor uses an implemented interface object with three methods. See RMQSinkFeatureTest class to get a sample of the methods to implement.
+One of its Constructor uses an implemented interface object with five methods and an optionnal returned message handler. See RMQSinkFeatureTest class to get a sample of the methods to implement and the returned message handler.
