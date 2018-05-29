@@ -26,7 +26,6 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.HTTPServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +38,7 @@ import java.util.Iterator;
  */
 @PublicEvolving
 public class PrometheusReporter extends AbstractPrometheusReporter {
-	private static final Logger LOG = LoggerFactory.getLogger(PrometheusReporter.class);
+	private final Logger log = LoggerFactory.getLogger(PrometheusReporter.class);
 
 	static final String ARG_PORT = "port";
 	private static final String DEFAULT_PORT = "9249";
@@ -64,10 +63,10 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 				// internally accesses CollectorRegistry.defaultRegistry
 				httpServer = new HTTPServer(port);
 				this.port = port;
-				LOG.info("Started PrometheusReporter HTTP server on port {}.", port);
+				log.info("Started PrometheusReporter HTTP server on port {}.", port);
 				break;
 			} catch (IOException ioe) { //assume port conflict
-				LOG.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
+				log.debug("Could not start PrometheusReporter HTTP server on port {}.", port, ioe);
 			}
 		}
 		if (httpServer == null) {
@@ -80,7 +79,7 @@ public class PrometheusReporter extends AbstractPrometheusReporter {
 		if (httpServer != null) {
 			httpServer.stop();
 		}
-		CollectorRegistry.defaultRegistry.clear();
+		super.close();
 	}
 
 }

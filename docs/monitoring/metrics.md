@@ -699,6 +699,39 @@ Flink metric types are mapped to Prometheus metric types as follows:
 
 All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
 
+### PrometheusPushGateway (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+- `host` - the PushGateway server host
+- `port` - the PushGateway server port
+- `prefix` - (optional) the prefix is used to compose the jobName, defaults to `flink`. The jobName is used to distinguish different flink clusters
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+metrics.reporter.promgateway.host: localhost
+metrics.reporter.promgateway.port: 9091
+metrics.reporter.promgateway.prefix: flink
+
+{% endhighlight %}
+
+Flink metric types are mapped to Prometheus metric types as follows: 
+
+| Flink     | Prometheus | Note                                     |
+| --------- |------------|------------------------------------------|
+| Counter   | Gauge      |Prometheus counters cannot be decremented.|
+| Gauge     | Gauge      |Only numbers and booleans are supported.  |
+| Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
+| Meter     | Gauge      |The gauge exports the meter's rate.       |
+
+All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
+
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder

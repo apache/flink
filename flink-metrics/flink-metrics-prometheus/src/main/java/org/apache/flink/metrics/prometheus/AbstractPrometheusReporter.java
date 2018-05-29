@@ -26,7 +26,6 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -54,7 +53,7 @@ import java.util.regex.Pattern;
 @PublicEvolving
 public abstract class AbstractPrometheusReporter implements MetricReporter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractPrometheusReporter.class);
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	private static final Pattern UNALLOWED_CHAR_PATTERN = Pattern.compile("[^a-zA-Z0-9:_]");
 	private static final CharacterFilter CHARACTER_FILTER = new CharacterFilter() {
@@ -75,9 +74,6 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		// Only [a-zA-Z0-9:_] are valid in metric names, any other characters should be sanitized to an underscore.
 		return UNALLOWED_CHAR_PATTERN.matcher(input).replaceAll("_");
 	}
-
-	@Override
-	public abstract void open(MetricConfig config);
 
 	@Override
 	public void close() {
@@ -111,7 +107,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 				try {
 					collector.register();
 				} catch (Exception e) {
-					LOG.warn("There was a problem registering metric {}.", metricName, e);
+					log.warn("There was a problem registering metric {}.", metricName, e);
 				}
 			}
 			addMetric(metric, dimensionValues, collector);
@@ -130,7 +126,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 				try {
 					CollectorRegistry.defaultRegistry.unregister(collector);
 				} catch (Exception e) {
-					LOG.warn("There was a problem unregistering metric {}.", scopedMetricName, e);
+					log.warn("There was a problem unregistering metric {}.", scopedMetricName, e);
 				}
 				collectorsWithCountByMetricName.remove(scopedMetricName);
 			} else {
@@ -143,7 +139,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		return SCOPE_PREFIX + getLogicalScope(group) + SCOPE_SEPARATOR + CHARACTER_FILTER.filterCharacters(metricName);
 	}
 
-	private static Collector createCollector(Metric metric, List<String> dimensionKeys, List<String> dimensionValues, String scopedMetricName, String helpString) {
+	private Collector createCollector(Metric metric, List<String> dimensionKeys, List<String> dimensionValues, String scopedMetricName, String helpString) {
 		Collector collector;
 		if (metric instanceof Gauge || metric instanceof Counter || metric instanceof Meter) {
 			collector = io.prometheus.client.Gauge
@@ -155,14 +151,14 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		} else if (metric instanceof Histogram) {
 			collector = new PrometheusReporter.HistogramSummaryProxy((Histogram) metric, scopedMetricName, helpString, dimensionKeys, dimensionValues);
 		} else {
-			LOG.warn("Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+			log.warn("Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
 				metric.getClass().getName());
 			collector = null;
 		}
 		return collector;
 	}
 
-	private static void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+	private void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
 		if (metric instanceof Gauge) {
 			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
 		} else if (metric instanceof Counter) {
@@ -172,7 +168,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		} else if (metric instanceof Histogram) {
 			((PrometheusReporter.HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
 		} else {
-			LOG.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+			log.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
 				metric.getClass().getName());
 		}
 	}
@@ -183,13 +179,13 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 	}
 
 	@VisibleForTesting
-	static io.prometheus.client.Gauge.Child gaugeFrom(Gauge gauge) {
+	io.prometheus.client.Gauge.Child gaugeFrom(Gauge gauge) {
 		return new io.prometheus.client.Gauge.Child() {
 			@Override
 			public double get() {
 				final Object value = gauge.getValue();
 				if (value == null) {
-					LOG.debug("Gauge {} is null-valued, defaulting to 0.", gauge);
+					log.debug("Gauge {} is null-valued, defaulting to 0.", gauge);
 					return 0;
 				}
 				if (value instanceof Double) {
@@ -201,7 +197,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 				if (value instanceof Boolean) {
 					return ((Boolean) value) ? 1 : 0;
 				}
-				LOG.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
+				log.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
 					gauge, value.getClass().getName());
 				return 0;
 			}

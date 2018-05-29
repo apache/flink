@@ -36,35 +36,37 @@ import org.slf4j.LoggerFactory;
  */
 @PublicEvolving
 public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter implements Scheduled {
-	private static final Logger LOG = LoggerFactory.getLogger(PrometheusPushGatewayReporter.class);
+	private final Logger log = LoggerFactory.getLogger(PrometheusPushGatewayReporter.class);
 
 	public static final String ARG_HOST = "host";
 	public static final String ARG_PORT = "port";
+	public static final String ARG_JOB_NAME_PREFIX = "prefix";
 
 	public static final char JOB_NAME_SEPARATOR = '-';
-	public static final String JOB_NAME_PREFIX = "flink" + JOB_NAME_SEPARATOR;
+	public static final String DEFAULT_JOB_NAME_PREFIX = "flink";
 
 	private PushGateway pushGateway;
-	private final String jobName;
-
-	public PrometheusPushGatewayReporter() {
-		String random = new AbstractID().toString();
-		jobName = JOB_NAME_PREFIX + random;
-	}
+	private String jobName;
 
 	@Override
 	public void open(MetricConfig config) {
 
+		// reporter configs
 		String host = config.getString(ARG_HOST, null);
 		int port = config.getInteger(ARG_PORT, -1);
+		String jobNamePrefix = config.getString(ARG_JOB_NAME_PREFIX, DEFAULT_JOB_NAME_PREFIX);
 
+		// host port
 		if (host == null || host.length() == 0 || port < 1) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
 		}
 
-		pushGateway = new PushGateway(host + ":" + port);
+		// jobname
+		String random = new AbstractID().toString();
+		jobName = jobNamePrefix + JOB_NAME_SEPARATOR + random;
 
-		LOG.info("Configured PrometheusPushGatewayReporter with {host:{}, port:{}}", host, port);
+		pushGateway = new PushGateway(host + ":" + port);
+		log.info("Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}}", host, port, jobName);
 	}
 
 	@Override
@@ -72,7 +74,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		try {
 			pushGateway.push(CollectorRegistry.defaultRegistry, jobName);
 		} catch (Exception e) {
-			LOG.warn("Failed reporting metrics to Prometheus.", e);
+			log.warn("Failed reporting metrics to Prometheus.", e);
 		}
 	}
 
