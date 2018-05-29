@@ -215,6 +215,19 @@ arrive after the system's event time clock (as signaled by the watermarks) has a
 timestamp. See [Allowed Lateness]({{ site.baseurl }}/dev/stream/operators/windows.html#allowed-lateness) for more information on how to work
 with late elements in event time windows.
 
+## Idling sources
+
+Currently, with pure event time watermarks generators, watermarks can not progress if there are no elements
+to be processed. That means in case of gap in the incoming data, event time will not progress and for
+example the window operator will not be triggered and thus existing windows will not be able to produce any
+output data.
+
+To circumvent this one can use periodic watermark assigners that don't only assign based on
+element timestamps. An example solution could be an assigner that switches to using current processing time
+as the time basis after not observing new events for a while.
+
+Sources can be marked as idle using `SourceFunction.SourceContext#markAsTemporarilyIdle`. For details please refer to the Javadoc of
+this method as well as `StreamStatus`.
 
 ## Debugging Watermarks
 
