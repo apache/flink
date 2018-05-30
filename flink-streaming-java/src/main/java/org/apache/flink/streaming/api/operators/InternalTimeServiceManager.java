@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -41,22 +41,21 @@ import java.util.Map;
  * <b>NOTE:</b> These services are only available to keyed operators.
  *
  * @param <K> The type of keys used for the timers and the registry.
- * @param <N> The type of namespace used for the timers.
  */
 @Internal
-public class InternalTimeServiceManager<K, N> {
+public class InternalTimeServiceManager<K> {
 
 	private final int totalKeyGroups;
-	private final KeyGroupsList localKeyGroupRange;
+	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
 
 	private final ProcessingTimeService processingTimeService;
 
-	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
+	private final Map<String, HeapInternalTimerService<K, ?>> timerServices;
 
 	InternalTimeServiceManager(
 			int totalKeyGroups,
-			KeyGroupsList localKeyGroupRange,
+			KeyGroupRange localKeyGroupRange,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService) {
 
@@ -90,10 +89,11 @@ public class InternalTimeServiceManager<K, N> {
 	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
 	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
 	 */
-	public InternalTimerService<N> getInternalTimerService(String name, TypeSerializer<K> keySerializer,
+	@SuppressWarnings("unchecked")
+	public <N> InternalTimerService<N> getInternalTimerService(String name, TypeSerializer<K> keySerializer,
 														TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
 
-		HeapInternalTimerService<K, N> timerService = timerServices.get(name);
+		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
 		if (timerService == null) {
 			timerService = new HeapInternalTimerService<>(totalKeyGroups,
 				localKeyGroupRange, keyContext, processingTimeService);
@@ -112,7 +112,7 @@ public class InternalTimeServiceManager<K, N> {
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
-		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
+		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx);
 
 		serializationProxy.write(stream);
@@ -123,7 +123,7 @@ public class InternalTimeServiceManager<K, N> {
 			int keyGroupIdx,
 			ClassLoader userCodeClassLoader) throws IOException {
 
-		InternalTimerServiceSerializationProxy<K, N> serializationProxy =
+		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(
 				timerServices,
 				userCodeClassLoader,
