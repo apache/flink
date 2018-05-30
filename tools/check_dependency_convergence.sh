@@ -46,7 +46,7 @@ do
     # we are only interested in child modules
     for other_module in ${modules}
     do 
-        if [[ "${other_module}" != "${module}" && "${other_module}" = "${module}"* ]]; then
+        if [[ "${other_module}" != "${module}" && "${other_module}" = "${module}/"* ]]; then
         echo "excluding ${module} since it is not a leaf module"
             continue 2
         fi
