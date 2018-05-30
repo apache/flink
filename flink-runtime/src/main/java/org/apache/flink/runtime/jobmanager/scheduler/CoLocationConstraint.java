@@ -101,7 +101,7 @@ public class CoLocationConstraint {
 	 *         false otherwise.
 	 */
 	public boolean isAssignedAndAlive() {
-		return lockedLocation != null && sharedSlot.isAlive();
+		return lockedLocation != null && sharedSlot != null && sharedSlot.isAlive();
 	}
 
 	/**
