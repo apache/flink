@@ -322,22 +322,22 @@ public class ReadOnlySlicedBufferTest {
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe1() {
-		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
+		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
 	}
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe2() {
-		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
+		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe1() {
-		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
+		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe2() {
-		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
+		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
 	}
 
 	@Test
