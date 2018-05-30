@@ -59,7 +59,8 @@ public class CEPOperatorUtils {
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
 			final PatternSelectFunction<IN, OUT> selectFunction,
-			final TypeInformation<OUT> outTypeInfo) {
+			final TypeInformation<OUT> outTypeInfo,
+			final OutputTag<IN> lateDataOutputTag) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
 			@Override
 			public OneInputStreamOperator<IN, OUT> build(
@@ -74,7 +75,8 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					comparator,
 					skipStrategy,
-					selectFunction
+					selectFunction,
+					lateDataOutputTag
 				);
 			}
 
@@ -106,7 +108,8 @@ public class CEPOperatorUtils {
 			final Pattern<IN, ?> pattern,
 			final EventComparator<IN> comparator,
 			final PatternFlatSelectFunction<IN, OUT> selectFunction,
-			final TypeInformation<OUT> outTypeInfo) {
+			final TypeInformation<OUT> outTypeInfo,
+			final OutputTag<IN> lateDataOutputTag) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, false, comparator, new OperatorBuilder<IN, OUT>() {
 			@Override
 			public OneInputStreamOperator<IN, OUT> build(
@@ -121,7 +124,8 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					comparator,
 					skipStrategy,
-					selectFunction
+					selectFunction,
+					lateDataOutputTag
 				);
 			}
 
@@ -160,7 +164,8 @@ public class CEPOperatorUtils {
 			final PatternFlatSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
-			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction) {
+			final PatternFlatTimeoutFunction<IN, OUT2> timeoutFunction,
+			final OutputTag<IN> lateDataOutputTag) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
 			@Override
 			public OneInputStreamOperator<IN, OUT1> build(
@@ -177,7 +182,8 @@ public class CEPOperatorUtils {
 					skipStrategy,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					lateDataOutputTag
 				);
 			}
 
@@ -216,7 +222,8 @@ public class CEPOperatorUtils {
 			final PatternSelectFunction<IN, OUT1> selectFunction,
 			final TypeInformation<OUT1> outTypeInfo,
 			final OutputTag<OUT2> outputTag,
-			final PatternTimeoutFunction<IN, OUT2> timeoutFunction) {
+			final PatternTimeoutFunction<IN, OUT2> timeoutFunction,
+			final OutputTag<IN> lateDataOutputTag) {
 		return createPatternStream(inputStream, pattern, outTypeInfo, true, comparator, new OperatorBuilder<IN, OUT1>() {
 			@Override
 			public OneInputStreamOperator<IN, OUT1> build(
@@ -233,7 +240,8 @@ public class CEPOperatorUtils {
 					skipStrategy,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					lateDataOutputTag
 				);
 			}
 

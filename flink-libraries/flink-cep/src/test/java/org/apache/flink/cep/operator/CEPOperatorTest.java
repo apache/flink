@@ -21,6 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -277,7 +278,7 @@ public class CEPOperatorTest extends TestLogger {
 						}
 					},
 					timedOut
-				), new KeySelector<Event, Integer>() {
+				, null), new KeySelector<Event, Integer>() {
 				private static final long serialVersionUID = 7219185117566268366L;
 
 				@Override
@@ -723,6 +724,49 @@ public class CEPOperatorTest extends TestLogger {
 			assertEquals(0L, harness.numEventTimeTimers());
 		} finally {
 			harness.close();
+		}
+	}
+
+	@Test
+	public void testCEPOperatorSideOutputLateElementsEventTime() throws Exception {
+
+		Event startEvent = new Event(41, "c", 1.0);
+		Event middle1Event1 = new Event(41, "a", 2.0);
+		Event middle1Event2 = new Event(41, "a", 3.0);
+		Event middle1Event3 = new Event(41, "a", 4.0);
+
+		OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
+
+		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
+			false,
+			new ComplexNFAFactory(),
+			null,
+			lateDataTag);
+		try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+				 CepOperatorTestUtilities.getCepTestHarness(operator)) {
+
+			harness.open();
+
+			harness.processWatermark(new Watermark(Long.MIN_VALUE));
+			harness.processElement(new StreamRecord<>(startEvent, 6));
+
+			verifyWatermark(harness.getOutput().poll(), Long.MIN_VALUE);
+			harness.processWatermark(new Watermark(6L));
+			verifyWatermark(harness.getOutput().poll(), 6L);
+
+			harness.processElement(new StreamRecord<>(middle1Event1, 4));
+			harness.processElement(new StreamRecord<>(middle1Event2, 5));
+			harness.processElement(new StreamRecord<>(middle1Event3, 7));
+
+			List<Event> late = new ArrayList<>();
+
+			while (!harness.getSideOutput(lateDataTag).isEmpty()) {
+				StreamRecord<Event> eventStreamRecord = harness.getSideOutput(lateDataTag).poll();
+				late.add(eventStreamRecord.getValue());
+			}
+
+			List<Event> expected = Lists.newArrayList(middle1Event1, middle1Event2);
+			Assert.assertArrayEquals(expected.toArray(), late.toArray());
 		}
 	}
 
