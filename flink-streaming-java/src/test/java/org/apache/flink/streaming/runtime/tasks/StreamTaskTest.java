@@ -1108,8 +1108,8 @@ public class StreamTaskTest extends TestLogger {
 					}
 
 					@Override
-					public InternalTimeServiceManager<?, ?> internalTimerServiceManager() {
-						InternalTimeServiceManager<?, ?> timeServiceManager = context.internalTimerServiceManager();
+					public InternalTimeServiceManager<?> internalTimerServiceManager() {
+						InternalTimeServiceManager<?> timeServiceManager = context.internalTimerServiceManager();
 						return timeServiceManager != null ? spy(timeServiceManager) : null;
 					}
 

@@ -96,7 +96,7 @@ public class InternalTimersSnapshotReaderWriters {
 		public final void writeTimersSnapshot(DataOutputView out) throws IOException {
 			writeKeyAndNamespaceSerializers(out);
 
-			InternalTimer.TimerSerializer<K, N> timerSerializer = new InternalTimer.TimerSerializer<>(
+			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer = new TimerHeapInternalTimer.TimerSerializer<>(
 				timersSnapshot.getKeySerializer(),
 				timersSnapshot.getNamespaceSerializer());
 
@@ -215,9 +215,10 @@ public class InternalTimersSnapshotReaderWriters {
 
 			restoreKeyAndNamespaceSerializers(restoredTimersSnapshot, in);
 
-			InternalTimer.TimerSerializer<K, N> timerSerializer = new InternalTimer.TimerSerializer<>(
-				restoredTimersSnapshot.getKeySerializer(),
-				restoredTimersSnapshot.getNamespaceSerializer());
+			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer =
+				new TimerHeapInternalTimer.TimerSerializer<>(
+					restoredTimersSnapshot.getKeySerializer(),
+					restoredTimersSnapshot.getNamespaceSerializer());
 
 			// read the event time timers
 			int sizeOfEventTimeTimers = in.readInt();

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.PostVersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyGroupsList;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
@@ -34,12 +34,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Serialization proxy for the timer services for a given key-group.
  */
 @Internal
-public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedIOReadableWritable {
+public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIOReadableWritable {
 
 	public static final int VERSION = 1;
 
 	/** The key-group timer services to write / read. */
-	private Map<String, HeapInternalTimerService<K, N>> timerServices;
+	private Map<String, HeapInternalTimerService<K, ?>> timerServices;
 
 	/** The user classloader; only relevant if the proxy is used to restore timer services. */
 	private ClassLoader userCodeClassLoader;
@@ -47,7 +47,7 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	/** Properties of restored timer services. */
 	private int keyGroupIdx;
 	private int totalKeyGroups;
-	private KeyGroupsList localKeyGroupRange;
+	private KeyGroupRange localKeyGroupRange;
 	private KeyContext keyContext;
 	private ProcessingTimeService processingTimeService;
 
@@ -55,10 +55,10 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	 * Constructor to use when restoring timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-			Map<String, HeapInternalTimerService<K, N>> timerServicesMapToPopulate,
+			Map<String, HeapInternalTimerService<K, ?>> timerServicesMapToPopulate,
 			ClassLoader userCodeClassLoader,
 			int totalKeyGroups,
-			KeyGroupsList localKeyGroupRange,
+			KeyGroupRange localKeyGroupRange,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			int keyGroupIdx) {
@@ -76,7 +76,7 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 	 * Constructor to use when writing timer services.
 	 */
 	public InternalTimerServiceSerializationProxy(
-			Map<String, HeapInternalTimerService<K, N>> timerServices,
+			Map<String, HeapInternalTimerService<K, ?>> timerServices,
 			int keyGroupIdx) {
 
 		this.timerServices = checkNotNull(timerServices);
@@ -93,9 +93,9 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 		super.write(out);
 
 		out.writeInt(timerServices.size());
-		for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
+		for (Map.Entry<String, HeapInternalTimerService<K, ?>> entry : timerServices.entrySet()) {
 			String serviceName = entry.getKey();
-			HeapInternalTimerService<K, N> timerService = entry.getValue();
+			HeapInternalTimerService<K, ?> timerService = entry.getValue();
 
 			out.writeUTF(serviceName);
 			InternalTimersSnapshotReaderWriters
@@ -111,7 +111,7 @@ public class InternalTimerServiceSerializationProxy<K, N> extends PostVersionedI
 		for (int i = 0; i < noOfTimerServices; i++) {
 			String serviceName = in.readUTF();
 
-			HeapInternalTimerService<K, N> timerService = timerServices.get(serviceName);
+			HeapInternalTimerService<K, ?> timerService = timerServices.get(serviceName);
 			if (timerService == null) {
 				timerService = new HeapInternalTimerService<>(
 					totalKeyGroups,

@@ -151,7 +151,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- time handler ------------------
 
-	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
+	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -731,7 +731,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 		// the following casting is to overcome type restrictions.
 		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
-		InternalTimeServiceManager<K, N> keyedTimeServiceHandler = (InternalTimeServiceManager<K, N>) timeServiceManager;
+		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
 		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
 	}
 
