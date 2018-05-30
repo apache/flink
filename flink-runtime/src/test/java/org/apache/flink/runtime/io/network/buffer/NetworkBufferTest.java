@@ -35,9 +35,9 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the {@link Buffer} class.
+ * Tests for the {@link NetworkBuffer} class.
  */
-public class BufferTest extends AbstractByteBufTest {
+public class NetworkBufferTest extends AbstractByteBufTest {
 
 	/**
 	 * Upper limit for the max size that is sufficient for all the tests.
