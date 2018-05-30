@@ -27,7 +27,7 @@ start_cluster
 
 mkdir -p $TEST_DATA_DIR
 
-$FLINK_DIR/bin/flink run -p 1 $TEST_PROGRAM_JAR --inputFile $TEST_INFRA_DIR/test-data/words --tempDir $TEST_DATA_DIR/ --output $TEST_DATA_DIR/out/cl_out_pf
+$FLINK_DIR/bin/flink run -p 1 $TEST_PROGRAM_JAR --inputFile $TEST_INFRA_DIR/test-data/words --inputDir $TEST_INFRA_DIR/test-data --tempDir $TEST_DATA_DIR/ --output $TEST_DATA_DIR/out/cl_out_pf
 
 OUTPUT=`cat $TEST_DATA_DIR/out/cl_out_pf`
 

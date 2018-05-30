@@ -85,7 +85,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 			}
 		};
 		this.cluster = builder.getCluster();
-		this.session = cluster.connect();
+		this.session = createSession();
+	}
+
+	protected Session createSession() {
+		return cluster.connect();
 	}
 
 	@Override

@@ -92,7 +92,6 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 *
 	 * @param taskExecutorAddress The address of the TaskExecutor that registers
 	 * @param resourceId The resource ID of the TaskExecutor that registers
-	 * @param slotReport The slot report containing free and allocated task slots
 	 * @param dataPort port used for data communication between TaskExecutors
 	 * @param hardwareDescription of the registering TaskExecutor
 	 * @param timeout The timeout for the response.
@@ -102,9 +101,22 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	CompletableFuture<RegistrationResponse> registerTaskExecutor(
 		String taskExecutorAddress,
 		ResourceID resourceId,
-		SlotReport slotReport,
 		int dataPort,
 		HardwareDescription hardwareDescription,
+		@RpcTimeout Time timeout);
+
+	/**
+	 * Sends the given {@link SlotReport} to the ResourceManager.
+	 *
+	 * @param taskManagerRegistrationId id identifying the sending TaskManager
+	 * @param slotReport which is sent to the ResourceManager
+	 * @param timeout for the operation
+	 * @return Future which is completed with {@link Acknowledge} once the slot report has been received.
+	 */
+	CompletableFuture<Acknowledge> sendSlotReport(
+		ResourceID taskManagerResourceId,
+		InstanceID taskManagerRegistrationId,
+		SlotReport slotReport,
 		@RpcTimeout Time timeout);
 
 	/**

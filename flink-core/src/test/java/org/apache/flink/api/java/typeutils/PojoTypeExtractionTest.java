@@ -31,6 +31,9 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -877,4 +880,24 @@ public class PojoTypeExtractionTest {
 		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
 	}
 
+	/**
+	 * POJO generated using Lombok.
+	 */
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	public static class TestLombok{
+		private int age = 10;
+		private String name;
+	}
+
+	@Test
+	public void testLombokPojo() {
+		TypeInformation<TestLombok> ti = TypeExtractor.getForClass(TestLombok.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+
+		PojoTypeInfo<TestLombok> pti = (PojoTypeInfo<TestLombok>) ti;
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, pti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, pti.getTypeAt(1));
+	}
 }

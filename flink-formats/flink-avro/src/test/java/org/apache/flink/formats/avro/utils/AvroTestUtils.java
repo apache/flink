@@ -27,9 +27,16 @@ import org.apache.flink.types.Row;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -64,7 +71,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests a simple Avro data types without nesting.
 	 */
-	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getSimpleTestData() {
+	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getSimpleTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -80,7 +87,7 @@ public final class AvroTestUtils {
 		rowAddr.setField(3, "Test State");
 		rowAddr.setField(4, "12345");
 
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = Address.class;
 		t.f1 = addr;
 		t.f2 = rowAddr;
@@ -91,7 +98,7 @@ public final class AvroTestUtils {
 	/**
 	 * Tests all Avro data types as well as nested types.
 	 */
-	public static Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> getComplexTestData() {
+	public static Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> getComplexTestData() {
 		final Address addr = Address.newBuilder()
 			.setNum(42)
 			.setStreet("Main Street 42")
@@ -142,11 +149,26 @@ public final class AvroTestUtils {
 		rowUser.setField(13, null);
 		rowUser.setField(14, rowAddr);
 
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> t = new Tuple3<>();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> t = new Tuple3<>();
 		t.f0 = User.class;
 		t.f1 = user;
 		t.f2 = rowUser;
 
 		return t;
+	}
+
+	/**
+	 * Writes given record using specified schema.
+	 * @param record record to serialize
+	 * @param schema schema to use for serialization
+	 * @return serialized record
+	 */
+	public static byte[] writeRecord(GenericRecord record, Schema schema) throws IOException {
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+
+		new GenericDatumWriter<>(schema).write(record, encoder);
+		encoder.flush();
+		return stream.toByteArray();
 	}
 }

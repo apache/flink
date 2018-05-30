@@ -104,11 +104,4 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
     t1.fetch(5)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testIn(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
-    t1.select(0.in(t1.select('_1)))
-  }
 }

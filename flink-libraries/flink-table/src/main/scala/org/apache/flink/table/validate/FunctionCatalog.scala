@@ -168,6 +168,8 @@ object FunctionCatalog {
     "isNotTrue" -> classOf[IsNotTrue],
     "isNotFalse" -> classOf[IsNotFalse],
     "if" -> classOf[If],
+    "between" -> classOf[Between],
+    "notBetween" -> classOf[NotBetween],
 
     // aggregate functions
     "avg" -> classOf[Avg],

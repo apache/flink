@@ -28,6 +28,7 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -47,7 +48,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
@@ -125,19 +125,19 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception {
-		final HttpRequest request = routed.request();
+	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, T gateway) throws Exception {
+		final HttpRequest request = routedRequest.getRequest();
 		final String requestPath;
 
 		// make sure we request the "index.html" in case there is a directory request
-		if (routed.path().endsWith("/")) {
-			requestPath = routed.path() + "index.html";
+		if (routedRequest.getPath().endsWith("/")) {
+			requestPath = routedRequest.getPath() + "index.html";
 		}
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routed.path().equals("/jobmanager/log") || routed.path().equals("/jobmanager/stdout")) {
+		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
 			requestPath = "";
 		} else {
-			requestPath = routed.path();
+			requestPath = routedRequest.getPath();
 		}
 
 		respondToRequest(channelHandlerContext, request, requestPath);

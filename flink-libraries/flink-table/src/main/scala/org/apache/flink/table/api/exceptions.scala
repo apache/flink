@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.table.catalog.TableSourceConverter
 import org.apache.flink.table.descriptors.DescriptorProperties
 
 /**
@@ -178,44 +177,6 @@ case class AmbiguousTableSourceException(
       cause) {
 
   def this(properties: Map[String, String]) = this(properties, null)
-}
-
-/**
-  * Exception for not finding a [[TableSourceConverter]] for a given table type.
-  *
-  * @param tableType table type
-  * @param cause the cause
-  * @deprecated Use table source factories instead
-  *            (see [[org.apache.flink.table.sources.TableSourceFactory]]).
-  */
-@Deprecated
-@deprecated("Use table factories (see TableSourceFactory) instead.")
-case class NoMatchedTableSourceConverterException(
-    tableType: String,
-    cause: Throwable)
-    extends RuntimeException(s"Could not find a TableSourceConverter for table type $tableType.",
-      cause) {
-
-  def this(tableType: String) = this(tableType, null)
-}
-
-/**
-  * Exception for finding more than one [[TableSourceConverter]] for a given table type.
-  *
-  * @param tableType table type
-  * @param cause the cause
-  * @deprecated Use table source factories instead
-  *            (see [[org.apache.flink.table.sources.TableSourceFactory]]).
-  */
-@Deprecated
-@deprecated("Use table factories (see TableSourceFactory) instead.")
-case class AmbiguousTableSourceConverterException(
-    tableType: String,
-    cause: Throwable)
-    extends RuntimeException(s"More than one TableSourceConverter for table type $tableType.",
-      cause) {
-
-  def this(tableType: String) = this(tableType, null)
 }
 
 /**

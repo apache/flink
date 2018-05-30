@@ -18,74 +18,146 @@
 
 package org.apache.flink.table.plan.util
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.java.typeutils.{MultisetTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.TableFunction
 
-class ObjectExplodeTableFunc extends TableFunction[Object] {
+abstract class ExplodeTableFunction[T] extends TableFunction[T] {
+
+  def collectArray(array: Array[T]): Unit = {
+    if (null != array) {
+      var i = 0
+      while (i < array.length) {
+        collect(array(i))
+        i += 1
+      }
+    }
+  }
+
+  def collect(map: util.Map[T, Integer]): Unit = {
+    if (null != map) {
+      val it = map.entrySet().iterator()
+      while (it.hasNext) {
+        val item = it.next()
+        val key: T = item.getKey
+        val cnt: Int = item.getValue
+        var i = 0
+        while (i < cnt) {
+          collect(key)
+          i += 1
+        }
+      }
+    }
+  }
+}
+
+class ObjectExplodeTableFunc extends ExplodeTableFunction[Object] {
   def eval(arr: Array[Object]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Object, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class FloatExplodeTableFunc extends TableFunction[Float] {
+class FloatExplodeTableFunc extends ExplodeTableFunction[Float] {
   def eval(arr: Array[Float]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Float, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class ShortExplodeTableFunc extends TableFunction[Short] {
+class ShortExplodeTableFunc extends ExplodeTableFunction[Short] {
   def eval(arr: Array[Short]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Short, Integer]): Unit = {
+    collect(map)
   }
 }
-class IntExplodeTableFunc extends TableFunction[Int] {
+class IntExplodeTableFunc extends ExplodeTableFunction[Int] {
   def eval(arr: Array[Int]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Int, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class LongExplodeTableFunc extends TableFunction[Long] {
+class LongExplodeTableFunc extends ExplodeTableFunction[Long] {
   def eval(arr: Array[Long]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Long, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class DoubleExplodeTableFunc extends TableFunction[Double] {
+class DoubleExplodeTableFunc extends ExplodeTableFunction[Double] {
   def eval(arr: Array[Double]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Double, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class ByteExplodeTableFunc extends TableFunction[Byte] {
+class ByteExplodeTableFunc extends ExplodeTableFunction[Byte] {
   def eval(arr: Array[Byte]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Byte, Integer]): Unit = {
+    collect(map)
   }
 }
 
-class BooleanExplodeTableFunc extends TableFunction[Boolean] {
+class BooleanExplodeTableFunc extends ExplodeTableFunction[Boolean] {
   def eval(arr: Array[Boolean]): Unit = {
-    arr.foreach(collect)
+    collectArray(arr)
+  }
+
+  def eval(map: util.Map[Boolean, Integer]): Unit = {
+    collect(map)
   }
 }
 
 object ExplodeFunctionUtil {
-  def explodeTableFuncFromType(ti: TypeInformation[_]):TableFunction[_] = {
+  def explodeTableFuncFromType(ti: TypeInformation[_]): TableFunction[_] = {
     ti match {
-      case pat: PrimitiveArrayTypeInfo[_] => {
-        pat.getComponentType match {
-          case BasicTypeInfo.INT_TYPE_INFO => new IntExplodeTableFunc
-          case BasicTypeInfo.LONG_TYPE_INFO => new LongExplodeTableFunc
-          case BasicTypeInfo.SHORT_TYPE_INFO => new ShortExplodeTableFunc
-          case BasicTypeInfo.FLOAT_TYPE_INFO => new FloatExplodeTableFunc
-          case BasicTypeInfo.DOUBLE_TYPE_INFO => new DoubleExplodeTableFunc
-          case BasicTypeInfo.BYTE_TYPE_INFO => new ByteExplodeTableFunc
-          case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
-        }
-      }
+      case pat: PrimitiveArrayTypeInfo[_] => createTableFuncByType(pat.getComponentType)
+
       case _: ObjectArrayTypeInfo[_, _] => new ObjectExplodeTableFunc
+
       case _: BasicArrayTypeInfo[_, _] => new ObjectExplodeTableFunc
-      case _ => throw new UnsupportedOperationException(ti.toString + "IS NOT supported")
+
+      case mt: MultisetTypeInfo[_] => createTableFuncByType(mt.getElementTypeInfo)
+
+      case _ => throw new TableException("Unnesting of '" + ti.toString + "' is not supported.")
+    }
+  }
+
+  def createTableFuncByType(typeInfo: TypeInformation[_]): TableFunction[_] = {
+    typeInfo match {
+      case BasicTypeInfo.INT_TYPE_INFO => new IntExplodeTableFunc
+      case BasicTypeInfo.LONG_TYPE_INFO => new LongExplodeTableFunc
+      case BasicTypeInfo.SHORT_TYPE_INFO => new ShortExplodeTableFunc
+      case BasicTypeInfo.FLOAT_TYPE_INFO => new FloatExplodeTableFunc
+      case BasicTypeInfo.DOUBLE_TYPE_INFO => new DoubleExplodeTableFunc
+      case BasicTypeInfo.BYTE_TYPE_INFO => new ByteExplodeTableFunc
+      case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
+      case _ => new ObjectExplodeTableFunc
     }
   }
 }

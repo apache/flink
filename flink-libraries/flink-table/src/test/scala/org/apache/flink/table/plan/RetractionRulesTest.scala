@@ -276,7 +276,7 @@ class RetractionRulesTest extends TableTestBase {
   }
 
   @Test
-  def testJoin(): Unit = {
+  def testInnerJoin(): Unit = {
     val util = streamTestForRetractionUtil()
     val lTable = util.addTable[(Int, Int)]('a, 'b)
     val rTable = util.addTable[(Int, Int)]('bb, 'c)
@@ -366,6 +366,61 @@ class RetractionRulesTest extends TableTestBase {
     val countDistinct = new CountDistinct
     val resultTable = lTable
       .leftOuterJoin(rTable, 'b === 'bb)
+      .select('a, 'b, 'c)
+      .groupBy('a)
+      .select('a, countDistinct('c))
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          binaryNode(
+            "DataStreamJoin",
+            "DataStreamScan(true, Acc)",
+            "DataStreamScan(true, Acc)",
+            "true, AccRetract"
+          ),
+          "true, AccRetract"
+        ),
+        "false, Acc"
+      )
+    util.verifyTableTrait(resultTable, expected)
+  }
+
+  @Test
+  def testRightJoin(): Unit = {
+    val util = streamTestForRetractionUtil()
+    val lTable = util.addTable[(Int, Int)]('a, 'b)
+    val rTable = util.addTable[(Int, String)]('bb, 'c)
+
+    val resultTable = lTable
+      .rightOuterJoin(rTable, 'b === 'bb)
+      .select('a, 'b, 'c)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamJoin",
+          "DataStreamScan(true, Acc)",
+          "DataStreamScan(true, Acc)",
+          "false, AccRetract"
+        ),
+        "false, AccRetract"
+      )
+    util.verifyTableTrait(resultTable, expected)
+  }
+
+  @Test
+  def testAggFollowedWithRightJoin(): Unit = {
+    val util = streamTestForRetractionUtil()
+    val lTable = util.addTable[(Int, Int)]('a, 'b)
+    val rTable = util.addTable[(Int, String)]('bb, 'c)
+
+    val countDistinct = new CountDistinct
+    val resultTable = lTable
+      .rightOuterJoin(rTable, 'b === 'bb)
       .select('a, 'b, 'c)
       .groupBy('a)
       .select('a, countDistinct('c))

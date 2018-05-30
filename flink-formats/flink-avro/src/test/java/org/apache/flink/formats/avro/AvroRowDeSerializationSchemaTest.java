@@ -24,6 +24,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testSerializeDeserializeSimpleRow() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -50,7 +51,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testSerializeSimpleRowSeveralTimes() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -65,7 +66,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testDeserializeRowSeveralTimes() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getSimpleTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -80,7 +81,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testSerializeDeserializeComplexRow() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -93,7 +94,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testSerializeComplexRowSeveralTimes() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -108,7 +109,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testDeserializeComplexRowSeveralTimes() throws IOException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
 
 		final AvroRowSerializationSchema serializationSchema = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserializationSchema = new AvroRowDeserializationSchema(testData.f0);
@@ -123,7 +124,7 @@ public class AvroRowDeSerializationSchemaTest {
 
 	@Test
 	public void testSerializability() throws IOException, ClassNotFoundException {
-		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
+		final Tuple3<Class<? extends SpecificRecordBase>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
 
 		final AvroRowSerializationSchema serOrig = new AvroRowSerializationSchema(testData.f0);
 		final AvroRowDeserializationSchema deserOrig = new AvroRowDeserializationSchema(testData.f0);

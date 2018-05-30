@@ -1146,6 +1146,58 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
+
+  @Test
+  def testRightJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    env.setStateBackend(getStateBackend)
+
+    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e"
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    tEnv.registerTable("Table3", ds1)
+    tEnv.registerTable("Table5", ds2)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt",
+      "null,Hallo Welt wie", "null,Hallo Welt wie gehts?", "null,ABC", "null,BCD",
+      "null,CDE", "null,DEF", "null,EFG", "null,FGH", "null,GHI", "null,HIJ",
+      "null,IJK", "null,JKL", "null,KLM")
+    val results = result.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testLeftSingleRightJoinEqualPredicate(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    env.setStateBackend(getStateBackend)
+
+    val sqlQuery =
+      "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a"
+
+    val ds1 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+    val ds2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'f, 'g, 'h)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = Seq(
+      "1,null", "2,null", "2,null", "3,3", "3,3", "3,3", "4,null", "4,null", "4," +
+      "null", "4,null", "5,null", "5,null", "5,null", "5,null", "5,null")
+    val results = result.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 }
 
 private class Row4WatermarkExtractor

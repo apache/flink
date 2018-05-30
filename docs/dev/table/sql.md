@@ -24,7 +24,7 @@ under the License.
 
 SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-a-table-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
 For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
@@ -388,7 +388,7 @@ GROUP BY users
 SELECT *
 FROM Orders INNER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -398,7 +398,7 @@ FROM Orders INNER JOIN Product ON Orders.productId = Product.id
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported. Right and full joins are not supported in streaming yet.</p>
+        <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported. Full join is not supported in streaming yet.</p>
         <p><b>Note:</b> The order of joins is not optimized. Tables are joined in the order in which they are specified in the FROM clause. Make sure to specify tables in an order that does not yield a cross join (Cartesian product) which are not supported and would cause a query to fail.</p>
 {% highlight sql %}
 SELECT *
@@ -410,6 +410,7 @@ FROM Orders RIGHT JOIN Product ON Orders.productId = Product.id
 SELECT *
 FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -458,19 +459,19 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-      <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
-      <p>Inner Join</p>
+        <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+        <p>Inner Join</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders, LATERAL TABLE(unnest_udtf(tags)) t AS tag
 {% endhighlight %}
-      <p>Left Outer Join</p>
+        <p>Left Outer Join</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
 {% endhighlight %}
 
-<p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
+        <p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
       </td>
     </tr>
   </tbody>
@@ -551,10 +552,10 @@ FROM (
     <tr>
       <td>
         <strong>In</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-      Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
+        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight sql %}
 SELECT user, amount
 FROM Orders
@@ -562,6 +563,25 @@ WHERE product IN (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Exists</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Returns true if the sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+{% highlight sql %}
+SELECT user, amount
+FROM Orders
+WHERE product EXISTS (
+    SELECT product FROM NewProducts
+)
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1083,6 +1103,7 @@ EXISTS (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1093,7 +1114,8 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1104,7 +1126,8 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 

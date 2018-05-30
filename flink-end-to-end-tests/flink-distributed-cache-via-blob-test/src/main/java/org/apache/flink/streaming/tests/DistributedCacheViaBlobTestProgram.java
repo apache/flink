@@ -39,14 +39,23 @@ public class DistributedCacheViaBlobTestProgram {
 		final ParameterTool params = ParameterTool.fromArgs(args);
 
 		final Path inputFile = Paths.get(params.getRequired("inputFile"));
+		final Path inputDir = Paths.get(params.getRequired("inputDir"));
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 
 		env.registerCachedFile(inputFile.toString(), "test_data", false);
+		env.registerCachedFile(inputDir.toString(), "test_dir", false);
+
+		Path containedFile = Files.list(inputDir).findAny()
+			.orElseThrow(() -> new RuntimeException("Input directory must not be empty."));
 
 		env.fromElements(1)
-			.map(new TestMapFunction(inputFile.toAbsolutePath().toString()))
+			.map(new TestMapFunction(
+				inputFile.toAbsolutePath().toString(),
+				Files.size(inputFile),
+				inputDir.toAbsolutePath().toString(),
+				containedFile.getFileName().toString()))
 			.writeAsText(params.getRequired("output"), FileSystem.WriteMode.OVERWRITE);
 
 		env.execute("Distributed Cache Via Blob Test Program");
@@ -54,19 +63,41 @@ public class DistributedCacheViaBlobTestProgram {
 
 	static class TestMapFunction extends RichMapFunction<Integer, String> {
 
-		private String initialPath;
+		private final String initialPath;
+		private final long fileSize;
 
-		public TestMapFunction(String initialPath) {
+		private final String initialDirPath;
+		private final String containedFileName;
+
+		public TestMapFunction(String initialPath, long fileSize, String initialDirPath, String containedFileName) {
 			this.initialPath = initialPath;
+			this.fileSize = fileSize;
+			this.initialDirPath = initialDirPath;
+			this.containedFileName = containedFileName;
 		}
 
 		@Override
 		public String map(Integer value) throws Exception {
 			final Path testFile = getRuntimeContext().getDistributedCache().getFile("test_data").toPath();
+			final Path testDir = getRuntimeContext().getDistributedCache().getFile("test_dir").toPath();
 
 			if (testFile.toAbsolutePath().toString().equals(initialPath)) {
 				throw new RuntimeException(String.format("Operator should access copy from cache rather than the " +
 					"initial file. Input file path: %s. Cache file path: %s", initialPath, testFile));
+			}
+
+			long testFileSize = Files.size(testFile);
+			if (testFileSize != fileSize) {
+				throw new RuntimeException(String.format("File size does not match. Expected:%s Actual:%s", fileSize, testFileSize));
+			}
+
+			if (testDir.toAbsolutePath().toString().equals(initialDirPath)) {
+				throw new RuntimeException(String.format("Operator should access copy from cache rather than the " +
+					"initial dir. Input dir path: %s. Cache dir path: %s", initialDirPath, testDir));
+			}
+
+			if (Files.list(testDir).map(Path::getFileName).map(Path::toString).noneMatch(path -> path.equals(containedFileName))) {
+				throw new RuntimeException(String.format("Cached directory %s should not be empty.", testDir));
 			}
 
 			return Files.readAllLines(testFile)

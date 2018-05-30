@@ -25,6 +25,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -47,9 +50,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedStream;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
@@ -135,7 +135,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 			@Override
 			protected void initChannel(SocketChannel ch) {
-				Handler handler = new Handler(router);
+				RouterHandler handler = new RouterHandler(router, new HashMap<>());
 
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
@@ -148,7 +148,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				ch.pipeline()
 					.addLast(new HttpServerCodec())
 					.addLast(new ChunkedWriteHandler())
-					.addLast(handler.name(), handler)
+					.addLast(handler.getName(), handler)
 					.addLast(new UnknownFileHandler());
 			}
 		};
@@ -221,7 +221,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			throw new IllegalArgumentException("not expecting an absolute path");
 		}
 		URL fileURL = new URL(baseURL, remoteFile.toString());
-		router.ANY(fileURL.getPath(), new VirtualFileServerHandler(path));
+		router.addAny(fileURL.getPath(), new VirtualFileServerHandler(path));
 
 		paths.put(remoteFile, fileURL);
 
@@ -236,7 +236,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			} catch (MalformedURLException e) {
 				throw new RuntimeException(e);
 			}
-			router.removePath(fileURL.getPath());
+			router.removePathPattern(fileURL.getPath());
 		}
 	}
 
@@ -267,7 +267,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 * Handle HEAD and GET requests for a specific file.
 	 */
 	@ChannelHandler.Sharable
-	public static class VirtualFileServerHandler extends SimpleChannelInboundHandler<Routed> {
+	public static class VirtualFileServerHandler extends SimpleChannelInboundHandler<RoutedRequest> {
 
 		private FileSystem fs;
 		private Path path;
@@ -284,9 +284,9 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 		}
 
 		@Override
-		protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
+		protected void channelRead0(ChannelHandlerContext ctx, RoutedRequest routedRequest) throws Exception {
 
-			HttpRequest request = routed.request();
+			HttpRequest request = routedRequest.getRequest();
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("{} request for file '{}'", request.getMethod(), path);
