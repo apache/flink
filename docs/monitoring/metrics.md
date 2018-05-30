@@ -721,16 +721,9 @@ metrics.reporter.promgateway.prefix: flink
 
 {% endhighlight %}
 
-Flink metric types are mapped to Prometheus metric types as follows: 
+PrometheusPushGatewayReporter push metrics to a [Pushgateway](https://github.com/prometheus/pushgateway). The Pushgateway then exposes 
+these metrics to Prometheus. The working mechanism is different from PrometheusReporter (see [PrometheusReporter](#prometheus-orgapacheflinkmetricsprometheusprometheusreporter)).
 
-| Flink     | Prometheus | Note                                     |
-| --------- |------------|------------------------------------------|
-| Counter   | Gauge      |Prometheus counters cannot be decremented.|
-| Gauge     | Gauge      |Only numbers and booleans are supported.  |
-| Histogram | Summary    |Quantiles .5, .75, .95, .98, .99 and .999 |
-| Meter     | Gauge      |The gauge exports the meter's rate.       |
-
-All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
