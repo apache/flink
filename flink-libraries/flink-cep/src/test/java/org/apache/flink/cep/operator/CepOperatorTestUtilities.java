@@ -19,6 +19,7 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.EventComparator;
@@ -26,6 +27,7 @@ import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.OutputTag;
 
 import java.util.List;
 import java.util.Map;
@@ -66,6 +68,9 @@ public class CepOperatorTestUtilities {
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory,
 		EventComparator<Event> comparator) {
+
+		OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
+
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
@@ -77,7 +82,7 @@ public class CepOperatorTestUtilities {
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;
 				}
-			});
+			}, lateDataTag);
 	}
 
 	private CepOperatorTestUtilities() {
