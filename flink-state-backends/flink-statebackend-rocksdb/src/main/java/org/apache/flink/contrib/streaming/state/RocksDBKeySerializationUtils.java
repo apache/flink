@@ -139,11 +139,10 @@ public class RocksDBKeySerializationUtils {
 		} while (value != 0);
 	}
 
-	public static byte[] serializeKeyGroup(int keyGroup, int keyGroupPrefixBytes) {
-		byte[] startKeyGroupPrefixBytes = new byte[keyGroupPrefixBytes];
+	public static void serializeKeyGroup(int keyGroup, byte[] startKeyGroupPrefixBytes) {
+		final int keyGroupPrefixBytes = startKeyGroupPrefixBytes.length;
 		for (int j = 0; j < keyGroupPrefixBytes; ++j) {
 			startKeyGroupPrefixBytes[j] = (byte) (keyGroup >>> ((keyGroupPrefixBytes - j - 1) * Byte.SIZE));
 		}
-		return startKeyGroupPrefixBytes;
 	}
 }
