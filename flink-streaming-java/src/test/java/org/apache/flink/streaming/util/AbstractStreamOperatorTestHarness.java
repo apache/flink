@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -535,10 +534,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		setupCalled = false;
 
 		internalEnvironment.ifPresent(MockEnvironment::close);
-	}
-
-	public MetricGroup getMetricGroup() {
-		return operator.getMetricGroup();
 	}
 
 	public void setProcessingTime(long time) throws Exception {
