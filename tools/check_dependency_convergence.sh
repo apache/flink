@@ -53,9 +53,12 @@ do
     done
     
     cd "${module}"
-    mvn validate -nsu -Dcheckstyle.skip=true -Dcheck-convergence
+    echo "checking ${module}"
+    output=$(mvn validate -nsu -Dcheckstyle.skip=true -Dcheck-convergence)
     exit_code=$?
     if [[ ${exit_code} != 0 ]]; then
+        echo "dependency convergence failed."
+        echo "${output}"
         exit ${exit_code}
     fi
     cd "${FLINK_DIR}"
