@@ -584,17 +584,25 @@ public class JobGraph implements Serializable {
 		if (!userArtifacts.isEmpty()) {
 			try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
+					Path filePath = new Path(userArtifact.getValue().filePath);
 
-					final PermanentBlobKey key = blobClient.uploadFile(jobID,
-						new Path(userArtifact.getValue().filePath));
+					if (filePath.getFileSystem().isDistributedFS()) {
+						DistributedCache.writeFileInfoToConfig(
+							userArtifact.getKey(),
+							userArtifact.getValue(),
+							jobConfiguration
+						);
+					} else {
+						final PermanentBlobKey key = blobClient.uploadFile(jobID, filePath);
 
-					DistributedCache.writeFileInfoToConfig(
-						userArtifact.getKey(),
-						new DistributedCache.DistributedCacheEntry(
-							userArtifact.getValue().filePath,
-							userArtifact.getValue().isExecutable,
-							InstantiationUtil.serializeObject(key)),
-						jobConfiguration);
+						DistributedCache.writeFileInfoToConfig(
+							userArtifact.getKey(),
+							new DistributedCache.DistributedCacheEntry(
+								userArtifact.getValue().filePath,
+								userArtifact.getValue().isExecutable,
+								InstantiationUtil.serializeObject(key)),
+							jobConfiguration);
+					}
 				}
 			}
 		}

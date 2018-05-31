@@ -15,8 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common.cache;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 
 import java.io.File;
 import java.io.Serializable;
@@ -29,10 +33,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-
 /**
  * DistributedCache provides static methods to write the registered cache files into job configuration or decode
  * them from job configuration. It also provides user access to the file locally.
@@ -40,6 +40,9 @@ import org.apache.flink.core.fs.Path;
 @Public
 public class DistributedCache {
 
+	/**
+	 * Meta info about an entry in {@link DistributedCache}.
+	 */
 	public static class DistributedCacheEntry implements Serializable {
 
 		public String filePath;
@@ -48,9 +51,9 @@ public class DistributedCache {
 
 		public byte[] blobKey;
 
-		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey, boolean isZipped){
-			this.filePath=filePath;
-			this.isExecutable=isExecutable;
+		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey, boolean isZipped) {
+			this.filePath = filePath;
+			this.isExecutable = isExecutable;
 			this.blobKey = blobKey;
 			this.isZipped = isZipped;
 		}
@@ -110,7 +113,9 @@ public class DistributedCache {
 		conf.setString(CACHE_FILE_PATH + num, e.filePath);
 		conf.setBoolean(CACHE_FILE_EXE + num, e.isExecutable || new File(e.filePath).canExecute());
 		conf.setBoolean(CACHE_FILE_DIR + num, e.isZipped || new File(e.filePath).isDirectory());
-		conf.setBytes(CACHE_FILE_BLOB_KEY + num, e.blobKey);
+		if (e.blobKey != null) {
+			conf.setBytes(CACHE_FILE_BLOB_KEY + num, e.blobKey);
+		}
 	}
 
 	public static Set<Entry<String, DistributedCacheEntry>> readFileInfoFromConfig(Configuration conf) {
