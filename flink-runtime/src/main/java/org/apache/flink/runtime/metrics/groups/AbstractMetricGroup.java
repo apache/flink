@@ -77,7 +77,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	protected final MetricRegistry registry;
 
 	/** All metrics that are directly contained in this group. */
-	private final Map<String, Metric> metrics = new HashMap<>();
+	protected final Map<String, Metric> metrics = new HashMap<>();
 
 	/** All metric subgroups of this group. */
 	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
@@ -113,12 +113,11 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		if (variables == null) { // avoid synchronization for common case
 			synchronized (this) {
 				if (variables == null) {
-					Map<String, String> tmpVariables = new HashMap<>();
-					putVariables(tmpVariables);
-					if (parent != null) { // not true for Job-/TaskManagerMetricGroup
-						tmpVariables.putAll(parent.getAllVariables());
+					variables = new HashMap<>();
+					putVariables(variables);
+					if (parent != null) { // not true for Job-/TaskManagerMetricGroup and mocks
+						variables.putAll(parent.getAllVariables());
 					}
-					variables = tmpVariables;
 				}
 			}
 		}
