@@ -37,6 +37,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -580,11 +581,54 @@ public class JobGraph implements Serializable {
 		return "JobGraph(jobId: " + jobID + ")";
 	}
 
-	public void uploadUserArtifacts(InetSocketAddress blobServerAddress, Configuration clientConfig) throws IOException {
-		if (!userArtifacts.isEmpty()) {
-			try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
-				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
+	/**
+	 * Configures JobGraph with user specified artifacts. If the files are in local system it uploads them
+	 * to the BLOB server, otherwise it just puts metadata for future remote access from within task executor.
+	 *
+	 * @param blobServerAddress of the blob server to upload the files to
+	 * @param blobClientConfig the blob client configuration
+	 * @throws IOException Thrown, if the file upload to the Blob server failed.
+	 */
+	public void uploadUserArtifacts(
+			InetSocketAddress blobServerAddress,
+			Configuration blobClientConfig) throws IOException {
 
+		Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> uploadToBlobServer = new HashSet<>();
+		Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> distributeViaDFS = new HashSet<>();
+
+		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
+			Path filePath = new Path(userArtifact.getValue().filePath);
+
+			try {
+				if (filePath.getFileSystem().isDistributedFS()) {
+					distributeViaDFS.add(userArtifact);
+				} else {
+					uploadToBlobServer.add(userArtifact);
+				}
+
+			} catch (IOException ex) {
+				distributeViaDFS.add(userArtifact);
+			}
+		}
+
+		uploadViaBlob(blobServerAddress, blobClientConfig, uploadToBlobServer);
+
+		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : distributeViaDFS) {
+			DistributedCache.writeFileInfoToConfig(
+				userArtifact.getKey(),
+				userArtifact.getValue(),
+				jobConfiguration
+			);
+		}
+	}
+
+	private void uploadViaBlob(
+			InetSocketAddress blobServerAddress,
+			Configuration clientConfig,
+			Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> uploadToBlobServer) throws IOException {
+		if (!uploadToBlobServer.isEmpty()) {
+			try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
+				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : uploadToBlobServer) {
 					final PermanentBlobKey key = blobClient.uploadFile(jobID,
 						new Path(userArtifact.getValue().filePath));
 
