@@ -279,7 +279,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 				// we are operating on. This is passed in via 'isLeft'
 				if (isLeft && shouldBeJoined(ourTimestamp, tuple.f1)) {
 					collect((T1) ourValue, (T2) tuple.f0, ourTimestamp, tuple.f1);
-				} else if (shouldBeJoined(tuple.f1, ourTimestamp)) {
+				} else if (!isLeft && shouldBeJoined(tuple.f1, ourTimestamp)) {
 					collect((T1) tuple.f0, (T2) ourValue, tuple.f1, ourTimestamp);
 				}
 			}
