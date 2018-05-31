@@ -51,7 +51,7 @@ trait AsyncFunction[IN, OUT] extends Function {
 
   /**
     * [[AsyncFunction.asyncInvoke]] timeout occurred.
-    * By default, the result future is exceptionally completed with timeout exception.
+    * By default, the result future is exceptionally completed with a timeout exception.
     *
     * @param input element coming from an upstream task
     * @param resultFuture to be completed with the result data

@@ -74,9 +74,11 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -212,17 +214,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class TimeoutAwareLazyAsyncFunction extends LazyAsyncFunction {
+	/**
+	 * A special {@link LazyAsyncFunction} for timeout handling.
+	 * Complete the result future with 3 times the input when the timeout occurred.
+	 */
+	private static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
 		private static final long serialVersionUID = 1428714561365346128L;
 
 		@Override
 		public void timeout(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
-			if (input != null && input % 2 == 0) {
-				resultFuture.complete(Collections.singletonList(input * 3));
-			} else {
-				// ignore odd input number when it timeouts
-				resultFuture.complete(Collections.emptyList());
-			}
+			resultFuture.complete(Collections.singletonList(input * 3));
 		}
 	}
 
@@ -613,11 +614,29 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testAsyncTimeout() throws Exception {
+	public void testAsyncTimeoutFailure() throws Exception {
+		testAsyncTimeout(
+			new LazyAsyncFunction(),
+			Optional.of(TimeoutException.class),
+			new StreamRecord<>(2, 5L));
+	}
+
+	@Test
+	public void testAsyncTimeoutIgnore() throws Exception {
+		testAsyncTimeout(
+			new IgnoreTimeoutLazyAsyncFunction(),
+			Optional.empty(),
+			new StreamRecord<>(3, 0L),
+			new StreamRecord<>(2, 5L));
+	}
+
+	private void testAsyncTimeout(LazyAsyncFunction lazyAsyncFunction,
+			Optional<Class<? extends Throwable>> expectedException,
+			StreamRecord<Integer>... expectedRecords) throws Exception {
 		final long timeout = 10L;
 
 		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new LazyAsyncFunction(),
+			lazyAsyncFunction,
 			timeout,
 			2,
 			AsyncDataStream.OutputMode.ORDERED);
@@ -645,67 +664,23 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.setProcessingTime(initialTime + timeout + 1L);
 
 		// allow the second async stream record to be processed
-		LazyAsyncFunction.countDown();
+		lazyAsyncFunction.countDown();
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
 			testHarness.close();
 		}
 
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 5L));
+		expectedOutput.addAll(Arrays.asList(expectedRecords));
 
 		TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
 
-		ArgumentCaptor<Throwable> argumentCaptor = ArgumentCaptor.forClass(Throwable.class);
-
-		assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
-		ExceptionUtils.findThrowable(mockEnvironment.getActualExternalFailureCause().get(), TimeoutException.class);
-	}
-
-	@Test
-	public void testAsyncTimeoutAware() throws Exception {
-		final long timeout = 10L;
-
-		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new TimeoutAwareLazyAsyncFunction(),
-			timeout,
-			4,
-			AsyncDataStream.OutputMode.ORDERED);
-
-		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
-
-		final long initialTime = 0L;
-		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-		testHarness.setProcessingTime(initialTime);
-
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.processElement(new StreamRecord<>(1, initialTime));
-			testHarness.processElement(new StreamRecord<>(2, initialTime));
-			testHarness.processElement(new StreamRecord<>(3, initialTime));
-			testHarness.setProcessingTime(initialTime + 5L);
-			testHarness.processElement(new StreamRecord<>(4, initialTime + 5L));
+		if (expectedException.isPresent()) {
+			assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
+			assertTrue(ExceptionUtils.findThrowable(
+				mockEnvironment.getActualExternalFailureCause().get(),
+				expectedException.get()).isPresent());
 		}
-
-		// trigger the timeouts of the first three stream records
-		testHarness.setProcessingTime(initialTime + timeout + 1L);
-
-		// allow the 4th async stream record to be processed
-		TimeoutAwareLazyAsyncFunction.countDown();
-
-		// wait until all async collectors in the buffer have been emitted out.
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.close();
-		}
-
-		// output of the 2nd and the 4th stream records
-		expectedOutput.add(new StreamRecord<>(6 , initialTime));
-		expectedOutput.add(new StreamRecord<>(4, initialTime + 5L));
-
-		TestHarnessUtil.assertOutputEquals("Output for stream records does not match.",
-			expectedOutput, testHarness.getOutput());
 	}
 
 	@Nonnull
