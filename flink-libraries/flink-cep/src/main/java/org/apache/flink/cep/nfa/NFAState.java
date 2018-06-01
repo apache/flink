@@ -18,83 +18,29 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
-
-import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
 
 /**
  * State kept for a {@link NFA}.
- *
- * <p>The {@link AbstractKeyedCEPPatternOperator CEP operator}
- * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
- * When an event gets processed, it updates the NFA's internal state machine.
- *
- * <p>An event that belongs to a partially matched sequence is kept in an internal
- * {@link SharedBuffer buffer}, which is a memory-optimized data-structure exactly for
- * this purpose. Events in the buffer are removed when all the matched sequences that
- * contain them are:
- * <ol>
- *  <li>emitted (success)</li>
- *  <li>discarded (patterns containing NOT)</li>
- *  <li>timed-out (windowed patterns)</li>
- * </ol>
- *
- * <p>The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
- *
- * @param <T> Type of the processed events
- * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
- * https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
  */
-public class NFAState<T> {
+public class NFAState {
 
 	/**
 	 * Current set of {@link ComputationState computation states} within the state machine.
 	 * These are the "active" intermediate states that are waiting for new matching
 	 * events to transition to new valid states.
 	 */
-	private Queue<ComputationState<T>> computationStates;
-
-	/**
-	 * Buffer used to store the matched events.
-	 */
-	private SharedBuffer<String, T> eventSharedBuffer;
+	private final Queue<ComputationState> computationStates;
 
 	/**
 	 * Flag indicating whether the matching status of the state machine has changed.
 	 */
 	private boolean stateChanged;
 
-	public NFAState(
-			Queue<ComputationState<T>> computationStates,
-			SharedBuffer<String, T> eventSharedBuffer,
-			boolean stateChanged) {
+	public NFAState(Queue<ComputationState> computationStates) {
 		this.computationStates = computationStates;
-		this.eventSharedBuffer = eventSharedBuffer;
-		this.stateChanged = stateChanged;
-	}
-
-	public NFAState() {
-		this(new LinkedList<>(), new SharedBuffer<>(), false);
-	}
-
-	public NFAState(Iterable<ComputationState<T>> startingStates) {
-		this();
-
-		for (ComputationState<T> startingState : startingStates) {
-			computationStates.add(startingState);
-		}
-	}
-
-	/**
-	 * Check if the NFA has finished processing all incoming data so far. That is
-	 * when the buffer keeping the matches is empty.
-	 *
-	 * @return {@code true} if there are no elements in the {@link SharedBuffer},
-	 * {@code false} otherwise.
-	 */
-	public boolean isEmpty() {
-		return eventSharedBuffer.isEmpty();
+		this.stateChanged = false;
 	}
 
 	/**
@@ -113,32 +59,39 @@ public class NFAState<T> {
 		this.stateChanged = false;
 	}
 
-	public void setStateChanged(boolean stateChanged) {
-		this.stateChanged = stateChanged;
+	/**
+	 * Set the changed bit checked via {@link #isStateChanged()} to {@code true}.
+	 */
+	public void setStateChanged() {
+		this.stateChanged = true;
 	}
 
-	public Queue<ComputationState<T>> getComputationStates() {
+	public Queue<ComputationState> getComputationStates() {
 		return computationStates;
 	}
 
-	public SharedBuffer<String, T> getEventSharedBuffer() {
-		return eventSharedBuffer;
-	}
-
 	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof NFAState) {
-			@SuppressWarnings("unchecked")
-			NFAState<T> other = (NFAState<T>) obj;
-
-			return eventSharedBuffer.equals(other.eventSharedBuffer);
-		} else {
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+		NFAState nfaState = (NFAState) o;
+		return 	Objects.equals(computationStates, nfaState.computationStates);
 	}
 
 	@Override
 	public int hashCode() {
-		return eventSharedBuffer.hashCode();
+		return Objects.hash(computationStates, stateChanged);
+	}
+
+	@Override
+	public String toString() {
+		return "NFAState{" +
+			"computationStates=" + computationStates +
+			", stateChanged=" + stateChanged +
+			'}';
 	}
 }

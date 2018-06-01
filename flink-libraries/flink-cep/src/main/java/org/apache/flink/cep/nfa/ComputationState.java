@@ -18,78 +18,51 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
+
 import javax.annotation.Nullable;
 
 import java.util.Objects;
 
 /**
- * Helper class which encapsulates the state of the NFA computation. It points to the current state,
- * the last taken event, its occurrence timestamp, the current version and the starting timestamp
+ * Helper class which encapsulates the currentStateName of the NFA computation. It points to the current currentStateName,
+ * the previous entry of the pattern, the current version and the starting timestamp
  * of the overall pattern.
- *
- * @param <T> Type of the input events
  */
-public class ComputationState<T> {
-	// pointer to the NFA state of the computation
-	private final String state;
+public class ComputationState {
+	// pointer to the NFA currentStateName of the computation
+	private final String currentStateName;
 
-	// the last taken event
-	private final T event;
-
-	private final int counter;
-
-	// timestamp of the last taken event
-	private final long timestamp;
-
-	// The current version of the state to discriminate the valid pattern paths in the SharedBuffer
+	// The current version of the currentStateName to discriminate the valid pattern paths in the SharedBuffer
 	private final DeweyNumber version;
 
 	// Timestamp of the first element in the pattern
 	private final long startTimestamp;
 
 	@Nullable
-	private final String previousState;
+	private final NodeId previousBufferEntry;
 
 	private ComputationState(
 			final String currentState,
-			@Nullable final String previousState,
-			final T event,
-			final int counter,
-			final long timestamp,
+			@Nullable final NodeId previousBufferEntry,
 			final DeweyNumber version,
 			final long startTimestamp) {
-		this.state = currentState;
-		this.event = event;
-		this.counter = counter;
-		this.timestamp = timestamp;
+		this.currentStateName = currentState;
 		this.version = version;
 		this.startTimestamp = startTimestamp;
-		this.previousState = previousState;
+		this.previousBufferEntry = previousBufferEntry;
 	}
 
-	public int getCounter() {
-		return counter;
-	}
-
-	public long getTimestamp() {
-		return timestamp;
+	public NodeId getPreviousBufferEntry() {
+		return previousBufferEntry;
 	}
 
 	public long getStartTimestamp() {
 		return startTimestamp;
 	}
 
-	public String getState() {
-		return state;
-	}
-
-	@Nullable
-	public String getPreviousState() {
-		return previousState;
-	}
-
-	public T getEvent() {
-		return event;
+	public String getCurrentStateName() {
+		return currentStateName;
 	}
 
 	public DeweyNumber getVersion() {
@@ -100,40 +73,43 @@ public class ComputationState<T> {
 	public boolean equals(Object obj) {
 		if (obj instanceof ComputationState) {
 			ComputationState other = (ComputationState) obj;
-			return Objects.equals(state, other.state) &&
-				Objects.equals(event, other.event) &&
-				counter == other.counter &&
-				timestamp == other.timestamp &&
+			return Objects.equals(currentStateName, other.currentStateName) &&
 				Objects.equals(version, other.version) &&
 				startTimestamp == other.startTimestamp &&
-				Objects.equals(previousState, other.previousState);
-
+				Objects.equals(previousBufferEntry, other.previousBufferEntry);
 		} else {
 			return false;
 		}
 	}
 
 	@Override
+	public String toString() {
+		return "ComputationState{" +
+			"currentStateName='" + currentStateName + '\'' +
+			", version=" + version +
+			", startTimestamp=" + startTimestamp +
+			", previousBufferEntry=" + previousBufferEntry +
+			'}';
+	}
+
+	@Override
 	public int hashCode() {
-		return Objects.hash(state, event, counter, timestamp, version, startTimestamp, previousState);
+		return Objects.hash(currentStateName, version, startTimestamp, previousBufferEntry);
 	}
 
-	public static <T> ComputationState<T> createStartState(final String state) {
-		return new ComputationState<>(state, null, null, 0, -1L, new DeweyNumber(1), -1L);
+	public static ComputationState createStartState(final String state) {
+		return createStartState(state, new DeweyNumber(1));
 	}
 
-	public static <T> ComputationState<T> createStartState(final String state, final DeweyNumber version) {
-		return new ComputationState<T>(state, null, null, 0, -1L, version, -1L);
+	public static ComputationState createStartState(final String state, final DeweyNumber version) {
+		return createState(state, null, version, -1L);
 	}
 
-	public static <T> ComputationState<T> createState(
+	public static ComputationState createState(
 			final String currentState,
-			final String previousState,
-			final T event,
-			final int counter,
-			final long timestamp,
+			final NodeId previousEntry,
 			final DeweyNumber version,
 			final long startTimestamp) {
-		return new ComputationState<>(currentState, previousState, event, counter, timestamp, version, startTimestamp);
+		return new ComputationState(currentState, previousEntry, version, startTimestamp);
 	}
 }

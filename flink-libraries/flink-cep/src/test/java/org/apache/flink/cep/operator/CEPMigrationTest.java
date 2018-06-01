@@ -551,7 +551,7 @@ public class CEPMigrationTest {
 	}
 
 	@Test
-	public void testAndOrSubtypConditionsAfterMigration() throws Exception {
+	public void testAndOrSubtypeConditionsAfterMigration() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
 			private static final long serialVersionUID = -4873366487571254798L;
@@ -625,7 +625,7 @@ public class CEPMigrationTest {
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
 					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 
@@ -653,7 +653,7 @@ public class CEPMigrationTest {
 				.times(2)
 				.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 
@@ -684,7 +684,7 @@ public class CEPMigrationTest {
 					// priority queue in CEP operator are correctly checkpointed/restored
 					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 

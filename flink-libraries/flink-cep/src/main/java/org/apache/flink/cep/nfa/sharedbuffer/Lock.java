@@ -16,30 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.nfa;
-
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
+package org.apache.flink.cep.nfa.sharedbuffer;
 
 /**
- * {@link CompositeTypeSerializerConfigSnapshot} for {@link NFAStateSerializer}.
+ * Implements locking logic for {@link EventWrapper} and
+ * {@link SharedBufferNode} using a lock reference counter.
  */
-public final class NFAStateSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+public final class Lock {
 
-	private static final int VERSION = 1;
+	private int refCounter;
 
-	/** This empty constructor is required for deserializing the configuration. */
-	public NFAStateSerializerConfigSnapshot() {}
+	Lock(int refCounter) {
+		this.refCounter = refCounter;
+	}
 
-	public NFAStateSerializerConfigSnapshot(
-			TypeSerializer<T> eventSerializer,
-			TypeSerializer<SharedBuffer<String, T>> sharedBufferSerializer) {
+	public void lock() {
+		refCounter += 1;
+	}
 
-		super(eventSerializer, sharedBufferSerializer);
+	/**
+	 * Releases lock on this object. If no more locks are acquired on it, this method will return true.
+	 *
+	 * @return true if no more locks are acquired
+	 */
+	boolean release() {
+		if (refCounter <= 0) {
+			return true;
+		}
+
+		refCounter -= 1;
+		return refCounter == 0;
+	}
+
+	int getRefCounter() {
+		return refCounter;
 	}
 
 	@Override
-	public int getVersion() {
-		return VERSION;
+	public String toString() {
+		return "Lock{" +
+			"refCounter=" + refCounter +
+			'}';
 	}
 }
