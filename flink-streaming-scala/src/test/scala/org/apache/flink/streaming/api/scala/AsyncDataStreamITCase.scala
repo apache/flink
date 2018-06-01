@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.scala
 import java.util.concurrent.TimeUnit
 
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
 import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture}
 import org.apache.flink.test.util.AbstractTestBase
@@ -52,13 +51,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val source = env.addSource(new SourceFunction[Int]() {
-      override def run(ctx: SourceFunction.SourceContext[Int]) {
-        ctx.collect(1)
-        ctx.collect(2)
-      }
-      override def cancel() {}
-    })
+    val source = env.fromElements(1, 2)
 
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWait(
@@ -68,16 +61,23 @@ class AsyncDataStreamITCase extends AbstractTestBase {
         source, new MyAsyncFunction(), timeout, TimeUnit.MILLISECONDS)
     }
 
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 6))
+  }
+
+  private def executeAndValidate(ordered: Boolean,
+      env: StreamExecutionEnvironment,
+      dataStream: DataStream[Int],
+      expectedResult: mutable.ArrayBuffer[Int]): Unit = {
+
     testResult = mutable.ArrayBuffer[Int]()
-    asyncMapped.addSink(new SinkFunction[Int]() {
+    dataStream.addSink(new SinkFunction[Int]() {
       override def invoke(value: Int) {
         testResult += value
       }
     })
 
-    env.execute("testAsyncWait")
+    env.execute("testAsyncDataStream")
 
-    val expectedResult = mutable.ArrayBuffer[Int](2, 6)
     if (ordered) {
       assertEquals(expectedResult, testResult)
     } else {
@@ -99,13 +99,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val source = env.addSource(new SourceFunction[Int]() {
-      override def run(ctx: SourceFunction.SourceContext[Int]) {
-        ctx.collect(1)
-        ctx.collect(2)
-      }
-      override def cancel() {}
-    })
+    val source = env.fromElements(1, 2)
 
     val asyncFunction: (Int, ResultFuture[Int]) => Unit =
       (input, collector: ResultFuture[Int]) => Future {
@@ -121,21 +115,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
       }
     }
 
-    testResult = mutable.ArrayBuffer[Int]()
-    asyncMapped.addSink(new SinkFunction[Int]() {
-      override def invoke(value: Int) {
-        testResult += value
-      }
-    })
-
-    env.execute("testAsyncWaitUsingAnonymousFunction")
-
-    val expectedResult = mutable.ArrayBuffer[Int](2, 4)
-    if (ordered) {
-      assertEquals(expectedResult, testResult)
-    } else {
-      assertEquals(expectedResult, testResult.sorted)
-    }
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 4))
   }
 
 }
