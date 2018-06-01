@@ -67,7 +67,13 @@ public class DistributedCacheDfsTest {
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private static MiniClusterResource miniClusterResource;
+	@ClassRule
+	public static MiniClusterResource miniClusterResource  = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new org.apache.flink.configuration.Configuration(),
+			1,
+			1));
+
 	private static MiniDFSCluster hdfsCluster;
 	private static Configuration conf = new Configuration();
 
@@ -85,14 +91,6 @@ public class DistributedCacheDfsTest {
 		String hdfsURI = "hdfs://"
 			+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
 			+ "/";
-
-		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				new org.apache.flink.configuration.Configuration(),
-				1,
-				1));
-
-		miniClusterResource.before();
 
 		FileSystem dfs = FileSystem.get(new URI(hdfsURI));
 		testFile = writeFile(dfs, dfs.getHomeDirectory(), "testFile");
@@ -114,12 +112,8 @@ public class DistributedCacheDfsTest {
 	}
 
 	@AfterClass
-	public static void teardown() throws Exception {
+	public static void teardown() {
 		hdfsCluster.shutdown();
-
-		if (miniClusterResource != null) {
-			miniClusterResource.after();
-		}
 	}
 
 	@Test
