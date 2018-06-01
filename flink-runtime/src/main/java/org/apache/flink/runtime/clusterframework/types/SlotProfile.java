@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -184,6 +183,12 @@ public class SlotProfile {
 
 		private final Collection<TaskManagerLocation> locationPreferences;
 
+		/**
+		 * calculates the candidate's score.
+		 */
+		private static final BiFunction<Integer, Integer, Integer> CANDIDATE_MATCHER
+			= (localWeigh, hostLocalWeigh) -> localWeigh * 10 + hostLocalWeigh * 1;
+
 		@VisibleForTesting
 		public LocalityAwareRequirementsToSlotMatcher(@Nonnull Collection<TaskManagerLocation> locationPreferences) {
 			this.locationPreferences = new ArrayList<>(locationPreferences);
@@ -206,102 +211,45 @@ public class SlotProfile {
 			}
 
 			// we build up two indexes, one for resource id and one for host names of the preferred locations.
-			Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
-			Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
+			final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
+			final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
 
 			for (TaskManagerLocation locationPreference : locationPreferences) {
-				Integer oldVal = preferredResourceIDs.getOrDefault(locationPreference.getResourceID(), 0);
-				preferredResourceIDs.put(locationPreference.getResourceID(), oldVal + 1);
-
-				oldVal = preferredFQHostNames.getOrDefault(locationPreference.getFQDNHostname(), 0);
-				preferredFQHostNames.put(locationPreference.getFQDNHostname(), oldVal + 1);
+				preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
+				preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
 			}
 
 			Iterator<IN> iterator = candidates.iterator();
 
-			IN matchByAdditionalRequirements = null;
-
-			final Map<IN, CandidateMatchedResult> candidateMatchedResults = new HashMap<>();
+			IN bestCandidate = null;
+			int bestCandidateScore = Integer.MIN_VALUE;
+			Locality bestCandidateLocality = null;
 
 			while (iterator.hasNext()) {
-
 				IN candidate = iterator.next();
-				SlotContext slotContext = contextExtractor.apply(candidate);
+				if (additionalRequirementsFilter.test(candidate)) {
+					SlotContext slotContext = contextExtractor.apply(candidate);
 
-				// this if checks if the candidate has is a local slot
-				Integer localWeigh = preferredResourceIDs.get(slotContext.getTaskManagerLocation().getResourceID());
-				if (localWeigh != null)	{
-					if (additionalRequirementsFilter.test(candidate)) {
-						// we found a match with locality.
-						candidateMatchedResults.put(candidate, new CandidateMatchedResult(localWeigh, 0));
-					} else {
-						// next candidate because this failed on the additional requirements.
-						continue;
-					}
-				} else {
-					// this if checks if the candidate is host-local.
-					Integer hostLocalWeigh = preferredFQHostNames.get(slotContext.getTaskManagerLocation().getFQDNHostname());
-					if (hostLocalWeigh != null) {
-						if (additionalRequirementsFilter.test(candidate)) {
-							// we found a match with host locality.
-							candidateMatchedResults.put(candidate, new CandidateMatchedResult(0, hostLocalWeigh));
-						} else {
-							// next candidate because this failed on the additional requirements.
-							continue;
-						}
-					}
-				}
+					// this gets candidate is local-weigh
+					Integer localWeigh = preferredResourceIDs.getOrDefault(slotContext.getTaskManagerLocation().getResourceID(), 0);
 
-				// this if checks if the candidate at least fulfils the resource requirements, and is only required
-				// if we did not yet find a valid candidate with better locality.
-				if (candidateMatchedResults.isEmpty()
-					&& matchByAdditionalRequirements == null
-					&& additionalRequirementsFilter.test(candidate)) {
-					// Again, we remember but continue in hope for a candidate with better locality.
-					matchByAdditionalRequirements = candidate;
+					// this gets candidate is host-local-weigh
+					Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(slotContext.getTaskManagerLocation().getFQDNHostname(), 0);
+
+					int candidateScore = CANDIDATE_MATCHER.apply(localWeigh, hostLocalWeigh);
+					if (candidateScore > bestCandidateScore) {
+						bestCandidateScore = candidateScore;
+						bestCandidate = candidate;
+						bestCandidateLocality = localWeigh > 0 ? Locality.LOCAL : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
+					}
 				}
 			}
-
-			// find the best matched one.
-			Map.Entry<IN, CandidateMatchedResult> theBestOne = candidateMatchedResults.entrySet()
-					.stream()
-					.sorted(Comparator.comparingInt((Map.Entry<IN, CandidateMatchedResult> matchResult)
-						-> matchResult.getValue().getScore()).reversed())
-					.findFirst()
-					.orElse(null);
 
 			// at the end of the iteration, we return the candidate with best possible locality or null.
-			if (theBestOne != null) {
-				return resultProducer.apply(theBestOne.getKey(), theBestOne.getValue().getLocality());
-			} else if (matchByAdditionalRequirements != null) {
-				return resultProducer.apply(matchByAdditionalRequirements, Locality.NON_LOCAL);
+			if (bestCandidate != null) {
+				return resultProducer.apply(bestCandidate, bestCandidateLocality);
 			} else {
 				return null;
-			}
-		}
-
-		/**
-		 * Helper class to record the match result.
-		 */
-		private class CandidateMatchedResult {
-
-			private int localCount;
-
-			private int hostLocalCount;
-
-			public CandidateMatchedResult(int localCount, int hostLocalCount) {
-				this.localCount = localCount;
-				this.hostLocalCount = hostLocalCount;
-			}
-
-			// evaluate the match score
-			public int getScore() {
-				return localCount * 10 + hostLocalCount * 1;
-			}
-
-			// get the highest locality.
-			public Locality getLocality() {
-				return localCount > 0 ? Locality.LOCAL : Locality.HOST_LOCAL;
 			}
 		}
 	}
