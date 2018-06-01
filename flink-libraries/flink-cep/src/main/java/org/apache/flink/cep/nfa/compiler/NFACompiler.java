@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
@@ -53,29 +52,10 @@ public class NFACompiler {
 	protected static final String ENDING_STATE_NAME = "$endState$";
 
 	/**
-	 * Compiles the given pattern into a {@link NFA}.
-	 *
-	 * @param pattern Definition of sequence pattern
-	 * @param inputTypeSerializer Serializer for the input type
-	 * @param timeoutHandling True if the NFA shall return timed out event patterns
-	 * @param <T> Type of the input events
-	 * @return Non-deterministic finite automaton representing the given pattern
-	 */
-	public static <T> NFA<T> compile(
-		Pattern<T, ?> pattern,
-		TypeSerializer<T> inputTypeSerializer,
-		boolean timeoutHandling) {
-		NFAFactory<T> factory = compileFactory(pattern, inputTypeSerializer, timeoutHandling);
-
-		return factory.createNFA();
-	}
-
-	/**
 	 * Compiles the given pattern into a {@link NFAFactory}. The NFA factory can be used to create
 	 * multiple NFAs.
 	 *
 	 * @param pattern Definition of sequence pattern
-	 * @param inputTypeSerializer Serializer for the input type
 	 * @param timeoutHandling True if the NFA shall return timed out event patterns
 	 * @param <T> Type of the input events
 	 * @return Factory for NFAs corresponding to the given pattern
@@ -83,15 +63,14 @@ public class NFACompiler {
 	@SuppressWarnings("unchecked")
 	public static <T> NFAFactory<T> compileFactory(
 		final Pattern<T, ?> pattern,
-		final TypeSerializer<T> inputTypeSerializer,
 		boolean timeoutHandling) {
 		if (pattern == null) {
 			// return a factory for empty NFAs
-			return new NFAFactoryImpl<>(inputTypeSerializer, 0, Collections.<State<T>>emptyList(), timeoutHandling);
+			return new NFAFactoryImpl<>(0, Collections.<State<T>>emptyList(), timeoutHandling);
 		} else {
 			final NFAFactoryCompiler<T> nfaFactoryCompiler = new NFAFactoryCompiler<>(pattern);
 			nfaFactoryCompiler.compileFactory();
-			return new NFAFactoryImpl<>(inputTypeSerializer, nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
+			return new NFAFactoryImpl<>(nfaFactoryCompiler.getWindowTime(), nfaFactoryCompiler.getStates(), timeoutHandling);
 		}
 	}
 
@@ -900,18 +879,15 @@ public class NFACompiler {
 
 		private static final long serialVersionUID = 8939783698296714379L;
 
-		private final TypeSerializer<T> inputTypeSerializer;
 		private final long windowTime;
 		private final Collection<State<T>> states;
 		private final boolean timeoutHandling;
 
 		private NFAFactoryImpl(
-			TypeSerializer<T> inputTypeSerializer,
-			long windowTime,
-			Collection<State<T>> states,
-			boolean timeoutHandling) {
+				long windowTime,
+				Collection<State<T>> states,
+				boolean timeoutHandling) {
 
-			this.inputTypeSerializer = inputTypeSerializer;
 			this.windowTime = windowTime;
 			this.states = states;
 			this.timeoutHandling = timeoutHandling;
@@ -919,8 +895,7 @@ public class NFACompiler {
 
 		@Override
 		public NFA<T> createNFA() {
-			return new NFA<>(
-				inputTypeSerializer.duplicate(), windowTime, timeoutHandling, states);
+			return new NFA<>(states, windowTime, timeoutHandling);
 		}
 	}
 }

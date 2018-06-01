@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Queue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.validateMockitoUsage;
 
@@ -462,9 +463,9 @@ public class CEPOperatorTest extends TestLogger {
 		try {
 			harness.open();
 
-			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaValueState");
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "computationStates");
 			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
-			Whitebox.setInternalState(operator, "nfaValueState", nfaOperatorStateSpy);
+			Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 
 			Event startEvent = new Event(42, "c", 1.0);
 			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
@@ -476,7 +477,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(endEvent, 4L));
 
 			// verify the number of invocations NFA is updated
-			Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
 
 			// get and verify the output
 			Queue<Object> result = harness.getOutput();
@@ -507,9 +508,9 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.open();
 
-			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "nfaValueState");
+			final ValueState nfaOperatorState = (ValueState) Whitebox.<ValueState>getInternalState(operator, "computationStates");
 			final ValueState nfaOperatorStateSpy = Mockito.spy(nfaOperatorState);
-			Whitebox.setInternalState(operator, "nfaValueState", nfaOperatorStateSpy);
+			Whitebox.setInternalState(operator, "computationStates", nfaOperatorStateSpy);
 
 			Event startEvent = new Event(42, "c", 1.0);
 			SubEvent middleEvent = new SubEvent(42, "a", 1.0, 10.0);
@@ -521,7 +522,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(endEvent, 4L));
 
 			// verify the number of invocations NFA is updated
-			Mockito.verify(nfaOperatorStateSpy, Mockito.times(2)).update(Mockito.any());
+			Mockito.verify(nfaOperatorStateSpy, Mockito.times(3)).update(Mockito.any());
 
 			// get and verify the output
 			Queue<Object> result = harness.getOutput();
@@ -568,8 +569,8 @@ public class CEPOperatorTest extends TestLogger {
 			assertEquals(2L, harness.numEventTimeTimers());
 			assertEquals(4L, operator.getPQSize(42));
 			assertEquals(1L, operator.getPQSize(43));
-			assertTrue(!operator.hasNonEmptyNFAState(42));
-			assertTrue(!operator.hasNonEmptyNFAState(43));
+			assertTrue(!operator.hasNonEmptySharedBuffer(42));
+			assertTrue(!operator.hasNonEmptySharedBuffer(43));
 
 			harness.processWatermark(new Watermark(2L));
 
@@ -581,9 +582,9 @@ public class CEPOperatorTest extends TestLogger {
 			// for 43 the element entered the NFA and the PQ is empty
 
 			assertEquals(2L, harness.numEventTimeTimers());
-			assertTrue(operator.hasNonEmptyNFAState(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
 			assertEquals(1L, operator.getPQSize(42));
-			assertTrue(operator.hasNonEmptyNFAState(43));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
 			assertTrue(!operator.hasNonEmptyPQ(43));
 
 			harness.processElement(new StreamRecord<>(startEvent2, 4L));
@@ -605,9 +606,9 @@ public class CEPOperatorTest extends TestLogger {
 			// now we have 1 key because the 43 expired and was removed.
 			// 42 is still there due to startEvent2
 			assertEquals(1L, harness.numEventTimeTimers());
-			assertTrue(operator2.hasNonEmptyNFAState(42));
+			assertTrue(operator2.hasNonEmptySharedBuffer(42));
 			assertTrue(!operator2.hasNonEmptyPQ(42));
-			assertTrue(!operator2.hasNonEmptyNFAState(43));
+			assertTrue(!operator2.hasNonEmptySharedBuffer(43));
 			assertTrue(!operator2.hasNonEmptyPQ(43));
 
 			verifyPattern(harness.getOutput().poll(), startEvent1, middleEvent1, endEvent1);
@@ -622,7 +623,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processWatermark(20L);
 			harness.processWatermark(21L);
 
-			assertTrue(!operator2.hasNonEmptyNFAState(42));
+			assertTrue(!operator2.hasNonEmptySharedBuffer(42));
 			assertTrue(!operator2.hasNonEmptyPQ(42));
 			assertEquals(0L, harness.numEventTimeTimers());
 
@@ -665,7 +666,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(7L, operator.getPQSize(41));
-			assertTrue(!operator.hasNonEmptyNFAState(41));
+			assertTrue(!operator.hasNonEmptySharedBuffer(41));
 
 			harness.processWatermark(new Watermark(2L));
 
@@ -674,7 +675,7 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(6L, operator.getPQSize(41));
-			assertTrue(operator.hasNonEmptyNFAState(41)); // processed the first element
+			assertTrue(operator.hasNonEmptySharedBuffer(41)); // processed the first element
 
 			harness.processWatermark(new Watermark(8L));
 
@@ -714,12 +715,12 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertEquals(1L, harness.numEventTimeTimers());
 			assertEquals(0L, operator.getPQSize(41));
-			assertTrue(operator.hasNonEmptyNFAState(41));
+			assertTrue(operator.hasNonEmptySharedBuffer(41));
 
 			harness.processWatermark(new Watermark(17L));
 			verifyWatermark(harness.getOutput().poll(), 17L);
 
-			assertTrue(!operator.hasNonEmptyNFAState(41));
+			assertTrue(!operator.hasNonEmptySharedBuffer(41));
 			assertTrue(!operator.hasNonEmptyPQ(41));
 			assertEquals(0L, harness.numEventTimeTimers());
 		} finally {
@@ -800,8 +801,8 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(!operator.hasNonEmptyPQ(42));
 			assertTrue(!operator.hasNonEmptyPQ(43));
-			assertTrue(operator.hasNonEmptyNFAState(42));
-			assertTrue(operator.hasNonEmptyNFAState(43));
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
 
 			harness.setProcessingTime(3L);
 
@@ -834,10 +835,10 @@ public class CEPOperatorTest extends TestLogger {
 
 			harness.setProcessingTime(21L);
 
-			assertTrue(operator2.hasNonEmptyNFAState(42));
+			assertTrue(operator2.hasNonEmptySharedBuffer(42));
 
 			harness.processElement(new StreamRecord<>(startEvent1, 21L));
-			assertTrue(operator2.hasNonEmptyNFAState(42));
+			assertTrue(operator2.hasNonEmptySharedBuffer(42));
 
 			harness.setProcessingTime(49L);
 
@@ -845,7 +846,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 
 			// the pattern expired
-			assertTrue(!operator2.hasNonEmptyNFAState(42));
+			assertTrue(!operator2.hasNonEmptySharedBuffer(42));
 
 			assertEquals(0L, harness.numEventTimeTimers());
 			assertTrue(!operator2.hasNonEmptyPQ(42));
@@ -910,7 +911,7 @@ public class CEPOperatorTest extends TestLogger {
 
 				@Override
 				public NFA<Event> createNFA() {
-					return NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+					return NFACompiler.compileFactory(pattern, false).createNFA();
 				}
 			});
 
@@ -988,12 +989,12 @@ public class CEPOperatorTest extends TestLogger {
 			harness
 				.processElement(new StreamRecord<>(new SubEvent(42, "barfoo", 1.0, 5.0), 0L));
 
-			assertTrue(!operator.hasNonEmptyNFAState(42));
-			assertTrue(!operator.hasNonEmptyNFAState(43));
+			assertTrue(!operator.hasNonEmptySharedBuffer(42));
+			assertTrue(!operator.hasNonEmptySharedBuffer(43));
 
 			harness.setProcessingTime(3L);
-			assertTrue(operator.hasNonEmptyNFAState(42));
-			assertTrue(operator.hasNonEmptyNFAState(43));
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
 
 			harness.processElement(new StreamRecord<>(middleEvent2, 3L));
 			harness.processElement(new StreamRecord<>(middleEvent1, 3L));
@@ -1047,14 +1048,14 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(operator.hasNonEmptyPQ(42));
 			assertTrue(operator.hasNonEmptyPQ(43));
-			assertTrue(!operator.hasNonEmptyNFAState(42));
-			assertTrue(!operator.hasNonEmptyNFAState(43));
+			assertFalse(operator.hasNonEmptySharedBuffer(42));
+			assertFalse(operator.hasNonEmptySharedBuffer(43));
 
 			harness.processWatermark(3L);
-			assertTrue(!operator.hasNonEmptyPQ(42));
-			assertTrue(!operator.hasNonEmptyPQ(43));
-			assertTrue(operator.hasNonEmptyNFAState(42));
-			assertTrue(operator.hasNonEmptyNFAState(43));
+			assertFalse(operator.hasNonEmptyPQ(42));
+			assertFalse(operator.hasNonEmptyPQ(43));
+			assertTrue(operator.hasNonEmptySharedBuffer(42));
+			assertTrue(operator.hasNonEmptySharedBuffer(43));
 
 			harness.processElement(new StreamRecord<>(startEvent2, 4L));
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 5L));
@@ -1224,7 +1225,7 @@ public class CEPOperatorTest extends TestLogger {
 					// priority queue in CEP operator are correctly checkpointed/restored
 					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 
@@ -1275,7 +1276,7 @@ public class CEPOperatorTest extends TestLogger {
 				}
 			}).within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 
@@ -1319,7 +1320,7 @@ public class CEPOperatorTest extends TestLogger {
 				}
 			}).within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compileFactory(pattern, handleTimeout).createNFA();
 		}
 	}
 }

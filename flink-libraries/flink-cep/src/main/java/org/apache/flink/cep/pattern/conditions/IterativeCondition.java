@@ -93,6 +93,6 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 		 *
 		 * @param name The name of the pattern.
 		 */
-		Iterable<T> getEventsForPattern(String name);
+		Iterable<T> getEventsForPattern(String name) throws Exception;
 	}
 }
