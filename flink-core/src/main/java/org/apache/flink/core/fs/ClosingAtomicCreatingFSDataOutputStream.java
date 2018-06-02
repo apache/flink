@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link AtomicCreatingFsDataOutputStream} that is used to
@@ -38,18 +39,18 @@ public class ClosingAtomicCreatingFSDataOutputStream
 	private final String debugString;
 	private AtomicCreatingFsDataOutputStream outputStream;
 
-	private volatile boolean closed;
+	private AtomicBoolean closed;
 
 	private ClosingAtomicCreatingFSDataOutputStream(
 			AtomicCreatingFsDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugString) throws IOException {
 		this.outputStream = delegate;
 		this.registry = Preconditions.checkNotNull(registry);
 		this.debugString = Preconditions.checkNotNull(debugString);
-		this.closed = false;
+		this.closed = new AtomicBoolean(false);
 	}
 
 	public boolean isClosed() {
-		return closed;
+		return closed.get();
 	}
 
 	@Override
@@ -74,8 +75,7 @@ public class ClosingAtomicCreatingFSDataOutputStream
 
 	@Override
 	public void close() throws IOException {
-		if (!closed) {
-			closed = true;
+		if (closed.compareAndSet(false, true)) {
 			registry.unregisterCloseable(this);
 			outputStream.close();
 		}
@@ -83,8 +83,7 @@ public class ClosingAtomicCreatingFSDataOutputStream
 
 	@Override
 	public void closeAndPublish() throws IOException {
-		if (!closed) {
-			closed = true;
+		if (closed.compareAndSet(false, true)) {
 			registry.unregisterCloseable(this);
 			outputStream.closeAndPublish();
 		}

@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Operates the output stream in two phrases, any exception during the operation of {@link TwoPhaseFSDataOutputStream} will
@@ -60,7 +61,7 @@ public class TwoPhaseFSDataOutputStream extends AtomicCreatingFsDataOutputStream
 	 */
 	private final FSDataOutputStream preparedOutputStream;
 
-	private volatile boolean closed;
+	private AtomicBoolean closed;
 
 	public TwoPhaseFSDataOutputStream(FileSystem fs, Path f, FileSystem.WriteMode writeMode) throws IOException {
 
@@ -69,7 +70,7 @@ public class TwoPhaseFSDataOutputStream extends AtomicCreatingFsDataOutputStream
 		this.fs = fs;
 		this.targetFile = f;
 		this.preparingFile = generateTemporaryFilename(f);
-		this.closed = false;
+		this.closed = new AtomicBoolean(false);
 
 		if (writeMode == FileSystem.WriteMode.NO_OVERWRITE && fs.exists(targetFile)) {
 			throw new IOException("Target file " + targetFile + " is already exists.");
@@ -103,8 +104,7 @@ public class TwoPhaseFSDataOutputStream extends AtomicCreatingFsDataOutputStream
 	 */
 	@Override
 	public void close() throws IOException {
-		if (!closed) {
-			closed = true;
+		if (closed.compareAndSet(false, true)) {
 			try {
 				this.preparedOutputStream.close();
 			} catch (Exception e) {
@@ -119,23 +119,17 @@ public class TwoPhaseFSDataOutputStream extends AtomicCreatingFsDataOutputStream
 	 * it also do the cleanup when some exception occur during the operation.
 	 */
 	public void closeAndPublish() throws IOException {
-		synchronized (this) {
-			if (!closed) {
-				try {
-					this.preparedOutputStream.close();
-					if (!this.fs.rename(preparingFile, targetFile)) {
-						// For some file system, it just return false without any exception to
-						// indicate the failed operation, we raise it manually here.
-						throw new IOException("Failed to rename " + preparingFile + " to " + targetFile + " atomically.");
-					}
-				} catch (Exception e) {
-					tryToCleanUpPreparingFile();
-					throw e;
-				} finally {
-					closed = true;
+		if (closed.compareAndSet(false, true)) {
+			try {
+				this.preparedOutputStream.close();
+				if (!this.fs.rename(preparingFile, targetFile)) {
+					// For some file system, it just return false without any exceptions to
+					// indicate the failed operation, we raise it manually here.
+					throw new IOException("Failed to rename " + preparingFile + " to " + targetFile + " atomically.");
 				}
-			} else {
-				throw new IOException("Stream has already been closed and discarded.");
+			} catch (Exception e) {
+				tryToCleanUpPreparingFile();
+				throw e;
 			}
 		}
 	}

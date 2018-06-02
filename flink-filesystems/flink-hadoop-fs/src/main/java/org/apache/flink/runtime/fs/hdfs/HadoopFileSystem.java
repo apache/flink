@@ -32,6 +32,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -263,9 +264,12 @@ public class HadoopFileSystem extends FileSystem {
 
 		private final FSDataOutputStream outputStream;
 
+		private AtomicBoolean closed;
+
 		public S3AtomicCreatingFsDataOutputStreamWrapper(
 			@Nonnull FSDataOutputStream fsDataOutputStream) {
 			this.outputStream = fsDataOutputStream;
+			this.closed = new AtomicBoolean(false);
 		}
 
 		@Override
@@ -292,12 +296,15 @@ public class HadoopFileSystem extends FileSystem {
 		public void close() throws IOException {
 			// In AtomicCreatingFsDataOutputStream the `close()` method doesn't mean
 			// "close on success", it just used for cleaning the held resource. For s3
-			// we do nothing here.
+			// we do nothing but just set the closed flag here.
+			closed.compareAndSet(false, true);
 		}
 
 		@Override
 		public void closeAndPublish() throws IOException {
-			outputStream.close();
+			if (closed.compareAndSet(false, true)) {
+				outputStream.close();
+			}
 		}
 	}
 }
