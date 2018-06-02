@@ -452,7 +452,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					}
 
 					if (asynchronousSnapshots) {
-						LOG.info("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+						LOG.debug("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
 							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
 					}
 
@@ -467,7 +467,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			task.run();
 		}
 
-		LOG.info("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
+		LOG.debug("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
 				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - syncStartTime));
 
 		return task;
