@@ -624,7 +624,6 @@ under the License.
 				<scope>test</scope>
 			</dependency>
 
-			<!-- Testing dependency which should be included by all projects because of the Category definitions -->
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-test-utils-junit</artifactId>
