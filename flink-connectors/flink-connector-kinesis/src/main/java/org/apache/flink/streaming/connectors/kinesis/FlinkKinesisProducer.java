@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -58,6 +57,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @PublicEvolving
 public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
+
+	public static final String KINESIS_PRODUCER_METRIC_GROUP = "kinesisProducer";
+
+	public static final String METRIC_BACKPRESSURE_CYCLES = "backpressureCycles";
+
+	public static final String METRIC_OUTSTANDING_RECORDS_COUNT = "outstandingRecordsCount";
+
 
 	private static final long serialVersionUID = 6447077318449477846L;
 
@@ -205,9 +211,9 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 		producer = getKinesisProducer(producerConfig);
 
-		final MetricGroup kinesisMectricGroup = getRuntimeContext().getMetricGroup().addGroup("kinesisProducer");
-		backpressureCycles = kinesisMectricGroup.counter("backpressureCycles");
-		kinesisMectricGroup.gauge("outstandingRecordsCount", producer::getOutstandingRecordsCount);
+		final MetricGroup kinesisMectricGroup = getRuntimeContext().getMetricGroup().addGroup(KINESIS_PRODUCER_METRIC_GROUP);
+		this.backpressureCycles = kinesisMectricGroup.counter(METRIC_BACKPRESSURE_CYCLES);
+		kinesisMectricGroup.gauge(METRIC_OUTSTANDING_RECORDS_COUNT, producer::getOutstandingRecordsCount);
 
 		backpressureLatch = new TimeoutLatch();
 		callback = new FutureCallback<UserRecordResult>() {
