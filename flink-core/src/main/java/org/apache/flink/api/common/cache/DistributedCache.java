@@ -107,7 +107,7 @@ public class DistributedCache {
 	// ------------------------------------------------------------------------
 
 	public static void writeFileInfoToConfig(String name, DistributedCacheEntry e, Configuration conf) {
-		int num = conf.getInteger(CACHE_FILE_NUM,0) + 1;
+		int num = conf.getInteger(CACHE_FILE_NUM, 0) + 1;
 		conf.setInteger(CACHE_FILE_NUM, num);
 		conf.setString(CACHE_FILE_NAME + num, name);
 		conf.setString(CACHE_FILE_PATH + num, e.filePath);

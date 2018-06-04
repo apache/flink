@@ -693,7 +693,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
     * Registers a file at the distributed cache under the given name. The file will be accessible
     * from any user-defined function in the (distributed) runtime under a local path. Files
-    * may be local files (will be distributed via BlobServer), or files in a distributed file
+    * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache,
     * if needed.
     * <p>
@@ -713,7 +713,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
   /**
     * Registers a file at the distributed cache under the given name. The file will be accessible
     * from any user-defined function in the (distributed) runtime under a local path. Files
-    * may be local files (will be distributed via BlobServer), or files in a distributed file
+    * may be local files (which will be distributed via BlobServer), or files in a distributed file
     * system. The runtime will copy the files temporarily to a local cache,
     * if needed.
     * <p>
