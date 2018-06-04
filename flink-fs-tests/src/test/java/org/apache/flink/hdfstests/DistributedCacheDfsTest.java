@@ -65,10 +65,10 @@ public class DistributedCacheDfsTest {
 		+ "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
 
 	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
+	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	@ClassRule
-	public static MiniClusterResource miniClusterResource  = new MiniClusterResource(
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
 		new MiniClusterResource.MiniClusterResourceConfiguration(
 			new org.apache.flink.configuration.Configuration(),
 			1,
@@ -82,7 +82,7 @@ public class DistributedCacheDfsTest {
 
 	@BeforeClass
 	public static void setup() throws Exception {
-		File dataDir = tempFolder.newFolder();
+		File dataDir = TEMP_FOLDER.newFolder();
 
 		conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, dataDir.getAbsolutePath());
 		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);

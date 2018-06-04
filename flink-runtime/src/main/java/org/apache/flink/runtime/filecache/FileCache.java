@@ -55,7 +55,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static org.apache.flink.util.FileUtils.copy;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -327,7 +326,7 @@ public class FileCache {
 		public Path call() throws IOException {
 			// let exceptions propagate. we can retrieve them later from
 			// the future and report them upon access to the result
-			copy(filePath, cachedPath, this.executable);
+			FileUtils.copy(filePath, cachedPath, this.executable);
 			return cachedPath;
 		}
 	}
