@@ -355,23 +355,24 @@ internal queue:
 
 ```
 // 200 Bytes per record, 1 shard
-kinesis.setQueueLimit(10000);
+kinesis.setQueueLimit(500);
 ```
 
 The value for `queueLimit` depends on the expected record size. To choose a good
 value, consider that Kinesis is rate-limited to 1MB per second per shard. If
-less than one second's worth of records is buffered, then the queue will not
-operate at full capacity, so the queue size per shard should be chosen between
-2MB and 10MB. The `queueLimit` can then be computed via
+less than one second's worth of records is buffered, then the queue may not be
+able to operate at full capacity. With the default `RecordMaxBufferedTime` of
+100ms, a queue size of 100kB per shard should be sufficient. The `queueLimit`
+can then be computed via
 
 ```
 queue limit = (number of shards * queue size per shard) / record size
 ```
 
-E.g. for 200Bytes per record and 8 shards, the queue limit should be chosen
-between 80000 and 400000. You can verify the value by looking at the checkpoint
-duration: A `FlinkKinesisProducer` checkpoint should have an end-to-end duration
-between 1 and 10 seconds.
+E.g. for 200Bytes per record and 8 shards, a queue limit of 4000 is a good
+starting point. If the queue size limits throughput (below 1MB per second per
+shard), try increasing the queue limit slightly.
+
 
 ## Using Non-AWS Kinesis Endpoints for Testing
 
