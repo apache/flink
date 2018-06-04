@@ -29,8 +29,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -49,8 +48,6 @@ import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusHeader
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingStatusMessageParameters;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerHeaders;
 import org.apache.flink.runtime.rest.handler.job.rescaling.RescalingTriggerMessageParameters;
-import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
-import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -90,7 +87,6 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.util.ScalaUtils;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -102,20 +98,16 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import akka.actor.AddressFromURIString;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -313,38 +305,32 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		// we have to enable queued scheduling because slot will be allocated lazily
 		jobGraph.setAllowQueuedScheduling(true);
 
-		log.info("Requesting blob server port.");
-		CompletableFuture<BlobServerPortResponseBody> portFuture = sendRequest(BlobServerPortHeaders.getInstance());
-
-		CompletableFuture<JobGraph> jobUploadFuture = portFuture.thenCombine(
-			getDispatcherAddress(),
-			(BlobServerPortResponseBody response, String dispatcherAddress) -> {
-				final int blobServerPort = response.port;
-				final InetSocketAddress address = new InetSocketAddress(dispatcherAddress, blobServerPort);
-				final List<PermanentBlobKey> keys;
+		CompletableFuture<JobSubmitResponseBody> submissionFuture = getWebMonitorBaseUrl()
+			.thenCompose(webMonitorBaseUrl -> {
 				try {
-					log.info("Uploading jar files.");
-					keys = BlobClient.uploadFiles(address, flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
-					jobGraph.uploadUserArtifacts(address, flinkConfig);
-				} catch (IOException ioe) {
-					throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
-				}
+					jobGraph.zipUserArtifacts();
 
-				for (PermanentBlobKey key : keys) {
-					jobGraph.addUserJarBlobKey(key);
-				}
+					Collection<Path> localUserArtifacts = jobGraph.getUserArtifacts().values().stream()
+						.map(entry -> new Path(entry.filePath))
+						.filter(path -> {
+							try {
+								return !path.getFileSystem().isDistributedFS();
+							} catch (Exception e) {
+								log.warn("Could not determine whether {} is a local file. The file may not be accessible via the Distributed Cache.", path, e);
+								// filesystem isn't accessible from the client or FS class not present
+								return false;
+							}
+						})
+						.collect(Collectors.toList());
 
-				return jobGraph;
-			});
-
-		CompletableFuture<JobSubmitResponseBody> submissionFuture = jobUploadFuture.thenCompose(
-			(JobGraph jobGraphToSubmit) -> {
-				log.info("Submitting job graph.");
-
-				try {
-					return sendRequest(
+					return restClient.sendRequest(
+						webMonitorBaseUrl.getHost(),
+						webMonitorBaseUrl.getPort(),
 						JobSubmitHeaders.getInstance(),
-						new JobSubmitRequestBody(jobGraph));
+						EmptyMessageParameters.getInstance(),
+						new JobSubmitRequestBody(jobGraph),
+						jobGraph.getUserJars(),
+						localUserArtifacts);
 				} catch (IOException ioe) {
 					throw new CompletionException(new FlinkException("Could not create JobSubmitRequestBody.", ioe));
 				}
@@ -740,26 +726,4 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				}
 			}, executorService);
 	}
-
-	private CompletableFuture<String> getDispatcherAddress() {
-		return FutureUtils.orTimeout(
-				dispatcherLeaderRetriever.getLeaderFuture(),
-				restClusterClientConfiguration.getAwaitLeaderTimeout(),
-				TimeUnit.MILLISECONDS)
-			.thenApplyAsync(leaderAddressSessionId -> {
-				final String address = leaderAddressSessionId.f0;
-				final Optional<String> host = ScalaUtils.<String>toJava(AddressFromURIString.parse(address).host());
-
-				return host.orElseGet(() -> {
-					// if the dispatcher address does not contain a host part, then assume it's running
-					// on the same machine as the client
-					log.info("The dispatcher seems to run without remoting enabled. This indicates that we are " +
-						"in a test. This can only work if the RestClusterClient runs on the same machine. " +
-						"Assuming, therefore, 'localhost' as the host.");
-
-					return "localhost";
-				});
-			}, executorService);
-	}
-
 }
