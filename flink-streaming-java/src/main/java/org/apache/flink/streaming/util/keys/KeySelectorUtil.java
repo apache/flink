@@ -222,18 +222,28 @@ public final class KeySelectorUtil {
 		private static final long serialVersionUID = 1L;
 
 		private final int[] fields;
-		private final Class<? extends Tuple> tupleClass;
 		private transient TupleTypeInfo<Tuple> returnType;
+
+		/**
+		 * Template tuple object for the key.
+		 *
+		 * <p>We will create copies of this to return in {@link #getKey(Object)}.
+		 */
+		private final Tuple templateKey;
 
 		ArrayKeySelector(int[] fields, TupleTypeInfo<Tuple> returnType) {
 			this.fields = requireNonNull(fields);
 			this.returnType = requireNonNull(returnType);
-			this.tupleClass = Tuple.getTupleClass(fields.length);
+			try {
+				this.templateKey = Tuple.getTupleClass(fields.length).newInstance();
+			} catch (ReflectiveOperationException e) {
+				throw new InvalidTypesException("Cannot create tuple of length " + fields.length, e);
+			}
 		}
 
 		@Override
-		public Tuple getKey(IN value) throws Exception {
-			Tuple key = tupleClass.newInstance();
+		public Tuple getKey(IN value) {
+			Tuple key = templateKey.copy();
 			for (int i = 0; i < fields.length; i++) {
 				key.setField(Array.get(value, fields[i]), i);
 			}
