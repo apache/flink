@@ -702,12 +702,32 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
     * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
     *
+    * @param filePath The path of the file, as a URI (e.g. "file:///some/path" or
+    *                 "hdfs://host:port/and/path")
+    * @param name     The name under which the file is registered.
+    */
+  def registerCachedFile(filePath: String, name: String): Unit = {
+    javaEnv.registerCachedFile(filePath, name)
+  }
+
+  /**
+    * Registers a file at the distributed cache under the given name. The file will be accessible
+    * from any user-defined function in the (distributed) runtime under a local path. Files
+    * may be local files (will be distributed via BlobServer), or files in a distributed file
+    * system. The runtime will copy the files temporarily to a local cache,
+    * if needed.
+    * <p>
+    * The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs
+    * via {@link org.apache.flink.api.common.functions.RichFunction#getRuntimeContext()} and
+    * provides access {@link org.apache.flink.api.common.cache.DistributedCache} via
+    * {@link org.apache.flink.api.common.functions.RuntimeContext#getDistributedCache()}.
+    *
     * @param filePath   The path of the file, as a URI (e.g. "file:///some/path" or
     *                   "hdfs://host:port/and/path")
     * @param name       The name under which the file is registered.
     * @param executable flag indicating whether the file should be executable
     */
-  def registerCachedFile(filePath: String, name: String, executable: Boolean = false): Unit = {
+  def registerCachedFile(filePath: String, name: String, executable: Boolean): Unit = {
     javaEnv.registerCachedFile(filePath, name, executable)
   }
 }
