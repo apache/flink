@@ -20,6 +20,7 @@ package org.apache.flink.optimizer.plantranslate;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -36,13 +37,28 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class JobGraphGeneratorTest {
+
+	@Rule
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	/**
 	 * Verifies that the resources are merged correctly for chained operators when
@@ -205,5 +221,56 @@ public class JobGraphGeneratorTest {
 		assertTrue(feedbackVertex.getMinResources().equals(resource5));
 		assertTrue(sinkVertex.getPreferredResources().equals(resource6));
 		assertTrue(iterationSyncVertex.getMinResources().equals(resource3));
+	}
+
+	@Test
+	public void testArtifactCompression() throws IOException {
+		Path plainFile1 = tmp.newFile("plainFile1").toPath();
+		Path plainFile2 = tmp.newFile("plainFile2").toPath();
+
+		Path directory1 = tmp.newFolder("directory1").toPath();
+		Files.createDirectory(directory1.resolve("containedFile1"));
+
+		Path directory2 = tmp.newFolder("directory2").toPath();
+		Files.createDirectory(directory2.resolve("containedFile2"));
+
+		JobGraph jb = new JobGraph();
+
+		final String executableFileName = "executableFile";
+		final String nonExecutableFileName = "nonExecutableFile";
+		final String executableDirName = "executableDir";
+		final String nonExecutableDirName = "nonExecutableDIr";
+
+		Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> originalArtifacts = Arrays.asList(
+			Tuple2.of(executableFileName, new DistributedCache.DistributedCacheEntry(plainFile1.toString(), true)),
+			Tuple2.of(nonExecutableFileName, new DistributedCache.DistributedCacheEntry(plainFile2.toString(), false)),
+			Tuple2.of(executableDirName, new DistributedCache.DistributedCacheEntry(directory1.toString(), true)),
+			Tuple2.of(nonExecutableDirName, new DistributedCache.DistributedCacheEntry(directory2.toString(), false))
+		);
+
+		JobGraphGenerator.addUserArtifactEntries(originalArtifacts, jb);
+
+		Map<String, DistributedCache.DistributedCacheEntry> submittedArtifacts = jb.getUserArtifacts();
+
+		DistributedCache.DistributedCacheEntry executableFileEntry = submittedArtifacts.get(executableFileName);
+		assertState(executableFileEntry, true, false);
+
+		DistributedCache.DistributedCacheEntry nonExecutableFileEntry = submittedArtifacts.get(nonExecutableFileName);
+		assertState(nonExecutableFileEntry, false, false);
+
+		DistributedCache.DistributedCacheEntry executableDirEntry = submittedArtifacts.get(executableDirName);
+		assertState(executableDirEntry, true, true);
+
+		DistributedCache.DistributedCacheEntry nonExecutableDirEntry = submittedArtifacts.get(nonExecutableDirName);
+		assertState(nonExecutableDirEntry, false, true);
+	}
+
+	private static void assertState(DistributedCache.DistributedCacheEntry entry, boolean isExecutable, boolean isZipped) throws IOException {
+		assertNotNull(entry);
+		assertEquals(isExecutable, entry.isExecutable);
+		assertEquals(isZipped, entry.isZipped);
+		org.apache.flink.core.fs.Path filePath = new org.apache.flink.core.fs.Path(entry.filePath);
+		assertTrue(filePath.getFileSystem().exists(filePath));
+		assertFalse(filePath.getFileSystem().getFileStatus(filePath).isDir());
 	}
 }
