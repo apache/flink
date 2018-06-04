@@ -26,12 +26,12 @@ This page provides instructions on how to enable SSL for the network communicati
 
 ## SSL Configuration
 
-SSL can be enabled for all network communication between Flink components. SSL keystores and truststore has to be deployed on each Flink node and configured (conf/flink-conf.yaml) using keys in the `security.ssl.*` namespace (Please see the [configuration page](config.html) for details). SSL can be selectively enabled/disabled for different transports using the following flags. These flags are only applicable when `security.ssl.enabled` is set to true.
+SSL can be enabled for all network communication between Flink components. SSL keystores and truststore has to be deployed on each Flink node and configured (conf/flink-conf.yaml) using keys in the security.ssl.* namespace (Please see the [configuration page](config.html) for details). SSL can be selectively enabled/disabled for different transports using the following flags. These flags are only applicable when security.ssl.enabled is set to true.
 
 * **taskmanager.data.ssl.enabled**: SSL flag for data communication between task managers
 * **blob.service.ssl.enabled**: SSL flag for blob service client/server communication
-* **akka.ssl.enabled**: SSL flag for akka based control connection between the Flink client, JobManager and TaskManager 
-* **jobmanager.web.ssl.enabled**: Flag to enable https access to the JobManager's web frontend
+* **akka.ssl.enabled**: SSL flag for akka based control connection between the Flink client, jobmanager and taskmanager 
+* **jobmanager.web.ssl.enabled**: Flag to enable https access to the jobmanager's web frontend
 
 ## Deploying Keystores and Truststores
 
@@ -47,7 +47,7 @@ keytool -keystore ca.keystore -storepass password -alias ca -exportcert > ca.cer
 keytool -importcert -keystore ca.truststore -alias ca -storepass password -noprompt -file ca.cer
 {% endhighlight %}
 
-Now create keystores for each node with certificates signed by the above CA. Let `node1.company.org` and `node2.company.org` be the hostnames with IPs `192.168.1.1` and `192.168.1.2` respectively.
+Now create keystores for each node with certificates signed by the above CA. Let node1.company.org and node2.company.org be the hostnames with IPs 192.168.1.1 and 192.168.1.2 respectively
 
 #### Node 1
 {% highlight bash %}
@@ -72,32 +72,32 @@ Configure each node in the standalone cluster to pick up the keystore and trusts
 
 ### Example: Two-node cluster
 
-* Generate two keystores, one for each node, and copy them to the filesystem on the respective node. Also copy the pulic key of the CA (which was used to sign the certificates in the keystore) as a Java truststore on both the nodes
-* Configure `conf/flink-conf.yaml` to pick up these files
+* Generate two keystores, one for each node, and copy them to the filesystem on the respective node. Also copy the public key of the CA (which was used to sign the certificates in the keystore) as a Java truststore on both the nodes
+* Configure conf/flink-conf.yaml to pick up these files
 
 #### Node 1
 {% highlight yaml %}
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node1.keystore
-security.ssl.keystore-password: password
-security.ssl.key-password: password
+security.ssl.keystore-password: abc123
+security.ssl.key-password: abc123
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: password
+security.ssl.truststore-password: abc123
 {% endhighlight %}
 
 #### Node 2
 {% highlight yaml %}
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node2.keystore
-security.ssl.keystore-password: password
-security.ssl.key-password: password
+security.ssl.keystore-password: abc123
+security.ssl.key-password: abc123
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: password
+security.ssl.truststore-password: abc123
 {% endhighlight %}
 
 * Restart the Flink components to enable SSL for all of Flink's internal communication
-* Verify by accessing the JobManager's UI using https url. The TaskManager's path in the UI should show `akka.ssl.tcp://` as the protocol
-* The blob server and TaskManager's data communication can be verified from the log files
+* Verify by accessing the jobmanager's UI using https url. The taskmanager's path in the UI should show akka.ssl.tcp:// as the protocol
+* The blob server and taskmanager's data communication can be verified from the log files
 
 ## YARN Deployment
 The keystores and truststore can be deployed in a YARN setup in multiple ways depending on the cluster setup. Following are two ways to achieve this
@@ -109,20 +109,20 @@ The keystores and truststore should be generated and deployed on all nodes in th
 {% highlight yaml %}
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node.keystore
-security.ssl.keystore-password: password
-security.ssl.key-password: password
+security.ssl.keystore-password: abc123
+security.ssl.key-password: abc123
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: password
+security.ssl.truststore-password: abc123
 {% endhighlight %}
 
 Now you can start the YARN session from the CLI like you would normally do.
 
 ### 2. Use YARN CLI to deploy the keystores and truststore
-We can use the YARN client's ship files option (`-yt`) to distribute the keystores and truststore. Since the same keystore will be deployed at all nodes, we need to ensure a single certificate in the keystore can be served for all nodes. This can be done by either using the Subject Alternative Name (SAN) extension in the certificate and setting it to cover all nodes (hostname and ip addresses) in the cluster or by using wildcard subdomain names (if the cluster is setup accordingly). 
+We can use the YARN client's ship files option (-yt) to distribute the keystores and truststore. Since the same keystore will be deployed at all nodes, we need to ensure a single certificate in the keystore can be served for all nodes. This can be done by either using the Subject Alternative Name (SAN) extension in the certificate and setting it to cover all nodes (hostname and ip addresses) in the cluster or by using wildcard subdomain names (if the cluster is setup accordingly). 
 
 #### Example
-* Supply the following parameters to the keytool command when generating the keystore: `-ext SAN=dns:node1.company.org,ip:192.168.1.1,dns:node2.company.org,ip:192.168.1.2`
-* Copy the keystore and the CA's truststore into a local directory (at the CLI's working directory), say `deploy-keys/`
+* Supply the following parameters to the keytool command when generating the keystore: -ext SAN=dns:node1.company.org,ip:192.168.1.1,dns:node2.company.org,ip:192.168.1.2
+* Copy the keystore and the CA's truststore into a local directory (at the CLI's working directory), say deploy-keys/
 * Update the configuration to pick up the files from a relative path
 
 {% highlight yaml %}
@@ -134,7 +134,7 @@ security.ssl.truststore: deploy-keys/ca.truststore
 security.ssl.truststore-password: password
 {% endhighlight %}
 
-* Start the YARN session using the `-yt` parameter
+* Start the YARN session using the -yt parameter
 
 {% highlight bash %}
 flink run -m yarn-cluster -yt deploy-keys/ TestJob.jar
