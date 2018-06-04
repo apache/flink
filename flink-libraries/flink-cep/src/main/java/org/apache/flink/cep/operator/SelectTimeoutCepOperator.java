@@ -56,14 +56,16 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 		AfterMatchSkipStrategy skipStrategy,
 		PatternSelectFunction<IN, OUT1> flatSelectFunction,
 		PatternTimeoutFunction<IN, OUT2> flatTimeoutFunction,
-		OutputTag<OUT2> outputTag) {
+		OutputTag<OUT2> outputTag,
+		OutputTag<IN> lateDataOutputTag) {
 		super(
 			inputSerializer,
 			isProcessingTime,
 			nfaFactory,
 			comparator,
 			skipStrategy,
-			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
+			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction),
+			lateDataOutputTag);
 		this.timedOutOutputTag = outputTag;
 	}
 
