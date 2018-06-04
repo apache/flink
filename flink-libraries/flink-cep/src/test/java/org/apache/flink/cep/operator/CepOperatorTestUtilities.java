@@ -71,6 +71,15 @@ public class CepOperatorTestUtilities {
 
 		OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
 
+		return getKeyedCepOpearator(isProcessingTime, nfaFactory, comparator, null);
+	}
+
+	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
+		boolean isProcessingTime,
+		NFACompiler.NFAFactory<Event> nfaFactory,
+		EventComparator<Event> comparator,
+		OutputTag<Event> outputTag) {
+
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
@@ -82,7 +91,7 @@ public class CepOperatorTestUtilities {
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;
 				}
-			}, lateDataTag);
+			}, outputTag);
 	}
 
 	private CepOperatorTestUtilities() {

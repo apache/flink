@@ -1557,14 +1557,15 @@ val lateDataOutputTag = OutputTag[String]("late-data")
 
 val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
       .sideOutputLateData(lateDataOutputTag)
-      .select(
-        {pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
-      })
+      .select{
+          pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
+      }
 
 val lateData: DataStream<String> = result.getSideOutput(lateDataOutputTag)
 
 {% endhighlight %}
 
+</div>
 </div>
 
 ## Examples

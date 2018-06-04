@@ -735,12 +735,16 @@ public class CEPOperatorTest extends TestLogger {
 		Event middle1Event2 = new Event(41, "a", 3.0);
 		Event middle1Event3 = new Event(41, "a", 4.0);
 
+		OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
+
 		SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator = CepOperatorTestUtilities.getKeyedCepOpearator(
 			false,
-			new ComplexNFAFactory());
-		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness = CepOperatorTestUtilities.getCepTestHarness(operator);
+			new ComplexNFAFactory(),
+			null,
+			lateDataTag);
+		try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
+				 CepOperatorTestUtilities.getCepTestHarness(operator)) {
 
-		try {
 			harness.open();
 
 			harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -754,8 +758,6 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(middle1Event2, 5));
 			harness.processElement(new StreamRecord<>(middle1Event3, 7));
 
-			OutputTag<Event> lateDataTag = new OutputTag<Event>("late-data", TypeInformation.of(Event.class));
-
 			List<Event> late = new ArrayList<>();
 
 			while (!harness.getSideOutput(lateDataTag).isEmpty()) {
@@ -765,9 +767,6 @@ public class CEPOperatorTest extends TestLogger {
 
 			List<Event> expected = Lists.newArrayList(middle1Event1, middle1Event2);
 			Assert.assertArrayEquals(expected.toArray(), late.toArray());
-
-		} finally {
-			harness.close();
 		}
 	}
 
