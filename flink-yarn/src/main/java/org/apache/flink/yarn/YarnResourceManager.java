@@ -116,6 +116,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
+	/** The resource id of the container. */
+	private ResourceID resourceId;
+
+	private Container container;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
@@ -358,7 +363,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 					final String containerIdStr = container.getId().toString();
 					final ResourceID resourceId = new ResourceID(containerIdStr);
-
+					this.resourceId = resourceId;
+					this.container = container;
 					workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
 					try {
@@ -410,34 +416,38 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
-
+		log.info("The container {} started.", containerId);
 	}
 
 	@Override
 	public void onContainerStatusReceived(ContainerId containerId, ContainerStatus containerStatus) {
-
 	}
 
 	@Override
 	public void onContainerStopped(ContainerId containerId) {
-		log.info("The container " + containerId + " is stopped.");
+		log.info("The container {} is stopped.", containerId);
 	}
 
 	@Override
 	public void onStartContainerError(ContainerId containerId, Throwable t) {
-		log.error("Error occurred during start the container " + containerId + '.');
-		onFatalError(t);
+		log.error("Could not start TaskManager in container {}.", containerId, t);
+
+		// release the failed container
+		workerNodeMap.remove(resourceId);
+		resourceManagerClient.releaseAssignedContainer(containerId);
+		// ask for a new one
+		requestYarnContainer(container.getResource(), container.getPriority());
 	}
 
 	@Override
 	public void onGetContainerStatusError(ContainerId containerId, Throwable t) {
-		log.error("Error occurred during get the container " + containerId + " status.");
+		log.error("Error occurred during get the container {} status.", containerId, t);
 		onFatalError(t);
 	}
 
 	@Override
 	public void onStopContainerError(ContainerId containerId, Throwable t) {
-		log.error("Error occurred during stop the container " + containerId + '.');
+		log.error("Error occurred during stop the container {}.", containerId, t);
 		onFatalError(t);
 	}
 

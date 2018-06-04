@@ -102,9 +102,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * General tests for the YARN resource manager component.
@@ -397,6 +395,9 @@ public class YarnResourceManagerTest extends TestLogger {
 
 			verify(mockNMClient).stopContainerAsync(any(ContainerId.class), any(NodeId.class));
 			verify(mockResourceManagerClient).releaseAssignedContainer(any(ContainerId.class));
+
+			resourceManager.onStartContainerError(testingContainer.getId(), any(Throwable.class));
+			verify(mockResourceManagerClient, atLeast(2)).releaseAssignedContainer(testingContainer.getId());
 
 			stopResourceManager();
 
