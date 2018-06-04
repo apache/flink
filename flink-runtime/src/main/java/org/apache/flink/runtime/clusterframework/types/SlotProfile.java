@@ -30,8 +30,10 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -181,6 +183,12 @@ public class SlotProfile {
 
 		private final Collection<TaskManagerLocation> locationPreferences;
 
+		/**
+		 * calculates the candidate's score.
+		 */
+		private static final BiFunction<Integer, Integer, Integer> CANDIDATE_MATCHER
+			= (localWeigh, hostLocalWeigh) -> localWeigh * 10 + hostLocalWeigh * 1;
+
 		@VisibleForTesting
 		public LocalityAwareRequirementsToSlotMatcher(@Nonnull Collection<TaskManagerLocation> locationPreferences) {
 			this.locationPreferences = new ArrayList<>(locationPreferences);
@@ -203,64 +211,43 @@ public class SlotProfile {
 			}
 
 			// we build up two indexes, one for resource id and one for host names of the preferred locations.
-			HashSet<ResourceID> preferredResourceIDs = new HashSet<>(locationPreferences.size());
-			HashSet<String> preferredFQHostNames = new HashSet<>(locationPreferences.size());
+			final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
+			final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
 
 			for (TaskManagerLocation locationPreference : locationPreferences) {
-				preferredResourceIDs.add(locationPreference.getResourceID());
-				preferredFQHostNames.add(locationPreference.getFQDNHostname());
+				preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
+				preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
 			}
 
 			Iterator<IN> iterator = candidates.iterator();
 
-			IN matchByHostName = null;
-			IN matchByAdditionalRequirements = null;
+			IN bestCandidate = null;
+			int bestCandidateScore = Integer.MIN_VALUE;
+			Locality bestCandidateLocality = null;
 
 			while (iterator.hasNext()) {
-
 				IN candidate = iterator.next();
-				SlotContext slotContext = contextExtractor.apply(candidate);
+				if (additionalRequirementsFilter.test(candidate)) {
+					SlotContext slotContext = contextExtractor.apply(candidate);
 
-				// this if checks if the candidate has is a local slot
-				if (preferredResourceIDs.contains(slotContext.getTaskManagerLocation().getResourceID())) {
-					if (additionalRequirementsFilter.test(candidate)) {
-						// we can stop, because we found a match with best possible locality.
-						return resultProducer.apply(candidate, Locality.LOCAL);
-					} else {
-						// next candidate because this failed on the additional requirements.
-						continue;
-					}
-				}
+					// this gets candidate is local-weigh
+					Integer localWeigh = preferredResourceIDs.getOrDefault(slotContext.getTaskManagerLocation().getResourceID(), 0);
 
-				// this if checks if the candidate is at least host-local, if we did not find another host-local
-				// candidate before.
-				if (matchByHostName == null) {
-					if (preferredFQHostNames.contains(slotContext.getTaskManagerLocation().getFQDNHostname())) {
-						if (additionalRequirementsFilter.test(candidate)) {
-							// We remember the candidate, but still continue because there might still be a candidate
-							// that is local to the desired task manager.
-							matchByHostName = candidate;
-						} else {
-							// next candidate because this failed on the additional requirements.
-							continue;
-						}
-					}
+					// this gets candidate is host-local-weigh
+					Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(slotContext.getTaskManagerLocation().getFQDNHostname(), 0);
 
-					// this if checks if the candidate at least fulfils the resource requirements, and is only required
-					// if we did not yet find a valid candidate with better locality.
-					if (matchByAdditionalRequirements == null
-						&& additionalRequirementsFilter.test(candidate)) {
-						// Again, we remember but continue in hope for a candidate with better locality.
-						matchByAdditionalRequirements = candidate;
+					int candidateScore = CANDIDATE_MATCHER.apply(localWeigh, hostLocalWeigh);
+					if (candidateScore > bestCandidateScore) {
+						bestCandidateScore = candidateScore;
+						bestCandidate = candidate;
+						bestCandidateLocality = localWeigh > 0 ? Locality.LOCAL : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
 					}
 				}
 			}
 
 			// at the end of the iteration, we return the candidate with best possible locality or null.
-			if (matchByHostName != null) {
-				return resultProducer.apply(matchByHostName, Locality.HOST_LOCAL);
-			} else if (matchByAdditionalRequirements != null) {
-				return resultProducer.apply(matchByAdditionalRequirements, Locality.NON_LOCAL);
+			if (bestCandidate != null) {
+				return resultProducer.apply(bestCandidate, bestCandidateLocality);
 			} else {
 				return null;
 			}
