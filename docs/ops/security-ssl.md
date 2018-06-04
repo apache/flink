@@ -79,20 +79,20 @@ Configure each node in the standalone cluster to pick up the keystore and trusts
 ~~~
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node1.keystore
-security.ssl.keystore-password: abc123
-security.ssl.key-password: abc123
+security.ssl.keystore-password: password
+security.ssl.key-password: password
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: abc123
+security.ssl.truststore-password: password
 ~~~
 
 #### Node 2
 ~~~
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node2.keystore
-security.ssl.keystore-password: abc123
-security.ssl.key-password: abc123
+security.ssl.keystore-password: password
+security.ssl.key-password: password
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: abc123
+security.ssl.truststore-password: password
 ~~~
 
 * Restart the flink components to enable SSL for all of flink's internal communication
@@ -109,10 +109,10 @@ The keystores and truststore should be generated and deployed on all nodes in th
 ~~~
 security.ssl.enabled: true
 security.ssl.keystore: /usr/local/node.keystore
-security.ssl.keystore-password: abc123
-security.ssl.key-password: abc123
+security.ssl.keystore-password: password
+security.ssl.key-password: password
 security.ssl.truststore: /usr/local/ca.truststore
-security.ssl.truststore-password: abc123
+security.ssl.truststore-password: password
 ~~~
 
 Now you can start the YARN session from the CLI like you would normally do.
