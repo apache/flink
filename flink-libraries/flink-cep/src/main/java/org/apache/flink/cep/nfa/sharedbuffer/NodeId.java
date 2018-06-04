@@ -32,22 +32,16 @@ import java.util.Objects;
  */
 public class NodeId {
 
-	private final long eventId;
-	private final long timestamp;
 	private final String pageName;
+	private final EventId eventId;
 
-	public NodeId(long eventId, long timestamp, String pageName) {
+	public NodeId(EventId eventId, String pageName) {
 		this.eventId = eventId;
-		this.timestamp = timestamp;
 		this.pageName = pageName;
 	}
 
-	public long getEventId() {
+	public EventId getEventId() {
 		return eventId;
-	}
-
-	public long getTimestamp() {
-		return timestamp;
 	}
 
 	public String getPageName() {
@@ -63,21 +57,19 @@ public class NodeId {
 			return false;
 		}
 		NodeId nodeId = (NodeId) o;
-		return eventId == nodeId.eventId &&
-			timestamp == nodeId.timestamp &&
+		return Objects.equals(eventId, nodeId.eventId) &&
 			Objects.equals(pageName, nodeId.pageName);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(eventId, timestamp, pageName);
+		return Objects.hash(eventId, pageName);
 	}
 
 	@Override
 	public String toString() {
 		return "NodeId{" +
 			"eventId=" + eventId +
-			", timestamp=" + timestamp +
 			", pageName='" + pageName + '\'' +
 			'}';
 	}
@@ -104,7 +96,7 @@ public class NodeId {
 
 		@Override
 		public NodeId copy(NodeId from) {
-			return new NodeId(from.eventId, from.timestamp, from.pageName);
+			return new NodeId(from.eventId, from.pageName);
 		}
 
 		@Override
@@ -121,8 +113,7 @@ public class NodeId {
 		public void serialize(NodeId record, DataOutputView target) throws IOException {
 			if (record != null) {
 				target.writeByte(1);
-				LongSerializer.INSTANCE.serialize(record.eventId, target);
-				LongSerializer.INSTANCE.serialize(record.timestamp, target);
+				EventId.EventIdSerializer.INSTANCE.serialize(record.eventId, target);
 				StringSerializer.INSTANCE.serialize(record.pageName, target);
 			} else {
 				target.writeByte(0);
@@ -136,10 +127,9 @@ public class NodeId {
 				return null;
 			}
 
-			Long eventId = LongSerializer.INSTANCE.deserialize(source);
-			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
+			EventId eventId = EventId.EventIdSerializer.INSTANCE.deserialize(source);
 			String pageName = StringSerializer.INSTANCE.deserialize(source);
-			return new NodeId(eventId, timestamp, pageName);
+			return new NodeId(eventId, pageName);
 		}
 
 		@Override

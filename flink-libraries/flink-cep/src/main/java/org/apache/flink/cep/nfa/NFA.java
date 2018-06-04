@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
@@ -217,8 +218,8 @@ public class NFA<T> {
 			final long timestamp,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 
-		try (EventWrapper eventWrapper = new EventWrapper(event, sharedBuffer)) {
-			return doProcess(sharedBuffer, nfaState, eventWrapper, timestamp, afterMatchSkipStrategy);
+		try (EventWrapper eventWrapper = new EventWrapper(event, timestamp, sharedBuffer)) {
+			return doProcess(sharedBuffer, nfaState, eventWrapper, afterMatchSkipStrategy);
 		}
 	}
 
@@ -226,7 +227,6 @@ public class NFA<T> {
 			final SharedBuffer<T> sharedBuffer,
 			final NFAState nfaState,
 			final EventWrapper event,
-			final long timestamp,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 
 		Queue<ComputationState> computationStates = nfaState.getComputationStates();
@@ -243,12 +243,12 @@ public class NFA<T> {
 
 			if (!isStartState(computationState) &&
 				windowTime > 0L &&
-				timestamp - computationState.getStartTimestamp() >= windowTime) {
+				event.getTimestamp() - computationState.getStartTimestamp() >= windowTime) {
 
 				if (handleTimeout) {
 					// extract the timed out event pattern
 					Map<String, List<T>> timedOutPattern = extractCurrentMatches(sharedBuffer, computationState);
-					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
+					timeoutResult.add(Tuple2.of(timedOutPattern, event.getTimestamp()));
 				}
 
 				sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
@@ -256,7 +256,7 @@ public class NFA<T> {
 				newComputationStates = Collections.emptyList();
 				nfaState.setStateChanged();
 			} else if (event.getEvent() != null) {
-				newComputationStates = computeNextStates(sharedBuffer, computationState, event, timestamp);
+				newComputationStates = computeNextStates(sharedBuffer, computationState, event, event.getTimestamp());
 
 				if (newComputationStates.size() != 1) {
 					nfaState.setStateChanged();
@@ -432,18 +432,21 @@ public class NFA<T> {
 
 		private final T event;
 
+		private long timestamp;
+
 		private final SharedBuffer<T> sharedBuffer;
 
-		private Long eventId;
+		private EventId eventId;
 
-		EventWrapper(T event, SharedBuffer<T> sharedBuffer) {
+		EventWrapper(T event, long timestamp, SharedBuffer<T> sharedBuffer) {
 			this.event = event;
+			this.timestamp = timestamp;
 			this.sharedBuffer = sharedBuffer;
 		}
 
-		long getEventId() throws Exception {
+		EventId getEventId() throws Exception {
 			if (eventId == null) {
-				this.eventId = sharedBuffer.registerEvent(event);
+				this.eventId = sharedBuffer.registerEvent(event, timestamp);
 			}
 
 			return eventId;
@@ -451,6 +454,10 @@ public class NFA<T> {
 
 		T getEvent() {
 			return event;
+		}
+
+		public long getTimestamp() {
+			return timestamp;
 		}
 
 		@Override
@@ -558,7 +565,6 @@ public class NFA<T> {
 						newEntry = sharedBuffer.put(
 							currentState.getName(),
 							event.getEventId(),
-							timestamp,
 							previousEntry,
 							currentVersion);
 					} else {
@@ -566,7 +572,6 @@ public class NFA<T> {
 						newEntry = sharedBuffer.put(
 							currentState.getName(),
 							event.getEventId(),
-							timestamp,
 							previousEntry,
 							currentVersion);
 					}

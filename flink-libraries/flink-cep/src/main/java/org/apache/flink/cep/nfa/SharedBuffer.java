@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.Lockable;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
@@ -49,10 +50,10 @@ import java.util.stream.Collectors;
 public class SharedBuffer<V> {
 
 	private final Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext;
-	private final Map<Long, Lockable<V>> eventsBuffer;
+	private final Map<EventId, Lockable<V>> eventsBuffer;
 	private final Map<NodeId, Lockable<SharedBufferNode>> pages;
 
-	public Map<Long, Lockable<V>> getEventsBuffer() {
+	public Map<EventId, Lockable<V>> getEventsBuffer() {
 		return eventsBuffer;
 	}
 
@@ -61,7 +62,7 @@ public class SharedBuffer<V> {
 	}
 
 	public SharedBuffer(
-			Map<Long, Lockable<V>> eventsBuffer,
+			Map<EventId, Lockable<V>> eventsBuffer,
 			Map<NodeId, Lockable<SharedBufferNode>> pages,
 			Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext) {
 
@@ -247,10 +248,10 @@ public class SharedBuffer<V> {
 		@Override
 		public SharedBuffer<V> deserialize(DataInputView source) throws IOException {
 			List<Tuple2<NodeId, Lockable<SharedBufferNode>>> entries = new ArrayList<>();
-			Map<ValueTimeWrapper<V>, Long> values = new HashMap<>();
-			Map<Long, Lockable<V>> valuesWithIds = new HashMap<>();
+			Map<ValueTimeWrapper<V>, EventId> values = new HashMap<>();
+			Map<EventId, Lockable<V>> valuesWithIds = new HashMap<>();
 			Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext = new HashMap<>();
-			long totalEvents = 0;
+			Map<Long, Long> totalEventsPerTimestamp = new HashMap<>();
 			int totalPages = source.readInt();
 
 			for (int i = 0; i < totalPages; i++) {
@@ -260,18 +261,19 @@ public class SharedBuffer<V> {
 				int numberEntries = source.readInt();
 				for (int j = 0; j < numberEntries; j++) {
 					ValueTimeWrapper<V> wrapper = ValueTimeWrapper.deserialize(valueSerializer, source);
-					Long eventId = values.get(wrapper);
+					EventId eventId = values.get(wrapper);
 					if (eventId == null) {
-						eventId = totalEvents;
+						long id = totalEventsPerTimestamp.computeIfAbsent(wrapper.timestamp, k -> 0L);
+						eventId = new EventId(id, wrapper.timestamp);
 						values.put(wrapper, eventId);
 						valuesWithIds.put(eventId, new Lockable<>(wrapper.value, 1));
-						totalEvents += 1;
+						totalEventsPerTimestamp.computeIfPresent(wrapper.timestamp, (k, v) -> v + 1);
 					} else {
 						Lockable<V> eventWrapper = valuesWithIds.get(eventId);
 						eventWrapper.lock();
 					}
 
-					NodeId nodeId = new NodeId(eventId, wrapper.timestamp, (String) stateName);
+					NodeId nodeId = new NodeId(eventId, (String) stateName);
 					int refCount = source.readInt();
 
 					entries.add(Tuple2.of(nodeId, new Lockable<>(new SharedBufferNode(), refCount)));

@@ -47,12 +47,12 @@ public class SharedBufferTest extends TestLogger {
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];
-		long[] eventIds = new long[numberEvents];
+		EventId[] eventIds = new EventId[numberEvents];
 		final long timestamp = 1L;
 
 		for (int i = 0; i < numberEvents; i++) {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
-			eventIds[i] = sharedBuffer.registerEvent(events[i]);
+			eventIds[i] = sharedBuffer.registerEvent(events[i], timestamp);
 		}
 
 		Map<String, List<Event>> expectedPattern1 = new HashMap<>();
@@ -93,18 +93,18 @@ public class SharedBufferTest extends TestLogger {
 		expectedPattern3.put("b", new ArrayList<>());
 		expectedPattern3.get("b").add(events[7]);
 
-		NodeId a10 = sharedBuffer.put("a1", eventIds[0], timestamp, DeweyNumber.fromString("1"));
-		NodeId aLoop0 = sharedBuffer.put("a[]", eventIds[1], timestamp, a10, DeweyNumber.fromString("1.0"));
-		NodeId a11 = sharedBuffer.put("a1", eventIds[2], timestamp, DeweyNumber.fromString("2"));
-		NodeId aLoop1 = sharedBuffer.put("a[]", eventIds[2], timestamp, aLoop0, DeweyNumber.fromString("1.0"));
-		NodeId aLoop2 = sharedBuffer.put("a[]", eventIds[3], timestamp, aLoop1, DeweyNumber.fromString("1.0"));
-		NodeId aSecondLoop0 = sharedBuffer.put("a[]", eventIds[3], timestamp, a11, DeweyNumber.fromString("2.0"));
-		NodeId aLoop3 = sharedBuffer.put("a[]", eventIds[4], timestamp, aLoop2, DeweyNumber.fromString("1.0"));
-		NodeId b0 = sharedBuffer.put("b", eventIds[5], timestamp, aLoop3, DeweyNumber.fromString("1.0.0"));
-		NodeId aLoop4 = sharedBuffer.put("a[]", eventIds[5], timestamp, aLoop3, DeweyNumber.fromString("1.1"));
-		NodeId b1 = sharedBuffer.put("b", eventIds[5], timestamp, aSecondLoop0, DeweyNumber.fromString("2.0.0"));
-		NodeId aLoop5 = sharedBuffer.put("a[]", eventIds[6], timestamp, aLoop4, DeweyNumber.fromString("1.1"));
-		NodeId b3 = sharedBuffer.put("b", eventIds[7], timestamp, aLoop5, DeweyNumber.fromString("1.1.0"));
+		NodeId a10 = sharedBuffer.put("a1", eventIds[0], DeweyNumber.fromString("1"));
+		NodeId aLoop0 = sharedBuffer.put("a[]", eventIds[1], a10, DeweyNumber.fromString("1.0"));
+		NodeId a11 = sharedBuffer.put("a1", eventIds[2], DeweyNumber.fromString("2"));
+		NodeId aLoop1 = sharedBuffer.put("a[]", eventIds[2], aLoop0, DeweyNumber.fromString("1.0"));
+		NodeId aLoop2 = sharedBuffer.put("a[]", eventIds[3], aLoop1, DeweyNumber.fromString("1.0"));
+		NodeId aSecondLoop0 = sharedBuffer.put("a[]", eventIds[3], a11, DeweyNumber.fromString("2.0"));
+		NodeId aLoop3 = sharedBuffer.put("a[]", eventIds[4], aLoop2, DeweyNumber.fromString("1.0"));
+		NodeId b0 = sharedBuffer.put("b", eventIds[5], aLoop3, DeweyNumber.fromString("1.0.0"));
+		NodeId aLoop4 = sharedBuffer.put("a[]", eventIds[5], aLoop3, DeweyNumber.fromString("1.1"));
+		NodeId b1 = sharedBuffer.put("b", eventIds[5], aSecondLoop0, DeweyNumber.fromString("2.0.0"));
+		NodeId aLoop5 = sharedBuffer.put("a[]", eventIds[6], aLoop4, DeweyNumber.fromString("1.1"));
+		NodeId b3 = sharedBuffer.put("b", eventIds[7], aLoop5, DeweyNumber.fromString("1.1.0"));
 
 		Collection<Map<String, List<Event>>> patterns3 = sharedBuffer.extractPatterns(b3, DeweyNumber.fromString("1.1.0"));
 		sharedBuffer.releaseNode(b3);
@@ -115,7 +115,7 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.releaseNode(b0);
 		sharedBuffer.releaseNode(b1);
 
-		for (long eventId : eventIds) {
+		for (EventId eventId : eventIds) {
 			sharedBuffer.releaseEvent(eventId);
 		}
 
@@ -136,27 +136,27 @@ public class SharedBufferTest extends TestLogger {
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];
-		long[] eventIds = new long[numberEvents];
+		EventId[] eventIds = new EventId[numberEvents];
 		final long timestamp = 1L;
 
 		for (int i = 0; i < numberEvents; i++) {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
-			eventIds[i] = sharedBuffer.registerEvent(events[i]);
+			eventIds[i] = sharedBuffer.registerEvent(events[i], timestamp);
 		}
 
-		NodeId start = sharedBuffer.put("start", eventIds[1], timestamp, DeweyNumber.fromString("1"));
-		NodeId b0 = sharedBuffer.put("branching", eventIds[2], timestamp, start, DeweyNumber.fromString("1.0"));
-		NodeId b1 = sharedBuffer.put("branching", eventIds[3], timestamp, start, DeweyNumber.fromString("1.1"));
-		NodeId b00 = sharedBuffer.put("branching", eventIds[3], timestamp, b0, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.put("branching", eventIds[4], timestamp, b00, DeweyNumber.fromString("1.0.0.0"));
-		NodeId b10 = sharedBuffer.put("branching", eventIds[4], timestamp, b1, DeweyNumber.fromString("1.1.0"));
+		NodeId start = sharedBuffer.put("start", eventIds[1], DeweyNumber.fromString("1"));
+		NodeId b0 = sharedBuffer.put("branching", eventIds[2], start, DeweyNumber.fromString("1.0"));
+		NodeId b1 = sharedBuffer.put("branching", eventIds[3], start, DeweyNumber.fromString("1.1"));
+		NodeId b00 = sharedBuffer.put("branching", eventIds[3], b0, DeweyNumber.fromString("1.0.0"));
+		sharedBuffer.put("branching", eventIds[4], b00, DeweyNumber.fromString("1.0.0.0"));
+		NodeId b10 = sharedBuffer.put("branching", eventIds[4], b1, DeweyNumber.fromString("1.1.0"));
 
 		//simulate IGNORE (next event can point to events[2])
 		sharedBuffer.lockNode(b0);
 
 		sharedBuffer.releaseNode(b10);
 
-		for (long eventId : eventIds) {
+		for (EventId eventId : eventIds) {
 			sharedBuffer.releaseEvent(eventId);
 		}
 
@@ -169,12 +169,12 @@ public class SharedBufferTest extends TestLogger {
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		int numberEvents = 5;
 		Event[] events = new Event[numberEvents];
-		long[] eventIds = new long[numberEvents];
+		EventId[] eventIds = new EventId[numberEvents];
 		final long timestamp = 1L;
 
 		for (int i = 0; i < numberEvents; i++) {
 			events[i] = new Event(i + 1, "e" + (i + 1), i);
-			eventIds[i] = sharedBuffer.registerEvent(events[i]);
+			eventIds[i] = sharedBuffer.registerEvent(events[i], timestamp);
 		}
 
 		Map<String, List<Event>> expectedResult = new LinkedHashMap<>();
@@ -189,11 +189,11 @@ public class SharedBufferTest extends TestLogger {
 		expectedResult.put("c", new ArrayList<>());
 		expectedResult.get("c").add(events[4]);
 
-		NodeId a = sharedBuffer.put("a", eventIds[0], timestamp, DeweyNumber.fromString("1"));
-		NodeId b = sharedBuffer.put("b", eventIds[1], timestamp, a, DeweyNumber.fromString("1.0"));
-		NodeId aa = sharedBuffer.put("aa", eventIds[2], timestamp, b, DeweyNumber.fromString("1.0.0"));
-		NodeId bb = sharedBuffer.put("bb", eventIds[3], timestamp, aa, DeweyNumber.fromString("1.0.0.0"));
-		NodeId c = sharedBuffer.put("c", eventIds[4], timestamp, bb, DeweyNumber.fromString("1.0.0.0.0"));
+		NodeId a = sharedBuffer.put("a", eventIds[0], DeweyNumber.fromString("1"));
+		NodeId b = sharedBuffer.put("b", eventIds[1], a, DeweyNumber.fromString("1.0"));
+		NodeId aa = sharedBuffer.put("aa", eventIds[2], b, DeweyNumber.fromString("1.0.0"));
+		NodeId bb = sharedBuffer.put("bb", eventIds[3], aa, DeweyNumber.fromString("1.0.0.0"));
+		NodeId c = sharedBuffer.put("c", eventIds[4], bb, DeweyNumber.fromString("1.0.0.0.0"));
 
 		Collection<Map<String, List<Event>>> patternsResult = sharedBuffer.extractPatterns(c,
 			DeweyNumber.fromString("1.0.0.0.0"));
@@ -205,7 +205,7 @@ public class SharedBufferTest extends TestLogger {
 		expectedOrder.add("bb");
 		expectedOrder.add("c");
 
-		for (long eventId : eventIds) {
+		for (EventId eventId : eventIds) {
 			sharedBuffer.releaseEvent(eventId);
 		}
 

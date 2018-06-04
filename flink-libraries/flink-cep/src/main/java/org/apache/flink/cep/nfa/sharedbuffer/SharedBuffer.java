@@ -21,8 +21,6 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -39,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -67,17 +66,17 @@ public class SharedBuffer<V> {
 	private static final String eventsCountStateName = "sharedBuffer-events-count";
 
 	/** The buffer holding the unique events seen so far. */
-	private MapState<Long, Lockable<V>> eventsBuffer;
+	private MapState<EventId, Lockable<V>> eventsBuffer;
 
-	/** The number of events seen so far in the stream? or the ones currently in the buffer? */
-	private ValueState<Long> eventsCount;
+	/** The number of events seen so far in the stream per timestamp. */
+	private MapState<Long, Long> eventsCount;
 	private MapState<NodeId, Lockable<SharedBufferNode>> pages;
 
 	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
 		this.eventsBuffer = stateStore.getMapState(
 			new MapStateDescriptor<>(
 				eventsStateName,
-				LongSerializer.INSTANCE,
+				EventId.EventIdSerializer.INSTANCE,
 				new Lockable.LockableTypeSerializer<>(valueSerializer)));
 
 		this.pages = stateStore.getMapState(
@@ -86,9 +85,10 @@ public class SharedBuffer<V> {
 				NodeId.NodeIdSerializer.INSTANCE,
 				new Lockable.LockableTypeSerializer<>(new SharedBufferNode.SharedBufferNodeSerializer())));
 
-		this.eventsCount = stateStore.getState(
-			new ValueStateDescriptor<>(
+		this.eventsCount = stateStore.getMapState(
+			new MapStateDescriptor<>(
 				eventsCountStateName,
+				LongSerializer.INSTANCE,
 				LongSerializer.INSTANCE));
 	}
 
@@ -103,14 +103,15 @@ public class SharedBuffer<V> {
 	 * @return unique id of that event that should be used when putting entries to the buffer.
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public long registerEvent(V value) throws Exception {
-		Long eventId = eventsCount.value();
-		if (eventId == null) {
-			eventId = 0L;
+	public EventId registerEvent(V value, long timestamp) throws Exception {
+		Long id = eventsCount.get(timestamp);
+		if (id == null) {
+			id = 0L;
 		}
 
+		EventId eventId = new EventId(id, timestamp);
 		eventsBuffer.put(eventId, new Lockable<>(value, 1));
-		eventsCount.update(eventId + 1L);
+		eventsCount.put(timestamp, id + 1L);
 		return eventId;
 	}
 
@@ -124,10 +125,18 @@ public class SharedBuffer<V> {
 	 * @deprecated Only for state migration!
 	 */
 	@Deprecated
-	public void init(Map<Long, Lockable<V>> events, Map<NodeId, Lockable<SharedBufferNode>> entries) throws Exception {
+	public void init(
+			Map<EventId, Lockable<V>> events,
+			Map<NodeId, Lockable<SharedBufferNode>> entries) throws Exception {
 		eventsBuffer.putAll(events);
 		pages.putAll(entries);
-		eventsCount.update(events.keySet().stream().mapToLong(id -> id).max().orElse(-1) + 1);
+
+		Map<Long, Long> maxIds = events.keySet().stream().collect(Collectors.toMap(
+			EventId::getTimestamp,
+			EventId::getId,
+			Math::max
+		));
+		eventsCount.putAll(maxIds);
 	}
 
 	/**
@@ -136,18 +145,16 @@ public class SharedBuffer<V> {
 	 *
 	 * @param stateName name of the state that the event should be assigned to
 	 * @param eventId   unique id of event assigned by this SharedBuffer
-	 * @param timestamp Timestamp of the current value
 	 * @param version   Version of the previous relation
 	 * @return assigned id of this entry
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public NodeId put(
 			final String stateName,
-			final long eventId,
-			final long timestamp,
+			final EventId eventId,
 			final DeweyNumber version) throws Exception {
 
-		return put(stateName, eventId, timestamp, null, version);
+		return put(stateName, eventId, null, version);
 	}
 
 	/**
@@ -156,7 +163,6 @@ public class SharedBuffer<V> {
 	 *
 	 * @param stateName     name of the state that the event should be assigned to
 	 * @param eventId       unique id of event assigned by this SharedBuffer
-	 * @param timestamp     Timestamp of the current value
 	 * @param previousNodeId id of previous entry
 	 * @param version       Version of the previous relation
 	 * @return assigned id of this element
@@ -164,8 +170,7 @@ public class SharedBuffer<V> {
 	 */
 	public NodeId put(
 			final String stateName,
-			final long eventId,
-			final long timestamp,
+			final EventId eventId,
 			@Nullable final NodeId previousNodeId,
 			final DeweyNumber version) throws Exception {
 
@@ -173,7 +178,7 @@ public class SharedBuffer<V> {
 			lockNode(previousNodeId);
 		}
 
-		NodeId currentNodeId = new NodeId(eventId, timestamp, getOriginalNameFromInternal(stateName));
+		NodeId currentNodeId = new NodeId(eventId, getOriginalNameFromInternal(stateName));
 		Lockable<SharedBufferNode> currentNode = pages.get(currentNodeId);
 		if (currentNode == null) {
 			currentNode = new Lockable<>(new SharedBufferNode(), 0);
@@ -313,7 +318,7 @@ public class SharedBuffer<V> {
 
 	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
 		pages.remove(node);
-		long eventId = node.getEventId();
+		EventId eventId = node.getEventId();
 		releaseEvent(eventId);
 
 		for (SharedBufferEdge sharedBufferEdge : sharedBufferNode.getEdges()) {
@@ -321,7 +326,7 @@ public class SharedBuffer<V> {
 		}
 	}
 
-	private void lockEvent(long eventId) throws Exception {
+	private void lockEvent(EventId eventId) throws Exception {
 		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
 		checkState(
 			eventWrapper != null,
@@ -338,7 +343,7 @@ public class SharedBuffer<V> {
 	 * @param eventId id of the event
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public void releaseEvent(long eventId) throws Exception {
+	public void releaseEvent(EventId eventId) throws Exception {
 		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
 		if (eventWrapper != null) {
 			if (eventWrapper.release()) {
