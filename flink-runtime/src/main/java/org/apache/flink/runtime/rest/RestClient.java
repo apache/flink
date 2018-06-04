@@ -183,6 +183,21 @@ public class RestClient {
 	}
 
 	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, JavaType responseType) {
+		return createChannelFuture(targetAddress, targetPort)
+			.thenComposeAsync(
+				channel -> {
+					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+					channel.writeAndFlush(httpRequest);
+					return future;
+				},
+				executor)
+			.thenComposeAsync(
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
+				executor);
+	}
+
+	private CompletableFuture<Channel> createChannelFuture(String targetAddress, int targetPort) {
 		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
 		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
@@ -196,18 +211,7 @@ public class RestClient {
 				}
 			});
 
-		return channelFuture
-			.thenComposeAsync(
-				channel -> {
-					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-					channel.writeAndFlush(httpRequest);
-					return future;
-				},
-				executor)
-			.thenComposeAsync(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
-				executor);
+		return channelFuture;
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, JavaType responseType) {
