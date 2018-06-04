@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
@@ -581,6 +582,8 @@ public class JobGraph implements Serializable {
 	}
 
 	public void uploadUserArtifacts(InetSocketAddress blobServerAddress, Configuration clientConfig) throws IOException {
+		zipUserArtifacts();
+
 		if (!userArtifacts.isEmpty()) {
 			try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
@@ -593,10 +596,37 @@ public class JobGraph implements Serializable {
 						new DistributedCache.DistributedCacheEntry(
 							userArtifact.getValue().filePath,
 							userArtifact.getValue().isExecutable,
-							InstantiationUtil.serializeObject(key)),
+							InstantiationUtil.serializeObject(key),
+							userArtifact.getValue().isZipped),
 						jobConfiguration);
 				}
 			}
 		}
+	}
+
+	public void zipUserArtifacts() throws IOException {
+		Map<String, DistributedCache.DistributedCacheEntry> updatedCacheEntries = compressDirectories(userArtifacts);
+
+		userArtifacts.clear();
+		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> modifiedEntry : updatedCacheEntries.entrySet()) {
+			addUserArtifact(modifiedEntry.getKey(), modifiedEntry.getValue());
+		}
+	}
+
+	private static Map<String, DistributedCache.DistributedCacheEntry> compressDirectories(Map<String, DistributedCache.DistributedCacheEntry> userArtifacts) throws IOException {
+		Map<String, DistributedCache.DistributedCacheEntry> updatedUserArtifacts = new HashMap<>(userArtifacts.size());
+
+		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry : userArtifacts.entrySet()) {
+			org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(entry.getValue().filePath);
+			org.apache.flink.core.fs.FileSystem fs = path.getFileSystem();
+			if (fs.getFileStatus(path).isDir()) {
+				org.apache.flink.core.fs.Path zip = FileCache.compressDirectory(path);
+				updatedUserArtifacts.put(entry.getKey(), new DistributedCache.DistributedCacheEntry(zip.toString(), entry.getValue().isExecutable, null, true));
+			} else {
+				updatedUserArtifacts.put(entry.getKey(), entry.getValue());
+			}
+		}
+
+		return updatedUserArtifacts;
 	}
 }

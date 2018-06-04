@@ -18,16 +18,30 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import static org.junit.Assert.*;
-
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class JobGraphTest {
+	
+	@ClassRule
+	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
 	@Test
 	public void testSerialization() {
@@ -272,5 +286,53 @@ public class JobGraphTest {
 				break;
 			}
 		}
+	}
+
+	@Test
+	public void testArtifactCompression() throws IOException {
+		Path plainFile1 = TMP_FOLDER.newFile("plainFile1").toPath();
+		Path plainFile2 = TMP_FOLDER.newFile("plainFile2").toPath();
+
+		Path directory1 = TMP_FOLDER.newFolder("directory1").toPath();
+		Files.createDirectory(directory1.resolve("containedFile1"));
+
+		Path directory2 = TMP_FOLDER.newFolder("directory2").toPath();
+		Files.createDirectory(directory2.resolve("containedFile2"));
+
+		JobGraph jb = new JobGraph();
+
+		final String executableFileName = "executableFile";
+		final String nonExecutableFileName = "nonExecutableFile";
+		final String executableDirName = "executableDir";
+		final String nonExecutableDirName = "nonExecutableDIr";
+
+		jb.addUserArtifact(executableFileName, new DistributedCache.DistributedCacheEntry(plainFile1.toString(), true));
+		jb.addUserArtifact(nonExecutableFileName, new DistributedCache.DistributedCacheEntry(plainFile2.toString(), false));
+		jb.addUserArtifact(executableDirName, new DistributedCache.DistributedCacheEntry(directory1.toString(), true));
+		jb.addUserArtifact(nonExecutableDirName, new DistributedCache.DistributedCacheEntry(directory1.toString(), false));
+
+		jb.zipUserArtifacts();
+
+		Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jb.getUserArtifacts();
+
+		DistributedCache.DistributedCacheEntry executableFileEntry = userArtifacts.get(executableFileName);
+		assertState(executableFileEntry, true, false);
+
+		DistributedCache.DistributedCacheEntry nonExecutableFileEntry = userArtifacts.get(nonExecutableFileName);
+		assertState(nonExecutableFileEntry, false, false);
+
+		DistributedCache.DistributedCacheEntry executableDirEntry = userArtifacts.get(executableDirName);
+		assertState(executableDirEntry, true, true);
+
+		DistributedCache.DistributedCacheEntry nonExecutableDirEntry = userArtifacts.get(nonExecutableDirName);
+		assertState(nonExecutableDirEntry, false, true);
+	}
+
+	private static void assertState(DistributedCache.DistributedCacheEntry entry, boolean isExecutable, boolean isZipped) throws IOException {
+		assertNotNull(entry);
+		assertEquals(isExecutable, entry.isExecutable);
+		assertEquals(isZipped, entry.isZipped);
+		org.apache.flink.core.fs.Path filePath = new org.apache.flink.core.fs.Path(entry.filePath);
+		assertFalse(filePath.getFileSystem().getFileStatus(filePath).isDir());
 	}
 }

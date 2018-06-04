@@ -21,7 +21,8 @@ package org.apache.flink.runtime.filecache;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -39,8 +40,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +57,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -195,16 +199,8 @@ public class FileCache {
 					nextDirectory = 0;
 				}
 
-				String sourceFile = entry.filePath;
-				int posOfSep = sourceFile.lastIndexOf("/");
-				if (posOfSep > 0) {
-					sourceFile = sourceFile.substring(posOfSep + 1);
-				}
-
-				Path target = new Path(tempDirToUse.getAbsolutePath() + "/" + sourceFile);
-
 				// kick off the copying
-				Callable<Path> cp = new CopyFromBlobProcess(entry, jobID, blobService, target);
+				Callable<Path> cp = new CopyFromBlobProcess(entry, jobID, blobService, tempDirToUse);
 				FutureTask<Path> copyTask = new FutureTask<>(cp);
 				executorService.submit(copyTask);
 
@@ -253,13 +249,13 @@ public class FileCache {
 	private static class CopyFromBlobProcess implements Callable<Path> {
 
 		private final PermanentBlobKey blobKey;
-		private final Path target;
+		private final File target;
 		private final boolean isDirectory;
 		private final boolean isExecutable;
 		private final JobID jobID;
 		private final PermanentBlobService blobService;
 
-		CopyFromBlobProcess(DistributedCacheEntry e, JobID jobID, PermanentBlobService blobService, Path target) throws Exception {
+		CopyFromBlobProcess(DistributedCacheEntry e, JobID jobID, PermanentBlobService blobService, File target) throws Exception {
 				this.isExecutable = e.isExecutable;
 				this.isDirectory = e.isZipped;
 				this.jobID = jobID;
@@ -273,26 +269,8 @@ public class FileCache {
 			final File file = blobService.getFile(jobID, blobKey);
 
 			if (isDirectory) {
-				try (ZipInputStream zis = new ZipInputStream(new FileInputStream(file))) {
-					ZipEntry entry;
-					while ((entry = zis.getNextEntry()) != null) {
-						String fileName = entry.getName();
-						Path newFile = new Path(target, fileName);
-						if (entry.isDirectory()) {
-							target.getFileSystem().mkdirs(newFile);
-						} else {
-							try (FSDataOutputStream fsDataOutputStream = target.getFileSystem()
-									.create(newFile, FileSystem.WriteMode.NO_OVERWRITE)) {
-								IOUtils.copyBytes(zis, fsDataOutputStream, false);
-							}
-							//noinspection ResultOfMethodCallIgnored
-							new File(newFile.getPath()).setExecutable(isExecutable);
-						}
-						zis.closeEntry();
-					}
-				}
-				Files.delete(file.toPath());
-				return target;
+				Path directory = expandDirectory(file, target, isExecutable);
+				return directory;
 			} else {
 				//noinspection ResultOfMethodCallIgnored
 				file.setExecutable(isExecutable);
@@ -341,5 +319,55 @@ public class FileCache {
 				LOG.error("Could not delete file from local file cache.", e);
 			}
 		}
+	}
+
+	public static Path compressDirectory(Path directory) throws IOException {
+		FileSystem fs = directory.getFileSystem();
+		java.nio.file.Path tmp = Files.createTempFile("flink-distributed-cache", ".zip");
+		try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(tmp.toFile()))) {
+			addToZip(directory, fs, directory.getParent(), out);
+		}
+		return new Path(tmp.toUri());
+	}
+
+	private static void addToZip(Path fileOrDirectory, FileSystem fs, Path rootDir, ZipOutputStream out) throws IOException {
+		String relativePath = fileOrDirectory.getPath().replace(rootDir.getPath() + '/', "");
+		if (fs.getFileStatus(fileOrDirectory).isDir()) {
+			out.putNextEntry(new ZipEntry(relativePath + '/'));
+			for (FileStatus containedFile : fs.listStatus(fileOrDirectory)) {
+				addToZip(containedFile.getPath(), fs, rootDir, out);
+			}
+		} else {
+			ZipEntry entry = new ZipEntry(relativePath);
+			out.putNextEntry(entry);
+
+			try (FSDataInputStream in = fs.open(fileOrDirectory)) {
+				IOUtils.copyBytes(in, out, false);
+			}
+			out.closeEntry();
+		}
+	}
+
+	@VisibleForTesting
+	static Path expandDirectory(File file, File targetDirectory, boolean isExecutable) throws IOException {
+		java.nio.file.Path rootDir = null;
+		try (ZipInputStream zis = new ZipInputStream(new FileInputStream(file))) {
+			ZipEntry entry;
+			while ((entry = zis.getNextEntry()) != null) {
+				java.nio.file.Path relativePath = Paths.get(entry.getName());
+				rootDir = relativePath.getName(0);
+
+				java.nio.file.Path newFile = targetDirectory.toPath().resolve(relativePath);
+				if (entry.isDirectory()) {
+					Files.createDirectories(newFile);
+				} else {
+					Files.copy(zis, newFile);
+					//noinspection ResultOfMethodCallIgnored
+					newFile.toFile().setExecutable(isExecutable);
+				}
+				zis.closeEntry();
+			}
+		}
+		return new Path(targetDirectory.toPath().resolve(rootDir).toUri());
 	}
 }
