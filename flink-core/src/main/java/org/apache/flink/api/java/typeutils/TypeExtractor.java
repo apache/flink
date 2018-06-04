@@ -473,8 +473,6 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Internal error occurred.", e);
 			}
 			if (exec != null) {
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
@@ -489,6 +487,7 @@ public class TypeExtractor {
 					new int[]{0},
 					paramLen,
 					baseParametersLen);
+
 				return new TypeExtractor().privateCreateTypeInfo(keyType, null, null);
 			} else {
 				return new TypeExtractor().privateCreateTypeInfo(
@@ -572,8 +571,6 @@ public class TypeExtractor {
 				Preconditions.checkArgument(
 					lambdaOutputTypeArgumentIndices != null,
 					"Indices for output type arguments within lambda not provided");
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
@@ -583,21 +580,6 @@ public class TypeExtractor {
 
 				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
 				final int baseParametersLen = sam.getParameterTypes().length;
-
-				// executable references "this" implicitly
-				if (paramLen <= 0) {
-					// executable declaring class can also be a super class of the input type
-					// we only validate if the executable exists in input type
-					validateInputContainsExecutable(exec, inType);
-				}
-				else {
-					final Type input = TypeExtractionUtils.extractTypeFromLambda(
-						exec,
-						lambdaInputTypeArgumentIndices,
-						paramLen,
-						baseParametersLen);
-					validateInputType(input, inType);
-				}
 
 				if (function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
@@ -612,6 +594,7 @@ public class TypeExtractor {
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
+					TypeExtractionUtils.validateLambdaType(output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(output, inType, null);
@@ -695,8 +678,6 @@ public class TypeExtractor {
 				Preconditions.checkArgument(
 					lambdaOutputTypeArgumentIndices != null,
 					"Indices for output type arguments within lambda not provided");
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
 				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
 				final int baseParametersLen = sam.getParameterTypes().length;
@@ -704,20 +685,7 @@ public class TypeExtractor {
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = exec.getParameterTypes().length;
 
-				final Type input1 = TypeExtractionUtils.extractTypeFromLambda(
-					exec,
-					lambdaInput1TypeArgumentIndices,
-					paramLen,
-					baseParametersLen);
-				final Type input2 = TypeExtractionUtils.extractTypeFromLambda(
-					exec,
-					lambdaInput2TypeArgumentIndices,
-					paramLen,
-					baseParametersLen);
-
-				validateInputType(input1, in1Type);
-				validateInputType(input2, in2Type);
-				if(function instanceof ResultTypeQueryable) {
+				if (function instanceof ResultTypeQueryable) {
 					return ((ResultTypeQueryable<OUT>) function).getProducedType();
 				}
 
@@ -730,6 +698,7 @@ public class TypeExtractor {
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
+					TypeExtractionUtils.validateLambdaType(output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(
@@ -1616,30 +1585,6 @@ public class TypeExtractor {
 			}
 		}
 		return fieldCount;
-	}
-
-	private static void validateLambdaGenericParameters(LambdaExecutable exec) {
-		// check the arguments
-		for (Type t : exec.getParameterTypes()) {
-			validateLambdaGenericParameter(t);
-		}
-
-		// check the return type
-		validateLambdaGenericParameter(exec.getReturnType());
-	}
-
-	private static void validateLambdaGenericParameter(Type t) {
-		if(!(t instanceof Class)) {
-			return;
-		}
-		final Class<?> clazz = (Class<?>) t;
-
-		if(clazz.getTypeParameters().length > 0) {
-			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
-					+ "It seems that your compiler has not stored them into the .class file. \n"
-					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
-					+ "See the documentation for more information about how to compile jobs containing lambda expressions.");
-		}
 	}
 
 	/**

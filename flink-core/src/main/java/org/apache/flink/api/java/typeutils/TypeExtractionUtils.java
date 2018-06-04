@@ -171,8 +171,10 @@ public class TypeExtractionUtils {
 		int baseParametersLen) {
 		Type output = exec.getParameterTypes()[paramLen - baseParametersLen + lambdaTypeArgumentIndices[0]];
 		for (int i = 1; i < lambdaTypeArgumentIndices.length; i++) {
+			validateLambdaType(output);
 			output = extractTypeArgument(output, lambdaTypeArgumentIndices[i]);
 		}
+		validateLambdaType(output);
 		return output;
 	}
 
@@ -327,5 +329,25 @@ public class TypeExtractionUtils {
 			return Array.newInstance(getRawClass(component), 0).getClass();
 		}
 		return Object.class;
+	}
+
+	/**
+	 * Checks whether the given type has the generic parameters declared in the class definition.
+	 *
+	 * @param t type to be validated
+	 */
+	public static void validateLambdaType(Type t) {
+		if (!(t instanceof Class)) {
+			return;
+		}
+		final Class<?> clazz = (Class<?>) t;
+
+		if (clazz.getTypeParameters().length > 0) {
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
+					+ "It seems that your compiler has not stored them into the .class file. \n"
+					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
+					+ "See the documentation for more information about how to compile jobs containing lambda expressions. \n"
+					+ "An easy workaround is to use an (anonymous) class instead that implements the interface.");
+		}
 	}
 }

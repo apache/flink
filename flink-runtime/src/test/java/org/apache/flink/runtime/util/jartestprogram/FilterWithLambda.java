@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,23 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Similar to {@link FilterLambda2}, but uses a getter to retrieve a lambda filter instance.
+ * Filter with lambda that is directly passed to {@link DataSet#filter(FilterFunction)}.
  */
-public class FilterLambda3 {
+public class FilterWithLambda {
 
+	@SuppressWarnings("Convert2MethodRef")
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
 
-		DataSet<String> output = input.filter(UtilFunction.getWordFilter());
+		DataSet<String> output = input.filter((v) -> WordFilter.filter(v));
 		output.print();
 
 		env.execute();
 	}
-
 }
