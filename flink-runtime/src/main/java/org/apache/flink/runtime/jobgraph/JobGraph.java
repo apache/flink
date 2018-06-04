@@ -637,7 +637,8 @@ public class JobGraph implements Serializable {
 						new DistributedCache.DistributedCacheEntry(
 							userArtifact.getValue().filePath,
 							userArtifact.getValue().isExecutable,
-							InstantiationUtil.serializeObject(key)),
+							InstantiationUtil.serializeObject(key),
+							userArtifact.getValue().isZipped),
 						jobConfiguration);
 				}
 			}

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.After;
@@ -39,14 +38,12 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -84,15 +81,11 @@ public class FileCacheDirectoriesTest {
 		@Override
 		public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
 			if (key.equals(permanentBlobKey)) {
-				final File zipArchive = temporaryFolder.newFile("zipArchive");
-				try (ZipOutputStream zis = new ZipOutputStream(new FileOutputStream(zipArchive))) {
-
-					final ZipEntry zipEntry = new ZipEntry("cacheFile");
-					zis.putNextEntry(zipEntry);
-
-					IOUtils.copyBytes(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), zis, false);
-				}
-				return zipArchive;
+				final java.nio.file.Path directory = temporaryFolder.newFolder("zipArchive").toPath();
+				final java.nio.file.Path containedFile = directory.resolve("cacheFile");
+				Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), containedFile);
+				Path zipPath = FileUtils.compressDirectory(new Path(directory.toString()), new Path(directory + ".zip"));
+				return new File(zipPath.getPath());
 			} else {
 				throw new IllegalArgumentException("This service contains only entry for " + permanentBlobKey);
 			}
