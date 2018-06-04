@@ -50,10 +50,10 @@ mvn clean install -DskipTests
 
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
-To speed up the build you can skip tests, checkstyle, and JavaDocs:
+To speed up the build you can skip tests, QA plugins, and JavaDocs:
 
 {% highlight bash %}
-mvn clean install -DskipTests -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true
+mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
 The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
