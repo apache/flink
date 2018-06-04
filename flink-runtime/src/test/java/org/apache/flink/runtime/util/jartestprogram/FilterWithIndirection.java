@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,19 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * A lambda filter using a static method.
+ * Filter with additional indirections.
  */
-public class FilterLambda1 {
+public class FilterWithIndirection {
 
 	public static void main(String[] args) throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
 
-		FilterFunction<String> filter = (v) -> WordFilter.filter(v);
-
-		DataSet<String> output = input.filter(filter);
+		DataSet<String> output = input.filter(UtilFunctionWrapper.UtilFunction.getWordFilter());
 		output.print();
 
 		env.execute();

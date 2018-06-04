@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-import org.apache.flink.api.common.functions.FilterFunction;
-
 /**
- * Static factory for a lambda filter function.
+ * Static filter method for lambda tests.
  */
-public class UtilFunction {
-	public static FilterFunction<String> getWordFilter() {
-		return (v) -> WordFilter.filter(v);
+public class WordFilter {
+
+	public static boolean filter(String value) {
+		return !value.contains("not");
 	}
 }
