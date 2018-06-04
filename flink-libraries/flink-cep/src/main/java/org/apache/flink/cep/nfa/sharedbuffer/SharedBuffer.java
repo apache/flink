@@ -67,29 +67,29 @@ public class SharedBuffer<V> {
 	private static final String eventsCountStateName = "sharedBuffer-events-count";
 
 	/** The buffer holding the unique events seen so far. */
-	private MapState<Long, EventWrapper<V>> eventsBuffer;
+	private MapState<Long, Lockable<V>> eventsBuffer;
 
 	/** The number of events seen so far in the stream? or the ones currently in the buffer? */
 	private ValueState<Long> eventsCount;
-	private MapState<NodeId, SharedBufferNode> pages;
+	private MapState<NodeId, Lockable<SharedBufferNode>> pages;
 
 	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
 		this.eventsBuffer = stateStore.getMapState(
-				new MapStateDescriptor<>(
-						eventsStateName,
-						LongSerializer.INSTANCE,
-						new EventWrapper.EventWrapperTypeSerializer<>(valueSerializer)));
+			new MapStateDescriptor<>(
+				eventsStateName,
+				LongSerializer.INSTANCE,
+				new Lockable.LockableTypeSerializer<>(valueSerializer)));
 
 		this.pages = stateStore.getMapState(
-				new MapStateDescriptor<>(
-						entriesStateName,
-						NodeId.NodeIdSerializer.INSTANCE,
-						new SharedBufferNode.SharedBufferNodeSerializer()));
+			new MapStateDescriptor<>(
+				entriesStateName,
+				NodeId.NodeIdSerializer.INSTANCE,
+				new Lockable.LockableTypeSerializer<>(new SharedBufferNode.SharedBufferNodeSerializer())));
 
 		this.eventsCount = stateStore.getState(
-				new ValueStateDescriptor<>(
-						eventsCountStateName,
-						LongSerializer.INSTANCE));
+			new ValueStateDescriptor<>(
+				eventsCountStateName,
+				LongSerializer.INSTANCE));
 	}
 
 	/**
@@ -109,7 +109,7 @@ public class SharedBuffer<V> {
 			eventId = 0L;
 		}
 
-		eventsBuffer.put(eventId, new EventWrapper<>(value, 1));
+		eventsBuffer.put(eventId, new Lockable<>(value, 1));
 		eventsCount.update(eventId + 1L);
 		return eventId;
 	}
@@ -124,7 +124,7 @@ public class SharedBuffer<V> {
 	 * @deprecated Only for state migration!
 	 */
 	@Deprecated
-	public void init(Map<Long, EventWrapper<V>> events, Map<NodeId, SharedBufferNode> entries) throws Exception {
+	public void init(Map<Long, Lockable<V>> events, Map<NodeId, Lockable<SharedBufferNode>> entries) throws Exception {
 		eventsBuffer.putAll(events);
 		pages.putAll(entries);
 		eventsCount.update(events.keySet().stream().mapToLong(id -> id).max().orElse(-1) + 1);
@@ -174,13 +174,13 @@ public class SharedBuffer<V> {
 		}
 
 		NodeId currentNodeId = new NodeId(eventId, timestamp, getOriginalNameFromInternal(stateName));
-		SharedBufferNode currentNode = pages.get(currentNodeId);
+		Lockable<SharedBufferNode> currentNode = pages.get(currentNodeId);
 		if (currentNode == null) {
-			currentNode = new SharedBufferNode(0);
+			currentNode = new Lockable<>(new SharedBufferNode(), 0);
 			lockEvent(eventId);
 		}
 
-		currentNode.addEdge(new SharedBufferEdge(
+		currentNode.getElement().addEdge(new SharedBufferEdge(
 			previousNodeId,
 			version));
 		pages.put(currentNodeId, currentNode);
@@ -216,9 +216,10 @@ public class SharedBuffer<V> {
 		Stack<ExtractionState> extractionStates = new Stack<>();
 
 		// get the starting shared buffer entry for the previous relation
-		SharedBufferNode entry = pages.get(nodeId);
+		Lockable<SharedBufferNode> entryLock = pages.get(nodeId);
 
-		if (entry != null) {
+		if (entryLock != null) {
+			SharedBufferNode entry = entryLock.getElement();
 			extractionStates.add(new ExtractionState(Tuple2.of(nodeId, entry), version, new Stack<>()));
 
 			// use a depth first search to reconstruct the previous relations
@@ -238,7 +239,7 @@ public class SharedBuffer<V> {
 						String page = currentPathEntry.getPageName();
 						List<V> values = completePath
 							.computeIfAbsent(page, k -> new ArrayList<>());
-						values.add(eventsBuffer.get(currentPathEntry.getEventId()).getEvent());
+						values.add(eventsBuffer.get(currentPathEntry.getEventId()).getElement());
 					}
 					result.add(completePath);
 				} else {
@@ -265,7 +266,7 @@ public class SharedBuffer<V> {
 							}
 
 							extractionStates.push(new ExtractionState(
-								target != null ? Tuple2.of(target, pages.get(target)) : null,
+								target != null ? Tuple2.of(target, pages.get(target).getElement()) : null,
 								edge.getDeweyNumber(),
 								newPath));
 						}
@@ -285,9 +286,9 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void lockNode(final NodeId node) throws Exception {
-		SharedBufferNode sharedBufferNode = pages.get(node);
+		Lockable<SharedBufferNode> sharedBufferNode = pages.get(node);
 		if (sharedBufferNode != null) {
-			sharedBufferNode.getLock().lock();
+			sharedBufferNode.lock();
 			pages.put(node, sharedBufferNode);
 		}
 	}
@@ -300,10 +301,10 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
-		SharedBufferNode sharedBufferNode = pages.get(node);
+		Lockable<SharedBufferNode> sharedBufferNode = pages.get(node);
 		if (sharedBufferNode != null) {
-			if (sharedBufferNode.getLock().release()) {
-				removeNode(node, sharedBufferNode);
+			if (sharedBufferNode.release()) {
+				removeNode(node, sharedBufferNode.getElement());
 			} else {
 				pages.put(node, sharedBufferNode);
 			}
@@ -321,12 +322,12 @@ public class SharedBuffer<V> {
 	}
 
 	private void lockEvent(long eventId) throws Exception {
-		EventWrapper<V> eventWrapper = eventsBuffer.get(eventId);
+		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
 		checkState(
 			eventWrapper != null,
 			"Referring to non existent event with id %s",
 			eventId);
-		eventWrapper.getLock().lock();
+		eventWrapper.lock();
 		eventsBuffer.put(eventId, eventWrapper);
 	}
 
@@ -338,9 +339,9 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseEvent(long eventId) throws Exception {
-		EventWrapper<V> eventWrapper = eventsBuffer.get(eventId);
+		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
 		if (eventWrapper != null) {
-			if (eventWrapper.getLock().release()) {
+			if (eventWrapper.release()) {
 				eventsBuffer.remove(eventId);
 			} else {
 				eventsBuffer.put(eventId, eventWrapper);

@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
-import org.apache.flink.cep.nfa.sharedbuffer.EventWrapper;
+import org.apache.flink.cep.nfa.sharedbuffer.Lockable;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
@@ -49,20 +49,20 @@ import java.util.stream.Collectors;
 public class SharedBuffer<V> {
 
 	private final Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext;
-	private final Map<Long, EventWrapper<V>> eventsBuffer;
-	private final Map<NodeId, SharedBufferNode> pages;
+	private final Map<Long, Lockable<V>> eventsBuffer;
+	private final Map<NodeId, Lockable<SharedBufferNode>> pages;
 
-	public Map<Long, EventWrapper<V>> getEventsBuffer() {
+	public Map<Long, Lockable<V>> getEventsBuffer() {
 		return eventsBuffer;
 	}
 
-	public Map<NodeId, SharedBufferNode> getPages() {
+	public Map<NodeId, Lockable<SharedBufferNode>> getPages() {
 		return pages;
 	}
 
 	public SharedBuffer(
-			Map<Long, EventWrapper<V>> eventsBuffer,
-			Map<NodeId, SharedBufferNode> pages,
+			Map<Long, Lockable<V>> eventsBuffer,
+			Map<NodeId, Lockable<SharedBufferNode>> pages,
 			Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext) {
 
 		this.eventsBuffer = eventsBuffer;
@@ -246,9 +246,9 @@ public class SharedBuffer<V> {
 
 		@Override
 		public SharedBuffer<V> deserialize(DataInputView source) throws IOException {
-			List<Tuple2<NodeId, SharedBufferNode>> entries = new ArrayList<>();
+			List<Tuple2<NodeId, Lockable<SharedBufferNode>>> entries = new ArrayList<>();
 			Map<ValueTimeWrapper<V>, Long> values = new HashMap<>();
-			Map<Long, EventWrapper<V>> valuesWithIds = new HashMap<>();
+			Map<Long, Lockable<V>> valuesWithIds = new HashMap<>();
 			Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext = new HashMap<>();
 			long totalEvents = 0;
 			int totalPages = source.readInt();
@@ -264,17 +264,17 @@ public class SharedBuffer<V> {
 					if (eventId == null) {
 						eventId = totalEvents;
 						values.put(wrapper, eventId);
-						valuesWithIds.put(eventId, new EventWrapper<>(wrapper.value, 1));
+						valuesWithIds.put(eventId, new Lockable<>(wrapper.value, 1));
 						totalEvents += 1;
 					} else {
-						EventWrapper<V> eventWrapper = valuesWithIds.get(eventId);
-						eventWrapper.getLock().lock();
+						Lockable<V> eventWrapper = valuesWithIds.get(eventId);
+						eventWrapper.lock();
 					}
 
 					NodeId nodeId = new NodeId(eventId, wrapper.timestamp, (String) stateName);
 					int refCount = source.readInt();
 
-					entries.add(Tuple2.of(nodeId, new SharedBufferNode(refCount)));
+					entries.add(Tuple2.of(nodeId, new Lockable<>(new SharedBufferNode(), refCount)));
 					mappingContext.put(Tuple2.of((String) stateName, wrapper), nodeId);
 				}
 			}
@@ -291,13 +291,13 @@ public class SharedBuffer<V> {
 
 				// We've already deserialized the shared buffer entry. Simply read its ID and
 				// retrieve the buffer entry from the list of entries
-				Tuple2<NodeId, SharedBufferNode> sourceEntry = entries.get(sourceIdx);
-				Tuple2<NodeId, SharedBufferNode> targetEntry =
+				Tuple2<NodeId, Lockable<SharedBufferNode>> sourceEntry = entries.get(sourceIdx);
+				Tuple2<NodeId, Lockable<SharedBufferNode>> targetEntry =
 					targetIdx < 0 ? Tuple2.of(null, null) : entries.get(targetIdx);
-				sourceEntry.f1.addEdge(new SharedBufferEdge(targetEntry.f0, version));
+				sourceEntry.f1.getElement().addEdge(new SharedBufferEdge(targetEntry.f0, version));
 			}
 
-			Map<NodeId, SharedBufferNode> entriesMap = entries.stream().collect(Collectors.toMap(e -> e.f0, e -> e.f1));
+			Map<NodeId, Lockable<SharedBufferNode>> entriesMap = entries.stream().collect(Collectors.toMap(e -> e.f0, e -> e.f1));
 
 			return new SharedBuffer<>(valuesWithIds, entriesMap, mappingContext);
 		}
