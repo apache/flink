@@ -160,7 +160,7 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 
 					final byte[] sourceKey = keySerializationStream.toByteArray();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, sourceKey);
+					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
 						ACC value = valueSerializer.deserialize(
