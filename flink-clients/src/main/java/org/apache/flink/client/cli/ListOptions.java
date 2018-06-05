@@ -36,8 +36,8 @@ public class ListOptions extends CommandLineOptions {
 	public ListOptions(CommandLine line) {
 		super(line);
 		this.showAll = line.hasOption(ALL_OPTION.getOpt());
-		this.showRunning = line.hasOption(RUNNING_OPTION.getOpt()) || this.showAll;
-		this.showScheduled = line.hasOption(SCHEDULED_OPTION.getOpt()) || this.showAll;
+		this.showRunning = line.hasOption(RUNNING_OPTION.getOpt());
+		this.showScheduled = line.hasOption(SCHEDULED_OPTION.getOpt());
 	}
 
 	public boolean showRunning() {

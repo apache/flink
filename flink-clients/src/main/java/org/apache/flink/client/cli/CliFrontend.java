@@ -81,6 +81,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -394,17 +395,17 @@ public class CliFrontend {
 
 		final boolean showRunning;
 		final boolean showScheduled;
-		final boolean showRemaining;
+		final boolean showAll;
 
 		// print running and scheduled jobs if not option supplied
 		if (!listOptions.showRunning() && !listOptions.showScheduled() && !listOptions.showAll()) {
 			showRunning = true;
 			showScheduled = true;
-			showRemaining = false;
+			showAll = false;
 		} else {
 			showRunning = listOptions.showRunning();
 			showScheduled = listOptions.showScheduled();
-			showRemaining = listOptions.showAll();
+			showAll = listOptions.showAll();
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
@@ -412,7 +413,7 @@ public class CliFrontend {
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
-			clusterClient -> listJobs(clusterClient, showRunning, showScheduled, showRemaining));
+			clusterClient -> listJobs(clusterClient, showRunning, showScheduled, showAll));
 
 	}
 
@@ -420,7 +421,7 @@ public class CliFrontend {
 			ClusterClient<T> clusterClient,
 			boolean showRunning,
 			boolean showScheduled,
-			boolean showRemaining) throws FlinkException {
+			boolean showAll) throws FlinkException {
 		Collection<JobStatusMessage> jobDetails;
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
@@ -435,66 +436,61 @@ public class CliFrontend {
 
 		LOG.info("Successfully retrieved list of jobs");
 
-		SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-		Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
-
 		final List<JobStatusMessage> runningJobs = new ArrayList<>();
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
-		final List<JobStatusMessage> remainingJobs = new ArrayList<>();
+		final List<JobStatusMessage> terminatedJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
 			if (details.getJobState() == JobStatus.CREATED) {
 				scheduledJobs.add(details);
-			} else if (details.getJobState() == JobStatus.RUNNING
-				|| details.getJobState() == JobStatus.RESTARTING){
+			} else if (!details.getJobState().isGloballyTerminalState()){
 				runningJobs.add(details);
 			} else {
-				remainingJobs.add(details);
+				terminatedJobs.add(details);
 			}
 		});
 
-		if (showRunning) {
+		if (showRunning || showAll) {
 			if (runningJobs.size() == 0) {
 				System.out.println("No running jobs.");
 			}
 			else {
-				runningJobs.sort(startTimeComparator);
-
 				System.out.println("------------------ Running/Restarting Jobs -------------------");
-				for (JobStatusMessage runningJob : runningJobs) {
-					System.out.println(dateFormat.format(new Date(runningJob.getStartTime()))
-						+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getJobState() + ")");
-				}
+				printJobStatusMessages(runningJobs);
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
-		if (showScheduled) {
+		if (showScheduled || showAll) {
 			if (scheduledJobs.size() == 0) {
 				System.out.println("No scheduled jobs.");
 			}
 			else {
-				scheduledJobs.sort(startTimeComparator);
-
 				System.out.println("----------------------- Scheduled Jobs -----------------------");
-				for (JobStatusMessage scheduledJob : scheduledJobs) {
-					System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
-						+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
-				}
+				printJobStatusMessages(scheduledJobs);
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
-		if (showRemaining) {
-			if (remainingJobs.size() != 0) {
-				remainingJobs.sort(startTimeComparator);
+		if (showAll) {
+			if (terminatedJobs.size() != 0) {
+				System.out.println("---------------------- Terminated Jobs -----------------------");
+				printJobStatusMessages(terminatedJobs);
+				System.out.println("--------------------------------------------------------------");
+			}
+		}
+	}
 
-				System.out.println("----------------------- Remaining Jobs -----------------------");
-				for (JobStatusMessage remainingJob : remainingJobs) {
-					System.out.println(dateFormat.format(new Date(remainingJob.getStartTime()))
-						+ " : " + remainingJob.getJobId() + " : " + remainingJob.getJobName()
-						+ " (" + remainingJob.getJobState() + ")");
-				}
-				System.out.println("--------------------------------------------------------------");
-			}
-		}
+	private static void printJobStatusMessages(List<JobStatusMessage> jobs) {
+		SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+		Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
+		Comparator<Map.Entry<JobStatus, List<JobStatusMessage>>> statusComparator =
+			(o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getKey().toString(), o2.getKey().toString());
+
+		jobs.stream().collect(Collectors.groupingBy(JobStatusMessage::getJobState))
+			.entrySet().stream().sorted(statusComparator).map(Map.Entry::getValue)
+			.flatMap(List::stream).sorted(startTimeComparator).forEachOrdered(job -> {
+			System.out.println(dateFormat.format(new Date(job.getStartTime()))
+				+ " : " + job.getJobId() + " : " + job.getJobName()
+				+ " (" + job.getJobState() + ")");
+		});
 	}
 
 	/**
