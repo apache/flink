@@ -442,6 +442,61 @@ class RetractionRulesTest extends TableTestBase {
       )
     util.verifyTableTrait(resultTable, expected)
   }
+
+  @Test
+  def testFullJoin(): Unit = {
+    val util = streamTestForRetractionUtil()
+    val lTable = util.addTable[(Int, Int)]('a, 'b)
+    val rTable = util.addTable[(Int, String)]('bb, 'c)
+
+    val resultTable = lTable
+      .fullOuterJoin(rTable, 'b === 'bb)
+      .select('a, 'b, 'c)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamJoin",
+          "DataStreamScan(true, Acc)",
+          "DataStreamScan(true, Acc)",
+          "false, AccRetract"
+        ),
+        "false, AccRetract"
+      )
+    util.verifyTableTrait(resultTable, expected)
+  }
+
+  @Test
+  def testAggFollowedWithFullJoin(): Unit = {
+    val util = streamTestForRetractionUtil()
+    val lTable = util.addTable[(Int, Int)]('a, 'b)
+    val rTable = util.addTable[(Int, String)]('bb, 'c)
+
+    val countDistinct = new CountDistinct
+    val resultTable = lTable
+      .fullOuterJoin(rTable, 'b === 'bb)
+      .select('a, 'b, 'c)
+      .groupBy('a)
+      .select('a, countDistinct('c))
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          binaryNode(
+            "DataStreamJoin",
+            "DataStreamScan(true, Acc)",
+            "DataStreamScan(true, Acc)",
+            "true, AccRetract"
+          ),
+          "true, AccRetract"
+        ),
+        "false, Acc"
+      )
+    util.verifyTableTrait(resultTable, expected)
+  }
 }
 
 class StreamTableTestForRetractionUtil extends StreamTableTestUtil {

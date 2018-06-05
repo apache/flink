@@ -1561,4 +1561,346 @@ class JoinHarnessTest extends HarnessTestBase {
 
     testHarness.close()
   }
+
+  @Test
+  def testNonWindowFullJoinWithoutNonEqualPred() {
+
+    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
+      Array[TypeInformation[_]](
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO,
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO),
+      Array("a", "b", "c", "d")))
+
+    val joinProcessFunc = new NonWindowFullJoin(
+      rowType,
+      rowType,
+      joinReturnType,
+      "TestJoinFunction",
+      funcCode,
+      queryConfig)
+
+    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[Integer](0),
+        new TupleRowKeySelector[Integer](0),
+        BasicTypeInfo.INT_TYPE_INFO,
+        1, 1, 0)
+
+    testHarness.open()
+
+    // left stream input
+    testHarness.setProcessingTime(1)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb"), change = true)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc"), change = true)))
+    assertEquals(1, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1)
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(2)
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "ccc"), change = true)))
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1)
+    // 1 right timer(6), 1 right key(1)
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(3)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa"), change = true)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd"), change = true)))
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2)
+    // 1 right timer(6), 1 right key(1)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "ddd"), change = true)))
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2)
+    assertEquals(8, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(4)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa"), change = false)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd"), change = false)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), change = false)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "ddd"), change = false)))
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 1 left key(1)
+    // 2 right timer(6,7), 1 right key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(5)
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7)
+    // 2 right timer(6,7), 1 right key(2)
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(6)
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7)
+    // 2 right timer(7)
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(7)
+    assertEquals(0, testHarness.numProcessingTimeTimers())
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(8)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb"), change = true)))
+
+    val result = testHarness.getOutput
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // processing time 1
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = true)))
+    // processing time 2
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = true)))
+    // processing time 3
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "ccc"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd", 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd", 2: JInt, "ccc"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "aaa"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "aaa"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "ddd"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "ddd"), change = true)))
+    // processing time 4
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "bbb"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "ccc"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd", 2: JInt, "bbb"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd", 2: JInt, "ccc"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "aaa"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "aaa"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "ddd"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "ddd"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = true)))
+    // processing time 8
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+
+    verify(expectedOutput, result, new RowResultSortComparator())
+    testHarness.close()
+  }
+
+  @Test
+  def testNonWindowFullJoinWithNonEqualPred() {
+
+    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
+      Array[TypeInformation[_]](
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO,
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO),
+      Array("a", "b", "c", "d")))
+
+    val joinProcessFunc = new NonWindowFullJoinWithNonEquiPredicates(
+      rowType,
+      rowType,
+      joinReturnType,
+      "TestJoinFunction",
+      funcCodeWithNonEqualPred2,
+      queryConfig)
+
+    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[Integer](0),
+        new TupleRowKeySelector[Integer](0),
+        BasicTypeInfo.INT_TYPE_INFO,
+        1, 1, 0)
+
+    testHarness.open()
+
+    // left stream input
+    testHarness.setProcessingTime(1)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb"), change = true)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc"), change = true)))
+    assertEquals(1, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1), 1 left joincnt key(1)
+    assertEquals(3, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(2)
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "ccc"), change = true)))
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(5), 1 left key(1), 1 left joincnt key(1)
+    // 1 right timer(6), 1 right key(1), 1 right joincnt key(1)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(3)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa"), change = true)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd"), change = true)))
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 1 right timer(6), 1 right key(1), 1 right joincnt key(1)
+    assertEquals(9, testHarness.numKeyedStateEntries())
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "ddd"), change = true)))
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(12, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(4)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa"), change = false)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "ddd"), change = false)))
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+    // 2 left timer(5,7), 2 left key(1,2), 2 left joincnt key(1,2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(12, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(5)
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7), 1 left key(2), 1 left joincnt key(2)
+    // 2 right timer(6,7), 2 right key(1,2), 2 right joincnt key(1,2)
+    assertEquals(9, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(6)
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    // 1 left timer(7), 1 left key(2), 1 left joincnt key(2)
+    // 1 right timer(7), 1 right key(2), 1 right joincnt key(2)
+    assertEquals(6, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(7)
+    assertEquals(0, testHarness.numProcessingTimeTimers())
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.setProcessingTime(8)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb"), change = true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb"), change = true)))
+
+    val result = testHarness.getOutput
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // processing time 1
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = true)))
+    // processing time 2
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = true)))
+    // processing time 3
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "ccc"), change = true)))
+    // can not find matched row due to NonEquiJoinPred
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "ddd", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "ddd"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "ddd"), change = true)))
+    // can not find matched row due to NonEquiJoinPred
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 1: JInt, "aaa"), change = true)))
+    // processing time 4
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "bbb"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "aaa", 2: JInt, "ccc"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "ccc"), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", 1: JInt, "ddd"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", 1: JInt, "ddd"), change = false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "ccc", null: JInt, null), change = true)))
+    // processing time 8
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "bbb", null: JInt, null), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JInt, null, 2: JInt, "bbb"), change = true)))
+
+    verify(expectedOutput, result, new RowResultSortComparator())
+    testHarness.close()
+  }
 }

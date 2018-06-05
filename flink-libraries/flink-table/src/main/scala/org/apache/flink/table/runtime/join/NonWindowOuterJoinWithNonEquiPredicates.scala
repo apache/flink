@@ -121,6 +121,8 @@ import org.apache.flink.types.Row
             // output non matched result row
             cRowWrapper.setChange(true)
             collectAppendNull(otherSideRow, !inputRowFromLeft, cRowWrapper)
+            // recover for the next iteration
+            cRowWrapper.setChange(false)
           }
         }
       }
