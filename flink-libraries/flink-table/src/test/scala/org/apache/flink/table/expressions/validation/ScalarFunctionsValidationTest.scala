@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.expressions.validation
 
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.codegen.CodeGenException
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
@@ -98,14 +98,43 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test(expected = classOf[ValidationException])
   def testDOWWithTimeWhichIsUnsupported(): Unit = {
     testSqlApi("EXTRACT(DOW FROM TIME '12:42:25')", "0")
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test(expected = classOf[ValidationException])
   def testDOYWithTimeWhichIsUnsupported(): Unit = {
     testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
+  }
+
+  private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
+    testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testMillenniumWithTime(): Unit = {
+    testExtractFromTimeZeroResult(TimeUnit.MILLENNIUM)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testCenturyWithTime(): Unit = {
+    testExtractFromTimeZeroResult(TimeUnit.CENTURY)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testYearWithTime(): Unit = {
+    testExtractFromTimeZeroResult(TimeUnit.YEAR)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testMonthWithTime(): Unit = {
+    testExtractFromTimeZeroResult(TimeUnit.MONTH)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDayWithTime(): Unit = {
+    testExtractFromTimeZeroResult(TimeUnit.DAY)
   }
 
   // ----------------------------------------------------------------------------------------------
