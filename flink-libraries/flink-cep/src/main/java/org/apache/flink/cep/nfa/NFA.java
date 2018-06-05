@@ -220,7 +220,10 @@ public class NFA<T> implements Serializable {
 	 */
 	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(final T event,
 		final long timestamp, AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		List<ComputationState<T>> redundantStart = pickRedundantGreedyStartState(new ArrayList<>(computationStates));
+		computationStates.removeAll(redundantStart);
 		final int numberComputationStates = computationStates.size();
+
 		final Collection<Map<String, List<T>>> result = new ArrayList<>();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
 
@@ -309,7 +312,7 @@ public class NFA<T> implements Serializable {
 			}
 
 		}
-
+		computationStates.addAll(redundantStart);
 		discardComputationStatesAccordingToStrategy(computationStates, result, afterMatchSkipStrategy);
 
 		// prune shared buffer based on window length
@@ -624,6 +627,30 @@ public class NFA<T> implements Serializable {
 		}
 
 		return resultingComputationStates;
+	}
+
+	private List<ComputationState<T>> pickRedundantGreedyStartState(List<ComputationState<T>> computationStates) {
+		List<ComputationState<T>> greedyState = new ArrayList<>();
+		List<ComputationState<T>> startState = new ArrayList<>();
+		List<ComputationState<T>> redundantStart = new ArrayList<>();
+		for (ComputationState<T> computationState : computationStates) {
+			if (computationState.isGreedyState()) {
+				greedyState.add(computationState);
+			} else if (computationState.isStartState()) {
+				startState.add(computationState);
+			}
+		}
+
+		for(ComputationState<T> start: startState) {
+			for(ComputationState<T> greedy : greedyState) {
+				if (NFAStateNameHandler.getOriginalNameFromInternal(start.getState().getName()).equals(
+					NFAStateNameHandler.getOriginalNameFromInternal(greedy.getState().getName())))
+				{
+					redundantStart.add(start);
+				}
+			}
+		}
+		return redundantStart;
 	}
 
 	private void addComputationState(

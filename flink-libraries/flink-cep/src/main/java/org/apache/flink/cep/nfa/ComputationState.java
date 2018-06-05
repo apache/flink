@@ -91,6 +91,10 @@ public class ComputationState<T> {
 		return state.isStart() && event == null;
 	}
 
+	public boolean isGreedyState() {
+		return state.isGreedy();
+	}
+
 	public long getTimestamp() {
 		return timestamp;
 	}
@@ -135,6 +139,19 @@ public class ComputationState<T> {
 	@Override
 	public int hashCode() {
 		return Objects.hash(state, event, counter, timestamp, version, startTimestamp, previousState);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+
+		builder.append("current state: ").append(state).append("\n")
+			.append("previous state: ").append(previousState).append("\n")
+			.append("start timestamp: ").append(startTimestamp).append("\n")
+			.append("counter: ").append(counter).append("\n")
+			.append("version: ").append(version);
+
+		return builder.toString();
 	}
 
 	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state) {

@@ -60,6 +60,14 @@ public class State<T> implements Serializable {
 		return stateType == StateType.Start;
 	}
 
+	public boolean isStop() {
+		return stateType == StateType.Stop;
+	}
+
+	public boolean isGreedy() {
+		return stateType == StateType.Greedy;
+	}
+
 	public String getName() {
 		return name;
 	}
@@ -131,10 +139,6 @@ public class State<T> implements Serializable {
 		return Objects.hash(name, stateType, stateTransitions);
 	}
 
-	public boolean isStop() {
-		return stateType == StateType.Stop;
-	}
-
 	/**
 	 * Set of valid state types.
 	 */
@@ -142,6 +146,7 @@ public class State<T> implements Serializable {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
 		Normal, // the state is neither a start nor a final state
-		Stop
+		Stop, // the state will lead to the match to failed
+		Greedy // the state has the greedy proerty
 	}
 }

@@ -573,7 +573,9 @@ public class NFACompiler {
 				return createGroupPatternState((GroupPattern) currentPattern, sinkState, proceedState, isOptional);
 			}
 
-			final State<T> singletonState = createState(currentPattern.getName(), State.StateType.Normal);
+			State.StateType type = currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY) ? State.StateType.Greedy : State.StateType.Normal;
+
+			final State<T> singletonState = createState(currentPattern.getName(), type);
 			// if event is accepted then all notPatterns previous to the optional states are no longer valid
 			final State<T> sink = copyWithoutTransitiveNots(sinkState);
 			singletonState.addTake(sink, takeCondition);
@@ -707,7 +709,9 @@ public class NFACompiler {
 				true);
 
 			IterativeCondition<T> proceedCondition = getTrueFunction();
-			final State<T> loopingState = createState(currentPattern.getName(), State.StateType.Normal);
+			State.StateType type = currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY) ? State.StateType.Greedy : State.StateType.Normal;
+
+			final State<T> loopingState = createState(currentPattern.getName(), type);
 
 			if (currentPattern.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
 				if (untilCondition != null) {
@@ -728,7 +732,7 @@ public class NFACompiler {
 			addStopStateToLooping(loopingState);
 
 			if (ignoreCondition != null) {
-				final State<T> ignoreState = createState(currentPattern.getName(), State.StateType.Normal);
+				final State<T> ignoreState = createState(currentPattern.getName(), type);
 				ignoreState.addTake(loopingState, takeCondition);
 				ignoreState.addIgnore(ignoreCondition);
 				loopingState.addIgnore(ignoreState, ignoreCondition);

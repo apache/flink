@@ -904,4 +904,112 @@ public class GreedyITCase extends TestLogger {
 			Lists.newArrayList(c, a1, a2, a3, a4, d)
 		));
 	}
+
+	@Test
+	public void testGreedyConsecutiveStartState() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event c = new Event(40, "c", 1.0);
+		Event a1 = new Event(41, "a", 2.0);
+		Event a2 = new Event(42, "a", 2.0);
+		Event a3 = new Event(43, "a", 2.0);
+		Event d = new Event(44, "d", 3.0);
+		Event a4 = new Event(45, "a", 2.0);
+		Event a5 = new Event(46, "a", 2.0);
+		Event d2 = new Event(44, "d", 3.0);
+
+		inputEvents.add(new StreamRecord<>(c, 1));
+		inputEvents.add(new StreamRecord<>(a1, 2));
+		inputEvents.add(new StreamRecord<>(a2, 3));
+		inputEvents.add(new StreamRecord<>(a3, 4));
+		inputEvents.add(new StreamRecord<>(d, 5));
+		inputEvents.add(new StreamRecord<>(a4, 5));
+		inputEvents.add(new StreamRecord<>(a5, 5));
+		inputEvents.add(new StreamRecord<>(d2, 5));
+
+
+		// a* d
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		})
+		.oneOrMore()
+		.optional()
+		.consecutive()
+		.greedy()
+		.followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+			Lists.newArrayList(a1, a2, a3, d),
+			Lists.newArrayList(a4, a5, d2)
+		));
+	}
+
+	@Test
+	public void testGreedyReleaxStartState() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event c = new Event(40, "c", 1.0);
+		Event a1 = new Event(41, "a", 2.0);
+		Event a2 = new Event(42, "a", 2.0);
+		Event a3 = new Event(43, "a", 2.0);
+		Event d = new Event(44, "d", 3.0);
+		Event a4 = new Event(45, "a", 2.0);
+		Event a5 = new Event(46, "a", 2.0);
+		Event d2 = new Event(47, "d", 3.0);
+
+		inputEvents.add(new StreamRecord<>(c, 1));
+		inputEvents.add(new StreamRecord<>(a1, 2));
+		inputEvents.add(new StreamRecord<>(a2, 3));
+		inputEvents.add(new StreamRecord<>(a3, 4));
+		inputEvents.add(new StreamRecord<>(d, 5));
+		inputEvents.add(new StreamRecord<>(a4, 5));
+		inputEvents.add(new StreamRecord<>(a5, 5));
+		inputEvents.add(new StreamRecord<>(d2, 5));
+
+
+		// a* d
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		})
+		.oneOrMore()
+		.optional()
+		.greedy()
+		.followedBy("end").where(new SimpleCondition<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("d");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+			Lists.newArrayList(a1, a2, a3, d),
+			Lists.newArrayList(a1, a2, a3, a4, a5, d2)
+		));
+	}
+
 }
