@@ -254,13 +254,17 @@ Action "run" compiles and runs a program.
                                           from (for example
                                           hdfs:///flink/savepoint-1537).
   Options for yarn-cluster mode:
+     -d,--detached                        If present, runs the job in detached
+                                          mode
      -m,--jobmanager <arg>                Address of the JobManager (master) to
                                           which to connect. Use this flag to
                                           connect to a different JobManager than
                                           the one specified in the
                                           configuration.
      -yD <property=value>                 use value for given property
-     -yd,--yarndetached                   Start detached
+     -yd,--yarndetached                   If present, runs the job in detached
+                                          mode (deprecated; use non-YARN
+                                          specific option instead)
      -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
@@ -286,7 +290,7 @@ Action "run" compiles and runs a program.
      -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
                                           sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
@@ -325,7 +329,7 @@ Action "list" lists running and scheduled programs.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
@@ -349,7 +353,7 @@ Action "stop" stops a running program (streaming jobs only).
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
@@ -377,7 +381,7 @@ Action "cancel" cancels a running program.
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
@@ -402,7 +406,7 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
@@ -429,7 +433,7 @@ Action "modify" modifies a running job (e.g. change of parallelism).
      -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
                                       sub-paths for high availability mode
 
-  Options for flip6 mode:
+  Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
                                      different JobManager than the one specified
