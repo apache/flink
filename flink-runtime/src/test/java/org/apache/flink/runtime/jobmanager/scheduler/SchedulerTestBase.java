@@ -72,11 +72,11 @@ public class SchedulerTestBase extends TestLogger {
 
 	protected TestingSlotProvider testingSlotProvider;
 
-	private SchedulerType schedulerType;
+	protected SchedulerType schedulerType;
 
 	private RpcService rpcService;
 
-	enum SchedulerType {
+	public enum SchedulerType {
 		SCHEDULER,
 		SLOT_POOL
 	}
