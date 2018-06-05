@@ -116,11 +116,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
-	/** The resource id of the container. */
-	private ResourceID resourceId;
-
-	private Container container;
-
 	public YarnResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
@@ -363,8 +358,6 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 					final String containerIdStr = container.getId().toString();
 					final ResourceID resourceId = new ResourceID(containerIdStr);
-					this.resourceId = resourceId;
-					this.container = container;
 					workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
 					try {
@@ -433,22 +426,22 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		log.error("Could not start TaskManager in container {}.", containerId, t);
 
 		// release the failed container
-		workerNodeMap.remove(resourceId);
-		resourceManagerClient.releaseAssignedContainer(containerId);
-		// ask for a new one
-		requestYarnContainer(container.getResource(), container.getPriority());
+		YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(new ResourceID(containerId.toString()));
+		if (yarnWorkerNode != null) {
+			resourceManagerClient.releaseAssignedContainer(containerId);
+			// ask for a new one
+			requestYarnContainer(yarnWorkerNode.getContainer().getResource(), yarnWorkerNode.getContainer().getPriority());
+		}
 	}
 
 	@Override
 	public void onGetContainerStatusError(ContainerId containerId, Throwable t) {
 		log.error("Error occurred during get the container {} status.", containerId, t);
-		onFatalError(t);
 	}
 
 	@Override
 	public void onStopContainerError(ContainerId containerId, Throwable t) {
 		log.error("Error occurred during stop the container {}.", containerId, t);
-		onFatalError(t);
 	}
 
 	// ------------------------------------------------------------------------
