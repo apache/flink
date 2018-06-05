@@ -411,7 +411,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {
