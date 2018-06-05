@@ -39,6 +39,7 @@ class ExtractCallGen(returnType: TypeInformation[_], method: Method)
            TimeUnit.DAY |
            TimeUnit.QUARTER |
            TimeUnit.DOY |
+           TimeUnit.DOW |
            TimeUnit.WEEK |
            TimeUnit.CENTURY |
            TimeUnit.MILLENNIUM =>
