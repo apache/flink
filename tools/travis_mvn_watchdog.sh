@@ -509,6 +509,10 @@ EXIT_CODE=$(<$MVN_EXIT)
 
 echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+# Make sure to kill the watchdog in any case after $MVN_COMPILE has completed
+echo "Trying to KILL watchdog (${WD_PID})."
+( kill $WD_PID 2>&1 ) > /dev/null
+
 rm $MVN_PID
 rm $MVN_EXIT
 
@@ -533,6 +537,12 @@ esac
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
 
+    # Start watching $MVN_OUT
+    watchdog &
+    echo "STARTED watchdog (${WD_PID})."
+    
+    WD_PID=$!
+
 	echo "RUNNING '${MVN_TEST}'."
 
 	# Run $MVN_TEST and pipe output to $MVN_OUT for the watchdog. The PID is written to $MVN_PID to
@@ -544,6 +554,10 @@ if [ $EXIT_CODE == 0 ]; then
 
 	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+    # Make sure to kill the watchdog in any case after $MVN_TEST has completed
+    echo "Trying to KILL watchdog (${WD_PID})."
+    ( kill $WD_PID 2>&1 ) > /dev/null
+
 	rm $MVN_PID
 	rm $MVN_EXIT
 else
@@ -553,10 +567,6 @@ else
 fi
 
 # Post
-
-# Make sure to kill the watchdog in any case after $MVN_COMPILE and $MVN_TEST have completed
-echo "Trying to KILL watchdog (${WD_PID})."
-( kill $WD_PID 2>&1 ) > /dev/null
 
 # only misc builds flink-dist and flink-yarn-tests
 case $TEST in
