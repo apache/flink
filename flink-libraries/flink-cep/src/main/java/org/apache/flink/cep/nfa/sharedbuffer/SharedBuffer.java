@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
@@ -33,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,7 @@ public class SharedBuffer<V> {
 	private MapState<EventId, Lockable<V>> eventsBuffer;
 
 	/** The number of events seen so far in the stream per timestamp. */
-	private MapState<Long, Long> eventsCount;
+	private MapState<Long, Integer> eventsCount;
 	private MapState<NodeId, Lockable<SharedBufferNode>> pages;
 
 	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
@@ -89,7 +91,24 @@ public class SharedBuffer<V> {
 			new MapStateDescriptor<>(
 				eventsCountStateName,
 				LongSerializer.INSTANCE,
-				LongSerializer.INSTANCE));
+				IntSerializer.INSTANCE));
+	}
+
+	/**
+	 * Notifies shared buffer that there will be no events with timestamp &lt;&eq; the given value. I allows to clear
+	 * internal counters for number of events seen so far per timestamp.
+	 *
+	 * @param timestamp watermark, no earlier events will arrive
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	public void advanceTime(long timestamp) throws Exception {
+		Iterator<Long> iterator = eventsCount.keys().iterator();
+		while (iterator.hasNext()) {
+			Long next = iterator.next();
+			if (next <= timestamp) {
+				iterator.remove();
+			}
+		}
 	}
 
 	/**
@@ -104,14 +123,14 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public EventId registerEvent(V value, long timestamp) throws Exception {
-		Long id = eventsCount.get(timestamp);
+		Integer id = eventsCount.get(timestamp);
 		if (id == null) {
-			id = 0L;
+			id = 0;
 		}
 
 		EventId eventId = new EventId(id, timestamp);
 		eventsBuffer.put(eventId, new Lockable<>(value, 1));
-		eventsCount.put(timestamp, id + 1L);
+		eventsCount.put(timestamp, id + 1);
 		return eventId;
 	}
 
@@ -131,7 +150,7 @@ public class SharedBuffer<V> {
 		eventsBuffer.putAll(events);
 		pages.putAll(entries);
 
-		Map<Long, Long> maxIds = events.keySet().stream().collect(Collectors.toMap(
+		Map<Long, Integer> maxIds = events.keySet().stream().collect(Collectors.toMap(
 			EventId::getTimestamp,
 			EventId::getId,
 			Math::max

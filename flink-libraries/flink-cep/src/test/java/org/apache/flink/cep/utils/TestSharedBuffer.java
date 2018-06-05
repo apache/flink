@@ -245,6 +245,12 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 				stateReads++;
 				return iterator.next();
 			}
+
+			@Override
+			public void remove() {
+				stateWrites++;
+				iterator.remove();
+			}
 		}
 	}
 

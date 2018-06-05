@@ -305,6 +305,10 @@ public class NFA<T> {
 		discardComputationStatesAccordingToStrategy(
 			sharedBuffer, computationStates, result, afterMatchSkipStrategy);
 
+		if (event.getEvent() == null) {
+			sharedBuffer.advanceTime(event.getTimestamp());
+		}
+
 		return Tuple2.of(result, timeoutResult);
 	}
 

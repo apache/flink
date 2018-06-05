@@ -251,7 +251,7 @@ public class SharedBuffer<V> {
 			Map<ValueTimeWrapper<V>, EventId> values = new HashMap<>();
 			Map<EventId, Lockable<V>> valuesWithIds = new HashMap<>();
 			Map<Tuple2<String, ValueTimeWrapper<V>>, NodeId> mappingContext = new HashMap<>();
-			Map<Long, Long> totalEventsPerTimestamp = new HashMap<>();
+			Map<Long, Integer> totalEventsPerTimestamp = new HashMap<>();
 			int totalPages = source.readInt();
 
 			for (int i = 0; i < totalPages; i++) {
@@ -263,7 +263,7 @@ public class SharedBuffer<V> {
 					ValueTimeWrapper<V> wrapper = ValueTimeWrapper.deserialize(valueSerializer, source);
 					EventId eventId = values.get(wrapper);
 					if (eventId == null) {
-						long id = totalEventsPerTimestamp.computeIfAbsent(wrapper.timestamp, k -> 0L);
+						int id = totalEventsPerTimestamp.computeIfAbsent(wrapper.timestamp, k -> 0);
 						eventId = new EventId(id, wrapper.timestamp);
 						values.put(wrapper, eventId);
 						valuesWithIds.put(eventId, new Lockable<>(wrapper.value, 1));
