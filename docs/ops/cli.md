@@ -39,8 +39,10 @@ The command line can be used to
 
 - submit jobs for execution,
 - cancel a running job,
-- provide information about a job, and
-- list running and waiting jobs.
+- provide information about a job,
+- list running and waiting jobs,
+- trigger and dispose savepoints, and
+- modify a running job
 
 * This will be replaced by the TOC
 {:toc}
@@ -119,6 +121,9 @@ The command line can be used to
 -   Stop a job (streaming jobs only):
 
         ./bin/flink stop <jobID>
+        
+-   Modify a running job (streaming jobs only):
+        ./bin/flink modify <jobID> -p <newParallelism>
 
 
 The difference between cancelling and stopping a (streaming) job is the following:
@@ -217,55 +222,50 @@ Action "run" compiles and runs a program.
 
   Syntax: run [OPTIONS] <jar-file> <arguments>
   "run" action options:
-     -c,--class <classname>                         Class with the program entry
-                                                    point ("main" method or
-                                                    "getPlan()" method. Only
-                                                    needed if the JAR file does
-                                                    not specify the class in its
-                                                    manifest.
-     -C,--classpath <url>                           Adds a URL to each user code
-                                                    classloader  on all nodes in
-                                                    the cluster. The paths must
-                                                    specify a protocol (e.g.
-                                                    file://) and be accessible
-                                                    on all nodes (e.g. by means
-                                                    of a NFS share). You can use
-                                                    this option multiple times
-                                                    for specifying more than one
-                                                    URL. The protocol must be
-                                                    supported by the {@link
-                                                    java.net.URLClassLoader}.
-     -d,--detached                                  If present, runs the job in
-                                                    detached mode
-     -m,--jobmanager <host:port>                    Address of the JobManager
-                                                    (master) to which to
-                                                    connect. Use this flag to
-                                                    connect to a different
-                                                    JobManager than the one
-                                                    specified in the
-                                                    configuration.
-     -n,--allowNonRestoredState                     Allow non restored savepoint
-                                                    state in case an operator has
-                                                    been removed from the job.
-     -p,--parallelism <parallelism>                 The parallelism with which
-                                                    to run the program. Optional
-                                                    flag to override the default
-                                                    value specified in the
-                                                    configuration.
-     -q,--sysoutLogging                             If present, suppress logging
-                                                    output to standard out.
-     -s,--fromSavepoint <savepointPath>             Path to a savepoint to
-                                                    restore the job from (for
-                                                    example
-                                                    hdfs:///flink/savepoint-1537
-                                                    ).
-     -z,--zookeeperNamespace <zookeeperNamespace>   Namespace to create the
-                                                    Zookeeper sub-paths for high
-                                                    availability mode
-
+     -c,--class <classname>               Class with the program entry point
+                                          ("main" method or "getPlan()" method.
+                                          Only needed if the JAR file does not
+                                          specify the class in its manifest.
+     -C,--classpath <url>                 Adds a URL to each user code
+                                          classloader  on all nodes in the
+                                          cluster. The paths must specify a
+                                          protocol (e.g. file://) and be
+                                          accessible on all nodes (e.g. by means
+                                          of a NFS share). You can use this
+                                          option multiple times for specifying
+                                          more than one URL. The protocol must
+                                          be supported by the {@link
+                                          java.net.URLClassLoader}.
+     -d,--detached                        If present, runs the job in detached
+                                          mode
+     -n,--allowNonRestoredState           Allow to skip savepoint state that
+                                          cannot be restored. You need to allow
+                                          this if you removed an operator from
+                                          your program that was part of the
+                                          program when the savepoint was
+                                          triggered.
+     -p,--parallelism <parallelism>       The parallelism with which to run the
+                                          program. Optional flag to override the
+                                          default value specified in the
+                                          configuration.
+     -q,--sysoutLogging                   If present, suppress logging output to
+                                          standard out.
+     -s,--fromSavepoint <savepointPath>   Path to a savepoint to restore the job
+                                          from (for example
+                                          hdfs:///flink/savepoint-1537).
   Options for yarn-cluster mode:
-     -yD <arg>                            Dynamic properties
-     -yd,--yarndetached                   Start detached
+     -d,--detached                        If present, runs the job in detached
+                                          mode
+     -m,--jobmanager <arg>                Address of the JobManager (master) to
+                                          which to connect. Use this flag to
+                                          connect to a different JobManager than
+                                          the one specified in the
+                                          configuration.
+     -yD <property=value>                 use value for given property
+     -yd,--yarndetached                   If present, runs the job in detached
+                                          mode (deprecated; use non-YARN
+                                          specific option instead)
+     -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
      -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
@@ -287,6 +287,16 @@ Action "run" compiles and runs a program.
                                           sub-paths for high availability mode
      -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 
                                           the YARN application 
+     -z,--zookeeperNamespace <arg>        Namespace to create the Zookeeper
+                                          sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
 
 
 
@@ -302,23 +312,30 @@ Action "info" shows the optimized execution plan of the program (JSON).
                                       program. Optional flag to override the
                                       default value specified in the
                                       configuration.
-  Options for yarn-cluster mode:
-     -yid,--yarnapplicationId <arg>   Attach to running YARN session
-
 
 
 Action "list" lists running and scheduled programs.
 
   Syntax: list [OPTIONS]
   "list" action options:
-     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                   to connect. Use this flag to connect to a
-                                   different JobManager than the one specified
-                                   in the configuration.
-     -r,--running                  Show only running programs and their JobIDs
-     -s,--scheduled                Show only scheduled programs and their JobIDs
+     -r,--running     Show only running programs and their JobIDs
+     -s,--scheduled   Show only scheduled programs and their JobIDs
   Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
 
 
 
@@ -326,12 +343,23 @@ Action "stop" stops a running program (streaming jobs only).
 
   Syntax: stop [OPTIONS] <Job ID>
   "stop" action options:
-     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                   to connect. Use this flag to connect to a
-                                   different JobManager than the one specified
-                                   in the configuration.
+
   Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
 
 
 
@@ -339,18 +367,27 @@ Action "cancel" cancels a running program.
 
   Syntax: cancel [OPTIONS] <Job ID>
   "cancel" action options:
-     -m,--jobmanager <host:port>            Address of the JobManager (master)
-                                            to which to connect. Use this flag
-                                            to connect to a different JobManager
-                                            than the one specified in the
-                                            configuration.
      -s,--withSavepoint <targetDirectory>   Trigger savepoint and cancel job.
                                             The target directory is optional. If
                                             no directory is specified, the
                                             configured default directory
                                             (state.savepoints.dir) is used.
   Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
 
 
 
@@ -358,14 +395,51 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
 
   Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]
   "savepoint" action options:
-     -d,--dispose <arg>            Path of savepoint to dispose.
-     -j,--jarfile <jarfile>        Flink program JAR file.
-     -m,--jobmanager <host:port>   Address of the JobManager (master) to which
-                                   to connect. Use this flag to connect to a
-                                   different JobManager than the one specified
-                                   in the configuration.
+     -d,--dispose <arg>       Path of savepoint to dispose.
+     -j,--jarfile <jarfile>   Flink program JAR file.
   Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
+
+
+
+Action "modify" modifies a running job (e.g. change of parallelism).
+
+  Syntax: modify <Job ID> [OPTIONS]
+  "modify" action options:
+     -h,--help                           Show the help message for the CLI
+                                         Frontend or the action.
+     -p,--parallelism <newParallelism>   New parallelism for the specified job.
+     -v,--verbose                        This option is deprecated.
+  Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
+  Options for default mode:
+     -m,--jobmanager <arg>           Address of the JobManager (master) to which
+                                     to connect. Use this flag to connect to a
+                                     different JobManager than the one specified
+                                     in the configuration.
+     -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths
+                                     for high availability mode
 {% endhighlight %}
 
 {% top %}
