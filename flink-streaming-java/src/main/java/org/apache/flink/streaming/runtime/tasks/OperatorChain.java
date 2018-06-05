@@ -422,8 +422,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				Counter tmpNumRecordsIn;
 				try {
 					OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
-					ioMetricGroup.reuseInputMetricsForTask();
-					ioMetricGroup.reuseOutputMetricsForTask();
 					tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
 				} catch (Exception e) {
 					LOG.warn("An exception occurred during the metrics setup.", e);
