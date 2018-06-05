@@ -927,7 +927,6 @@ public class GreedyITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(a5, 5));
 		inputEvents.add(new StreamRecord<>(d2, 5));
 
-
 		// a* d
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
@@ -980,7 +979,6 @@ public class GreedyITCase extends TestLogger {
 		inputEvents.add(new StreamRecord<>(a4, 5));
 		inputEvents.add(new StreamRecord<>(a5, 5));
 		inputEvents.add(new StreamRecord<>(d2, 5));
-
 
 		// a* d
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {

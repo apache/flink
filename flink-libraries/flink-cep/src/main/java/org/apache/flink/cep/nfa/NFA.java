@@ -641,11 +641,10 @@ public class NFA<T> implements Serializable {
 			}
 		}
 
-		for(ComputationState<T> start: startState) {
-			for(ComputationState<T> greedy : greedyState) {
+		for (ComputationState<T> start: startState) {
+			for (ComputationState<T> greedy : greedyState) {
 				if (NFAStateNameHandler.getOriginalNameFromInternal(start.getState().getName()).equals(
-					NFAStateNameHandler.getOriginalNameFromInternal(greedy.getState().getName())))
-				{
+					NFAStateNameHandler.getOriginalNameFromInternal(greedy.getState().getName()))) {
 					redundantStart.add(start);
 				}
 			}
