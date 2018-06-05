@@ -35,6 +35,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,6 +50,7 @@ import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
 import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.anyLong;
 
 /**
  * General tests for {@link NFA} features. See also {@link IterativeConditionsITCase}, {@link NotPatternITCase},
@@ -399,11 +401,11 @@ public class NFAITCase extends TestLogger {
 		NFAState nfaState = nfa.createInitialNFAState();
 
 		for (StreamRecord<Event> event: events) {
-			Tuple2<Collection<Map<String, List<Event>>>, Collection<Tuple2<Map<String, List<Event>>, Long>>> patterns =
-					nfa.process(sharedBuffer, nfaState, event.getValue(), event.getTimestamp());
 
-			Collection<Map<String, List<Event>>> matchedPatterns = patterns.f0;
-			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns = patterns.f1;
+			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
+				nfa.advanceTime(sharedBuffer, nfaState, event.getTimestamp());
+			Collection<Map<String, List<Event>>> matchedPatterns =
+				nfa.process(sharedBuffer, nfaState, event.getValue(), event.getTimestamp());
 
 			resultingPatterns.addAll(matchedPatterns);
 			resultingTimeoutPatterns.addAll(timeoutPatterns);
@@ -2338,7 +2340,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(sharedBuffer, nfaState, null, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2382,7 +2384,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(sharedBuffer, nfaState, null, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2428,7 +2430,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(sharedBuffer, nfaState, null, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2474,7 +2476,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(sharedBuffer, nfaState, null, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2734,7 +2736,7 @@ public class NFAITCase extends TestLogger {
 				sharedBuffer,
 				nfaState,
 				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
+				inputEvent.getTimestamp());
 
 			resultingPatterns.addAll(patterns);
 		}
@@ -2809,7 +2811,7 @@ public class NFAITCase extends TestLogger {
 				sharedBuffer,
 				nfaState,
 				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
+				inputEvent.getTimestamp());
 
 			resultingPatterns.addAll(patterns);
 		}
@@ -2825,5 +2827,23 @@ public class NFAITCase extends TestLogger {
 		}
 
 		Assert.assertEquals(expectedOrder, resultOrder);
+	}
+
+	@Test
+	public void testSharedBufferClearing() throws Exception {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").followedBy("end");
+
+		Event a = new Event(40, "a", 1.0);
+		Event b = new Event(41, "b", 2.0);
+
+		SharedBuffer<Event> spiedBuffer = Mockito.spy(sharedBuffer);
+		NFA<Event> nfa = compile(pattern, false);
+
+		nfa.process(spiedBuffer, nfa.createInitialNFAState(), a, 1);
+		nfa.process(spiedBuffer, nfa.createInitialNFAState(), b, 2);
+		Mockito.verify(spiedBuffer, Mockito.never()).advanceTime(anyLong());
+		nfa.advanceTime(spiedBuffer, nfa.createInitialNFAState(), 2);
+		Mockito.verify(spiedBuffer, Mockito.times(1)).advanceTime(2);
+
 	}
 }

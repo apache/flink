@@ -19,6 +19,7 @@
 package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,15 +32,15 @@ import java.util.Objects;
  * Composite key for events in {@link SharedBuffer}.
  */
 public class EventId {
-	private final long id;
+	private final int id;
 	private final long timestamp;
 
-	public EventId(long id, long timestamp) {
+	public EventId(int id, long timestamp) {
 		this.id = id;
 		this.timestamp = timestamp;
 	}
 
-	public long getId() {
+	public int getId() {
 		return id;
 	}
 
@@ -110,14 +111,14 @@ public class EventId {
 
 		@Override
 		public void serialize(EventId record, DataOutputView target) throws IOException {
-			LongSerializer.INSTANCE.serialize(record.id, target);
+			IntSerializer.INSTANCE.serialize(record.id, target);
 			LongSerializer.INSTANCE.serialize(record.timestamp, target);
 		}
 
 		@Override
 		public EventId deserialize(DataInputView source) throws IOException {
-			Long id = LongSerializer.INSTANCE.deserialize(source);
-			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
+			int id = IntSerializer.INSTANCE.deserialize(source);
+			long timestamp = LongSerializer.INSTANCE.deserialize(source);
 
 			return new EventId(id, timestamp);
 		}
@@ -129,7 +130,7 @@ public class EventId {
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			LongSerializer.INSTANCE.copy(source, target);
+			IntSerializer.INSTANCE.copy(source, target);
 			LongSerializer.INSTANCE.copy(source, target);
 		}
 

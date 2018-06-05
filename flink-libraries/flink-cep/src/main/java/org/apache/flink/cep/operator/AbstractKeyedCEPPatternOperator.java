@@ -192,7 +192,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			if (comparator == null) {
 				// there can be no out of order elements in processing time
 				NFAState nfaState = getNFAState();
-				processEvent(nfaState, element.getValue(), getProcessingTimeService().getCurrentProcessingTime());
+				long timestamp = getProcessingTimeService().getCurrentProcessingTime();
+				advanceTime(nfaState, timestamp);
+				processEvent(nfaState, element.getValue(), timestamp);
 				updateNFA(nfaState);
 			} else {
 				long currentTime = timerService.currentProcessingTime();
@@ -272,15 +274,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
+			advanceTime(nfaState, timestamp);
 			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
 				elements.forEachOrdered(
-						event -> {
-							try {
-								processEvent(nfaState, event, timestamp);
-							} catch (Exception e) {
-								throw new RuntimeException(e);
-							}
+					event -> {
+						try {
+							processEvent(nfaState, event, timestamp);
+						} catch (Exception e) {
+							throw new RuntimeException(e);
 						}
+					}
 				);
 			}
 			elementQueueState.remove(timestamp);
@@ -318,15 +321,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
 			long timestamp = sortedTimestamps.poll();
+			advanceTime(nfa, timestamp);
 			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
 				elements.forEachOrdered(
-						event -> {
-							try {
-								processEvent(nfa, event, timestamp);
-							} catch (Exception e) {
-								throw new RuntimeException(e);
-							}
+					event -> {
+						try {
+							processEvent(nfa, event, timestamp);
+						} catch (Exception e) {
+							throw new RuntimeException(e);
 						}
+					}
 				);
 			}
 			elementQueueState.remove(timestamp);
@@ -377,18 +381,19 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	 * @param timestamp The timestamp of the event
 	 */
 	private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
-		Tuple2<Collection<Map<String, List<IN>>>, Collection<Tuple2<Map<String, List<IN>>, Long>>> patterns =
+		Collection<Map<String, List<IN>>> patterns =
 				nfa.process(partialMatches, nfaState, event, timestamp, afterMatchSkipStrategy);
-		processMatchedSequences(patterns.f0, timestamp);
-		processTimedOutSequences(patterns.f1, timestamp);
+		processMatchedSequences(patterns, timestamp);
 	}
 
 	/**
-	 * Advances the time for the given NFA to the given timestamp. This can lead to pruning and
-	 * timeouts.
+	 * Advances the time for the given NFA to the given timestamp. This means that no more events with timestamp
+	 * <b>lower</b> than the given timestamp should be passed to the nfa, This can lead to pruning and timeouts.
 	 */
 	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
-		processEvent(nfaState, null, timestamp);
+		Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
+			nfa.advanceTime(partialMatches, nfaState, timestamp);
+		processTimedOutSequences(timedOut, timestamp);
 	}
 
 	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;
