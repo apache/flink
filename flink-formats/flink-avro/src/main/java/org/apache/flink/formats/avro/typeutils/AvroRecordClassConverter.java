@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.specific.SpecificData;
@@ -31,7 +32,6 @@ import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.avro.util.Utf8;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Utilities for Avro record class conversion.
@@ -55,8 +55,12 @@ public class AvroRecordClassConverter {
 	}
 
 	/**
-	 * Recursively converts extracted AvroTypeInfo into a RowTypeInfo nested structure with deterministic field order.
-	 * Replaces generic Utf8 with basic String type information.
+	 * The conversions performed by this function are as follows:
+	 * 1. Recursively converts extracted AvroTypeInfo into a RowTypeInfo nested structure with deterministic field order.
+	 * 2. Replaces generic Utf8 with basic String type information.
+	 * 3. Replaces Avro primitive type with corresponding Flink primitive type.
+	 * 4. Replaces Avro map type with a MapTypeInfo and recursively converts its value type.
+	 * 5. Replaces Avro array type with a ArrayTypeInfo and recursively converts its element type.
 	 */
 	private static TypeInformation<?> convertType(TypeInformation<?> extracted, Schema schema) {
 		if (schema.getType() == Schema.Type.RECORD) {
@@ -71,41 +75,52 @@ public class AvroRecordClassConverter {
 				names[i] = field.name();
 			}
 			return new RowTypeInfo(types, names);
+		} else if (schema.getType() == Schema.Type.MAP) {
+			TypeInformation valueType = Types.VOID;
+			if (schema.getValueType().getType() == Schema.Type.RECORD) {
+				valueType = createAvroTypeInfo(schema.getValueType().getFullName());
+			}
+			return Types.MAP(Types.STRING, convertType(valueType, schema.getValueType()));
+		} else if (schema.getType() == Schema.Type.ARRAY) {
+			TypeInformation elementType = Types.VOID;
+			if (schema.getElementType().getType() == Schema.Type.RECORD) {
+				elementType = createAvroTypeInfo(schema.getElementType().getFullName());
+			}
+			return Types.OBJECT_ARRAY(convertType(elementType, schema.getElementType()));
+		} else if (schema.getType() == Schema.Type.STRING) {
+			return Types.STRING;
+		} else if (schema.getType() == Schema.Type.INT) {
+			return Types.INT;
+		} else if (schema.getType() == Schema.Type.LONG) {
+			return Types.LONG;
+		} else if (schema.getType() == Schema.Type.FLOAT) {
+			return Types.FLOAT;
+		} else if (schema.getType() == Schema.Type.DOUBLE) {
+			return Types.DOUBLE;
+		} else if (schema.getType() == Schema.Type.BOOLEAN) {
+			return Types.BOOLEAN;
 		} else if (extracted instanceof GenericTypeInfo<?>) {
 			final GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) extracted;
 			if (genericTypeInfo.getTypeClass() == Utf8.class) {
 				return BasicTypeInfo.STRING_TYPE_INFO;
-			} else if (genericTypeInfo.getTypeClass() == Map.class) {
-				// avro map key is always string
-				return Types.MAP(Types.STRING,
-					convertPrimitiveType(schema.getValueType().getType()));
-			} else if (genericTypeInfo.getTypeClass() == List.class &&
-				schema.getType() == Schema.Type.ARRAY) {
-				return Types.LIST(convertPrimitiveType(schema.getElementType().getType()));
 			}
 		}
+
 		return extracted;
 	}
 
 	/**
-	 * Converts Avro primitive type into corresponding TypeInformation.
+	 * Creates an AvroTypeInfo from the AvroClass which is derived using Java reflection.
 	 */
-	private static TypeInformation convertPrimitiveType(Schema.Type type){
-		TypeInformation ctype = Types.VOID;
-		if (type == Schema.Type.STRING) {
-			ctype = Types.STRING;
-		} else if (type == Schema.Type.INT) {
-			ctype = Types.INT;
-		} else if (type == Schema.Type.LONG) {
-			ctype = Types.LONG;
-		} else if (type == Schema.Type.FLOAT) {
-			ctype = Types.FLOAT;
-		} else if (type == Schema.Type.DOUBLE) {
-			ctype = Types.DOUBLE;
-		} else if (type == Schema.Type.BOOLEAN) {
-			ctype = Types.BOOLEAN;
+	@SuppressWarnings("unchecked")
+	private static AvroTypeInfo createAvroTypeInfo(String avroClassName) {
+		Class avroClass;
+		try {
+			avroClass = Class.forName(avroClassName);
+		} catch (ClassNotFoundException e) {
+			throw new FlinkRuntimeException(e);
 		}
 
-		return ctype;
+		return new AvroTypeInfo<>(avroClass);
 	}
 }

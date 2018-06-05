@@ -250,7 +250,7 @@ public abstract class KafkaTableSourceTestBase {
 			.withSchema(SCHEMA);
 	}
 
-	protected static Properties createSourceProperties() {
+	private static Properties createSourceProperties() {
 		Properties properties = new Properties();
 		properties.setProperty("zookeeper.connect", "dummy");
 		properties.setProperty("group.id", "dummy");

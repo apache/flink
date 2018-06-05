@@ -37,7 +37,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serialization schema that serializes {@link Row} over {@link SpecificRecord} into a Avro bytes.
@@ -114,6 +116,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 	/**
 	 * Converts a (nested) Flink Row into Avro's {@link GenericRecord}.
 	 * Strings are converted into Avro's {@link Utf8} fields.
+	 * Java arrays are converted to Avro's {@link GenericData.Array} fields.
 	 */
 	private static Object convertToRecord(Schema schema, Object rowObj) {
 		if (rowObj instanceof Row) {
@@ -142,6 +145,20 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 			return record;
 		} else if (rowObj instanceof String) {
 			return new Utf8((String) rowObj);
+		} else if (schema.getType() == Schema.Type.MAP) {
+			final Map mapObj = (Map) rowObj;
+			final Map retMap = new HashMap<>();
+			for (Object key : mapObj.keySet()) {
+				retMap.put(new Utf8((String) key), convertToRecord(schema.getValueType(), mapObj.get(key)));
+			}
+			return retMap;
+		} else if (schema.getType() == Schema.Type.ARRAY) {
+			final Object[] arrayObj = (Object[]) rowObj;
+			final GenericData.Array retArray = new GenericData.Array(arrayObj.length, schema);
+			for (int i = 0; i < arrayObj.length; i++) {
+				retArray.add(convertToRecord(schema.getElementType(), arrayObj[i]));
+			}
+			return retArray;
 		} else {
 			return rowObj;
 		}

@@ -18,10 +18,11 @@
 
 package org.apache.flink.formats.avro.utils;
 
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.User;
@@ -67,9 +68,14 @@ public final class AvroTestUtils {
 				Schema valueSchema = ReflectData.get().getSchema(mapTypeInfo.getValueTypeInfo().getTypeClass());
 				Schema schema = Schema.createMap(valueSchema);
 				fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
-			} else if (fieldTypes[i] instanceof ListTypeInfo) {
-				ListTypeInfo listTypeInfo = (ListTypeInfo) fieldTypes[i];
-				Schema elementSchema = ReflectData.get().getSchema(listTypeInfo.getElementTypeInfo().getTypeClass());
+			} else if (fieldTypes[i] instanceof ObjectArrayTypeInfo) {
+				ObjectArrayTypeInfo arrayTypeInfo = (ObjectArrayTypeInfo) fieldTypes[i];
+				Schema elementSchema = ReflectData.get().getSchema(arrayTypeInfo.getComponentInfo().getTypeClass());
+				Schema schema = Schema.createArray(elementSchema);
+				fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
+			} else if (fieldTypes[i] instanceof BasicArrayTypeInfo) {
+				BasicArrayTypeInfo arrayTypeInfo = (BasicArrayTypeInfo) fieldTypes[i];
+				Schema elementSchema = ReflectData.get().getSchema(arrayTypeInfo.getComponentInfo().getTypeClass());
 				Schema schema = Schema.createArray(elementSchema);
 				fieldAssembler.name(fieldNames[i]).type(schema).noDefault();
 			} else {
@@ -154,8 +160,8 @@ public final class AvroTestUtils {
 		rowUser.setField(4, 1.337d);
 		rowUser.setField(5, null);
 		rowUser.setField(6, false);
-		rowUser.setField(7, new ArrayList<CharSequence>());
-		rowUser.setField(8, new ArrayList<Boolean>());
+		rowUser.setField(7, new String[]{});
+		rowUser.setField(8, new Boolean[]{});
 		rowUser.setField(9, null);
 		rowUser.setField(10, Colors.RED);
 		rowUser.setField(11, new HashMap<CharSequence, Long>());
