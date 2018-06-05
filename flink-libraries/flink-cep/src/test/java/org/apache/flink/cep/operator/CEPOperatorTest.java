@@ -743,7 +743,7 @@ public class CEPOperatorTest extends TestLogger {
 			null,
 			lateDataTag);
 		try (OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
-				 CepOperatorTestUtilities.getCepTestHarness(operator)) {
+				CepOperatorTestUtilities.getCepTestHarness(operator)) {
 
 			harness.open();
 
