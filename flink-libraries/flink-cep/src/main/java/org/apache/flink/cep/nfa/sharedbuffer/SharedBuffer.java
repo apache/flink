@@ -159,31 +159,13 @@ public class SharedBuffer<V> {
 	}
 
 	/**
-	 * Stores given value (value + timestamp) under the given state. It assigns no preceding element
-	 * relation to the entry.
-	 *
-	 * @param stateName name of the state that the event should be assigned to
-	 * @param eventId   unique id of event assigned by this SharedBuffer
-	 * @param version   Version of the previous relation
-	 * @return assigned id of this entry
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public NodeId put(
-			final String stateName,
-			final EventId eventId,
-			final DeweyNumber version) throws Exception {
-
-		return put(stateName, eventId, null, version);
-	}
-
-	/**
 	 * Stores given value (value + timestamp) under the given state. It assigns a preceding element
 	 * relation to the previous entry.
 	 *
-	 * @param stateName     name of the state that the event should be assigned to
-	 * @param eventId       unique id of event assigned by this SharedBuffer
-	 * @param previousNodeId id of previous entry
-	 * @param version       Version of the previous relation
+	 * @param stateName      name of the state that the event should be assigned to
+	 * @param eventId        unique id of event assigned by this SharedBuffer
+	 * @param previousNodeId id of previous entry (might be null if start of new run)
+	 * @param version        Version of the previous relation
 	 * @return assigned id of this element
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */

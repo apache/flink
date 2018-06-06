@@ -93,9 +93,9 @@ public class SharedBufferTest extends TestLogger {
 		expectedPattern3.put("b", new ArrayList<>());
 		expectedPattern3.get("b").add(events[7]);
 
-		NodeId a10 = sharedBuffer.put("a1", eventIds[0], DeweyNumber.fromString("1"));
+		NodeId a10 = sharedBuffer.put("a1", eventIds[0], null, DeweyNumber.fromString("1"));
 		NodeId aLoop0 = sharedBuffer.put("a[]", eventIds[1], a10, DeweyNumber.fromString("1.0"));
-		NodeId a11 = sharedBuffer.put("a1", eventIds[2], DeweyNumber.fromString("2"));
+		NodeId a11 = sharedBuffer.put("a1", eventIds[2], null, DeweyNumber.fromString("2"));
 		NodeId aLoop1 = sharedBuffer.put("a[]", eventIds[2], aLoop0, DeweyNumber.fromString("1.0"));
 		NodeId aLoop2 = sharedBuffer.put("a[]", eventIds[3], aLoop1, DeweyNumber.fromString("1.0"));
 		NodeId aSecondLoop0 = sharedBuffer.put("a[]", eventIds[3], a11, DeweyNumber.fromString("2.0"));
@@ -144,7 +144,7 @@ public class SharedBufferTest extends TestLogger {
 			eventIds[i] = sharedBuffer.registerEvent(events[i], timestamp);
 		}
 
-		NodeId start = sharedBuffer.put("start", eventIds[1], DeweyNumber.fromString("1"));
+		NodeId start = sharedBuffer.put("start", eventIds[1], null, DeweyNumber.fromString("1"));
 		NodeId b0 = sharedBuffer.put("branching", eventIds[2], start, DeweyNumber.fromString("1.0"));
 		NodeId b1 = sharedBuffer.put("branching", eventIds[3], start, DeweyNumber.fromString("1.1"));
 		NodeId b00 = sharedBuffer.put("branching", eventIds[3], b0, DeweyNumber.fromString("1.0.0"));
@@ -189,7 +189,7 @@ public class SharedBufferTest extends TestLogger {
 		expectedResult.put("c", new ArrayList<>());
 		expectedResult.get("c").add(events[4]);
 
-		NodeId a = sharedBuffer.put("a", eventIds[0], DeweyNumber.fromString("1"));
+		NodeId a = sharedBuffer.put("a", eventIds[0], null, DeweyNumber.fromString("1"));
 		NodeId b = sharedBuffer.put("b", eventIds[1], a, DeweyNumber.fromString("1.0"));
 		NodeId aa = sharedBuffer.put("aa", eventIds[2], b, DeweyNumber.fromString("1.0.0"));
 		NodeId bb = sharedBuffer.put("bb", eventIds[3], aa, DeweyNumber.fromString("1.0.0.0"));

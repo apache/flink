@@ -117,8 +117,8 @@ public class EventId {
 
 		@Override
 		public EventId deserialize(DataInputView source) throws IOException {
-			Integer id = IntSerializer.INSTANCE.deserialize(source);
-			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
+			int id = IntSerializer.INSTANCE.deserialize(source);
+			long timestamp = LongSerializer.INSTANCE.deserialize(source);
 
 			return new EventId(id, timestamp);
 		}

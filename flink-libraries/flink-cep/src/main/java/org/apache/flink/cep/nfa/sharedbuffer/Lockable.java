@@ -62,10 +62,6 @@ public final class Lockable<T> {
 		return refCounter == 0;
 	}
 
-	int getRefCounter() {
-		return refCounter;
-	}
-
 	public T getElement() {
 		return element;
 	}
@@ -143,7 +139,7 @@ public final class Lockable<T> {
 
 		@Override
 		public Lockable<E> deserialize(DataInputView source) throws IOException {
-			Integer refCount = IntSerializer.INSTANCE.deserialize(source);
+			int refCount = IntSerializer.INSTANCE.deserialize(source);
 			E record = elementSerializer.deserialize(source);
 			return new Lockable<>(record, refCount);
 		}

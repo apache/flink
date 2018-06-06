@@ -105,8 +105,7 @@ public class NFA<T> {
 	public NFA(
 			final Collection<State<T>> validStates,
 			final long windowTime,
-			final boolean handleTimeout
-	) {
+			final boolean handleTimeout) {
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
 		this.states = loadStates(validStates);
@@ -562,22 +561,17 @@ public class NFA<T> {
 					final DeweyNumber nextVersion = new DeweyNumber(currentVersion).addStage();
 					takeBranchesToVisit--;
 
-					final NodeId newEntry;
+					final NodeId newEntry = sharedBuffer.put(
+						currentState.getName(),
+						event.getEventId(),
+						previousEntry,
+						currentVersion);
+
 					final long startTimestamp;
 					if (isStartState(computationState)) {
 						startTimestamp = timestamp;
-						newEntry = sharedBuffer.put(
-							currentState.getName(),
-							event.getEventId(),
-							previousEntry,
-							currentVersion);
 					} else {
 						startTimestamp = computationState.getStartTimestamp();
-						newEntry = sharedBuffer.put(
-							currentState.getName(),
-							event.getEventId(),
-							previousEntry,
-							currentVersion);
 					}
 
 					addComputationState(
@@ -635,7 +629,10 @@ public class NFA<T> {
 		sharedBuffer.lockNode(previousEntry);
 	}
 
-	private State<T> findFinalStateAfterProceed(SharedBuffer<T> sharedBuffer, State<T> state, T event,
+	private State<T> findFinalStateAfterProceed(
+			SharedBuffer<T> sharedBuffer,
+			State<T> state,
+			T event,
 			ComputationState computationState) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
 		statesToCheck.push(state);
@@ -665,7 +662,9 @@ public class NFA<T> {
 		return takeBranches == 0 && ignoreBranches == 0 ? 0 : ignoreBranches + Math.max(1, takeBranches);
 	}
 
-	private OutgoingEdges<T> createDecisionGraph(SharedBuffer<T> sharedBuffer, ComputationState computationState,
+	private OutgoingEdges<T> createDecisionGraph(
+			SharedBuffer<T> sharedBuffer,
+			ComputationState computationState,
 			T event) {
 		State<T> state = getState(computationState);
 		final OutgoingEdges<T> outgoingEdges = new OutgoingEdges<>(state);
@@ -703,8 +702,11 @@ public class NFA<T> {
 		return outgoingEdges;
 	}
 
-	private boolean checkFilterCondition(SharedBuffer<T> sharedBuffer, ComputationState computationState,
-			IterativeCondition<T> condition, T event) throws Exception {
+	private boolean checkFilterCondition(
+			SharedBuffer<T> sharedBuffer,
+			ComputationState computationState,
+			IterativeCondition<T> condition,
+			T event) throws Exception {
 		return condition == null || condition.filter(event, new ConditionContext<>(this, sharedBuffer, computationState));
 	}
 
@@ -717,7 +719,8 @@ public class NFA<T> {
 	 * @param computationState The end computation state of the extracted event sequences
 	 * @return Collection of event sequences which end in the given computation state
 	 */
-	private Map<String, List<T>> extractCurrentMatches(final SharedBuffer<T> sharedBuffer,
+	private Map<String, List<T>> extractCurrentMatches(
+			final SharedBuffer<T> sharedBuffer,
 			final ComputationState computationState) throws Exception {
 		if (computationState.getPreviousBufferEntry() == null) {
 			return new HashMap<>();
@@ -823,8 +826,7 @@ public class NFA<T> {
 
 		MigratedNFA(
 				final Queue<ComputationState> computationStates,
-				final org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer
-		) {
+				final org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer) {
 			this.sharedBuffer = sharedBuffer;
 			this.computationStates = computationStates;
 		}
@@ -842,8 +844,8 @@ public class NFA<T> {
 		public NFASerializerConfigSnapshot() {}
 
 		public NFASerializerConfigSnapshot(
-			TypeSerializer<T> eventSerializer,
-			TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
+				TypeSerializer<T> eventSerializer,
+				TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
 
 			super(eventSerializer, sharedBufferSerializer);
 		}
