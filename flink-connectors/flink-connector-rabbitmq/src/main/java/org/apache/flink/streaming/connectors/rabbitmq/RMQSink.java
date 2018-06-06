@@ -82,6 +82,8 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
 	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * In this case the computeMandatoy or computeImmediate MUST return false otherwise an 
+	 * IllegalStateException is raised during runtime.
      */
 	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
