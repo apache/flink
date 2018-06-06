@@ -30,6 +30,13 @@ TEST_FILE_PATH=flink-quickstart-test/src/main/$TEST_TYPE/org/apache/flink/quicks
 QUICKSTARTS_FILE_PATH=$TEST_DATA_DIR/flink-quickstart-$TEST_TYPE/src/main/$TEST_TYPE/org/apache/flink/quickstart/$TEST_CLASS_NAME.$TEST_TYPE
 ES_INDEX=index_$TEST_TYPE
 
+# get the elasticsearch dependency from flink-quickstart-test
+ES_DEPENDENCY="<dependency>\
+<groupId>org.apache.flink</groupId>\
+$(awk '/elasticsearch/ {print $1}' flink-end-to-end-tests/flink-quickstart-test/pom.xml)\
+<version>\${flink.version}</version>\
+</dependency>"
+
 mkdir -p $TEST_DATA_DIR
 cd $TEST_DATA_DIR
 
@@ -52,12 +59,9 @@ sed -i -e 's/package org.apache.flink.quickstarts.test/package org.apache.flink.
 
 position=$(awk '/<dependencies>/ {print NR}' pom.xml | head -1)
 
-sed -i -e ''"$(($position + 1))"'i\
-<dependency>\
-<groupId>org.apache.flink</groupId>\
-<artifactId>flink-connector-elasticsearch5_${scala.binary.version}</artifactId>\
-<version>${flink.version}</version>\
-</dependency>' pom.xml
+# Add ElasticSearch dependency to pom.xml
+sed -i -e ''$(($position + 1))'i\
+'$ES_DEPENDENCY'' pom.xml
 
 sed -i -e "s/org.apache.flink.quickstart.StreamingJob/org.apache.flink.quickstart.$TEST_CLASS_NAME/" pom.xml
 
