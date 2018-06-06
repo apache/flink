@@ -462,6 +462,13 @@ This file is based on the checkstyle file of Apache Beam.
     <!-- Detects empty statements (standalone ";" semicolon). -->
     <module name="EmptyStatement"/>
 
+	<!-- Detect multiple consecutive semicolons (e.g. ";;"). -->
+	<module name="RegexpSinglelineJava">
+	  <property name="format" value=";{2,}"/>
+	  <property name="message" value="Use one semicolon"/>
+	  <property name="ignoreComments" value="true"/>
+	</module>
+
     <!--
 
     MODIFIERS CHECKS

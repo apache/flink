@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.common.functions.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -54,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A standalone implementation of the {@link RuntimeContext}, created by runtime UDF operators.
  */
-@PublicEvolving
+@Internal
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	private final TaskInfo taskInfo;
@@ -66,13 +68,13 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	private final Map<String, Accumulator<?, ?>> accumulators;
 
 	private final DistributedCache distributedCache;
-	
+
 	private final MetricGroup metrics;
 
 	public AbstractRuntimeUDFContext(TaskInfo taskInfo,
 										ClassLoader userCodeClassLoader,
 										ExecutionConfig executionConfig,
-										Map<String, Accumulator<?,?>> accumulators,
+										Map<String, Accumulator<?, ?>> accumulators,
 										Map<String, Future<Path>> cpTasks,
 										MetricGroup metrics) {
 		this.taskInfo = checkNotNull(taskInfo);
@@ -162,23 +164,23 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public Map<String, Accumulator<?, ?>> getAllAccumulators() {
 		return Collections.unmodifiableMap(this.accumulators);
 	}
-	
+
 	@Override
 	public ClassLoader getUserCodeClassLoader() {
 		return this.userCodeClassLoader;
 	}
-	
+
 	@Override
 	public DistributedCache getDistributedCache() {
 		return this.distributedCache;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name,
-			Class<? extends Accumulator<V, A>> accumulatorClass)
-	{
+			Class<? extends Accumulator<V, A>> accumulatorClass) {
+
 		Accumulator<?, ?> accumulator = accumulators.get(name);
 
 		if (accumulator != null) {
@@ -231,11 +233,17 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
 	}
-	
+
 	@Override
 	@PublicEvolving
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		throw new UnsupportedOperationException(
 				"This state is only accessible by functions executed on a KeyedStream");
+	}
+
+	@Internal
+	@VisibleForTesting
+	public String getAllocationIDAsString() {
+		return taskInfo.getAllocationIDAsString();
 	}
 }

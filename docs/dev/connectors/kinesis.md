@@ -119,6 +119,11 @@ then some consumer subtasks will simply be idle and wait until it gets assigned
 new shards (i.e., when the streams are resharded to increase the
 number of shards for higher provisioned Kinesis service throughput).
 
+Also note that the assignment of shards to subtasks may not be optimal when
+shard IDs are not consecutive (as result of dynamic re-sharding in Kinesis).
+For cases where skew in the assignment leads to significant imbalanced consumption,
+a custom implementation of `KinesisShardAssigner` can be set on the consumer.
+
 ### Configuring Starting Position
 
 The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
@@ -281,6 +286,8 @@ producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
 producerConfig.put("ThreadPoolSize", "15");
 
+// Disable Aggregation if it's not supported by a consumer
+// producerConfig.put("AggregationEnabled", "false");
 // Switch KinesisProducer's threading model
 // producerConfig.put("ThreadingModel", "PER_REQUEST");
 
@@ -307,6 +314,8 @@ producerConfig.put("RecordTtl", "30000")
 producerConfig.put("RequestTimeout", "6000")
 producerConfig.put("ThreadPoolSize", "15")
 
+// Disable Aggregation if it's not supported by a consumer
+// producerConfig.put("AggregationEnabled", "false")
 // Switch KinesisProducer's threading model
 // producerConfig.put("ThreadingModel", "PER_REQUEST")
 

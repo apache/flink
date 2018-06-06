@@ -22,6 +22,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
@@ -37,6 +38,7 @@ import org.apache.flink.table.expressions.Literal;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.types.Row;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -175,14 +177,15 @@ public class OrcTableSourceTest {
 			.forOrcSchema(TEST_SCHEMA_NESTED)
 			.build();
 
-		// expressions for predicates
+		// expressions for supported predicates
 		Expression pred1 = new GreaterThan(
 			new ResolvedFieldReference("int1", Types.INT),
 			new Literal(100, Types.INT));
 		Expression pred2 = new EqualTo(
 			new ResolvedFieldReference("string1", Types.STRING),
 			new Literal("hello", Types.STRING));
-		Expression pred3 = new EqualTo(
+		// unsupported predicate
+		Expression unsupportedPred = new EqualTo(
 			new GetCompositeField(
 				new ItemAt(
 					new ResolvedFieldReference(
@@ -193,10 +196,18 @@ public class OrcTableSourceTest {
 				"int1"),
 			new Literal(1, Types.INT)
 			);
+		// invalid predicate
+		Expression invalidPred = new EqualTo(
+			new ResolvedFieldReference("long1", Types.LONG),
+			// some invalid, non-serializable literal (here an object of this test class)
+			new Literal(new OrcTableSourceTest(), Types.LONG)
+		);
+
 		ArrayList<Expression> preds = new ArrayList<>();
 		preds.add(pred1);
 		preds.add(pred2);
-		preds.add(pred3);
+		preds.add(unsupportedPred);
+		preds.add(invalidPred);
 
 		// apply predicates on TableSource
 		OrcTableSource projected = (OrcTableSource) orc.applyPredicate(preds);
@@ -212,7 +223,7 @@ public class OrcTableSourceTest {
 			Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
 			projected.getReturnType());
 
-		// ensure IF is configured with supported predicates
+		// ensure IF is configured with valid/supported predicates
 		OrcTableSource spyTS = spy(projected);
 		OrcRowInputFormat mockIF = mock(OrcRowInputFormat.class);
 		doReturn(mockIF).when(spyTS).buildOrcInputFormat();
@@ -231,6 +242,56 @@ public class OrcTableSourceTest {
 		// ensure filter pushdown is correct
 		assertTrue(spyTS.isFilterPushedDown());
 		assertFalse(orc.isFilterPushedDown());
+	}
+
+	@Test
+	public void testBuilder() throws Exception {
+
+		// validate path, schema, and recursive enumeration default (enabled)
+		OrcTableSource orc1 = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_NESTED))
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.build();
+
+		DataSet<Row> rows1 = orc1.getDataSet(ExecutionEnvironment.createLocalEnvironment());
+		OrcRowInputFormat orcIF1 = (OrcRowInputFormat) ((DataSource) rows1).getInputFormat();
+		assertEquals(true, orcIF1.getNestedFileEnumeration());
+		assertEquals(getPath(TEST_FILE_NESTED), orcIF1.getFilePath().toString());
+		assertEquals(TEST_SCHEMA_NESTED, orcIF1.getSchema());
+
+		// validate recursive enumeration disabled
+		OrcTableSource orc2 = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_NESTED), false)
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.build();
+
+		DataSet<Row> rows2 = orc2.getDataSet(ExecutionEnvironment.createLocalEnvironment());
+		OrcRowInputFormat orcIF2 = (OrcRowInputFormat) ((DataSource) rows2).getInputFormat();
+		assertEquals(false, orcIF2.getNestedFileEnumeration());
+
+		// validate Hadoop configuration
+		Configuration conf = new Configuration();
+		conf.set("testKey", "testValue");
+		OrcTableSource orc3 = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_NESTED))
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.withConfiguration(conf)
+			.build();
+
+		DataSet<Row> rows3 = orc3.getDataSet(ExecutionEnvironment.createLocalEnvironment());
+		OrcRowInputFormat orcIF3 = (OrcRowInputFormat) ((DataSource) rows3).getInputFormat();
+		assertEquals(conf, orcIF3.getConfiguration());
+
+		// validate batch size
+		OrcTableSource orc4 = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_NESTED))
+			.forOrcSchema(TEST_SCHEMA_NESTED)
+			.withBatchSize(987)
+			.build();
+
+		DataSet<Row> rows4 = orc4.getDataSet(ExecutionEnvironment.createLocalEnvironment());
+		OrcRowInputFormat orcIF4 = (OrcRowInputFormat) ((DataSource) rows4).getInputFormat();
+		assertEquals(987, orcIF4.getBatchSize());
 	}
 
 	private String getPath(String fileName) {

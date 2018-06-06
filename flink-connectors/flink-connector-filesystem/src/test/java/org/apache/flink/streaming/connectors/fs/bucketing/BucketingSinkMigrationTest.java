@@ -21,18 +21,17 @@ package org.apache.flink.streaming.connectors.fs.bucketing;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.streaming.util.migration.MigrationTestUtil;
 import org.apache.flink.streaming.util.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -45,12 +44,16 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.IN_PROGRESS_SUFFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PART_PREFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PENDING_SUFFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.VALID_LENGTH_SUFFIX;
+import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.checkLocalFs;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -72,11 +75,6 @@ public class BucketingSinkMigrationTest {
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	private static final String PART_PREFIX = "part";
-	private static final String PENDING_SUFFIX = ".pending";
-	private static final String IN_PROGRESS_SUFFIX = ".in-progress";
-	private static final String VALID_LENGTH_SUFFIX = ".valid";
-
 	@BeforeClass
 	public static void verifyOS() {
 		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
@@ -86,7 +84,8 @@ public class BucketingSinkMigrationTest {
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_2, "/var/folders/v_/ry2wp5fx0y7c1rvr41xy9_700000gn/T/junit9160378385359106772/junit479663758539998903/1970-01-01--01/part-0-"),
-			Tuple2.of(MigrationVersion.v1_3, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"));
+			Tuple2.of(MigrationVersion.v1_3, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit4273542175898623023/junit3801102997056424640/1970-01-01--01/part-0-"),
+			Tuple2.of(MigrationVersion.v1_4, "/var/folders/tv/b_1d8fvx23dgk1_xs8db_95h0000gn/T/junit3198043255809479705/junit8947526563966405708/1970-01-01--01/part-0-"));
 	}
 
 	private final MigrationVersion testMigrateVersion;
@@ -126,15 +125,15 @@ public class BucketingSinkMigrationTest {
 		testHarness.processElement(new StreamRecord<>("test1", 0L));
 		testHarness.processElement(new StreamRecord<>("test2", 0L));
 
-		checkFs(outDir, 1, 1, 0, 0);
+		checkLocalFs(outDir, 1, 1, 0, 0);
 
 		testHarness.processElement(new StreamRecord<>("test3", 0L));
 		testHarness.processElement(new StreamRecord<>("test4", 0L));
 		testHarness.processElement(new StreamRecord<>("test5", 0L));
 
-		checkFs(outDir, 1, 4, 0, 0);
+		checkLocalFs(outDir, 1, 4, 0, 0);
 
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
 		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/bucketing-sink-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		testHarness.close();
@@ -154,7 +153,8 @@ public class BucketingSinkMigrationTest {
 			.setValidLengthPrefix("")
 			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
 			.setPendingSuffix(PENDING_SUFFIX)
-			.setValidLengthSuffix(VALID_LENGTH_SUFFIX);
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setUseTruncate(false); // don't use truncate because files do not exist
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
 			new StreamSink<>(sink), 10, 1, 0);
@@ -173,37 +173,9 @@ public class BucketingSinkMigrationTest {
 		testHarness.processElement(new StreamRecord<>("test1", 0L));
 		testHarness.processElement(new StreamRecord<>("test2", 0L));
 
-		checkFs(outDir, 1, 1, 0, 0);
+		checkLocalFs(outDir, 1, 1, 0, 0);
 
 		testHarness.close();
-	}
-
-	private void checkFs(File outDir, int inprogress, int pending, int completed, int valid) throws IOException {
-		int inProg = 0;
-		int pend = 0;
-		int compl = 0;
-		int val = 0;
-
-		for (File file: FileUtils.listFiles(outDir, null, true)) {
-			if (file.getAbsolutePath().endsWith("crc")) {
-				continue;
-			}
-			String path = file.getPath();
-			if (path.endsWith(IN_PROGRESS_SUFFIX)) {
-				inProg++;
-			} else if (path.endsWith(PENDING_SUFFIX)) {
-				pend++;
-			} else if (path.endsWith(VALID_LENGTH_SUFFIX)) {
-				val++;
-			} else if (path.contains(PART_PREFIX)) {
-				compl++;
-			}
-		}
-
-		Assert.assertEquals(inprogress, inProg);
-		Assert.assertEquals(pending, pend);
-		Assert.assertEquals(completed, compl);
-		Assert.assertEquals(valid, val);
 	}
 
 	static class ValidatingBucketingSink<T> extends BucketingSink<T> {

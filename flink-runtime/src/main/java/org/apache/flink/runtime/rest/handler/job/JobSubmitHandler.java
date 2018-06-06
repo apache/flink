@@ -46,7 +46,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 	public JobSubmitHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers) {
 		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());

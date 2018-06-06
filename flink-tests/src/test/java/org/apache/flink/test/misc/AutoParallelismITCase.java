@@ -22,17 +22,19 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResource.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterResource.MiniClusterType;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -40,7 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This test verifies that the auto parallelism is properly forwarded to the runtime.
@@ -52,55 +54,38 @@ public class AutoParallelismITCase extends TestLogger {
 	private static final int SLOTS_PER_TM = 7;
 	private static final int PARALLELISM = NUM_TM * SLOTS_PER_TM;
 
-	private static LocalFlinkMiniCluster cluster;
-
-	private static TestEnvironment env;
-
-	@BeforeClass
-	public static void setupCluster() {
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TM);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, SLOTS_PER_TM);
-		cluster = new LocalFlinkMiniCluster(config, false);
-
-		cluster.start();
-
-		env = new TestEnvironment(cluster, NUM_TM * SLOTS_PER_TM, false);
-	}
-
-	@AfterClass
-	public static void teardownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			System.err.println("Error stopping cluster on shutdown");
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration(
+			new Configuration(),
+			NUM_TM,
+			SLOTS_PER_TM));
 
 	@Test
-	public void testProgramWithAutoParallelism() {
+	public void testProgramWithAutoParallelism() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
+		env.getConfig().disableSysoutLogging();
+
+		DataSet<Integer> result = env
+				.createInput(new ParallelismDependentInputFormat())
+				.rebalance()
+				.mapPartition(new ParallelismDependentMapPartition());
+
+		List<Integer> resultCollection = new ArrayList<>();
+		result.output(new LocalCollectionOutputFormat<>(resultCollection));
+
 		try {
-			env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
-			env.getConfig().disableSysoutLogging();
-
-			DataSet<Integer> result = env
-					.createInput(new ParallelismDependentInputFormat())
-					.rebalance()
-					.mapPartition(new ParallelismDependentMapPartition());
-
-			List<Integer> resultCollection = new ArrayList<Integer>();
-			result.output(new LocalCollectionOutputFormat<Integer>(resultCollection));
-
 			env.execute();
-
 			assertEquals(PARALLELISM, resultCollection.size());
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		catch (Exception ex) {
+			if (MINI_CLUSTER_RESOURCE.getMiniClusterType().equals(MiniClusterType.LEGACY)) {
+				throw ex;
+			}
+			assertTrue(
+				ExceptionUtils.findThrowableWithMessage(ex, ExecutionGraphBuilder.PARALLELISM_AUTO_MAX_ERROR_MESSAGE).isPresent());
 		}
 	}
 

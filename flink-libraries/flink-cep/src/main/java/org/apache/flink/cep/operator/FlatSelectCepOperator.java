@@ -24,6 +24,7 @@ import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.util.OutputTag;
 
 import java.util.List;
 import java.util.Map;
@@ -45,8 +46,9 @@ public class FlatSelectCepOperator<IN, KEY, OUT>
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
-		PatternFlatSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function);
+		PatternFlatSelectFunction<IN, OUT> function,
+		OutputTag<IN> lateDataOutputTag) {
+		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function, lateDataOutputTag);
 	}
 
 	private transient TimestampedCollector<OUT> collector;

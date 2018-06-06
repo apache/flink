@@ -49,6 +49,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -117,6 +119,8 @@ public abstract class ClusterClient<T> {
 	/** Service factory for high available. */
 	protected final HighAvailabilityServices highAvailabilityServices;
 
+	private final boolean sharedHaServices;
+
 	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
@@ -129,6 +133,11 @@ public abstract class ClusterClient<T> {
 
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
+
+	/**
+	 * Value returned by {@link #getMaxSlots()} if the number of maximum slots is unknown.
+	 */
+	public static final int MAX_SLOTS_UNKNOWN = -1;
 
 	// ------------------------------------------------------------------------
 	//                            Construction
@@ -144,11 +153,13 @@ public abstract class ClusterClient<T> {
 	 * @throws Exception we cannot create the high availability services
 	 */
 	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(flinkConfig,
+		this(
+			flinkConfig,
 			HighAvailabilityServicesUtils.createHighAvailabilityServices(
 				flinkConfig,
 				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION));
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
+			false);
 	}
 
 	/**
@@ -158,8 +169,9 @@ public abstract class ClusterClient<T> {
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
+	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
 	 */
-	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices) {
+	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
@@ -173,6 +185,7 @@ public abstract class ClusterClient<T> {
 			log);
 
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+		this.sharedHaServices = sharedHaServices;
 	}
 
 	// ------------------------------------------------------------------------
@@ -265,7 +278,7 @@ public abstract class ClusterClient<T> {
 		synchronized (this) {
 			actorSystemLoader.shutdown();
 
-			if (highAvailabilityServices != null) {
+			if (!sharedHaServices && highAvailabilityServices != null) {
 				highAvailabilityServices.close();
 			}
 		}
@@ -372,7 +385,7 @@ public abstract class ClusterClient<T> {
 			return run(jobWithJars, parallelism, prog.getSavepointSettings());
 		}
 		else if (prog.isUsingInteractiveMode()) {
-			log.info("Starting program in interactive mode");
+			log.info("Starting program in interactive mode (detached: {})", isDetached());
 
 			final List<URL> libraries;
 			if (hasUserJarsInClassPath(prog.getAllLibraries())) {
@@ -447,7 +460,7 @@ public abstract class ClusterClient<T> {
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
 			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
 			throws ProgramInvocationException {
-		JobGraph job = getJobGraph(compiledPlan, libraries, classpaths, savepointSettings);
+		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
 	}
 
@@ -578,6 +591,34 @@ public abstract class ClusterClient<T> {
 	}
 
 	/**
+	 * Requests the {@link JobStatus} of the job with the given {@link JobID}.
+	 */
+	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
+		final ActorGateway jobManager;
+		try {
+			jobManager = getJobManagerGateway();
+		} catch (FlinkException e) {
+			throw new RuntimeException("Could not retrieve JobManage gateway.", e);
+		}
+
+		Future<Object> response = jobManager.ask(JobManagerMessages.getRequestJobStatus(jobId), timeout);
+
+		CompletableFuture<Object> javaFuture = FutureUtils.<Object>toJava(response);
+
+		return javaFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof JobManagerMessages.CurrentJobStatus) {
+				return ((JobManagerMessages.CurrentJobStatus) responseMessage).status();
+			} else if (responseMessage instanceof JobManagerMessages.JobNotFound) {
+				throw new CompletionException(
+					new IllegalStateException("Could not find job with JobId " + jobId));
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
+	}
+
+	/**
 	 * Cancels a job identified by the job id.
 	 * @param jobId the job id
 	 * @throws Exception In case an error occurred.
@@ -657,7 +698,7 @@ public abstract class ClusterClient<T> {
 
 	/**
 	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
-	 * directory, or {@link org.apache.flink.configuration.CoreOptions#SAVEPOINT_DIRECTORY} if it is null.
+	 * directory, or {@link org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.
 	 *
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
@@ -667,9 +708,9 @@ public abstract class ClusterClient<T> {
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
-		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
+		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.<String>apply(savepointDirectory)),
 			new FiniteDuration(1, TimeUnit.HOURS));
-		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof JobManagerMessages.TriggerSavepointSuccess) {
@@ -685,14 +726,14 @@ public abstract class ClusterClient<T> {
 		});
 	}
 
-	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws FlinkException {
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
-		CompletableFuture<Object> responseFuture = FutureUtils.toJava(
+		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(
 			jobManager.ask(
 				msg,
-				FutureUtils.toFiniteDuration(timeout)));
+				timeout));
 
 		return responseFuture.thenApply(
 			(Object response) -> {
@@ -728,7 +769,7 @@ public abstract class ClusterClient<T> {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
-		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
+		CompletableFuture<Object> responseFuture = FutureUtils.<Object>toJava(response);
 
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof MultipleJobsDetails) {
@@ -752,7 +793,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobID The job identifier of a job.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	public Map<String, Object> getAccumulators(JobID jobID) throws Exception {
+	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID) throws Exception {
 		return getAccumulators(jobID, ClassLoader.getSystemClassLoader());
 	}
 
@@ -763,7 +804,7 @@ public abstract class ClusterClient<T> {
 	 * @param loader The class loader for deserializing the accumulator results.
 	 * @return A Map containing the accumulator's name and its value.
 	 */
-	public Map<String, Object> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
+	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID, ClassLoader loader) throws Exception {
 		ActorGateway jobManagerGateway = getJobManagerGateway();
 
 		Future<Object> response;
@@ -776,7 +817,7 @@ public abstract class ClusterClient<T> {
 		Object result = Await.result(response, timeout);
 
 		if (result instanceof AccumulatorResultsFound) {
-			Map<String, SerializedValue<Object>> serializedAccumulators =
+			Map<String, SerializedValue<OptionalFailure<Object>>> serializedAccumulators =
 					((AccumulatorResultsFound) result).result();
 
 			return AccumulatorHelper.deserializeAccumulators(serializedAccumulators, loader);
@@ -841,17 +882,17 @@ public abstract class ClusterClient<T> {
 		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
 	}
 
-	public JobGraph getJobGraph(PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
-		return getJobGraph(optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
+	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
+		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
 	}
 
-	private JobGraph getJobGraph(FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
+	public static JobGraph getJobGraph(Configuration flinkConfig, FlinkPlan optPlan, List<URL> jarFiles, List<URL> classpaths, SavepointRestoreSettings savepointSettings) {
 		JobGraph job;
 		if (optPlan instanceof StreamingPlan) {
 			job = ((StreamingPlan) optPlan).getJobGraph();
 			job.setSavepointRestoreSettings(savepointSettings);
 		} else {
-			JobGraphGenerator gen = new JobGraphGenerator(this.flinkConfig);
+			JobGraphGenerator gen = new JobGraphGenerator(flinkConfig);
 			job = gen.compileJobGraph((OptimizedPlan) optPlan);
 		}
 
@@ -965,7 +1006,7 @@ public abstract class ClusterClient<T> {
 
 	/**
 	 * The client may define an upper limit on the number of slots to use.
-	 * @return -1 if unknown
+	 * @return <tt>-1</tt> ({@link #MAX_SLOTS_UNKNOWN}) if unknown
 	 */
 	public abstract int getMaxSlots();
 
@@ -981,7 +1022,21 @@ public abstract class ClusterClient<T> {
 	 * @param jobGraph The JobGraph to be submitted
 	 * @return JobSubmissionResult
 	 */
-	protected abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
+	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
 		throws ProgramInvocationException;
 
+	/**
+	 * Rescales the specified job such that it will have the new parallelism.
+	 *
+	 * @param jobId specifying the job to modify
+	 * @param newParallelism specifying the new parallelism of the rescaled job
+	 * @return Future which is completed once the rescaling has been completed
+	 */
+	public CompletableFuture<Acknowledge> rescaleJob(JobID jobId, int newParallelism) {
+		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support rescaling.");
+	}
+
+	public void shutDownCluster() {
+		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
+	}
 }

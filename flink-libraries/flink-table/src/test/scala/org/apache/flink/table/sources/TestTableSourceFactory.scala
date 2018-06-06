@@ -22,18 +22,21 @@ import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_TYPE, CONNECTOR_VERSION}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_TYPE, FORMAT_VERSION}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 import org.apache.flink.types.Row
 
+/**
+  * Table source factory for testing.
+  */
 class TestTableSourceFactory extends TableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
     context.put(CONNECTOR_TYPE, "test")
     context.put(FORMAT_TYPE, "test")
-    context.put(CONNECTOR_VERSION, "1")
-    context.put(FORMAT_VERSION, "1")
+    context.put(CONNECTOR_PROPERTY_VERSION, "1")
+    context.put(FORMAT_PROPERTY_VERSION, "1")
     context
   }
 

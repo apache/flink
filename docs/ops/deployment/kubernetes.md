@@ -42,8 +42,8 @@ Using the [resource definitions found below](#simple-kubernetes-flink-cluster-
 resources), launch the cluster with the `kubectl` command:
 
     kubectl create -f jobmanager-deployment.yaml
-    kubectl create -f taskmanager-deployment.yaml
     kubectl create -f jobmanager-service.yaml
+    kubectl create -f taskmanager-deployment.yaml
 
 You can then access the Flink UI via `kubectl proxy`:
 
@@ -57,8 +57,8 @@ jobmanager:8081) in your browser
 Again, use `kubectl` to delete the cluster:
 
     kubectl delete -f jobmanager-deployment.yaml
-    kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
+    kubectl delete -f taskmanager-deployment.yaml
 
 ## Advanced Cluster Deployment
 

@@ -21,8 +21,8 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -37,11 +37,16 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the LIST command.
  */
-public class CliFrontendListTest extends TestLogger {
+public class CliFrontendListTest extends CliFrontendTestBase {
 
 	@BeforeClass
 	public static void init() {
 		CliFrontendTestUtils.pipeSystemOutToNull();
+	}
+
+	@AfterClass
+	public static void shutdown() {
+		CliFrontendTestUtils.restoreSystemOut();
 	}
 
 	@Test
@@ -60,10 +65,10 @@ public class CliFrontendListTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-k"};
-		Configuration configuration = new Configuration();
+		Configuration configuration = getConfiguration();
 		CliFrontend testFrontend = new CliFrontend(
 			configuration,
-			Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(getCli(configuration)));
 		testFrontend.list(parameters);
 	}
 

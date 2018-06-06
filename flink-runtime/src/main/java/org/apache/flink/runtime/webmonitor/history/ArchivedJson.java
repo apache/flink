@@ -18,8 +18,15 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.Objects;
 
 /**
@@ -30,12 +37,21 @@ import java.util.Objects;
  */
 public class ArchivedJson {
 
+	private static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+
 	private final String path;
 	private final String json;
 
 	public ArchivedJson(String path, String json) {
 		this.path = Preconditions.checkNotNull(path);
 		this.json = Preconditions.checkNotNull(json);
+	}
+
+	public ArchivedJson(String path, ResponseBody json) throws IOException {
+		this.path = Preconditions.checkNotNull(path);
+		StringWriter sw = new StringWriter();
+		MAPPER.writeValue(sw, Preconditions.checkNotNull(json));
+		this.json = sw.toString();
 	}
 
 	public String getPath() {

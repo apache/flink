@@ -18,67 +18,90 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.FileUpload;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import java.io.File;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import javax.annotation.Nonnull;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
+import static java.util.Objects.requireNonNull;
+
 /**
- * Handles requests for uploading of jars.
+ * Handles .jar file uploads.
  */
-public class JarUploadHandler extends AbstractJsonRequestHandler {
+public class JarUploadHandler extends
+		AbstractRestHandler<RestfulGateway, FileUpload, JarUploadResponseBody, EmptyMessageParameters> {
 
-	static final String JAR_UPLOAD_REST_PATH = "/jars/upload";
+	private final Path jarDir;
 
-	private final File jarDir;
+	private final Executor executor;
 
-	public JarUploadHandler(Executor executor, File jarDir) {
-		super(executor);
-		this.jarDir = jarDir;
+	public JarUploadHandler(
+			final CompletableFuture<String> localRestAddress,
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			final Time timeout,
+			final Map<String, String> responseHeaders,
+			final MessageHeaders<FileUpload, JarUploadResponseBody, EmptyMessageParameters> messageHeaders,
+			final Path jarDir,
+			final Executor executor) {
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
+		this.jarDir = requireNonNull(jarDir);
+		this.executor = requireNonNull(executor);
 	}
 
 	@Override
-	public String[] getPaths() {
-		return new String[]{JAR_UPLOAD_REST_PATH};
-	}
+	protected CompletableFuture<JarUploadResponseBody> handleRequest(
+			@Nonnull final HandlerRequest<FileUpload, EmptyMessageParameters> request,
+			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
 
-	@Override
-	public CompletableFuture<String> handleJsonRequest(
-			Map<String, String> pathParams,
-			Map<String, String> queryParams,
-			JobManagerGateway jobManagerGateway) {
-
-		String tempFilePath = queryParams.get("filepath");
-		String filename = queryParams.get("filename");
-
-		return CompletableFuture.supplyAsync(
-			() -> {
-				File tempFile;
-				if (tempFilePath != null && (tempFile = new File(tempFilePath)).exists()) {
-					if (!tempFile.getName().endsWith(".jar")) {
-						//noinspection ResultOfMethodCallIgnored
-						tempFile.delete();
-						return "{\"error\": \"Only Jar files are allowed.\"}";
-					}
-
-					String filenameWithUUID = UUID.randomUUID() + "_" + filename;
-					File newFile = new File(jarDir, filenameWithUUID);
-					if (tempFile.renameTo(newFile)) {
-						// all went well
-						return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
-					}
-					else {
-						//noinspection ResultOfMethodCallIgnored
-						tempFile.delete();
-					}
+		final FileUpload fileUpload = request.getRequestBody();
+		return CompletableFuture.supplyAsync(() -> {
+			if (!fileUpload.getPath().getFileName().toString().endsWith(".jar")) {
+				deleteUploadedFile(fileUpload);
+				throw new CompletionException(new RestHandlerException(
+					"Only Jar files are allowed.",
+					HttpResponseStatus.BAD_REQUEST));
+			} else {
+				final Path destination = jarDir.resolve(fileUpload.getPath().getFileName());
+				try {
+					Files.move(fileUpload.getPath(), destination);
+				} catch (IOException e) {
+					deleteUploadedFile(fileUpload);
+					throw new CompletionException(new RestHandlerException(
+						String.format("Could not move uploaded jar file [%s] to [%s].",
+							fileUpload.getPath(),
+							destination),
+						HttpResponseStatus.INTERNAL_SERVER_ERROR,
+						e));
 				}
+				return new JarUploadResponseBody(fileUpload.getPath()
+					.normalize()
+					.toString());
+			}
+		}, executor);
+	}
 
-				return "{\"error\": \"Failed to upload the file.\"}";
-			},
-			executor);
+	private void deleteUploadedFile(final FileUpload fileUpload) {
+		try {
+			Files.delete(fileUpload.getPath());
+		} catch (IOException e) {
+			log.error("Failed to delete file {}.", fileUpload.getPath(), e);
+		}
 	}
 }

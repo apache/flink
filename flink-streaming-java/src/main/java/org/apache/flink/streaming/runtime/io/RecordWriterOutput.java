@@ -148,21 +148,17 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+	public void broadcastEvent(AbstractEvent event) throws IOException {
 		recordWriter.broadcastEvent(event);
 	}
 
 	public void flush() throws IOException {
-		recordWriter.flush();
+		recordWriter.flushAll();
 	}
 
 	@Override
 	public void close() {
 		recordWriter.close();
-	}
-
-	public void clearBuffers() {
-		recordWriter.clearBuffers();
 	}
 
 	@Override

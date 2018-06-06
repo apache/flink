@@ -30,21 +30,21 @@ Get a Flink example program up and running in a few simple steps.
 
 ## Setup: Download and Start Flink
 
-Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 7.x__ (or higher) installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/start/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/start/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
 
 You can check the correct installation of Java by issuing the following command:
 
-~~~bash
+{% highlight bash %}
 java -version
-~~~
+{% endhighlight %}
 
 If you have Java 8, the output will look something like this:
 
-~~~bash
+{% highlight bash %}
 java version "1.8.0_111"
 Java(TM) SE Runtime Environment (build 1.8.0_111-b14)
 Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
-~~~
+{% endhighlight %}
 
 {% if site.is_stable %}
 <div class="codetabs" markdown="1">
@@ -56,22 +56,22 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 2. Go to the download directory.
 3. Unpack the downloaded archive.
 
-~~~bash
+{% highlight bash %}
 $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
-~~~
+{% endhighlight %}
 </div>
 
 <div data-lang="MacOS X" markdown="1">
 For MacOS X users, Flink can be installed through [Homebrew](https://brew.sh/).
 
-~~~bash
+{% highlight bash %}
 $ brew install apache-flink
 ...
 $ flink --version
 Version: 1.2.0, Commit ID: 1c659cf
-~~~
+{% endhighlight %}
 </div>
 
 </div>
@@ -80,33 +80,39 @@ Version: 1.2.0, Commit ID: 1c659cf
 ### Download and Compile
 Clone the source code from one of our [repositories](http://flink.apache.org/community.html#source-code), e.g.:
 
-~~~bash
+{% highlight bash %}
 $ git clone https://github.com/apache/flink.git
 $ cd flink
 $ mvn clean package -DskipTests # this will take up to 10 minutes
 $ cd build-target               # this is where Flink is installed to
-~~~
+{% endhighlight %}
 {% endif %}
 
 ### Start a Local Flink Cluster
 
-~~~bash
-$ ./bin/start-local.sh  # Start Flink
-~~~
+{% highlight bash %}
+$ ./bin/start-cluster.sh  # Start Flink
+{% endhighlight %}
 
-Check the __JobManager's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
+Check the __Dispatcher's web frontend__ at [http://localhost:8081](http://localhost:8081) and make sure everything is up and running. The web frontend should report a single available TaskManager instance.
 
-<a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="JobManager: Overview"/></a>
+<a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="Dispatcher: Overview"/></a>
 
 You can also verify that the system is running by checking the log files in the `logs` directory:
 
-~~~bash
-$ tail log/flink-*-jobmanager-*.log
-INFO ... - Starting JobManager
-INFO ... - Starting JobManager web frontend
-INFO ... - Web frontend listening at 127.0.0.1:8081
-INFO ... - Registered TaskManager at 127.0.0.1 (akka://flink/user/taskmanager)
-~~~
+{% highlight bash %}
+$ tail log/flink-*-standalonesession-*.log
+INFO ... - Rest endpoint listening at localhost:8081
+INFO ... - http://localhost:8081 was granted leadership ...
+INFO ... - Web frontend listening at http://localhost:8081.
+INFO ... - Starting RPC endpoint for StandaloneResourceManager at akka://flink/user/resourcemanager .
+INFO ... - Starting RPC endpoint for StandaloneDispatcher at akka://flink/user/dispatcher .
+INFO ... - ResourceManager akka.tcp://flink@localhost:6123/user/resourcemanager was granted leadership ...
+INFO ... - Starting the SlotManager.
+INFO ... - Dispatcher akka.tcp://flink@localhost:6123/user/dispatcher was granted leadership ...
+INFO ... - Recovering all persisted jobs.
+INFO ... - Registering TaskManager ... under ... at the SlotManager.
+{% endhighlight %}
 
 ## Read the Code
 
@@ -233,38 +239,26 @@ window of processing time, as long as words are floating in.
 
 * First of all, we use **netcat** to start local server via
 
-  ~~~bash
-  $ nc -l 9000
-  ~~~
+{% highlight bash %}
+$ nc -l 9000
+{% endhighlight %}
 
 * Submit the Flink program:
 
-  ~~~bash
-  $ ./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+{% highlight bash %}
+$ ./bin/flink run examples/streaming/SocketWindowWordCount.jar --port 9000
+Starting execution of program
 
-  Cluster configuration: Standalone cluster with JobManager at /127.0.0.1:6123
-  Using address 127.0.0.1:6123 to connect to JobManager.
-  JobManager web interface address http://127.0.0.1:8081
-  Starting execution of program
-  Submitting job with JobID: 574a10c8debda3dccd0c78a3bde55e1b. Waiting for job completion.
-  Connected to JobManager at Actor[akka.tcp://flink@127.0.0.1:6123/user/jobmanager#297388688]
-  11/04/2016 14:04:50     Job execution switched to status RUNNING.
-  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to SCHEDULED
-  11/04/2016 14:04:50     Source: Socket Stream -> Flat Map(1/1) switched to DEPLOYING
-  11/04/2016 14:04:50     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to SCHEDULED
-  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to DEPLOYING
-  11/04/2016 14:04:51     Fast TumblingProcessingTimeWindows(5000) of WindowedStream.main(SocketWindowWordCount.java:79) -> Sink: Unnamed(1/1) switched to RUNNING
-  11/04/2016 14:04:51     Source: Socket Stream -> Flat Map(1/1) switched to RUNNING
-  ~~~
+{% endhighlight %}
 
   The program connects to the socket and waits for input. You can check the web interface to verify that the job is running as expected:
 
   <div class="row">
     <div class="col-sm-6">
-      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" alt="JobManager: Overview (cont'd)"/></a>
+      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-2.png" alt="Dispatcher: Overview (cont'd)"/></a>
     </div>
     <div class="col-sm-6">
-      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" alt="JobManager: Running Jobs"/></a>
+      <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-3.png" alt="Dispatcher: Running Jobs"/></a>
     </div>
   </div>
 
@@ -273,28 +267,28 @@ window of processing time, as long as words are floating in.
   and write some text in `nc` (input is sent to Flink line by line after
   hitting <RETURN>):
 
-  ~~~bash
-  $ nc -l 9000
-  lorem ipsum
-  ipsum ipsum ipsum
-  bye
-  ~~~
+{% highlight bash %}
+$ nc -l 9000
+lorem ipsum
+ipsum ipsum ipsum
+bye
+{% endhighlight %}
 
   The `.out` file will print the counts at the end of each time window as long
   as words are floating in, e.g.:
 
-  ~~~bash
-  $ tail -f log/flink-*-taskmanager-*.out
-  lorem : 1
-  bye : 1
-  ipsum : 4
-  ~~~~
+{% highlight bash %}
+$ tail -f log/flink-*-taskexecutor-*.out
+lorem : 1
+bye : 1
+ipsum : 4
+{% endhighlight %}
 
   To **stop** Flink when you're done type:
 
-  ~~~bash
-  $ ./bin/stop-local.sh
-  ~~~
+{% highlight bash %}
+$ ./bin/stop-cluster.sh
+{% endhighlight %}
 
 ## Next Steps
 

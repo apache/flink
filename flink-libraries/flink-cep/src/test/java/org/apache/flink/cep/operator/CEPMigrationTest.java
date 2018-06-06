@@ -26,10 +26,10 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
@@ -118,7 +118,7 @@ public class CEPMigrationTest {
 			harness.processWatermark(new Watermark(5));
 
 			// do snapshot and save to file
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			OperatorSnapshotUtil.writeStateHandle(snapshot,
 				"src/test/resources/cep-migration-after-branching-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		} finally {
@@ -205,7 +205,7 @@ public class CEPMigrationTest {
 			harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+			OperatorSubtaskState snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -279,7 +279,7 @@ public class CEPMigrationTest {
 			harness.processWatermark(new Watermark(5));
 
 			// do snapshot and save to file
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			OperatorSnapshotUtil.writeStateHandle(snapshot,
 				"src/test/resources/cep-migration-starting-new-pattern-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		} finally {
@@ -381,7 +381,7 @@ public class CEPMigrationTest {
 			harness.processElement(new StreamRecord<Event>(middleEvent3, 23));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(1L, 1L);
+			OperatorSubtaskState snapshot = harness.snapshot(1L, 1L);
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -449,7 +449,7 @@ public class CEPMigrationTest {
 			harness.processWatermark(new Watermark(5));
 
 			// do snapshot and save to file
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			OperatorSnapshotUtil.writeStateHandle(snapshot,
 				"src/test/resources/cep-migration-single-pattern-afterwards-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		} finally {
@@ -542,7 +542,7 @@ public class CEPMigrationTest {
 			harness.processWatermark(new Watermark(6));
 
 			// do snapshot and save to file
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			OperatorSnapshotUtil.writeStateHandle(snapshot,
 				"src/test/resources/cep-migration-conditions-flink" + flinkGenerateSavepointVersion + "-snapshot");
 		} finally {

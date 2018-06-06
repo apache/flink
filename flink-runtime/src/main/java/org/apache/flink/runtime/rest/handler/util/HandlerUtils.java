@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.util;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -111,6 +112,30 @@ public class HandlerUtils {
 			HttpResponseStatus statusCode,
 			Map<String, String> headers) {
 
+		sendErrorResponse(
+			channelHandlerContext,
+			HttpHeaders.isKeepAlive(httpRequest),
+			errorMessage,
+			statusCode,
+			headers);
+	}
+
+	/**
+	 * Sends the given error response and status code to the given channel.
+	 *
+	 * @param channelHandlerContext identifying the open channel
+	 * @param keepAlive If the connection should be kept alive.
+	 * @param errorMessage which should be sent
+	 * @param statusCode of the message to send
+	 * @param headers additional header values
+	 */
+	public static void sendErrorResponse(
+			ChannelHandlerContext channelHandlerContext,
+			boolean keepAlive,
+			ErrorResponseBody errorMessage,
+			HttpResponseStatus statusCode,
+			Map<String, String> headers) {
+
 		StringWriter sw = new StringWriter();
 		try {
 			mapper.writeValue(sw, errorMessage);
@@ -119,14 +144,14 @@ public class HandlerUtils {
 			LOG.error("Internal server error. Could not map error response to JSON.", e);
 			sendResponse(
 				channelHandlerContext,
-				httpRequest,
+				keepAlive,
 				"Internal server error. Could not map error response to JSON.",
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				headers);
 		}
 		sendResponse(
 			channelHandlerContext,
-			httpRequest,
+			keepAlive,
 			sw.toString(),
 			statusCode,
 			headers);
@@ -147,15 +172,39 @@ public class HandlerUtils {
 			@Nonnull String message,
 			@Nonnull HttpResponseStatus statusCode,
 			@Nonnull Map<String, String> headers) {
+
+		sendResponse(
+			channelHandlerContext,
+			HttpHeaders.isKeepAlive(httpRequest),
+			message,
+			statusCode,
+			headers);
+	}
+
+	/**
+	 * Sends the given response and status code to the given channel.
+	 *
+	 * @param channelHandlerContext identifying the open channel
+	 * @param keepAlive If the connection should be kept alive.
+	 * @param message which should be sent
+	 * @param statusCode of the message to send
+	 * @param headers additional header values
+	 */
+	public static void sendResponse(
+			@Nonnull ChannelHandlerContext channelHandlerContext,
+			boolean keepAlive,
+			@Nonnull String message,
+			@Nonnull HttpResponseStatus statusCode,
+			@Nonnull Map<String, String> headers) {
 		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, statusCode);
 
-		response.headers().set(CONTENT_TYPE, "application/json");
+		response.headers().set(CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
 
 		for (Map.Entry<String, String> headerEntry : headers.entrySet()) {
 			response.headers().set(headerEntry.getKey(), headerEntry.getValue());
 		}
 
-		if (HttpHeaders.isKeepAlive(httpRequest)) {
+		if (keepAlive) {
 			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 		}
 
@@ -171,7 +220,7 @@ public class HandlerUtils {
 		ChannelFuture lastContentFuture = channelHandlerContext.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 
 		// close the connection, if no keep-alive is needed
-		if (!HttpHeaders.isKeepAlive(httpRequest)) {
+		if (!keepAlive) {
 			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
 		}
 	}

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 
@@ -53,8 +54,6 @@ public abstract class AbstractBlobCache implements Closeable {
 	 * Counter to generate unique names for temporary files.
 	 */
 	protected final AtomicLong tempFileCounter = new AtomicLong(0);
-
-	protected final InetSocketAddress serverAddress;
 
 	/**
 	 * Root directory for local file storage.
@@ -89,15 +88,16 @@ public abstract class AbstractBlobCache implements Closeable {
 	 */
 	protected final ReadWriteLock readWriteLock;
 
+	@Nullable
+	protected volatile InetSocketAddress serverAddress;
+
 	public AbstractBlobCache(
-			final InetSocketAddress serverAddress,
 			final Configuration blobClientConfig,
 			final BlobView blobView,
-			final Logger logger) throws IOException {
+			final Logger logger,
+			@Nullable final InetSocketAddress serverAddress) throws IOException {
 
 		this.log = checkNotNull(logger);
-
-		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
 		this.blobView = checkNotNull(blobView);
 		this.readWriteLock = new ReentrantReadWriteLock();
@@ -117,7 +117,9 @@ public abstract class AbstractBlobCache implements Closeable {
 		}
 
 		// Add shutdown hook to delete storage directory
-		shutdownHook = BlobUtils.addShutdownHook(this, log);
+		shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), log);
+
+		this.serverAddress = serverAddress;
 	}
 
 	/**
@@ -172,16 +174,22 @@ public abstract class AbstractBlobCache implements Closeable {
 				log.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
 			}
 
-			// fallback: download from the BlobServer
-			BlobClient.downloadFromBlobServer(
-				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
+			final InetSocketAddress currentServerAddress = serverAddress;
 
-			readWriteLock.writeLock().lock();
-			try {
-				BlobUtils.moveTempFileToStore(
-					incomingFile, jobId, blobKey, localFile, log, null);
-			} finally {
-				readWriteLock.writeLock().unlock();
+			if (currentServerAddress != null) {
+				// fallback: download from the BlobServer
+				BlobClient.downloadFromBlobServer(
+					jobId, blobKey, incomingFile, currentServerAddress, blobClientConfig, numFetchRetries);
+
+				readWriteLock.writeLock().lock();
+				try {
+					BlobUtils.moveTempFileToStore(
+						incomingFile, jobId, blobKey, localFile, log, null);
+				} finally {
+					readWriteLock.writeLock().unlock();
+				}
+			} else {
+				throw new IOException("Cannot download from BlobServer, because the server address is unknown.");
 			}
 
 			return localFile;
@@ -197,10 +205,25 @@ public abstract class AbstractBlobCache implements Closeable {
 	/**
 	 * Returns the port the BLOB server is listening on.
 	 *
-	 * @return BLOB server port
+	 * @return BLOB server port or {@code -1} if no server address
 	 */
 	public int getPort() {
-		return serverAddress.getPort();
+		final InetSocketAddress currentServerAddress = serverAddress;
+
+		if (currentServerAddress != null) {
+			return currentServerAddress.getPort();
+		} else {
+			return -1;
+		}
+	}
+
+	/**
+	 * Sets the address of the {@link BlobServer}.
+	 *
+	 * @param blobServerAddress address of the {@link BlobServer}.
+	 */
+	public void setBlobServerAddress(InetSocketAddress blobServerAddress) {
+		serverAddress = checkNotNull(blobServerAddress);
 	}
 
 	/**
@@ -227,16 +250,8 @@ public abstract class AbstractBlobCache implements Closeable {
 			try {
 				FileUtils.deleteDirectory(storageDir);
 			} finally {
-				// Remove shutdown hook to prevent resource leaks, unless this is invoked by the shutdown hook itself
-				if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-					try {
-						Runtime.getRuntime().removeShutdownHook(shutdownHook);
-					} catch (IllegalStateException e) {
-						// race, JVM is in shutdown already, we can safely ignore this
-					} catch (Throwable t) {
-						log.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
-					}
-				}
+				// Remove shutdown hook to prevent resource leaks
+				ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), log);
 			}
 		}
 	}

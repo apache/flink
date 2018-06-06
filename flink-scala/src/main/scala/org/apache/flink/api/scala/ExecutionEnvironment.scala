@@ -633,7 +633,7 @@ object ExecutionEnvironment {
    * the same JVM as the environment was created in. It will use the parallelism specified in the
    * parameter.
    *
-   * If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+   * If the configuration key 'rest.port' was set in the configuration, that particular
    * port will be used for the web UI. Otherwise, the default port (8081) will be used.
    *
    * @param config optional config for the local execution

@@ -20,11 +20,9 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.testutils.category.OldAndFlip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Random;
 
@@ -35,7 +33,6 @@ import static org.junit.Assert.fail;
 /**
  * Unit test for {@link TaskManagerServices}.
  */
-@Category(OldAndFlip6.class)
 public class TaskManagerServicesTest extends TestLogger {
 
 	/**
@@ -44,7 +41,7 @@ public class TaskManagerServicesTest extends TestLogger {
 	 */
 	@SuppressWarnings("deprecation")
 	@Test
-	public void calculateNetworkBufOld() throws Exception {
+	public void calculateNetworkBufOld() {
 		Configuration config = new Configuration();
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1);
 
@@ -214,5 +211,4 @@ public class TaskManagerServicesTest extends TestLogger {
 		config.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION, 0.1f); // 10%
 		assertEquals(810, TaskManagerServices.calculateHeapSizeMB(1000, config));
 	}
-
 }

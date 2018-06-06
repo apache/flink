@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen.calls
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.typeutils.TypeCheckUtils
 
 trait CallGenerator {
 
@@ -64,17 +65,26 @@ object CallGenerator {
 
     val (auxiliaryStmt, result) = call(operands.map(_.resultTerm))
 
+    val nullTermCode = if (
+      nullCheck &&
+      isReference(returnType) &&
+      !TypeCheckUtils.isTemporal(returnType)) {
+      s"""
+         |$nullTerm = ($resultTerm == null);
+       """.stripMargin
+    } else {
+      ""
+    }
+
     val resultCode = if (nullCheck && operands.nonEmpty) {
       s"""
         |${operands.map(_.code).mkString("\n")}
         |boolean $nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
-        |$resultTypeTerm $resultTerm;
-        |if ($nullTerm) {
-        |  $resultTerm = $defaultValue;
-        |}
-        |else {
+        |$resultTypeTerm $resultTerm = $defaultValue;
+        |if (!$nullTerm) {
         |  ${auxiliaryStmt.getOrElse("")}
         |  $resultTerm = $result;
+        |  $nullTermCode
         |}
         |""".stripMargin
     } else if (nullCheck && operands.isEmpty) {
@@ -83,6 +93,7 @@ object CallGenerator {
         |boolean $nullTerm = false;
         |${auxiliaryStmt.getOrElse("")}
         |$resultTypeTerm $resultTerm = $result;
+        |$nullTermCode
         |""".stripMargin
     } else{
       s"""

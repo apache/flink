@@ -29,6 +29,8 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
@@ -115,8 +117,10 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws Exception {
-		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
+	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+
+
+		Path target = scope == CheckpointedStateScope.EXCLUSIVE ?checkpointDirectory: sharedStateDirectory;
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 
 		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
@@ -275,6 +279,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			}
 		}
 
+		@Nullable
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
 			// check if there was nothing ever written

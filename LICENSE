@@ -258,13 +258,11 @@ THE SOFTWARE.
 
 
 -----------------------------------------------------------------------
- BSD-style Licenses
+ BSD-style Licenses (BSD-3-clause)
 -----------------------------------------------------------------------
 
-The Apache Flink project bundles the following files under BSD licenses:
-
-(3-clause BSD license)
- - D3 v3.5.12 (http://d3js.org/) - Copyright (c) 2010-2015, Michael Bostock
+The Apache Flink project bundles the following files under BSD-3-clause licenses:
+  - D3 v3.5.12 (http://d3js.org/) - Copyright (c) 2010-2015, Michael Bostock
 
 All rights reserved.
 

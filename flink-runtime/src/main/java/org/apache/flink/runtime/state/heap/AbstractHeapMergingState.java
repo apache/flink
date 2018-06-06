@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
@@ -28,18 +27,18 @@ import org.apache.flink.runtime.state.internal.InternalMergingState;
 import java.util.Collection;
 
 /**
- * Base class for {@link MergingState} ({@link org.apache.flink.runtime.state.internal.InternalMergingState})
- * that is stored on the heap.
+ * Base class for {@link MergingState} ({@link InternalMergingState}) that is stored on the heap.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
+ * @param <IN> The type of the input elements.
  * @param <SV> The type of the values in the state.
+ * @param <OUT> The type of the output elements.
  * @param <S> The type of State
- * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		extends AbstractHeapState<K, N, SV, S, SD>
-		implements InternalMergingState<N, IN, OUT> {
+public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT, S extends State>
+		extends AbstractHeapState<K, N, SV, S>
+		implements InternalMergingState<K, N, IN, SV, OUT> {
 
 	/**
 	 * The merge transformation function that implements the merge logic.
@@ -49,17 +48,20 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
 	protected AbstractHeapMergingState(
-			SD stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<SV> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			SV defaultValue) {
 
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.mergeTransformation = new MergeTransformation();
 	}
 

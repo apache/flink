@@ -20,20 +20,89 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.rest.RestClient;
+import org.apache.flink.runtime.rest.RestClientConfiguration;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+
+import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the JarRunHandler.
+ * Tests for the {@link JarRunHandler}.
  */
 public class JarRunHandlerTest {
+
+	@ClassRule
+	public static final TemporaryFolder TMP = new TemporaryFolder();
+
 	@Test
-	public void testGetPaths() {
-		JarRunHandler handler = new JarRunHandler(Executors.directExecutor(), null, Time.seconds(0L), new Configuration());
-		String[] paths = handler.getPaths();
-		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jars/:jarid/run", paths[0]);
+	public void testRunJar() throws Exception {
+		Path uploadDir = TMP.newFolder().toPath();
+
+		Path actualUploadDir = uploadDir.resolve("flink-web-upload");
+		Files.createDirectory(actualUploadDir);
+
+		Path emptyJar = actualUploadDir.resolve("empty.jar");
+		Files.createFile(emptyJar);
+
+		Configuration config = new Configuration();
+		config.setString(WebOptions.UPLOAD_DIR, uploadDir.toString());
+
+		MiniClusterResource clusterResource = new MiniClusterResource(
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				config,
+				1,
+				1
+			),
+			MiniClusterResource.MiniClusterType.NEW
+		);
+		clusterResource.before();
+
+		try {
+			Configuration clientConfig = clusterResource.getClientConfiguration();
+			RestClient client = new RestClient(RestClientConfiguration.fromConfiguration(clientConfig), TestingUtils.defaultExecutor());
+
+			try {
+				JarRunHeaders headers = JarRunHeaders.getInstance();
+				JarRunMessageParameters parameters = headers.getUnresolvedMessageParameters();
+				parameters.jarIdPathParameter.resolve(emptyJar.getFileName().toString());
+
+				String host = clientConfig.getString(RestOptions.ADDRESS);
+				int port = clientConfig.getInteger(RestOptions.PORT);
+
+				try {
+					client.sendRequest(host, port, headers, parameters, EmptyRequestBody.getInstance())
+						.get();
+				} catch (Exception e) {
+					Optional<RestClientException> expected = ExceptionUtils.findThrowable(e, RestClientException.class);
+					if (expected.isPresent()) {
+						// implies the job was actually submitted
+						assertTrue(expected.get().getMessage().contains("ProgramInvocationException"));
+						// implies the jar was registered for the job graph (otherwise the jar name would not occur in the exception)
+						// implies the jar was uploaded (otherwise the file would not be found at all)
+						assertTrue(expected.get().getMessage().contains("empty.jar'. zip file is empty"));
+					} else {
+						throw e;
+					}
+				}
+			} finally {
+				client.shutdown(Time.milliseconds(10));
+			}
+		} finally {
+			clusterResource.after();
+		}
 	}
 }

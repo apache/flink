@@ -18,8 +18,9 @@
 
 package org.apache.flink.ml.util
 
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
-import org.apache.flink.test.util.{TestBaseUtils, TestEnvironment}
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.test.util.MiniClusterResource
+import org.apache.flink.test.util.MiniClusterResource.MiniClusterResourceConfiguration
 import org.scalatest.{BeforeAndAfter, Suite}
 
 /** Mixin to start and stop a LocalFlinkMiniCluster automatically for Scala based tests.
@@ -51,27 +52,21 @@ import org.scalatest.{BeforeAndAfter, Suite}
 trait FlinkTestBase extends BeforeAndAfter {
   that: Suite =>
 
-  var cluster: Option[LocalFlinkMiniCluster] = None
+  var cluster: Option[MiniClusterResource] = None
   val parallelism = 4
 
   before {
-    val cl = TestBaseUtils.startCluster(
-      1,
-      parallelism,
-      false,
-      false,
-      true)
-
-    val clusterEnvironment = new TestEnvironment(cl, parallelism, false)
-    clusterEnvironment.setAsContext()
+    val cl = new MiniClusterResource(
+      new MiniClusterResourceConfiguration(new Configuration(), 1, parallelism)
+    )
+    
+    cl.before()
 
     cluster = Some(cl)
   }
 
   after {
-    cluster.foreach(c => TestBaseUtils.stopCluster(c, TestBaseUtils.DEFAULT_TIMEOUT))
-
-    TestEnvironment.unsetAsContext()
+    cluster.foreach(c => c.after())
   }
 
 }

@@ -23,10 +23,12 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
+import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -48,13 +50,15 @@ public class UnionInputGateTest {
 			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 			0, 3,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
 		final SingleInputGate ig2 = new SingleInputGate(
 			testTaskName, new JobID(),
 			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 			0, 5,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 
@@ -92,25 +96,25 @@ public class UnionInputGateTest {
 		ig2.notifyChannelNonEmpty(inputChannels[1][3].getInputChannel());
 		ig2.notifyChannelNonEmpty(inputChannels[1][4].getInputChannel());
 
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 0); // gate 1, channel 0
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 3); // gate 2, channel 0
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 1); // gate 1, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 4); // gate 2, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 2); // gate 1, channel 2
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 5); // gate 2, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 0); // gate 1, channel 0
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 6); // gate 2, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 1); // gate 1, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, true, 7); // gate 2, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 2); // gate 1, channel 2
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 3); // gate 2, channel 0
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 4); // gate 2, channel 1
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 5); // gate 2, channel 2
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 6); // gate 2, channel 3
-		SingleInputGateTest.verifyBufferOrEvent(union, false, 7); // gate 2, channel 4
+		verifyBufferOrEvent(union, true, 0, true); // gate 1, channel 0
+		verifyBufferOrEvent(union, true, 3, true); // gate 2, channel 0
+		verifyBufferOrEvent(union, true, 1, true); // gate 1, channel 1
+		verifyBufferOrEvent(union, true, 4, true); // gate 2, channel 1
+		verifyBufferOrEvent(union, true, 2, true); // gate 1, channel 2
+		verifyBufferOrEvent(union, true, 5, true); // gate 2, channel 1
+		verifyBufferOrEvent(union, false, 0, true); // gate 1, channel 0
+		verifyBufferOrEvent(union, true, 6, true); // gate 2, channel 1
+		verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
+		verifyBufferOrEvent(union, true, 7, true); // gate 2, channel 1
+		verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
+		verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
+		verifyBufferOrEvent(union, false, 4, true); // gate 2, channel 1
+		verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
+		verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
+		verifyBufferOrEvent(union, false, 7, false); // gate 2, channel 4
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(union.isFinished());
-		assertNull(union.getNextBufferOrEvent());
+		assertFalse(union.getNextBufferOrEvent().isPresent());
 	}
 }

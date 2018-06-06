@@ -22,24 +22,25 @@ import org.apache.flink.storm.api.FlinkLocalCluster;
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.tests.operators.MetaDataSpout;
 import org.apache.flink.storm.tests.operators.VerifyMetaDataBolt;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.utils.Utils;
 import org.junit.Assert;
+import org.junit.Test;
 
 /**
  * Test for meta data spouts/bolts.
  */
-public class StormMetaDataITCase extends StreamingProgramTestBase {
+public class StormMetaDataITCase extends AbstractTestBase {
 
 	private static final String topologyId = "FieldsGrouping Test";
 	private static final String spoutId = "spout";
 	private static final String boltId1 = "bolt1";
 	private static final String boltId2 = "bolt2";
 
-	@Override
-	protected void testProgram() throws Exception {
+	@Test
+	public void testProgram() throws Exception {
 		final TopologyBuilder builder = new TopologyBuilder();
 
 		builder.setSpout(spoutId, new MetaDataSpout(), 2);

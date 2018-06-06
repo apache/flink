@@ -18,6 +18,8 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.security.SecurityUtils;
+
 import java.io.IOException;
 
 /**
@@ -25,6 +27,13 @@ import java.io.IOException;
  */
 public class TestingYarnTaskManagerRunner {
 	public static void main(String[] args) throws IOException {
-		YarnTaskManagerRunner.runYarnTaskManager(args, TestingYarnTaskManager.class);
+		YarnTaskManagerRunnerFactory.Runner tmRunner = YarnTaskManagerRunnerFactory.create(
+			args, TestingYarnTaskManager.class, System.getenv());
+
+		try {
+			SecurityUtils.getInstalledContext().runSecured(tmRunner);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

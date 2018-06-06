@@ -42,7 +42,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -59,7 +58,6 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -68,7 +66,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -146,18 +143,8 @@ public class YarnApplicationMasterRunner {
 			require(currDir != null, "Current working directory variable (%s) not set", Environment.PWD.key());
 			LOG.debug("Current working Directory: {}", currDir);
 
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-			LOG.debug("remoteKeytabPath obtained {}", remoteKeytabPath);
-
 			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 			LOG.info("remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
-
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.debug("keytabPath: {}", keytabPath);
-			}
 
 			UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
@@ -171,27 +158,17 @@ public class YarnApplicationMasterRunner {
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties, LOG);
 
-			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			if (remoteKeytabPrincipal != null && f.exists()) {
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
+				// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityConfiguration sc;
-
-			//To support Yarn Secure Integration Test Scenario
-			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if (krb5Conf.exists() && krb5Conf.canRead()) {
-				String krb5Path = krb5Conf.getAbsolutePath();
-				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc = new SecurityConfiguration(flinkConfig,
-					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
-			} else {
-				sc = new SecurityConfiguration(flinkConfig);
-			}
+			SecurityConfiguration sc = new SecurityConfiguration(flinkConfig);
 
 			SecurityUtils.install(sc);
 
@@ -253,18 +230,13 @@ public class YarnApplicationMasterRunner {
 
 			LOG.info("YARN assigned hostname for application master: {}", appMasterHostname);
 
-			//Update keytab and principal path to reflect YARN container path location
-			final String remoteKeytabPath = ENV.get(YarnConfigKeys.KEYTAB_PATH);
-
 			final String remoteKeytabPrincipal = ENV.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
-			String keytabPath = null;
-			if (remoteKeytabPath != null) {
-				File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-				keytabPath = f.getAbsolutePath();
-				LOG.info("keytabPath: {}", keytabPath);
-			}
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
+			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+			if (remoteKeytabPrincipal != null && f.exists()) {
+				String keytabPath = f.getAbsolutePath();
+				LOG.debug("keytabPath: {}", keytabPath);
+
 				config.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
 				config.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
@@ -468,7 +440,7 @@ public class YarnApplicationMasterRunner {
 
 		if (metricRegistry != null) {
 			try {
-				metricRegistry.shutdown();
+				metricRegistry.shutdown().get();
 			} catch (Throwable t) {
 				LOG.error("Could not properly shut down the metric registry.", t);
 			}

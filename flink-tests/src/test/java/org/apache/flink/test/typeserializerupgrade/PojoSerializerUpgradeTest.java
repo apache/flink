@@ -35,17 +35,17 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -307,7 +307,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			new URL[]{rootPath.toURI().toURL()},
 			Thread.currentThread().getContextClassLoader());
 
-		OperatorStateHandles stateHandles = runOperator(
+		OperatorSubtaskState stateHandles = runOperator(
 			taskConfiguration,
 			executionConfig,
 			new StreamMap<>(new StatefulMapper(isKeyedState, false, hasBField)),
@@ -340,7 +340,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			inputs);
 	}
 
-	private OperatorStateHandles runOperator(
+	private OperatorSubtaskState runOperator(
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
 			OneInputStreamOperator<Long, Long> operator,
@@ -348,21 +348,20 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			boolean isKeyedState,
 			StateBackend stateBackend,
 			ClassLoader classLoader,
-			OperatorStateHandles operatorStateHandles,
+			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
-		try (final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			16,
-			1,
-			0,
-			classLoader,
-			new TestTaskStateManager())) {
+		try (final MockEnvironment environment =
+				new MockEnvironmentBuilder()
+					.setTaskName("test task")
+					.setMemorySize(32 * 1024)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(256)
+					.setTaskConfiguration(taskConfiguration)
+					.setExecutionConfig(executionConfig)
+					.setMaxParallelism(16)
+					.setUserCodeClassLoader(classLoader)
+					.build()) {
 
 			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
 			try {
@@ -379,7 +378,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 				harness.setStateBackend(stateBackend);
 
 				harness.setup();
-				harness.initializeState(operatorStateHandles);
+				harness.initializeState(operatorSubtaskState);
 				harness.open();
 
 				long timestamp = 0L;
@@ -412,7 +411,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {

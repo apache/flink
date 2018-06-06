@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.junit.Test
 
@@ -49,6 +50,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "false")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
+    testSqlApi("12 BETWEEN NULL AND 13", "null")
     testSqlApi("12 BETWEEN 11 AND 13", "true")
     testSqlApi("12 BETWEEN ASYMMETRIC 13 AND 11", "false")
     testSqlApi("12 BETWEEN SYMMETRIC 13 AND 11", "true")
@@ -145,12 +147,56 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA1('')", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
     testSqlApi("SHA1('test')", "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3")
 
+    testSqlApi("SHA224('')", "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f")
+    testSqlApi("SHA2('', 224)", "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f")
+
+    testSqlApi("SHA224('test')", "90a3ed9e32b2aaf4c61c410eb925426119e1a9dc53d4286ade99a809")
+    testSqlApi("SHA2('test', 224)", "90a3ed9e32b2aaf4c61c410eb925426119e1a9dc53d4286ade99a809")
+
     testSqlApi("SHA256('')", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    testSqlApi("SHA2('', 256)", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+
     testSqlApi("SHA256('test')", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+    testSqlApi("SHA2('test', 256)",
+      "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+
+    testSqlApi("SHA384('')", "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc" +
+      "7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
+    testSqlApi("SHA2('', 384)", "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0" +
+      "cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b")
+
+    testSqlApi("SHA384('test')", "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8efc" +
+      "4b7ef1ccb126255d196047dfedf17a0a9")
+    testSqlApi("SHA2('test', 384)", "768412320f7b0aa5812fce428dc4706b3cae50e02a64caa16a782249bfe8" +
+      "efc4b7ef1ccb126255d196047dfedf17a0a9")
+
+    testSqlApi("SHA512('')", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d" +
+      "0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
+    testSqlApi("SHA2('',512)", "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce4" +
+      "7d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
+
+    testSqlApi("SHA512('test')", "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0db" +
+      "27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff")
+    testSqlApi("SHA2('test',512)", "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0" +
+      "db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff")
 
     testSqlApi("MD5(CAST(NULL AS VARCHAR))", "null")
     testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA224(CAST(NULL AS VARCHAR))", "null")
     testSqlApi("SHA256(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA384(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA512(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "null")
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testHashFunctionsUnsupportedLength(): Unit = {
+    testSqlApi("SHA2('', 333)", "")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testHashFunctionSha2NoParam(): Unit = {
+    testSqlApi("SHA2('')", "")
   }
 
   @Test

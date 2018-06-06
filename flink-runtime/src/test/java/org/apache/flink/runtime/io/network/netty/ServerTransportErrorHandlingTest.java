@@ -68,12 +68,12 @@ public class ServerTransportErrorHandlingTest {
 				@Override
 				public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
 					BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-					listener.notifyBuffersAvailable(Long.MAX_VALUE);
+					listener.notifyDataAvailable();
 					return new CancelPartitionRequestTest.InfiniteSubpartitionView(outboundBuffers, sync);
 				}
 			});
 
-		NettyProtocol protocol = new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class)) {
+		NettyProtocol protocol = new NettyProtocol(partitionManager, mock(TaskEventDispatcher.class), true) {
 
 			@Override
 			public ChannelHandler[] getClientChannelHandlers() {
@@ -100,7 +100,7 @@ public class ServerTransportErrorHandlingTest {
 			Channel ch = connect(serverAndClient);
 
 			// Write something to trigger close by server
-			ch.writeAndFlush(new NettyMessage.PartitionRequest(new ResultPartitionID(), 0, new InputChannelID(), 2));
+			ch.writeAndFlush(new NettyMessage.PartitionRequest(new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {

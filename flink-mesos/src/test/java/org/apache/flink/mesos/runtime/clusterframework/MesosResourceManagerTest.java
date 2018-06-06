@@ -43,6 +43,7 @@ import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameter
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -52,7 +53,8 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -109,6 +111,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -172,10 +175,23 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
 			ContainerSpecification taskManagerContainerSpec) {
-			super(rpcService, resourceManagerEndpointId, resourceId, resourceManagerConfiguration,
-				highAvailabilityServices, heartbeatServices, slotManager, metricRegistry,
-				jobLeaderIdService, fatalErrorHandler, flinkConfig, mesosServices, mesosConfig,
-				taskManagerParameters, taskManagerContainerSpec);
+			super(
+				rpcService,
+				resourceManagerEndpointId,
+				resourceId,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				new ClusterInformation("localhost", 1234),
+				fatalErrorHandler,
+				flinkConfig,
+				mesosServices,
+				mesosConfig,
+				taskManagerParameters,
+				taskManagerContainerSpec);
 		}
 
 		@Override
@@ -398,7 +414,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			public final String address;
 			public final JobMasterGateway gateway;
 			public final JobMasterId jobMasterId;
-			public final TestingLeaderRetrievalService leaderRetrievalService;
+			public final SettableLeaderRetrievalService leaderRetrievalService;
 
 			MockJobMaster(JobID jobID) {
 				this.jobID = jobID;
@@ -406,7 +422,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				this.address = "/" + jobID;
 				this.gateway = mock(JobMasterGateway.class);
 				this.jobMasterId = JobMasterId.generate();
-				this.leaderRetrievalService = new TestingLeaderRetrievalService(this.address, this.jobMasterId.toUUID());
+				this.leaderRetrievalService = new SettableLeaderRetrievalService(this.address, this.jobMasterId.toUUID());
 			}
 		}
 
@@ -496,7 +512,7 @@ public class MesosResourceManagerTest extends TestLogger {
 
 		@Override
 		public void close() throws Exception {
-			rpcService.stopService();
+			rpcService.stopService().get();
 		}
 	}
 
@@ -650,9 +666,15 @@ public class MesosResourceManagerTest extends TestLogger {
 			final HardwareDescription hardwareDescription = new HardwareDescription(1, 2L, 3L, 4L);
 			// send registration message
 			CompletableFuture<RegistrationResponse> successfulFuture =
-				resourceManager.registerTaskExecutor(task1Executor.address, task1Executor.resourceID, slotReport, dataPort, hardwareDescription, timeout);
+				resourceManager.registerTaskExecutor(task1Executor.address, task1Executor.resourceID, dataPort, hardwareDescription, timeout);
 			RegistrationResponse response = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			assertTrue(response instanceof TaskExecutorRegistrationSuccess);
+			final TaskExecutorRegistrationSuccess registrationResponse = (TaskExecutorRegistrationSuccess) response;
+
+			final CompletableFuture<Acknowledge> initialSlotReportFuture = resourceManager.sendSlotReport(task1Executor.resourceID, registrationResponse.getRegistrationId(), slotReport, timeout);
+
+			// check for errors
+			initialSlotReportFuture.get();
 
 			// verify the internal state
 			assertThat(resourceManager.workersInLaunch, hasEntry(extractResourceID(task1), worker1launched));
@@ -669,6 +691,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			MesosWorkerStore.Worker worker1launched = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
 			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
 			when(rmServices.workerStore.recoverWorkers()).thenReturn(singletonList(worker1launched));
+			when(rmServices.workerStore.newTaskID()).thenReturn(task2);
 			startResourceManager();
 
 			// tell the RM that a task failed
@@ -680,6 +703,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			verify(rmServices.workerStore).removeWorker(task1);
 			assertThat(resourceManager.workersInLaunch.entrySet(), empty());
 			assertThat(resourceManager.workersBeingReturned.entrySet(), empty());
+			assertThat(resourceManager.workersInNew, hasKey(extractResourceID(task2)));
 
 			// verify that `closeTaskManagerConnection` was called
 			assertThat(resourceManager.closedTaskManagerConnections, hasItem(extractResourceID(task1)));
@@ -723,7 +747,7 @@ public class MesosResourceManagerTest extends TestLogger {
 	public void testShutdownApplication() throws Exception {
 		new Context() {{
 			startResourceManager();
-			resourceManager.shutDownCluster(ApplicationStatus.SUCCEEDED, "");
+			resourceManager.deregisterApplication(ApplicationStatus.SUCCEEDED, "");
 
 			// verify that the Mesos framework is shutdown
 			verify(rmServices.schedulerDriver).stop(false);

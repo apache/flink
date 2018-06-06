@@ -21,19 +21,21 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
@@ -43,7 +45,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -79,7 +80,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlot());
 			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlot());
-			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean(), any(Collection.class))).thenReturn(slotFuture1, slotFuture2);
+			when(scheduler.allocateSlot(any(SlotRequestId.class), any(ScheduledUnit.class), anyBoolean(), any(SlotProfile.class), any(Time.class))).thenReturn(slotFuture1, slotFuture2);
 
 			TestingRestartStrategy testingRestartStrategy = new TestingRestartStrategy();
 
@@ -119,6 +120,9 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			assertEquals(JobStatus.RUNNING, executionGraph.getState());
 			assertEquals(0L, restartingTime.getValue().longValue());
 
+			// add some pause such that RUNNING and RESTARTING timestamps are not the same
+			Thread.sleep(1L);
+
 			// fail the job so that it goes into state restarting
 			for (ExecutionAttemptID executionID : executionIDs) {
 				executionGraph.updateState(new TaskExecutionState(jobGraph.getJobID(), executionID, ExecutionState.FAILED, new Exception()));
@@ -128,13 +132,13 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			long firstRestartingTimestamp = executionGraph.getStatusTimestamp(JobStatus.RESTARTING);
 
-			// wait some time so that the restarting time gauge shows a value different from 0
-			Thread.sleep(50);
-
 			long previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time is monotonically increasing
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
+				// add some pause to let the currentRestartingTime increase
+				Thread.sleep(1L);
+
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);
@@ -164,12 +168,15 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time does not increase after we've reached the running state
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime == previousRestartingTime);
 				previousRestartingTime = currentRestartingTime;
 			}
+
+			// add some pause such that the RUNNING and RESTARTING timestamps are not the same
+			Thread.sleep(1L);
 
 			// fail job again
 			for (ExecutionAttemptID executionID : executionIDs) {
@@ -182,12 +189,12 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			assertTrue(firstRestartingTimestamp != secondRestartingTimestamp);
 
-			Thread.sleep(50);
-
 			previousRestartingTime = restartingTime.getValue();
 
 			// check that the restarting time is increasing again
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < 2; i++) {
+				// add some pause to the let currentRestartingTime increase
+				Thread.sleep(1L);
 				long currentRestartingTime = restartingTime.getValue();
 
 				assertTrue(currentRestartingTime >= previousRestartingTime);

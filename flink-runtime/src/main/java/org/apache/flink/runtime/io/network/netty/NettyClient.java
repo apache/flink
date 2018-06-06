@@ -63,7 +63,7 @@ class NettyClient {
 
 		this.protocol = protocol;
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new Bootstrap();
 
@@ -117,8 +117,8 @@ class NettyClient {
 			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms).", duration);
 	}
 
 	NettyConfig getConfig() {
@@ -130,7 +130,7 @@ class NettyClient {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
@@ -139,8 +139,8 @@ class NettyClient {
 			bootstrap = null;
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {
@@ -179,7 +179,7 @@ class NettyClient {
 				// SSL handler should be added first in the pipeline
 				if (clientSSLContext != null) {
 					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
-						serverSocketAddress.getAddress().getHostAddress(),
+						serverSocketAddress.getAddress().getCanonicalHostName(),
 						serverSocketAddress.getPort());
 					sslEngine.setUseClientMode(true);
 

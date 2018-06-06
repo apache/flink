@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.util.AbstractRuntimeUDFContext;
@@ -50,7 +50,7 @@ import java.util.Map;
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext},
  * for streaming operators.
  */
-@PublicEvolving
+@Internal
 public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	/** The operator to which this function belongs. */
@@ -60,6 +60,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	private final Environment taskEnvironment;
 
 	private final StreamConfig streamConfig;
+
+	private final String operatorUniqueID;
 
 	public StreamingRuntimeContext(AbstractStreamOperator<?> operator,
 									Environment env, Map<String, Accumulator<?, ?>> accumulators) {
@@ -73,6 +75,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		this.operator = operator;
 		this.taskEnvironment = env;
 		this.streamConfig = new StreamConfig(env.getTaskConfiguration());
+		this.operatorUniqueID = operator.getOperatorID().toString();
 	}
 
 	// ------------------------------------------------------------------------
@@ -88,6 +91,18 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	public ProcessingTimeService getProcessingTimeService() {
 		return operator.getProcessingTimeService();
+	}
+
+	/**
+	 * Returned value is guaranteed to be unique between operators within the same job and to be
+	 * stable and the same across job submissions.
+	 *
+	 * <p>This operation is currently only supported in Streaming (DataStream) contexts.
+	 *
+	 * @return String representation of the operator's unique id.
+	 */
+	public String getOperatorUniqueID() {
+		return operatorUniqueID;
 	}
 
 	// ------------------------------------------------------------------------

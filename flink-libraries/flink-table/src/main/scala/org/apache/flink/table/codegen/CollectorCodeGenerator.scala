@@ -61,38 +61,54 @@ class CollectorCodeGenerator(
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
-    name: String,
-    bodyCode: String,
-    collectedType: TypeInformation[Any])
-  : GeneratedCollector = {
+      name: String,
+      bodyCode: String,
+      collectedType: TypeInformation[Any])
+    : GeneratedCollector = {
 
     val className = newName(name)
     val input1TypeClass = boxedTypeTermForTypeInfo(input1)
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
+    // declaration in case of code splits
+    val recordMember = if (hasCodeSplits) {
+      s"private $input2TypeClass $input2Term;"
+    } else {
+      ""
+    }
+
+    // assignment in case of code splits
+    val recordAssignment = if (hasCodeSplits) {
+      s"$input2Term" // use member
+    } else {
+      s"$input2TypeClass $input2Term" // local variable
+    }
+
     val funcCode = j"""
-      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
-
-        ${reuseMemberCode()}
-
-        public $className() throws Exception {
-          ${reuseInitCode()}
-        }
-
-        @Override
-        public void collect(Object record) throws Exception {
-          super.collect(record);
-          $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-          $input2TypeClass $input2Term = ($input2TypeClass) record;
-          ${reuseInputUnboxingCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() {
-        }
-      }
-    """.stripMargin
+      |public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      |
+      |  $recordMember
+      |  ${reuseMemberCode()}
+      |
+      |  public $className() throws Exception {
+      |    ${reuseInitCode()}
+      |  }
+      |
+      |  @Override
+      |  public void collect(Object record) throws Exception {
+      |    super.collect(record);
+      |    $input1TypeClass $input1Term = ($input1TypeClass) getInput();
+      |    $recordAssignment = ($input2TypeClass) record;
+      |    ${reuseInputUnboxingCode()}
+      |    ${reusePerRecordCode()}
+      |    $bodyCode
+      |  }
+      |
+      |  @Override
+      |  public void close() {
+      |  }
+      |}
+      |""".stripMargin
 
     GeneratedCollector(className, funcCode)
   }

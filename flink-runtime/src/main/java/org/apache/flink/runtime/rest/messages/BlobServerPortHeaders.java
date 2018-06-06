@@ -66,4 +66,9 @@ public class BlobServerPortHeaders implements MessageHeaders<EmptyRequestBody, B
 	public static BlobServerPortHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the port of blob server which can be used to upload jars.";
+	}
 }

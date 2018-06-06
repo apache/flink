@@ -19,19 +19,20 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work properly.
  */
-@Category(Flip6.class)
 public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> extends TestLogger {
 
 	/**
@@ -40,6 +41,10 @@ public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> ex
 	 * @return class of the test response type
 	 */
 	protected abstract Class<R> getTestResponseClass();
+
+	protected Collection<Class<?>> getTypeParameters() {
+		return Collections.emptyList();
+	}
 
 	/**
 	 * Returns an instance of a response to be tested.
@@ -58,7 +63,18 @@ public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> ex
 		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 		final String marshalled = objectMapper.writeValueAsString(expected);
 
-		final R unmarshalled = objectMapper.readValue(marshalled, getTestResponseClass());
+		final Collection<Class<?>> typeParameters = getTypeParameters();
+		final JavaType type;
+
+		if (typeParameters.isEmpty()) {
+			type = objectMapper.getTypeFactory().constructType(getTestResponseClass());
+		} else {
+			type = objectMapper.getTypeFactory().constructParametricType(
+				getTestResponseClass(),
+				typeParameters.toArray(new Class<?>[typeParameters.size()]));
+		}
+
+		final R unmarshalled = objectMapper.readValue(marshalled, type);
 		assertOriginalEqualsToUnmarshalled(expected, unmarshalled);
 	}
 

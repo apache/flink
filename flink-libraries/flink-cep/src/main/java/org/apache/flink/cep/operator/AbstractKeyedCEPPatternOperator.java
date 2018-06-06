@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -93,6 +94,12 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	private final EventComparator<IN> comparator;
 
+	/**
+	 * {@link OutputTag} to use for late arriving events. Elements with timestamp smaller than
+	 * the current watermark will be emitted to this.
+	 */
+	protected final OutputTag<IN> lateDataOutputTag;
+
 	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 	public AbstractKeyedCEPPatternOperator(
@@ -101,13 +108,15 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final EventComparator<IN> comparator,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy,
-			final F function) {
+			final F function,
+			final OutputTag<IN> lateDataOutputTag) {
 		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
 		this.comparator = comparator;
+		this.lateDataOutputTag = lateDataOutputTag;
 
 		if (afterMatchSkipStrategy == null) {
 			this.afterMatchSkipStrategy = AfterMatchSkipStrategy.noSkip();
@@ -181,6 +190,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 				saveRegisterWatermarkTimer();
 
 				bufferEvent(value, timestamp);
+
+			} else if (lateDataOutputTag != null) {
+				output.collect(lateDataOutputTag, element);
 			}
 		}
 	}

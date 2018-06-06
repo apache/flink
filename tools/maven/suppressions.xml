@@ -27,9 +27,17 @@ under the License.
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
 		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
 
+		<!-- Python streaming API follows python naming conventions -->
+		<suppress
+			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]api[\\/].*.java"
+			checks="MethodNameCheck|ParameterName"/>
+		<suppress
+			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]connectors[\\/].*.java"
+		checks="MethodNameCheck|ParameterName"/>
+
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress
-			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormat.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java"
+			files="AbstractCassandraTupleSink.java|CassandraInputFormat.java|CassandraOutputFormatBase.java|CassandraSinkBase.java|CassandraSinkBaseTest.java|CassandraPojoSink.java|CassandraRowSink.java|CassandraTupleWriteAheadSink.java|CassandraRowWriteAheadSink.java"
 			checks="IllegalImport"/>
 		<!-- Kinesis producer has to use guava directly -->
 		<suppress

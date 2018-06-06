@@ -206,7 +206,7 @@ public class JobClient {
 			final PermanentBlobCache permanentBlobCache;
 			try {
 				// TODO: Fix lifecycle of PermanentBlobCache to properly close it upon usage
-				permanentBlobCache = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+				permanentBlobCache = new PermanentBlobCache(config, highAvailabilityServices.createBlobStore(), serverAddress);
 			} catch (IOException e) {
 				throw new JobRetrievalException(
 					jobID,
@@ -427,6 +427,13 @@ public class JobClient {
 		catch (IOException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
 				"Could not upload the program's JAR files to the JobManager.", e);
+		}
+
+		try {
+			jobGraph.uploadUserArtifacts(blobServerAddress, config);
+		} catch (IOException e) {
+			throw new JobSubmissionException(jobGraph.getJobID(),
+					"Could not upload custom user artifacts to the job manager.", e);
 		}
 
 		CompletableFuture<Acknowledge> submissionFuture = jobManagerGateway.submitJob(jobGraph, ListeningBehaviour.DETACHED, timeout);

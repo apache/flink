@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
@@ -122,7 +122,7 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 			expirationTime.toMilliseconds(),
 			TimeUnit.MILLISECONDS);
 
-		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
 
 		this.numFinishedJobs = 0;
 		this.numFailedJobs = 0;
@@ -206,19 +206,8 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 		// clean up the storage directory
 		FileUtils.deleteFileOrDirectory(storageDir);
 
-		// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
-		// shutdown hook itself
-		if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-			try {
-				Runtime.getRuntime().removeShutdownHook(shutdownHook);
-			}
-			catch (IllegalStateException e) {
-				// race, JVM is in shutdown already, we can safely ignore this
-			}
-			catch (Throwable t) {
-				LOG.warn("Exception while unregistering FileArchivedExecutionGraphStore's cleanup shutdown hook.", t);
-			}
-		}
+		// Remove shutdown hook to prevent resource leaks
+		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 	}
 
 	// --------------------------------------------------------------

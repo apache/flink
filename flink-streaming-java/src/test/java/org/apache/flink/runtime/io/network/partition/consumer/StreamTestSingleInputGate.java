@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -36,8 +37,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
@@ -91,31 +94,36 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
-			final Answer<BufferAndAvailability> answer = new Answer<BufferAndAvailability>() {
+			final Answer<Optional<BufferAndAvailability>> answer = new Answer<Optional<BufferAndAvailability>>() {
 				@Override
-				public BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
-					InputValue<Object> input = inputQueues[channelIndex].poll();
+				public Optional<BufferAndAvailability> answer(InvocationOnMock invocationOnMock) throws Throwable {
+					ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
+					InputValue<Object> input;
+					boolean moreAvailable;
+					synchronized (inputQueue) {
+						input = inputQueue.poll();
+						moreAvailable = !inputQueue.isEmpty();
+					}
 					if (input != null && input.isStreamEnd()) {
 						when(inputChannels[channelIndex].getInputChannel().isReleased()).thenReturn(
 							true);
-						return new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0);
+						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0));
 					} else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
 
-						recordSerializer.setNextBufferBuilder(createBufferBuilder(bufferSize));
+						BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+						recordSerializer.continueWritingWithNextBufferBuilder(bufferBuilder);
 						delegate.setInstance(inputElement);
 						recordSerializer.addRecord(delegate);
+						bufferBuilder.finish();
 
 						// Call getCurrentBuffer to ensure size is set
-						return new BufferAndAvailability(recordSerializer.getCurrentBuffer(), false, 0);
+						return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
 					} else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
-						return new BufferAndAvailability(EventSerializer.toBuffer(event), false, 0);
+						return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
 					} else {
-						synchronized (inputQueues[channelIndex]) {
-							inputQueues[channelIndex].wait();
-							return answer(invocationOnMock);
-						}
+						return Optional.empty();
 					}
 				}
 			};

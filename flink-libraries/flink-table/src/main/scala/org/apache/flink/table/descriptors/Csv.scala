@@ -23,6 +23,7 @@ import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.CsvValidator._
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * Format descriptor for comma-separated values (CSV).
@@ -31,7 +32,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
 
   private var fieldDelim: Option[String] = None
   private var lineDelim: Option[String] = None
-  private val formatSchema: mutable.LinkedHashMap[String, String] =
+  private val schema: mutable.LinkedHashMap[String, String] =
       mutable.LinkedHashMap[String, String]()
   private var quoteCharacter: Option[Character] = None
   private var commentPrefix: Option[String] = None
@@ -67,7 +68,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     * @param schema the table schema
     */
   def schema(schema: TableSchema): Csv = {
-    this.formatSchema.clear()
+    this.schema.clear()
     DescriptorProperties.normalizeTableSchema(schema).foreach {
       case (n, t) => field(n, t)
     }
@@ -96,10 +97,10 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     * @param fieldType the type string of the field
     */
   def field(fieldName: String, fieldType: String): Csv = {
-    if (formatSchema.contains(fieldName)) {
+    if (schema.contains(fieldName)) {
       throw new ValidationException(s"Duplicate field name $fieldName.")
     }
-    formatSchema += (fieldName -> fieldType)
+    schema += (fieldName -> fieldType)
     this
   }
 
@@ -145,7 +146,9 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
   override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
-    properties.putTableSchema(FORMAT_FIELDS, formatSchema.toIndexedSeq)
+    properties.putTableSchema(
+      FORMAT_FIELDS,
+      schema.toIndexedSeq.map(DescriptorProperties.toJava[String, String]).asJava)
     quoteCharacter.foreach(properties.putCharacter(FORMAT_QUOTE_CHARACTER, _))
     commentPrefix.foreach(properties.putString(FORMAT_COMMENT_PREFIX, _))
     isIgnoreFirstLine.foreach(properties.putBoolean(FORMAT_IGNORE_FIRST_LINE, _))

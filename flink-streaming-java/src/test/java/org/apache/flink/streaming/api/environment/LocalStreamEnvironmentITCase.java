@@ -26,7 +26,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link Flip6LocalStreamEnvironment}.
+ * Tests for {@link LocalStreamEnvironment}.
  */
 @SuppressWarnings("serial")
 public class LocalStreamEnvironmentITCase extends TestLogger {
@@ -37,7 +37,7 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 	 */
 	@Test
 	public void testRunIsolatedJob() throws Exception {
-		Flip6LocalStreamEnvironment env = new Flip6LocalStreamEnvironment();
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
 		assertEquals(1, env.getParallelism());
 
 		addSmallBoundedJob(env, 3);
@@ -50,7 +50,7 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
 	 */
 	@Test
 	public void testMultipleJobsAfterAnother() throws Exception {
-		Flip6LocalStreamEnvironment env = new Flip6LocalStreamEnvironment();
+		LocalStreamEnvironment env = new LocalStreamEnvironment();
 
 		addSmallBoundedJob(env, 3);
 		env.execute();

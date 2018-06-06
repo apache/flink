@@ -46,4 +46,8 @@ public final class JobManagerMetricsHeaders extends
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Provides access to job manager metrics.";
+	}
 }

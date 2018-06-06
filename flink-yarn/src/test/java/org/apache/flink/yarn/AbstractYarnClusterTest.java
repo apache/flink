@@ -18,9 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -31,6 +34,7 @@ import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,13 +64,22 @@ public class AbstractYarnClusterTest extends TestLogger {
 			FinalApplicationStatus.SUCCEEDED);
 
 		final YarnClient yarnClient = new TestingYarnClient(Collections.singletonMap(applicationId, applicationReport));
+		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+		yarnClient.init(yarnConfiguration);
+		yarnClient.start();
 
 		final TestingAbstractYarnClusterDescriptor clusterDescriptor = new TestingAbstractYarnClusterDescriptor(
 			new Configuration(),
+			yarnConfiguration,
 			temporaryFolder.newFolder().getAbsolutePath(),
-			yarnClient);
+			yarnClient,
+			false);
 
-		clusterDescriptor.retrieve(applicationId);
+		try {
+			clusterDescriptor.retrieve(applicationId);
+		} finally {
+			clusterDescriptor.close();
+		}
 	}
 
 	private ApplicationReport createApplicationReport(
@@ -118,9 +131,11 @@ public class AbstractYarnClusterTest extends TestLogger {
 
 		private TestingAbstractYarnClusterDescriptor(
 				Configuration flinkConfiguration,
+				YarnConfiguration yarnConfiguration,
 				String configurationDirectory,
-				YarnClient yarnClient) {
-			super(flinkConfiguration, configurationDirectory, yarnClient);
+				YarnClient yarnClient,
+				boolean sharedYarnClient) {
+			super(flinkConfiguration, yarnConfiguration, configurationDirectory, yarnClient, sharedYarnClient);
 		}
 
 		@Override
@@ -135,6 +150,11 @@ public class AbstractYarnClusterTest extends TestLogger {
 
 		@Override
 		protected ClusterClient<ApplicationId> createYarnClusterClient(AbstractYarnClusterDescriptor descriptor, int numberTaskManagers, int slotsPerTaskManager, ApplicationReport report, Configuration flinkConfiguration, boolean perJobCluster) throws Exception {
+			throw new UnsupportedOperationException("Not needed for testing");
+		}
+
+		@Override
+		public ClusterClient<ApplicationId> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) throws ClusterDeploymentException {
 			throw new UnsupportedOperationException("Not needed for testing");
 		}
 	}

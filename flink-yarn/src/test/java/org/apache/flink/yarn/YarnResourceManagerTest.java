@@ -22,18 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -48,6 +51,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
@@ -71,12 +75,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -91,7 +94,11 @@ import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_SHIP_FILES;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_HADOOP_USER_NAME;
 import static org.apache.flink.yarn.YarnConfigKeys.FLINK_JAR_PATH;
+import static org.apache.flink.yarn.YarnConfigKeys.FLINK_YARN_FILES;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -104,13 +111,11 @@ import static org.mockito.Mockito.when;
  */
 public class YarnResourceManagerTest extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(YarnResourceManagerTest.class);
+	private static final Time TIMEOUT = Time.seconds(10L);
 
-	private static Configuration flinkConfig = new Configuration();
+	private Configuration flinkConfig = new Configuration();
 
-	private static Map<String, String> env = new HashMap<>();
-
-	private static final Time timeout = Time.seconds(10L);
+	private Map<String, String> env = new HashMap<>();
 
 	@Rule
 	public TemporaryFolder folder = new TemporaryFolder();
@@ -152,6 +157,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				SlotManager slotManager,
 				MetricRegistry metricRegistry,
 				JobLeaderIdService jobLeaderIdService,
+				ClusterInformation clusterInformation,
 				FatalErrorHandler fatalErrorHandler,
 				@Nullable String webInterfaceUrl,
 				AMRMClientAsync<AMRMClient.ContainerRequest> mockResourceManagerClient,
@@ -168,6 +174,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
+				clusterInformation,
 				fatalErrorHandler,
 				webInterfaceUrl);
 			this.mockNMClient = mockNMClient;
@@ -175,7 +182,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 
 		public <T> CompletableFuture<T> runInMainThread(Callable<T> callable) {
-			return callAsync(callable, timeout);
+			return callAsync(callable, TIMEOUT);
 		}
 
 		public MainThreadExecutor getMainThreadExecutorForTesting() {
@@ -194,9 +201,14 @@ public class YarnResourceManagerTest extends TestLogger {
 		protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
 			return mockNMClient;
 		}
+
+		@Override
+		protected void runAsync(final Runnable runnable) {
+			runnable.run();
+		}
 	}
 
-	static class Context {
+	class Context {
 
 		// services
 		final TestingRpcService rpcService;
@@ -249,6 +261,7 @@ public class YarnResourceManagerTest extends TestLogger {
 							rmServices.slotManager,
 							rmServices.metricRegistry,
 							rmServices.jobLeaderIdService,
+							new ClusterInformation("localhost", 1234),
 							fatalErrorHandler,
 							null,
 							mockResourceManagerClient,
@@ -288,7 +301,7 @@ public class YarnResourceManagerTest extends TestLogger {
 
 			public void grantLeadership() throws Exception {
 				rmLeaderSessionId = UUID.randomUUID();
-				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+				rmLeaderElectionService.isLeader(rmLeaderSessionId).get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
 		}
 
@@ -304,7 +317,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		 * Stop the Akka actor system.
 		 */
 		public void stopResourceManager() throws Exception {
-			rpcService.stopService();
+			rpcService.stopService().get();
 		}
 	}
 
@@ -353,12 +366,21 @@ public class YarnResourceManagerTest extends TestLogger {
 				.registerTaskExecutor(
 					taskHost,
 					taskManagerResourceId,
-					slotReport,
 					dataPort,
 					hardwareDescription,
 					Time.seconds(10L))
+				.thenCompose(
+					(RegistrationResponse response) -> {
+						assertThat(response, instanceOf(TaskExecutorRegistrationSuccess.class));
+						final TaskExecutorRegistrationSuccess success = (TaskExecutorRegistrationSuccess) response;
+						return rmGateway.sendSlotReport(
+							taskManagerResourceId,
+							success.getRegistrationId(),
+							slotReport,
+							Time.seconds(10L));
+					})
 				.handleAsync(
-					(RegistrationResponse response, Throwable throwable) -> rmServices.slotManager.getNumberRegisteredSlots(),
+					(Acknowledge ignored, Throwable throwable) -> rmServices.slotManager.getNumberRegisteredSlots(),
 					resourceManager.getMainThreadExecutorForTesting());
 
 			final int numberRegisteredSlots = numberRegisteredSlotsFuture.get();
@@ -381,6 +403,22 @@ public class YarnResourceManagerTest extends TestLogger {
 			// It's now safe to access the SlotManager state since the ResourceManager has been stopped.
 			assertTrue(rmServices.slotManager.getNumberRegisteredSlots() == 0);
 			assertTrue(resourceManager.getNumberOfRegisteredTaskManagers().get() == 0);
+		}};
+	}
+
+	/**
+	 * Tests that application files are deleted when the YARN application master is de-registered.
+	 */
+	@Test
+	public void testDeleteApplicationFiles() throws Exception {
+		new Context() {{
+			final File applicationDir = folder.newFolder(".flink");
+			env.put(FLINK_YARN_FILES, applicationDir.getCanonicalPath());
+
+			startResourceManager();
+
+			resourceManager.deregisterApplication(ApplicationStatus.SUCCEEDED, null);
+			assertFalse("YARN application directory was not removed", Files.exists(applicationDir.toPath()));
 		}};
 	}
 }

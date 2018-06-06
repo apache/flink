@@ -56,7 +56,7 @@ import org.apache.flink.runtime.rest.handler.legacy.SubtasksAllAccumulatorsHandl
 import org.apache.flink.runtime.rest.handler.legacy.SubtasksTimesHandler;
 import org.apache.flink.runtime.rest.handler.legacy.TaskManagerLogHandler;
 import org.apache.flink.runtime.rest.handler.legacy.TaskManagersHandler;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsDetailsHandler;
@@ -72,21 +72,22 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.JobVertexMetricsHand
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.TaskManagerMetricsHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarAccessDeniedHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarListHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarPlanHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
-import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarAccessDeniedHandler;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarDeleteHandler;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarListHandler;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarPlanHandler;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarRunHandler;
+import org.apache.flink.runtime.webmonitor.handlers.legacy.JarUploadHandler;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,7 +144,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final StackTraceSampleCoordinator stackTraceSamples;
 
-	private final BackPressureStatsTracker backPressureStatsTracker;
+	private final BackPressureStatsTrackerImpl backPressureStatsTrackerImpl;
 
 	private final WebMonitorConfig cfg;
 
@@ -223,8 +224,12 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		Time delayBetweenSamples = Time.milliseconds(delay);
 
-		backPressureStatsTracker = new BackPressureStatsTracker(
-				stackTraceSamples, cleanUpInterval, numSamples, delayBetweenSamples);
+		backPressureStatsTrackerImpl = new BackPressureStatsTrackerImpl(
+			stackTraceSamples,
+			cleanUpInterval,
+			numSamples,
+			config.getInteger(WebOptions.BACKPRESSURE_REFRESH_INTERVAL),
+			delayBetweenSamples);
 
 		// --------------------------------------------------------------------
 
@@ -284,7 +289,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new SubtasksTimesHandler(executionGraphCache, scheduledExecutor));
 		get(router, new JobVertexTaskManagersHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new JobVertexAccumulatorsHandler(executionGraphCache, scheduledExecutor));
-		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTracker, refreshInterval));
+		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTrackerImpl, refreshInterval));
 		get(router, new SubtasksAllAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 		get(router, new SubtaskCurrentAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new SubtaskExecutionAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
@@ -315,14 +320,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		router
 			// log and stdout
-			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
+			.addGet("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
 				new StaticFileServerHandler<>(
 					retriever,
 					localRestAddress,
 					timeout,
 					logFiles.logFile))
 
-			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
+			.addGet("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
@@ -371,27 +376,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 
 		// this handler serves all the static contents
-		router.GET("/:*", new StaticFileServerHandler<>(
+		router.addGet("/:*", new StaticFileServerHandler<>(
 			retriever,
 			localRestAddress,
 			timeout,
 			webRootDir));
 
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
-		try {
-			Runtime.getRuntime().addShutdownHook(new Thread() {
-				@Override
-				public void run() {
-					cleanup();
-				}
-			});
-		} catch (IllegalStateException e) {
-			// race, JVM is in shutdown already, we can safely ignore this
-			LOG.debug("Unable to add shutdown hook, shutdown already in progress", e);
-		} catch (Throwable t) {
-			// these errors usually happen when the shutdown is already in progress
-			LOG.warn("Error while adding shutdown hook", t);
-		}
+		ShutdownHookUtil.addShutdownHook(this::cleanup, getClass().getSimpleName(), LOG);
 
 		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
 
@@ -443,7 +435,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.start(retriever);
 
-			long delay = backPressureStatsTracker.getCleanUpInterval();
+			long delay = backPressureStatsTrackerImpl.getCleanUpInterval();
 
 			// Scheduled back pressure stats tracker cache cleanup. We schedule
 			// this here repeatedly, because cache clean up only happens on
@@ -453,7 +445,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				@Override
 				public void run() {
 					try {
-						backPressureStatsTracker.cleanUpOperatorStatsCache();
+						backPressureStatsTrackerImpl.cleanUpOperatorStatsCache();
 					} catch (Throwable t) {
 						LOG.error("Error during back pressure stats cache cleanup.", t);
 					}
@@ -476,7 +468,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			stackTraceSamples.shutDown();
 
-			backPressureStatsTracker.shutDown();
+			backPressureStatsTrackerImpl.shutDown();
 
 			cleanup();
 		}
@@ -523,7 +515,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void get(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.GET(path, handler);
+			router.addGet(path, handler);
 		}
 	}
 
@@ -533,7 +525,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void delete(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.DELETE(path, handler);
+			router.addDelete(path, handler);
 		}
 	}
 
@@ -543,7 +535,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void post(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.POST(path, handler);
+			router.addPost(path, handler);
 		}
 	}
 

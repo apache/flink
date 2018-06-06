@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-SQL queries are specified with the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
+SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-a-table-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
 For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
@@ -113,7 +113,7 @@ Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/referenc
 
 The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
-```
+{% highlight sql %}
 
 query:
   values
@@ -180,7 +180,7 @@ insert:
   INSERT INTO tableReference
   query
 
-```
+{% endhighlight %}
 
 Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
 
@@ -388,12 +388,14 @@ GROUP BY users
 SELECT *
 FROM Orders INNER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
       <td><strong>Outer Equi-join</strong><br>
         <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Currently, only equi-joins are supported, i.e., joins that have at least one conjunctive condition with an equality predicate. Arbitrary cross or theta joins are not supported.</p>
@@ -408,6 +410,7 @@ FROM Orders RIGHT JOIN Product ON Orders.productId = Product.id
 SELECT *
 FROM Orders FULL OUTER JOIN Product ON Orders.productId = Product.id
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -456,19 +459,19 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-      <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
-      <p>Inner Join</p>
+        <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
+        <p>Inner Join</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders, LATERAL TABLE(unnest_udtf(tags)) t AS tag
 {% endhighlight %}
-      <p>Left Outer Join</p>
+        <p>Left Outer Join</p>
 {% highlight sql %}
 SELECT users, tag
 FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
 {% endhighlight %}
 
-<p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
+        <p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
       </td>
     </tr>
   </tbody>
@@ -549,10 +552,10 @@ FROM (
     <tr>
       <td>
         <strong>In</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-      Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
+        <p>Returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight sql %}
 SELECT user, amount
 FROM Orders
@@ -560,6 +563,25 @@ WHERE product IN (
     SELECT product FROM NewProducts
 )
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Exists</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Returns true if the sub-query returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+{% highlight sql %}
+SELECT user, amount
+FROM Orders
+WHERE product EXISTS (
+    SELECT product FROM NewProducts
+)
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1081,6 +1103,7 @@ EXISTS (sub-query)
       </td>
       <td>
         <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1091,7 +1114,8 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1102,7 +1126,8 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query. This operation is not supported in a streaming environment yet.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
 
@@ -1363,6 +1388,19 @@ LOG10(numeric)
 
     <tr>
       <td>
+       {% highlight text %}
+LOG(x numeric)
+LOG(b numeric, x numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the logarithm of a <i>numeric</i>.</p>
+        <p>If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
         {% highlight text %}
 EXP(numeric)
 {% endhighlight %}
@@ -1581,17 +1619,6 @@ RAND_INTEGER(seed integer, bound integer)
     </td>
    </tr>
 
-    <tr>
-     <td>
-       {% highlight text %}
-LOG(x numeric), LOG(base numeric, x numeric)
-{% endhighlight %}
-     </td>
-    <td>
-      <p>Returns the natural logarithm of a specified number of a specified base. If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
-    </td>
-   </tr>
-   
     <tr>
       <td>
 {% highlight text %}
@@ -1990,6 +2017,17 @@ EXTRACT(timeintervalunit FROM temporal)
     <tr>
       <td>
         {% highlight text %}
+YEAR(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the year from a SQL date. Equivalent to <code>EXTRACT(YEAR FROM date)</code>. E.g. <code>YEAR(DATE '1994-09-27')</code> leads to 1994.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 FLOOR(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
@@ -2016,7 +2054,95 @@ QUARTER(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>QUARTER(DATE '1994-09-27')</code> leads to 3.</p>
+        <p>Returns the quarter of a year from a SQL date (an integer between 1 and 4). Equivalent to <code>EXTRACT(QUARTER FROM date)</code>. E.g. <code>QUARTER(DATE '1994-09-27')</code> leads to 3. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MONTH(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the month of a year from a SQL date (an integer between 1 and 12). Equivalent to <code>EXTRACT(MONTH FROM date)</code>. E.g. <code>MONTH(DATE '1994-09-27')</code> leads to 9. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+WEEK(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the week of a year from a SQL date (an integer between 1 and 53). Equivalent to <code>EXTRACT(WEEK FROM date)</code>. E.g. <code>WEEK(DATE '1994-09-27')</code> leads to 39. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFYEAR(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a year from a SQL date (an integer between 1 and 366). Equivalent to <code>EXTRACT(DOY FROM date)</code>. E.g. <code>DAYOFYEAR(DATE '1994-09-27')</code> leads to 270. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFMONTH(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a month from a SQL date (an integer between 1 and 31). Equivalent to <code>EXTRACT(DAY FROM date)</code>. E.g. <code>DAYOFMONTH(DATE '1994-09-27')</code> leads to 27. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DAYOFWEEK(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the day of a week from a SQL date (an integer between 1 and 7; Sunday = 1). Equivalent to <code>EXTRACT(DOW FROM date)</code>. E.g. <code>DAYOFWEEK(DATE '1994-09-27')</code> leads to 3. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+HOUR(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hour of a day from a SQL timestamp (an integer between 0 and 23). Equivalent to <code>EXTRACT(HOUR FROM timestamp)</code>. E.g. <code>HOUR(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 13. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MINUTE(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the minute of an hour from a SQL timestamp (an integer between 0 and 59). Equivalent to <code>EXTRACT(MINUTE FROM timestamp)</code>. E.g. <code>MINUTE(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 14. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SECOND(timestamp)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the second of a minute from a SQL timestamp (an integer between 0 and 59). Equivalent to <code>EXTRACT(SECOND FROM timestamp)</code>. E.g. <code>SECOND(TIMESTAMP '1994-09-27 13:14:15')</code> leads to 15. </p>
       </td>
     </tr>
 
@@ -2417,7 +2543,7 @@ MD5(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the MD5 hash of the string argument as a string of 32 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the MD5 hash of the <i>string</i> argument as a string of 32 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
 
@@ -2428,9 +2554,20 @@ SHA1(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-1 hash of the string argument as a string of 40 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-1 hash of the <i>string</i> argument as a string of 40 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SHA224(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the <i>string</i> argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>    
     
     <tr>
       <td>
@@ -2439,7 +2576,41 @@ SHA256(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
+        <p>Returns the SHA-256 hash of the <i>string</i> argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SHA384(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the <i>string</i> argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>  
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHA512(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the <i>string</i> argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SHA2(string, hashLength)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the hash using the SHA-2 family of hash functions (SHA-224, SHA-256, SHA-384, or SHA-512). The first argument <i>string</i> is the string to be hashed. <i>hashLength</i> is the bit length of the result (either 224, 256, 384, or 512). Returns <i>null</i> if <i>string</i> or <i>hashLength</i> is <i>null</i>.
+        </p>
       </td>
     </tr>
   </tbody>

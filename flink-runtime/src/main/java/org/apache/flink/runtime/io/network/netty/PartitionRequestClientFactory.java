@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -164,11 +165,9 @@ class PartitionRequestClientFactory {
 		private void handInChannel(Channel channel) {
 			synchronized (connectLock) {
 				try {
-					PartitionRequestClientHandler requestHandler = channel.pipeline()
-							.get(PartitionRequestClientHandler.class);
-
+					NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
 					partitionRequestClient = new PartitionRequestClient(
-							channel, requestHandler, connectionId, clientFactory);
+						channel, clientHandler, connectionId, clientFactory);
 
 					if (disposeRequestClient) {
 						partitionRequestClient.disposeIfNotUsed();

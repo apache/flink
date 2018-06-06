@@ -44,6 +44,11 @@ angular.module('flinkApp')
     $http.get(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/plan", {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
+    .error (err) ->
+      if err.errors?
+        deferred.reject(err.errors[0])
+      else
+        deferred.reject(err)
 
     deferred.promise
 
@@ -54,7 +59,10 @@ angular.module('flinkApp')
     .success (data, status, headers, config) ->
       deferred.resolve(data)
     .error (err) ->
-      deferred.reject(err)
+      if err.errors?
+        deferred.reject(err.errors[0])
+      else
+        deferred.reject(err)
 
     deferred.promise
 

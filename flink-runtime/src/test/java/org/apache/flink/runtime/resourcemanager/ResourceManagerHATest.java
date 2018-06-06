@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -30,11 +31,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,7 +43,6 @@ import static org.mockito.Mockito.mock;
 /**
  * resourceManager HA test, including grant leadership and revoke leadership
  */
-@Category(Flip6.class)
 public class ResourceManagerHATest extends TestLogger {
 
 	@Test
@@ -98,6 +96,7 @@ public class ResourceManagerHATest extends TestLogger {
 				resourceManagerRuntimeServices.getSlotManager(),
 				metricRegistry,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
+				new ClusterInformation("localhost", 1234),
 				testingFatalErrorHandler) {
 
 				@Override
@@ -124,7 +123,7 @@ public class ResourceManagerHATest extends TestLogger {
 				testingFatalErrorHandler.rethrowError();
 			}
 		} finally {
-			rpcService.stopService();
+			rpcService.stopService().get();
 		}
 	}
 }

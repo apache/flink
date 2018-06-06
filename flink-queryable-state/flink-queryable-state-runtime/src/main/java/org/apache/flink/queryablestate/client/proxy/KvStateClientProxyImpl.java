@@ -19,22 +19,24 @@
 package org.apache.flink.queryablestate.client.proxy;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.queryablestate.exceptions.UnknownJobManagerException;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.AbstractServerBase;
 import org.apache.flink.queryablestate.network.AbstractServerHandler;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -43,18 +45,13 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, KvStateResponse> implements KvStateClientProxy {
 
-	private static final CompletableFuture<ActorGateway> UNKNOWN_JOB_MANAGER =
-			FutureUtils.completedExceptionally(new UnknownJobManagerException());
-
 	/** Number of threads used to process incoming requests. */
 	private final int queryExecutorThreads;
 
 	/** Statistics collector. */
 	private final KvStateRequestStats stats;
 
-	private final Object leaderLock = new Object();
-
-	private CompletableFuture<ActorGateway> jobManagerFuture = UNKNOWN_JOB_MANAGER;
+	private final ConcurrentHashMap<JobID, KvStateLocationOracle> kvStateLocationOracles;
 
 	/**
 	 * Creates the Queryable State Client Proxy.
@@ -83,6 +80,8 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 		Preconditions.checkArgument(numQueryThreads >= 1, "Non-positive number of query threads.");
 		this.queryExecutorThreads = numQueryThreads;
 		this.stats = Preconditions.checkNotNull(stats);
+
+		this.kvStateLocationOracles = new ConcurrentHashMap<>(4);
 	}
 
 	@Override
@@ -106,20 +105,25 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	}
 
 	@Override
-	public void updateJobManager(CompletableFuture<ActorGateway> leadingJobManager) throws Exception {
-		synchronized (leaderLock) {
-			if (leadingJobManager == null) {
-				jobManagerFuture = UNKNOWN_JOB_MANAGER;
-			} else {
-				jobManagerFuture = leadingJobManager;
-			}
+	public void updateKvStateLocationOracle(JobID jobId, @Nullable KvStateLocationOracle kvStateLocationOracle) {
+		if (kvStateLocationOracle == null) {
+			kvStateLocationOracles.remove(jobId);
+		} else {
+			kvStateLocationOracles.put(jobId, kvStateLocationOracle);
 		}
 	}
 
+	@Nullable
 	@Override
-	public CompletableFuture<ActorGateway> getJobManagerFuture() {
-		synchronized (leaderLock) {
-			return jobManagerFuture;
+	public KvStateLocationOracle getKvStateLocationOracle(JobID jobId) {
+		final KvStateLocationOracle legacyKvStateLocationOracle = kvStateLocationOracles.get(HighAvailabilityServices.DEFAULT_JOB_ID);
+
+		// we give preference to the oracle registered under the default job id
+		// to make it work with the legacy code paths
+		if (legacyKvStateLocationOracle != null) {
+			return legacyKvStateLocationOracle;
+		} else {
+			return kvStateLocationOracles.get(jobId);
 		}
 	}
 

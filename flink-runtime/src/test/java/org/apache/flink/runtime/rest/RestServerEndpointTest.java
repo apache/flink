@@ -18,23 +18,34 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assume;
+import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.rules.TemporaryFolder;
+import org.slf4j.helpers.NOPLogger;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test cases for the {@link RestServerEndpoint}.
  */
-@Category(Flip6.class)
 public class RestServerEndpointTest extends TestLogger {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that the REST handler URLs are properly sorted.
@@ -62,5 +73,28 @@ public class RestServerEndpointTest extends TestLogger {
 		Collections.sort(handlerUrls, new RestServerEndpoint.RestHandlerUrlComparator.CaseInsensitiveOrderComparator());
 
 		assertEquals(expected, handlerUrls);
+	}
+
+	@Test
+	public void testCreateUploadDir() throws Exception {
+		final File file = temporaryFolder.newFolder();
+		final Path testUploadDir = file.toPath().resolve("testUploadDir");
+		assertFalse(Files.exists(testUploadDir));
+		RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER);
+		assertTrue(Files.exists(testUploadDir));
+	}
+
+	@Test
+	public void testCreateUploadDirFails() throws Exception {
+		final File file = temporaryFolder.newFolder();
+		Assume.assumeTrue(file.setWritable(false));
+
+		final Path testUploadDir = file.toPath().resolve("testUploadDir");
+		assertFalse(Files.exists(testUploadDir));
+		try {
+			RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER);
+			fail("Expected exception not thrown.");
+		} catch (IOException e) {
+		}
 	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -109,10 +110,10 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 					assertThat(jobId, equalTo(TEST_JOB_ID));
 					return CompletableFuture.completedFuture(jobStatus);
 				})
-			.setRequestJobFunction(
+			.setRequestJobResultFunction(
 				jobId -> {
 					assertThat(jobId, equalTo(TEST_JOB_ID));
-					return CompletableFuture.completedFuture(executionGraph);
+					return CompletableFuture.completedFuture(JobResult.createFrom(executionGraph));
 				}
 			)
 			.build();

@@ -18,44 +18,58 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+
+import javax.annotation.Nonnegative;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.function.LongPredicate;
 
 /**
- * This class will service as a task-manager-level local storage for local checkpointed state. The purpose is to provide
- * access to a state that is stored locally for a faster recovery compared to the state that is stored remotely in a
- * stable store DFS. For now, this storage is only complementary to the stable storage and local state is typically
- * lost in case of machine failures. In such cases (and others), client code of this class must fall back to using the
- * slower but highly available store.
- *
- * TODO this is currently a placeholder / mock that still must be implemented!
+ * Classes  that implement this interface serve as a task-manager-level local storage for local checkpointed state.
+ * The purpose is to provide  access to a state that is stored locally for a faster recovery compared to the state that
+ * is stored remotely in a stable store DFS. For now, this storage is only complementary to the stable storage and local
+ * state is typically lost in case of machine failures. In such cases (and others), client code of this class must fall
+ * back to using the slower but highly available store.
  */
-public class TaskLocalStateStore {
+@Internal
+public interface TaskLocalStateStore {
+	/**
+	 * Stores the local state for the given checkpoint id.
+	 *
+	 * @param checkpointId id for the checkpoint that created the local state that will be stored.
+	 * @param localState the local state to store.
+	 */
+	void storeLocalState(
+		@Nonnegative long checkpointId,
+		@Nullable TaskStateSnapshot localState);
 
-	/** */
-	private final JobID jobID;
+	/**
+	 * Returns the local state that is stored under the given checkpoint id or null if nothing was stored under the id.
+	 *
+	 * @param checkpointID the checkpoint id by which we search for local state.
+	 * @return the local state found for the given checkpoint id. Can be null
+	 */
+	@Nullable
+	TaskStateSnapshot retrieveLocalState(long checkpointID);
 
-	/** */
-	private final JobVertexID jobVertexID;
+	/**
+	 * Returns the {@link LocalRecoveryConfig} for this task local state store.
+	 */
+	@Nonnull
+	LocalRecoveryConfig getLocalRecoveryConfig();
 
-	/** */
-	private final int subtaskIndex;
+	/**
+	 * Notifies that the checkpoint with the given id was confirmed as complete. This prunes the checkpoint history
+	 * and removes all local states with a checkpoint id that is smaller than the newly confirmed checkpoint id.
+	 */
+	void confirmCheckpoint(long confirmedCheckpointId);
 
-	public TaskLocalStateStore(
-		JobID jobID,
-		JobVertexID jobVertexID,
-		int subtaskIndex) {
-
-		this.jobID = jobID;
-		this.jobVertexID = jobVertexID;
-		this.subtaskIndex = subtaskIndex;
-	}
-
-	public void storeSnapshot(/* TODO */) {
-		throw new UnsupportedOperationException("TODO!");
-	}
-
-	public void dispose() {
-		throw new UnsupportedOperationException("TODO!");
-	}
+	/**
+	 * Remove all checkpoints from the store that match the given predicate.
+	 * @param matcher the predicate that selects the checkpoints for pruning.
+	 */
+	void pruneMatchingCheckpoints(LongPredicate matcher);
 }

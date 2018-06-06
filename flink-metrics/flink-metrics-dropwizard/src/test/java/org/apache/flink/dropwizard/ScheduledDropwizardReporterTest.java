@@ -74,7 +74,7 @@ public class ScheduledDropwizardReporterTest {
 	 * Tests that the registered metrics' names don't contain invalid characters.
 	 */
 	@Test
-	public void testAddingMetrics() throws NoSuchFieldException, IllegalAccessException {
+	public void testAddingMetrics() throws Exception {
 		Configuration configuration = new Configuration();
 		String taskName = "test\"Ta\"..sk";
 		String jobName = "testJ\"ob:-!ax..?";
@@ -131,7 +131,7 @@ public class ScheduledDropwizardReporterTest {
 
 		assertEquals(expectedCounterName, counters.get(myCounter));
 
-		metricRegistry.shutdown();
+		metricRegistry.shutdown().get();
 	}
 
 	/**

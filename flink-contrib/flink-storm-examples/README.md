@@ -9,10 +9,10 @@ This module contains multiple versions of a simple Word-Count example to illustr
 
 * how to submit a whole Storm topology to Flink
    3. `WordCountTopology` plugs a Storm topology together
-      * `StormWordCountLocal` submits the topology to a local Flink cluster (similiar to a `LocalCluster` in Storm)
+      * `StormWordCountLocal` submits the topology to a local Flink cluster (similar to a `LocalCluster` in Storm)
         (`WordCountLocalByName` accesses attributes by field names rather than index)
-      * `WordCountRemoteByClient` submits the topology to a remote Flink cluster (simliar to the usage of `NimbusClient` in Storm)
-      * `WordCountRemoteBySubmitter` submits the topology to a remote Flink cluster (simliar to the usage of `StormSubmitter` in Storm)
+      * `WordCountRemoteByClient` submits the topology to a remote Flink cluster (similar to the usage of `NimbusClient` in Storm)
+      * `WordCountRemoteBySubmitter` submits the topology to a remote Flink cluster (similar to the usage of `StormSubmitter` in Storm)
 
 Additionally, this module package the three example Word-Count programs as jar files to be submitted to a Flink cluster via `bin/flink run example.jar`.
 (Valid jars are `WordCount-SpoutSource.jar`, `WordCount-BoltTokenizer.jar`, and `WordCount-StormTopology.jar`)

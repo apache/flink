@@ -64,38 +64,28 @@ matrix:
     - jdk: "openjdk8"
       env:
         - TEST="core"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_CO
     - jdk: "openjdk8"
       env:
         - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_L
     - jdk: "openjdk8"
       env:
         - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode -Pinclude-kinesis"
         - CACHE_NAME=JDK8_H241_CN
     - jdk: "openjdk8"
       env:
         - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_T
     - jdk: "openjdk8"
       env:
         - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_M
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_CO
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_T
 
 git:
   depth: 100
@@ -120,8 +110,9 @@ before_install:
    - "rm apache-maven-3.2.5-bin.zip"
    - "export M2_HOME=$PWD/apache-maven-3.2.5"
    - "export PATH=$M2_HOME/bin:$PATH"
+   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
 # just in case: clean up the .m2 home and remove invalid jar files
-   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm {} ; fi'' \;'
+   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.

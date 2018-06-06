@@ -85,10 +85,11 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
       val splits = user.split("#")
       if (null != data) {
         if (null != conf && conf.size > 0) {
-          val it = conf.keys.iterator
-          while (it.hasNext) {
-            val key = it.next()
-            val value = conf.get(key).get
+          val iter = conf.iterator
+          while (iter.hasNext) {
+            val entry = iter.next()
+            val key = entry._1
+            val value = entry._2
             collect(
               SimpleUser(
                 data.concat("_key=")

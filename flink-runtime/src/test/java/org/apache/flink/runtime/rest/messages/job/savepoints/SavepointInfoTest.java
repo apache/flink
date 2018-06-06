@@ -31,19 +31,9 @@ import static org.junit.Assert.fail;
 public class SavepointInfoTest extends TestLogger {
 
 	@Test
-	public void testNullRequestId() {
-		try {
-			new SavepointInfo(null, "/tmp", null);
-			fail("Expected exception not thrown");
-		} catch (NullPointerException e) {
-		}
-	}
-
-	@Test
 	public void testSetBothLocationAndFailureCause()  {
 		try {
 			new SavepointInfo(
-				new SavepointTriggerId(),
 				"/tmp",
 				new SerializedThrowable(new RuntimeException()));
 			fail("Expected exception not thrown");

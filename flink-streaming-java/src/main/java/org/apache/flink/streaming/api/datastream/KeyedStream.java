@@ -37,6 +37,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -46,6 +47,7 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
@@ -120,12 +122,37 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            Function for determining state partitions
 	 */
 	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
-		super(
-			dataStream.getExecutionEnvironment(),
+		this(
+			dataStream,
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
-				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)));
-		this.keySelector = keySelector;
+				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)),
+			keySelector,
+			keyType);
+	}
+
+	/**
+	 * Creates a new {@link KeyedStream} using the given {@link KeySelector} and {@link TypeInformation}
+	 * to partition operator state by key, where the partitioning is defined by a {@link PartitionTransformation}.
+	 *
+	 * @param stream
+	 *            Base stream of data
+	 * @param partitionTransformation
+	 *            Function that determines how the keys are distributed to downstream operator(s)
+	 * @param keySelector
+	 *            Function to extract keys from the base stream
+	 * @param keyType
+	 *            Defines the type of the extracted keys
+	 */
+	@Internal
+	KeyedStream(
+		DataStream<T> stream,
+		PartitionTransformation<T> partitionTransformation,
+		KeySelector<T, KEY> keySelector,
+		TypeInformation<KEY> keyType) {
+
+		super(stream.getExecutionEnvironment(), partitionTransformation);
+		this.keySelector = clean(keySelector);
 		this.keyType = validateKeyType(keyType);
 	}
 
@@ -247,8 +274,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -261,7 +287,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction)}
 	 */
+	@Deprecated
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
@@ -281,8 +310,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -296,19 +324,76 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction, TypeInformation)}
 	 */
+	@Deprecated
 	@Override
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(
 			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		KeyedProcessOperator<KEY, T, R> operator =
-				new KeyedProcessOperator<>(clean(processFunction));
+		LegacyKeyedProcessOperator<KEY, T, R> operator = new LegacyKeyedProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
 	}
 
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<KEY, T, R> keyedProcessFunction) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				keyedProcessFunction,
+				KeyedProcessFunction.class,
+				1,
+				2,
+				TypeExtractor.NO_INDEX,
+				TypeExtractor.NO_INDEX,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return process(keyedProcessFunction, outType);
+	}
+
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> process(
+			KeyedProcessFunction<KEY, T, R> keyedProcessFunction,
+			TypeInformation<R> outputType) {
+
+		KeyedProcessOperator<KEY, T, R> operator = new KeyedProcessOperator<>(clean(keyedProcessFunction));
+		return transform("KeyedProcess", outputType, operator);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Windowing

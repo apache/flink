@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
@@ -33,7 +32,7 @@ import java.nio.ByteOrder;
 /**
  * Record serializer which serializes the complete record to an intermediate
  * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #setNextBufferBuilder(BufferBuilder)}.
+ * one-by-one using {@link #continueWritingWithNextBufferBuilder(BufferBuilder)}.
  *
  * @param <T> The type of the records that are serialized.
  */
@@ -61,7 +60,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		lengthBuffer = ByteBuffer.allocate(4);
 		lengthBuffer.order(ByteOrder.BIG_ENDIAN);
 
-		// ensure initial state with hasRemaining false (for correct setNextBufferBuilder logic)
+		// ensure initial state with hasRemaining false (for correct continueWritingWithNextBufferBuilder logic)
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 		lengthBuffer.position(4);
 	}
@@ -94,22 +93,32 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 
 		// Copy from intermediate buffers to current target memory segment
-		copyToTargetBufferFrom(lengthBuffer);
-		copyToTargetBufferFrom(dataBuffer);
+		if (targetBuffer != null) {
+			targetBuffer.append(lengthBuffer);
+			targetBuffer.append(dataBuffer);
+			targetBuffer.commit();
+		}
 
 		return getSerializationResult();
 	}
 
 	@Override
-	public SerializationResult setNextBufferBuilder(BufferBuilder buffer) throws IOException {
+	public SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder buffer) throws IOException {
 		targetBuffer = buffer;
 
+		boolean mustCommit = false;
 		if (lengthBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(lengthBuffer);
+			targetBuffer.append(lengthBuffer);
+			mustCommit = true;
 		}
 
 		if (dataBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(dataBuffer);
+			targetBuffer.append(dataBuffer);
+			mustCommit = true;
+		}
+
+		if (mustCommit) {
+			targetBuffer.commit();
 		}
 
 		SerializationResult result = getSerializationResult();
@@ -124,56 +133,22 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		return result;
 	}
 
-	/**
-	 * Copies as many bytes as possible from the given {@link ByteBuffer} to the {@link MemorySegment} of the target
-	 * {@link Buffer} and advances the current position by the number of written bytes.
-	 *
-	 * @param source the {@link ByteBuffer} to copy data from
-	 */
-	private void copyToTargetBufferFrom(ByteBuffer source) {
-		if (targetBuffer == null) {
-			return;
-		}
-		targetBuffer.append(source);
-	}
-
 	private SerializationResult getSerializationResult() {
-		if (!dataBuffer.hasRemaining() && !lengthBuffer.hasRemaining()) {
-			return !targetBuffer.isFull()
-					? SerializationResult.FULL_RECORD
-					: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
+		if (dataBuffer.hasRemaining() || lengthBuffer.hasRemaining()) {
+			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
 		}
-
-		return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
-	}
-
-	@Override
-	public Buffer getCurrentBuffer() {
-		if (targetBuffer == null) {
-			return null;
-		}
-		Buffer result = targetBuffer.build();
-		targetBuffer = null;
-		return result;
-	}
-
-	@Override
-	public void clearCurrentBuffer() {
-		targetBuffer = null;
+		return !targetBuffer.isFull()
+				? SerializationResult.FULL_RECORD
+				: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 	}
 
 	@Override
 	public void clear() {
 		targetBuffer = null;
-
-		// ensure clear state with hasRemaining false (for correct setNextBufferBuilder logic)
-		dataBuffer.position(dataBuffer.limit());
-		lengthBuffer.position(4);
 	}
 
 	@Override
-	public boolean hasData() {
-		// either data in current target buffer or intermediate buffers
-		return (targetBuffer != null && !targetBuffer.isEmpty()) || lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
+	public boolean hasSerializedData() {
+		return lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
 	}
 }

@@ -26,17 +26,20 @@ import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 
 import java.util.List;
 
@@ -58,11 +61,14 @@ public class LocalExecutor extends PlanExecutor {
 	/** we lock to ensure singleton execution. */
 	private final Object lock = new Object();
 
-	/** The mini cluster on which to execute the local programs. */
-	private LocalFlinkMiniCluster flink;
-
 	/** Custom user configuration for the execution. */
-	private final Configuration configuration;
+	private final Configuration baseConfiguration;
+
+	/** Service for executing Flink jobs. */
+	private JobExecutorService jobExecutorService;
+
+	/** Current job executor service configuration. */
+	private Configuration jobExecutorServiceConfiguration;
 
 	/** Config value for how many slots to provide in the local cluster. */
 	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
@@ -77,7 +83,7 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	public LocalExecutor(Configuration conf) {
-		this.configuration = conf != null ? conf : new Configuration();
+		this.baseConfiguration = conf != null ? conf : new Configuration();
 	}
 
 	// ------------------------------------------------------------------------
@@ -105,27 +111,60 @@ public class LocalExecutor extends PlanExecutor {
 	@Override
 	public void start() throws Exception {
 		synchronized (lock) {
-			if (flink == null) {
+			if (jobExecutorService == null) {
 				// create the embedded runtime
-				Configuration configuration = createConfiguration();
-				if (this.configuration != null) {
-					configuration.addAll(this.configuration);
-				}
+				jobExecutorServiceConfiguration = createConfiguration();
+
 				// start it up
-				flink = new LocalFlinkMiniCluster(configuration, true);
-				this.flink.start();
+				jobExecutorService = createJobExecutorService(jobExecutorServiceConfiguration);
 			} else {
 				throw new IllegalStateException("The local executor was already started.");
 			}
 		}
 	}
 
+	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
+		final JobExecutorService newJobExecutorService;
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+
+			if (!configuration.contains(RestOptions.PORT)) {
+				configuration.setInteger(RestOptions.PORT, 0);
+			}
+
+			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
+				.setConfiguration(configuration)
+				.setNumTaskManagers(
+					configuration.getInteger(
+						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+						ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
+				.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+				.setNumSlotsPerTaskManager(
+					configuration.getInteger(
+						TaskManagerOptions.NUM_TASK_SLOTS, 1))
+				.build();
+
+			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
+			miniCluster.start();
+
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+
+			newJobExecutorService = miniCluster;
+		} else {
+			final LocalFlinkMiniCluster localFlinkMiniCluster = new LocalFlinkMiniCluster(configuration, true);
+			localFlinkMiniCluster.start();
+
+			newJobExecutorService = localFlinkMiniCluster;
+		}
+
+		return newJobExecutorService;
+	}
+
 	@Override
 	public void stop() throws Exception {
 		synchronized (lock) {
-			if (flink != null) {
-				flink.stop();
-				flink = null;
+			if (jobExecutorService != null) {
+				jobExecutorService.close();
+				jobExecutorService = null;
 			}
 		}
 	}
@@ -133,7 +172,7 @@ public class LocalExecutor extends PlanExecutor {
 	@Override
 	public boolean isRunning() {
 		synchronized (lock) {
-			return flink != null;
+			return jobExecutorService != null;
 		}
 	}
 
@@ -161,7 +200,7 @@ public class LocalExecutor extends PlanExecutor {
 			// check if we start a session dedicated for this execution
 			final boolean shutDownAtEnd;
 
-			if (flink == null) {
+			if (jobExecutorService == null) {
 				shutDownAtEnd = true;
 
 				// configure the number of local slots equal to the parallelism of the local plan
@@ -181,16 +220,18 @@ public class LocalExecutor extends PlanExecutor {
 			}
 
 			try {
-				Configuration configuration = this.flink.configuration();
+				// TODO: Set job's default parallelism to max number of slots
+				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
+				final int numTaskManagers = jobExecutorServiceConfiguration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+				plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 
-				Optimizer pc = new Optimizer(new DataStatistics(), configuration);
+				Optimizer pc = new Optimizer(new DataStatistics(), jobExecutorServiceConfiguration);
 				OptimizedPlan op = pc.compile(plan);
 
-				JobGraphGenerator jgg = new JobGraphGenerator(configuration);
+				JobGraphGenerator jgg = new JobGraphGenerator(jobExecutorServiceConfiguration);
 				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
 
-				boolean sysoutPrint = isPrintingStatusDuringExecution();
-				return flink.submitJobAndWait(jobGraph, sysoutPrint);
+				return jobExecutorService.executeJobBlocking(jobGraph);
 			}
 			finally {
 				if (shutDownAtEnd) {
@@ -211,7 +252,7 @@ public class LocalExecutor extends PlanExecutor {
 	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 		final int parallelism = plan.getDefaultParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? 1 : plan.getDefaultParallelism();
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.configuration);
+		Optimizer pc = new Optimizer(new DataStatistics(), this.baseConfiguration);
 		pc.setDefaultParallelism(parallelism);
 		OptimizedPlan op = pc.compile(plan);
 
@@ -220,20 +261,17 @@ public class LocalExecutor extends PlanExecutor {
 
 	@Override
 	public void endSession(JobID jobID) throws Exception {
-		synchronized (this.lock) {
-			LocalFlinkMiniCluster flink = this.flink;
-			if (flink != null) {
-				ActorGateway leaderGateway = flink.getLeaderGateway(AkkaUtils.getDefaultTimeoutAsFiniteDuration());
-				leaderGateway.tell(new JobManagerMessages.RemoveCachedJob(jobID));
-			}
-		}
+		// no op
 	}
 
 	private Configuration createConfiguration() {
-		Configuration configuration = new Configuration();
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
-		configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, isDefaultOverwriteFiles());
-		return configuration;
+		Configuration newConfiguration = new Configuration();
+		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, getTaskManagerNumSlots());
+		newConfiguration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, isDefaultOverwriteFiles());
+
+		newConfiguration.addAll(baseConfiguration);
+
+		return newConfiguration;
 	}
 
 	// --------------------------------------------------------------------------------------------

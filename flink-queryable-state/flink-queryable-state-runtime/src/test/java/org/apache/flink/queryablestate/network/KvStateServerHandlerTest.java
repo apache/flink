@@ -21,7 +21,9 @@ package org.apache.flink.queryablestate.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.queryablestate.KvStateID;
@@ -70,9 +72,6 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link KvStateServerHandler}.
@@ -126,17 +125,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+		AbstractKeyedStateBackend<Integer> backend = createKeyedStateBackend(registry, numKeyGroups, abstractBackend, dummyEnv);
 
 		final TestRegistryListener registryListener = new TestRegistryListener();
-		registry.registerListener(registryListener);
+		registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 		// Update the KvState and request it
 		int expectedValue = 712828289;
@@ -250,17 +242,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+		KeyedStateBackend<Integer> backend = createKeyedStateBackend(registry, numKeyGroups, abstractBackend, dummyEnv);
 
 		final TestRegistryListener registryListener = new TestRegistryListener();
-		registry.registerListener(registryListener);
+		registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 		// Register state
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
@@ -300,7 +285,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the failure response on a failure on the {@link InternalKvState#getSerializedValue(byte[])} call.
+	 * Tests the failure response on a failure on the {@link InternalKvState#getSerializedValue(byte[], TypeSerializer, TypeSerializer, TypeSerializer)} call.
 	 */
 	@Test
 	public void testFailureOnGetSerializedValue() throws Exception {
@@ -314,9 +299,42 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		// Failing KvState
-		InternalKvState<?> kvState = mock(InternalKvState.class);
-		when(kvState.getSerializedValue(any(byte[].class)))
-				.thenThrow(new RuntimeException("Expected test Exception"));
+		InternalKvState<Integer, VoidNamespace, Long> kvState =
+				new InternalKvState<Integer, VoidNamespace, Long>() {
+					@Override
+					public TypeSerializer<Integer> getKeySerializer() {
+						return IntSerializer.INSTANCE;
+					}
+
+					@Override
+					public TypeSerializer<VoidNamespace> getNamespaceSerializer() {
+						return VoidNamespaceSerializer.INSTANCE;
+					}
+
+					@Override
+					public TypeSerializer<Long> getValueSerializer() {
+						return LongSerializer.INSTANCE;
+					}
+
+					@Override
+					public void setCurrentNamespace(VoidNamespace namespace) {
+						// do nothing
+					}
+
+					@Override
+					public byte[] getSerializedValue(
+							final byte[] serializedKeyAndNamespace,
+							final TypeSerializer<Integer> safeKeySerializer,
+							final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
+							final TypeSerializer<Long> safeValueSerializer) throws Exception {
+						throw new RuntimeException("Expected test Exception");
+					}
+
+					@Override
+					public void clear() {
+
+					}
+				};
 
 		KvStateID kvStateId = registry.registerKvState(
 				new JobID(),
@@ -403,17 +421,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+		KeyedStateBackend<Integer> backend = createKeyedStateBackend(registry, numKeyGroups, abstractBackend, dummyEnv);
 
 		final TestRegistryListener registryListener = new TestRegistryListener();
-		registry.registerListener(registryListener);
+		registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 		// Register state
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
@@ -545,17 +556,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+		AbstractKeyedStateBackend<Integer> backend = createKeyedStateBackend(registry, numKeyGroups, abstractBackend, dummyEnv);
 
 		final TestRegistryListener registryListener = new TestRegistryListener();
-		registry.registerListener(registryListener);
+		registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 		// Register state
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
@@ -639,17 +643,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 		AbstractStateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
-		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-				dummyEnv,
-				new JobID(),
-				"test_op",
-				IntSerializer.INSTANCE,
-				numKeyGroups,
-				new KeyGroupRange(0, 0),
-				registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+		AbstractKeyedStateBackend<Integer> backend = createKeyedStateBackend(registry, numKeyGroups, abstractBackend, dummyEnv);
 
 		final TestRegistryListener registryListener = new TestRegistryListener();
-		registry.registerListener(registryListener);
+		registry.registerListener(dummyEnv.getJobID(), registryListener);
 
 		// Register state
 		ValueStateDescriptor<byte[]> desc = new ValueStateDescriptor<>("any", BytePrimitiveArraySerializer.INSTANCE);
@@ -754,5 +751,16 @@ public class KvStateServerHandlerTest extends TestLogger {
 				String registrationName) {
 
 		}
+	}
+
+	private AbstractKeyedStateBackend<Integer> createKeyedStateBackend(KvStateRegistry registry, int numKeyGroups, AbstractStateBackend abstractBackend, DummyEnvironment dummyEnv) throws java.io.IOException {
+		return abstractBackend.createKeyedStateBackend(
+			dummyEnv,
+			dummyEnv.getJobID(),
+			"test_op",
+			IntSerializer.INSTANCE,
+			numKeyGroups,
+			new KeyGroupRange(0, 0),
+			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
 	}
 }

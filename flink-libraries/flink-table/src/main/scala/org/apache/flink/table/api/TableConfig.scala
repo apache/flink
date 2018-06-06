@@ -18,6 +18,7 @@
 package org.apache.flink.table.api
 
 import _root_.java.util.TimeZone
+import _root_.java.math.MathContext
 
 import org.apache.flink.table.calcite.CalciteConfig
 
@@ -39,7 +40,19 @@ class TableConfig {
   /**
     * Defines the configuration of Calcite for Table API and SQL queries.
     */
-  private var calciteConfig = CalciteConfig.DEFAULT
+  private var calciteConfig: CalciteConfig = CalciteConfig.DEFAULT
+
+  /**
+    * Defines the default context for decimal division calculation.
+    * We use Scala's default MathContext.DECIMAL128.
+    */
+  private var decimalContext: MathContext = MathContext.DECIMAL128
+
+  /**
+    * Specifies a threshold where generated code will be split into sub-function calls. Java has a
+    * maximum method length of 64 KB. This setting allows for finer granularity if necessary.
+    */
+  private var maxGeneratedCodeLength: Int = 64000 // just an estimate
 
   /**
    * Sets the timezone for date/time/timestamp conversions.
@@ -52,12 +65,12 @@ class TableConfig {
   /**
    * Returns the timezone for date/time/timestamp conversions.
    */
-  def getTimeZone = timeZone
+  def getTimeZone: TimeZone = timeZone
 
   /**
    * Returns the NULL check. If enabled, all fields need to be checked for NULL first.
    */
-  def getNullCheck = nullCheck
+  def getNullCheck: Boolean = nullCheck
 
   /**
    * Sets the NULL check. If enabled, all fields need to be checked for NULL first.
@@ -77,6 +90,39 @@ class TableConfig {
     */
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = calciteConfig
+  }
+
+  /**
+    * Returns the default context for decimal division calculation.
+    * [[_root_.java.math.MathContext#DECIMAL128]] by default.
+    */
+  def getDecimalContext: MathContext = decimalContext
+
+  /**
+    * Sets the default context for decimal division calculation.
+    * [[_root_.java.math.MathContext#DECIMAL128]] by default.
+    */
+  def setDecimalContext(mathContext: MathContext): Unit = {
+    this.decimalContext = mathContext
+  }
+
+  /**
+    * Returns the current threshold where generated code will be split into sub-function calls.
+    * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
+    * necessary. Default is 64000.
+    */
+  def getMaxGeneratedCodeLength: Int = maxGeneratedCodeLength
+
+  /**
+    * Returns the current threshold where generated code will be split into sub-function calls.
+    * Java has a maximum method length of 64 KB. This setting allows for finer granularity if
+    * necessary. Default is 64000.
+    */
+  def setMaxGeneratedCodeLength(maxGeneratedCodeLength: Int): Unit = {
+    if (maxGeneratedCodeLength <= 0) {
+      throw new IllegalArgumentException("Length must be greater than 0.")
+    }
+    this.maxGeneratedCodeLength = maxGeneratedCodeLength
   }
 }
 

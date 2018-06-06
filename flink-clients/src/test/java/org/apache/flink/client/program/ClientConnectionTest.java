@@ -27,8 +27,8 @@ import org.apache.flink.runtime.client.JobClientActorTest;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -136,11 +136,11 @@ public class ClientConnectionTest extends TestLogger {
 
 			final String expectedAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
-			final TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(expectedAddress, leaderId);
+			final SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(expectedAddress, leaderId);
 
-			highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, testingLeaderRetrievalService);
+			highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, settableLeaderRetrievalService);
 
-			StandaloneClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices);
+			StandaloneClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices, true);
 
 			ActorGateway gateway = client.getJobManagerGateway();
 

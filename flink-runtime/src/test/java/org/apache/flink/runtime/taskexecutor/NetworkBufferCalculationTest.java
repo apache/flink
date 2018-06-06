@@ -21,73 +21,48 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.testutils.category.OldAndFlip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.InetAddress;
 
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
- * Tests the network buffer calculation from heap size which requires mocking
- * to have control over the {@link EnvironmentInformation}.
- *
- *
- * <p>This should be refactored once we have pulled {@link EnvironmentInformation} out of
- * {@link TaskManagerServices}. See FLINK-8212 for more information.
+ * Tests the network buffer calculation from heap size.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(EnvironmentInformation.class)
-@Category(OldAndFlip6.class)
 public class NetworkBufferCalculationTest extends TestLogger {
 
 	/**
-	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(TaskManagerServicesConfiguration)}
+	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(TaskManagerServicesConfiguration, long)}
 	 * using the same (manual) test cases as in {@link TaskManagerServicesTest#calculateHeapSizeMB()}.
 	 */
 	@Test
 	public void calculateNetworkBufFromHeapSize() throws Exception {
-		PowerMockito.mockStatic(EnvironmentInformation.class);
-		// some defaults:
-		when(EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag()).thenReturn(1000L << 20); // 1000MB
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(1000L << 20); // 1000MB
-
 		TaskManagerServicesConfiguration tmConfig;
 
 		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(900L << 20); // 900MB
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 900L << 20)); // 900MB
 
 		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(800L << 20); // 800MB
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 800L << 20)); // 800MB
 
 		tmConfig = getTmConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(890L << 20); // 890MB
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 890L << 20)); // 890MB
 
 		tmConfig = getTmConfig(-1, 0.1f,
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(810L << 20); // 810MB
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 810L << 20)); // 810MB
 	}
 
 	/**
@@ -122,6 +97,8 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		return new TaskManagerServicesConfiguration(
 			InetAddress.getLoopbackAddress(),
 			new String[] {},
+			new String[] {},
+			false,
 			networkConfig,
 			QueryableStateConfiguration.disabled(),
 			1,

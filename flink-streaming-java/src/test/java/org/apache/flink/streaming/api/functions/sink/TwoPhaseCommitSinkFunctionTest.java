@@ -21,8 +21,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.ContentDump;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -159,7 +159,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 		harness.processElement("42", 0);
 		harness.snapshot(0, 1);
 		harness.processElement("43", 2);
-		OperatorStateHandles snapshot = harness.snapshot(1, 3);
+		OperatorSubtaskState snapshot = harness.snapshot(1, 3);
 
 		tmpDirectory.setWritable(false);
 		try {
@@ -192,7 +192,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 		harness.open();
 		harness.processElement("42", 0);
 
-		final OperatorStateHandles snapshot = harness.snapshot(0, 1);
+		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
 		harness.notifyOfCompletedCheckpoint(1);
 
 		final long transactionTimeout = 1000;
@@ -248,7 +248,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 
 		harness.open();
 
-		final OperatorStateHandles snapshot = harness.snapshot(0, 1);
+		final OperatorSubtaskState snapshot = harness.snapshot(0, 1);
 		final long elapsedTime = (long) ((double) transactionTimeout * warningRatio + 2);
 		clock.setEpochMilli(elapsedTime);
 		harness.initializeState(snapshot);

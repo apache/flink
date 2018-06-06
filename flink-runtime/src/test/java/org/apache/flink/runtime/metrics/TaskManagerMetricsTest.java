@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorRef;
@@ -96,7 +98,10 @@ public class TaskManagerMetricsTest extends TestLogger {
 
 			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 				taskManagerServicesConfiguration,
-				tmResourceID);
+				tmResourceID,
+				Executors.directExecutor(),
+				EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
+				EnvironmentInformation.getMaxJvmHeapMemory());
 
 			TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 				metricRegistry,
@@ -112,6 +117,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getMemoryManager(),
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
+				taskManagerServices.getTaskManagerStateStore(),
 				highAvailabilityServices,
 				taskManagerMetricGroup);
 
@@ -159,7 +165,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				highAvailabilityServices.closeAndCleanupAllData();
 			}
 
-			metricRegistry.shutdown();
+			metricRegistry.shutdown().get();
 		}
 	}
 }

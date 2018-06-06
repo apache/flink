@@ -243,3 +243,93 @@ the current processing time as event-time timestamp. This behavior is very subtl
 harmful because processing-time timestamps are indeterministic and not aligned with watermarks. Besides, user-implemented logic
 depends on this wrong timestamp highly likely is unintendedly faulty. So we've decided to fix it. Upon upgrading to 1.4.0, Flink jobs
 that are using this incorrect event-time timestamp will fail, and users should adapt their jobs to the correct logic.
+
+## The KeyedProcessFunction
+
+`KeyedProcessFunction`, as an extension of `ProcessFunction`, gives access to the key of timers in its `onTimer(...)`
+method.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+@Override
+public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {
+    K key = ctx.getCurrentKey();
+    // ...
+}
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[OUT]): Unit = {
+  var key = ctx.getCurrentKey
+  // ...
+}
+{% endhighlight %}
+</div>
+</div>
+
+## Timers
+
+Both types of timers (processing-time and event-time) are internally maintained by the `TimerService` and enqueued for execution.
+
+The `TimerService` deduplicates timers per key and timestamp, i.e., there is at most one timer per key and timestamp. If multiple timers are registered for the same timestamp, the `onTimer()` method will be called just once.
+
+**Note:** Flink synchronizes invocations of `onTimer()` and `processElement()`. Hence, users do not have to worry about concurrent modification of state.
+
+### Fault Tolerance
+
+Timers are fault tolerant and checkpointed along with the state of the application. 
+In case of a failure recovery or when starting an application from a savepoint, the timers are restored.
+
+**Note:** Checkpointed processing-time timers that were supposed to fire before their restoration, will fire immediately. 
+This might happen when an application recovers from a failure or when it is started from a savepoint.
+
+**Note:** Timers are always synchronously checkpointed, regardless of the configuration of the state backends. 
+Therefore, a large number of timers can significantly increase checkpointing time. 
+See the "Timer Coalescing" section for advice on how to reduce the number of timers.
+
+### Timer Coalescing
+
+Since Flink maintains only one timer per key and timestamp, you can reduce the number of timers by reducing the timer resolution to coalesce them.
+
+For a timer resolution of 1 second (event or processing time), you
+can round down the target time to full seconds. Timers will fire at most 1 second earlier but not later than requested with millisecond accuracy. 
+As a result, there are at most one timer per key and second.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+long coalescedTime = ((ctx.timestamp() + timeout) / 1000) * 1000;
+ctx.timerService().registerProcessingTimeTimer(coalescedTime);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val coalescedTime = ((ctx.timestamp + timeout) / 1000) * 1000
+ctx.timerService.registerProcessingTimeTimer(coalescedTime)
+{% endhighlight %}
+</div>
+</div>
+
+Since event-time timers only fire with watermarks coming in, you may also schedule and coalesce
+these timers with the next watermark by using the current one:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+long coalescedTime = ctx.timerService().currentWatermark() + 1;
+ctx.timerService().registerEventTimeTimer(coalescedTime);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val coalescedTime = ctx.timerService.currentWatermark + 1
+ctx.timerService.registerEventTimeTimer(coalescedTime)
+{% endhighlight %}
+</div>
+</div>

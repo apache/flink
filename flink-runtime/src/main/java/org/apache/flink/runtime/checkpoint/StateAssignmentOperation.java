@@ -24,11 +24,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -242,10 +242,10 @@ public class StateAssignmentOperation {
 			checkState(!subRawKeyedState.containsKey(instanceID));
 		}
 		return new OperatorSubtaskState(
-			subManagedOperatorState.getOrDefault(instanceID, Collections.emptyList()),
-			subRawOperatorState.getOrDefault(instanceID, Collections.emptyList()),
-			subManagedKeyedState.getOrDefault(instanceID, Collections.emptyList()),
-			subRawKeyedState.getOrDefault(instanceID, Collections.emptyList()));
+			new StateObjectCollection<>(subManagedOperatorState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subRawOperatorState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subManagedKeyedState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, Collections.emptyList())));
 	}
 
 	private static boolean isHeadOperator(int opIdx, List<OperatorID> operatorIDs) {
@@ -618,11 +618,10 @@ public class StateAssignmentOperation {
 					Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsets =
 						operatorStateHandle.getStateNameToPartitionOffsets();
 
-
 					for (OperatorStateHandle.StateMetaInfo metaInfo : partitionOffsets.values()) {
 
 						// if we find any broadcast state, we cannot take the shortcut and need to go through repartitioning
-						if (OperatorStateHandle.Mode.BROADCAST.equals(metaInfo.getDistributionMode())) {
+						if (OperatorStateHandle.Mode.UNION.equals(metaInfo.getDistributionMode())) {
 							return opStateRepartitioner.repartitionState(
 								chainOpParallelStates,
 								newParallelism);
@@ -639,7 +638,7 @@ public class StateAssignmentOperation {
 	/**
 	 * Determine the subset of {@link KeyGroupsStateHandle KeyGroupsStateHandles} with correct
 	 * key group index for the given subtask {@link KeyGroupRange}.
-	 * <p>
+	 *
 	 * <p>This is publicly visible to be used in tests.
 	 */
 	public static List<KeyedStateHandle> getKeyedStateHandles(

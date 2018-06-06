@@ -22,13 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -39,10 +42,14 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -55,7 +62,7 @@ public class ExecutionTest extends TestLogger {
 
 	/**
 	 * Tests that slots are released if we cannot assign the allocated resource to the
-	 * Execution. In this case, a concurrent cancellation precedes the assignment.
+	 * Execution.
 	 */
 	@Test
 	public void testSlotReleaseOnFailedResourceAssignment() throws Exception {
@@ -85,20 +92,20 @@ public class ExecutionTest extends TestLogger {
 			0,
 			new SimpleAckingTaskManagerGateway());
 
+		final LogicalSlot otherSlot = new TestingLogicalSlot();
+
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertFalse(allocationFuture.isDone());
 
 		assertEquals(ExecutionState.SCHEDULED, execution.getState());
 
-		// cancelling the execution should move it into state CANCELED; this happens before
-		// the slot future has been completed
-		execution.cancel();
-
-		assertEquals(ExecutionState.CANCELED, execution.getState());
+		// assign a different resource to the execution
+		assertTrue(execution.tryAssignResource(otherSlot));
 
 		// completing now the future should cause the slot to be released
 		slotFuture.complete(slot);
@@ -140,7 +147,8 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -189,7 +197,8 @@ public class ExecutionTest extends TestLogger {
 		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
 			slotProvider,
 			false,
-			LocationPreferenceConstraint.ALL);
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -208,6 +217,54 @@ public class ExecutionTest extends TestLogger {
 		execution.cancelingComplete();
 
 		assertEquals(slot, slotOwner.getReturnedSlotFuture().get());
+	}
+
+	/**
+	 * Tests that a slot allocation from a {@link SlotProvider} is cancelled if the
+	 * {@link Execution} is cancelled.
+	 */
+	@Test
+	public void testSlotAllocationCancellationWhenExecutionCancelled() throws Exception {
+		final JobVertexID jobVertexId = new JobVertexID();
+		final JobVertex jobVertex = new JobVertex("test vertex", jobVertexId);
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
+		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();
+		slotProvider.addSlot(jobVertexId, 0, slotFuture);
+
+		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			jobVertex);
+
+		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
+
+		final Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
+
+		final CompletableFuture<Execution> allocationFuture = currentExecutionAttempt.allocateAndAssignSlotForExecution(
+			slotProvider,
+			false,
+			LocationPreferenceConstraint.ALL,
+			TestingUtils.infiniteTime());
+
+		assertThat(allocationFuture.isDone(), is(false));
+
+		assertThat(slotProvider.getSlotRequestedFuture(jobVertexId, 0).get(), is(true));
+
+		final Set<SlotRequestId> slotRequests = slotProvider.getSlotRequests();
+		assertThat(slotRequests, hasSize(1));
+
+		assertThat(currentExecutionAttempt.getState(), is(ExecutionState.SCHEDULED));
+
+		currentExecutionAttempt.cancel();
+		assertThat(currentExecutionAttempt.getState(), is(ExecutionState.CANCELED));
+
+		assertThat(allocationFuture.isCompletedExceptionally(), is(true));
+
+		final Set<SlotRequestId> canceledSlotRequests = slotProvider.getCanceledSlotRequests();
+		assertThat(canceledSlotRequests, equalTo(slotRequests));
 	}
 
 	/**
@@ -301,7 +358,7 @@ public class ExecutionTest extends TestLogger {
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
 
-		assertTrue(executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY));
+		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY).get();
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 

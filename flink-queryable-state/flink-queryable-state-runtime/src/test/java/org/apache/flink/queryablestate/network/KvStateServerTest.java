@@ -79,7 +79,8 @@ public class KvStateServerTest {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (NIO_GROUP != null) {
-			NIO_GROUP.shutdownGracefully();
+			// note: no "quiet period" to not trigger Netty#4357
+			NIO_GROUP.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 		}
 	}
 
@@ -108,19 +109,20 @@ public class KvStateServerTest {
 			AbstractStateBackend abstractBackend = new MemoryStateBackend();
 			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 			dummyEnv.setKvStateRegistry(registry);
+			final JobID jobId = new JobID();
 			AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
-					dummyEnv,
-					new JobID(),
-					"test_op",
-					IntSerializer.INSTANCE,
-					numKeyGroups,
-					new KeyGroupRange(0, 0),
-					registry.createTaskRegistry(new JobID(), new JobVertexID()));
+				dummyEnv,
+				jobId,
+				"test_op",
+				IntSerializer.INSTANCE,
+				numKeyGroups,
+				new KeyGroupRange(0, 0),
+				registry.createTaskRegistry(jobId, new JobVertexID()));
 
 			final KvStateServerHandlerTest.TestRegistryListener registryListener =
 					new KvStateServerHandlerTest.TestRegistryListener();
 
-			registry.registerListener(registryListener);
+			registry.registerListener(jobId, registryListener);
 
 			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 			desc.setQueryable("vanilla");
@@ -190,7 +192,8 @@ public class KvStateServerTest {
 			if (bootstrap != null) {
 				EventLoopGroup group = bootstrap.group();
 				if (group != null) {
-					group.shutdownGracefully();
+					// note: no "quiet period" to not trigger Netty#4357
+					group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
 				}
 			}
 		}

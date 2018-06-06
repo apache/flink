@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.messages;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageDeserializer;
 import org.apache.flink.util.Preconditions;
@@ -72,7 +73,7 @@ public class KvStateRequest extends MessageBody {
 	@Override
 	public byte[] serialize() {
 
-		byte[] serializedStateName = stateName.getBytes();
+		byte[] serializedStateName = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		// JobID + stateName + sizeOf(stateName) + hashCode + keyAndNamespace + sizeOf(keyAndNamespace)
 		final int size =
@@ -120,7 +121,7 @@ public class KvStateRequest extends MessageBody {
 			if (statenameLength > 0) {
 				byte[] name = new byte[statenameLength];
 				buf.readBytes(name);
-				stateName = new String(name);
+				stateName = new String(name, ConfigConstants.DEFAULT_CHARSET);
 			}
 
 			int keyHashCode = buf.readInt();

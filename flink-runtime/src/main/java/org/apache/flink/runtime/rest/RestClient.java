@@ -20,7 +20,8 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -32,7 +33,9 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
@@ -48,6 +51,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
@@ -63,11 +67,10 @@ import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFact
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLEngine;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -89,20 +92,19 @@ public class RestClient {
 		Preconditions.checkNotNull(configuration);
 		this.executor = Preconditions.checkNotNull(executor);
 
-		SSLEngine sslEngine = configuration.getSslEngine();
+		final SSLEngineFactory sslEngineFactory = configuration.getSslEngineFactory();
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 			@Override
-			protected void initChannel(SocketChannel socketChannel) throws Exception {
+			protected void initChannel(SocketChannel socketChannel) {
 				// SSL should be the first handler in the pipeline
-				if (sslEngine != null) {
-					socketChannel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				if (sslEngineFactory != null) {
+					socketChannel.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
 				}
 
 				socketChannel.pipeline()
 					.addLast(new HttpClientCodec())
-					.addLast(new HttpObjectAggregator(1024 * 1024))
-					.addLast(new ClientHandler())
-					.addLast(new PipelineErrorHandler(LOG));
+					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+					.addLast(new ClientHandler());
 			}
 		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-client-netty"));
@@ -151,7 +153,7 @@ public class RestClient {
 
 		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
 
-		LOG.debug("Sending request of class {} to {}", request.getClass(), targetUrl);
+		LOG.debug("Sending request of class {} to {}:{}{}", request.getClass(), targetAddress, targetPort, targetUrl);
 		// serialize payload
 		StringWriter sw = new StringWriter();
 		objectMapper.writeValue(sw, request);
@@ -165,10 +167,22 @@ public class RestClient {
 			.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
 			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		return submitRequest(targetAddress, targetPort, httpRequest, messageHeaders.getResponseClass());
+		final JavaType responseType;
+
+		final Collection<Class<?>> typeParameters = messageHeaders.getResponseTypeParameters();
+
+		if (typeParameters.isEmpty()) {
+			responseType = objectMapper.constructType(messageHeaders.getResponseClass());
+		} else {
+			responseType = objectMapper.getTypeFactory().constructParametricType(
+				messageHeaders.getResponseClass(),
+				typeParameters.toArray(new Class<?>[typeParameters.size()]));
+		}
+
+		return submitRequest(targetAddress, targetPort, httpRequest, responseType);
 	}
 
-	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, Class<P> responseClass) {
+	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, JavaType responseType) {
 		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
 		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
@@ -192,16 +206,17 @@ public class RestClient {
 				},
 				executor)
 			.thenComposeAsync(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseClass),
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
 				executor);
 	}
 
-	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, Class<P> responseClass) {
+	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, JavaType responseType) {
 		CompletableFuture<P> responseFuture = new CompletableFuture<>();
+		final JsonParser jsonParser = objectMapper.treeAsTokens(rawResponse.json);
 		try {
-			P response = objectMapper.treeToValue(rawResponse.getJson(), responseClass);
+			P response = objectMapper.readValue(jsonParser, responseType);
 			responseFuture.complete(response);
-		} catch (JsonProcessingException jpe) {
+		} catch (IOException originalException) {
 			// the received response did not matched the expected response type
 
 			// lets see if it is an ErrorResponse instead
@@ -211,11 +226,11 @@ public class RestClient {
 			} catch (JsonProcessingException jpe2) {
 				// if this fails it is either the expected type or response type was wrong, most likely caused
 				// by a client/search MessageHeaders mismatch
-				LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", responseClass, rawResponse, jpe2);
+				LOG.error("Received response was neither of the expected type ({}) nor an error. Response={}", responseType, rawResponse, jpe2);
 				responseFuture.completeExceptionally(
 					new RestClientException(
-						"Response was neither of the expected type(" + responseClass + ") nor an error.",
-						jpe2,
+						"Response was neither of the expected type(" + responseType + ") nor an error.",
+						originalException,
 						rawResponse.getHttpResponseStatus()));
 			}
 		}
@@ -253,8 +268,14 @@ public class RestClient {
 		}
 
 		@Override
-		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) throws Exception {
-			jsonFuture.completeExceptionally(cause);
+		public void exceptionCaught(final ChannelHandlerContext ctx, final Throwable cause) {
+			if (cause instanceof TooLongFrameException) {
+				jsonFuture.completeExceptionally(new TooLongFrameException(String.format(
+					cause.getMessage() + " Try to raise [%s]",
+					RestOptions.CLIENT_MAX_CONTENT_LENGTH.key())));
+			} else {
+				jsonFuture.completeExceptionally(cause);
+			}
 			ctx.close();
 		}
 
@@ -305,6 +326,14 @@ public class RestClient {
 
 		public HttpResponseStatus getHttpResponseStatus() {
 			return httpResponseStatus;
+		}
+
+		@Override
+		public String toString() {
+			return "JsonResponse{" +
+				"json=" + json +
+				", httpResponseStatus=" + httpResponseStatus +
+				'}';
 		}
 	}
 }

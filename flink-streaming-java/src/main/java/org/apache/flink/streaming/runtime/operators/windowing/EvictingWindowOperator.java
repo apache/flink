@@ -76,7 +76,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 	private transient EvictorContext evictorContext;
 
-	private transient InternalListState<W, StreamRecord<IN>> evictingWindowState;
+	private transient InternalListState<K, W, StreamRecord<IN>> evictingWindowState;
 
 	// ------------------------------------------------------------------------
 
@@ -428,7 +428,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		super.open();
 
 		evictorContext = new EvictorContext(null, null);
-		evictingWindowState = (InternalListState<W, StreamRecord<IN>>)
+		evictingWindowState = (InternalListState<K, W, StreamRecord<IN>>)
 				getOrCreateKeyedState(windowSerializer, evictingWindowStateDescriptor);
 	}
 

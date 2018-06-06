@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
@@ -84,44 +83,15 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
 	 */
-	SerializationResult setNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
+	SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
 
 	/**
-	 * Retrieves the current target buffer and sets its size to the actual
-	 * number of written bytes.
-	 *
-	 * <p>After calling this method, a new target buffer is required to continue
-	 * writing (see {@link #setNextBufferBuilder(BufferBuilder)}).
-	 *
-	 * @return the target buffer that was used
-	 */
-	Buffer getCurrentBuffer();
-
-	/**
-	 * Resets the target buffer to <tt>null</tt>.
-	 *
-	 * <p><strong>NOTE:</strong> After calling this method, <strong>a new target
-	 * buffer is required to continue writing</strong> (see
-	 * {@link #setNextBufferBuilder(BufferBuilder)}).</p>
-	 */
-	void clearCurrentBuffer();
-
-	/**
-	 * Resets the target buffer to <tt>null</tt> and resets internal state set
-	 * up for the record to serialize.
-	 *
-	 * <p><strong>NOTE:</strong> After calling this method, a <strong>new record
-	 * and a new target buffer is required to start writing again</strong>
-	 * (see {@link #setNextBufferBuilder(BufferBuilder)}). If you want to continue
-	 * with the current record, use {@link #clearCurrentBuffer()} instead.</p>
+	 * Clear and release internal state.
 	 */
 	void clear();
 
 	/**
-	 * Determines whether data is left, either in the current target buffer or
-	 * in any internal state set up for the record to serialize.
-	 *
-	 * @return <tt>true</tt> if some data is present
+	 * @return <tt>true</tt> if has some serialized data pending copying to the result {@link BufferBuilder}.
 	 */
-	boolean hasData();
+	boolean hasSerializedData();
 }

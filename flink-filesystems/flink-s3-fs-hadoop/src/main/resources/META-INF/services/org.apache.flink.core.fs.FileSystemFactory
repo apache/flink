@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.fs.s3hadoop.S3FileSystemFactory
+org.apache.flink.fs.s3hadoop.S3AFileSystemFactory

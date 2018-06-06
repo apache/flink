@@ -22,6 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.Preconditions;
@@ -39,11 +41,7 @@ public class MiniClusterConfiguration {
 
 	private final UnmodifiableConfiguration configuration;
 
-	private final int numJobManagers;
-
 	private final int numTaskManagers;
-
-	private final int numResourceManagers;
 
 	private final RpcServiceSharing rpcServiceSharing;
 
@@ -56,16 +54,12 @@ public class MiniClusterConfiguration {
 
 	public MiniClusterConfiguration(
 			Configuration configuration,
-			int numJobManagers,
 			int numTaskManagers,
-			int numResourceManagers,
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress) {
 
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
-		this.numJobManagers = numJobManagers;
 		this.numTaskManagers = numTaskManagers;
-		this.numResourceManagers = numResourceManagers;
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
 	}
@@ -78,16 +72,8 @@ public class MiniClusterConfiguration {
 		return rpcServiceSharing;
 	}
 
-	public int getNumJobManagers() {
-		return numJobManagers;
-	}
-
 	public int getNumTaskManagers() {
 		return numTaskManagers;
-	}
-
-	public int getNumResourceManagers() {
-		return numResourceManagers;
 	}
 
 	public String getJobManagerBindAddress() {
@@ -121,9 +107,7 @@ public class MiniClusterConfiguration {
 	public String toString() {
 		return "MiniClusterConfiguration {" +
 				"singleRpcService=" + rpcServiceSharing +
-				", numJobManagers=" + numJobManagers +
 				", numTaskManagers=" + numTaskManagers +
-				", numResourceManagers=" + numResourceManagers +
 				", commonBindAddress='" + commonBindAddress + '\'' +
 				", config=" + configuration +
 				'}';
@@ -151,21 +135,14 @@ public class MiniClusterConfiguration {
 	 */
 	public static class Builder {
 		private Configuration configuration = new Configuration();
-		private int numJobManagers = 1;
 		private int numTaskManagers = 1;
 		private int numSlotsPerTaskManager = 1;
-		private int numResourceManagers = 1;
 		private RpcServiceSharing rpcServiceSharing = SHARED;
 		@Nullable
 		private String commonBindAddress = null;
 
 		public Builder setConfiguration(Configuration configuration1) {
 			this.configuration = Preconditions.checkNotNull(configuration1);
-			return this;
-		}
-
-		public Builder setNumJobManagers(int numJobManagers) {
-			this.numJobManagers = numJobManagers;
 			return this;
 		}
 
@@ -176,11 +153,6 @@ public class MiniClusterConfiguration {
 
 		public Builder setNumSlotsPerTaskManager(int numSlotsPerTaskManager) {
 			this.numSlotsPerTaskManager = numSlotsPerTaskManager;
-			return this;
-		}
-
-		public Builder setNumResourceManagers(int numResourceManagers) {
-			this.numResourceManagers = numResourceManagers;
 			return this;
 		}
 
@@ -196,13 +168,14 @@ public class MiniClusterConfiguration {
 
 		public MiniClusterConfiguration build() {
 			final Configuration modifiedConfiguration = new Configuration(configuration);
-			modifiedConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			modifiedConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			modifiedConfiguration.setString(
+				RestOptions.ADDRESS,
+				modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
 
 			return new MiniClusterConfiguration(
 				modifiedConfiguration,
-				numJobManagers,
 				numTaskManagers,
-				numResourceManagers,
 				rpcServiceSharing,
 				commonBindAddress);
 		}

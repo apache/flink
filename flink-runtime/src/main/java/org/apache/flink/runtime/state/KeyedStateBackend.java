@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.util.Disposable;
 
 import java.util.stream.Stream;
 
@@ -30,13 +31,31 @@ import java.util.stream.Stream;
  *
  * @param <K> The key by which state is keyed.
  */
-public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
+public interface KeyedStateBackend<K> extends InternalKeyContext<K>, Disposable {
 
 	/**
 	 * Sets the current key that is used for partitioned state.
 	 * @param newKey The new current key.
 	 */
 	void setCurrentKey(K newKey);
+
+	/**
+	 * Applies the provided {@link KeyedStateFunction} to the state with the provided
+	 * {@link StateDescriptor} of all the currently active keys.
+	 *
+	 * @param namespace the namespace of the state.
+	 * @param namespaceSerializer the serializer for the namespace.
+	 * @param stateDescriptor the descriptor of the state to which the function is going to be applied.
+	 * @param function the function to be applied to the keyed state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <S> The type of the state.
+	 */
+	<N, S extends State, T> void applyToAllKeys(
+			final N namespace,
+			final TypeSerializer<N> namespaceSerializer,
+			final StateDescriptor<S, T> stateDescriptor,
+			final KeyedStateFunction<K, S> function) throws Exception;
 
 	/**
 	 * @return A stream of all keys for the given state and namespace. Modifications to the state during iterating
@@ -84,8 +103,6 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception;
 
-	/**
-	 * Closes the backend and releases all resources.
-	 */
+	@Override
 	void dispose();
 }

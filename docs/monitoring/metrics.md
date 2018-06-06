@@ -182,7 +182,7 @@ new class MyMapper extends RichMapFunction[String,String] {
   override def open(parameters: Configuration): Unit = {
     getRuntimeContext()
       .getMetricGroup()
-      .gauge("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
+      .gauge[Int, ScalaGauge[Int]]("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
   }
 
   override def map(value: String): String = {
@@ -569,7 +569,7 @@ we will list more settings specific to each reporter.
 
 Example reporter configuration that specifies multiple reporters:
 
-```
+{% highlight yaml %}
 metrics.reporters: my_jmx_reporter,my_other_reporter
 
 metrics.reporter.my_jmx_reporter.class: org.apache.flink.metrics.jmx.JMXReporter
@@ -579,7 +579,7 @@ metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.Grap
 metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
 
-```
+{% endhighlight %}
 
 **Important:** The jar containing the reporter must be accessible when Flink is started by placing it in the /lib folder.
 
@@ -595,10 +595,11 @@ but not activated.
 
 Parameters:
 
-- `port` - (optional) the port on which JMX listens for connections. This can also be a port range. When a
-range is specified the actual port is shown in the relevant job or task manager log. If this setting is set
-Flink will start an extra JMX connector for the given port/range. Metrics are always available on the default
-local JMX interface.
+- `port` - (optional) the port on which JMX listens for connections.
+In order to be able to run several instancesof the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
+When a range is specified the actual port is shown in the relevant job or task manager log.
+If this setting is set Flink will start an extra JMX connector for the given port/range.
+Metrics are always available on the default local JMX interface.
 
 Example configuration:
 
@@ -1190,6 +1191,12 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
+      <th rowspan="1"><strong>Job (only available on TaskManager)</strong></th>
+      <td>&lt;source_id&gt;.&lt;source_subtask_index&gt;.&lt;operator_id&gt;.&lt;operator_subtask_index&gt;.latency</td>
+      <td>The latency distributions from a given source subtask to an operator subtask (in milliseconds).</td>
+      <td>Histogram</td>
+    </tr>
+    <tr>
       <th rowspan="6"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
@@ -1247,7 +1254,7 @@ Thus, in order to infer the metric identifier:
       <td>Counter</td>
     </tr>
     <tr>
-      <th rowspan="6"><strong>Operator</strong></th>
+      <th rowspan="5"><strong>Operator</strong></th>
       <td>currentInputWatermark</td>
       <td>
         The last watermark this operator has received (in milliseconds).
@@ -1277,11 +1284,6 @@ Thus, in order to infer the metric identifier:
         The last watermark this operator has emitted (in milliseconds).
       </td>
       <td>Gauge</td>
-    </tr>
-    <tr>
-      <td>latency</td>
-      <td>The latency distributions from all incoming sources (in milliseconds).</td>
-      <td>Histogram</td>
     </tr>
     <tr>
       <td>numSplitsProcessed</td>
@@ -1422,7 +1424,7 @@ Request a list of available metrics:
 
 `GET /jobmanager/metrics`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1"
@@ -1431,13 +1433,13 @@ Request a list of available metrics:
     "id": "metric2"
   }
 ]
-~~~
+{% endhighlight %}
 
 Request the values for specific (unaggregated) metrics:
 
 `GET taskmanagers/ABCDE/metrics?get=metric1,metric2`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1448,13 +1450,13 @@ Request the values for specific (unaggregated) metrics:
     "value": "2"
   }
 ]
-~~~
+{% endhighlight %}
 
 Request aggregated values for specific metrics:
 
 `GET /taskmanagers/metrics?get=metric1,metric2`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1471,13 +1473,13 @@ Request aggregated values for specific metrics:
     "sum": 16
   }
 ]
-~~~
+{% endhighlight %}
 
 Request specific aggregated values for specific metrics:
 
 `GET /taskmanagers/metrics?get=metric1,metric2&agg=min,max`
 
-~~~
+{% highlight json %}
 [
   {
     "id": "metric1",
@@ -1490,7 +1492,7 @@ Request specific aggregated values for specific metrics:
     "max": 14,
   }
 ]
-~~~
+{% endhighlight %}
 
 ## Dashboard integration
 

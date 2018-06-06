@@ -52,4 +52,19 @@ public class JavaUserDefinedTableFunctions {
 			}
 		}
 	}
+
+	/**
+	 * Emit sum of String length of all parameters.
+	 */
+	public static class JavaTableFunc1 extends TableFunction<Integer> {
+		public void eval(String... strs) {
+			int sum = 0;
+			if (strs != null) {
+				for (String str : strs) {
+					sum += str == null ? 0 : str.length();
+				}
+			}
+			collect(sum);
+		}
+	}
 }

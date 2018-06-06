@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -38,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A simple leader election service, which selects a leader among contenders and notifies listeners.
- * 
+ *
  * <p>An election service for contenders can be created via {@link #createLeaderElectionService()},
  * a listener service for leader observers can be created via {@link #createLeaderRetrievalService()}.
  */
@@ -54,19 +55,19 @@ public class EmbeddedLeaderService {
 
 	private final Set<EmbeddedLeaderRetrievalService> listeners;
 
-	/** proposed leader, which has been notified of leadership grant, but has not confirmed */
+	/** proposed leader, which has been notified of leadership grant, but has not confirmed. */
 	private EmbeddedLeaderElectionService currentLeaderProposed;
 
-	/** actual leader that has confirmed leadership and of which listeners have been notified */
+	/** actual leader that has confirmed leadership and of which listeners have been notified. */
 	private EmbeddedLeaderElectionService currentLeaderConfirmed;
 
-	/** fencing UID for the current leader (or proposed leader) */
+	/** fencing UID for the current leader (or proposed leader). */
 	private UUID currentLeaderSessionId;
 
-	/** the cached address of the current leader */
+	/** the cached address of the current leader. */
 	private String currentLeaderAddress;
 
-	/** flag marking the service as terminated */
+	/** flag marking the service as terminated. */
 	private boolean shutdown;
 
 	// ------------------------------------------------------------------------
@@ -83,7 +84,7 @@ public class EmbeddedLeaderService {
 
 	/**
 	 * Shuts down this leader election service.
-	 * 
+	 *
 	 * <p>This method does not perform a clean revocation of the leader status and
 	 * no notification to any leader listeners. It simply notifies all contenders
 	 * and listeners that the service is no longer available.
@@ -211,7 +212,7 @@ public class EmbeddedLeaderService {
 	}
 
 	/**
-	 * Callback from leader contenders when they confirm a leader grant
+	 * Callback from leader contenders when they confirm a leader grant.
 	 */
 	void confirmLeader(final EmbeddedLeaderElectionService service, final UUID leaderSessionId) {
 		synchronized (lock) {
@@ -221,7 +222,7 @@ public class EmbeddedLeaderService {
 			}
 
 			try {
-				// check if the confirmation is for the same grant, or whether it is a stale grant 
+				// check if the confirmation is for the same grant, or whether it is a stale grant
 				if (service == currentLeaderProposed && currentLeaderSessionId.equals(leaderSessionId)) {
 					final String address = service.contender.getAddress();
 					LOG.info("Received confirmation of leadership for leader {} , session={}", address, leaderSessionId);
@@ -230,7 +231,6 @@ public class EmbeddedLeaderService {
 					currentLeaderConfirmed = service;
 					currentLeaderAddress = address;
 					currentLeaderProposed = null;
-					service.isLeader = true;
 
 					// notify all listeners
 					for (EmbeddedLeaderRetrievalService listener : listeners) {
@@ -274,7 +274,7 @@ public class EmbeddedLeaderService {
 						leaderService.contender, leaderService.contender.getAddress());
 
 				notificationExecutor.execute(
-						new GrantLeadershipCall(leaderService.contender, leaderSessionId, LOG));
+						new GrantLeadershipCall(leaderService, leaderSessionId, LOG));
 			}
 		}
 	}
@@ -327,7 +327,7 @@ public class EmbeddedLeaderService {
 	}
 
 	// ------------------------------------------------------------------------
-	//  election and retrieval service implementations 
+	//  election and retrieval service implementations
 	// ------------------------------------------------------------------------
 
 	private class EmbeddedLeaderElectionService implements LeaderElectionService {
@@ -364,7 +364,7 @@ public class EmbeddedLeaderService {
 			if (running) {
 				running = false;
 				isLeader = false;
-				contender.handleError(cause);
+				contender.revokeLeadership();
 				contender = null;
 			}
 		}
@@ -392,7 +392,6 @@ public class EmbeddedLeaderService {
 		public void shutdown(Exception cause) {
 			if (running) {
 				running = false;
-				listener.handleError(cause);
 				listener = null;
 			}
 		}
@@ -440,28 +439,33 @@ public class EmbeddedLeaderService {
 
 	private static class GrantLeadershipCall implements Runnable {
 
-		private final LeaderContender contender;
+		private final EmbeddedLeaderElectionService leaderElectionService;
 		private final UUID leaderSessionId;
 		private final Logger logger;
 
 		GrantLeadershipCall(
-				LeaderContender contender,
+				EmbeddedLeaderElectionService leaderElectionService,
 				UUID leaderSessionId,
 				Logger logger) {
 
-			this.contender = checkNotNull(contender);
+			this.leaderElectionService = checkNotNull(leaderElectionService);
 			this.leaderSessionId = checkNotNull(leaderSessionId);
 			this.logger = checkNotNull(logger);
 		}
 
 		@Override
 		public void run() {
+			leaderElectionService.isLeader = true;
+
+			final LeaderContender contender = leaderElectionService.contender;
+
 			try {
 				contender.grantLeadership(leaderSessionId);
 			}
 			catch (Throwable t) {
 				logger.warn("Error granting leadership to contender", t);
 				contender.handleError(t instanceof Exception ? (Exception) t : new Exception(t));
+				leaderElectionService.isLeader = false;
 			}
 		}
 	}

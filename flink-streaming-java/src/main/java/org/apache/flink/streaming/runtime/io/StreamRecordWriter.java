@@ -43,9 +43,6 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	/** The thread that periodically flushes the output, to give an upper latency bound. */
 	private final OutputFlusher outputFlusher;
 
-	/** Flag indicating whether the output should be flushed after every element. */
-	private final boolean flushAlways;
-
 	/** The exception encountered in the flushing thread. */
 	private Throwable flusherException;
 
@@ -53,25 +50,25 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 		this(writer, channelSelector, timeout, null);
 	}
 
-	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector,
-								long timeout, String taskName) {
-
-		super(writer, channelSelector);
+	public StreamRecordWriter(
+			ResultPartitionWriter writer,
+			ChannelSelector<T> channelSelector,
+			long timeout,
+			String taskName) {
+		super(writer, channelSelector, timeout == 0);
 
 		checkArgument(timeout >= -1);
 
 		if (timeout == -1) {
-			flushAlways = false;
 			outputFlusher = null;
 		}
 		else if (timeout == 0) {
-			flushAlways = true;
 			outputFlusher = null;
 		}
 		else {
-			flushAlways = false;
 			String threadName = taskName == null ?
-								DEFAULT_OUTPUT_FLUSH_THREAD_NAME : "Output Timeout Flusher - " + taskName;
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME :
+				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
 
 			outputFlusher = new OutputFlusher(threadName, timeout);
 			outputFlusher.start();
@@ -82,33 +79,25 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	public void emit(T record) throws IOException, InterruptedException {
 		checkErroneous();
 		super.emit(record);
-		if (flushAlways) {
-			flush();
-		}
 	}
 
 	@Override
 	public void broadcastEmit(T record) throws IOException, InterruptedException {
 		checkErroneous();
 		super.broadcastEmit(record);
-		if (flushAlways) {
-			flush();
-		}
 	}
 
 	@Override
 	public void randomEmit(T record) throws IOException, InterruptedException {
 		checkErroneous();
 		super.randomEmit(record);
-		if (flushAlways) {
-			flush();
-		}
 	}
 
 	/**
 	 * Closes the writer. This stops the flushing thread (if there is one).
 	 */
 	public void close() {
+		clearBuffers();
 		// make sure we terminate the thread in any case
 		if (outputFlusher != null) {
 			outputFlusher.terminate();
@@ -117,6 +106,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 			}
 			catch (InterruptedException e) {
 				// ignore on close
+				// restore interrupt flag to fast exit further blocking calls
+				Thread.currentThread().interrupt();
 			}
 		}
 	}
@@ -179,7 +170,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 
 					// any errors here should let the thread come to a halt and be
 					// recognized by the writer
-					flush();
+					flushAll();
 				}
 			}
 			catch (Throwable t) {

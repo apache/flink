@@ -38,7 +38,7 @@ import static org.junit.Assert.assertEquals;
 public class JobManagerJobGroupTest extends TestLogger {
 
 	@Test
-	public void testGenerateScopeDefault() {
+	public void testGenerateScopeDefault() throws Exception {
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
 		JobManagerMetricGroup tmGroup = new JobManagerMetricGroup(registry, "theHostName");
@@ -52,11 +52,11 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"theHostName.jobmanager.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testGenerateScopeCustom() {
+	public void testGenerateScopeCustom() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM, "abc");
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "some-constant.<job_name>");
@@ -75,11 +75,11 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"some-constant.myJobName.name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
-	public void testGenerateScopeCustomWildcard() {
+	public void testGenerateScopeCustomWildcard() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
 		cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
@@ -98,7 +98,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 				"peter.some-constant." + jid + ".name",
 				jmGroup.getMetricIdentifier("name"));
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test

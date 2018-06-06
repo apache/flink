@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -29,12 +30,12 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -66,7 +67,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture.isDone());
 
@@ -102,7 +104,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				new SlotSharingGroupId(),
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		final AllocationID allocationId = allocationIdFuture.get();
 
@@ -140,7 +143,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture2 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -148,7 +152,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture1.isDone());
 		assertFalse(logicalSlotFuture2.isDone());
@@ -161,7 +166,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture4 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -169,7 +175,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture3.isDone());
 		assertFalse(logicalSlotFuture4.isDone());
@@ -235,7 +242,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId1,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture2 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -243,7 +251,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId1,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture3 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -251,7 +260,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId2,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture4 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -259,7 +269,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId2,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture1.isDone());
 		assertFalse(logicalSlotFuture2.isDone());

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -36,6 +37,7 @@ import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,7 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.PropertiesUtil.getBoolean;
 import static org.apache.flink.util.PropertiesUtil.getLong;
 
 /**
@@ -217,7 +220,8 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				deserializer,
 				getLong(
 					checkNotNull(props, "props"),
-					KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED));
+					KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, PARTITION_DISCOVERY_DISABLED),
+				!getBoolean(props, KEY_DISABLE_METRICS, false));
 
 		this.kafkaProperties = props;
 
@@ -235,9 +239,9 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
-			OffsetCommitMode offsetCommitMode) throws Exception {
-
-		boolean useMetrics = !PropertiesUtil.getBoolean(kafkaProperties, KEY_DISABLE_METRICS, false);
+			OffsetCommitMode offsetCommitMode,
+			MetricGroup consumerMetricGroup,
+			boolean useMetrics) throws Exception {
 
 		long autoCommitInterval = (offsetCommitMode == OffsetCommitMode.KAFKA_PERIODIC)
 				? PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000)
@@ -252,6 +256,7 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 				deserializer,
 				kafkaProperties,
 				autoCommitInterval,
+				consumerMetricGroup,
 				useMetrics);
 	}
 
@@ -268,6 +273,13 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	protected boolean getIsAutoCommitEnabled() {
 		return PropertiesUtil.getBoolean(kafkaProperties, "auto.commit.enable", true) &&
 				PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000) > 0;
+	}
+
+	@Override
+	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(Collection<KafkaTopicPartition> partitions, long timestamp) {
+		// this should not be reached, since we do not expose the timestamp-based startup feature in version 0.8.
+		throw new UnsupportedOperationException(
+			"Fetching partition offsets using timestamps is only supported in Kafka versions 0.10 and above.");
 	}
 
 	// ------------------------------------------------------------------------

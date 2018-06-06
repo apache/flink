@@ -24,6 +24,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
@@ -68,7 +69,6 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	private final int slotsPerTaskManager;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
-	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;
 
@@ -101,7 +101,6 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 		this.clusterDescriptor = clusterDescriptor;
 		this.numberTaskManagers = numberTaskManagers;
 		this.slotsPerTaskManager = slotsPerTaskManager;
-		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
 		this.newlyCreatedCluster = newlyCreatedCluster;
@@ -139,7 +138,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	public int getMaxSlots() {
 		// TODO: this should be retrieved from the running Flink cluster
 		int maxSlots = numberTaskManagers * slotsPerTaskManager;
-		return maxSlots > 0 ? maxSlots : -1;
+		return maxSlots > 0 ? maxSlots : MAX_SLOTS_UNKNOWN;
 	}
 
 	@Override
@@ -148,7 +147,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	}
 
 	@Override
-	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
+	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		if (isDetached()) {
 			if (newlyCreatedCluster) {
 				stopAfterJob(jobGraph.getJobID());
@@ -244,7 +243,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	public void waitForClusterToBeReady() {
 		logAndSysout("Waiting until all TaskManagers have connected");
 
-		for (GetClusterStatusResponse currentStatus, lastStatus = null;; lastStatus = currentStatus) {
+		for (GetClusterStatusResponse currentStatus, lastStatus = null; true; lastStatus = currentStatus) {
 			currentStatus = getClusterStatus();
 			if (currentStatus != null && !currentStatus.equals(lastStatus)) {
 				logAndSysout("TaskManager status (" + currentStatus.numRegisteredTaskManagers() + "/"
@@ -262,6 +261,20 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Interrupted while waiting for TaskManagers", e);
 			}
+		}
+	}
+
+	@Override
+	public void shutDownCluster() {
+		LOG.info("Sending shutdown request to the Application Master");
+		try {
+			final Future<Object> response = Patterns.ask(applicationClient.get(),
+				new YarnMessages.LocalStopYarnSession(ApplicationStatus.SUCCEEDED,
+					"Flink YARN Client requested shutdown"),
+				new Timeout(akkaDuration));
+			Await.ready(response, akkaDuration);
+		} catch (final Exception e) {
+			LOG.warn("Error while stopping YARN cluster.", e);
 		}
 	}
 

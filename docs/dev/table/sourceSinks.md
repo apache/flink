@@ -548,7 +548,7 @@ An `OrcTableSource` is created as shown below:
 Configuration config = new Configuration();
 
 OrcTableSource orcTableSource = OrcTableSource.builder()
-  // path to ORC file(s)
+  // path to ORC file(s). NOTE: By default, directories are recursively scanned.
   .path("file:///path/to/data")
   // schema of ORC files
   .forOrcSchema("struct<name:string,addresses:array<struct<street:string,zip:smallint>>>")
@@ -566,7 +566,7 @@ OrcTableSource orcTableSource = OrcTableSource.builder()
 val config = new Configuration()
 
 val orcTableSource = OrcTableSource.builder()
-  // path to ORC file(s)
+  // path to ORC file(s). NOTE: By default, directories are recursively scanned.
   .path("file:///path/to/data")
   // schema of ORC files
   .forOrcSchema("struct<name:string,addresses:array<struct<street:string,zip:smallint>>>")

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -29,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -58,6 +61,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 		AllocationID allocationId,
 		String targetAddress,
 		ResourceManagerId resourceManagerId,
+		@RpcTimeout Time timeout);
+
+	CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
+		ExecutionAttemptID executionAttemptId,
+		int sampleId,
+		int numSamples,
+		Time delayBetweenSamples,
+		int maxStackTraceDepth,
 		@RpcTimeout Time timeout);
 
 	/**
@@ -135,14 +146,14 @@ public interface TaskExecutorGateway extends RpcGateway {
 	CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 
 	/**
-	 * Heartbeat request from the job manager
+	 * Heartbeat request from the job manager.
 	 *
 	 * @param heartbeatOrigin unique id of the job manager
 	 */
 	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
 
 	/**
-	 * Heartbeat request from the resource manager
+	 * Heartbeat request from the resource manager.
 	 *
 	 * @param heartbeatOrigin unique id of the resource manager
 	 */
@@ -175,4 +186,13 @@ public interface TaskExecutorGateway extends RpcGateway {
 		final AllocationID allocationId,
 		final Throwable cause,
 		@RpcTimeout final Time timeout);
+
+	/**
+	 * Requests the file upload of the specified type to the cluster's {@link BlobServer}.
+	 *
+	 * @param fileType to upload
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+	 */
+	CompletableFuture<TransientBlobKey> requestFileUpload(FileType fileType, @RpcTimeout Time timeout);
 }

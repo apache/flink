@@ -33,14 +33,14 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A buffer pool used to manage a number of {@link Buffer} instances from the
  * {@link NetworkBufferPool}.
- * <p>
- * Buffer requests are mediated to the network buffer pool to ensure dead-lock
+ *
+ * <p>Buffer requests are mediated to the network buffer pool to ensure dead-lock
  * free operation of the network stack by limiting the number of buffers per
  * local buffer pool. It also implements the default mechanism for buffer
  * recycling, which ensures that every buffer is ultimately returned to the
  * network buffer pool.
  *
- * <p> The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
+ * <p>The size of this pool can be dynamically changed at runtime ({@link #setNumBuffers(int)}. It
  * will then lazily return the required number of buffers to the {@link NetworkBufferPool} to
  * match its new size.
  */
@@ -50,7 +50,7 @@ class LocalBufferPool implements BufferPool {
 	/** Global network buffer pool to get buffers from. */
 	private final NetworkBufferPool networkBufferPool;
 
-	/** The minimum number of required segments for this pool */
+	/** The minimum number of required segments for this pool. */
 	private final int numberOfRequiredMemorySegments;
 
 	/**
@@ -68,7 +68,7 @@ class LocalBufferPool implements BufferPool {
 	/** Maximum number of network buffers to allocate. */
 	private final int maxNumberOfMemorySegments;
 
-	/** The current size of this pool */
+	/** The current size of this pool. */
 	private int currentPoolSize;
 
 	/**
@@ -180,8 +180,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public Buffer requestBuffer() throws IOException {
 		try {
-			BufferBuilder bufferBuilder = requestBufferBuilder(false);
-			return bufferBuilder != null ? bufferBuilder.build() : null;
+			return toBuffer(requestMemorySegment(false));
 		}
 		catch (InterruptedException e) {
 			throw new IOException(e);
@@ -190,16 +189,29 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		BufferBuilder bufferBuilder = requestBufferBuilder(true);
-		return bufferBuilder != null ? bufferBuilder.build() : null;
+		return toBuffer(requestMemorySegment(true));
 	}
 
 	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
-		return requestBufferBuilder(true);
+		return toBufferBuilder(requestMemorySegment(true));
 	}
 
-	private BufferBuilder requestBufferBuilder(boolean isBlocking) throws InterruptedException, IOException {
+	private Buffer toBuffer(MemorySegment memorySegment) {
+		if (memorySegment == null) {
+			return null;
+		}
+		return new NetworkBuffer(memorySegment, this);
+	}
+
+	private BufferBuilder toBufferBuilder(MemorySegment memorySegment) {
+		if (memorySegment == null) {
+			return null;
+		}
+		return new BufferBuilder(memorySegment, this);
+	}
+
+	private MemorySegment requestMemorySegment(boolean isBlocking) throws InterruptedException, IOException {
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
@@ -216,9 +228,7 @@ class LocalBufferPool implements BufferPool {
 
 					if (segment != null) {
 						numberOfRequestedMemorySegments++;
-						availableMemorySegments.add(segment);
-
-						continue;
+						return segment;
 					}
 				}
 
@@ -234,7 +244,7 @@ class LocalBufferPool implements BufferPool {
 				}
 			}
 
-			return new BufferBuilder(availableMemorySegments.poll(), this);
+			return availableMemorySegments.poll();
 		}
 	}
 

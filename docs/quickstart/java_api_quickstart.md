@@ -1,6 +1,6 @@
 ---
-title: "Sample Project using the Java API"
-nav-title: Sample Project in Java
+title: "Project Template for Java"
+nav-title: Project Template for Java
 nav-parent_id: start
 nav-pos: 0
 ---
@@ -64,7 +64,7 @@ Use one of the following commands to __create a project__:
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
     </p>
     {% endunless %}
 </div>
@@ -86,120 +86,53 @@ quickstart/
         │       └── myorg
         │           └── quickstart
         │               ├── BatchJob.java
-        │               ├── SocketTextStreamWordCount.java
-        │               ├── StreamingJob.java
-        │               └── WordCount.java
+        │               └── StreamingJob.java
         └── resources
             └── log4j.properties
 {% endhighlight %}
 
-The sample project is a __Maven project__, which contains four classes. _StreamingJob_ and _BatchJob_ are basic skeleton programs, _SocketTextStreamWordCount_ is a working streaming example and _WordCountJob_ is a working batch example. Please note that the _main_ method of all classes allow you to start Flink in a development/testing mode.
+The sample project is a __Maven project__, which contains two classes: _StreamingJob_ and _BatchJob_ are the basic skeleton programs for a *DataStream* and *DataSet* program.
+The _main_ method is the entry point of the program, both for in-IDE testing/execution and for proper deployments.
 
 We recommend you __import this project into your IDE__ to develop and
-test it. If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/)
+test it. IntelliJ IDEA supports Maven projects out of the box.
+If you use Eclipse, the [m2e plugin](http://www.eclipse.org/m2e/)
 allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/reference/creating-sect-importing-projects.html#fig-creating-import).
 Some Eclipse bundles include that plugin by default, others require you
-to install it manually. The IntelliJ IDE supports Maven projects out of
-the box.
+to install it manually. 
 
-
-*A note to Mac OS X users*: The default JVM heapsize for Java is too
-small for Flink. You have to manually increase it. In Eclipse, choose
+*A note to Mac OS X users*: The default JVM heapsize for Java may be too
+small for Flink. You have to manually increase it.
+In Eclipse, choose
 `Run Configurations -> Arguments` and write into the `VM Arguments`
 box: `-Xmx800m`.
+In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu. See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details. 
 
 ## Build Project
 
-If you want to __build your project__, go to your project directory and
-issue the `mvn clean install -Pbuild-jar` command. You will
-__find a jar__ that runs on every Flink cluster with a compatible
-version, __target/original-your-artifact-id-your-version.jar__. There
-is also a fat-jar in __target/your-artifact-id-your-version.jar__ which,
-additionally, contains all dependencies that were added to the Maven
-project.
+If you want to __build/package your project__, go to your project directory and
+run the '`mvn clean package`' command.
+You will __find a JAR file__ that contains your application, plus connectors and libraries
+that you may have added as dependencies to the application: `target/<artifact-id>-<version>.jar`.
+
+__Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
+we recommend you change the `mainClass` setting in the `pom.xml` file accordingly. That way, the Flink
+can run time application from the JAR file without additionally specifying the main class.
 
 ## Next Steps
 
 Write your application!
 
-The quickstart project contains a `WordCount` implementation, the
-"Hello World" of Big Data processing systems. The goal of `WordCount`
-is to determine the frequencies of words in a text, e.g., how often do
-the terms "the" or "house" occur in all Wikipedia texts.
+If you are writing a streaming application and you are looking for inspiration what to write,
+take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/quickstart/run_example_quickstart.html#writing-a-flink-program).
 
-__Sample Input__:
+If you are writing a batch processing application and you are looking for inspiration what to write,
+take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html).
 
-~~~bash
-big data is big
-~~~
-
-__Sample Output__:
-
-~~~bash
-big 2
-data 1
-is 1
-~~~
-
-The following code shows the `WordCount` implementation from the
-Quickstart which processes some text lines with two operators (a FlatMap
-and a Reduce operation via aggregating a sum), and prints the resulting
-words and counts to std-out.
-
-~~~java
-public class WordCount {
-
-  public static void main(String[] args) throws Exception {
-
-    // set up the execution environment
-    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-    // get input data
-    DataSet<String> text = env.fromElements(
-        "To be, or not to be,--that is the question:--",
-        "Whether 'tis nobler in the mind to suffer",
-        "The slings and arrows of outrageous fortune",
-        "Or to take arms against a sea of troubles,"
-        );
-
-    DataSet<Tuple2<String, Integer>> counts =
-        // split up the lines in pairs (2-tuples) containing: (word,1)
-        text.flatMap(new LineSplitter())
-        // group by the tuple field "0" and sum up tuple field "1"
-        .groupBy(0)
-        .sum(1);
-
-    // execute and print result
-    counts.print();
-  }
-}
-~~~
-
-The operations are defined by specialized classes, here the LineSplitter class.
-
-~~~java
-public static final class LineSplitter implements FlatMapFunction<String, Tuple2<String, Integer>> {
-
-  @Override
-  public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-    // normalize and split the line
-    String[] tokens = value.toLowerCase().split("\\W+");
-
-    // emit the pairs
-    for (String token : tokens) {
-      if (token.length() > 0) {
-        out.collect(new Tuple2<String, Integer>(token, 1));
-      }
-    }
-  }
-}
-~~~
-
-{% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
-
-For a complete overview over our API, have a look at the
+For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
+
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.

@@ -85,7 +85,11 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 			}
 		};
 		this.cluster = builder.getCluster();
-		this.session = cluster.connect();
+		this.session = createSession();
+	}
+
+	protected Session createSession() {
+		return cluster.connect();
 	}
 
 	@Override
@@ -134,8 +138,8 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	}
 
 	private void waitForPendingUpdates() throws InterruptedException {
-		while (updatesPending.get() > 0) {
-			synchronized (updatesPending) {
+		synchronized (updatesPending) {
+			while (updatesPending.get() > 0) {
 				updatesPending.wait();
 			}
 		}

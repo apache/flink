@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 
 /**
  * Interface for completion actions once a Flink job has reached
@@ -37,4 +38,9 @@ public interface OnCompletionActions {
 	 * Job was finished by another JobMaster.
 	 */
 	void jobFinishedByOther();
+
+	/**
+	 * The {@link JobMaster} failed while executing the job.
+	 */
+	void jobMasterFailed(Throwable cause);
 }

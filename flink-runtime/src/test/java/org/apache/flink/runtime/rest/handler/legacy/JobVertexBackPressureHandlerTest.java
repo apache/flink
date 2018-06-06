@@ -20,8 +20,9 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,10 +44,10 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for back pressure handler responses.
  */
-public class JobVertexBackPressureHandlerTest {
+public class JobVertexBackPressureHandlerTest extends TestLogger {
 	@Test
 	public void testGetPaths() {
-		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), mock(BackPressureStatsTracker.class), 0);
+		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), mock(BackPressureStatsTrackerImpl.class), 0);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/backpressure", paths[0]);
@@ -56,7 +57,7 @@ public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testResponseNoStatsAvailable() throws Exception {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-		BackPressureStatsTracker statsTracker = mock(BackPressureStatsTracker.class);
+		BackPressureStatsTrackerImpl statsTracker = mock(BackPressureStatsTrackerImpl.class);
 
 		when(statsTracker.getOperatorBackPressureStats(any(ExecutionJobVertex.class)))
 				.thenReturn(Optional.empty());
@@ -87,7 +88,7 @@ public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testResponseStatsAvailable() throws Exception {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-		BackPressureStatsTracker statsTracker = mock(BackPressureStatsTracker.class);
+		BackPressureStatsTrackerImpl statsTracker = mock(BackPressureStatsTrackerImpl.class);
 
 		OperatorBackPressureStats stats = new OperatorBackPressureStats(
 				0, System.currentTimeMillis(), new double[] { 0.31, 0.48, 1.0, 0.0 });
@@ -149,7 +150,7 @@ public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testResponsePassedRefreshInterval() throws Exception {
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-		BackPressureStatsTracker statsTracker = mock(BackPressureStatsTracker.class);
+		BackPressureStatsTrackerImpl statsTracker = mock(BackPressureStatsTrackerImpl.class);
 
 		OperatorBackPressureStats stats = new OperatorBackPressureStats(
 				0, System.currentTimeMillis(), new double[] { 0.31, 0.48, 1.0, 0.0 });

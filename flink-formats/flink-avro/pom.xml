@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.6-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -51,17 +51,35 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<!-- use a dedicated Scala version to not depend on it -->
+			<artifactId>flink-table_2.11</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<!-- Projects depending on this project, won't depend on flink-table. -->
+			<optional>true</optional>
+		</dependency>
+
 		<!-- test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
+			<artifactId>flink-table_2.11</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<type>test-jar</type>
 		</dependency>
 
 		<!-- To avoid having to have the 'flink-avro' project dependent on a particular
-			Scala version, we hard-refer the flink-test-utils_2.11 here -->
+			Scala version, we hard-refer the flink-streaming-scala_2.11 here -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-scala_2.11</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

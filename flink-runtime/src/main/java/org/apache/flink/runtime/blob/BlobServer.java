@@ -27,6 +27,7 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -169,7 +170,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 			.schedule(new TransientBlobCleanupTask(blobExpiryTimes, readWriteLock.writeLock(),
 				storageDir, LOG), cleanupInterval, cleanupInterval);
 
-		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
 
 		if (config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 			try {
@@ -345,19 +346,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			// Remove shutdown hook to prevent resource leaks, unless this is invoked by the
-			// shutdown hook itself
-			if (shutdownHook != null && shutdownHook != Thread.currentThread()) {
-				try {
-					Runtime.getRuntime().removeShutdownHook(shutdownHook);
-				}
-				catch (IllegalStateException e) {
-					// race, JVM is in shutdown already, we can safely ignore this
-				}
-				catch (Throwable t) {
-					LOG.warn("Exception while unregistering BLOB server's cleanup shutdown hook.", t);
-				}
-			}
+			// Remove shutdown hook to prevent resource leaks
+			ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
@@ -811,11 +801,13 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
+	 * @param cleanupBlobStoreFiles
+	 * 		True if the corresponding blob store files shall be cleaned up as well. Otherwise false.
 	 *
 	 * @return  <tt>true</tt> if the job directory is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	public boolean cleanupJob(JobID jobId) {
+	public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
 		checkNotNull(jobId);
 
 		final File jobDir =
@@ -840,8 +832,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 					jobDir.getAbsolutePath(), e);
 			}
 
-			// delete in HA store
-			boolean deletedHA = blobStore.deleteAll(jobId);
+			// delete in HA blob store files
+			final boolean deletedHA = !cleanupBlobStoreFiles || blobStore.deleteAll(jobId);
 
 			return deletedLocally && deletedHA;
 		} finally {

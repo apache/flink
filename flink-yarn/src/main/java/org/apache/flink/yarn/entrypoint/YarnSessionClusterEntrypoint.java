@@ -20,6 +20,7 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.SessionClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.YarnResourceManager;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
@@ -64,6 +66,11 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 	}
 
 	@Override
+	protected String getRPCPortRange(Configuration configuration) {
+		return configuration.getString(YarnConfigOptions.APPLICATION_MASTER_PORT);
+	}
+
+	@Override
 	protected ResourceManager<?> createResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
@@ -72,6 +79,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl) throws Exception {
 		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
@@ -92,6 +100,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			rmRuntimeServices.getSlotManager(),
 			metricRegistry,
 			rmRuntimeServices.getJobLeaderIdService(),
+			clusterInformation,
 			fatalErrorHandler,
 			webInterfaceUrl);
 	}

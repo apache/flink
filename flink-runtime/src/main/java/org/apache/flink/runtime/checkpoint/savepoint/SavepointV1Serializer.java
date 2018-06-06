@@ -25,11 +25,12 @@ import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -256,7 +257,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	@VisibleForTesting
 	public static void serializeOperatorStateHandle(
-			OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
+		OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
 
 		if (stateHandle != null) {
 			dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
@@ -309,7 +310,7 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 				offsetsMap.put(key, metaInfo);
 			}
 			StreamStateHandle stateHandle = deserializeStreamStateHandle(dis);
-			return new OperatorStateHandle(offsetsMap, stateHandle);
+			return new OperatorStreamStateHandle(offsetsMap, stateHandle);
 		} else {
 			throw new IllegalStateException("Reading invalid OperatorStateHandle, type: " + type);
 		}

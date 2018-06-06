@@ -149,20 +149,20 @@ Also, POJOs can be used to give large `Tuple`-types a name.
 Instead of using:
 
 
-~~~java
+{% highlight java %}
 Tuple11<String, String, ..., String> var = new ...;
-~~~
+{% endhighlight %}
 
 
 It is much easier to create a custom type extending from the large Tuple type.
 
-~~~java
+{% highlight java %}
 CustomType var = new ...;
 
 public static class CustomType extends Tuple11<String, String, ..., String> {
     // constructor matching super
 }
-~~~
+{% endhighlight %}
 
 ## Using Logback instead of Log4j
 

@@ -26,17 +26,18 @@ If you want to run Flink locally on a Windows machine you need to [download](htt
 
 ## Starting with Windows Batch Files
 
-To start Flink in local mode from the *Windows Batch*, open the command window, navigate to the `bin/` directory of Flink and run `start-local.bat`.
+To start Flink in from the *Windows Command Line*, open the command window, navigate to the `bin/` directory of Flink and run `start-cluster.bat`.
 
 Note: The ``bin`` folder of your Java Runtime Environment must be included in Window's ``%PATH%`` variable. Follow this [guide](http://www.java.com/en/download/help/path.xml) to add Java to the ``%PATH%`` variable.
 
-~~~bash
+{% highlight bash %}
 $ cd flink
 $ cd bin
-$ start-local.bat
-Starting Flink job manager. Web interface by default on http://localhost:8081/.
-Do not close this batch window. Stop job manager by pressing Ctrl+C.
-~~~
+$ start-cluster.bat
+Starting a local cluster with one JobManager process and one TaskManager process.
+You can terminate the processes via CTRL-C in the spawned shell windows.
+Web interface by default on http://localhost:8081/.
+{% endhighlight %}
 
 After that, you need to open a second terminal to run jobs using `flink.bat`.
 
@@ -44,13 +45,13 @@ After that, you need to open a second terminal to run jobs using `flink.bat`.
 
 ## Starting with Cygwin and Unix Scripts
 
-With *Cygwin* you need to start the Cygwin Terminal, navigate to your Flink directory and run the `start-local.sh` script:
+With *Cygwin* you need to start the Cygwin Terminal, navigate to your Flink directory and run the `start-cluster.sh` script:
 
-~~~bash
+{% highlight bash %}
 $ cd flink
-$ bin/start-local.sh
-Starting jobmanager.
-~~~
+$ bin/start-cluster.sh
+Starting cluster.
+{% endhighlight %}
 
 {% top %}
 
@@ -58,9 +59,9 @@ Starting jobmanager.
 
 If you are installing Flink from the git repository and you are using the Windows git shell, Cygwin can produce a failure similar to this one:
 
-~~~bash
-c:/flink/bin/start-local.sh: line 30: $'\r': command not found
-~~~
+{% highlight bash %}
+c:/flink/bin/start-cluster.sh: line 30: $'\r': command not found
+{% endhighlight %}
 
 This error occurs because git is automatically transforming UNIX line endings to Windows style line endings when running in Windows. The problem is that Cygwin can only deal with UNIX style line endings. The solution is to adjust the Cygwin settings to deal with the correct line endings by following these three steps:
 
@@ -68,18 +69,18 @@ This error occurs because git is automatically transforming UNIX line endings to
 
 2. Determine your home directory by entering
 
-    ~~~bash
+    {% highlight bash %}
     cd; pwd
-    ~~~
+    {% endhighlight %}
 
     This will return a path under the Cygwin root path.
 
 3. Using NotePad, WordPad or a different text editor open the file `.bash_profile` in the home directory and append the following: (If the file does not exist you will have to create it)
 
-~~~bash
+{% highlight bash %}
 export SHELLOPTS
 set -o igncr
-~~~
+{% endhighlight %}
 
 Save the file and open a new bash shell.
 

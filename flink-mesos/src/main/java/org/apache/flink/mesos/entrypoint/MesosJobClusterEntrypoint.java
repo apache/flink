@@ -25,10 +25,12 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameter
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -43,7 +45,6 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -59,6 +60,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Entry point for Mesos per-job clusters.
@@ -113,17 +115,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void startClusterComponents(
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
-			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry) throws Exception {
-		super.startClusterComponents(configuration, rpcService, highAvailabilityServices, blobServer, heartbeatServices, metricRegistry);
-	}
-
-	@Override
 	protected ResourceManager<?> createResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
@@ -132,6 +123,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
+			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl) throws Exception {
 		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
@@ -150,6 +142,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			rmRuntimeServices.getSlotManager(),
 			metricRegistry,
 			rmRuntimeServices.getJobLeaderIdService(),
+			clusterInformation,
 			fatalErrorHandler,
 			configuration,
 			mesosServices,
@@ -176,27 +169,20 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
-		Throwable exception = null;
+	protected CompletableFuture<Void> stopClusterServices(boolean cleanupHaData) {
+		final CompletableFuture<Void> serviceShutDownFuture = super.stopClusterServices(cleanupHaData);
 
-		try {
-			super.stopClusterComponents(cleanupHaData);
-		} catch (Throwable t) {
-			exception = ExceptionUtils.firstOrSuppressed(t, exception);
-		}
-
-		if (mesosServices != null) {
-			try {
-				mesosServices.close(cleanupHaData);
-			} catch (Throwable t) {
-				exception = ExceptionUtils.firstOrSuppressed(t, exception);
-			}
-		}
-
-		if (exception != null) {
-			throw new FlinkException("Could not properly shut down the Mesos job cluster entry point.", exception);
-		}
+		return FutureUtils.runAfterwards(
+			serviceShutDownFuture,
+			() -> {
+				if (mesosServices != null) {
+					mesosServices.close(cleanupHaData);
+				}
+			});
 	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {}
 
 	public static void main(String[] args) {
 		// startup checks and logging

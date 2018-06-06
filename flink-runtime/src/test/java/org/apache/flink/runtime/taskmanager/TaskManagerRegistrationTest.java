@@ -24,8 +24,8 @@ import akka.actor.InvalidActorNameException;
 import akka.actor.Terminated;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
@@ -267,12 +267,12 @@ public class TaskManagerRegistrationTest extends TestLogger {
 			try {
 				// registration timeout of 1 second
 				Configuration tmConfig = new Configuration();
-				tmConfig.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, "500 ms");
+				tmConfig.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "500 ms");
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
 					// Give a non-existent job manager address to the task manager
-					new TestingLeaderRetrievalService(
+					new SettableLeaderRetrievalService(
 						"foobar",
 						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
@@ -325,11 +325,11 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				FiniteDuration refusedRegistrationPause = new FiniteDuration(500, TimeUnit.MILLISECONDS);
 				Configuration tmConfig = new Configuration(config);
-				tmConfig.setString(ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, refusedRegistrationPause.toString());
+				tmConfig.setString(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF, refusedRegistrationPause.toString());
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
-					new TestingLeaderRetrievalService(
+					new SettableLeaderRetrievalService(
 						jm.path(),
 						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
@@ -396,7 +396,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
-					new TestingLeaderRetrievalService(
+					new SettableLeaderRetrievalService(
 						jm.path(),
 						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
@@ -407,8 +407,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				long maxDelay = 30000;
 
 				Configuration tmConfig = new Configuration(config);
-				tmConfig.setString(ConfigConstants.TASK_MANAGER_REFUSED_REGISTRATION_PAUSE, refusedRegistrationPause + " ms");
-				tmConfig.setString(ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, initialRegistrationPause + " ms");
+				tmConfig.setString(TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF, refusedRegistrationPause + " ms");
+				tmConfig.setString(TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF, initialRegistrationPause + " ms");
 
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages
@@ -495,13 +495,13 @@ public class TaskManagerRegistrationTest extends TestLogger {
 					Option.apply(JOB_MANAGER_NAME));
 				final ActorGateway fakeJM1Gateway = fakeJobManager1Gateway;
 
-				TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+				SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService(
 					fakeJM1Gateway.path(),
 					HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
-					testingLeaderRetrievalService);
+					settableLeaderRetrievalService);
 
 				// we make the test actor (the test kit) the JobManager to intercept
 				// the messages

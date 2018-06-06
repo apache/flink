@@ -24,8 +24,8 @@ bin=`cd "$bin"; pwd`
 
 # Starts a ZooKeeper quorum as configured in $FLINK_CONF/zoo.cfg
 
-ZK_CONF=$FLINK_CONF_DIR/zoo.cfg
-if [ ! -f $ZK_CONF ]; then
+ZK_CONF="$FLINK_CONF_DIR/zoo.cfg"
+if [ ! -f "$ZK_CONF" ]; then
     echo "[ERROR] No ZooKeeper configuration file found in '$ZK_CONF'."
     exit 1
 fi
@@ -43,4 +43,4 @@ while read server ; do
     else
         echo "[WARN] Parse error. Skipping config entry '$server'."
     fi
-done < <(grep "^server\." $ZK_CONF)
+done < <(grep "^server\." "$ZK_CONF")

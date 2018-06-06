@@ -207,7 +207,8 @@ class DataStreamGroupWindowAggregate(
           inputSchema.fieldTypeInfos,
           schema.relDataType,
           grouping,
-          needMerge)
+          needMerge,
+          tableEnv.getConfig)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)
@@ -232,7 +233,8 @@ class DataStreamGroupWindowAggregate(
           inputSchema.fieldTypeInfos,
           schema.relDataType,
           Array[Int](),
-          needMerge)
+          needMerge,
+          tableEnv.getConfig)
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, outRowType)

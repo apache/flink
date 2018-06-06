@@ -36,7 +36,7 @@ give you a good foundation from which to start building more complex analysis pr
 
 ## Setting up a Maven Project
 
-We are going to use a Flink Maven Archetype for creating our project stucture. Please
+We are going to use a Flink Maven Archetype for creating our project structure. Please
 see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html) for more details
 about this. For our purposes, the command to run is this:
 
@@ -284,7 +284,7 @@ similar to this:
 The number in front of each line tells you on which parallel instance of the print sink the output
 was produced.
 
-This should get you started with writing your own Flink programs. To learn more 
+This should get you started with writing your own Flink programs. To learn more
 you can check out our guides
 about [basic concepts]({{ site.baseurl }}/dev/api_concepts.html) and the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html). Stick
@@ -348,7 +348,7 @@ to the location where you installed Flink and start a local cluster:
 
 {% highlight bash %}
 $ cd my/flink/directory
-$ bin/start-local.sh
+$ bin/start-cluster.sh
 {% endhighlight %}
 
 We also have to create the Kafka Topic, so that our program can write to it:
@@ -366,7 +366,7 @@ $ bin/flink run -c wikiedits.WikipediaAnalysis path/to/wikiedits-0.1.jar
 
 The output of that command should look similar to this, if everything went according to plan:
 
-```
+{% highlight plain %}
 03/08/2016 15:09:27 Job execution switched to status RUNNING.
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to SCHEDULED
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to DEPLOYING
@@ -374,7 +374,7 @@ The output of that command should look similar to this, if everything went accor
 03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to DEPLOYING
 03/08/2016 15:09:27 TriggerWindow(TumblingProcessingTimeWindows(5000), FoldingStateDescriptor{name=window-contents, defaultValue=(,0), serializer=null}, ProcessingTimeTrigger(), WindowedStream.fold(WindowedStream.java:207)) -> Map -> Sink: Unnamed(1/1) switched to RUNNING
 03/08/2016 15:09:27 Source: Custom Source(1/1) switched to RUNNING
-```
+{% endhighlight %}
 
 You can see how the individual operators start running. There are only two, because
 the operations after the window get folded into one operation for performance reasons. In Flink

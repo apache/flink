@@ -126,6 +126,8 @@ KEY_ENV_SSH_OPTS="env.ssh.opts"
 KEY_HIGH_AVAILABILITY="high-availability"
 KEY_ZK_HEAP_MB="zookeeper.heap.mb"
 
+KEY_FLINK_MODE="mode"
+
 ########################################################################################################################
 # PATHS AND CONFIG
 ########################################################################################################################
@@ -153,11 +155,14 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 # Define the main directory of the flink installation
 FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
+FLINK_OPT_DIR=$FLINK_ROOT_DIR/opt
 
 ### Exported environment variables ###
 export FLINK_CONF_DIR
 # export /lib dir to access it during deployment of the Yarn staging files
 export FLINK_LIB_DIR
+# export /opt dir to access it for the SQL client
+export FLINK_OPT_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a
@@ -258,6 +263,11 @@ fi
 if [ -z "${FLINK_TM_NET_BUF_MAX}" -o "${FLINK_TM_NET_BUF_MAX}" = "-1" ]; then
     # default: 1GB = 1073741824 bytes
     FLINK_TM_NET_BUF_MAX=$(readFromConfig ${KEY_TASKM_NET_BUF_MAX} 1073741824 "${YAML_CONF}")
+fi
+
+# Define FLIP if it is not already set
+if [ -z "${FLINK_MODE}" ]; then
+    FLINK_MODE=$(readFromConfig ${KEY_FLINK_MODE} "new" "${YAML_CONF}")
 fi
 
 
@@ -361,31 +371,8 @@ fi
 
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
-# check if the "hadoop" binary is available, if yes, use that to augment the CLASSPATH
-if command -v hadoop >/dev/null 2>&1; then
-    echo "Using the result of 'hadoop classpath' to augment the Hadoop classpath: `hadoop classpath`"
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hadoop classpath`"
-fi
-
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Look for hbase command in HBASE_HOME or search PATH.
-    if [ -n "${HBASE_HOME}" ]; then
-        HBASE_PATH="${HBASE_HOME}/bin"
-        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
-    else
-        HBASE_PATH=$PATH
-        HBASE_COMMAND=`command -v hbase`
-    fi
-
-    # Whether the hbase command was found.
-    if [[ $? -eq 0 ]]; then
-        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
-    else
-        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
-    fi
-
-    unset HBASE_COMMAND HBASE_PATH
+    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
 fi
 
 # Auxilliary function which extracts the name of host from a line which
@@ -436,6 +423,7 @@ readMasters() {
     MASTERS=()
     WEBUIPORTS=()
 
+    MASTERS_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
@@ -450,6 +438,10 @@ readMasters() {
                 WEBUIPORTS+=(0)
             else
                 WEBUIPORTS+=(${WEBUIPORT})
+            fi
+
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
+                MASTERS_ALL_LOCALHOST=false
             fi
         fi
     done < "$MASTERS_FILE"
@@ -472,7 +464,7 @@ readSlaves() {
         HOST=$( extractHostName $line)
         if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
-            if [ "${HOST}" != "localhost" ] ; then
+            if [ "${HOST}" != "localhost" ] && [ "${HOST}" != "127.0.0.1" ] ; then
                 SLAVES_ALL_LOCALHOST=false
             fi
         fi
@@ -480,17 +472,16 @@ readSlaves() {
 }
 
 # starts or stops TMs on all slaves
-# TMSlaves start|stop [flip6]
+# TMSlaves start|stop
 TMSlaves() {
     CMD=$1
-    FLIP6=$2
 
     readSlaves
 
     if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
         # all-local setup
         for slave in ${SLAVES[@]}; do
-            "${FLINK_BIN_DIR}"/taskmanager.sh "${CMD}" "${FLIP6}"
+            "${FLINK_BIN_DIR}"/taskmanager.sh "${CMD}"
         done
     else
         # non-local setup
@@ -498,11 +489,11 @@ TMSlaves() {
         command -v pdsh >/dev/null 2>&1
         if [[ $? -ne 0 ]]; then
             for slave in ${SLAVES[@]}; do
-                ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" \"${FLIP6}\" &"
+                ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" &"
             done
         else
             PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
-                "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" \"${FLIP6}\""
+                "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\""
         fi
     fi
 }

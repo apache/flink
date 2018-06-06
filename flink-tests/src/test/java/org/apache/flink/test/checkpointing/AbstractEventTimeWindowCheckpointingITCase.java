@@ -25,28 +25,26 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -54,6 +52,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -64,9 +63,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
@@ -87,34 +83,44 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLogger {
 
-	private static final int MAX_MEM_STATE_SIZE = 10 * 1024 * 1024;
+	private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
 
-	private static LocalFlinkMiniCluster cluster;
+	private TestingServer zkServer;
 
-	private static TestStreamEnvironment env;
+	public MiniClusterResource miniClusterResource;
 
-	private static TestingServer zkServer;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Rule
 	public TestName name = new TestName();
 
-	private StateBackendEnum stateBackendEnum;
 	private AbstractStateBackend stateBackend;
-
-	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
-		this.stateBackendEnum = stateBackendEnum;
-	}
 
 	enum StateBackendEnum {
 		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC
 	}
 
-	@Before
-	public void startTestCluster() throws Exception {
+	protected abstract StateBackendEnum getStateBackend();
+
+	protected final MiniClusterResource getMiniClusterResource() {
+		return new MiniClusterResource(
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				getConfigurationSafe(),
+				2,
+				PARALLELISM / 2));
+	}
+
+	private Configuration getConfigurationSafe() {
+		try {
+			return getConfiguration();
+		} catch (Exception e) {
+			throw new AssertionError("Could not initialize test.", e);
+		}
+	}
+
+	private Configuration getConfiguration() throws Exception {
 
 		// print a message when starting a test method to avoid Travis' <tt>"Maven produced no
 		// output for xxx seconds."</tt> messages
@@ -122,44 +128,13 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			"Starting " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
 
 		// Testing HA Scenario / ZKCompletedCheckpointStore with incremental checkpoints
+		StateBackendEnum stateBackendEnum = getStateBackend();
 		if (ROCKSDB_INCREMENTAL_ZK.equals(stateBackendEnum)) {
 			zkServer = new TestingServer();
 			zkServer.start();
 		}
 
-		TemporaryFolder temporaryFolder = new TemporaryFolder();
-		temporaryFolder.create();
-		final File haDir = temporaryFolder.newFolder();
-
-		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM / 2);
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
-		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
-
-		if (zkServer != null) {
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
-		}
-
-		// purposefully delay in the executor to tease out races
-		final ScheduledExecutorService executor = Executors.newScheduledThreadPool(10);
-		HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-			config,
-			new Executor() {
-				@Override
-				public void execute(Runnable command) {
-					executor.schedule(command, 500, MILLISECONDS);
-				}
-			});
-
-		cluster = new LocalFlinkMiniCluster(config, haServices, false);
-		cluster.start();
-
-		env = new TestStreamEnvironment(cluster, PARALLELISM);
-		env.getConfig().setUseSnapshotCompression(true);
+		Configuration config = createClusterConfig();
 
 		switch (stateBackendEnum) {
 			case MEM:
@@ -204,13 +179,39 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			default:
 				throw new IllegalStateException("No backend selected.");
 		}
+		return config;
+	}
+
+	protected Configuration createClusterConfig() throws IOException {
+		TemporaryFolder temporaryFolder = new TemporaryFolder();
+		temporaryFolder.create();
+		final File haDir = temporaryFolder.newFolder();
+
+		Configuration config = new Configuration();
+		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
+		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
+		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
+
+		if (zkServer != null) {
+			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haDir.toURI().toString());
+		}
+		return config;
+	}
+
+	@Before
+	public void setupTestCluster() throws Exception {
+		miniClusterResource = getMiniClusterResource();
+		miniClusterResource.before();
 	}
 
 	@After
 	public void stopTestCluster() throws IOException {
-		if (cluster != null) {
-			cluster.stop();
-			cluster = null;
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
+			miniClusterResource = null;
 		}
 
 		if (zkServer != null) {
@@ -234,12 +235,14 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		FailingSource.reset();
 
 		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
+			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
@@ -303,6 +306,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		FailingSource.reset();
 
 		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setMaxParallelism(maxParallelism);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -310,6 +314,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
+			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
@@ -369,6 +374,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		FailingSource.reset();
 
 		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setMaxParallelism(2 * PARALLELISM);
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -431,12 +437,14 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		FailingSource.reset();
 
 		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
+			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
@@ -500,12 +508,14 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		FailingSource.reset();
 
 		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
+			env.getConfig().setUseSnapshotCompression(true);
 
 			env
 					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))

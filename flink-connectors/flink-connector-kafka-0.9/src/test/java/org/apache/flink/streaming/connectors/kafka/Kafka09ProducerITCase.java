@@ -25,16 +25,11 @@ package org.apache.flink.streaming.connectors.kafka;
 public class Kafka09ProducerITCase extends KafkaProducerTestBase {
 	@Override
 	public void testExactlyOnceRegularSink() throws Exception {
-		// Kafka08 does not support exactly once semantic
+		// Kafka09 does not support exactly once semantic
 	}
 
 	@Override
 	public void testExactlyOnceCustomOperator() throws Exception {
-		// Kafka08 does not support exactly once semantic
-	}
-
-	@Override
-	public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-		// Disable this test since FlinkKafka09Producer doesn't support custom operator mode
+		// Kafka09 does not support exactly once semantic
 	}
 }

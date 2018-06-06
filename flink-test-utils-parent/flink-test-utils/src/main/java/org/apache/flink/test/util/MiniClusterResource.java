@@ -19,21 +19,30 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
+import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nonnull;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -47,9 +56,11 @@ public class MiniClusterResource extends ExternalResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterResource.class);
 
-	private static final String CODEBASE_KEY = "codebase";
+	public static final String CODEBASE_KEY = "codebase";
 
-	private static final String FLIP6_CODEBASE = "flip6";
+	public static final String NEW_CODEBASE = "new";
+
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
@@ -57,35 +68,81 @@ public class MiniClusterResource extends ExternalResource {
 
 	private JobExecutorService jobExecutorService;
 
+	private final boolean enableClusterClient;
+
+	private ClusterClient<?> clusterClient;
+
+	private Configuration restClusterClientConfig;
+
 	private int numberSlots = -1;
 
 	private TestEnvironment executionEnvironment;
 
+	private int webUIPort = -1;
+
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		this(
-			miniClusterResourceConfiguration,
-			Objects.equals(FLIP6_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.FLIP6 : MiniClusterType.OLD);
+		this(miniClusterResourceConfiguration, false);
 	}
 
 	public MiniClusterResource(
 			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
 			final MiniClusterType miniClusterType) {
+		this(miniClusterResourceConfiguration, miniClusterType, false);
+	}
+
+	public MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final boolean enableClusterClient) {
+		this(
+			miniClusterResourceConfiguration,
+			Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.NEW : MiniClusterType.LEGACY,
+			enableClusterClient);
+	}
+
+	private MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final MiniClusterType miniClusterType,
+			final boolean enableClusterClient) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
 		this.miniClusterType = Preconditions.checkNotNull(miniClusterType);
+		this.enableClusterClient = enableClusterClient;
+	}
+
+	public MiniClusterType getMiniClusterType() {
+		return miniClusterType;
 	}
 
 	public int getNumberSlots() {
 		return numberSlots;
 	}
 
+	public ClusterClient<?> getClusterClient() {
+		if (!enableClusterClient) {
+			// this check is technically only necessary for legacy clusters
+			// we still fail here to keep the behaviors in sync
+			throw new IllegalStateException("To use the client you must enable it with the constructor.");
+		}
+
+		return clusterClient;
+	}
+
+	public Configuration getClientConfiguration() {
+		return restClusterClientConfig;
+	}
+
 	public TestEnvironment getTestEnvironment() {
 		return executionEnvironment;
 	}
 
+	public int getWebUIPort() {
+		return webUIPort;
+	}
+
 	@Override
 	public void before() throws Exception {
+		temporaryFolder.create();
 
-		jobExecutorService = startJobExecutorService(miniClusterType);
+		startJobExecutorService(miniClusterType);
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
@@ -96,53 +153,95 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
+		temporaryFolder.delete();
 
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
 
-		final CompletableFuture<?> terminationFuture = jobExecutorService.terminate();
+		Exception exception = null;
+
+		if (clusterClient != null) {
+			try {
+				clusterClient.shutdown();
+			} catch (Exception e) {
+				exception = e;
+			}
+		}
+
+		clusterClient = null;
+
+		final CompletableFuture<?> terminationFuture = jobExecutorService.closeAsync();
 
 		try {
 			terminationFuture.get(
 				miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
 				TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
-			LOG.warn("Could not properly shut down the MiniClusterResource.", e);
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
 		jobExecutorService = null;
+
+		if (exception != null) {
+			LOG.warn("Could not properly shut down the MiniClusterResource.", exception);
+		}
 	}
 
-	private JobExecutorService startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
-		final JobExecutorService jobExecutorService;
+	private void startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
 		switch (miniClusterType) {
-			case OLD:
-				jobExecutorService = startOldMiniCluster();
+			case LEGACY:
+				startLegacyMiniCluster();
 				break;
-			case FLIP6:
-				jobExecutorService = startFlip6MiniCluster();
+			case NEW:
+				startMiniCluster();
 				break;
 			default:
 				throw new FlinkRuntimeException("Unknown MiniClusterType "  + miniClusterType + '.');
 		}
-
-		return jobExecutorService;
 	}
 
-	private JobExecutorService startOldMiniCluster() throws Exception {
+	private void startLegacyMiniCluster() throws Exception {
 		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
-		return TestBaseUtils.startCluster(
+		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
-			true);
+			!enableClusterClient); // the cluster client only works if separate actor systems are used
+
+		jobExecutorService = flinkMiniCluster;
+		if (enableClusterClient) {
+			clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
+		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		if (flinkMiniCluster.webMonitor().isDefined()) {
+			webUIPort = flinkMiniCluster.webMonitor().get().getServerPort();
+		}
 	}
 
-	@Nonnull
-	private JobExecutorService startFlip6MiniCluster() throws Exception {
+	private void startMiniCluster() throws Exception {
+		final Configuration configuration = miniClusterResourceConfiguration.getConfiguration();
+		configuration.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+
+		// we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
+		// enabled this by default
+		if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
+			configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+		}
+
+		if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+			configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, TestBaseUtils.TASK_MANAGER_MEMORY_SIZE);
+		}
+
+		// set rest port to 0 to avoid clashes with concurrent MiniClusters
+		configuration.setInteger(RestOptions.PORT, 0);
+
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(miniClusterResourceConfiguration.getConfiguration())
+			.setConfiguration(configuration)
 			.setNumTaskManagers(miniClusterResourceConfiguration.getNumberTaskManagers())
 			.setNumSlotsPerTaskManager(miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
 			.build();
@@ -151,7 +250,19 @@ public class MiniClusterResource extends ExternalResource {
 
 		miniCluster.start();
 
-		return miniCluster;
+		// update the port of the rest endpoint
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+
+		jobExecutorService = miniCluster;
+		if (enableClusterClient) {
+			clusterClient = new MiniClusterClient(configuration, miniCluster);
+		}
+		Configuration restClientConfig = new Configuration();
+		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
+		restClientConfig.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
+		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
+
+		webUIPort = miniCluster.getRestAddress().getPort();
 	}
 
 	/**
@@ -213,7 +324,7 @@ public class MiniClusterResource extends ExternalResource {
 	 * Type of the mini cluster to start.
 	 */
 	public enum MiniClusterType {
-		OLD,
-		FLIP6
+		LEGACY,
+		NEW
 	}
 }

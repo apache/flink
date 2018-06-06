@@ -40,7 +40,6 @@ public interface StreamOperatorStateContext {
 	 */
 	OperatorStateBackend operatorStateBackend();
 
-
 	/**
 	 * Returns the keyed state backend for the stream operator. This method returns null for non-keyed operators.
 	 */
@@ -50,7 +49,7 @@ public interface StreamOperatorStateContext {
 	 * Returns the internal timer service manager for the stream operator. This method returns null for non-keyed
 	 * operators.
 	 */
-	InternalTimeServiceManager<?, ?> internalTimerServiceManager();
+	InternalTimeServiceManager<?> internalTimerServiceManager();
 
 	/**
 	 * Returns an iterable to obtain input streams for previously stored operator state partitions that are assigned to

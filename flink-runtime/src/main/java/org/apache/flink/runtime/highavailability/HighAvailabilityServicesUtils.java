@@ -39,6 +39,8 @@ import org.apache.flink.util.ConfigurationException;
 
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utils class to instantiate {@link HighAvailabilityServices} implementations.
  */
@@ -97,8 +99,10 @@ public class HighAvailabilityServicesUtils {
 					addressResolution,
 					configuration);
 
-				final String address = configuration.getString(RestOptions.REST_ADDRESS);
-				final int port = configuration.getInteger(RestOptions.REST_PORT);
+				final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
+					"%s must be set",
+					RestOptions.ADDRESS.key());
+				final int port = configuration.getInteger(RestOptions.PORT);
 				final boolean enableSSL = configuration.getBoolean(SecurityOptions.SSL_ENABLED);
 				final String protocol = enableSSL ? "https://" : "http://";
 

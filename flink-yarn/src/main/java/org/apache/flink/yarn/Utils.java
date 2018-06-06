@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -141,7 +142,8 @@ public final class Utils {
 		Path homedir,
 		String relativeTargetPath) throws IOException {
 
-		if (new File(localSrcPath.toUri().getPath()).isDirectory()) {
+		File localFile = new File(localSrcPath.toUri().getPath());
+		if (localFile.isDirectory()) {
 			throw new IllegalArgumentException("File to copy must not be a directory: " +
 				localSrcPath);
 		}
@@ -155,13 +157,65 @@ public final class Utils {
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.info("Copying from " + localSrcPath + " to " + dst);
+		LOG.debug("Copying from {} to {}", localSrcPath, dst);
 
 		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
+		// Note: If we used registerLocalResource(FileSystem, Path) here, we would access the remote
+		//       file once again which has problems with eventually consistent read-after-write file
+		//       systems. Instead, we decide to preserve the modification time at the remote
+		//       location because this and the size of the resource will be checked by YARN based on
+		//       the values we provide to #registerLocalResource() below.
+		fs.setTimes(dst, localFile.lastModified(), -1);
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(fs, dst);
+		LocalResource resource = registerLocalResource(dst, localFile.length(), localFile.lastModified());
+
 		return Tuple2.of(dst, resource);
+	}
+
+	/**
+	 * Deletes the YARN application files, e.g., Flink binaries, libraries, etc., from the remote
+	 * filesystem.
+	 *
+	 * @param env The environment variables.
+	 */
+	public static void deleteApplicationFiles(final Map<String, String> env) {
+		final String applicationFilesDir = env.get(YarnConfigKeys.FLINK_YARN_FILES);
+		if (!StringUtils.isNullOrWhitespaceOnly(applicationFilesDir)) {
+			final org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(applicationFilesDir);
+			try {
+				final org.apache.flink.core.fs.FileSystem fileSystem = path.getFileSystem();
+				if (!fileSystem.delete(path, true)) {
+					LOG.error("Deleting yarn application files under {} was unsuccessful.", applicationFilesDir);
+				}
+			} catch (final IOException e) {
+				LOG.error("Could not properly delete yarn application files directory {}.", applicationFilesDir, e);
+			}
+		} else {
+			LOG.debug("No yarn application files directory set. Therefore, cannot clean up the data.");
+		}
+	}
+
+	/**
+	 * Creates a YARN resource for the remote object at the given location.
+	 *
+	 * @param remoteRsrcPath	remote location of the resource
+	 * @param resourceSize		size of the resource
+	 * @param resourceModificationTime last modification time of the resource
+	 *
+	 * @return YARN resource
+	 */
+	private static LocalResource registerLocalResource(
+			Path remoteRsrcPath,
+			long resourceSize,
+			long resourceModificationTime) {
+		LocalResource localResource = Records.newRecord(LocalResource.class);
+		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
+		localResource.setSize(resourceSize);
+		localResource.setTimestamp(resourceModificationTime);
+		localResource.setType(LocalResourceType.FILE);
+		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		return localResource;
 	}
 
 	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
@@ -320,7 +374,7 @@ public final class Utils {
 	 *
 	 * @return The launch context for the TaskManager processes.
 	 *
-	 * @throws Exception Thrown if teh launch context could not be created, for example if
+	 * @throws Exception Thrown if the launch context could not be created, for example if
 	 *				   the resources could not be copied.
 	 */
 	static ContainerLaunchContext createTaskExecutorContext(
@@ -351,16 +405,16 @@ public final class Utils {
 		require(yarnClientUsername != null, "Environment variable %s not set", YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
 		final String remoteKeytabPath = env.get(YarnConfigKeys.KEYTAB_PATH);
-		log.info("TM:remote keytab path obtained {}", remoteKeytabPath);
-
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
-		log.info("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
-
 		final String remoteYarnConfPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
-		log.info("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
-
 		final String remoteKrb5Path = env.get(YarnConfigKeys.ENV_KRB5_PATH);
-		log.info("TM:remote krb5 path obtained {}", remoteKrb5Path);
+
+		if (log.isDebugEnabled()) {
+			log.debug("TM:remote keytab path obtained {}", remoteKeytabPath);
+			log.debug("TM:remote keytab principal obtained {}", remoteKeytabPrincipal);
+			log.debug("TM:remote yarn conf path obtained {}", remoteYarnConfPath);
+			log.debug("TM:remote krb5 path obtained {}", remoteKrb5Path);
+		}
 
 		String classPathString = env.get(ENV_FLINK_CLASSPATH);
 		require(classPathString != null, "Environment variable %s not set", YarnConfigKeys.ENV_FLINK_CLASSPATH);
@@ -420,7 +474,7 @@ public final class Utils {
 					homeDirPath,
 					"").f1;
 
-				log.info("Prepared local resource for modified yaml: {}", flinkConf);
+				log.debug("Prepared local resource for modified yaml: {}", flinkConf);
 			} finally {
 				try {
 					FileUtils.deleteFileOrDirectory(taskManagerConfigFile);
@@ -467,7 +521,11 @@ public final class Utils {
 				flinkConfig, tmParams, ".", ApplicationConstants.LOG_DIR_EXPANSION_VAR,
 				hasLogback, hasLog4j, hasKrb5, taskManagerMainClass);
 
-		log.info("Starting TaskManagers with command: " + launchCommand);
+		if (log.isDebugEnabled()) {
+			log.debug("Starting TaskManagers with command: " + launchCommand);
+		} else {
+			log.info("Starting TaskManagers");
+		}
 
 		ContainerLaunchContext ctx = Records.newRecord(ContainerLaunchContext.class);
 		ctx.setCommands(Collections.singletonList(launchCommand));
@@ -489,28 +547,32 @@ public final class Utils {
 
 		ctx.setEnvironment(containerEnv);
 
-		try (DataOutputBuffer dob = new DataOutputBuffer()) {
-			log.debug("Adding security tokens to Task Executor Container launch Context....");
+		// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local file.
+		// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
+		// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
+		final String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 
-			// For TaskManager YARN container context, read the tokens from the jobmanager yarn container local flie.
-			// NOTE: must read the tokens from the local file, not from the UGI context, because if UGI is login
-			// using Kerberos keytabs, there is no HDFS delegation token in the UGI context.
-			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
-			Method readTokenStorageFileMethod = Credentials.class.getMethod(
-				"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
+		if (fileLocation != null) {
+			log.debug("Adding security tokens to TaskExecutor's container launch context.");
 
-			Credentials cred =
-				(Credentials) readTokenStorageFileMethod.invoke(
-					null,
-					new File(fileLocation),
-					HadoopUtils.getHadoopConfiguration(flinkConfig));
+			try (DataOutputBuffer dob = new DataOutputBuffer()) {
+				Method readTokenStorageFileMethod = Credentials.class.getMethod(
+					"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
 
-			cred.writeTokenStorageToStream(dob);
-			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
-			ctx.setTokens(securityTokens);
-		}
-		catch (Throwable t) {
-			log.error("Getting current user info failed when trying to launch the container", t);
+				Credentials cred =
+					(Credentials) readTokenStorageFileMethod.invoke(
+						null,
+						new File(fileLocation),
+						HadoopUtils.getHadoopConfiguration(flinkConfig));
+
+				cred.writeTokenStorageToStream(dob);
+				ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+				ctx.setTokens(securityTokens);
+			} catch (Throwable t) {
+				log.error("Failed to add Hadoop's security tokens.", t);
+			}
+		} else {
+			log.info("Could not set security tokens because Hadoop's token file location is unknown.");
 		}
 
 		return ctx;

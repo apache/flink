@@ -19,6 +19,9 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.ConfigGroup;
+import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -26,6 +29,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
  * The set of configuration options for core parameters.
  */
 @PublicEvolving
+@ConfigGroups(groups = {
+	@ConfigGroup(name = "Environment", keyPrefix = "env"),
+	@ConfigGroup(name = "FileSystem", keyPrefix = "fs")
+})
 public class CoreOptions {
 
 	// ------------------------------------------------------------------------
@@ -41,11 +48,15 @@ public class CoreOptions {
 	 * which means that user code jars can include and load different dependencies than
 	 * Flink uses (transitively).
 	 *
-	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER}.
+	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER_PATTERNS}.
 	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
-		.defaultValue("child-first");
+		.defaultValue("child-first")
+		.withDescription("Defines the class resolution strategy when loading classes from user code, meaning whether to" +
+			" first check the user code jar (\"child-first\") or the application classpath (\"parent-first\")." +
+			" The default settings indicate to load classes first from the user code jar, which means that user code" +
+			" jars can include and load different dependencies than Flink uses (transitively).");
 
 	/**
 	 * The namespace patterns for classes that are loaded with a preference from the
@@ -72,14 +83,46 @@ public class CoreOptions {
 	 *         and formats (flink-avro, etc) are loaded parent-first as well if they are in the
 	 *         core classpath.</li>
 	 *     <li>Java annotations and loggers, defined by the following list:
-	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback.
+	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback.
 	 *         This is done for convenience, to avoid duplication of annotations and multiple
 	 *         log bindings.</li>
 	 * </ul>
 	 */
-	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
-		.key("classloader.parent-first-patterns")
-		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback");
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS = ConfigOptions
+		.key("classloader.parent-first-patterns.default")
+		.defaultValue("java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback")
+		.withDeprecatedKeys("classloader.parent-first-patterns")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name. This setting should generally not be modified. To add another pattern we" +
+			" recommend to use \"classloader.parent-first-patterns.additional\" instead.");
+
+	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL = ConfigOptions
+		.key("classloader.parent-first-patterns.additional")
+		.defaultValue("")
+		.withDescription("A (semicolon-separated) list of patterns that specifies which classes should always be" +
+			" resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against" +
+			" the fully qualified class name. These patterns are appended to \"" + ALWAYS_PARENT_FIRST_LOADER_PATTERNS.key() + "\".");
+
+	public static String[] getParentFirstLoaderPatterns(Configuration config) {
+		String base = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS);
+		String append = config.getString(ALWAYS_PARENT_FIRST_LOADER_PATTERNS_ADDITIONAL);
+
+		String[] basePatterns = base.isEmpty()
+			? new String[0]
+			: base.split(";");
+
+		if (append.isEmpty()) {
+			return basePatterns;
+		} else {
+			String[] appendPatterns = append.split(";");
+
+			String[] joinedPatterns = new String[basePatterns.length + appendPatterns.length];
+			System.arraycopy(basePatterns, 0, joinedPatterns, 0, basePatterns.length);
+			System.arraycopy(appendPatterns, 0, joinedPatterns, basePatterns.length, appendPatterns.length);
+			return joinedPatterns;
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  process parameters
@@ -97,6 +140,39 @@ public class CoreOptions {
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_LOG_DIR = ConfigOptions
+		.key("env.log.dir")
+		.noDefaultValue()
+		.withDescription("Defines the directory where the Flink logs are saved. It has to be an absolute path." +
+			" (Defaults to the log directory under Flink’s home)");
+
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<Integer> FLINK_LOG_MAX = ConfigOptions
+		.key("env.log.max")
+		.defaultValue(5)
+		.withDescription("The maximum number of old log files to keep.");
+
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_SSH_OPTIONS = ConfigOptions
+		.key("env.ssh.opts")
+		.noDefaultValue()
+		.withDescription("Additional command line options passed to SSH clients when starting or stopping JobManager," +
+			" TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh," +
+			" stop-zookeeper-quorum.sh).");
+
 	// ------------------------------------------------------------------------
 	//  generic io
 	// ------------------------------------------------------------------------
@@ -105,6 +181,7 @@ public class CoreOptions {
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
@@ -127,7 +204,31 @@ public class CoreOptions {
 	 */
 	public static final ConfigOption<String> DEFAULT_FILESYSTEM_SCHEME = ConfigOptions
 			.key("fs.default-scheme")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
+				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+
+	/**
+	 * Specifies whether file output writers should overwrite existing files by default.
+	 */
+	public static final ConfigOption<Boolean> FILESYTEM_DEFAULT_OVERRIDE =
+		key("fs.overwrite-files")
+			.defaultValue(false)
+			.withDescription("Specifies whether file output writers should overwrite existing files by default. Set to" +
+				" \"true\" to overwrite by default,\"false\" otherwise.");
+
+	/**
+	 * Specifies whether the file systems should always create a directory for the output, even with a parallelism of one.
+	 */
+	public static final ConfigOption<Boolean> FILESYSTEM_OUTPUT_ALWAYS_CREATE_DIRECTORY =
+		key("fs.output.always-create-directory")
+			.defaultValue(false)
+			.withDescription("File writers running with a parallelism larger than one create a directory for the output" +
+				" file path and put the different result files (one per parallel writer task) into that directory." +
+				" If this option is set to \"true\", writers with a parallelism of 1 will also create a" +
+				" directory and place a single result file into it. If the option is set to \"false\"," +
+				" the writer will directly create the file directly at the output path, without creating a containing" +
+				" directory.");
 
 	/**
 	 * The total number of input plus output connections that a file system for the given scheme may open.
@@ -171,4 +272,26 @@ public class CoreOptions {
 	public static ConfigOption<Long> fileSystemConnectionLimitStreamInactivityTimeout(String scheme) {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Distributed architecture
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Constant value for the new execution mode.
+	 */
+	public static final String NEW_MODE = "new";
+
+	/**
+	 * Constant value for the old execution mode.
+	 */
+	public static final String LEGACY_MODE = "legacy";
+
+	/**
+	 * Switch to select the execution mode. Possible values are {@link CoreOptions#NEW_MODE}
+	 * and {@link CoreOptions#LEGACY_MODE}.
+	 */
+	public static final ConfigOption<String> MODE = key("mode")
+		.defaultValue(NEW_MODE)
+		.withDescription("Switch to select the execution mode. Possible values are 'new' and 'legacy'.");
 }

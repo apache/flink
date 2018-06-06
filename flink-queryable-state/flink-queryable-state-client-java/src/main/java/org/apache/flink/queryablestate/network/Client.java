@@ -281,7 +281,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		 * @param request the request to be sent.
 		 * @return Future holding the serialized result
 		 */
-		public CompletableFuture<RESP> sendRequest(REQ request) {
+		CompletableFuture<RESP> sendRequest(REQ request) {
 			synchronized (connectLock) {
 				if (failureCause != null) {
 					return FutureUtils.getFailedFuture(failureCause);

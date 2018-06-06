@@ -1,6 +1,6 @@
 ---
-title: "Sample Project using the Scala API"
-nav-title: Sample Project in Scala
+title: "Project Template for Scala"
+nav-title: Project Template for Scala
 nav-parent_id: start
 nav-pos: 1
 ---
@@ -76,9 +76,9 @@ In order to run your project you have to issue the `sbt run` command.
 Per default, this will run your job in the same JVM as `sbt` is running.
 In order to run your job in a distinct JVM, add the following line to `build.sbt`
 
-~~~scala
+{% highlight scala %}
 fork in run := true
-~~~
+{% endhighlight %}
 
 
 #### IntelliJ
@@ -98,15 +98,15 @@ In order to import the newly created project into [Eclipse](https://eclipse.org/
 These project files can be created via the [sbteclipse](https://github.com/typesafehub/sbteclipse) plugin.
 Add the following line to your `PROJECT_DIR/project/plugins.sbt` file:
 
-~~~bash
+{% highlight bash %}
 addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
-~~~
+{% endhighlight %}
 
 In `sbt` use the following command to create the Eclipse project files
 
-~~~bash
+{% highlight bash %}
 > eclipse
-~~~
+{% endhighlight %}
 
 Now you can import the project into Eclipse via `File -> Import... -> Existing Projects into Workspace` and then select the project directory.
 
@@ -173,14 +173,18 @@ quickstart/
                 └── myorg
                     └── quickstart
                         ├── BatchJob.scala
-                        ├── SocketTextStreamWordCount.scala
-                        ├── StreamingJob.scala
-                        └── WordCount.scala
+                        └── StreamingJob.scala
 {% endhighlight %}
 
-The sample project is a __Maven project__, which contains four classes. _StreamingJob_ and _BatchJob_ are basic skeleton programs, _SocketTextStreamWordCount_ is a working streaming example and _WordCountJob_ is a working batch example. Please note that the _main_ method of all classes allow you to start Flink in a development/testing mode.
+The sample project is a __Maven project__, which contains two classes: _StreamingJob_ and _BatchJob_ are the basic skeleton programs for a *DataStream* and *DataSet* program.
+The _main_ method is the entry point of the program, both for in-IDE testing/execution and for proper deployments.
 
-We recommend you __import this project into your IDE__. For Eclipse, you need the following plugins, which you can install from the provided Eclipse Update Sites:
+We recommend you __import this project into your IDE__.
+
+IntelliJ IDEA supports Maven out of the box and offers a plugin for Scala development.
+From our experience, IntelliJ provides the best experience for developing Flink applications.
+
+For Eclipse, you need the following plugins, which you can install from the provided Eclipse Update Sites:
 
 * _Eclipse 4.x_
   * [Scala IDE](http://download.scala-ide.org/sdk/lithium/e44/scala211/stable/site)
@@ -191,78 +195,33 @@ We recommend you __import this project into your IDE__. For Eclipse, you need th
   * [m2eclipse-scala](http://alchim31.free.fr/m2e-scala/update-site)
   * [Build Helper Maven Plugin](https://repository.sonatype.org/content/repositories/forge-sites/m2e-extras/0.14.0/N/0.14.0.201109282148/)
 
-The IntelliJ IDE supports Maven out of the box and offers a plugin for
-Scala development.
-
-
 ### Build Project
 
-If you want to __build your project__, go to your project directory and
-issue the `mvn clean package -Pbuild-jar` command. You will
-__find a jar__ that runs on every Flink cluster with a compatible
-version, __target/original-your-artifact-id-your-version.jar__. There
-is also a fat-jar in  __target/your-artifact-id-your-version.jar__ which,
-additionally, contains all dependencies that were added to the Maven
-project.
+If you want to __build/package your project__, go to your project directory and
+run the '`mvn clean package`' command.
+You will __find a JAR file__ that contains your application, plus connectors and libraries
+that you may have added as dependencoes to the application: `target/<artifact-id>-<version>.jar`.
+
+__Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
+we recommend you change the `mainClass` setting in the `pom.xml` file accordingly. That way, the Flink
+can run time application from the JAR file without additionally specifying the main class.
+
 
 ## Next Steps
 
 Write your application!
 
-The quickstart project contains a `WordCount` implementation, the
-"Hello World" of Big Data processing systems. The goal of `WordCount`
-is to determine the frequencies of words in a text, e.g., how often do
-the terms "the" or "house" occur in all Wikipedia texts.
+If you are writing a streaming application and you are looking for inspiration what to write,
+take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/quickstart/run_example_quickstart.html#writing-a-flink-program)
 
-__Sample Input__:
+If you are writing a batch processing application and you are looking for inspiration what to write,
+take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html)
 
-~~~bash
-big data is big
-~~~
+For a complete overview over the APIa, have a look at the
+[DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
+[DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 
-__Sample Output__:
-
-~~~bash
-big 2
-data 1
-is 1
-~~~
-
-The following code shows the `WordCount` implementation from the
-Quickstart which processes some text lines with two operators (a FlatMap
-and a Reduce operation via aggregating a sum), and prints the resulting
-words and counts to std-out.
-
-~~~scala
-object WordCountJob {
-  def main(args: Array[String]) {
-
-    // set up the execution environment
-    val env = ExecutionEnvironment.getExecutionEnvironment
-
-    // get input data
-    val text = env.fromElements("To be, or not to be,--that is the question:--",
-      "Whether 'tis nobler in the mind to suffer", "The slings and arrows of outrageous fortune",
-      "Or to take arms against a sea of troubles,")
-
-    val counts = text.flatMap { _.toLowerCase.split("\\W+") }
-      .map { (_, 1) }
-      .groupBy(0)
-      .sum(1)
-
-    // emit result and print result
-    counts.print()
-  }
-}
-~~~
-
-{% gh_link flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/wordcount/WordCount.scala "Check GitHub" %} for the full example code.
-
-For a complete overview over our API, have a look at the
-[DataStream API]({{ site.baseurl }}/dev/datastream_api.html),
-[DataSet API]({{ site.baseurl }}/dev/batch/index.html), and
-[Scala API Extensions]({{ site.baseurl }}/dev/scala_api_extensions.html)
-sections. If you have any trouble, ask on our
+If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.
 

@@ -103,7 +103,8 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -187,7 +188,8 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -276,7 +278,8 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -356,7 +359,8 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			AkkaUtils.getDefaultTimeout());
 		try {
 			eg.attachJobGraph(ordered);
 		}

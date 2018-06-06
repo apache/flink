@@ -62,6 +62,13 @@ public class CliFrontendParser {
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
+	/**
+	 * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN deployments
+	 */
+	@Deprecated
+	public static final Option YARN_DETACHED_OPTION = new Option("yd", "yarndetached", false, "If present, runs " +
+		"the job in detached mode (deprecated; use non-YARN specific option instead)");
+
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
@@ -95,6 +102,8 @@ public class CliFrontendParser {
 			"directory is optional. If no directory is specified, the configured default " +
 			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
+	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
+
 	static {
 		HELP_OPTION.setRequired(false);
 
@@ -115,6 +124,7 @@ public class CliFrontendParser {
 
 		LOGGING_OPTION.setRequired(false);
 		DETACHED_OPTION.setRequired(false);
+		YARN_DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
@@ -134,6 +144,9 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setRequired(false);
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
+
+		MODIFY_PARALLELISM_OPTION.setRequired(false);
+		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -153,6 +166,7 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(YARN_DETACHED_OPTION);
 		return options;
 	}
 
@@ -196,6 +210,12 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		return options.addOption(JAR_OPTION);
+	}
+
+	static Options getModifyOptions() {
+		final Options options = buildGeneralOptions(new Options());
+		options.addOption(MODIFY_PARALLELISM_OPTION);
+		return options;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -247,6 +267,7 @@ public class CliFrontendParser {
 		printHelpForStop(customCommandLines);
 		printHelpForCancel(customCommandLines);
 		printHelpForSavepoint(customCommandLines);
+		printHelpForModify(customCommandLines);
 
 		System.out.println();
 	}
@@ -339,6 +360,21 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
+	public static void printHelpForModify(Collection<CustomCommandLine<?>> customCommandLines) {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"modify\" modifies a running job (e.g. change of parallelism).");
+		System.out.println("\n  Syntax: modify <Job ID> [OPTIONS]");
+		formatter.setSyntaxPrefix("  \"modify\" action options:");
+		formatter.printHelp(" ", getModifyOptions());
+
+		printCustomCliOptions(customCommandLines, formatter, false);
+
+		System.out.println();
+	}
+
 	/**
 	 * Prints custom cli options.
 	 * @param formatter The formatter to use for printing
@@ -393,7 +429,7 @@ public class CliFrontendParser {
 	 * @param optionsB options to merge, can be null if none
 	 * @return
 	 */
-	static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
+	public static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
 		final Options resultOptions = new Options();
 		if (optionsA != null) {
 			for (Option option : optionsA.getOptions()) {

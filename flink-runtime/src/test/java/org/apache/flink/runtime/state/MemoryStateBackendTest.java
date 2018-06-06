@@ -23,23 +23,19 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.util.FutureUtil;
-
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -48,16 +44,10 @@ import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(TypeSerializerSerializationUtil.class)
 public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
 
 	@Override
@@ -67,6 +57,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 	protected boolean useAsyncMode() {
 		return false;
+	}
+
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return true;
 	}
 
 	// disable these because the verification does not work for this state backend
@@ -94,13 +89,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	 */
 	@Test
 	public void testOperatorStateRestoreFailsIfSerializerDeserializationFails() throws Exception {
+		DummyEnvironment env = new DummyEnvironment();
 		AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
-		Environment env = mock(Environment.class);
-		when(env.getExecutionConfig()).thenReturn(new ExecutionConfig());
-		when(env.getUserClassLoader()).thenReturn(OperatorStateBackendTest.class.getClassLoader());
-
-		OperatorStateBackend operatorStateBackend = abstractStateBackend.createOperatorStateBackend(env, "test-op-name");
+		OperatorStateBackend operatorStateBackend =
+			abstractStateBackend.createOperatorStateBackend(env, "test-op-name");
 
 		// write some state
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
@@ -124,26 +117,27 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
 
-		RunnableFuture<OperatorStateHandle> runnableFuture =
+		RunnableFuture<SnapshotResult<OperatorStateHandle>> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
-		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+
+		SnapshotResult<OperatorStateHandle> snapshotResult = FutureUtil.runIfNotDoneAndGet(runnableFuture);
+		OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		try {
 
 			operatorStateBackend.close();
 			operatorStateBackend.dispose();
 
+			env = new DummyEnvironment(
+				new ArtificialCNFExceptionThrowingClassLoader(
+					getClass().getClassLoader(),
+					Collections.singleton(JavaSerializer.class.getName())));
+
 			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
 				env,
 				"testOperator");
 
-			// mock failure when deserializing serializer
-			TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-					mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-			doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-			PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
-
-			operatorStateBackend.restore(Collections.singletonList(stateHandle));
+			operatorStateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			fail("The operator state restore should have failed if the previous state serializer could not be loaded.");
 		} catch (IOException expected) {
@@ -186,18 +180,14 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		// ========== restore snapshot ==========
 
-		Environment env = mock(Environment.class);
-		when(env.getExecutionConfig()).thenReturn(new ExecutionConfig());
-		when(env.getUserClassLoader()).thenReturn(OperatorStateBackendTest.class.getClassLoader());
-
-		// mock failure when deserializing serializer
-		TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<?> mockProxy =
-				mock(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class);
-		doThrow(new IOException()).when(mockProxy).read(any(DataInputViewStreamWrapper.class));
-		PowerMockito.whenNew(TypeSerializerSerializationUtil.TypeSerializerSerializationProxy.class).withAnyArguments().thenReturn(mockProxy);
-
 		try {
-			restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
+			restoreKeyedBackend(
+				IntSerializer.INSTANCE,
+				snapshot,
+				new DummyEnvironment(
+					new ArtificialCNFExceptionThrowingClassLoader(
+						getClass().getClassLoader(),
+						Collections.singleton(StringSerializer.class.getName()))));
 
 			fail("The keyed state restore should have failed if the previous state serializer could not be loaded.");
 		} catch (IOException expected) {

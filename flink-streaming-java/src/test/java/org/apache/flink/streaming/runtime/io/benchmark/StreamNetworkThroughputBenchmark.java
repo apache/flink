@@ -28,19 +28,20 @@ import java.util.concurrent.TimeUnit;
  * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class StreamNetworkThroughputBenchmark {
-	private static final long RECEIVER_TIMEOUT = 30_000;
-
 	private StreamNetworkBenchmarkEnvironment<LongValue> environment;
 	private ReceiverThread receiver;
 	private LongRecordWriterThread[] writerThreads;
 
+	public void executeBenchmark(long records) throws Exception {
+		executeBenchmark(records, Long.MAX_VALUE);
+	}
+
 	/**
 	 * Executes the throughput benchmark with the given number of records.
 	 *
-	 * @param records
-	 * 		records to pass through the network stack
+	 * @param records to pass through the network stack
 	 */
-	public void executeBenchmark(long records) throws Exception {
+	public void executeBenchmark(long records, long timeout) throws Exception {
 		final LongValue value = new LongValue();
 		value.setValue(0);
 
@@ -51,7 +52,15 @@ public class StreamNetworkThroughputBenchmark {
 			writerThread.setRecordsToSend(lastRecord);
 		}
 
-		recordsReceived.get(RECEIVER_TIMEOUT, TimeUnit.MILLISECONDS);
+		recordsReceived.get(timeout, TimeUnit.MILLISECONDS);
+	}
+
+	public void setUp(int recordWriters, int channels, int flushTimeout) throws Exception {
+		setUp(recordWriters, channels, flushTimeout, false);
+	}
+
+	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
+		setUp(recordWriters, channels, flushTimeout, false, -1, -1);
 	}
 
 	/**
@@ -63,9 +72,15 @@ public class StreamNetworkThroughputBenchmark {
 	 * @param channels
 	 * 		number of outgoing channels / receivers
 	 */
-	public void setUp(int recordWriters, int channels, int flushTimeout) throws Exception {
+	public void setUp(
+			int recordWriters,
+			int channels,
+			int flushTimeout,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(recordWriters, channels);
+		environment.setUp(recordWriters, channels, localMode, senderBufferPoolSize, receiverBufferPoolSize);
 		receiver = environment.createReceiver();
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {

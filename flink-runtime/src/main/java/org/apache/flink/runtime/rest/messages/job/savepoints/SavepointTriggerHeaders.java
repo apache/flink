@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationTriggerMessageHeaders;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -27,9 +28,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * These headers define the protocol for triggering a savepoint.
  */
 public class SavepointTriggerHeaders
-		implements MessageHeaders<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+		extends AsynchronousOperationTriggerMessageHeaders<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> {
 
 	private static final SavepointTriggerHeaders INSTANCE = new SavepointTriggerHeaders();
+
+	private static final String URL = String.format(
+		"/jobs/:%s/savepoints",
+		JobIDPathParameter.KEY);
 
 	private SavepointTriggerHeaders() {
 	}
@@ -37,11 +42,6 @@ public class SavepointTriggerHeaders
 	@Override
 	public Class<SavepointTriggerRequestBody> getRequestClass() {
 		return SavepointTriggerRequestBody.class;
-	}
-
-	@Override
-	public Class<SavepointTriggerResponseBody> getResponseClass() {
-		return SavepointTriggerResponseBody.class;
 	}
 
 	@Override
@@ -70,10 +70,15 @@ public class SavepointTriggerHeaders
 			- interacts badly with the POST spec, as it would require the progress url to also contain the targetDirectory
 		 */
 
-		return "/jobs/:jobid/savepoints";
+		return URL;
 	}
 
 	public static SavepointTriggerHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Triggers a savepoint, and optionally cancels the job afterwards.";
 	}
 }

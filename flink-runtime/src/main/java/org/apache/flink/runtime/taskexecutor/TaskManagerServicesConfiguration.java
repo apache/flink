@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -54,6 +55,8 @@ public class TaskManagerServicesConfiguration {
 
 	private final String[] tmpDirPaths;
 
+	private final String[] localRecoveryStateRootDirectories;
+
 	private final int numberOfSlots;
 
 	private final NetworkEnvironmentConfiguration networkConfig;
@@ -75,9 +78,13 @@ public class TaskManagerServicesConfiguration {
 
 	private final long timerServiceShutdownTimeout;
 
+	private final boolean localRecoveryEnabled;
+
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
+			String[] localRecoveryStateRootDirectories,
+			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -89,6 +96,8 @@ public class TaskManagerServicesConfiguration {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
+		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -113,6 +122,14 @@ public class TaskManagerServicesConfiguration {
 
 	public String[] getTmpDirPaths() {
 		return tmpDirPaths;
+	}
+
+	public String[] getLocalRecoveryStateRootDirectories() {
+		return localRecoveryStateRootDirectories;
+	}
+
+	public boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() {
@@ -179,12 +196,22 @@ public class TaskManagerServicesConfiguration {
 			boolean localCommunication) throws Exception {
 
 		// we need this because many configs have been written with a "-1" entry
-		int slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 		if (slots == -1) {
 			slots = 1;
 		}
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+
+		if (localStateRootDir.length == 0) {
+			// default to temp dirs.
+			localStateRootDir = tmpDirs;
+		}
+
+		boolean localRecoveryMode = configuration.getBoolean(
+			CheckpointingOptions.LOCAL_RECOVERY.key(),
+			CheckpointingOptions.LOCAL_RECOVERY.defaultValue());
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
@@ -225,6 +252,8 @@ public class TaskManagerServicesConfiguration {
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
+			localStateRootDir,
+			localRecoveryMode,
 			networkConfig,
 			queryableStateConfig,
 			slots,
@@ -257,13 +286,12 @@ public class TaskManagerServicesConfiguration {
 
 		// ----> hosts / ports for communication and data exchange
 
-		int dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+		int dataport = configuration.getInteger(TaskManagerOptions.DATA_PORT);
 
-		checkConfigParameter(dataport >= 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+		checkConfigParameter(dataport >= 0, dataport, TaskManagerOptions.DATA_PORT.key(),
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
-		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+		checkConfigParameter(slots >= 1, slots, TaskManagerOptions.NUM_TASK_SLOTS.key(),
 			"Number of task slots must be at least one.");
 
 		final int pageSize = configuration.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
@@ -413,11 +441,9 @@ public class TaskManagerServicesConfiguration {
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
-						QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));
 		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
-						QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.SERVER_PORT_RANGE));
 
 		final int numProxyServerNetworkThreads = config.getInteger(QueryableStateOptions.PROXY_NETWORK_THREADS);
 		final int numProxyServerQueryThreads = config.getInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS);
