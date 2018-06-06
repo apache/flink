@@ -42,28 +42,29 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
-	private final String queueName;
+	protected final String queueName;
 	private final RMQConnectionConfig rmqConnectionConfig;
 	protected transient Connection connection;
 	protected transient Channel channel;
 	protected SerializationSchema<IN> schema;
-	protected boolean logFailuresOnly = false;
+	private boolean logFailuresOnly = false;
 
-	private final RMQSinkPublishOptions<IN> messageCompute;
+	private final RMQSinkPublishOptions<IN> publishOptions;
 	private final ReturnListener returnListener;
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
-	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * @param returnListener A ReturnListener implementation object to handle returned message event
      */
 	private RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema,
-			RMQSinkPublishOptions<IN> messageCompute, ReturnListener returnListener) {
+			RMQSinkPublishOptions<IN> publishOptions, ReturnListener returnListener) {
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.schema = schema;
-		this.messageCompute = messageCompute;
+		this.publishOptions = publishOptions;
 		this.returnListener = returnListener;
 	}
 
@@ -80,25 +81,24 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
-	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
      */
 	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
-			RMQSinkPublishOptions<IN> messageCompute) {
-		this(rmqConnectionConfig, null, schema, messageCompute, null);
+			RMQSinkPublishOptions<IN> publishOptions) {
+		this(rmqConnectionConfig, null, schema, publishOptions, null);
 	}
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
-	 * @param messageCompute A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
-	 * @param returnListener A ReturnListener implementation object to handle return message event
-	 *                       if messageCompute.computeMandatory() or messageCompute.computeImmediate() should be true
+	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
+	 * @param returnListener A ReturnListener implementation object to handle returned message event
      */
 	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
-			RMQSinkPublishOptions<IN> messageCompute, ReturnListener returnListener) {
-		this(rmqConnectionConfig, null, schema, messageCompute, returnListener);
+			RMQSinkPublishOptions<IN> publishOptions, ReturnListener returnListener) {
+		this(rmqConnectionConfig, null, schema, publishOptions, returnListener);
 	}
 
 	/**
@@ -153,16 +153,22 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		try {
 			byte[] msg = schema.serialize(value);
 
-			if (messageCompute == null) {
+			if (publishOptions == null) {
 				channel.basicPublish("", queueName, null, msg);
 			} else {
-				String rk = messageCompute.computeRoutingKey(value);
-				String exchange = messageCompute.computeExchange(value);
-				channel.basicPublish((exchange != null) ? exchange : "",
-						(rk != null) ? rk : "",
-						(returnListener != null) && messageCompute.computeMandatory(value),
-						(returnListener != null) && messageCompute.computeImmediate(value),
-						messageCompute.computeProperties(value), msg);
+				boolean mandatory = publishOptions.computeMandatory(value);
+				boolean immediate = publishOptions.computeImmediate(value);
+
+				if (returnListener == null && (mandatory || immediate)) {
+					throw new IllegalStateException("Setting mandatory and/or immediate flags to true requires a ReturnListener.");
+				} else {
+					String rk = publishOptions.computeRoutingKey(value);
+					String exchange = publishOptions.computeExchange(value);
+
+					channel.basicPublish((exchange != null) ? exchange : "",
+							(rk != null) ? rk : "", mandatory, immediate,
+									publishOptions.computeProperties(value), msg);
+				}
 			}
 
 		} catch (IOException e) {

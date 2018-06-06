@@ -37,6 +37,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,10 +87,10 @@ public class RMQSinkTest {
 	}
 
 	@Test
-	public void openCallDontDeclaresQueueInFeaturedMode() throws Exception {
-		doThrow(Exception.class).when(channel).queueDeclare(null, false, false, false, null);
+	public void openCallDontDeclaresQueueInWithOptionsMode() throws Exception {
+		createRMQSinkWithOptions(false, false);
 
-		createRMQSinkFeatured();
+		verify(channel, never()).queueDeclare(null, false, false, false, null);
 	}
 
 	@Test
@@ -103,22 +104,22 @@ public class RMQSinkTest {
 	}
 
 	private RMQSink<String> createRMQSink() throws Exception {
-		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
+		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, QUEUE_NAME, serializationSchema);
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
 
-	private RMQSink<String> createRMQSinkFeatured() throws Exception {
-		publishOptions = new DummyPublishOptions();
-		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, serializationSchema, publishOptions);
+	private RMQSink<String> createRMQSinkWithOptions(boolean mandatory, boolean immediate) throws Exception {
+		publishOptions = new DummyPublishOptions(mandatory, immediate);
+		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions);
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
 
-	private RMQSink<String> createRMQSinkFeaturedReturnHandler() throws Exception {
-		publishOptions = new DummyPublishOptions();
+	private RMQSink<String> createRMQSinkWithOptionsAndReturnHandler(boolean mandatory, boolean immediate) throws Exception {
+		publishOptions = new DummyPublishOptions(mandatory, immediate);
 		returnListener = new DummyReturnHandler();
-		RMQSink<String> rmqSink = new RMQSink<String>(rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
+		RMQSink<String> rmqSink = new RMQSink<>(rmqConnectionConfig, serializationSchema, publishOptions, returnListener);
 		rmqSink.open(new Configuration());
 		return rmqSink;
 	}
@@ -160,8 +161,8 @@ public class RMQSinkTest {
 	}
 
 	@Test
-	public void invokeFeaturedPublishBytesToQueue() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkFeatured();
+	public void invokePublishBytesToQueueWithOptions() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
 		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
 		verify(serializationSchema).serialize(MESSAGE_STR);
@@ -169,19 +170,43 @@ public class RMQSinkTest {
 				publishOptions.computeProperties(""), MESSAGE);
 	}
 
+	@Test(expected = IllegalStateException.class)
+	public void invokePublishBytesToQueueWithOptionsMandatory() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
+
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void invokePublishBytesToQueueWithOptionsImmediate() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
+
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+	}
+
 	@Test
-	public void invokeFeaturedReturnHandlerPublishBytesToQueue() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkFeaturedReturnHandler();
+	public void invokePublishBytesToQueueWithOptionsMandatoryReturnHandler() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(true, false);
 
 		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
 		verify(serializationSchema).serialize(MESSAGE_STR);
-		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, true, true,
+		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, true, false,
+				publishOptions.computeProperties(""), MESSAGE);
+	}
+
+	@Test
+	public void invokePublishBytesToQueueWithOptionsImmediateReturnHandler() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptionsAndReturnHandler(false, true);
+
+		rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+		verify(serializationSchema).serialize(MESSAGE_STR);
+		verify(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, true,
 				publishOptions.computeProperties(""), MESSAGE);
 	}
 
 	@Test(expected = RuntimeException.class)
-	public void exceptionDuringFeaturedPublishingIsNotIgnored() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkFeatured();
+	public void exceptionDuringWithOptionsPublishingIsNotIgnored() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
 		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
 				publishOptions.computeProperties(""), MESSAGE);
@@ -189,8 +214,8 @@ public class RMQSinkTest {
 	}
 
 	@Test
-	public void exceptionDuringFeaturedPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
-		RMQSink<String> rmqSink = createRMQSinkFeatured();
+	public void exceptionDuringWithOptionsPublishingIsIgnoredIfLogFailuresOnly() throws Exception {
+		RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 		rmqSink.setLogFailuresOnly(true);
 
 		doThrow(IOException.class).when(channel).basicPublish(EXCHANGE, ROUTING_KEY, false, false,
@@ -199,6 +224,15 @@ public class RMQSinkTest {
 	}
 
 	private class DummyPublishOptions implements RMQSinkPublishOptions<String> {
+		private static final long serialVersionUID = 1L;
+		private boolean mandatory = false;
+		private boolean immediate = false;
+
+		public DummyPublishOptions(boolean mandatory, boolean immediate) {
+			this.mandatory = mandatory;
+			this.immediate = immediate;
+		}
+
 		@Override
 		public String computeRoutingKey(String a) {
 			return ROUTING_KEY;
@@ -216,12 +250,12 @@ public class RMQSinkTest {
 
 		@Override
 		public boolean computeMandatory(String a) {
-			return true;
+			return mandatory;
 		}
 
 		@Override
 		public boolean computeImmediate(String a) {
-			return true;
+			return immediate;
 		}
 	}
 

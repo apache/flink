@@ -109,7 +109,6 @@ public class RMQConnectionConfig implements Serializable {
 	* @param requestedChannelMax requested maximum channel number
 	* @param requestedFrameMax requested maximum frame size
 	* @param requestedHeartbeat requested heartbeat interval
-	* @param createQueue enable or diable queue create on setup
 	* @throws NullPointerException if URI is null
 	*/
 	private RMQConnectionConfig(String uri, Integer networkRecoveryInterval, Boolean automaticRecovery,
