@@ -1804,7 +1804,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (which will be distributed viaBlobServer), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -1822,7 +1822,7 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (which will be distributed viaBlobServer), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
