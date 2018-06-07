@@ -46,7 +46,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -136,12 +136,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iteration.closeWith(updatedDs).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(-3); add(-2); add(-2); add(-1); add(-1);
-			add(-1); add(0); add(0); add(0); add(0);
-			add(1); add(1); add(1); add(1); add(1);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(-3, -2, -2, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1);
 
 		assertEquals(expected, result);
 	}
@@ -170,12 +165,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iteration.closeWith(updatedDs).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(-3); add(-2); add(-2); add(-1); add(-1);
-			add(-1); add(0); add(0); add(0); add(0);
-			add(1); add(1); add(1); add(1); add(1);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(-3, -2, -2, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1);
 
 		assertEquals(expected, result);
 	}
@@ -204,12 +194,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iteration.closeWith(updatedDs).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(-3); add(-2); add(-2); add(-1); add(-1);
-			add(-1); add(0); add(0); add(0); add(0);
-			add(1); add(1); add(1); add(1); add(1);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(-3, -2, -2, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1);
 
 		assertEquals(expected, result);
 	}
@@ -241,12 +226,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iterationRes.map(new ProjectSecondMapper()).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(1); add(2); add(2); add(3); add(3);
-			add(3); add(4); add(4); add(4); add(4);
-			add(5); add(5); add(5); add(5); add(5);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5);
 
 		assertEquals(expected, result);
 	}
@@ -278,12 +258,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iterationRes.map(new ProjectSecondMapper()).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(1); add(2); add(2); add(3); add(3);
-			add(3); add(4); add(4); add(4); add(4);
-			add(5); add(5); add(5); add(5); add(5);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5);
 
 		assertEquals(result, expected);
 	}
@@ -319,12 +294,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 		List<Integer> result = iterationRes.map(new ProjectSecondMapper()).collect();
 		Collections.sort(result);
 
-		List<Integer> expected = new ArrayList<Integer>() {{
-			add(-3); add(-2); add(-2); add(-1); add(-1);
-			add(-1); add(0); add(0); add(0); add(0);
-			add(1); add(1); add(1); add(1); add(1);
-		}};
-		Collections.sort(expected);
+		List<Integer> expected = Arrays.asList(-3, -2, -2, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1);
 
 		assertEquals(expected, result);
 	}
