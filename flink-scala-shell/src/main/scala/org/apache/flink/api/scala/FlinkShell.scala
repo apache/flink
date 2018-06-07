@@ -20,6 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.commons.cli.{CommandLine, Options}
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -273,14 +275,25 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
+    val customCommandLines = CliFrontend.loadCustomCommandLines(
+      configuration,configurationDirectory)
+    val commandOptions = CliFrontendParser.getRunCommandOptions
+    val customCommandLineOptions = new Options()
+    customCommandLines.asScala.foreach(cmd => {
+      cmd.addGeneralOptions(customCommandLineOptions)
+      cmd.addRunOptions(customCommandLineOptions)
+    })
+    val commandLineOptions = CliFrontendParser.mergeOptions(
+      commandOptions, customCommandLineOptions)
+
     val commandLine = CliFrontendParser.parse(
-      CliFrontendParser.getRunCommandOptions,
+      commandLineOptions,
       args.toArray,
       true)
 
     val frontend = new CliFrontend(
       configuration,
-      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
+      customCommandLines)
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
     val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
