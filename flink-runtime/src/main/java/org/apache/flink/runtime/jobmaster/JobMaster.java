@@ -991,6 +991,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			disconnectTaskManager(
 				resourceID,
 				new FlinkRuntimeException("TaskManager with id " + resourceID + " has terminated.", cause));
+		} else {
+			// we try to fail the allocation because the TM might fail to communicate with JM before it exists.
+			for (AllocationID allocationId : allocationIds) {
+				slotPoolGateway.failAllocation(allocationId, cause);
+			}
 		}
 	}
 
