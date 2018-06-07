@@ -365,9 +365,9 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register Orders table
 
 // scan registered Orders table
-Table orders = tableEnv.scan("Orders")
+val orders = tableEnv.scan("Orders")
 // compute revenue for all customers from France
-Table revenue = orders
+val revenue = orders
   .filter('cCountry === "FRANCE")
   .groupBy('cID, 'cName)
   .select('cID, 'cName, 'revenue.sum AS 'revSum)
@@ -419,7 +419,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // register Orders table
 
 // compute revenue for all customers from France
-Table revenue = tableEnv.sqlQuery("""
+val revenue = tableEnv.sqlQuery("""
   |SELECT cID, cName, SUM(revenue) AS revSum
   |FROM Orders
   |WHERE cCountry = 'FRANCE'
