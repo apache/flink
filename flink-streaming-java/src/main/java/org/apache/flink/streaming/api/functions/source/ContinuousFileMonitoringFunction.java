@@ -93,6 +93,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** Which new data to process (see {@link FileProcessingMode}. */
 	private final FileProcessingMode watchType;
 
+	/** The number of times to read a file upon processing. */
+	private final int numTimes;
+
 	/** The maximum file modification time seen so far. */
 	private volatile long globalModificationTime = Long.MIN_VALUE;
 
@@ -108,23 +111,40 @@ public class ContinuousFileMonitoringFunction<OUT>
 		int readerParallelism,
 		long interval) {
 
-		Preconditions.checkArgument(
-			watchType == FileProcessingMode.PROCESS_ONCE || interval >= MIN_MONITORING_INTERVAL,
-			"The specified monitoring interval (" + interval + " ms) is smaller than the minimum " +
-				"allowed one (" + MIN_MONITORING_INTERVAL + " ms)."
-		);
+		this(format, watchType, readerParallelism, interval, 1);
+	}
 
-		Preconditions.checkArgument(
-			format.getFilePaths().length == 1,
-			"FileInputFormats with multiple paths are not supported yet.");
+	public ContinuousFileMonitoringFunction(
+		FileInputFormat<OUT> format,
+		FileProcessingMode watchType,
+		int readerParallelism,
+		long interval,
+		int numTimes) {
+
+		switch (watchType) {
+			case PROCESS_ONCE:
+				Preconditions.checkArgument(numTimes == 1,
+					"The specified number of times to read a file should be 1, but is " + numTimes);
+				break;
+			case PROCESS_N_TIMES:
+				Preconditions.checkArgument(numTimes >= 1,
+					"The specified number of times to read a file should be no less than 1, but is " + numTimes);
+				break;
+			case PROCESS_CONTINUOUSLY:
+				Preconditions.checkArgument(interval >= ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL,
+					String.format("The path monitoring interval cannot be less than %d ms in %s mode.",
+						ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL, FileProcessingMode.PROCESS_CONTINUOUSLY));
+				break;
+			default:
+		}
 
 		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
-		this.path = Preconditions.checkNotNull(format.getFilePaths()[0].toString(), "Unspecified Path.");
+		this.path = Preconditions.checkNotNull(format.getFilePath().toString(), "Unspecified Path.");
 
 		this.interval = interval;
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
-		this.globalModificationTime = Long.MIN_VALUE;
+		this.numTimes = numTimes;
 	}
 
 	@VisibleForTesting
@@ -203,7 +223,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 			case PROCESS_CONTINUOUSLY:
 				while (isRunning) {
 					synchronized (checkpointLock) {
-						monitorDirAndForwardSplits(fileSystem, context);
+						monitorDirAndForwardSplits(fileSystem, context, numTimes);
 					}
 					Thread.sleep(interval);
 				}
@@ -215,6 +235,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 				break;
 			case PROCESS_ONCE:
+			case PROCESS_N_TIMES:
 				synchronized (checkpointLock) {
 
 					// the following check guarantees that if we restart
@@ -222,9 +243,10 @@ public class ContinuousFileMonitoringFunction<OUT>
 					// checkpoint, we will not reprocess the directory.
 
 					if (globalModificationTime == Long.MIN_VALUE) {
-						monitorDirAndForwardSplits(fileSystem, context);
+						monitorDirAndForwardSplits(fileSystem, context, numTimes);
 						globalModificationTime = Long.MAX_VALUE;
 					}
+
 					isRunning = false;
 				}
 				break;
@@ -234,21 +256,26 @@ public class ContinuousFileMonitoringFunction<OUT>
 		}
 	}
 
-	private void monitorDirAndForwardSplits(FileSystem fs,
-											SourceContext<TimestampedFileInputSplit> context) throws IOException {
+	private void monitorDirAndForwardSplits(FileSystem fs, SourceContext<TimestampedFileInputSplit> cnt, int numTimes)
+		throws IOException {
+
 		assert (Thread.holdsLock(checkpointLock));
 
 		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs, new Path(path));
 		Map<Long, List<TimestampedFileInputSplit>> splitsSortedByModTime = getInputSplitsSortedByModTime(eligibleFiles);
 
-		for (Map.Entry<Long, List<TimestampedFileInputSplit>> splits: splitsSortedByModTime.entrySet()) {
-			long modificationTime = splits.getKey();
-			for (TimestampedFileInputSplit split: splits.getValue()) {
-				LOG.info("Forwarding split: " + split);
-				context.collect(split);
+		for (int i = 0; i < numTimes; i++) {
+			LOG.info(String.format("Forwarding splits for the %d round", i));
+
+			for (Map.Entry<Long, List<TimestampedFileInputSplit>> splits : splitsSortedByModTime.entrySet()) {
+				long modificationTime = splits.getKey();
+				for (TimestampedFileInputSplit split : splits.getValue()) {
+					LOG.info("Forwarding split: " + split);
+					cnt.collect(split);
+				}
+				// update the global modification time
+				globalModificationTime = Math.max(globalModificationTime, modificationTime);
 			}
-			// update the global modification time
-			globalModificationTime = Math.max(globalModificationTime, modificationTime);
 		}
 	}
 
