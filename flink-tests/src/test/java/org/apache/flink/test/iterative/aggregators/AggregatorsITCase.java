@@ -107,9 +107,6 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 			}
 		}).withBroadcastSet(solution, "SOLUTION")).output(new DiscardingOutputFormat<Long>());
 		env.execute();
-		String expected = testString; // this will be a useless verification now.
-
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	@Test
