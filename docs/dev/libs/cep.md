@@ -1117,11 +1117,22 @@ pattern.within(Time.seconds(10));
     </thead>
     <tbody>
         <tr>
-            <td><strong>begin()</strong></td>
+            <td><strong>begin(#name)</strong></td>
             <td>
             <p>Defines a starting pattern:</p>
 {% highlight scala %}
 val start = Pattern.begin[Event]("start")
+{% endhighlight %}
+            </td>
+        </tr>
+       <tr>
+            <td><strong>begin(#pattern_sequence)</strong></td>
+            <td>
+            <p>Defines a starting pattern:</p>
+{% highlight scala %}
+val start = Pattern.begin(
+    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
+)
 {% endhighlight %}
             </td>
         </tr>
