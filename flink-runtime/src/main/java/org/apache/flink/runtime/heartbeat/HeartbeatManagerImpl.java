@@ -277,7 +277,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 			this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 			this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener);
 
-			Preconditions.checkArgument(heartbeatTimeoutIntervalMs >= 0L, "The heartbeat timeout interval has to be larger than 0.");
+			Preconditions.checkArgument(heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout interval has to be larger than 0.");
 			this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
 
 			lastHeartbeat = 0L;
