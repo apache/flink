@@ -108,7 +108,7 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
   }
 
-  def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
+  private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
   }
 
