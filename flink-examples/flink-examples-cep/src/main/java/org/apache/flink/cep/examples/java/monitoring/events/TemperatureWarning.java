@@ -16,20 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples.events;
+package org.apache.flink.cep.examples.java.monitoring.events;
 
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+/**
+ * Temperature warning event.
+ */
 public class TemperatureWarning {
 
 	private int rackID;
 	private double averageTemperature;
 
-	public TemperatureWarning(int rackID, double averageTemperature) {
-		this.rackID = rackID;
-		this.averageTemperature = averageTemperature;
-	}
+	// the time when this warning is generated
+	private LocalDateTime datetime;
 
 	public TemperatureWarning() {
 		this(-1, -1);
+	}
+
+	public TemperatureWarning(int rackID, double averageTemperature) {
+		this.rackID = rackID;
+		this.averageTemperature = averageTemperature;
+		this.datetime = LocalDateTime.now();
 	}
 
 	public int getRackID() {
@@ -48,25 +58,41 @@ public class TemperatureWarning {
 		this.averageTemperature = averageTemperature;
 	}
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof TemperatureWarning) {
-			TemperatureWarning other = (TemperatureWarning) obj;
+	public LocalDateTime getDatetime() {
+		return datetime;
+	}
 
-			return rackID == other.rackID && averageTemperature == other.averageTemperature;
-		} else {
+	public void setDatetime(LocalDateTime datetime) {
+		this.datetime = datetime;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+
+		TemperatureWarning that = (TemperatureWarning) o;
+
+		return rackID == that.rackID
+			&& Double.compare(that.averageTemperature, averageTemperature) == 0
+			&& datetime.equals(that.datetime);
 	}
 
 	@Override
 	public int hashCode() {
-		long bits = Double.doubleToLongBits(averageTemperature);
-		return 41 * rackID + (int)(bits ^ (bits >>> 32));
+		return Objects.hash(rackID, averageTemperature, datetime);
 	}
 
 	@Override
 	public String toString() {
-		return "TemperatureWarning(" + getRackID() + ", " + averageTemperature + ")";
+		return "TemperatureWarning("
+			+ getRackID() + ", "
+			+ averageTemperature + ", "
+			+ datetime + ")";
 	}
+
 }

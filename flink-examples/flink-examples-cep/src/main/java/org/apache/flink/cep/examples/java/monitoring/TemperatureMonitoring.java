@@ -16,28 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples;
+package org.apache.flink.cep.examples.java.monitoring;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.cep.CEP;
+import org.apache.flink.cep.PatternFlatSelectFunction;
+import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
-import org.apache.flink.cep.examples.events.MonitoringEvent;
-import org.apache.flink.cep.examples.events.TemperatureAlert;
-import org.apache.flink.cep.examples.events.TemperatureEvent;
-import org.apache.flink.cep.examples.events.TemperatureWarning;
-import org.apache.flink.cep.examples.functions.TemperatureAlertPatternFlatSelectFunction;
-import org.apache.flink.cep.examples.functions.TemperatureWarningPatternSelectFunction;
-import org.apache.flink.cep.examples.sources.MonitoringEventSource;
+import org.apache.flink.cep.examples.java.monitoring.events.MonitoringEvent;
+import org.apache.flink.cep.examples.java.monitoring.events.TemperatureAlert;
+import org.apache.flink.cep.examples.java.monitoring.events.TemperatureEvent;
+import org.apache.flink.cep.examples.java.monitoring.events.TemperatureWarning;
+import org.apache.flink.cep.examples.java.monitoring.sources.MonitoringEventSource;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.IngestionTimeExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Collector;
+
+import java.util.List;
+import java.util.Map;
 
 /**
- * CEP example monitoring program
- * <p>
+ * CEP example monitoring program.
  * This example program generates a stream of monitoring events which are analyzed using Flink's CEP library.
  * The input event stream consists of temperature and power events from a set of racks. The goal is to detect
  * when a rack is about to overheat. In order to do that, we create a CEP pattern which generates a
@@ -46,54 +49,40 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  * whose temperatures are rising, we want to generate an alert. This is achieved by defining another CEP pattern which
  * analyzes the stream of generated temperature warnings.
  */
-public class CEPMonitoringExample {
+public class TemperatureMonitoring {
+
 	private static final double TEMPERATURE_THRESHOLD = 100;
 
-	private static final int MAX_RACK_ID = 10;
-	private static final long PAUSE = 100;
-	private static final double TEMPERATURE_RATIO = 0.5;
-	private static final double POWER_STD = 10;
-	private static final double POWER_MEAN = 100;
-	private static final double TEMP_STD = 20;
-	private static final double TEMP_MEAN = 80;
-
 	public static void main(String[] args) throws Exception {
-
+		System.out.println("Executing temperature monitoring Java example.");
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// Use ingestion time => TimeCharacteristic == EventTime + IngestionTimeExtractor
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		// Input stream of monitoring events
-		DataStream<MonitoringEvent> inputEventStream = env
-			.addSource(new MonitoringEventSource(
-				MAX_RACK_ID,
-				PAUSE,
-				TEMPERATURE_RATIO,
-				POWER_STD,
-				POWER_MEAN,
-				TEMP_STD,
-				TEMP_MEAN))
-			.assignTimestampsAndWatermarks(new IngestionTimeExtractor<MonitoringEvent>());
+		DataStream<MonitoringEvent> inputEventStream = env.addSource(new MonitoringEventSource())
+			.assignTimestampsAndWatermarks(new IngestionTimeExtractor<>());
 
 		// Warning pattern: Two consecutive temperature events whose temperature is higher than the given threshold
 		// appearing within a time interval of 10 seconds
-
-		FilterFunction<TemperatureEvent>
-			thresholdFilterFunction = new FilterFunction<TemperatureEvent>() {
-
-			@Override
-			public boolean filter(TemperatureEvent event) throws Exception {
-				return event.getTemperature() > TEMPERATURE_THRESHOLD;
-			}
-		};
-
-		Pattern<MonitoringEvent, ?> warningPattern = Pattern.<MonitoringEvent>begin("first")
-			.subtype(TemperatureEvent.class)
-			.where(thresholdFilterFunction)
+		Pattern<MonitoringEvent, ?> warningPattern = Pattern
+			.<MonitoringEvent>begin("first")
+				.subtype(TemperatureEvent.class)
+				.where(new SimpleCondition<TemperatureEvent>() {
+					@Override
+					public boolean filter(TemperatureEvent event) throws Exception {
+						return event.getTemperature() > TEMPERATURE_THRESHOLD;
+					}
+				})
 			.next("second")
-			.subtype(TemperatureEvent.class)
-			.where(thresholdFilterFunction)
+				.subtype(TemperatureEvent.class)
+				.where(new SimpleCondition<TemperatureEvent>() {
+					@Override
+					public boolean filter(TemperatureEvent event) throws Exception {
+						return event.getTemperature() > TEMPERATURE_THRESHOLD;
+					}
+				})
 			.within(Time.seconds(10));
 
 		// Create a pattern stream from our warning pattern
@@ -103,11 +92,23 @@ public class CEPMonitoringExample {
 
 		// Generate temperature warnings for each matched warning pattern
 		DataStream<TemperatureWarning> warnings = tempPatternStream.select(
-			new TemperatureWarningPatternSelectFunction()
+			new PatternSelectFunction<MonitoringEvent, TemperatureWarning>() {
+				@Override
+				public TemperatureWarning select(
+						Map<String, List<MonitoringEvent>> pattern) throws Exception {
+					TemperatureEvent first = (TemperatureEvent) pattern.get("first").get(0);
+					TemperatureEvent second = (TemperatureEvent) pattern.get("second").get(0);
+					return new TemperatureWarning(
+						first.getRackID(),
+						(first.getTemperature() + second.getTemperature()) / 2
+					);
+				}
+			}
 		);
 
 		// Alert pattern: Two consecutive temperature warnings appearing within a time interval of 20 seconds
-		Pattern<TemperatureWarning, ?> alertPattern = Pattern.<TemperatureWarning>begin("first")
+		Pattern<TemperatureWarning, ?> alertPattern = Pattern
+			.<TemperatureWarning>begin("first")
 			.next("second")
 			.within(Time.seconds(20));
 
@@ -116,16 +117,28 @@ public class CEPMonitoringExample {
 			warnings.keyBy("rackID"),
 			alertPattern);
 
-		// Generate a temperature alert only iff the second temperature warning's average temperature is higher than
+		// Generate a temperature alert iff the second temperature warning's average temperature is higher than
 		// first warning's temperature
 		DataStream<TemperatureAlert> alerts = alertPatternStream.flatSelect(
-			new TemperatureAlertPatternFlatSelectFunction()
+			new PatternFlatSelectFunction<TemperatureWarning, TemperatureAlert>() {
+				@Override
+				public void flatSelect(Map<String, List<TemperatureWarning>> pattern,
+						Collector<TemperatureAlert> out) throws Exception {
+					TemperatureWarning first = pattern.get("first").get(0);
+					TemperatureWarning second = pattern.get("second").get(0);
+					if (first.getAverageTemperature() < second.getAverageTemperature()) {
+						out.collect(new TemperatureAlert(first.getRackID()));
+					}
+				}
+			}
 		);
 
-		// Print the warning and alert events to stdout
+		// Print the warning and alert events to the stdout
+		System.out.println("Printing result to the stdout of task executors.");
 		warnings.print();
 		alerts.print();
 
-		env.execute("CEP monitoring job");
+		env.execute("CEP Monitoring Java Example");
 	}
+
 }

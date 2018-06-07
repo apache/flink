@@ -16,26 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples.functions;
+package org.apache.flink.cep.examples.java.monitoring.events;
 
-import org.apache.flink.cep.PatternSelectFunction;
-import org.apache.flink.cep.examples.events.MonitoringEvent;
-import org.apache.flink.cep.examples.events.TemperatureEvent;
-import org.apache.flink.cep.examples.events.TemperatureWarning;
+/**
+ * Base monitoring event with a rack ID.
+ */
+public abstract class MonitoringEvent {
 
-import java.util.Map;
+	private int rackID;
 
-public class TemperatureWarningPatternSelectFunction
-	implements PatternSelectFunction<MonitoringEvent, TemperatureWarning> {
+	public MonitoringEvent(int rackID) {
+		this.rackID = rackID;
+	}
+
+	public int getRackID() {
+		return rackID;
+	}
+
+	public void setRackID(int rackID) {
+		this.rackID = rackID;
+	}
 
 	@Override
-	public TemperatureWarning select(Map<String, MonitoringEvent> pattern) throws Exception {
-		TemperatureEvent first = (TemperatureEvent) pattern.get("first");
-		TemperatureEvent second = (TemperatureEvent) pattern.get("second");
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
 
-		return new TemperatureWarning(
-			first.getRackID(),
-			(first.getTemperature() + second.getTemperature()) / 2
-		);
+		MonitoringEvent that = (MonitoringEvent) o;
+
+		return rackID == that.rackID;
 	}
+
+	@Override
+	public int hashCode() {
+		return rackID;
+	}
+
 }

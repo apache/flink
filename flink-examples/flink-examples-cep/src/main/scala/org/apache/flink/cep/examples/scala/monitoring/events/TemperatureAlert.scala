@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.scala.examples.events
+package org.apache.flink.cep.examples.scala.monitoring.events
 
-class TemperatureWarning(rackID: Int = -1, averageTemperature: Double = -1) {
+import java.time.LocalDateTime
+import java.util.Objects
 
-  def getRackID: Int = rackID
+/**
+  * Temperature alert event.
+  */
+class TemperatureAlert(val rackID: Int, val datetime: LocalDateTime = LocalDateTime.now()) {
 
-  def getAverageTemperature: Double = averageTemperature
-
-  override def equals(obj: Any): Boolean = obj match {
-    case other: TemperatureWarning =>
-      rackID == other.getRackID &&
-        averageTemperature == other.getAverageTemperature
-
+  override def equals(o: Any): Boolean = o match {
+    case other: TemperatureAlert =>
+      other.rackID == rackID && other.datetime.equals(datetime)
     case _ => false
   }
 
-  override def hashCode: Int = 41 * rackID + averageTemperature.hashCode()
+  override def hashCode: Int = Objects.hash(rackID.asInstanceOf[Integer], datetime)
 
-  override def toString: String =
-    "TemperatureWarning(" + getRackID + ", " + averageTemperature + ")"
+  override def toString: String = "TemperatureAlert(" + rackID + ", " + datetime + ")"
+
 }

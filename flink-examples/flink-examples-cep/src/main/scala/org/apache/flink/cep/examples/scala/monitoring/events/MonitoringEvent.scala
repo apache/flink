@@ -16,39 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples.events;
+package org.apache.flink.cep.examples.scala.monitoring.events
 
-public abstract class MonitoringEvent {
-	private int rackID;
+/**
+  * Base monitoring event with a rack ID.
+  */
+class MonitoringEvent(val rackID: Int) {
 
-	public MonitoringEvent(int rackID) {
-		this.rackID = rackID;
-	}
+  override def equals(o: Any): Boolean = o match {
+    case other: MonitoringEvent => other.rackID == rackID
+    case _ => false
+  }
 
-	public int getRackID() {
-		return rackID;
-	}
+  override def hashCode: Int = rackID
 
-	public void setRackID(int rackID) {
-		this.rackID = rackID;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof MonitoringEvent) {
-			MonitoringEvent monitoringEvent = (MonitoringEvent) obj;
-			return monitoringEvent.canEquals(this) && rackID == monitoringEvent.rackID;
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return rackID;
-	}
-
-	public boolean canEquals(Object obj) {
-		return obj instanceof MonitoringEvent;
-	}
 }

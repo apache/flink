@@ -16,14 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples.events;
+package org.apache.flink.cep.examples.java.monitoring.events;
 
+import java.util.Objects;
+
+/**
+ * Temperature event.
+ */
 public class TemperatureEvent extends MonitoringEvent {
+
 	private double temperature;
+
+	public TemperatureEvent() {
+		this(-1, -1);
+	}
 
 	public TemperatureEvent(int rackID, double temperature) {
 		super(rackID);
-
 		this.temperature = temperature;
 	}
 
@@ -36,29 +45,30 @@ public class TemperatureEvent extends MonitoringEvent {
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof TemperatureEvent) {
-			TemperatureEvent other = (TemperatureEvent) obj;
-
-			return other.canEquals(this) && super.equals(other) && temperature == other.temperature;
-		} else {
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+		if (!super.equals(o)) {
+			return false;
+		}
+
+		TemperatureEvent that = (TemperatureEvent) o;
+
+		return Double.compare(that.temperature, temperature) == 0;
 	}
 
 	@Override
 	public int hashCode() {
-		long bits = Double.doubleToLongBits(temperature);
-		return 41 * super.hashCode() + (int)(bits ^ (bits >>> 32));
-	}
-
-	@Override
-	public boolean canEquals(Object obj) {
-		return obj instanceof TemperatureEvent;
+		return Objects.hash(super.hashCode(), temperature);
 	}
 
 	@Override
 	public String toString() {
 		return "TemperatureEvent(" + getRackID() + ", " + temperature + ")";
 	}
+
 }

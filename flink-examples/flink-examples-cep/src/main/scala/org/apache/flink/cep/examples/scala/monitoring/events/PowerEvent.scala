@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.scala.examples.events
+package org.apache.flink.cep.examples.scala.monitoring.events
 
-class TemperatureEvent(rackID: Int, temperature: Double) extends MonitoringEvent(rackID) {
+import java.util.Objects
 
-  def getTemperature: Double = temperature
+/**
+  * Power event.
+  */
+class PowerEvent(override val rackID: Int, val voltage: Double) extends MonitoringEvent(rackID) {
 
-  override def equals(obj: Any): Boolean = obj match {
-    case other: TemperatureEvent =>
-      other.canEquals(this) &&
-        super.equals(other) &&
-        temperature == other.getTemperature
-
+  override def equals(o: Any): Boolean = o match {
+    case other: PowerEvent =>
+      super.equals(other) && java.lang.Double.compare(other.voltage, voltage) == 0
     case _ => false
   }
 
-  override def hashCode: Int = 41 * super.hashCode + temperature.hashCode()
+  override def hashCode: Int = Objects.hash(
+    super.hashCode.asInstanceOf[Integer], voltage.asInstanceOf[java.lang.Double])
 
-  override def canEquals(obj: Any): Boolean = obj.isInstanceOf[TemperatureEvent]
+  override def toString: String = "PowerEvent(" + rackID + ", " + voltage + ")"
 
-  override def toString: String = "TemperatureEvent(" + getRackID + ", " + temperature + ")"
 }

@@ -197,6 +197,16 @@ under the License.
 			</includes>
 		</fileSet>
 
+		<!-- copy jar files of the cep examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-cep/target</directory>
+			<outputDirectory>examples/cep</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>flink-examples-cep-with-dependencies.jar</include>
+			</includes>
+		</fileSet>
+
 		<!-- copy python jar -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/target</directory>

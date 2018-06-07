@@ -16,44 +16,59 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.examples.events;
+package org.apache.flink.cep.examples.java.monitoring.events;
 
-public class TemperatureAlert {
-	private int rackID;
+import java.util.Objects;
 
-	public TemperatureAlert(int rackID) {
-		this.rackID = rackID;
+/**
+ * Power event.
+ */
+public class PowerEvent extends MonitoringEvent {
+
+	private double voltage;
+
+	public PowerEvent() {
+		this(-1, -1);
 	}
 
-	public TemperatureAlert() {
-		this(-1);
+	public PowerEvent(int rackID, double voltage) {
+		super(rackID);
+		this.voltage = voltage;
 	}
 
-	public int getRackID() {
-		return rackID;
+	public double getVoltage() {
+		return voltage;
 	}
 
-	public void setRackID(int rackID) {
-		this.rackID = rackID;
+	public void setVoltage(double voltage) {
+		this.voltage = voltage;
 	}
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof TemperatureAlert) {
-			TemperatureAlert other = (TemperatureAlert) obj;
-			return rackID == other.rackID;
-		} else {
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
+		if (!super.equals(o)) {
+			return false;
+		}
+
+		PowerEvent that = (PowerEvent) o;
+
+		return Double.compare(that.voltage, voltage) == 0;
 	}
 
 	@Override
 	public int hashCode() {
-		return rackID;
+		return Objects.hash(super.hashCode(), voltage);
 	}
 
 	@Override
 	public String toString() {
-		return "TemperatureAlert(" + getRackID() + ")";
+		return "PowerEvent(" + getRackID() + ", " + voltage + ")";
 	}
+
 }

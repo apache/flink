@@ -16,59 +16,69 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.scala.examples.sources
+package org.apache.flink.cep.examples.scala.monitoring.sources
 
 import java.util.Random
 
-import org.apache.flink.cep.scala.examples.events.{MonitoringEvent, PowerEvent, TemperatureEvent}
+import org.apache.flink.cep.examples.scala.monitoring.events.{MonitoringEvent, PowerEvent, TemperatureEvent}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
-class MonitoringEventSource(maxRackId: Int,
-                            pause: Long,
-                            temperatureRatio: Double,
-                            powerStd: Double,
-                            powerMean: Double,
-                            temperatureStd: Double,
-                            temperatureMean: Double)
-  extends RichParallelSourceFunction[MonitoringEvent] {
+/**
+  * Event source that randomly produces [[TemperatureEvent]] and [[PowerEvent]].
+  * The ratio of temperature events is configured by [[tempEventRatio]].
+  * The [[TemperatureEvent#temperature]] is a Gaussian distributed random number with mean [[TEMP_MEAN]] and standard deviation [[TEMP_STD]].
+  * [[PowerEvent#voltage]] is generated in a similar way.
+  */
+class MonitoringEventSource(val numRacks: Int = 10, val tempEventRatio: Double = 0.7)
+    extends RichParallelSourceFunction[MonitoringEvent] {
+
+  private val TEMP_STD = 20
+  private val TEMP_MEAN = 80
+  private val POWER_STD = 10
+  private val POWER_MEAN = 100
 
   private var random: Random = _
 
   private var running = true
-  private var shard: Int = 0
-  private var offset: Int = 0
+
+  // the number of racks for which to emit monitoring events from this sub source task
+  private var shards = 0
+  // rack id of the first shard
+  private var offset = 0
 
   override def open(configuration: Configuration) {
-    val numberTasks: Int = getRuntimeContext.getNumberOfParallelSubtasks
-    val index: Int = getRuntimeContext.getIndexOfThisSubtask
+    val numberTasks = getRuntimeContext.getNumberOfParallelSubtasks
+    val index = getRuntimeContext.getIndexOfThisSubtask
 
-    offset = (maxRackId.toDouble / numberTasks * index).toInt
-    shard = (maxRackId.toDouble / numberTasks * (index + 1)).toInt - offset
+    offset = (numRacks.toDouble / numberTasks * index).toInt
+    shards = (numRacks.toDouble / numberTasks * (index + 1)).toInt - offset
 
     random = new Random()
   }
 
   override def run(ctx: SourceContext[MonitoringEvent]) {
     while (running) {
-      val rackId = random.nextInt(shard) + offset
+      val rackId = offset + random.nextInt(shards)
 
       val monitoringEvent =
-        if (random.nextDouble >= temperatureRatio) {
-          val power = random.nextGaussian * powerStd + powerMean
+        if (random.nextDouble >= tempEventRatio) {
+          val power = random.nextGaussian * POWER_STD + POWER_MEAN
           new PowerEvent(rackId, power)
         } else {
-          val temperature = random.nextGaussian * temperatureStd + temperatureMean
+          val temperature = random.nextGaussian * TEMP_STD + TEMP_MEAN
           new TemperatureEvent(rackId, temperature)
         }
 
       ctx.collect(monitoringEvent)
-      Thread.sleep(pause)
+
+      Thread.sleep(100)
     }
   }
 
   override def cancel() {
     running = false
   }
+
 }
