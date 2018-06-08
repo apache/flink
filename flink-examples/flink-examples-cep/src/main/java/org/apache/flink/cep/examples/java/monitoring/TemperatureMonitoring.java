@@ -130,7 +130,7 @@ public class TemperatureMonitoring {
 					TemperatureWarning first = pattern.get("first").get(0);
 					TemperatureWarning second = pattern.get("second").get(0);
 					if (first.getAverageTemperature() < second.getAverageTemperature()) {
-						out.collect(new TemperatureAlert(first.getRackID()));
+						out.collect(new TemperatureAlert(first.getRackID(), second.getDatetime()));
 					}
 				}
 			}
@@ -141,7 +141,7 @@ public class TemperatureMonitoring {
 		warnings.print();
 		alerts.print();
 
-		env.execute("CEP Monitoring Java Example");
+		env.execute("CEP Temperature Monitoring Java Example");
 	}
 
 }

@@ -23,17 +23,25 @@ import java.util.Objects
 
 /**
   * Temperature alert event.
+  *
+  * @param warningTime the time when last warning occurred.
+  * @param datetime the time when this alert is generated.
   */
-class TemperatureAlert(val rackID: Int, val datetime: LocalDateTime = LocalDateTime.now()) {
+class TemperatureAlert(val rackID: Int,
+    val warningTime: LocalDateTime,
+    val datetime: LocalDateTime = LocalDateTime.now()) {
 
   override def equals(o: Any): Boolean = o match {
     case other: TemperatureAlert =>
-      other.rackID == rackID && other.datetime.equals(datetime)
+      other.rackID == rackID &&
+        other.warningTime.equals(warningTime) &&
+        other.datetime.equals(datetime)
     case _ => false
   }
 
-  override def hashCode: Int = Objects.hash(rackID.asInstanceOf[Integer], datetime)
+  override def hashCode: Int = Objects.hash(rackID.asInstanceOf[Integer], warningTime, datetime)
 
-  override def toString: String = "TemperatureAlert(" + rackID + ", " + datetime + ")"
+  override def toString: String =
+    s"TemperatureAlert($rackID, warningTime=$warningTime, alertTime=$datetime)"
 
 }

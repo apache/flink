@@ -92,7 +92,7 @@ object TemperatureMonitoring {
       val first = pattern("first").head
       val second = pattern("second").head
       if (first.averageTemperature < second.averageTemperature) {
-        out.collect(new TemperatureAlert(first.rackID))
+        out.collect(new TemperatureAlert(first.rackID, second.datetime))
       }
     })
 
@@ -101,7 +101,7 @@ object TemperatureMonitoring {
     warnings.print()
     alerts.print()
 
-    env.execute("CEP Monitoring Scala Example")
+    env.execute("CEP Temperature Monitoring Scala Example")
   }
 
 }

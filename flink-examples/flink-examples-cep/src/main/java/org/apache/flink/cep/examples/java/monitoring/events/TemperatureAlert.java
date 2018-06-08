@@ -27,16 +27,19 @@ import java.util.Objects;
 public class TemperatureAlert {
 
 	private int rackID;
+	// the time when last warning occurred
+	private LocalDateTime warningTime;
 
 	// the time when this alert is generated
 	private LocalDateTime datetime;
 
 	public TemperatureAlert() {
-		this(-1);
+		this(-1, LocalDateTime.now());
 	}
 
-	public TemperatureAlert(int rackID) {
+	public TemperatureAlert(int rackID, LocalDateTime warningTime) {
 		this.rackID = rackID;
+		this.warningTime = warningTime;
 		this.datetime = LocalDateTime.now();
 	}
 
@@ -46,6 +49,14 @@ public class TemperatureAlert {
 
 	public void setRackID(int rackID) {
 		this.rackID = rackID;
+	}
+
+	public LocalDateTime getWarningTime() {
+		return warningTime;
+	}
+
+	public void setWarningTime(LocalDateTime warningTime) {
+		this.warningTime = warningTime;
 	}
 
 	public LocalDateTime getDatetime() {
@@ -67,17 +78,22 @@ public class TemperatureAlert {
 
 		TemperatureAlert that = (TemperatureAlert) o;
 
-		return rackID == that.rackID && datetime.equals(that.datetime);
+		return rackID == that.rackID
+			&& warningTime.equals(that.warningTime)
+			&& datetime.equals(that.datetime);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(rackID, datetime);
+		return Objects.hash(rackID, warningTime, datetime);
 	}
 
 	@Override
 	public String toString() {
-		return "TemperatureAlert(" + getRackID() + ", " + datetime + ")";
+		return "TemperatureAlert("
+			+ getRackID() + ", "
+			+ "warningTime=" + warningTime + ", "
+			+ "alertTime=" + datetime + ")";
 	}
 
 }
