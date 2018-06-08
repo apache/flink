@@ -27,6 +27,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
@@ -39,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -99,6 +104,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 						"_" + fileUpload.getFilename()));
 					fileUpload.renameTo(dest.toFile());
 					ctx.channel().attr(UPLOADED_FILE).set(dest);
+				}
+				else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+					Attribute attribute = (Attribute) data;
+					QueryStringDecoder decoder = new QueryStringDecoder(currentHttpRequest.getUri());
+					Map<String, List<String>> currentParams = decoder.parameters();
+
+					QueryStringEncoder encoder = new QueryStringEncoder(decoder.path());
+					currentParams.entrySet().forEach(param -> encoder.addParam(param.getKey(), param.getValue().get(0)));
+					encoder.addParam(attribute.getName(), attribute.getValue());
+					currentHttpRequest.setUri(encoder.toString());
 				}
 				data.release();
 			}
