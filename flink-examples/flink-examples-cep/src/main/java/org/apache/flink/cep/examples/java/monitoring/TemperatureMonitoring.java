@@ -41,13 +41,15 @@ import java.util.Map;
 
 /**
  * CEP example monitoring program.
- * This example program generates a stream of monitoring events which are analyzed using Flink's CEP library.
- * The input event stream consists of temperature and power events from a set of racks. The goal is to detect
- * when a rack is about to overheat. In order to do that, we create a CEP pattern which generates a
- * TemperatureWarning whenever it sees two consecutive temperature events in a given time interval whose temperatures
- * are higher than a given threshold value. A warning itself is not critical but if we see two warning for the same rack
- * whose temperatures are rising, we want to generate an alert. This is achieved by defining another CEP pattern which
- * analyzes the stream of generated temperature warnings.
+ * This example program generates a stream of monitoring events which are analyzed using
+ * Flink's CEP library. The input event stream consists of temperature and power events
+ * from a set of racks. The goal is to detect when a rack is about to overheat.
+ * In order to do that, we create a CEP pattern which generates a TemperatureWarning
+ * whenever it sees two consecutive temperature events in a given time interval whose temperatures
+ * are higher than a given threshold value. A warning itself is not critical but if we see
+ * two warning for the same rack whose temperatures are rising, we want to generate an alert.
+ * This is achieved by defining another CEP pattern which analyzes the stream of generated
+ * temperature warnings.
  */
 public class TemperatureMonitoring {
 
@@ -64,8 +66,8 @@ public class TemperatureMonitoring {
 		DataStream<MonitoringEvent> inputEventStream = env.addSource(new MonitoringEventSource())
 			.assignTimestampsAndWatermarks(new IngestionTimeExtractor<>());
 
-		// Warning pattern: Two consecutive temperature events whose temperature is higher than the given threshold
-		// appearing within a time interval of 10 seconds
+		// Warning pattern: Two consecutive temperature events whose temperature is higher
+		// than the given threshold appearing within a time interval of 10 seconds
 		Pattern<MonitoringEvent, ?> warningPattern = Pattern
 			.<MonitoringEvent>begin("first")
 				.subtype(TemperatureEvent.class)
@@ -106,7 +108,8 @@ public class TemperatureMonitoring {
 			}
 		);
 
-		// Alert pattern: Two consecutive temperature warnings appearing within a time interval of 20 seconds
+		// Alert pattern: Two consecutive temperature warnings
+		// appearing within a time interval of 20 seconds
 		Pattern<TemperatureWarning, ?> alertPattern = Pattern
 			.<TemperatureWarning>begin("first")
 			.next("second")
@@ -117,8 +120,8 @@ public class TemperatureMonitoring {
 			warnings.keyBy("rackID"),
 			alertPattern);
 
-		// Generate a temperature alert iff the second temperature warning's average temperature is higher than
-		// first warning's temperature
+		// Generate a temperature alert iff the second temperature warning's average temperature
+		// is higher than first warning's temperature
 		DataStream<TemperatureAlert> alerts = alertPatternStream.flatSelect(
 			new PatternFlatSelectFunction<TemperatureWarning, TemperatureAlert>() {
 				@Override

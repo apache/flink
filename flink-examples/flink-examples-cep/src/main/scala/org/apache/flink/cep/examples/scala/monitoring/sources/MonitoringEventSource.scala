@@ -28,7 +28,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceCont
 /**
   * Event source that randomly produces [[TemperatureEvent]] and [[PowerEvent]].
   * The ratio of temperature events is configured by [[tempEventRatio]].
-  * The [[TemperatureEvent#temperature]] is a Gaussian distributed random number with mean [[TEMP_MEAN]] and standard deviation [[TEMP_STD]].
+  * The [[TemperatureEvent#temperature]] is a Gaussian distributed random number
+  * with mean [[TEMP_MEAN]] and standard deviation [[TEMP_STD]].
   * [[PowerEvent#voltage]] is generated in a similar way.
   */
 class MonitoringEventSource(val numRacks: Int = 10, val tempEventRatio: Double = 0.7)

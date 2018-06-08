@@ -29,7 +29,8 @@ import java.util.Random;
 /**
  * Event source that randomly produces {@link TemperatureEvent} and {@link PowerEvent}.
  * The ratio of temperature events is configured by {@link tempEventRatio}.
- * The {@link TemperatureEvent#temperature} is a Gaussian distributed random number with mean {@link TEMP_MEAN} and standard deviation {@link TEMP_STD}.
+ * The {@link TemperatureEvent#temperature} is a Gaussian distributed random number
+ * with mean {@link TEMP_MEAN} and standard deviation {@link TEMP_STD}.
  * {@link PowerEvent#voltage} is generated in a similar way.
  */
 public class MonitoringEventSource extends RichParallelSourceFunction<MonitoringEvent> {

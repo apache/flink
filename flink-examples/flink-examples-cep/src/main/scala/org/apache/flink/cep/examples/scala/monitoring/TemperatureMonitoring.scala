@@ -29,13 +29,15 @@ import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
   * CEP example monitoring program.
-  * This example program generates a stream of monitoring events which are analyzed using Flink's CEP library.
-  * The input event stream consists of temperature and power events from a set of racks. The goal is to detect
-  * when a rack is about to overheat. In order to do that, we create a CEP pattern which generates a
-  * TemperatureWarning whenever it sees two consecutive temperature events in a given time interval whose temperatures
-  * are higher than a given threshold value. A warning itself is not critical but if we see two warning for the same rack
-  * whose temperatures are rising, we want to generate an alert. This is achieved by defining another CEP pattern which
-  * analyzes the stream of generated temperature warnings.
+  * This example program generates a stream of monitoring events which are analyzed using
+  * Flink's CEP library. The input event stream consists of temperature and power events
+  * from a set of racks. The goal is to detect when a rack is about to overheat.
+  * In order to do that, we create a CEP pattern which generates a TemperatureWarning
+  * whenever it sees two consecutive temperature events in a given time interval whose temperatures
+  * are higher than a given threshold value. A warning itself is not critical but if we see
+  * two warning for the same rack whose temperatures are rising, we want to generate an alert.
+  * This is achieved by defining another CEP pattern which analyzes the stream of generated
+  * temperature warnings.
   */
 object TemperatureMonitoring {
 
