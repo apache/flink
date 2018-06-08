@@ -46,6 +46,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DatadogHttpReporter.class);
 	private static final String HOST_VARIABLE = "<host>";
+	private static final String TM_ID_VARIABLE = "<tm_id>";
+	private static final String TM_ID_DEFAULT_VALUE = ""; // empty
+	private static final String JOB_NAME_JOB_MANAGER_VARIABLE = "jobmanager";
+	private static final String JOB_NAME_TASK_MANAGER_VARIABLE = "taskmanager";
+	private static final String JOB_NAME_DEFAULT_VALUE = ""; // empty
 
 	// Both Flink's Gauge and Meter values are taken as gauge in Datadog
 	private final Map<Gauge, DGauge> gauges = new ConcurrentHashMap<>();
@@ -54,33 +59,42 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
+	private String metricsPrefix;
 
 	public static final String API_KEY = "apikey";
 	public static final String TAGS = "tags";
+	public static final String PREFIX = "prefix";
+
+	public static final String DEFAULT_METRICS_PREFIX = "flink";
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName);
+
+		// expected format: <host>.<taskmanager|jobmanager>.<tm_id|empty>.<remained parts>
+		String metricIdentifier = group.getMetricIdentifier(metricName);
 
 		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
 		String host = getHostFromMetricGroup(group);
 
+		// exclude host name, job_name, tm_id from metric name
+		metricIdentifier = beautifyMetricIdentifier(metricIdentifier, host, group);
+
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
-			counters.put(c, new DCounter(c, name, host, tags));
+			counters.put(c, new DCounter(c, metricIdentifier, host, tags));
 		} else if (metric instanceof Gauge) {
 			Gauge g = (Gauge) metric;
-			gauges.put(g, new DGauge(g, name, host, tags));
+			gauges.put(g, new DGauge(g, metricIdentifier, host, tags));
 		} else if (metric instanceof Meter) {
 			Meter m = (Meter) metric;
 			// Only consider rate
-			meters.put(m, new DMeter(m, name, host, tags));
+			meters.put(m, new DMeter(m, metricIdentifier, host, tags));
 		} else if (metric instanceof Histogram) {
 			LOGGER.warn("Cannot add {} because Datadog HTTP API doesn't support Histogram", metricName);
 		} else {
 			LOGGER.warn("Cannot add unknown metric type {}. This indicates that the reporter " +
-				"does not support this metric type.", metric.getClass().getName());
+					"does not support this metric type.", metric.getClass().getName());
 		}
 	}
 
@@ -96,7 +110,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 			// No Histogram is registered
 		} else {
 			LOGGER.warn("Cannot remove unknown metric type {}. This indicates that the reporter " +
-				"does not support this metric type.", metric.getClass().getName());
+					"does not support this metric type.", metric.getClass().getName());
 		}
 	}
 
@@ -105,7 +119,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		client = new DatadogHttpClient(config.getString(API_KEY, null));
 		LOGGER.info("Configured DatadogHttpReporter");
 
+		// get tags
 		configTags = getTagsFromConfig(config.getString(TAGS, ""));
+		LOGGER.info(String.format("configTags: %s", String.join(",", configTags)));
+
+		// get metrics prefix, default is: `flink.`
+		metricsPrefix = config.getString(PREFIX, DEFAULT_METRICS_PREFIX);
+		LOGGER.info(String.format("metricsPrefix: %s", metricsPrefix));
 	}
 
 	@Override
@@ -172,6 +192,43 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	private String getHostFromMetricGroup(MetricGroup metricGroup) {
 		return metricGroup.getAllVariables().get(HOST_VARIABLE);
+	}
+
+	private String getTmIdFromMetricGroup(MetricGroup metricGroup) {
+		return metricGroup.getAllVariables().getOrDefault(TM_ID_VARIABLE, TM_ID_DEFAULT_VALUE);
+	}
+
+	/**
+	 * @return: job_manager or task_manager name or default value (empty)
+	 */
+	private String getJobName(String metricIdentifier) {
+		if(metricIdentifier.contains(JOB_NAME_JOB_MANAGER_VARIABLE))
+			return JOB_NAME_JOB_MANAGER_VARIABLE;
+		else if (metricIdentifier.contains(JOB_NAME_TASK_MANAGER_VARIABLE))
+			return JOB_NAME_TASK_MANAGER_VARIABLE;
+		else
+			return JOB_NAME_DEFAULT_VALUE;
+	}
+
+	/**
+	 * @return: metric_name after excluding host_name, task|job_manager and tm_id
+	 */
+	private String beautifyMetricIdentifier(String metricIdentifier, String host, MetricGroup metricGroup) {
+
+		String jobName = getJobName(metricIdentifier);
+		String tmId = getTmIdFromMetricGroup(metricGroup);
+
+		StringBuilder replaceRegex = new StringBuilder();
+		replaceRegex.append(host);
+
+		if(!jobName.isEmpty())
+			replaceRegex.append(String.format(".%s", jobName));
+
+		if(!tmId.isEmpty())
+			replaceRegex.append(String.format(".%s", tmId));
+
+		// replace <host>.<job_name>.<tm_id> by metricsPrefix
+		return metricIdentifier.replaceFirst(replaceRegex.toString(), metricsPrefix);
 	}
 
 	/**
