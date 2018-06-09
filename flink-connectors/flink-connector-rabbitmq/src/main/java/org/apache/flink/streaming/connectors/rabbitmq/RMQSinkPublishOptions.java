@@ -33,6 +33,7 @@ public interface RMQSinkPublishOptions<IN> extends java.io.Serializable {
 	 * Compute the message's routing key from the data.
 	 * @param a The data used by the sink
 	 * @return The routing key of the message
+	 * null will raise a NullPointerException 
 	 */
 	String computeRoutingKey(IN a);
 
@@ -47,6 +48,7 @@ public interface RMQSinkPublishOptions<IN> extends java.io.Serializable {
 	 * Compute the exchange from the data.
 	 * @param a The data used by the sink
 	 * @return The exchange to publish the message to
+	 * null will raise a NullPointerException 
 	 */
 	String computeExchange(IN a);
 

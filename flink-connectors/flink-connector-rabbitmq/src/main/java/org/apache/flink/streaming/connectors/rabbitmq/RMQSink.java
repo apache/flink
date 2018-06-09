@@ -165,10 +165,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 					throw new IllegalStateException("Setting mandatory and/or immediate flags to true requires a ReturnListener.");
 				} else {
 					String rk = publishOptions.computeRoutingKey(value);
+					if (rk == null) {
+						throw new NullPointerException("computeRoutingKey returned an anormal 'null' value.");
+					}
 					String exchange = publishOptions.computeExchange(value);
+					if (exchange == null) {
+						throw new NullPointerException("computeExchange returned an anormal 'null' value.");
+					}
 
-					channel.basicPublish((exchange != null) ? exchange : "",
-							(rk != null) ? rk : "", mandatory, immediate,
+					channel.basicPublish(exchange, rk, mandatory, immediate,
 									publishOptions.computeProperties(value), msg);
 				}
 			}
