@@ -50,7 +50,7 @@ public class PartitionedBloomFilterTest {
 			2.0
 		);
 
-		LinkedShrinkableBloomFilter[] linkedBloomFilters = partitionedBloomFilter.getLinkedBloomFilters();
+		LinkedTolerantFilter[] linkedBloomFilters = partitionedBloomFilter.getLinkedBloomFilters();
 		Assert.assertEquals(10, linkedBloomFilters.length);
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertNull(linkedBloomFilters[i]);

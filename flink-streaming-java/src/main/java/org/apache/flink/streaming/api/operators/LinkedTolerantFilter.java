@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,12 +31,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 /**
- * A list of {@link ShrinkableBloomFilterNode} to avoid data skewed between key ranges. The size of nodes on the list
+ * A list of {@link TolerantFilterNode} to avoid data skewed between key ranges. The size of nodes on the list
  * grow by a {@code growRate} to avoid the list to be too long.
  */
-public class LinkedShrinkableBloomFilter {
+public class LinkedTolerantFilter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LinkedShrinkableBloomFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LinkedTolerantFilter.class);
 
 	private long currentSize;
 
@@ -44,9 +45,9 @@ public class LinkedShrinkableBloomFilter {
 
 	private ElasticBloomFilter partitionedBloomFilter;
 
-	private LinkedList<ShrinkableBloomFilterNode> bloomFilterNodes = new LinkedList<>();
+	private LinkedList<TolerantFilterNode> bloomFilterNodes = new LinkedList<>();
 
-	public LinkedShrinkableBloomFilter(ElasticBloomFilter partitionedBloomFilter, long initSize, double growRate) {
+	public LinkedTolerantFilter(ElasticBloomFilter partitionedBloomFilter, long initSize, double growRate) {
 		this.partitionedBloomFilter = partitionedBloomFilter;
 		this.currentSize = initSize;
 		this.initSize = initSize;
@@ -55,10 +56,10 @@ public class LinkedShrinkableBloomFilter {
 
 	public void add(byte[] content) {
 		synchronized (bloomFilterNodes) {
-			ShrinkableBloomFilterNode node;
+			TolerantFilterNode node;
 			if (bloomFilterNodes.size() > 0) {
 				node = bloomFilterNodes.getLast();
-				if (node.isFull()) {
+				if (node.full()) {
 					LOG.info("allocate new node.");
 					currentSize = (long) (this.initSize * Math.pow(growRate, bloomFilterNodes.size()));
 					node = this.partitionedBloomFilter.allocateBloomFilterNode(currentSize);
@@ -66,9 +67,10 @@ public class LinkedShrinkableBloomFilter {
 						LOG.info("allocate new node successfully.");
 						bloomFilterNodes.add(node);
 					} else {
-						LOG.warn("allocate new node failed (run out of configured capacity), reuse the last node.");
-						node = bloomFilterNodes.getLast();
-						node.reSetTtl();
+//						LOG.warn("allocate new node failed (run out of configured capacity), reuse the last node.");
+//						node = bloomFilterNodes.getLast();
+//						node.reSetTtl();
+						throw new FlinkRuntimeException("memory out.");
 					}
 				}
 			} else {
@@ -82,9 +84,9 @@ public class LinkedShrinkableBloomFilter {
 
 	public boolean contains(byte[] content) {
 		synchronized (bloomFilterNodes) {
-			Iterator<ShrinkableBloomFilterNode> iter = bloomFilterNodes.descendingIterator();
+			Iterator<TolerantFilterNode> iter = bloomFilterNodes.descendingIterator();
 			while (iter.hasNext()) {
-				ShrinkableBloomFilterNode node = iter.next();
+				TolerantFilterNode node = iter.next();
 				if (node.contains(content)) {
 					return true;
 				}
@@ -92,35 +94,24 @@ public class LinkedShrinkableBloomFilter {
 			return false;
 		}
 	}
-//
-//	// for checkpoint and recovery
-//	public LinkedBloomFilter copy() {
-//		synchronized (bloomFilterNodes) {
-//			LinkedBloomFilter bloomFilter = new LinkedBloomFilter(partitionedBloomFilter, initSize, growRate);
-//			for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
-//				bloomFilter.bloomFilterNodes.add(node.copy());
-//			}
-//			return bloomFilter;
-//		}
-//	}
 
 	@VisibleForTesting
-	long getCurrentSize() {
+	long size() {
 		return currentSize;
 	}
 
 	@VisibleForTesting
-	long getInitSize() {
+	long initSize() {
 		return initSize;
 	}
 
 	@VisibleForTesting
-	double getGrowRate() {
+	double growRate() {
 		return growRate;
 	}
 
 	@VisibleForTesting
-	LinkedList<ShrinkableBloomFilterNode> getBloomFilterNodes() {
+	LinkedList<TolerantFilterNode> getBloomFilterNodes() {
 		return bloomFilterNodes;
 	}
 
@@ -128,7 +119,7 @@ public class LinkedShrinkableBloomFilter {
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
 		synchronized (bloomFilterNodes) {
-			for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
+			for (TolerantFilterNode node : bloomFilterNodes) {
 				if (builder.length() > 0) {
 					builder.append(" -> ");
 				}
@@ -145,7 +136,7 @@ public class LinkedShrinkableBloomFilter {
 		outputView.writeDouble(growRate);
 
 		bloomFilterNodes.removeIf(node -> {
-			if (node.getDealine() <= ts) {
+			if (node.deadline() <= ts) {
 				partitionedBloomFilter.takeBack(node);
 				return true;
 			}
@@ -153,7 +144,7 @@ public class LinkedShrinkableBloomFilter {
 		});
 
 		outputView.writeInt(bloomFilterNodes.size());
-		for (ShrinkableBloomFilterNode node : bloomFilterNodes) {
+		for (TolerantFilterNode node : bloomFilterNodes) {
 			node.snapshot(outputView);
 		}
 	}
@@ -164,9 +155,37 @@ public class LinkedShrinkableBloomFilter {
 		growRate = source.readDouble();
 		int len = source.readInt();
 		for (int i = 0; i < len; ++i) {
-			ShrinkableBloomFilterNode node = new ShrinkableBloomFilterNode(1, 1, 1);
+			ShrinkableBloomFilterNode node = new ShrinkableBloomFilterNode();
 			node.restore(source);
 			bloomFilterNodes.add(node);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+
+		LinkedTolerantFilter that = (LinkedTolerantFilter) o;
+
+		if (currentSize != that.currentSize) return false;
+		if (initSize != that.initSize) return false;
+		if (Double.compare(that.growRate, growRate) != 0) return false;
+		if (partitionedBloomFilter != null ? !partitionedBloomFilter.equals(that.partitionedBloomFilter) : that.partitionedBloomFilter != null)
+			return false;
+		return bloomFilterNodes != null ? bloomFilterNodes.equals(that.bloomFilterNodes) : that.bloomFilterNodes == null;
+	}
+
+	@Override
+	public int hashCode() {
+		int result;
+		long temp;
+		result = (int) (currentSize ^ (currentSize >>> 32));
+		result = 31 * result + (int) (initSize ^ (initSize >>> 32));
+		temp = Double.doubleToLongBits(growRate);
+		result = 31 * result + (int) (temp ^ (temp >>> 32));
+		result = 31 * result + (partitionedBloomFilter != null ? partitionedBloomFilter.hashCode() : 0);
+		result = 31 * result + (bloomFilterNodes != null ? bloomFilterNodes.hashCode() : 0);
+		return result;
 	}
 }

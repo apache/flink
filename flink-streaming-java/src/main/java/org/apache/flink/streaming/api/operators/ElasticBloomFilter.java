@@ -53,7 +53,7 @@ public class ElasticBloomFilter<K, V> {
 	private final int totalKeyGroups;
 	private final KeyGroupsList localKeyGroupRange;
 	private final KeyContext keyContext;
-	private LinkedShrinkableBloomFilter[] linkedBloomFilters;
+	private LinkedTolerantFilter[] linkedBloomFilters;
 	private final int localKeyGroupRangeStartIdx;
 
 	private long totalMemSize;
@@ -99,7 +99,7 @@ public class ElasticBloomFilter<K, V> {
 		this.keyContext = keyContext;
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = localKeyGroupRange;
-		this.linkedBloomFilters = new LinkedShrinkableBloomFilter[localKeyGroupRange.getNumberOfKeyGroups()];
+		this.linkedBloomFilters = new LinkedTolerantFilter[localKeyGroupRange.getNumberOfKeyGroups()];
 
 		// find the starting index of the local key-group range
 		int startIdx = Integer.MAX_VALUE;
@@ -118,9 +118,9 @@ public class ElasticBloomFilter<K, V> {
 		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
 		int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedShrinkableBloomFilter bloomFilter = linkedBloomFilters[index];
+		LinkedTolerantFilter bloomFilter = linkedBloomFilters[index];
 		if (bloomFilter == null) {
-			bloomFilter = new LinkedShrinkableBloomFilter(this, miniExpectNum, growRate);
+			bloomFilter = new LinkedTolerantFilter(this, miniExpectNum, growRate);
 			linkedBloomFilters[index] = bloomFilter;
 		}
 		bloomFilter.add(buildBloomFilterKey(content));
@@ -130,7 +130,7 @@ public class ElasticBloomFilter<K, V> {
 		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
 		int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedShrinkableBloomFilter bloomFilter = linkedBloomFilters[index];
+		LinkedTolerantFilter bloomFilter = linkedBloomFilters[index];
 		if (bloomFilter == null) {
 			return false;
 		}
@@ -147,7 +147,7 @@ public class ElasticBloomFilter<K, V> {
 
 		LOG.info("snapshot state for group {} ", keyGroupIdx);
 		int index = getIndexForKeyGroup(keyGroupIdx);
-		LinkedShrinkableBloomFilter bloomFilter = this.linkedBloomFilters[index];
+		LinkedTolerantFilter bloomFilter = this.linkedBloomFilters[index];
 		if (bloomFilter != null) {
 			stream.writeBoolean(true);
 			stream.writeLong(this.restMemSize);
@@ -165,7 +165,7 @@ public class ElasticBloomFilter<K, V> {
 		int index = getIndexForKeyGroup(keyGroupIdx);
 		if (stream.readBoolean()) {
 			this.restMemSize = stream.readLong();
-			LinkedShrinkableBloomFilter linkedBloomFilter = new LinkedShrinkableBloomFilter(this, miniExpectNum, growRate);
+			LinkedTolerantFilter linkedBloomFilter = new LinkedTolerantFilter(this, miniExpectNum, growRate);
 			linkedBloomFilter.restore(stream);
 			this.linkedBloomFilters[index] = linkedBloomFilter;
 			LOG.info("group {} restored.", keyGroupIdx);
@@ -202,8 +202,8 @@ public class ElasticBloomFilter<K, V> {
 		return new ShrinkableBloomFilterNode((int) requestNum, fpp, ttl);
 	}
 
-	void takeBack(ShrinkableBloomFilterNode node) {
-		restMemSize += BloomFilter.optimalNumOfBits(node.getCapacity(), node.getFpp());
+	void takeBack(TolerantFilterNode node) {
+		restMemSize += BloomFilter.optimalNumOfBits(node.capacity(), node.fpp());
 	}
 
 	long estimatePropExpectNum(long expectNum, double fpp) {
@@ -236,7 +236,7 @@ public class ElasticBloomFilter<K, V> {
 			.append("total memory:").append(totalMemSize).append("\t").append("rest memory:").append(restMemSize).append("\n");
 
 		for (int i = 0; i < localKeyGroupRange.getNumberOfKeyGroups(); ++i) {
-			LinkedShrinkableBloomFilter bloomFilter = this.linkedBloomFilters[i];
+			LinkedTolerantFilter bloomFilter = this.linkedBloomFilters[i];
 			if (bloomFilter != null) {
 				builder.append("group ").append(i + localKeyGroupRangeStartIdx).append(":").append(bloomFilter.toString()).append("\n");
 			}
@@ -245,7 +245,7 @@ public class ElasticBloomFilter<K, V> {
 	}
 
 	@VisibleForTesting
-	LinkedShrinkableBloomFilter[] getLinkedBloomFilters() {
+	LinkedTolerantFilter[] getLinkedBloomFilters() {
 		return this.linkedBloomFilters;
 	}
 }

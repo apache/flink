@@ -18,44 +18,40 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import org.apache.flink.shaded.guava18.com.google.common.hash.BloomFilter;
 import org.apache.flink.shaded.guava18.com.google.common.hash.Funnels;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * A shrinkable bloom filter node linked each other in {@link LinkedShrinkableBloomFilter} to avoid data skewed.
+ * A shrinkable bloom filter node linked each other in {@link LinkedTolerantFilter} to avoid data skewed.
  */
-public class ShrinkableBloomFilterNode {
+public class ShrinkableBloomFilterNode implements TolerantFilterNode {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ShrinkableBloomFilterNode.class);
-
-	private static final int DEFAULT_UNITS_NUM = 8;
+	public static final int DEFAULT_UNITS_NUM = 8;
 
 	private int capacity;
 	private double fpp;
-	private long size;
-	private long rawTtl;
 	private long ttl;
 	private long deleteTS = Long.MAX_VALUE;
 
 	public BloomFilterUnit[] bloomFilterUnits;
 
+	ShrinkableBloomFilterNode() {
+	}
+
 	public ShrinkableBloomFilterNode(int capacity, double fpp, long ttl) {
 		this.capacity = capacity;
 		this.fpp = fpp;
-		this.rawTtl = ttl;
 		this.ttl = ttl;
-		this.size = 0;
 
 		bloomFilterUnits = new BloomFilterUnit[DEFAULT_UNITS_NUM];
 
@@ -66,19 +62,30 @@ public class ShrinkableBloomFilterNode {
 		}
 	}
 
-	public boolean isFull() {
-		return size >= capacity;
+	@Override
+	public boolean full() {
+
+		for (BloomFilterUnit bloomFilterUnit : bloomFilterUnits) {
+			if (bloomFilterUnit.full()) {
+				deleteTS = System.currentTimeMillis() + ttl;
+				return true;
+			}
+		}
+
+		return false;
 	}
 
-	public long getCapacity() {
+	@Override
+	public long capacity() {
 		int capacity = 0;
 		for (BloomFilterUnit bloomFilterUnit : bloomFilterUnits) {
-			capacity += bloomFilterUnit.size();
+			capacity += bloomFilterUnit.capacity();
 		}
 		return capacity;
 	}
 
-	public long getSize() {
+	@Override
+	public long size() {
 		int size = 0;
 		for (BloomFilterUnit bloomFilterUnit : bloomFilterUnits) {
 			size += bloomFilterUnit.size();
@@ -86,35 +93,39 @@ public class ShrinkableBloomFilterNode {
 		return size;
 	}
 
-	public long getTTL() {
+	@Override
+	public long ttl() {
 		return ttl;
 	}
 
-	public double getFpp() {
+	@Override
+	public double fpp() {
 		return fpp;
 	}
 
 	public void reSetTtl() {
-		this.ttl = this.rawTtl;
 		this.deleteTS = Long.MAX_VALUE;
 	}
 
-	public long getDealine() {
+	@Override
+	public long deadline() {
 		return deleteTS;
 	}
 
+	@Override
 	public void add(byte[] content) {
 
-		int unitIndex = content.hashCode() % bloomFilterUnits.length;
+		int unitIndex = Arrays.hashCode(content) % bloomFilterUnits.length;
 
 		BloomFilterUnit bloomFilterUnit = bloomFilterUnits[unitIndex];
 
 		bloomFilterUnit.add(content);
 	}
 
+	@Override
 	public boolean contains(byte[] content) {
 
-		int unitIndex = content.hashCode() % bloomFilterUnits.length;
+		int unitIndex = Arrays.hashCode(content) % bloomFilterUnits.length;
 
 		BloomFilterUnit bloomFilterUnit = bloomFilterUnits[unitIndex];
 
@@ -126,22 +137,23 @@ public class ShrinkableBloomFilterNode {
 	 */
 	public void shrink() {
 		if (shrinkable()) {
-			int left = 0;
-			int right = bloomFilterUnits.length - 1;
+			int mergeIndex1 = 0;
+			int mergeIndex2 = bloomFilterUnits.length >>> 1;
+			final int newSize = mergeIndex2;
+			final BloomFilterUnit[] newBloomFilterUnits = new BloomFilterUnit[newSize];
 
-			BloomFilterUnit[] newBloomFilterUnits = new BloomFilterUnit[bloomFilterUnits.length >> 1];
 			int index = 0;
-			while(left < right) {
-				BloomFilterUnit leftUnit = bloomFilterUnits[left];
-				BloomFilterUnit rightUnit = bloomFilterUnits[right];
+			while(index < newSize) {
+				BloomFilterUnit leftUnit = bloomFilterUnits[mergeIndex1];
+				BloomFilterUnit rightUnit = bloomFilterUnits[mergeIndex2];
 
 				// merging
 				leftUnit.merge(rightUnit);
 
 				newBloomFilterUnits[index] = leftUnit;
 
-				++left;
-				--right;
+				++mergeIndex1;
+				++mergeIndex2;
 				++index;
 			}
 
@@ -152,7 +164,8 @@ public class ShrinkableBloomFilterNode {
 	/**
 	 * Check whether this Node is shrinkable,
 	 */
-	private boolean shrinkable() {
+	@VisibleForTesting
+	boolean shrinkable() {
 
 		// we can't shrink it when it has only one unit.
 		if (bloomFilterUnits.length <= 1) {
@@ -163,7 +176,7 @@ public class ShrinkableBloomFilterNode {
 			int capacity = bloomFilterUnit.capacity();
 			int size = bloomFilterUnit.size();
 
-			if (size > (capacity >> 1)) {
+			if (size > (capacity >>> 1)) {
 				return false;
 			}
 		}
@@ -171,12 +184,12 @@ public class ShrinkableBloomFilterNode {
 	}
 
 	private int computeUnitCapacity(int capacity, int units) {
-		return 0;
+		return Math.floorDiv(capacity, units);
 	}
 
 	@Override
 	public String toString() {
-		return String.format("{c:%d s:%d}", capacity, size);
+		return String.format("{c:%d s:%d}", capacity, size());
 	}
 
 	@Override
@@ -184,8 +197,7 @@ public class ShrinkableBloomFilterNode {
 		if (obj instanceof ShrinkableBloomFilterNode) {
 			ShrinkableBloomFilterNode other = (ShrinkableBloomFilterNode) obj;
 			if (other.capacity == this.capacity
-				&& other.size == this.size
-				&& other.rawTtl == this.rawTtl
+				&& other.ttl == this.ttl
 				&& other.fpp == this.fpp
 				&& other.bloomFilterUnits.length == bloomFilterUnits.length) {
 
@@ -200,16 +212,15 @@ public class ShrinkableBloomFilterNode {
 		return false;
 	}
 
-	void snapshot(DataOutputView outputView) throws IOException {
-		outputView.writeLong(capacity);
-		outputView.writeLong(rawTtl);
+	@Override
+	public void snapshot(DataOutputView outputView) throws IOException {
+		outputView.writeInt(capacity);
+		outputView.writeLong(ttl);
 		if (deleteTS == Long.MAX_VALUE) {
 			outputView.writeLong(ttl); //rest ttl
 		} else {
 			outputView.writeLong(deleteTS - System.currentTimeMillis()); //rest ttl
 		}
-		outputView.writeLong(deleteTS);
-		outputView.writeLong(size);
 		outputView.writeDouble(fpp);
 
 		int unitNum = bloomFilterUnits.length;
@@ -221,15 +232,16 @@ public class ShrinkableBloomFilterNode {
 		}
 	}
 
-	void restore(DataInputView source) throws IOException {
+	@Override
+	public void restore(DataInputView source) throws IOException {
 		capacity = source.readInt();
-		rawTtl = source.readLong();
 		ttl = source.readLong();
-		deleteTS = source.readLong();
-		if (rawTtl != ttl) {
-			deleteTS = System.currentTimeMillis() + ttl;
+		final long restTtl = source.readLong();
+		if (restTtl != ttl) {
+			deleteTS = System.currentTimeMillis() + restTtl;
+		} else {
+			deleteTS = Long.MAX_VALUE;
 		}
-		size = source.readLong();
 		fpp = source.readDouble();
 
 		int unitNum = source.readInt();

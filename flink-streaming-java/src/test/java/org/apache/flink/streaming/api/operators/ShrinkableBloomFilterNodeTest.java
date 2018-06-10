@@ -108,9 +108,9 @@ public class ShrinkableBloomFilterNodeTest {
 		DataOutputViewStreamWrapper outputViewStreamWrapper = new DataOutputViewStreamWrapper(outputStream);
 		unit.snapshot(outputViewStreamWrapper);
 
-		byte[] snapshottedBytes = outputStream.toByteArray();
+		byte[] snapshotBytes = outputStream.toByteArray();
 
-		ByteArrayInputStream inputStream = new ByteArrayInputStream(snapshottedBytes);
+		ByteArrayInputStream inputStream = new ByteArrayInputStream(snapshotBytes);
 		DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inputStream);
 
 		ShrinkableBloomFilterNode.BloomFilterUnit restoredUnit = new ShrinkableBloomFilterNode.BloomFilterUnit();
@@ -122,19 +122,94 @@ public class ShrinkableBloomFilterNodeTest {
 	@Test
 	public void testBasicFunctionalityForShrinkableBloomFilterNode() {
 
+		ShrinkableBloomFilterNode shrinkableBloomFilterNode = new ShrinkableBloomFilterNode(10000, 0.02, 1000);
+
+		Assert.assertTrue(10000 <= shrinkableBloomFilterNode.capacity());
+		Assert.assertEquals(0, shrinkableBloomFilterNode.size());
+		Assert.assertFalse(shrinkableBloomFilterNode.full());
+
+		for (int i = 0; i < 10000; ++i) {
+			Assert.assertFalse(shrinkableBloomFilterNode.contains(String.valueOf(i).getBytes()));
+		}
+
+		for (int i = 0; i < 10000; ++i) {
+			shrinkableBloomFilterNode.add(String.valueOf(i).getBytes());
+		}
+
+		for (int i = 0; i < 10000; ++i) {
+			Assert.assertTrue(shrinkableBloomFilterNode.contains(String.valueOf(i).getBytes()));
+		}
 	}
 
 	@Test
-	public void testSnapshotAndRestoreForShrinkableBloomFilterNode() {
+	public void testSnapshotAndRestoreForShrinkableBloomFilterNode() throws Exception {
+
+		ShrinkableBloomFilterNode shrinkableBloomFilterNode = new ShrinkableBloomFilterNode(10000, 0.02, 1000);
+
+		for (int i = 0; i < 2000; ++i) {
+			shrinkableBloomFilterNode.add(String.valueOf(i).getBytes());
+		}
+
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(1024);
+		DataOutputViewStreamWrapper outputViewStreamWrapper = new DataOutputViewStreamWrapper(outputStream);
+		shrinkableBloomFilterNode.snapshot(outputViewStreamWrapper);
+
+		byte[] snapshotBytes = outputStream.toByteArray();
+
+		ByteArrayInputStream inputStream = new ByteArrayInputStream(snapshotBytes);
+		DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inputStream);
+
+		ShrinkableBloomFilterNode restoredNode = new ShrinkableBloomFilterNode(10000, 0.02, 1000);
+		restoredNode.restore(inputViewStreamWrapper);
+
+		Assert.assertEquals(shrinkableBloomFilterNode, restoredNode);
 
 	}
 
 	@Test
 	public void testShrinking() {
 
+		ShrinkableBloomFilterNode shrinkableBloomFilterNode = new ShrinkableBloomFilterNode(10000, 0.02, 1000);
+
+		for (int i = 0; i < 2000; ++i) {
+			shrinkableBloomFilterNode.add(String.valueOf(i).getBytes());
+		}
+
+		for (int i = 0; i < 2000; ++i) {
+			Assert.assertTrue(shrinkableBloomFilterNode.contains(String.valueOf(i).getBytes()));
+		}
+
+		List<byte[]> records2000To10000 = new ArrayList<>();
+		for (int i = 2000; i < 10000; ++i) {
+			records2000To10000.add(String.valueOf(i).getBytes());
+		}
+
+		verifyBloomFilterWithFpp(shrinkableBloomFilterNode, records2000To10000, false, 0.02);
+
+		Assert.assertEquals(ShrinkableBloomFilterNode.DEFAULT_UNITS_NUM, shrinkableBloomFilterNode.bloomFilterUnits.length);
+		Assert.assertTrue(shrinkableBloomFilterNode.shrinkable());
+		shrinkableBloomFilterNode.shrink();
+
+		Assert.assertEquals(ShrinkableBloomFilterNode.DEFAULT_UNITS_NUM >>> 1, shrinkableBloomFilterNode.bloomFilterUnits.length);
+
+		for (int i = 0; i < 2000; ++i) {
+			Assert.assertTrue(shrinkableBloomFilterNode.contains(String.valueOf(i).getBytes()));
+		}
+
+		verifyBloomFilterWithFpp(shrinkableBloomFilterNode, records2000To10000, false, 0.02);
 	}
 
 	private boolean verifyBloomFilterWithFpp(ShrinkableBloomFilterNode.BloomFilterUnit unit, Collection<byte[]> records, boolean target, double expectedFpp) {
+		int count = 0;
+		for (byte[] record : records) {
+			if (unit.contains(record) != target) {
+				++count;
+			}
+		}
+		return ((double) count / records.size()) <= expectedFpp;
+	}
+
+	private boolean verifyBloomFilterWithFpp(ShrinkableBloomFilterNode unit, Collection<byte[]> records, boolean target, double expectedFpp) {
 		int count = 0;
 		for (byte[] record : records) {
 			if (unit.contains(record) != target) {
