@@ -22,25 +22,23 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 /**
- * A factory for {@link DBOptions} to be passed to the {@link RocksDBStateBackend}.
+ * A factory for {@link DBOptions} and {@link ColumnFamilyOptions} to be passed to the {@link RocksDBStateBackend}.
  * Options have to be created lazily by this factory, because the {@code Options}
  * class is not serializable and holds pointers to native code.
  *
  * <p>A typical pattern to use this OptionsFactory is as follows:
  *
- * <h3>Java 8:</h3>
  * <pre>{@code
- * rocksDbBackend.setOptions( (currentOptions) -> currentOptions.setMaxOpenFiles(1024) );
- * }</pre>
+ * rocksDbBackend.setOptions(new OptionsFactory(){
  *
- * <h3>Java 7:</h3>
- * <pre>{@code
- * rocksDbBackend.setOptions(new OptionsFactory() {
+ *		public DBOptions createDBOptions(DBOptions currentOptions) {
+ *			return  currentOptions.setMaxOpenFiles(1024);
+ *		}
  *
- *     public Options setOptions(Options currentOptions) {
- *         return currentOptions.setMaxOpenFiles(1024);
- *     }
- * })
+ *		public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+ *			return currentOptions.setCompactionStyle(CompactionStyle.LEVEL);
+ *		}
+ * });
  * }</pre>
  */
 public interface OptionsFactory extends java.io.Serializable {
