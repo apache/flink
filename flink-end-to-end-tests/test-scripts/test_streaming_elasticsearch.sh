@@ -40,7 +40,7 @@ function test_cleanup {
 trap test_cleanup INT
 trap test_cleanup EXIT
 
-TEST_ES_JAR=$TEST_DATA_DIR/../../flink-elasticsearch${ELASTICSEARCH_VERSION}-test/target/Elasticsearch${ELASTICSEARCH_VERSION}SinkExample.jar
+TEST_ES_JAR=${END_TO_END_DIR}/flink-elasticsearch${ELASTICSEARCH_VERSION}-test/target/Elasticsearch${ELASTICSEARCH_VERSION}SinkExample.jar
 
 # run the Flink job
 $FLINK_DIR/bin/flink run -p 1 $TEST_ES_JAR \
