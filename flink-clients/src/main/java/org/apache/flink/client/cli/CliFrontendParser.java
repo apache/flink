@@ -94,6 +94,9 @@ public class CliFrontendParser {
 	static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false,
 			"Show only scheduled programs and their JobIDs");
 
+	static final Option ALL_OPTION = new Option("a", "all", false,
+		"Show all programs and their JobIDs");
+
 	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
@@ -193,6 +196,7 @@ public class CliFrontendParser {
 
 	static Options getListCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
+		options.addOption(ALL_OPTION);
 		options.addOption(RUNNING_OPTION);
 		return options.addOption(SCHEDULED_OPTION);
 	}
