@@ -273,6 +273,23 @@ public class CoreOptions {
 		return ConfigOptions.key("fs." + scheme + ".limit.stream-timeout").defaultValue(0L);
 	}
 
+	/**
+	 * The number of bytes allowed to be red by seconds from Filesystem
+	 * Unlimited be default.
+	 */
+	public static ConfigOption<Long> rateLimitingInputBytesPerSeconds(String scheme) {
+		return ConfigOptions.key("fs." + scheme + ".limit.rateLimitingInput").defaultValue(0L);
+	}
+
+	/**
+	 * The number of bytes allowed to be written by seconds to Filesystem
+	 * Unlimited be default.
+	 */
+	public static ConfigOption<Long> rateLimitingOutputBytesPerSeconds(String scheme) {
+		return ConfigOptions.key("fs." + scheme + ".limit.rateLimitingOutput").defaultValue(0L);
+	}
+
+
 	// ------------------------------------------------------------------------
 	//  Distributed architecture
 	// ------------------------------------------------------------------------

@@ -209,7 +209,9 @@ public class HadoopFsFactory implements FileSystemFactory {
 					limitSettings.limitOutput,
 					limitSettings.limitInput,
 					limitSettings.streamOpenTimeout,
-					limitSettings.streamInactivityTimeout);
+					limitSettings.streamInactivityTimeout,
+					limitSettings.rateLimitingInputBytesPerSecond,
+					limitSettings.rateLimitingOutputBytesPerSecond);
 		}
 	}
 }

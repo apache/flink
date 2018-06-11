@@ -89,9 +89,9 @@ For example, if the default file system configured as `fs.default-scheme: hdfs:/
 #### Connection limiting
 
 You can limit the total number of connections that a file system can concurrently open. This is useful when the file system cannot handle a large number
-of concurrent reads / writes or open connections at the same time.
+of concurrent reads / writes or open connections at the same time. You can also limit the throughput/bandwidth used to read/write from/to the FileSystem
 
-For example, very small HDFS clusters with few RPC handlers can sometimes be overwhelmed by a large Flink job trying to build up many connections during a checkpoint.
+For example, very small HDFS clusters with few RPC handlers can sometimes be overwhelmed by a large Flink job trying to build up many connections during a checkpoint. 
 
 To limit a specific file system's connections, add the following entries to the Flink configuration. The file system to be limited is identified by
 its scheme.
@@ -102,6 +102,8 @@ fs.<scheme>.limit.input: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.output: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.timeout: (milliseconds, 0 means infinite)
 fs.<scheme>.limit.stream-timeout: (milliseconds, 0 means infinite)
+fs.<scheme>.limit.rateLimitingInput: (bytes/s, 0 means infinite)
+fs.<scheme>.limit.rateLimitingOutput: (bytes/s, 0 means infinite)
 {% endhighlight %}
 
 You can limit the number if input/output connections (streams) separately (`fs.<scheme>.limit.input` and `fs.<scheme>.limit.output`), as well as impose a limit on
@@ -110,6 +112,8 @@ If the opening of the stream takes longer than `fs.<scheme>.limit.timeout`, the 
 
 To prevent inactive streams from taking up the complete pool (preventing new connections to be opened), you can add an inactivity timeout for streams:
 `fs.<scheme>.limit.stream-timeout`. If a stream does not read/write any bytes for at least that amount of time, it is forcibly closed.
+
+For limiting the bandwidth used by the checkpoint generation, you can add a fs.<scheme>.limit.rateLimitingOutput
 
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
 In addition, the The limit are also enforced only per FileSystem instance. Because File Systems are created per scheme and authority, different
