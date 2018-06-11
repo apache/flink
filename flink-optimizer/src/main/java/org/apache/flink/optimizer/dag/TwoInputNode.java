@@ -428,7 +428,7 @@ public abstract class TwoInputNode extends OptimizerNode {
 					}
 					
 					for (RequestedGlobalProperties igps2: intGlobal2) {
-						// create a candidate channel for the first input. mark it cached, if the connection says so
+						// create a candidate channel for the second input. mark it cached, if the connection says so
 						final Channel c2 = new Channel(child2, this.input2.getMaterializationMode());
 						if (this.input2.getShipStrategy() == null) {
 							// free to choose the ship strategy
