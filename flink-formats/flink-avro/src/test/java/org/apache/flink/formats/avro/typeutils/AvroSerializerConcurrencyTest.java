@@ -40,7 +40,7 @@ public class AvroSerializerConcurrencyTest {
 
 	@Test
 	public void testConcurrentUseOfSerializer() throws Exception {
-		final AvroSerializer<String> serializer = new AvroSerializer<>(String.class);
+		final AvroSerializer<String> serializer = AvroSerializer.forNonGeneric(String.class);
 
 		final BlockerSync sync = new BlockerSync();
 

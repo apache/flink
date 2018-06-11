@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -46,6 +47,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -67,6 +69,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type to be serialized.
  */
+@Internal
 public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
@@ -105,41 +108,54 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/** The currently accessing thread, set and checked on debug level only. */
 	private transient volatile Thread currentThread;
 
+	// ----------------------- instantiation methods --------------------------
+
+	/**
+	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 *
+	 * <p>This constructor is expected to be used only with {@link GenericRecord}.
+	 * For {@link SpecificRecord} or reflection serializer use {@link AvroSerializer#forNonGeneric(Class)}.
+	 *
+	 * @param schema the explicit schema to use for generic records.
+	 */
+	public static AvroSerializer<GenericRecord> forGeneric(Schema schema) {
+		return new AvroSerializer<>(GenericRecord.class, schema);
+	}
+
+	/**
+	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 *
+	 * <p>This instantiation method is intended to be used with {@link SpecificRecord} or reflection serializer.
+	 * For serializing {@link GenericData.Record} use {@link AvroSerializer#forGeneric(Schema)}.
+	 *
+	 * @param type the type to be serialized.
+	 */
+	public static <T> AvroSerializer<T> forNonGeneric(Class<T> type) {
+		checkArgument(!isGenericRecord(type),
+			"For generic records, use AvroSerializer.forGeneric(schema) to provide an explicit schema.");
+
+		return new AvroSerializer<>(type, null);
+	}
+
+
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new AvroSerializer for the type indicated by the given class.
-	 * This constructor is intended to be used with {@link SpecificRecord} or reflection serializer.
-	 * For serializing {@link GenericData.Record} use {@link AvroSerializer#AvroSerializer(Class, Schema)}
+	 * Private constructor.
+	 *
+	 * @param type the type to be serialized.
+	 * @param schema the explicit schema to use. This is should be non-null only when
+	 *               the type to be serialized are {@link GenericRecord}s.
 	 */
-	public AvroSerializer(Class<T> type) {
-		checkArgument(!isGenericRecord(type),
-			"For GenericData.Record use constructor with explicit schema.");
+	private AvroSerializer(Class<T> type, @Nullable Schema schema) {
 		this.type = checkNotNull(type);
-		this.schemaString = null;
-	}
+		this.schema = schema;
 
-	/**
-	 * Creates a new AvroSerializer for the type indicated by the given class.
-	 * This constructor is expected to be used only with {@link GenericData.Record}.
-	 * For {@link SpecificRecord} or reflection serializer use
-	 * {@link AvroSerializer#AvroSerializer(Class)}
-	 */
-	public AvroSerializer(Class<T> type, Schema schema) {
-		checkArgument(isGenericRecord(type),
-			"For classes other than GenericData.Record use constructor without explicit schema.");
-		this.type = checkNotNull(type);
-		this.schema = checkNotNull(schema);
-		this.schemaString = schema.toString();
-	}
-
-	/**
-	 * @deprecated Use {@link AvroSerializer#AvroSerializer(Class)} instead.
-	 */
-	@Deprecated
-	@SuppressWarnings("unused")
-	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
-		this(type);
+		if (schema == null) {
+			this.schemaString = null;
+		} else {
+			this.schemaString = schema.toString();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -311,12 +327,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		if (schemaString != null) {
-			return new AvroSerializer<>(type, schema);
-		} else {
-			return new AvroSerializer<>(type);
-
-		}
+		return new AvroSerializer<>(type, schema);
 	}
 
 	@Override

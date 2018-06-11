@@ -32,7 +32,7 @@ public class AvroSerializerTest extends SerializerTestBase<User> {
 
 	@Override
 	protected TypeSerializer<User> createSerializer() {
-		return new AvroSerializer<>(User.class);
+		return AvroSerializer.forNonGeneric(User.class);
 	}
 
 	@Override

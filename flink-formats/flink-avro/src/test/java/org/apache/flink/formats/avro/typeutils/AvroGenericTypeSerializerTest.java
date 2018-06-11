@@ -28,6 +28,6 @@ public class AvroGenericTypeSerializerTest extends AbstractGenericTypeSerializer
 
 	@Override
 	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new AvroSerializer<>(type);
+		return AvroSerializer.forNonGeneric(type);
 	}
 }

@@ -40,7 +40,7 @@ public class AvroSerializerSerializabilityTest {
 
 	@Test
 	public void testDeserializeSerializer() throws Exception {
-		final AvroSerializer<String> currentSerializer = new AvroSerializer<>(String.class);
+		final AvroSerializer<String> currentSerializer = AvroSerializer.forNonGeneric(String.class);
 
 		try (ObjectInputStream in = new ObjectInputStream(
 				getClass().getClassLoader().getResourceAsStream(RESOURCE_NAME))) {
@@ -57,7 +57,7 @@ public class AvroSerializerSerializabilityTest {
 	// ------------------------------------------------------------------------
 
 	public static void main(String[] args) throws Exception {
-		final AvroSerializer<String> serializer = new AvroSerializer<>(String.class);
+		final AvroSerializer<String> serializer = AvroSerializer.forNonGeneric(String.class);
 
 		final File file = new File("flink-formats/flink-avro/src/test/resources/" + RESOURCE_NAME).getAbsoluteFile();
 

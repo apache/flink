@@ -61,7 +61,7 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 	 */
 	public BackwardsCompatibleAvroSerializer(Class<T> type) {
 		this.type = type;
-		this.serializer = new AvroSerializer<>(type);
+		this.serializer = AvroSerializer.forNonGeneric(type);
 	}
 
 	/**

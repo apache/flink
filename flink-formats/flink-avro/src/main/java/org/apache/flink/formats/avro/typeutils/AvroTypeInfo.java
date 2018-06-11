@@ -82,7 +82,7 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
 		return useBackwardsCompatibleSerializer ?
 				new BackwardsCompatibleAvroSerializer<>(getTypeClass()) :
-				new AvroSerializer<>(getTypeClass());
+				AvroSerializer.forNonGeneric(getTypeClass());
 	}
 
 	@SuppressWarnings("unchecked")

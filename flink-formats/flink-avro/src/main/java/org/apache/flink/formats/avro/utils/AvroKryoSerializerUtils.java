@@ -70,7 +70,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 
 	@Override
 	public <T> TypeSerializer<T> createAvroSerializer(Class<T> type) {
-		return new AvroSerializer<>(type);
+		return AvroSerializer.forNonGeneric(type);
 	}
 
 	@Override

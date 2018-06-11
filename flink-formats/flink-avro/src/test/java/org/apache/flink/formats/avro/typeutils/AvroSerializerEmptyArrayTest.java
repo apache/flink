@@ -37,7 +37,7 @@ public class AvroSerializerEmptyArrayTest {
 	public void testBookSerialization() {
 		try {
 			Book b = new Book(123, "This is a test book", 26382648);
-			AvroSerializer<Book> serializer = new AvroSerializer<Book>(Book.class);
+			AvroSerializer<Book> serializer = AvroSerializer.forNonGeneric(Book.class);
 			SerializerTestInstance<Book> test = new SerializerTestInstance<Book>(serializer, Book.class, -1, b);
 			test.testAll();
 		}
@@ -61,7 +61,7 @@ public class AvroSerializerEmptyArrayTest {
 			a.books = books;
 			a.bookType = BookAuthor.BookType.journal;
 
-			AvroSerializer<BookAuthor> serializer = new AvroSerializer<BookAuthor>(BookAuthor.class);
+			AvroSerializer<BookAuthor> serializer = AvroSerializer.forNonGeneric(BookAuthor.class);
 
 			SerializerTestInstance<BookAuthor> test = new SerializerTestInstance<BookAuthor>(serializer, BookAuthor.class, -1, a);
 			test.testAll();
