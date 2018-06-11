@@ -39,7 +39,7 @@ mvn archetype:generate                             \
 cd flink-java-project
 
 # use the Flink Elasticsearch sink example job code in flink-elasticsearch5-tests to simulate modifications to contained job
-cp $TEST_INFRA_DIR/../flink-elasticsearch5-test/src/main/java/org/apache/flink/streaming/tests/Elasticsearch5SinkExample.java $TEST_DATA_DIR/flink-java-project/src/main/java/org/apache/flink/quickstart/
+cp ${END_TO_END_DIR}/flink-elasticsearch5-test/src/main/java/org/apache/flink/streaming/tests/Elasticsearch5SinkExample.java $TEST_DATA_DIR/flink-java-project/src/main/java/org/apache/flink/quickstart/
 sed -i -e 's/package org.apache.flink.streaming.tests;/package org.apache.flink.quickstart;/' $TEST_DATA_DIR/flink-java-project/src/main/java/org/apache/flink/quickstart/Elasticsearch5SinkExample.java
 
 position=$(awk '/<dependencies>/ {print NR}' pom.xml | head -1)
