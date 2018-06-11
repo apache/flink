@@ -878,7 +878,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @param <N> type of namespace.
 	 * @param <S> type of state.
 	 */
-	static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
+	@VisibleForTesting
+	protected static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
 
 		/**
 		 * The key. Assumed to be immutable and not null.

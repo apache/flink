@@ -23,8 +23,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -333,10 +336,17 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param <S> type of state.
 	 */
 	static class NestedMapsStateTableSnapshot<K, N, S>
-			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>> {
+			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>>
+			implements StateSnapshot.KeyGroupPartitionedSnapshot {
 
 		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable) {
 			super(owningTable);
+		}
+
+		@Nonnull
+		@Override
+		public KeyGroupPartitionedSnapshot partitionByKeyGroup() {
+			return this;
 		}
 
 		/**
@@ -349,7 +359,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		 * implementations).
 		 */
 		@Override
-		public void writeMappingsInKeyGroup(DataOutputView dov, int keyGroupId) throws IOException {
+		public void writeMappingsInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 			final Map<N, Map<K, S>> keyGroupMap = owningStateTable.getMapForKeyGroup(keyGroupId);
 			if (null != keyGroupMap) {
 				TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();
