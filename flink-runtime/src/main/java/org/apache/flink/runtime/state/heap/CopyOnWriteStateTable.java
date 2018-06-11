@@ -28,6 +28,9 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -129,7 +132,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	/**
 	 * Empty entry that we use to bootstrap our {@link CopyOnWriteStateTable.StateEntryIterator}.
 	 */
-	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY = new StateTableEntry<>();
+	private static final StateTableEntry<?, ?, ?> ITERATOR_BOOTSTRAP_ENTRY =
+		new StateTableEntry<>(new Object(), new Object(), new Object(), 0, null, 0, 0);
 
 	/**
 	 * Maintains an ordered set of version ids that are still in use by unreleased snapshots.
@@ -291,10 +295,9 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 	@Override
 	public Stream<K> getKeys(N namespace) {
-		Iterable<StateEntry<K, N, S>> iterable = () -> iterator();
-		return StreamSupport.stream(iterable.spliterator(), false)
+		return StreamSupport.stream(spliterator(), false)
 			.filter(entry -> entry.getNamespace().equals(namespace))
-			.map(entry -> entry.getKey());
+			.map(StateEntry::getKey);
 	}
 
 	@Override
@@ -554,6 +557,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 	// Iteration  ------------------------------------------------------------------------------------------------------
 
+	@Nonnull
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
 		return new StateEntryIterator();
@@ -878,27 +882,32 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @param <N> type of namespace.
 	 * @param <S> type of state.
 	 */
-	static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
+	@VisibleForTesting
+	protected static class StateTableEntry<K, N, S> implements StateEntry<K, N, S> {
 
 		/**
 		 * The key. Assumed to be immutable and not null.
 		 */
+		@Nonnull
 		final K key;
 
 		/**
 		 * The namespace. Assumed to be immutable and not null.
 		 */
+		@Nonnull
 		final N namespace;
 
 		/**
 		 * The state. This is not final to allow exchanging the object for copy-on-write. Can be null.
 		 */
+		@Nullable
 		S state;
 
 		/**
 		 * Link to another {@link StateTableEntry}. This is used to resolve collisions in the
 		 * {@link CopyOnWriteStateTable} through chaining.
 		 */
+		@Nullable
 		StateTableEntry<K, N, S> next;
 
 		/**
@@ -916,22 +925,18 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		 */
 		final int hash;
 
-		StateTableEntry() {
-			this(null, null, null, 0, null, 0, 0);
-		}
-
 		StateTableEntry(StateTableEntry<K, N, S> other, int entryVersion) {
 			this(other.key, other.namespace, other.state, other.hash, other.next, entryVersion, other.stateVersion);
 		}
 
 		StateTableEntry(
-				K key,
-				N namespace,
-				S state,
-				int hash,
-				StateTableEntry<K, N, S> next,
-				int entryVersion,
-				int stateVersion) {
+			@Nonnull K key,
+			@Nonnull N namespace,
+			@Nullable S state,
+			int hash,
+			@Nullable StateTableEntry<K, N, S> next,
+			int entryVersion,
+			int stateVersion) {
 			this.key = key;
 			this.namespace = namespace;
 			this.hash = hash;
@@ -941,7 +946,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			this.stateVersion = stateVersion;
 		}
 
-		public final void setState(S value, int mapVersion) {
+		public final void setState(@Nullable S value, int mapVersion) {
 			// naturally, we can update the state version every time we replace the old state with a different object
 			if (value != state) {
 				this.state = value;
@@ -949,16 +954,19 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			}
 		}
 
+		@Nonnull
 		@Override
 		public K getKey() {
 			return key;
 		}
 
+		@Nonnull
 		@Override
 		public N getNamespace() {
 			return namespace;
 		}
 
+		@Nullable
 		@Override
 		public S getState() {
 			return state;
@@ -1010,7 +1018,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		private StateTableEntry<K, N, S>[] activeTable;
 		private int nextTablePosition;
 		private StateTableEntry<K, N, S> nextEntry;
-		private int expectedModCount = modCount;
+		private int expectedModCount;
 
 		StateEntryIterator() {
 			this.activeTable = primaryTable;
