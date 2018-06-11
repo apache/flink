@@ -85,7 +85,7 @@ public class ClientUtilsTest extends TestLogger {
 		assertEquals(jars.size(), jobGraph.getUserJars().size());
 		assertEquals(0, jobGraph.getUserJarBlobKeys().size());
 
-		ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
+		ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
 
 		assertEquals(jars.size(), jobGraph.getUserJars().size());
 		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
@@ -124,7 +124,7 @@ public class ClientUtilsTest extends TestLogger {
 		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
 		assertEquals(0, jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());
 
-		ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
+		ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
 
 		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
 		assertEquals(localArtifacts.size(), jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());

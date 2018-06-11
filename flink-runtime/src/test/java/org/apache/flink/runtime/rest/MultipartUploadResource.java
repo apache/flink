@@ -66,6 +66,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
@@ -203,7 +204,7 @@ public class MultipartUploadResource extends ExternalResource {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			MultipartFileHandler.verifyFileUpload(expectedFiles, request.getUploadedFiles());
+			MultipartFileHandler.verifyFileUpload(expectedFiles, request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList()));
 			this.lastReceivedRequest = request.getRequestBody();
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
@@ -268,7 +269,7 @@ public class MultipartUploadResource extends ExternalResource {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			Collection<Path> uploadedFiles = request.getUploadedFiles();
+			Collection<Path> uploadedFiles = request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
 			if (!uploadedFiles.isEmpty()) {
 				throw new RestHandlerException("This handler should not have received file uploads.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			}
@@ -313,7 +314,7 @@ public class MultipartUploadResource extends ExternalResource {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			verifyFileUpload(expectedFiles, request.getUploadedFiles());
+			verifyFileUpload(expectedFiles, request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList()));
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
 

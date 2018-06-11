@@ -114,7 +114,7 @@ public class JarRunHandler extends
 		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
 			try {
-				ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(address, configuration));
+				ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(address, configuration));
 			} catch (FlinkException e) {
 				throw new CompletionException(e);
 			}

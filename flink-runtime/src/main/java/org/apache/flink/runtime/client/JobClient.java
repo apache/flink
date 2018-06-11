@@ -424,7 +424,7 @@ public class JobClient {
 		}
 
 		try {
-			ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
+			ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
 		} catch (FlinkException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
 					"Could not upload job files.", e);

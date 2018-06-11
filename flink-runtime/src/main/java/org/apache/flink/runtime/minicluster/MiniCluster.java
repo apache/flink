@@ -676,7 +676,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<InetSocketAddress> blobServerAddressFuture, final JobGraph job) {
 		return blobServerAddressFuture.thenAccept(blobServerAddress -> {
 			try {
-				ClientUtils.uploadJobGraphFiles(job, () -> new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration()));
+				ClientUtils.extractAndUploadJobGraphFiles(job, () -> new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration()));
 			} catch (FlinkException e) {
 				throw new CompletionException(e);
 			}
