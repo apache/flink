@@ -25,11 +25,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * Tests for {@link FileUploads}.
@@ -64,7 +66,7 @@ public class FileUploadsTest extends TestLogger {
 		Files.createFile(tmp.resolve(subFile));
 
 		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
-			Collection<Path> detectedFiles = fileUploads.getUploadedFiles();
+			Collection<Path> detectedFiles = fileUploads.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
 
 			Assert.assertEquals(2, detectedFiles.size());
 			Assert.assertTrue(detectedFiles.contains(tmp.resolve(rootFile)));
@@ -80,7 +82,7 @@ public class FileUploadsTest extends TestLogger {
 		Files.createDirectory(tmp.resolve(rootDir));
 
 		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
-			Collection<Path> detectedFiles = fileUploads.getUploadedFiles();
+			Collection<File> detectedFiles = fileUploads.getUploadedFiles();
 			Assert.assertEquals(0, detectedFiles.size());
 		}
 	}
