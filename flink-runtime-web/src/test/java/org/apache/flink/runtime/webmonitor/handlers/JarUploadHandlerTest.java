@@ -131,6 +131,6 @@ public class JarUploadHandlerTest extends TestLogger {
 			EmptyMessageParameters.getInstance(),
 			Collections.emptyMap(),
 			Collections.emptyMap(),
-			Collections.singleton(uploadedFile));
+			Collections.singleton(uploadedFile.toFile()));
 	}
 }

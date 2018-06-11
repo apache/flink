@@ -85,6 +85,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.containsString;
@@ -661,7 +662,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
-			Collection<Path> uploadedFiles = request.getUploadedFiles();
+			Collection<Path> uploadedFiles = request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
 			if (uploadedFiles.size() != 1) {
 				throw new RestHandlerException("Expected 1 file, received " + uploadedFiles.size() + '.', HttpResponseStatus.BAD_REQUEST);
 			}
