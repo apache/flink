@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
 
 echo "Run DataSet-Allround-Test Program"
 

@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
 JM_WATCHDOG_PID=0
 TM_WATCHDOG_PID=0
