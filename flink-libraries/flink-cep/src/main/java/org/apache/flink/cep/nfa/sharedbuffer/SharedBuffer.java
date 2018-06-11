@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -72,7 +73,7 @@ public class SharedBuffer<V> {
 
 	/** The number of events seen so far in the stream per timestamp. */
 	private MapState<Long, Integer> eventsCount;
-	private MapState<NodeId, Lockable<SharedBufferNode>> pages;
+	private MapState<NodeId, Lockable<SharedBufferNode>> entries;
 
 	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
 		this.eventsBuffer = stateStore.getMapState(
@@ -81,7 +82,7 @@ public class SharedBuffer<V> {
 				EventId.EventIdSerializer.INSTANCE,
 				new Lockable.LockableTypeSerializer<>(valueSerializer)));
 
-		this.pages = stateStore.getMapState(
+		this.entries = stateStore.getMapState(
 			new MapStateDescriptor<>(
 				entriesStateName,
 				NodeId.NodeIdSerializer.INSTANCE,
@@ -148,7 +149,7 @@ public class SharedBuffer<V> {
 			Map<EventId, Lockable<V>> events,
 			Map<NodeId, Lockable<SharedBufferNode>> entries) throws Exception {
 		eventsBuffer.putAll(events);
-		pages.putAll(entries);
+		this.entries.putAll(entries);
 
 		Map<Long, Integer> maxIds = events.keySet().stream().collect(Collectors.toMap(
 			EventId::getTimestamp,
@@ -180,7 +181,7 @@ public class SharedBuffer<V> {
 		}
 
 		NodeId currentNodeId = new NodeId(eventId, getOriginalNameFromInternal(stateName));
-		Lockable<SharedBufferNode> currentNode = pages.get(currentNodeId);
+		Lockable<SharedBufferNode> currentNode = entries.get(currentNodeId);
 		if (currentNode == null) {
 			currentNode = new Lockable<>(new SharedBufferNode(), 0);
 			lockEvent(eventId);
@@ -189,7 +190,7 @@ public class SharedBuffer<V> {
 		currentNode.getElement().addEdge(new SharedBufferEdge(
 			previousNodeId,
 			version));
-		pages.put(currentNodeId, currentNode);
+		entries.put(currentNodeId, currentNode);
 
 		return currentNodeId;
 	}
@@ -222,7 +223,7 @@ public class SharedBuffer<V> {
 		Stack<ExtractionState> extractionStates = new Stack<>();
 
 		// get the starting shared buffer entry for the previous relation
-		Lockable<SharedBufferNode> entryLock = pages.get(nodeId);
+		Lockable<SharedBufferNode> entryLock = entries.get(nodeId);
 
 		if (entryLock != null) {
 			SharedBufferNode entry = entryLock.getElement();
@@ -272,7 +273,7 @@ public class SharedBuffer<V> {
 							}
 
 							extractionStates.push(new ExtractionState(
-								target != null ? Tuple2.of(target, pages.get(target).getElement()) : null,
+								target != null ? Tuple2.of(target, entries.get(target).getElement()) : null,
 								edge.getDeweyNumber(),
 								newPath));
 						}
@@ -292,10 +293,10 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void lockNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = pages.get(node);
+		Lockable<SharedBufferNode> sharedBufferNode = entries.get(node);
 		if (sharedBufferNode != null) {
 			sharedBufferNode.lock();
-			pages.put(node, sharedBufferNode);
+			entries.put(node, sharedBufferNode);
 		}
 	}
 
@@ -307,18 +308,18 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public void releaseNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = pages.get(node);
+		Lockable<SharedBufferNode> sharedBufferNode = entries.get(node);
 		if (sharedBufferNode != null) {
 			if (sharedBufferNode.release()) {
 				removeNode(node, sharedBufferNode.getElement());
 			} else {
-				pages.put(node, sharedBufferNode);
+				entries.put(node, sharedBufferNode);
 			}
 		}
 	}
 
 	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
-		pages.remove(node);
+		entries.remove(node);
 		EventId eventId = node.getEventId();
 		releaseEvent(eventId);
 
@@ -391,6 +392,11 @@ public class SharedBuffer<V> {
 			return "ExtractionState(" + entry + ", " + version + ", [" +
 				StringUtils.join(path, ", ") + "])";
 		}
+	}
+
+	@VisibleForTesting
+	Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
+		return eventsCount.iterator();
 	}
 
 }
