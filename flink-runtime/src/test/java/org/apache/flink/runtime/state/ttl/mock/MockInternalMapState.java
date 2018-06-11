@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.mock;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-class MockInternalMapState<K, N, UK, UV>
+/** In memory mock internal map state. */
+public class MockInternalMapState<K, N, UK, UV>
 	extends MockInternalKvState<K, N, Map<UK, UV>>
 	implements InternalMapState<K, N, UK, UV> {
 
-	MockInternalMapState() {
+	private MockInternalMapState() {
 		super(HashMap::new);
 	}
 
@@ -84,5 +88,12 @@ class MockInternalMapState<K, N, UK, UV>
 	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() {
 		return entries().iterator();
+	}
+
+	@SuppressWarnings({"unchecked", "unused"})
+	static <N, T, S extends State, IS extends S> IS createState(
+		TypeSerializer<N> namespaceSerializer,
+		StateDescriptor<S, T> stateDesc) {
+		return (IS) new MockInternalMapState<>();
 	}
 }

@@ -29,12 +29,7 @@ import java.util.stream.StreamSupport;
 
 /** Test suite for collection methods of {@link TtlMapState}. */
 public class TtlMapStateTest extends
-	TtlStateTestBase<TtlMapState<?, String, Integer, String>, Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
-
-	@Override
-	TtlMapState<?, String, Integer, String> createState() {
-		return new TtlMapState<>(new MockInternalMapState<>(), ttlConfig, timeProvider, null);
-	}
+	TtlMapStateTestBase<Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
 
 	@Override
 	void initTestValues() {

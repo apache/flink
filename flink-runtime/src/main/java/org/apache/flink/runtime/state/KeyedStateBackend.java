@@ -31,7 +31,7 @@ import java.util.stream.Stream;
  *
  * @param <K> The key by which state is keyed.
  */
-public interface KeyedStateBackend<K> extends InternalKeyContext<K>, Disposable {
+public interface KeyedStateBackend<K> extends InternalKeyContext<K>, KeyedStateFactory, Disposable {
 
 	/**
 	 * Sets the current key that is used for partitioned state.
@@ -70,7 +70,7 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K>, Disposable 
 	 *
 	 * @param namespaceSerializer The serializer used for the namespace type of the state
 	 * @param stateDescriptor The identifier for the state. This contains name and can create a default state value.
-	 *    
+	 *
 	 * @param <N> The type of the namespace.
 	 * @param <S> The type of the state.
 	 *
@@ -84,7 +84,7 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K>, Disposable 
 
 	/**
 	 * Creates or retrieves a partitioned state backed by this state backend.
-	 * 
+	 *
 	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
 	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
 	 *       state backend, or being set on the state directly.
