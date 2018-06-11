@@ -16,27 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.mock;
 
-/** Test suite for per element methods of {@link TtlMapState}. */
-public class TtlMapStatePerElementTest extends TtlMapStateTestBase<String, String> {
-	private static final int TEST_KEY = 1;
-	private static final String TEST_VAL1 = "test value1";
-	private static final String TEST_VAL2 = "test value2";
-	private static final String TEST_VAL3 = "test value3";
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.internal.InternalValueState;
+
+/** In memory mock internal value state. */
+class MockInternalValueState<K, N, T>
+	extends MockInternalKvState<K, N, T> implements InternalValueState<K, N, T> {
 
 	@Override
-	void initTestValues() {
-		updater = v -> ttlState.put(TEST_KEY, v);
-		getter = () -> ttlState.get(TEST_KEY);
-		originalGetter = () -> ttlState.original.get(TEST_KEY);
+	public T value() {
+		return getInternal();
+	}
 
-		updateEmpty = TEST_VAL1;
-		updateUnexpired = TEST_VAL2;
-		updateExpired = TEST_VAL3;
+	@Override
+	public void update(T value) {
+		updateInternal(value);
+	}
 
-		getUpdateEmpty = TEST_VAL1;
-		getUnexpired = TEST_VAL2;
-		getUpdateExpired = TEST_VAL3;
+	@SuppressWarnings({"unchecked", "unused"})
+	static <N, T, S extends State, IS extends S> IS createState(
+		TypeSerializer<N> namespaceSerializer,
+		StateDescriptor<S, T> stateDesc) {
+		return (IS) new MockInternalValueState<>();
 	}
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+/** In memory mock internal state base class. */
 class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
 	private Map<N, T> namespacedValues = new HashMap<>();
 	private T defaultNamespaceValue;

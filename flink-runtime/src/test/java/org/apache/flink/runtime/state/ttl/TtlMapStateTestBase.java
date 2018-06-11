@@ -18,25 +18,16 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-/** Test suite for per element methods of {@link TtlMapState}. */
-public class TtlMapStatePerElementTest extends TtlMapStateTestBase<String, String> {
-	private static final int TEST_KEY = 1;
-	private static final String TEST_VAL1 = "test value1";
-	private static final String TEST_VAL2 = "test value2";
-	private static final String TEST_VAL3 = "test value3";
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
+abstract class TtlMapStateTestBase<UV, GV>
+	extends TtlStateTestBase<TtlMapState<?, String, Integer, String>, UV, GV> {
 	@Override
-	void initTestValues() {
-		updater = v -> ttlState.put(TEST_KEY, v);
-		getter = () -> ttlState.get(TEST_KEY);
-		originalGetter = () -> ttlState.original.get(TEST_KEY);
-
-		updateEmpty = TEST_VAL1;
-		updateUnexpired = TEST_VAL2;
-		updateExpired = TEST_VAL3;
-
-		getUpdateEmpty = TEST_VAL1;
-		getUnexpired = TEST_VAL2;
-		getUpdateExpired = TEST_VAL3;
+	TtlMapState<?, String, Integer, String> createState() {
+		MapStateDescriptor<Integer, String> mapStateDesc =
+			new MapStateDescriptor<>("TtlTestMapState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
+		return (TtlMapState<?, String, Integer, String>) wrapMockState(mapStateDesc);
 	}
 }
