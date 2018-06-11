@@ -90,7 +90,7 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 	}
 
 	@Override
-	public void startRetrieval(Runnable program) {
+	public void startRetrieval(ProgramDeployer<C> program) {
 		// start listener thread
 		retrievalThread.start();
 

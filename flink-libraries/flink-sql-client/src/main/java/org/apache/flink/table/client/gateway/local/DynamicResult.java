@@ -27,7 +27,7 @@ import org.apache.flink.types.Row;
  *
  * <p>Note: Make sure to call close() after the result is not needed anymore.
  *
- * @param <C> cluster id to which this result belongs to
+ * @param <C> type of the cluster id to which this result belongs to
  */
 public interface DynamicResult<C> {
 
@@ -50,7 +50,7 @@ public interface DynamicResult<C> {
 	/**
 	 * Starts the table program using the given runnable and monitors it's execution.
 	 */
-	void startRetrieval(Runnable program);
+	void startRetrieval(ProgramDeployer<C> program);
 
 	/**
 	 * Returns the table sink required by this result type.
