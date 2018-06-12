@@ -18,73 +18,47 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.internal.InternalAppendingState;
 
 /**
- * Heap-backed partitioned {@link ValueState} that is snapshotted into files.
+ * Base class for {@link AppendingState} ({@link InternalAppendingState}) that is stored on the heap.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
- * @param <V> The type of the value.
+ * @param <IN> The type of the input elements.
+ * @param <SV> The type of the values in the state.
+ * @param <OUT> The type of the output elements.
  */
-class HeapValueState<K, N, V>
-	extends AbstractHeapState<K, N, V>
-	implements InternalValueState<K, N, V> {
-
+abstract class AbstractHeapAppendingState<K, N, IN, SV, OUT>
+	extends AbstractHeapState<K, N, SV>
+	implements InternalAppendingState<K, N, IN, SV, OUT> {
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateTable The state table for which this state is associated to.
-	 * @param keySerializer The serializer for the keys.
-	 * @param valueSerializer The serializer for the state.
+	 * @param stateTable          The state table for which this state is associated to.
+	 * @param keySerializer       The serializer for the keys.
+	 * @param valueSerializer     The serializer for the state.
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param defaultValue The default value for the state.
+	 * @param defaultValue        The default value for the state.
 	 */
-	HeapValueState(
-		StateTable<K, N, V> stateTable,
+	AbstractHeapAppendingState(
+		StateTable<K, N, SV> stateTable,
 		TypeSerializer<K> keySerializer,
-		TypeSerializer<V> valueSerializer,
+		TypeSerializer<SV> valueSerializer,
 		TypeSerializer<N> namespaceSerializer,
-		V defaultValue) {
+		SV defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 
 	@Override
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
+	public SV getInternal() {
+		return stateTable.get(currentNamespace);
 	}
 
 	@Override
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
-
-	@Override
-	public TypeSerializer<V> getValueSerializer() {
-		return valueSerializer;
-	}
-
-	@Override
-	public V value() {
-		final V result = stateTable.get(currentNamespace);
-
-		if (result == null) {
-			return getDefaultValue();
-		}
-
-		return result;
-	}
-
-	@Override
-	public void update(V value) {
-
-		if (value == null) {
-			clear();
-			return;
-		}
-
-		stateTable.put(currentNamespace, value);
+	public void updateInternal(SV valueToStore) {
+		stateTable.put(currentNamespace, valueToStore);
 	}
 }

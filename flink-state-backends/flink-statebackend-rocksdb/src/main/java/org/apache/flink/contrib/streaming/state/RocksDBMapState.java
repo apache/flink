@@ -29,6 +29,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -438,7 +439,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			try {
 				db.delete(columnFamily, writeOptions, rawKeyBytes);
 			} catch (RocksDBException e) {
-				throw new RuntimeException("Error while removing data from RocksDB.", e);
+				throw new FlinkRuntimeException("Error while removing data from RocksDB.", e);
 			}
 		}
 
@@ -448,7 +449,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				try {
 					userKey = deserializeUserKey(userKeyOffset, rawKeyBytes, keySerializer);
 				} catch (IOException e) {
-					throw new RuntimeException("Error while deserializing the user key.", e);
+					throw new FlinkRuntimeException("Error while deserializing the user key.", e);
 				}
 			}
 
@@ -464,7 +465,7 @@ public class RocksDBMapState<K, N, UK, UV>
 					try {
 						userValue = deserializeUserValue(rawValueBytes, valueSerializer);
 					} catch (IOException e) {
-						throw new RuntimeException("Error while deserializing the user value.", e);
+						throw new FlinkRuntimeException("Error while deserializing the user value.", e);
 					}
 				}
 
@@ -486,7 +487,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while putting data into RocksDB.", e);
+				throw new FlinkRuntimeException("Error while putting data into RocksDB.", e);
 			}
 
 			return oldValue;

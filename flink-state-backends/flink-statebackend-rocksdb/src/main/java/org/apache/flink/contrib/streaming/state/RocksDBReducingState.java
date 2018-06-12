@@ -23,13 +23,11 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collection;
 
@@ -41,7 +39,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-		extends AbstractRocksDBState<K, N, V, ReducingState<V>>
+		extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
 		implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
@@ -84,42 +82,16 @@ public class RocksDBReducingState<K, N, V>
 	}
 
 	@Override
-	public V get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
-		}
+	public V get() throws IOException {
+		return getInternal();
 	}
 
 	@Override
-	public void add(V value) throws IOException {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			if (valueBytes == null) {
-				keySerializationStream.reset();
-				valueSerializer.serialize(value, out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			} else {
-				V oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-				V newValue = reduceFunction.reduce(oldValue, value);
-				keySerializationStream.reset();
-				valueSerializer.serialize(newValue, out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
-		}
+	public void add(V value) throws Exception {
+		byte[] key = getKeyBytes();
+		V oldValue = getInternal(key);
+		V newValue = oldValue == null ? value : reduceFunction.reduce(oldValue, value);
+		updateInternal(key, newValue);
 	}
 
 	@Override
@@ -188,7 +160,7 @@ public class RocksDBReducingState<K, N, V>
 			}
 		}
 		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
+			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
 		}
 	}
 }

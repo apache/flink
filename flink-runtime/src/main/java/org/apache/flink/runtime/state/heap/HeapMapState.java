@@ -38,9 +38,9 @@ import java.util.Map;
  * @param <UK> The type of the keys in the state.
  * @param <UV> The type of the values in the state.
  */
-public class HeapMapState<K, N, UK, UV>
-		extends AbstractHeapState<K, N, Map<UK, UV>, MapState<UK, UV>>
-		implements InternalMapState<K, N, UK, UV> {
+class HeapMapState<K, N, UK, UV>
+	extends AbstractHeapState<K, N, Map<UK, UV>>
+	implements InternalMapState<K, N, UK, UV> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -51,12 +51,12 @@ public class HeapMapState<K, N, UK, UV>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	public HeapMapState(
-			StateTable<K, N, Map<UK, UV>> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<Map<UK, UV>> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			Map<UK, UV> defaultValue) {
+	HeapMapState(
+		StateTable<K, N, Map<UK, UV>> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<Map<UK, UV>> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		Map<UK, UV> defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 
 		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
