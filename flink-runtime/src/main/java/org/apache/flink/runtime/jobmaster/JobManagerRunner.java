@@ -340,7 +340,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	}
 
 	private void confirmLeaderSessionIdIfStillLeader(UUID leaderSessionId, CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture) {
-		if (leaderElectionService.hasLeadership()) {
+		if (leaderElectionService.hasLeadership(leaderSessionId)) {
 			currentLeaderGatewayFuture.complete(jobMaster.getSelfGateway(JobMasterGateway.class));
 			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
 		} else {
