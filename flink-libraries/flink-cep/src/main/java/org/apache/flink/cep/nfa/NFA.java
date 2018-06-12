@@ -168,7 +168,6 @@ public class NFA<T> {
 		return stateObject.isFinal();
 	}
 
-
 	/**
 	 * Processes the next input event. If some of the computations reach a final state then the
 	 * resulting event sequences are returned. If computations time out and timeout handling is
@@ -184,8 +183,9 @@ public class NFA<T> {
 	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
 	 * reached a final state) and the collection of timed out patterns (if timeout handling is
 	 * activated)
+	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(
+	public Collection<Map<String, List<T>>> process(
 			final SharedBuffer<T> sharedBuffer,
 			final NFAState nfaState,
 			final T event,
@@ -209,20 +209,67 @@ public class NFA<T> {
 	 * @return Tuple of the collection of matched patterns (e.g. the result of computations which have
 	 * reached a final state) and the collection of timed out patterns (if timeout handling is
 	 * activated)
+	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> process(
+	public Collection<Map<String, List<T>>> process(
 			final SharedBuffer<T> sharedBuffer,
 			final NFAState nfaState,
 			final T event,
 			final long timestamp,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
-
 		try (EventWrapper eventWrapper = new EventWrapper(event, timestamp, sharedBuffer)) {
 			return doProcess(sharedBuffer, nfaState, eventWrapper, afterMatchSkipStrategy);
 		}
 	}
 
-	private Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>> doProcess(
+	/**
+	 * Prunes states assuming there will be no events with timestamp <b>lower</b> than the given one.
+	 * It cleares the sharedBuffer and also emits all timed out partial matches.
+	 *
+	 * @param sharedBuffer the SharedBuffer object that we need to work upon while processing
+	 * @param nfaState     The NFAState object that we need to affect while processing
+	 * @param timestamp    timestamp that indicates that there will be no more events with lower timestamp
+	 * @return all timed outed partial matches
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	public Collection<Tuple2<Map<String, List<T>>, Long>> advanceTime(
+			final SharedBuffer<T> sharedBuffer,
+			final NFAState nfaState,
+			final long timestamp) throws Exception {
+
+		Queue<ComputationState> computationStates = nfaState.getComputationStates();
+		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
+
+		final int numberComputationStates = computationStates.size();
+		for (int i = 0; i < numberComputationStates; i++) {
+			ComputationState computationState = computationStates.poll();
+
+			if (isStateTimedOut(computationState, timestamp)) {
+
+				if (handleTimeout) {
+					// extract the timed out event pattern
+					Map<String, List<T>> timedOutPattern = extractCurrentMatches(sharedBuffer, computationState);
+					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
+				}
+
+				sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
+
+				nfaState.setStateChanged();
+			} else {
+				computationStates.add(computationState);
+			}
+		}
+
+		sharedBuffer.advanceTime(timestamp);
+
+		return timeoutResult;
+	}
+
+	private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
+		return !isStartState(state) && windowTime > 0L && timestamp - state.getStartTimestamp() >= windowTime;
+	}
+
+	private Collection<Map<String, List<T>>> doProcess(
 			final SharedBuffer<T> sharedBuffer,
 			final NFAState nfaState,
 			final EventWrapper event,
@@ -232,38 +279,21 @@ public class NFA<T> {
 
 		final int numberComputationStates = computationStates.size();
 		final Collection<Map<String, List<T>>> result = new ArrayList<>();
-		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
 
 		// iterate over all current computations
 		for (int i = 0; i < numberComputationStates; i++) {
 			ComputationState computationState = computationStates.poll();
 
-			final Collection<ComputationState> newComputationStates;
+			final Collection<ComputationState> newComputationStates = computeNextStates(
+				sharedBuffer,
+				computationState,
+				event,
+				event.getTimestamp());
 
-			if (!isStartState(computationState) &&
-				windowTime > 0L &&
-				event.getTimestamp() - computationState.getStartTimestamp() >= windowTime) {
-
-				if (handleTimeout) {
-					// extract the timed out event pattern
-					Map<String, List<T>> timedOutPattern = extractCurrentMatches(sharedBuffer, computationState);
-					timeoutResult.add(Tuple2.of(timedOutPattern, event.getTimestamp()));
-				}
-
-				sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
-
-				newComputationStates = Collections.emptyList();
+			if (newComputationStates.size() != 1) {
 				nfaState.setStateChanged();
-			} else if (event.getEvent() != null) {
-				newComputationStates = computeNextStates(sharedBuffer, computationState, event, event.getTimestamp());
-
-				if (newComputationStates.size() != 1) {
-					nfaState.setStateChanged();
-				} else if (!newComputationStates.iterator().next().equals(computationState)) {
-					nfaState.setStateChanged();
-				}
-			} else {
-				newComputationStates = Collections.singleton(computationState);
+			} else if (!newComputationStates.iterator().next().equals(computationState)) {
+				nfaState.setStateChanged();
 			}
 
 			//delay adding new computation states in case a stop state is reached and we discard the path.
@@ -298,17 +328,12 @@ public class NFA<T> {
 			} else {
 				computationStates.addAll(statesToRetain);
 			}
-
 		}
 
 		discardComputationStatesAccordingToStrategy(
 			sharedBuffer, computationStates, result, afterMatchSkipStrategy);
 
-		if (event.getEvent() == null) {
-			sharedBuffer.advanceTime(event.getTimestamp());
-		}
-
-		return Tuple2.of(result, timeoutResult);
+		return result;
 	}
 
 	private void discardComputationStatesAccordingToStrategy(
@@ -503,6 +528,7 @@ public class NFA<T> {
 	 * @param event Current event which is processed
 	 * @param timestamp Timestamp of the current event
 	 * @return Collection of computation states which result from the current one
+	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	private Collection<ComputationState> computeNextStates(
 			final SharedBuffer<T> sharedBuffer,
@@ -718,6 +744,7 @@ public class NFA<T> {
 	 * @param sharedBuffer The {@link SharedBuffer} from which to extract the matches
 	 * @param computationState The end computation state of the extracted event sequences
 	 * @return Collection of event sequences which end in the given computation state
+	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	private Map<String, List<T>> extractCurrentMatches(
 			final SharedBuffer<T> sharedBuffer,

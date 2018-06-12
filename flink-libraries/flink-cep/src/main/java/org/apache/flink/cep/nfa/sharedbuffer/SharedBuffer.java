@@ -106,7 +106,7 @@ public class SharedBuffer<V> {
 		Iterator<Long> iterator = eventsCount.keys().iterator();
 		while (iterator.hasNext()) {
 			Long next = iterator.next();
-			if (next <= timestamp) {
+			if (next < timestamp) {
 				iterator.remove();
 			}
 		}

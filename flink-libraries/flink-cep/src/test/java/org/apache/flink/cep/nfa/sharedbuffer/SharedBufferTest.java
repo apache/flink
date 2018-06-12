@@ -229,7 +229,7 @@ public class SharedBufferTest extends TestLogger {
 			sharedBuffer.registerEvent(events[i], i);
 		}
 
-		sharedBuffer.advanceTime(2);
+		sharedBuffer.advanceTime(3);
 
 		Iterator<Map.Entry<Long, Integer>> counters = sharedBuffer.getEventCounters();
 		Map.Entry<Long, Integer> entry = counters.next();
