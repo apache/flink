@@ -49,6 +49,7 @@ under the License.
 		<module>flink-elasticsearch2-test</module>
 		<module>flink-elasticsearch5-test</module>
 		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
 	</modules>
 
 	<build>
