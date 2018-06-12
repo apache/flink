@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -48,9 +47,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -79,7 +76,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -532,46 +528,6 @@ public class DispatcherTest extends TestLogger {
 		@Override
 		public void initializeOnMaster(ClassLoader loader) throws Exception {
 			throw failure;
-		}
-	}
-
-	private static class TestingDispatcher extends Dispatcher {
-
-		private TestingDispatcher(
-				RpcService rpcService,
-				String endpointId,
-				Configuration configuration,
-				HighAvailabilityServices highAvailabilityServices,
-				ResourceManagerGateway resourceManagerGateway,
-				BlobServer blobServer,
-				HeartbeatServices heartbeatServices,
-				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServicePath,
-				ArchivedExecutionGraphStore archivedExecutionGraphStore,
-				JobManagerRunnerFactory jobManagerRunnerFactory,
-				FatalErrorHandler fatalErrorHandler) throws Exception {
-			super(
-				rpcService,
-				endpointId,
-				configuration,
-				highAvailabilityServices,
-				highAvailabilityServices.getSubmittedJobGraphStore(),
-				resourceManagerGateway,
-				blobServer,
-				heartbeatServices,
-				jobManagerMetricGroup,
-				metricQueryServicePath,
-				archivedExecutionGraphStore,
-				jobManagerRunnerFactory,
-				fatalErrorHandler,
-				null,
-				VoidHistoryServerArchivist.INSTANCE);
-		}
-
-		@VisibleForTesting
-		void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
-			runAsync(
-				() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
 		}
 	}
 
