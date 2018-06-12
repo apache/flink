@@ -165,7 +165,9 @@ public final class JsonSchemaConverter {
 						typeSet.add(Types.BIG_DEC);
 						break;
 					case TYPE_INTEGER:
-						typeSet.add(Types.BIG_INT);
+						// use BigDecimal for easier interoperability
+						// without affecting the correctness of the result
+						typeSet.add(Types.BIG_DEC);
 						break;
 					case TYPE_OBJECT:
 						typeSet.add(convertObject(location, node, root));
