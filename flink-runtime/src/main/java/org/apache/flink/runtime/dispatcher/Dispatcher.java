@@ -740,30 +740,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		final DispatcherId dispatcherId = DispatcherId.fromUuid(newLeaderSessionID);
-		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
+		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), newLeaderSessionID);
 
 		final CompletableFuture<Collection<JobGraph>> recoveredJobsFuture = recoverJobs();
 
-		final CompletableFuture<Void> fencingTokenFuture = recoveredJobsFuture.thenAcceptAsync(
-			(Collection<JobGraph> recoveredJobs) -> {
-				setNewFencingToken(dispatcherId);
-
-				for (JobGraph recoveredJob : recoveredJobs) {
-					try {
-						runJob(recoveredJob);
-					} catch (Exception e) {
-						throw new CompletionException(
-							new FlinkException(
-								String.format("Failed to recover job %s.", recoveredJob.getJobID()),
-								e));
-					}
-				}
-			},
+		final CompletableFuture<Boolean> fencingTokenFuture = recoveredJobsFuture.thenApplyAsync(
+			(Collection<JobGraph> recoveredJobs) -> tryAcceptLeadershipAndRunJobs(newLeaderSessionID, recoveredJobs),
 			getUnfencedMainThreadExecutor());
 
-		final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenRunAsync(
-			() -> leaderElectionService.confirmLeaderSessionID(newLeaderSessionID),
+		final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenAcceptAsync(
+			(Boolean confirmLeadership) -> {
+				if (confirmLeadership) {
+					leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+				}
+			},
 			getRpcService().getExecutor());
 
 		confirmationFuture.whenComplete(
@@ -772,6 +762,31 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					onFatalError(ExceptionUtils.stripCompletionException(throwable));
 				}
 			});
+	}
+
+	private boolean tryAcceptLeadershipAndRunJobs(UUID newLeaderSessionID, Collection<JobGraph> recoveredJobs) {
+		final DispatcherId dispatcherId = DispatcherId.fromUuid(newLeaderSessionID);
+
+		if (leaderElectionService.hasLeadership(newLeaderSessionID)) {
+			log.debug("Dispatcher {} accepted leadership with fencing token {}. Start recovered jobs.", getAddress(), dispatcherId);
+			setNewFencingToken(dispatcherId);
+
+			for (JobGraph recoveredJob : recoveredJobs) {
+				try {
+					runJob(recoveredJob);
+				} catch (Exception e) {
+					throw new CompletionException(
+						new FlinkException(
+							String.format("Failed to recover job %s.", recoveredJob.getJobID()),
+							e));
+				}
+			}
+
+			return true;
+		} else {
+			log.debug("Dispatcher {} lost leadership before accepting it. Stop recovering jobs for fencing token {}.", getAddress(), dispatcherId);
+			return false;
+		}
 	}
 
 	private void setNewFencingToken(@Nullable DispatcherId dispatcherId) {
