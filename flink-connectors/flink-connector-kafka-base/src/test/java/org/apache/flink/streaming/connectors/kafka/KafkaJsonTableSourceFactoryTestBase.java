@@ -117,7 +117,7 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 				.withSchema(
 					TableSchema.builder()
 						.field("fruit-name", Types.STRING)
-						.field("count", Types.BIG_INT)
+						.field("count", Types.BIG_DEC)
 						.field("event-time", Types.SQL_TIMESTAMP)
 						.field("proc-time", Types.SQL_TIMESTAMP)
 						.build())
@@ -141,7 +141,7 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 			.addSchema(
 				new Schema()
 						.field("fruit-name", Types.STRING).from("name")
-						.field("count", Types.BIG_INT) // no from so it must match with the input
+						.field("count", Types.BIG_DEC) // no from so it must match with the input
 						.field("event-time", Types.SQL_TIMESTAMP).rowtime(
 							new Rowtime().timestampsFromField("time").watermarksFromSource())
 						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
