@@ -101,7 +101,7 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.ElasticBloomFilterManager;
+import org.apache.flink.streaming.api.operators.ElasticFilterStateManager;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -1115,7 +1115,7 @@ public class StreamTaskTest extends TestLogger {
 					}
 
 					@Override
-					public ElasticBloomFilterManager<?> bloomFilterStateManager() {
+					public ElasticFilterStateManager<?> bloomFilterStateManager() {
 						return context.bloomFilterStateManager();
 					}
 

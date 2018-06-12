@@ -34,20 +34,20 @@ import java.util.LinkedList;
  * A list of {@link TolerantFilterNode} to avoid data skewed between key ranges. The size of nodes on the list
  * grow by a {@code growRate} to avoid the list to be too long.
  */
-public class LinkedTolerantFilter {
+public class ElasticFilter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LinkedTolerantFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticFilter.class);
 
 	private long currentSize;
 
 	private long initSize;
 	private double growRate;
 
-	private ElasticBloomFilter partitionedBloomFilter;
+	private ElasticFilterState partitionedBloomFilter;
 
 	private LinkedList<TolerantFilterNode> bloomFilterNodes = new LinkedList<>();
 
-	public LinkedTolerantFilter(ElasticBloomFilter partitionedBloomFilter, long initSize, double growRate) {
+	public ElasticFilter(ElasticFilterState partitionedBloomFilter, long initSize, double growRate) {
 		this.partitionedBloomFilter = partitionedBloomFilter;
 		this.currentSize = initSize;
 		this.initSize = initSize;
@@ -166,7 +166,7 @@ public class LinkedTolerantFilter {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 
-		LinkedTolerantFilter that = (LinkedTolerantFilter) o;
+		ElasticFilter that = (ElasticFilter) o;
 
 		if (currentSize != that.currentSize) return false;
 		if (initSize != that.initSize) return false;

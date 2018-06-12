@@ -1,6 +1,6 @@
 package org.apache.flink.streaming.examples.bloomfilter;
 
-import org.apache.flink.api.common.state.PartitionedBloomFilterDescriptor;
+import org.apache.flink.api.common.state.ElasticFilterStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
@@ -9,7 +9,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
-import org.apache.flink.streaming.api.operators.ElasticBloomFilter;
+import org.apache.flink.streaming.api.operators.ElasticFilterState;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -74,20 +74,20 @@ public class BloomFilterExample {
 			})
 			.timeWindow(Time.milliseconds(1000))
 			.apply(new RichWindowFunction<Integer, Integer, Integer, TimeWindow>() {
-				private ElasticBloomFilter bf1;
-				private ElasticBloomFilter bf2;
+				private ElasticFilterState bf1;
+				private ElasticFilterState bf2;
 
 				@Override
 				public void open(Configuration parameters) throws Exception {
 					super.open(parameters);
 					StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) this.getRuntimeContext();
-					bf1 = runtimeContext.getPartitionedBloomFilter(new PartitionedBloomFilterDescriptor(
+					bf1 = runtimeContext.getPartitionedBloomFilter(new ElasticFilterStateDescriptor(
 						"0.01",
 						TypeInformation.of(String.class),
 						60000,
 						0.01));
 
-					bf2 = runtimeContext.getPartitionedBloomFilter(new PartitionedBloomFilterDescriptor(
+					bf2 = runtimeContext.getPartitionedBloomFilter(new ElasticFilterStateDescriptor(
 						"0.02",
 						TypeInformation.of(String.class),
 						60000,

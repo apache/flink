@@ -32,7 +32,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * A shrinkable bloom filter node linked each other in {@link LinkedTolerantFilter} to avoid data skewed.
+ * A shrinkable bloom filter node linked each other in {@link ElasticFilter} to avoid data skewed.
  */
 public class ShrinkableBloomFilterNode implements TolerantFilterNode {
 
@@ -115,7 +115,7 @@ public class ShrinkableBloomFilterNode implements TolerantFilterNode {
 	@Override
 	public void add(byte[] content) {
 
-		int unitIndex = Arrays.hashCode(content) % bloomFilterUnits.length;
+		int unitIndex = Math.abs(Arrays.hashCode(content)) % bloomFilterUnits.length;
 
 		BloomFilterUnit bloomFilterUnit = bloomFilterUnits[unitIndex];
 
@@ -125,7 +125,7 @@ public class ShrinkableBloomFilterNode implements TolerantFilterNode {
 	@Override
 	public boolean contains(byte[] content) {
 
-		int unitIndex = Arrays.hashCode(content) % bloomFilterUnits.length;
+		int unitIndex = Math.abs(Arrays.hashCode(content)) % bloomFilterUnits.length;
 
 		BloomFilterUnit bloomFilterUnit = bloomFilterUnits[unitIndex];
 

@@ -126,7 +126,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
 		CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
 		InternalTimeServiceManager<?> timeServiceManager;
-		ElasticBloomFilterManager<?> bloomfilterStateManager;
+		ElasticFilterStateManager<?> bloomfilterStateManager;
 
 		try {
 
@@ -230,7 +230,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		return timeServiceManager;
 	}
 
-	protected  <K> ElasticBloomFilterManager<K> bloomfilterStateManager(
+	protected  <K> ElasticFilterStateManager<K> bloomfilterStateManager(
 		AbstractKeyedStateBackend<K> keyedStatedBackend,
 		KeyContext keyContext, //the operator
 		Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
@@ -241,7 +241,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
-		ElasticBloomFilterManager<K> bloomFilterManager = new ElasticBloomFilterManager(
+		ElasticFilterStateManager<K> bloomFilterManager = new ElasticFilterStateManager(
 			keyContext,
 			keyedStatedBackend.getKeySerializer(),
 			keyedStatedBackend.getNumberOfKeyGroups(),
@@ -583,7 +583,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		private final OperatorStateBackend operatorStateBackend;
 		private final AbstractKeyedStateBackend<?> keyedStateBackend;
 		private final InternalTimeServiceManager<?> internalTimeServiceManager;
-		private final ElasticBloomFilterManager<?> bloomFilterStateManager;
+		private final ElasticFilterStateManager<?> bloomFilterStateManager;
 
 		private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
 		private final CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
@@ -593,7 +593,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			OperatorStateBackend operatorStateBackend,
 			AbstractKeyedStateBackend<?> keyedStateBackend,
 			InternalTimeServiceManager<?> internalTimeServiceManager,
-			ElasticBloomFilterManager<?> bloomFilterStateManager,
+			ElasticFilterStateManager<?> bloomFilterStateManager,
 			CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
 			CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
 
@@ -627,7 +627,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		}
 
 		@Override
-		public ElasticBloomFilterManager<?> bloomFilterStateManager() {
+		public ElasticFilterStateManager<?> bloomFilterStateManager() {
 			return bloomFilterStateManager;
 		}
 

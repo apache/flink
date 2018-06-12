@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * {@link LinkedTolerantFilter} unit tests.
+ * {@link ElasticFilter} unit tests.
  */
-public class LinkedTolerantFilterTest {
+public class ElasticFilterTest {
 
 	@Test
 	public void basicTest() throws InterruptedException {
@@ -27,7 +27,7 @@ public class LinkedTolerantFilterTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> partitionedBloomFilter = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -41,7 +41,7 @@ public class LinkedTolerantFilterTest {
 			2.0
 		);
 
-		LinkedTolerantFilter linkedBloomFilter = new LinkedTolerantFilter(partitionedBloomFilter, 1000, 2);
+		ElasticFilter linkedBloomFilter = new ElasticFilter(partitionedBloomFilter, 1000, 2);
 
 		List<TolerantFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
 
@@ -69,7 +69,7 @@ public class LinkedTolerantFilterTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> partitionedBloomFilter = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -83,7 +83,7 @@ public class LinkedTolerantFilterTest {
 			2.0
 		);
 
-		LinkedTolerantFilter linkedBloomFilter = new LinkedTolerantFilter(partitionedBloomFilter, 1000, 2);
+		ElasticFilter linkedBloomFilter = new ElasticFilter(partitionedBloomFilter, 1000, 2);
 
 		List<TolerantFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
 
@@ -114,7 +114,7 @@ public class LinkedTolerantFilterTest {
 
 		byte[] outputBytes = outputStream.toByteArray();
 
-		LinkedTolerantFilter linkedBloomFilter2 = new LinkedTolerantFilter(partitionedBloomFilter, 1000, 2);
+		ElasticFilter linkedBloomFilter2 = new ElasticFilter(partitionedBloomFilter, 1000, 2);
 
 		linkedBloomFilter2.restore(new DataInputViewStreamWrapper(new ByteArrayInputStream(outputBytes)));
 
@@ -129,7 +129,7 @@ public class LinkedTolerantFilterTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> partitionedBloomFilter = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -143,7 +143,7 @@ public class LinkedTolerantFilterTest {
 			2.0
 		);
 
-		LinkedTolerantFilter linkedBloomFilter = new LinkedTolerantFilter(partitionedBloomFilter, 1000, 2);
+		ElasticFilter linkedBloomFilter = new ElasticFilter(partitionedBloomFilter, 1000, 2);
 
 		List<TolerantFilterNode> nodes = linkedBloomFilter.getBloomFilterNodes();
 
@@ -180,7 +180,7 @@ public class LinkedTolerantFilterTest {
 
 		TimeUnit.MILLISECONDS.sleep(2000);
 
-		linkedBloomFilter = new LinkedTolerantFilter(partitionedBloomFilter, 1000, 2);
+		linkedBloomFilter = new ElasticFilter(partitionedBloomFilter, 1000, 2);
 		linkedBloomFilter.restore(new DataInputViewStreamWrapper(new ByteArrayInputStream(outputStream.toByteArray())));
 		Assert.assertEquals(2, linkedBloomFilter.getBloomFilterNodes().size());
 	}

@@ -15,14 +15,15 @@ import java.io.ByteArrayOutputStream;
 import java.util.Random;
 
 /**
- * {@link ElasticBloomFilter} unit tests.
+ * {@link ElasticFilterState} unit tests.
  */
-public class PartitionedBloomFilterTest {
+public class ElasticFilterStateTest {
 
 	@Test
 	public void basicTest() throws InterruptedException {
 
 		KeyContext keyContext = new KeyContext() {
+
 			private Object key;
 
 			@Override
@@ -36,7 +37,7 @@ public class PartitionedBloomFilterTest {
 			}
 		};
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> elasticFilterState = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
@@ -50,28 +51,29 @@ public class PartitionedBloomFilterTest {
 			2.0
 		);
 
-		LinkedTolerantFilter[] linkedBloomFilters = partitionedBloomFilter.getLinkedBloomFilters();
-		Assert.assertEquals(10, linkedBloomFilters.length);
+		ElasticFilter[] linkedTolerantFilters = elasticFilterState.getLinkedTolerantFilters();
+		Assert.assertEquals(10, linkedTolerantFilters.length);
 		for (int i = 0; i < 10; ++i) {
-			Assert.assertNull(linkedBloomFilters[i]);
+			Assert.assertNull(linkedTolerantFilters[i]);
 		}
 
 		String currentKey = "hello";
 
 		keyContext.setCurrentKey(currentKey);
 		for (int i = 0; i < 1000; ++i) {
-			partitionedBloomFilter.add(i);
-			Assert.assertTrue(partitionedBloomFilter.contains(i));
+			elasticFilterState.add(i);
+			Assert.assertTrue(elasticFilterState.contains(i));
 		}
 
 		int currentGroup = KeyGroupRangeAssignment.assignToKeyGroup(currentKey, 10);
-		Assert.assertNotNull(linkedBloomFilters[currentGroup]);
+		Assert.assertNotNull(linkedTolerantFilters[currentGroup]);
 	}
 
 	@Test
 	public void testSnapshotAndRestore() throws Exception {
 
 		KeyContext keyContext = new KeyContext() {
+
 			private Object key;
 
 			@Override
@@ -85,22 +87,22 @@ public class PartitionedBloomFilterTest {
 			}
 		};
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> partitionedBloomFilter = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
 			new KeyGroupRange(0, 9),
 			keyContext,
-			10000,
+			20000,
 			0.01,
 			1000,
+			100,
 			1000,
-			10000,
 			2.0
 		);
 
 		String[] keys = new String[10_000];
-		for (int i = 0; i < 10_000; ++i) {
+		for (int i = 0; i < 10000; ++i) {
 			String key = String.valueOf(new Random().nextInt(1000));
 			keyContext.setCurrentKey(key);
 			partitionedBloomFilter.add(i);
@@ -115,22 +117,23 @@ public class PartitionedBloomFilterTest {
 			partitionedBloomFilter.snapshotStateForKeyGroup(outputViewStreamWrapper, i);
 		}
 
-		ElasticBloomFilter<String, Integer> partitionedBloomFilter2 = new ElasticBloomFilter<String, Integer>(
+		ElasticFilterState<String, Integer> partitionedBloomFilter2 = new ElasticFilterState<String, Integer>(
 			new StringSerializer(),
 			new IntSerializer(),
 			10,
 			new KeyGroupRange(0, 9),
 			keyContext,
-			10000,
+			20000,
 			0.01,
 			1000,
+			100,
 			1000,
-			10000,
 			2.0
 		);
 
 		ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
 		DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inputStream);
+
 		// restore one by one
 		for (int i = 0; i < 10; ++i) {
 			partitionedBloomFilter2.restoreStateForKeyGroup(inputViewStreamWrapper, i);

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.state.PartitionedBloomFilterDescriptor;
+import org.apache.flink.api.common.state.ElasticFilterStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -35,16 +35,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Responsible for managing all {@link ElasticBloomFilter}.
+ * Responsible for managing all {@link ElasticFilterState}.
  *
  * @param <K> The type of keys.
  */
-public class ElasticBloomFilterManager<K> {
+public class ElasticFilterStateManager<K> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticBloomFilterManager.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticFilterStateManager.class);
 
-	private Map<String, ElasticBloomFilter> bloomFilterStates = new HashMap<>();
-	private Map<String, PartitionedBloomFilterDescriptor> bloomFilterStateDescriptors = new HashMap<>();
+	private Map<String, ElasticFilterState> bloomFilterStates = new HashMap<>();
+	private Map<String, ElasticFilterStateDescriptor> bloomFilterStateDescriptors = new HashMap<>();
 	private int numberOfKeyGroups;
 	private KeyGroupRange keyGroupRange;
 	private final KeyContext keyContext;
@@ -52,7 +52,7 @@ public class ElasticBloomFilterManager<K> {
 	/** Serializer for the key. */
 	private final TypeSerializer<K> keySerializer;
 
-	public ElasticBloomFilterManager(
+	public ElasticFilterStateManager(
 		KeyContext keyContext,
 		TypeSerializer<K> keySerializer,
 		int numberOfKeyGroups,
@@ -65,11 +65,11 @@ public class ElasticBloomFilterManager<K> {
 	}
 
 	// ----------------------------------------------------
-	public <T> ElasticBloomFilter<K, T> getOrCreateBloomFilterState(PartitionedBloomFilterDescriptor<T> stateDescriptor) {
+	public <T> ElasticFilterState<K, T> getOrCreateBloomFilterState(ElasticFilterStateDescriptor<T> stateDescriptor) {
 		String stateName = stateDescriptor.getStateName();
-		ElasticBloomFilter<K, T> state = bloomFilterStates.get(stateName);
+		ElasticFilterState<K, T> state = bloomFilterStates.get(stateName);
 		if (state == null) {
-			state = new ElasticBloomFilter(keySerializer,
+			state = new ElasticFilterState(keySerializer,
 				stateDescriptor.getSerializer(),
 				numberOfKeyGroups,
 				keyGroupRange,
@@ -99,8 +99,8 @@ public class ElasticBloomFilterManager<K> {
 	public void snapshotStateForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) {
 		try {
 			stream.writeInt(this.bloomFilterStates.size());
-			for (Map.Entry<String, ElasticBloomFilter> entry : this.bloomFilterStates.entrySet()) {
-				PartitionedBloomFilterDescriptor desc = this.bloomFilterStateDescriptors.get(entry.getKey());
+			for (Map.Entry<String, ElasticFilterState> entry : this.bloomFilterStates.entrySet()) {
+				ElasticFilterStateDescriptor desc = this.bloomFilterStateDescriptors.get(entry.getKey());
 
 				ObjectOutputStream outputStream = new ObjectOutputStream(stream);
 				outputStream.writeObject(desc);
@@ -125,13 +125,13 @@ public class ElasticBloomFilterManager<K> {
 			int len = stream.readInt();
 			for (int i = 0; i < len; ++i) {
 				ObjectInputStream inputStream = new ObjectInputStream(stream);
-				PartitionedBloomFilterDescriptor desc = (PartitionedBloomFilterDescriptor) inputStream.readObject();
+				ElasticFilterStateDescriptor desc = (ElasticFilterStateDescriptor) inputStream.readObject();
 
-				ElasticBloomFilter state = bloomFilterStates.get(desc.getStateName());
+				ElasticFilterState state = bloomFilterStates.get(desc.getStateName());
 				LOG.info("restoring state [{}] for key group {}", desc.getStateName(), keyGroupIdx);
 				if (state == null) {
 					LOG.info("c:{} f:{} t:{} mie:{} mae:{} g:{}", desc.getCapacity(), desc.getFpp(), desc.getTtl(), desc.getMiniExpectNum(), desc.getMaxExpectNum(), desc.getGrowRate());
-					state = new ElasticBloomFilter(keySerializer,
+					state = new ElasticFilterState(keySerializer,
 						desc.getSerializer(),
 						numberOfKeyGroups,
 						keyGroupRange,

@@ -25,8 +25,8 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.util.BloomFilter;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
@@ -46,14 +46,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <K> The type of keys.
  * @param <V> The type of values.
  */
-public class ElasticBloomFilter<K, V> {
+public class ElasticFilterState<K, V> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticBloomFilter.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticFilterState.class);
 
 	private final int totalKeyGroups;
-	private final KeyGroupsList localKeyGroupRange;
+	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
-	private LinkedTolerantFilter[] linkedBloomFilters;
+	private ElasticFilter[] linkedTolerantFilters;
 	private final int localKeyGroupRangeStartIdx;
 
 	private long totalMemSize;
@@ -75,10 +75,10 @@ public class ElasticBloomFilter<K, V> {
 	private final ByteArrayOutputStreamWithPos valueSerializationStream;
 	private final DataOutputView valueSerializationDataOutputView;
 
-	public ElasticBloomFilter(TypeSerializer<K> keySerializer,
+	public ElasticFilterState(TypeSerializer<K> keySerializer,
 							  TypeSerializer<V> valueSerializer,
 							  int totalKeyGroups,
-							  KeyGroupsList localKeyGroupRange,
+							  KeyGroupRange localKeyGroupRange,
 							  KeyContext keyContext,
 							  long capacity,
 							  double fpp,
@@ -99,14 +99,9 @@ public class ElasticBloomFilter<K, V> {
 		this.keyContext = keyContext;
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = localKeyGroupRange;
-		this.linkedBloomFilters = new LinkedTolerantFilter[localKeyGroupRange.getNumberOfKeyGroups()];
+		this.linkedTolerantFilters = new ElasticFilter[localKeyGroupRange.getNumberOfKeyGroups()];
 
-		// find the starting index of the local key-group range
-		int startIdx = Integer.MAX_VALUE;
-		for (Integer keyGroupIdx : localKeyGroupRange) {
-			startIdx = Math.min(keyGroupIdx, startIdx);
-		}
-		this.localKeyGroupRangeStartIdx = startIdx;
+		this.localKeyGroupRangeStartIdx = localKeyGroupRange.getStartKeyGroup();
 
 		this.keySerializer = keySerializer;
 		this.valueSerializer = valueSerializer;
@@ -115,22 +110,22 @@ public class ElasticBloomFilter<K, V> {
 	}
 
 	public void add(V content) {
-		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
-		int index = getIndexForKeyGroup(keyGroupIndex);
+		final int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
+		final int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedTolerantFilter bloomFilter = linkedBloomFilters[index];
+		ElasticFilter bloomFilter = linkedTolerantFilters[index];
 		if (bloomFilter == null) {
-			bloomFilter = new LinkedTolerantFilter(this, miniExpectNum, growRate);
-			linkedBloomFilters[index] = bloomFilter;
+			bloomFilter = new ElasticFilter(this, miniExpectNum, growRate);
+			linkedTolerantFilters[index] = bloomFilter;
 		}
 		bloomFilter.add(buildBloomFilterKey(content));
 	}
 
 	public boolean contains(V content) {
-		int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
-		int index = getIndexForKeyGroup(keyGroupIndex);
+		final int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(keyContext.getCurrentKey(), totalKeyGroups);
+		final int index = getIndexForKeyGroup(keyGroupIndex);
 
-		LinkedTolerantFilter bloomFilter = linkedBloomFilters[index];
+		ElasticFilter bloomFilter = linkedTolerantFilters[index];
 		if (bloomFilter == null) {
 			return false;
 		}
@@ -147,7 +142,7 @@ public class ElasticBloomFilter<K, V> {
 
 		LOG.info("snapshot state for group {} ", keyGroupIdx);
 		int index = getIndexForKeyGroup(keyGroupIdx);
-		LinkedTolerantFilter bloomFilter = this.linkedBloomFilters[index];
+		ElasticFilter bloomFilter = this.linkedTolerantFilters[index];
 		if (bloomFilter != null) {
 			stream.writeBoolean(true);
 			stream.writeLong(this.restMemSize);
@@ -165,9 +160,9 @@ public class ElasticBloomFilter<K, V> {
 		int index = getIndexForKeyGroup(keyGroupIdx);
 		if (stream.readBoolean()) {
 			this.restMemSize = stream.readLong();
-			LinkedTolerantFilter linkedBloomFilter = new LinkedTolerantFilter(this, miniExpectNum, growRate);
+			ElasticFilter linkedBloomFilter = new ElasticFilter(this, miniExpectNum, growRate);
 			linkedBloomFilter.restore(stream);
-			this.linkedBloomFilters[index] = linkedBloomFilter;
+			this.linkedTolerantFilters[index] = linkedBloomFilter;
 			LOG.info("group {} restored.", keyGroupIdx);
 		} else {
 			LOG.info("nothing to restore.");
@@ -236,7 +231,7 @@ public class ElasticBloomFilter<K, V> {
 			.append("total memory:").append(totalMemSize).append("\t").append("rest memory:").append(restMemSize).append("\n");
 
 		for (int i = 0; i < localKeyGroupRange.getNumberOfKeyGroups(); ++i) {
-			LinkedTolerantFilter bloomFilter = this.linkedBloomFilters[i];
+			ElasticFilter bloomFilter = this.linkedTolerantFilters[i];
 			if (bloomFilter != null) {
 				builder.append("group ").append(i + localKeyGroupRangeStartIdx).append(":").append(bloomFilter.toString()).append("\n");
 			}
@@ -245,7 +240,7 @@ public class ElasticBloomFilter<K, V> {
 	}
 
 	@VisibleForTesting
-	LinkedTolerantFilter[] getLinkedBloomFilters() {
-		return this.linkedBloomFilters;
+	ElasticFilter[] getLinkedTolerantFilters() {
+		return this.linkedTolerantFilters;
 	}
 }

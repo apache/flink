@@ -156,7 +156,7 @@ public abstract class AbstractStreamOperator<OUT>
 	// ---------------- bloom filter handler ------------------
 
 	/** Backend for bloomfilter. */
-	private ElasticBloomFilterManager bloomFilterManager;
+	private ElasticFilterStateManager bloomFilterManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -628,7 +628,7 @@ public abstract class AbstractStreamOperator<OUT>
 		return keyedStateStore;
 	}
 
-	protected ElasticBloomFilterManager getBloomFilterStateManager() {
+	protected ElasticFilterStateManager getBloomFilterStateManager() {
 		return bloomFilterManager;
 	}
 

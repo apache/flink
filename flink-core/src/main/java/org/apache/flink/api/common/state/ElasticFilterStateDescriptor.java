@@ -7,9 +7,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.io.Serializable;
 
 /**
- * Created by zsh on 06/02/2018.
+ * To be.
  */
-public class PartitionedBloomFilterDescriptor<T> implements Serializable {
+public class ElasticFilterStateDescriptor<T> implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -36,7 +36,7 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 	 * or lazily once the type is serialized or an ExecutionConfig is provided. */
 	protected TypeSerializer<T> serializer;
 
-	public PartitionedBloomFilterDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp) {
+	public ElasticFilterStateDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp) {
 		this(
 			stateName,
 			typeInfo,
@@ -45,7 +45,7 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 			Integer.MAX_VALUE);
 	}
 
-	public PartitionedBloomFilterDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp, long ttl) {
+	public ElasticFilterStateDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp, long ttl) {
 		this(
 			stateName,
 			typeInfo,
@@ -57,7 +57,7 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 			DEFAULT_GROW_RATE);
 	}
 
-	public PartitionedBloomFilterDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp, long ttl, long minExpectNum, long maxExpectNum, double growRate) {
+	public ElasticFilterStateDescriptor(String stateName, TypeInformation<T> typeInfo, long capacity, double fpp, long ttl, long minExpectNum, long maxExpectNum, double growRate) {
 		this.stateName = stateName;
 		this.typeInfo = typeInfo;
 		this.capacity = capacity;
@@ -68,7 +68,7 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 		this.growRate = growRate;
 	}
 
-	public PartitionedBloomFilterDescriptor(String stateName, TypeSerializer<T> serializer, long capacity, double fpp, long ttl) {
+	public ElasticFilterStateDescriptor(String stateName, TypeSerializer<T> serializer, long capacity, double fpp, long ttl) {
 		this(
 			stateName,
 			serializer,
@@ -80,7 +80,7 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 			DEFAULT_GROW_RATE);
 	}
 
-	public PartitionedBloomFilterDescriptor(String stateName, TypeSerializer<T> serializer, long capacity, double fpp, long ttl, long minExpectNum, long maxExpectNum, double growRate) {
+	public ElasticFilterStateDescriptor(String stateName, TypeSerializer<T> serializer, long capacity, double fpp, long ttl, long minExpectNum, long maxExpectNum, double growRate) {
 		this.stateName = stateName;
 		this.serializer = serializer;
 		this.capacity = capacity;
@@ -118,30 +118,6 @@ public class PartitionedBloomFilterDescriptor<T> implements Serializable {
 	public double getGrowRate() {
 		return growRate;
 	}
-
-//	public void snapshot(DataOutputViewStreamWrapper out) throws IOException {
-//		out.writeUTF(stateName);
-//		out.writeLong(capacity);
-//		out.writeLong(ttl);
-//		out.writeDouble(fpp);
-//
-//		out.writeLong(miniExpectNum);
-//		out.writeLong(maxExpectNum);
-//		out.writeDouble(growRate);
-//	}
-//
-//	public static BloomFilterStateDescriptor restore(DataInputViewStreamWrapper in) throws IOException {
-//		BloomFilterStateDescriptor desc = new BloomFilterStateDescriptor();
-//		desc.stateName = in.readUTF();
-//		desc.capacity = in.readLong();
-//		desc.ttl = in.readLong();
-//		desc.fpp = in.readDouble();
-//
-//		desc.miniExpectNum = in.readLong();
-//		desc.maxExpectNum = in.readLong();
-//		desc.growRate = in.readDouble();
-//		return desc;
-//	}
 
 	public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
 		if (serializer == null) {
