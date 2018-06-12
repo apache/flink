@@ -28,14 +28,15 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.util.AutoCloseableAsync;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -60,9 +61,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -313,8 +312,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				final Time gracePeriod = Time.seconds(10L);
 
 				if (bootstrap != null) {
-					if (bootstrap.group() != null) {
-						bootstrap.group().shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
+					final ServerBootstrapConfig config = bootstrap.config();
+					final EventLoopGroup group = config.group();
+					if (group != null) {
+						group.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									groupFuture.complete(null);
@@ -326,8 +327,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 						groupFuture.complete(null);
 					}
 
-					if (bootstrap.childGroup() != null) {
-						bootstrap.childGroup().shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
+					final EventLoopGroup childGroup = config.childGroup();
+					if (childGroup != null) {
+						childGroup.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									childGroupFuture.complete(null);
@@ -348,29 +350,14 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 				CompletableFuture<Void> combinedFuture = FutureUtils.completeAll(Arrays.asList(groupFuture, childGroupFuture));
 
-				// TODO: Temporary fix to circumvent shutdown bug in Netty < 4.0.33
-				// See: https://github.com/netty/netty/issues/4357
-				FutureUtils.orTimeout(combinedFuture, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-				combinedFuture
-					.exceptionally(
-						(Throwable throwable) -> {
-							if (throwable instanceof TimeoutException) {
-								// We ignore timeout exceptions because they indicate that Netty's shut down deadlocked
-								log.info("Could not properly shut down Netty. Continue shut down of RestServerEndpoint.");
-								return null;
-							} else {
-								throw new CompletionException(ExceptionUtils.stripCompletionException(throwable));
-							}
-						})
-					.whenComplete(
-						(Void ignored, Throwable throwable) -> {
-							if (throwable != null) {
-								channelTerminationFuture.completeExceptionally(throwable);
-							} else {
-								channelTerminationFuture.complete(null);
-							}
-						});
+				combinedFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							channelTerminationFuture.completeExceptionally(throwable);
+						} else {
+							channelTerminationFuture.complete(null);
+						}
+					});
 			});
 
 			return channelTerminationFuture;
