@@ -54,6 +54,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -369,7 +371,7 @@ public class RestAPIDocGenerator {
 			}
 
 			@Override
-			public boolean hasLeadership() {
+			public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
 				return false;
 			}
 		}

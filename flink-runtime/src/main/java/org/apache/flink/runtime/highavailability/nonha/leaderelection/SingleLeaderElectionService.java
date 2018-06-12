@@ -26,6 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.util.HashSet;
@@ -162,9 +163,9 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public boolean hasLeadership() {
+	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
 		synchronized (lock) {
-			return leader != null;
+			return proposedLeader != null && leaderSessionId.equals(leaderId);
 		}
 	}
 
