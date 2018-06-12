@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
@@ -86,7 +87,7 @@ public class RocksDBValueState<K, N, V>
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
+			throw new FlinkRuntimeException("Error while retrieving data from RocksDB.", e);
 		}
 	}
 
@@ -104,7 +105,7 @@ public class RocksDBValueState<K, N, V>
 			valueSerializer.serialize(value, out);
 			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
 }

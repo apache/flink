@@ -37,9 +37,9 @@ import java.io.IOException;
  * @param <ACC> The type of the value stored in the state (the accumulator type).
  * @param <OUT> The type of the value returned from the state.
  */
-public class HeapAggregatingState<K, N, IN, ACC, OUT>
-		extends AbstractHeapMergingState<K, N, IN, ACC, OUT, AggregatingState<IN, OUT>>
-		implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+class HeapAggregatingState<K, N, IN, ACC, OUT>
+	extends AbstractHeapMergingState<K, N, IN, ACC, OUT>
+	implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
 	private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
@@ -53,13 +53,13 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 	 * @param defaultValue The default value for the state.
 	 * @param aggregateFunction The aggregating function used for aggregating state.
 	 */
-	public HeapAggregatingState(
-			StateTable<K, N, ACC> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<ACC> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			ACC defaultValue,
-			AggregateFunction<IN, ACC, OUT> aggregateFunction) {
+	HeapAggregatingState(
+		StateTable<K, N, ACC> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<ACC> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		ACC defaultValue,
+		AggregateFunction<IN, ACC, OUT> aggregateFunction) {
 
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.aggregateTransformation = new AggregateTransformation<>(aggregateFunction);
@@ -86,8 +86,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	public OUT get() {
-
-		ACC accumulator = stateTable.get(currentNamespace);
+		ACC accumulator = getInternal();
 		return accumulator != null ? aggregateTransformation.aggFunction.getResult(accumulator) : null;
 	}
 
