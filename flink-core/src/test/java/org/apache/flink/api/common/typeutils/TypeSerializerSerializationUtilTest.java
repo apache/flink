@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -148,18 +149,15 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 	 */
 	@Test
 	public void testSerializeConfigurationSnapshots() throws Exception {
-		TypeSerializerSerializationUtilTest.TestConfigSnapshot configSnapshot1 =
-			new TypeSerializerSerializationUtilTest.TestConfigSnapshot(1, "foo");
-
-		TypeSerializerSerializationUtilTest.TestConfigSnapshot configSnapshot2 =
-			new TypeSerializerSerializationUtilTest.TestConfigSnapshot(2, "bar");
+		TypeSerializerSerializationUtilTest.TestConfigSnapshot<String> configSnapshot1 =
+			new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(1, "foo");
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshots(
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out),
 				configSnapshot1,
-				configSnapshot2);
+				StringSerializer.INSTANCE);
 
 			serializedConfig = out.toByteArray();
 		}
@@ -172,7 +170,6 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		assertEquals(2, restoredConfigs.length);
 		assertEquals(configSnapshot1, restoredConfigs[0]);
-		assertEquals(configSnapshot2, restoredConfigs[1]);
 	}
 
 	/**
@@ -183,7 +180,9 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
-				new DataOutputViewStreamWrapper(out), new TypeSerializerSerializationUtilTest.TestConfigSnapshot(123, "foobar"));
+				new DataOutputViewStreamWrapper(out),
+				new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(123, "foobar"),
+				StringSerializer.INSTANCE);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -266,7 +265,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
 	}
 
-	public static class TestConfigSnapshot extends TypeSerializerConfigSnapshot {
+	public static class TestConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
 		static final int VERSION = 1;
 
@@ -411,12 +410,12 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<Integer> snapshotConfiguration() {
 			return IntSerializer.INSTANCE.snapshotConfiguration();
 		}
 
 		@Override
-		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
 		}
 

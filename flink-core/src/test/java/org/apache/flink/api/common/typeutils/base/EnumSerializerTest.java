@@ -96,7 +96,7 @@ public class EnumSerializerTest extends TestLogger {
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
-				new DataOutputViewStreamWrapper(out), serializer.snapshotConfiguration());
+				new DataOutputViewStreamWrapper(out), serializer.snapshotConfiguration(), serializer);
 			serializedConfig = out.toByteArray();
 		}
 

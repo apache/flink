@@ -297,7 +297,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer1.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer1);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -333,7 +334,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -379,7 +381,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -437,7 +440,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		TypeSerializerConfigSnapshot pojoSerializerConfigSnapshot = pojoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), pojoSerializerConfigSnapshot, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
 
@@ -552,7 +556,8 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 		byte[] serializedConfig;
 		try (
 			ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), config);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+				new DataOutputViewStreamWrapper(out), config, pojoSerializer);
 			serializedConfig = out.toByteArray();
 		}
 

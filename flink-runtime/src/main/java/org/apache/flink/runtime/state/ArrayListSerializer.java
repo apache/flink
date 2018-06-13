@@ -145,15 +145,15 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<ArrayList<T>> snapshotConfiguration() {
 		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+				((CollectionSerializerConfigSnapshot<?, ?>) configSnapshot).getSingleNestedSerializerAndConfig();
 
 			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousElemSerializerAndConfig.f0,

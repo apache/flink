@@ -763,16 +763,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<State<TXN, CONTEXT>> snapshotConfiguration() {
 			return new StateSerializerConfigSnapshot<>(transactionSerializer, contextSerializer);
 		}
 
 		@Override
 		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
-				TypeSerializerConfigSnapshot configSnapshot) {
+				TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-						((StateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousSerializersAndConfigs.get(0).f0,
@@ -809,7 +809,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	 */
 	@Internal
 	public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
-			extends CompositeTypeSerializerConfigSnapshot {
+			extends CompositeTypeSerializerConfigSnapshot<State<TXN, CONTEXT>> {
 
 		private static final int VERSION = 1;
 

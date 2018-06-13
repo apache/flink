@@ -16,30 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils;
+package org.apache.flink.table.dataview;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-
-import scala.Option;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.table.api.dataview.MapView;
 
 /**
- * A {@link TypeSerializerConfigSnapshot} for the Scala {@link OptionSerializer}.
+ * A {@link TypeSerializerConfigSnapshot} for the {@link MapViewSerializer}.
  *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * @param <K> the key type of the map entries.
+ * @param <V> the value type of the map entries.
  */
-public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
+public class MapViewSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot<MapView<K, V>> {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaOptionSerializerConfigSnapshot() {}
+	public MapViewSerializerConfigSnapshot() {}
 
-	public ScalaOptionSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
-		super(elementSerializer);
+	public MapViewSerializerConfigSnapshot(MapSerializer<K, V> mapSerializer) {
+		super(mapSerializer);
 	}
 
 	@Override

@@ -154,7 +154,7 @@ public class TypeSerializerSerializationUtil {
 				writeSerializer(bufferWrapper, serAndConfSnapshot.f0);
 
 				out.writeInt(bufferWithPos.getPosition());
-				writeSerializerConfigSnapshot(bufferWrapper, serAndConfSnapshot.f1);
+				writeSerializerConfigSnapshot(bufferWrapper, serAndConfSnapshot.f1, serAndConfSnapshot.f0);
 			}
 
 			out.writeInt(bufferWithPos.getPosition());
@@ -229,16 +229,17 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * @throws IOException
 	 */
-	public static void writeSerializerConfigSnapshot(
+	public static <T> void writeSerializerConfigSnapshot(
 			DataOutputView out,
-			TypeSerializerConfigSnapshot serializerConfigSnapshot) throws IOException {
+			TypeSerializerConfigSnapshot<T> serializerConfigSnapshot,
+			TypeSerializer<T> serializer) throws IOException {
 
-		new TypeSerializerConfigSnapshotSerializationProxy(serializerConfigSnapshot).write(out);
+		new TypeSerializerConfigSnapshotSerializationProxy<>(serializerConfigSnapshot, serializer).write(out);
 	}
 
 	/**
 	 * Reads from a data input view a {@link TypeSerializerConfigSnapshot} that was previously
-	 * written using {@link #writeSerializerConfigSnapshot(DataOutputView, TypeSerializerConfigSnapshot)}.
+	 * written using {@link #writeSerializerConfigSnapshot(DataOutputView, TypeSerializerConfigSnapshot, TypeSerializer)}.
 	 *
 	 * @param in the data input view
 	 * @param userCodeClassLoader the user code class loader to use
@@ -258,30 +259,8 @@ public class TypeSerializerSerializationUtil {
 	}
 
 	/**
-	 * Writes multiple {@link TypeSerializerConfigSnapshot}s to the provided data output view.
-	 *
-	 * <p>It is written with a format that can be later read again using
-	 * {@link #readSerializerConfigSnapshots(DataInputView, ClassLoader)}.
-	 *
-	 * @param out the data output view
-	 * @param serializerConfigSnapshots the serializer configuration snapshots to write
-	 *
-	 * @throws IOException
-	 */
-	public static void writeSerializerConfigSnapshots(
-			DataOutputView out,
-			TypeSerializerConfigSnapshot... serializerConfigSnapshots) throws IOException {
-
-		out.writeInt(serializerConfigSnapshots.length);
-
-		for (TypeSerializerConfigSnapshot snapshot : serializerConfigSnapshots) {
-			new TypeSerializerConfigSnapshotSerializationProxy(snapshot).write(out);
-		}
-	}
-
-	/**
 	 * Reads from a data input view multiple {@link TypeSerializerConfigSnapshot}s that was previously
-	 * written using {@link #writeSerializerConfigSnapshot(DataOutputView, TypeSerializerConfigSnapshot)}.
+	 * written using {@link #writeSerializerConfigSnapshot(DataOutputView, TypeSerializerConfigSnapshot, TypeSerializer)}.
 	 *
 	 * @param in the data input view
 	 * @param userCodeClassLoader the user code class loader to use
@@ -387,19 +366,23 @@ public class TypeSerializerSerializationUtil {
 	/**
 	 * Utility serialization proxy for a {@link TypeSerializerConfigSnapshot}.
 	 */
-	static final class TypeSerializerConfigSnapshotSerializationProxy extends VersionedIOReadableWritable {
+	static final class TypeSerializerConfigSnapshotSerializationProxy<T> extends VersionedIOReadableWritable {
 
 		private static final int VERSION = 1;
 
 		private ClassLoader userCodeClassLoader;
-		private TypeSerializerConfigSnapshot serializerConfigSnapshot;
+		private TypeSerializerConfigSnapshot<T> serializerConfigSnapshot;
+		private TypeSerializer<T> serializer;
 
 		TypeSerializerConfigSnapshotSerializationProxy(ClassLoader userCodeClassLoader) {
 			this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		}
 
-		TypeSerializerConfigSnapshotSerializationProxy(TypeSerializerConfigSnapshot serializerConfigSnapshot) {
-			this.serializerConfigSnapshot = serializerConfigSnapshot;
+		TypeSerializerConfigSnapshotSerializationProxy(
+				TypeSerializerConfigSnapshot<T> serializerConfigSnapshot,
+				TypeSerializer<T> serializer) {
+			this.serializerConfigSnapshot = Preconditions.checkNotNull(serializerConfigSnapshot);
+			this.serializer = Preconditions.checkNotNull(serializer);
 		}
 
 		@Override
@@ -409,6 +392,10 @@ public class TypeSerializerSerializationUtil {
 			// config snapshot class, so that we can re-instantiate the
 			// correct type of config snapshot instance when deserializing
 			out.writeUTF(serializerConfigSnapshot.getClass().getName());
+
+			// TODO this is a temporary workaround until all serializer config snapshot classes in Flink
+			// TODO have properly implemented the restore serializer factory methods
+			serializerConfigSnapshot.setSerializer(serializer);
 
 			// the actual configuration parameters
 			serializerConfigSnapshot.write(out);

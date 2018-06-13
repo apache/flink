@@ -84,7 +84,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[E#Value] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[E#Value] = {
 
     configSnapshot match {
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
@@ -122,7 +122,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 object EnumValueSerializer {
 
   class ScalaEnumSerializerConfigSnapshot[E <: Enumeration]
-      extends TypeSerializerConfigSnapshot {
+      extends TypeSerializerConfigSnapshot[E#Value] {
 
     var enumClass: Class[E] = _
     var enumConstants: List[(String, Int)] = _
@@ -160,7 +160,7 @@ object EnumValueSerializer {
           // read null from input stream
           InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader)
           enumConstants = List()
-        } else if (getReadVersion == ScalaEnumSerializerConfigSnapshot.VERSION) {
+        } else if (getReadVersion >= ScalaEnumSerializerConfigSnapshot.VERSION) {
           enumClass = Class.forName(
             in.readUTF(), true, getUserCodeClassLoader).asInstanceOf[Class[E]]
 

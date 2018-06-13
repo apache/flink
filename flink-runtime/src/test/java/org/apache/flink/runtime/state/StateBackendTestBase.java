@@ -4550,14 +4550,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new ParameterlessTypeSerializerConfig(getClass().getName());
+		public TypeSerializerConfigSnapshot<TestCustomStateClass> snapshotConfiguration() {
+			return new ParameterlessTypeSerializerConfig<>(getClass().getName());
 		}
 
 		@Override
-		public CompatibilityResult<TestCustomStateClass> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<TestCustomStateClass> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof ParameterlessTypeSerializerConfig &&
-					((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier().equals(getClass().getName())) {
+					((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier().equals(getClass().getName())) {
 
 				this.reconfigured = true;
 				return CompatibilityResult.compatible();

@@ -100,7 +100,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	private transient Schema schema;
 
 	/** The serializer configuration snapshot, cached for efficiency. */
-	private transient AvroSchemaSerializerConfigSnapshot configSnapshot;
+	private transient AvroSchemaSerializerConfigSnapshot<T> configSnapshot;
 
 	/** The currently accessing thread, set and checked on debug level only. */
 	private transient volatile Thread currentThread;
@@ -264,20 +264,20 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
 		if (configSnapshot == null) {
 			checkAvroInitialized();
-			configSnapshot = new AvroSchemaSerializerConfigSnapshot(schema.toString(false));
+			configSnapshot = new AvroSchemaSerializerConfigSnapshot<>(schema.toString(false));
 		}
 		return configSnapshot;
 	}
 
 	@Override
-	@SuppressWarnings("deprecation")
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	@SuppressWarnings({"deprecation", "unchecked"})
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof AvroSchemaSerializerConfigSnapshot) {
 			// proper schema snapshot, can do the sophisticated schema-based compatibility check
-			final String schemaString = ((AvroSchemaSerializerConfigSnapshot) configSnapshot).getSchemaString();
+			final String schemaString = ((AvroSchemaSerializerConfigSnapshot<?>) configSnapshot).getSchemaString();
 			final Schema lastSchema = new Schema.Parser().parse(schemaString);
 
 			checkAvroInitialized();
@@ -291,7 +291,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 			// old snapshot case, just compare the type
 			// we don't need to restore any Kryo stuff, since Kryo was never used for persistence,
 			// only for object-to-object copies.
-			final AvroSerializerConfigSnapshot old = (AvroSerializerConfigSnapshot) configSnapshot;
+			final AvroSerializerConfigSnapshot<T> old = (AvroSerializerConfigSnapshot<T>) configSnapshot;
 			return type.equals(old.getTypeClass()) ?
 					CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
 		}
@@ -419,7 +419,7 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 	/**
 	 * A config snapshot for the Avro Serializer that stores the Avro Schema to check compatibility.
 	 */
-	public static final class AvroSchemaSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+	public static final class AvroSchemaSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
 		private String schemaString;
 

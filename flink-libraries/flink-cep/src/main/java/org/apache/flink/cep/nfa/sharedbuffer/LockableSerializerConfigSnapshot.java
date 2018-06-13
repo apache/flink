@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils;
+package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
-import scala.Option;
-
 /**
- * A {@link TypeSerializerConfigSnapshot} for the Scala {@link OptionSerializer}.
- *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * A {@link TypeSerializerConfigSnapshot} for the {@link Lockable.LockableTypeSerializer}.
  */
-public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
+@Internal
+public class LockableSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Lockable<E>> {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaOptionSerializerConfigSnapshot() {}
+	public LockableSerializerConfigSnapshot() {}
 
-	public ScalaOptionSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
+	public LockableSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
 		super(elementSerializer);
 	}
 
@@ -46,4 +42,5 @@ public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeS
 	public int getVersion() {
 		return VERSION;
 	}
+
 }

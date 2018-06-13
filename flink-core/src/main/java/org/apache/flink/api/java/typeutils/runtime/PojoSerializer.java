@@ -594,7 +594,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -838,7 +838,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+						outViewWrapper, entry.getValue().f1, entry.getValue().f0);
 				}
 
 				// --- write registered subclasses and their serializers, in registration order
@@ -855,7 +856,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+						outViewWrapper, entry.getValue().f1, entry.getValue().f0);
 				}
 
 				// --- write snapshot of non-registered subclass serializer cache
@@ -872,7 +874,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+						outViewWrapper, entry.getValue().f1, entry.getValue().f0);
 				}
 
 				out.writeInt(outWithPos.getPosition());
