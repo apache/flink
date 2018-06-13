@@ -18,7 +18,7 @@
 ################################################################################
 
 source "$(dirname "$0")"/common.sh
-test_has_errors=1
+EXIT_CODE=0
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-parent-child-classloading-test/target/ClassLoaderTestProgram.jar
 
@@ -52,7 +52,7 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  test_has_errors=""
+  EXIT_CODE=1
 fi
 
 # This verifies that Flink classes are still resolved from the parent because the default
@@ -82,7 +82,7 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  test_has_errors=""
+  EXIT_CODE=1
 fi
 
 echo "Testing child-first class loading"
@@ -111,9 +111,9 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  test_has_errors=""
+  EXIT_CODE=1
 fi
 
-if [[ ! ${test_has_errors} ]]; then
-    exit 1
+if [[ ${EXIT_CODE} != 0 ]]; then
+    exit ${EXIT_CODE}
 fi

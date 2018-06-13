@@ -49,29 +49,29 @@ function stop_cluster_and_watchdog() {
 function verify_logs() {
     local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
-    local test_has_errors=1
+    local EXIT_CODE=0
 
     # verify that we have no alerts
     if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
         echo "FAILURE: Alerts found at the general purpose DataStream job."
-        test_has_errors=""
+        EXIT_CODE=1
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
     if ! [ `grep -r --include '*standalonesession*.log' Recovered SubmittedJobGraph "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${JM_FAILURES} ]; then
         echo "FAILURE: A JM did not take over."
-        test_has_errors=""
+        EXIT_CODE=1
     fi
 
     # search the logs for JMs that log completed checkpoints
     if ! [ `grep -r --include '*standalonesession*.log' Completed checkpoint "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((JM_FAILURES + 1)) ]; then
         echo "FAILURE: A JM did not execute the job."
-        test_has_errors=""
+        EXIT_CODE=1
     fi
 
-    if [[ ! ${test_has_errors} ]]; then
+    if [[ $EXIT_CODE != 0 ]]; then
         echo "One or more tests FAILED."
-        exit 1
+        exit $EXIT_CODE
     fi
 }
 
