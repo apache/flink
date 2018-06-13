@@ -185,12 +185,13 @@ tables:
 
 execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
+  result-mode: table                # required: either 'table' or 'changelog'
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
+  periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
   max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
-  result-mode: table                # required: either 'table' or 'changelog'
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 

@@ -46,6 +46,8 @@ execution:
   type: streaming
   # allow 'event-time' or only 'processing-time' in sources
   time-characteristic: event-time
+  # interval in ms for emitting periodic watermarks
+  periodic-watermarks-interval: 200
   # 'changelog' or 'table' presentation of results
   result-mode: changelog
   # parallelism of the program

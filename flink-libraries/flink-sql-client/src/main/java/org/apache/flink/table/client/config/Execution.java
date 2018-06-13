@@ -50,6 +50,12 @@ public class Execution {
 			PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING);
 	}
 
+	public boolean isBatchExecution() {
+		return Objects.equals(
+			properties.get(PropertyStrings.EXECUTION_TYPE),
+			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
+	}
+
 	public TimeCharacteristic getTimeCharacteristic() {
 		final String s = properties.getOrDefault(
 			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC,
@@ -62,6 +68,10 @@ public class Execution {
 			default:
 				return TimeCharacteristic.EventTime;
 		}
+	}
+
+	public long getPeriodicWatermarksInterval() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_PERIODIC_WATERMARKS_INTERVAL, Long.toString(200L)));
 	}
 
 	public long getMinStateRetention() {
