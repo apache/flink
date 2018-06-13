@@ -40,6 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -132,7 +133,7 @@ public class NFACompilerTest extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
 
-		Set<State<Event>> states = nfa.getStates();
+		Collection<State<Event>> states = nfa.getStates();
 		assertEquals(4, states.size());
 
 		Map<String, State<Event>> stateMap = new HashMap<>();

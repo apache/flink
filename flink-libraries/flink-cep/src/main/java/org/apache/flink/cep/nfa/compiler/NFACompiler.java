@@ -919,11 +919,8 @@ public class NFACompiler {
 
 		@Override
 		public NFA<T> createNFA() {
-			NFA<T> result =  new NFA<>(inputTypeSerializer.duplicate(), windowTime, timeoutHandling);
-
-			result.addStates(states);
-
-			return result;
+			return new NFA<>(
+				inputTypeSerializer.duplicate(), windowTime, timeoutHandling, states);
 		}
 	}
 }

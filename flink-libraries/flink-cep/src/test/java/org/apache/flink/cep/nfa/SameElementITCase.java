@@ -140,11 +140,13 @@ public void testClearingBuffer() throws Exception {
 
 	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	NFAState<Event> nfaState = nfa.createNFAState();
+
+	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, b1, c1, d)
 	));
-	assertTrue(nfa.isEmpty());
+	assertTrue(nfaState.isEmpty());
 }
 
 @Test
@@ -182,13 +184,15 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 
 	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	NFAState<Event> nfaState = nfa.createNFAState();
+
+	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa, nfaState);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, d1, d2, d3),
 		Lists.newArrayList(a1, d1, d2),
 		Lists.newArrayList(a1, d1)
 	));
-	assertTrue(nfa.isEmpty());
+	assertTrue(nfaState.isEmpty());
 }
 
 	@Test

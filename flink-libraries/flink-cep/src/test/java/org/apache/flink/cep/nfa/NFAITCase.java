@@ -386,9 +386,11 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), true);
 
+		NFAState<Event> nfaState = nfa.createNFAState();
+
 		for (StreamRecord<Event> event: events) {
 			Tuple2<Collection<Map<String, List<Event>>>, Collection<Tuple2<Map<String, List<Event>>, Long>>> patterns =
-					nfa.process(event.getValue(), event.getTimestamp());
+					nfa.process(nfaState, event.getValue(), event.getTimestamp());
 
 			Collection<Map<String, List<Event>>> matchedPatterns = patterns.f0;
 			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns = patterns.f1;
@@ -2317,16 +2319,18 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		nfa.process(startEvent, 1);
-		nfa.process(middleEvent1, 2);
-		nfa.process(middleEvent2, 3);
-		nfa.process(middleEvent3, 4);
-		nfa.process(end1, 6);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		nfa.process(nfaState, startEvent, 1);
+		nfa.process(nfaState, middleEvent1, 2);
+		nfa.process(nfaState, middleEvent2, 3);
+		nfa.process(nfaState, middleEvent3, 4);
+		nfa.process(nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(null, 10);
+		nfa.process(nfaState, null, 10);
 
-		assertEquals(true, nfa.isEmpty());
+		assertEquals(true, nfaState.isEmpty());
 	}
 
 	@Test
@@ -2360,14 +2364,16 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		nfa.process(startEvent, 1);
-		nfa.process(middleEvent, 5);
-		nfa.process(end1, 6);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		nfa.process(nfaState, startEvent, 1);
+		nfa.process(nfaState, middleEvent, 5);
+		nfa.process(nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(null, 10);
+		nfa.process(nfaState, null, 10);
 
-		assertEquals(true, nfa.isEmpty());
+		assertEquals(true, nfaState.isEmpty());
 	}
 
 	@Test
@@ -2402,15 +2408,17 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		nfa.process(startEvent, 1);
-		nfa.process(middleEvent1, 3);
-		nfa.process(middleEvent2, 4);
-		nfa.process(end1, 6);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		nfa.process(nfaState, startEvent, 1);
+		nfa.process(nfaState, middleEvent1, 3);
+		nfa.process(nfaState, middleEvent2, 4);
+		nfa.process(nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(null, 10);
+		nfa.process(nfaState, null, 10);
 
-		assertEquals(true, nfa.isEmpty());
+		assertEquals(true, nfaState.isEmpty());
 	}
 
 	@Test
@@ -2445,15 +2453,17 @@ public class NFAITCase extends TestLogger {
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
 
-		nfa.process(startEvent, 1);
-		nfa.process(middleEvent1, 3);
-		nfa.process(middleEvent2, 4);
-		nfa.process(end1, 6);
+		NFAState<Event> nfaState = nfa.createNFAState();
+
+		nfa.process(nfaState, startEvent, 1);
+		nfa.process(nfaState, middleEvent1, 3);
+		nfa.process(nfaState, middleEvent2, 4);
+		nfa.process(nfaState, end1, 6);
 
 		//pruning element
-		nfa.process(null, 10);
+		nfa.process(nfaState, null, 10);
 
-		assertEquals(true, nfa.isEmpty());
+		assertEquals(true, nfaState.isEmpty());
 	}
 
 	///////////////////////////////////////   Skip till next     /////////////////////////////
@@ -2703,8 +2713,11 @@ public class NFAITCase extends TestLogger {
 
 		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
 
+		NFAState<Event> nfaState = nfa.createNFAState();
+
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
+					nfaState,
 					inputEvent.getValue(),
 					inputEvent.getTimestamp()).f0;
 
@@ -2774,8 +2787,11 @@ public class NFAITCase extends TestLogger {
 
 		List<Map<String, List<Event>>> resultingPatterns = new ArrayList<>();
 
+		NFAState<Event> nfaState = nfa.createNFAState();
+
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
+				nfaState,
 				inputEvent.getValue(),
 				inputEvent.getTimestamp()).f0;
 
