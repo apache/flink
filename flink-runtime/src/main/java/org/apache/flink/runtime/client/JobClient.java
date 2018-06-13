@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 
 import akka.actor.ActorRef;
@@ -422,18 +424,10 @@ public class JobClient {
 		}
 
 		try {
-			jobGraph.uploadUserJars(blobServerAddress, config);
-		}
-		catch (IOException e) {
+			ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
+		} catch (FlinkException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
-				"Could not upload the program's JAR files to the JobManager.", e);
-		}
-
-		try {
-			jobGraph.uploadUserArtifacts(blobServerAddress, config);
-		} catch (IOException e) {
-			throw new JobSubmissionException(jobGraph.getJobID(),
-					"Could not upload custom user artifacts to the job manager.", e);
+					"Could not upload job files.", e);
 		}
 
 		CompletableFuture<Acknowledge> submissionFuture = jobManagerGateway.submitJob(jobGraph, ListeningBehaviour.DETACHED, timeout);
