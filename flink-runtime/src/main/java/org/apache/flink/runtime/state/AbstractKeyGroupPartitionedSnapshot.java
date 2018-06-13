@@ -56,9 +56,6 @@ public abstract class AbstractKeyGroupPartitionedSnapshot<T> implements StateSna
 
 		// write mappings
 		for (int i = startOffset; i < endOffset; ++i) {
-			if(groupedOut[i] == null) {
-				throw new IllegalStateException();
-			}
 			writeElement(groupedOut[i], dov);
 			groupedOut[i] = null; // free asap for GC
 		}

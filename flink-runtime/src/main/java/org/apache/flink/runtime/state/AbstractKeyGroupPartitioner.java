@@ -22,6 +22,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Abstract class that contains the base algorithm for partitioning data into key-groups. This algorithm currently works
@@ -61,6 +62,7 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 	protected final int firstKeyGroup;
 
 	/** Cached result. */
+	@Nullable
 	protected PartitioningResult<T> computedResult;
 
 	/**
