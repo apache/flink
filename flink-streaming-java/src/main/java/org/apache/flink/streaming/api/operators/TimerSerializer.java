@@ -208,7 +208,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> snapshotConfiguration() {
 		return new TimerSerializerConfigSnapshot<>(keySerializer, namespaceSerializer);
 	}
 
@@ -218,7 +218,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 
 		if (configSnapshot instanceof TimerSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-				((TimerSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				((TimerSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousSerializersAndConfigs.size() == 2) {
 				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndSnapshot =
@@ -262,7 +262,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
 	 */
-	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot {
+	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot<TimerHeapInternalTimer<K, N>> {
 
 		private static final int VERSION = 1;
 

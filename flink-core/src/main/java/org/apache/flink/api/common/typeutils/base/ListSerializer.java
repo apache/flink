@@ -179,7 +179,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public CollectionSerializerConfigSnapshot snapshotConfiguration() {
+	public CollectionSerializerConfigSnapshot<List<T>, T> snapshotConfiguration() {
 		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
 	}
 
@@ -187,7 +187,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 	public CompatibilityResult<List<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+				((CollectionSerializerConfigSnapshot<?, ?>) configSnapshot).getSingleNestedSerializerAndConfig();
 
 			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousElemSerializerAndConfig.f0,

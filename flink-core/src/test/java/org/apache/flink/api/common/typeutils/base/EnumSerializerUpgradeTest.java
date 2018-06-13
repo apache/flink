@@ -98,7 +98,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 			ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
 			DataOutputViewStreamWrapper outputViewStreamWrapper = new DataOutputViewStreamWrapper(outBuffer)) {
 
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outputViewStreamWrapper, snapshot);
+			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outputViewStreamWrapper, snapshot, enumSerializer);
 			snapshotBytes = outBuffer.toByteArray();
 		}
 

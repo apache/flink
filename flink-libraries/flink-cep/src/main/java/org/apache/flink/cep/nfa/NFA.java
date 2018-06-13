@@ -852,7 +852,7 @@ public class NFA<T> {
 	 * The {@link TypeSerializerConfigSnapshot} serializer configuration to be stored with the managed state.
 	 */
 	@Deprecated
-	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<MigratedNFA<T>> {
 
 		private static final int VERSION = 1;
 
@@ -976,7 +976,7 @@ public class NFA<T> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<MigratedNFA<T>> snapshotConfiguration() {
 			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
 		}
 
@@ -984,7 +984,7 @@ public class NFA<T> {
 		public CompatibilityResult<MigratedNFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-					((NFASerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+					((NFASerializerConfigSnapshot<?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					serializersAndConfigs.get(0).f0,

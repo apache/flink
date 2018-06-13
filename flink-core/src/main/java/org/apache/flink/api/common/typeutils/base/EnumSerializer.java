@@ -178,7 +178,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof EnumSerializerConfigSnapshot) {
 			final EnumSerializerConfigSnapshot<T> config = (EnumSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -281,7 +281,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 							+ getTypeClass().getName() + " no longer exists.", e);
 					}
 				}
-			} else if (getReadVersion() == VERSION) {
+			} else if (getReadVersion() >= VERSION) {
 				int numEnumConstants = in.readInt();
 
 				this.enumConstants = new ArrayList<>(numEnumConstants);

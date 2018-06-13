@@ -198,12 +198,12 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public GenericArraySerializerConfigSnapshot snapshotConfiguration() {
+	public GenericArraySerializerConfigSnapshot<C> snapshotConfiguration() {
 		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<C[]> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<C[]> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
 			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
 

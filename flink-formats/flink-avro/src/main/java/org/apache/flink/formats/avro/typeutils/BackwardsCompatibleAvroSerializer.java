@@ -172,13 +172,13 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
 		// we return the configuration of the actually used serializer here
 		return serializer.snapshotConfiguration();
 	}
 
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof AvroSchemaSerializerConfigSnapshot ||
 				configSnapshot instanceof AvroSerializerConfigSnapshot) {
 

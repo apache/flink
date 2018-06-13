@@ -268,7 +268,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
@@ -312,7 +312,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 		return CompatibilityResult.requiresMigration();
 	}
 
-	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot<Row> {
 
 		private static final int VERSION = 1;
 

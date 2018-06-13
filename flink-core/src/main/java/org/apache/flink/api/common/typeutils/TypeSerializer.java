@@ -179,14 +179,14 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
 	 */
-	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+	public abstract TypeSerializerConfigSnapshot<T> snapshotConfiguration();
 
 	/**
 	 * Ensure compatibility of this serializer with a preceding serializer that was registered for serialization of
 	 * the same managed state (if any - this method is only relevant if this serializer is registered for
 	 * serialization of managed state).
 	 *
-	 * The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
+	 * <p>The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
 	 * snapshot. The method may reconfigure the serializer (if required and possible) so that it may be compatible,
 	 * or provide a signaling result that informs Flink that state migration is necessary before continuing to use
 	 * this serializer.
@@ -215,5 +215,5 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
 	 */
-	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
+	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
 }
