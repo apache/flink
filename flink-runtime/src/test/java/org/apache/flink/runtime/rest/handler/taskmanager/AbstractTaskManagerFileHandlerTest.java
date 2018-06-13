@@ -54,6 +54,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelProgressivePromise
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultFileRegion;
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
@@ -320,7 +321,7 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 				}
 			}
 
-			return new DefaultChannelPromise(null);
+			return new DefaultChannelPromise(new EmbeddedChannel());
 		}
 
 		@Override
@@ -522,6 +523,11 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
 		@Override
 		public <T> Attribute<T> attr(AttributeKey<T> key) {
 			return null;
+		}
+
+		@Override
+		public <T> boolean hasAttr(AttributeKey<T> attributeKey) {
+			return false;
 		}
 	}
 

@@ -100,7 +100,6 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					fileUpload.renameTo(dest.toFile());
 					ctx.channel().attr(UPLOADED_FILE).set(dest);
 				}
-				data.release();
 			}
 
 			if (httpContent instanceof LastHttpContent) {

@@ -36,6 +36,7 @@ import org.junit.Test;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -151,9 +152,10 @@ public class NettyMessageSerializationTest {
 			testBuffer, random.nextInt(), new InputChannelID(), random.nextInt());
 		NettyMessage.BufferResponse actual = encodeAndDecode(expected);
 
-		// Verify recycle has been called on buffer instance (LengthFieldBasedFrameDecoder creates a new one)
-		assertTrue(buffer.isRecycled());
-		assertTrue(testBuffer.isRecycled());
+		// Netty 4.1 is not copying the messages, but retaining slices of them. BufferResponse actual is in this case
+		// holding a reference to the buffer. Buffer will be recycled only once "actual" will be released.
+		assertFalse(buffer.isRecycled());
+		assertFalse(testBuffer.isRecycled());
 
 		final ByteBuf retainedSlice = actual.getNettyBuffer();
 
