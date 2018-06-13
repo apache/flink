@@ -133,6 +133,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -824,28 +825,20 @@ public class StreamTaskTest extends TestLogger {
 				.build()) {
 			TimeServiceTask timerServiceTask = new TimeServiceTask(mockEnvironment);
 
-			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
-
 			CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
 				() -> {
 					try {
 						timerServiceTask.invoke();
 					} catch (Exception e) {
-						atomicThrowable.set(e);
+						throw new CompletionException(e);
 					}
 				},
 				TestingUtils.defaultExecutor());
 
-			// wait until the invoke is complete
 			invokeFuture.get();
 
 			assertThat(timerServiceTask.getClassLoaders(), hasSize(greaterThanOrEqualTo(1)));
 			assertThat(timerServiceTask.getClassLoaders(), everyItem(instanceOf(TestUserCodeClassLoader.class)));
-
-			// check if an exception occurred
-			if (atomicThrowable.get() != null) {
-				throw atomicThrowable.get();
-			}
 		}
 	}
 
