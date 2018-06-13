@@ -35,6 +35,7 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.BatchQueryConfig;
@@ -193,10 +194,12 @@ public class ExecutionContext<T> {
 				streamExecEnv = createStreamExecutionEnvironment();
 				execEnv = null;
 				tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv);
-			} else {
+			} else if (mergedEnv.getExecution().isBatchExecution()) {
 				streamExecEnv = null;
 				execEnv = createExecutionEnvironment();
 				tableEnv = TableEnvironment.getTableEnvironment(execEnv);
+			} else {
+				throw new SqlExecutionException("Unsupported execution type specified.");
 			}
 
 			// create query config
@@ -265,6 +268,9 @@ public class ExecutionContext<T> {
 			env.setParallelism(mergedEnv.getExecution().getParallelism());
 			env.setMaxParallelism(mergedEnv.getExecution().getMaxParallelism());
 			env.setStreamTimeCharacteristic(mergedEnv.getExecution().getTimeCharacteristic());
+			if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+				env.getConfig().setAutoWatermarkInterval(mergedEnv.getExecution().getPeriodicWatermarksInterval());
+			}
 			return env;
 		}
 

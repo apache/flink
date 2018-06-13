@@ -18,42 +18,46 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
+import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link Environment}.
+ * Test for {@link ExecutionContext}.
  */
-public class EnvironmentTest {
+public class ExecutionContextTest {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
-	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
 
 	@Test
-	public void testMerging() throws Exception {
-		final Environment env1 = EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE);
-		final Environment env2 = EnvironmentFileUtil.parseModified(
-			FACTORY_ENVIRONMENT_FILE,
-			Collections.singletonMap("TableNumber1", "NewTable"));
+	public void testExecutionConfig() throws Exception {
+		final ExecutionContext<?> context = createExecutionContext();
+		final ExecutionConfig config = context.createEnvironmentInstance().getExecutionConfig();
+		assertEquals(99, config.getAutoWatermarkInterval());
+	}
 
-		final Environment merged = Environment.merge(env1, env2);
-
-		final Set<String> tables = new HashSet<>();
-		tables.add("TableNumber1");
-		tables.add("TableNumber2");
-		tables.add("NewTable");
-
-		assertEquals(tables, merged.getTables().keySet());
-		assertTrue(merged.getExecution().isStreamingExecution());
-		assertEquals(16, merged.getExecution().getMaxParallelism());
+	private <T> ExecutionContext<T> createExecutionContext() throws Exception {
+		final Environment env = EnvironmentFileUtil.parseModified(
+			DEFAULTS_ENVIRONMENT_FILE,
+			Collections.singletonMap("$VAR_2", "streaming"));
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		final Configuration flinkConfig = new Configuration();
+		return new ExecutionContext<>(
+			env,
+			session,
+			Collections.emptyList(),
+			flinkConfig,
+			new Options(),
+			Collections.singletonList(new DefaultCLI(flinkConfig)));
 	}
 }
