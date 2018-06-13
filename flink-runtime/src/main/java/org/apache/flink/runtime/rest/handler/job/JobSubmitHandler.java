@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -36,8 +38,11 @@ import javax.annotation.Nonnull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * This handler can be used to submit jobs to a Flink cluster.
@@ -66,6 +71,15 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		}
 
 		return gateway.submitJob(jobGraph, timeout)
-			.thenApply(ack -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+			.thenApply(ack -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()))
+			.exceptionally(exception -> {
+				List<String> errorMessages = new ArrayList<>(4);
+				Throwable throwable = ExceptionUtils.stripCompletionException(exception);
+				while (throwable != null) {
+					errorMessages.add(throwable.getMessage());
+					throwable = throwable.getCause();
+				}
+				throw new CompletionException(new RestHandlerException(errorMessages, HttpResponseStatus.INTERNAL_SERVER_ERROR));
+			});
 	}
 }
