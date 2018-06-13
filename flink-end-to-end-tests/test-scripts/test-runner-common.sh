@@ -54,7 +54,7 @@ function run_test {
         if [[ ! "$PASS" ]]; then
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code} and the logs contained errors, exceptions or non-empty .out files\n\n"
         else
-            printf "\n[PASS] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
+            printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code ${exit_code}\n\n"
         fi
     fi
 
