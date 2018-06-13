@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-source "$(pwd)"/test-scripts/common.sh
+source "${END_TO_END_DIR}"/test-scripts/common.sh
 
 #######################################
 # Prints the given description, runs the given test and prints how long the execution took.
