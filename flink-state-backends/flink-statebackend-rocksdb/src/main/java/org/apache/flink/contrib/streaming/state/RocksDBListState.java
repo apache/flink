@@ -19,9 +19,14 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -46,9 +51,9 @@ import java.util.List;
  * @param <N> The type of the namespace.
  * @param <V> The type of the values in the list state.
  */
-public class RocksDBListState<K, N, V>
-		extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
-		implements InternalListState<K, N, V> {
+class RocksDBListState<K, N, V>
+	extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
+	implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<V> elementSerializer;
@@ -68,7 +73,7 @@ public class RocksDBListState<K, N, V>
 	 * @param elementSerializer The serializer for elements of the list state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBListState(
+	private RocksDBListState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<List<V>> valueSerializer,
@@ -183,7 +188,12 @@ public class RocksDBListState<K, N, V>
 	}
 
 	@Override
-	public void update(List<V> values) {
+	public void update(List<V> valueToStore) {
+		updateInternal(valueToStore);
+	}
+
+	@Override
+	public void updateInternal(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
 		clear();
@@ -244,8 +254,17 @@ public class RocksDBListState<K, N, V>
 		return keySerializationStream.toByteArray();
 	}
 
-	@Override
-	public void updateInternal(List<V> valueToStore) {
-		update(valueToStore);
+	@SuppressWarnings("unchecked")
+	static <E, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+		RocksDBKeyedStateBackend<K> backend) {
+		return (IS) new RocksDBListState<>(
+			registerResult.f0,
+			registerResult.f1.getNamespaceSerializer(),
+			(TypeSerializer<List<E>>) registerResult.f1.getStateSerializer(),
+			(List<E>) stateDesc.getDefaultValue(),
+			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
+			backend);
 	}
 }

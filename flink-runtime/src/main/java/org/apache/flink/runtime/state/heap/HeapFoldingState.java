@@ -20,6 +20,9 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -41,7 +44,6 @@ import java.io.IOException;
 class HeapFoldingState<K, N, T, ACC>
 	extends AbstractHeapAppendingState<K, N, T, ACC, ACC>
 	implements InternalFoldingState<K, N, T, ACC> {
-
 	/** The function used to fold the state. */
 	private final FoldTransformation foldTransformation;
 
@@ -55,7 +57,7 @@ class HeapFoldingState<K, N, T, ACC>
 	 * @param defaultValue The default value for the state.
 	 * @param foldFunction The fold function used for folding state.
 	 */
-	HeapFoldingState(
+	private HeapFoldingState(
 		StateTable<K, N, ACC> stateTable,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<ACC> valueSerializer,
@@ -117,5 +119,19 @@ class HeapFoldingState<K, N, T, ACC>
 		public ACC apply(ACC previousState, T value) throws Exception {
 			return foldFunction.fold((previousState != null) ? previousState : getDefaultValue(), value);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapFoldingState<>(
+			stateTable,
+			keySerializer,
+			stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			stateDesc.getDefaultValue(),
+			((FoldingStateDescriptor<SV, SV>) stateDesc).getFoldFunction());
 	}
 }

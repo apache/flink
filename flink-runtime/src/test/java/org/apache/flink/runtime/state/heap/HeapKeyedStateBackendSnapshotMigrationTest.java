@@ -73,7 +73,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 
 			keyedBackend.restore(StateObjectCollection.singleton(stateHandles.getJobManagerOwnedSnapshot()));
 
-			InternalMapState<String, Integer, Long, Long> state = keyedBackend.createMapState(IntSerializer.INSTANCE, stateDescr);
+			InternalMapState<String, Integer, Long, Long> state = keyedBackend.createState(IntSerializer.INSTANCE, stateDescr);
 
 			keyedBackend.setCurrentKey("abc");
 			state.setCurrentNamespace(namespace1);
@@ -209,7 +209,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 	/**
 	 * [FLINK-5979]
 	 *
-	 * This test takes a snapshot that was created with Flink 1.2 and tries to restore it in master to check
+	 * <p>This test takes a snapshot that was created with Flink 1.2 and tries to restore it in master to check
 	 * the backwards compatibility of the serialization format of {@link StateTable}s.
 	 */
 	@Test
@@ -233,7 +233,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 			final ListStateDescriptor<Long> stateDescr = new ListStateDescriptor<>("my-state", Long.class);
 			stateDescr.initializeSerializerUnlessSet(new ExecutionConfig());
 
-			InternalListState<String, Integer, Long> state = keyedBackend.createListState(IntSerializer.INSTANCE, stateDescr);
+			InternalListState<String, Integer, Long> state = keyedBackend.createState(IntSerializer.INSTANCE, stateDescr);
 
 			assertEquals(7, keyedBackend.numStateEntries());
 

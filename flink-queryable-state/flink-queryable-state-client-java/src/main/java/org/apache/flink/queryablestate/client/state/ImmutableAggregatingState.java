@@ -18,9 +18,10 @@
 
 package org.apache.flink.queryablestate.client.state;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -33,7 +34,6 @@ import java.io.IOException;
  * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
  * providing an {@link AggregatingStateDescriptor}.
  */
-@PublicEvolving
 public final class ImmutableAggregatingState<IN, OUT> extends ImmutableState implements AggregatingState<IN, OUT> {
 
 	private final OUT value;
@@ -57,15 +57,15 @@ public final class ImmutableAggregatingState<IN, OUT> extends ImmutableState imp
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
-	public static <IN, ACC, OUT> ImmutableAggregatingState<IN, OUT> createState(
-			final AggregatingStateDescriptor<IN, ACC, OUT> stateDescriptor,
-			final byte[] serializedValue) throws IOException {
-
+	@SuppressWarnings("unchecked")
+	public static <OUT, ACC, S extends State> S createState(
+		StateDescriptor<S, ACC> stateDescriptor,
+		byte[] serializedState) throws IOException {
 		final ACC accumulator = KvStateSerializer.deserializeValue(
-				serializedValue,
-				stateDescriptor.getSerializer());
-
-		final OUT state = stateDescriptor.getAggregateFunction().getResult(accumulator);
-		return new ImmutableAggregatingState<>(state);
+			serializedState,
+			stateDescriptor.getSerializer());
+		final OUT state = ((AggregatingStateDescriptor<?, ACC, OUT>) stateDescriptor).
+			getAggregateFunction().getResult(accumulator);
+		return (S) new ImmutableAggregatingState<>(state);
 	}
 }

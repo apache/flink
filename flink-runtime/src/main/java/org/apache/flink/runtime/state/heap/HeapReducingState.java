@@ -20,6 +20,9 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
@@ -50,13 +53,13 @@ class HeapReducingState<K, N, V>
 	 * @param defaultValue The default value for the state.
 	 * @param reduceFunction The reduce function used for reducing state.
 	 */
-	public HeapReducingState(
-			StateTable<K, N, V> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			V defaultValue,
-			ReduceFunction<V> reduceFunction) {
+	private HeapReducingState(
+		StateTable<K, N, V> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<V> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		V defaultValue,
+		ReduceFunction<V> reduceFunction) {
 
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
@@ -122,5 +125,19 @@ class HeapReducingState<K, N, V>
 		public V apply(V previousState, V value) throws Exception {
 			return previousState != null ? reduceFunction.reduce(previousState, value) : value;
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapReducingState<>(
+			stateTable,
+			keySerializer,
+			stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			stateDesc.getDefaultValue(),
+			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
 	}
 }
