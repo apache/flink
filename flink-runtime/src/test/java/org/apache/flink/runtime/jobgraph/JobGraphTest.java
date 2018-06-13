@@ -28,9 +28,11 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
-public class JobGraphTest {
+public class JobGraphTest extends TestLogger {
 
 	@Test
 	public void testSerialization() {
