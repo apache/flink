@@ -32,6 +32,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -534,7 +535,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 		}
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test(expected = FlinkException.class)
 	public void testFailsWithNoTimestampsLeft() throws Exception {
 		TestHarness newTestHarness = createTestHarness(0L, true, 0L, true);
 
@@ -545,7 +546,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 		newTestHarness.processElement1(new StreamRecord<>(new TestElem(0, "lhs")));
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test(expected = FlinkException.class)
 	public void testFailsWithNoTimestampsRight() throws Exception {
 		try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
 
