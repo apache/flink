@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -80,6 +81,8 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 		super(name, new MapTypeInfo<>(keyClass, valueClass), null);
 	}
 
+	@Deprecated
+	@Internal
 	@Override
 	public MapState<UK, UV> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createMapState(this);

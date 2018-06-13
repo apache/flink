@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
@@ -76,12 +77,6 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-import org.apache.flink.runtime.state.internal.InternalFoldingState;
-import org.apache.flink.runtime.state.internal.InternalListState;
-import org.apache.flink.runtime.state.internal.InternalMapState;
-import org.apache.flink.runtime.state.internal.InternalReducingState;
-import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -155,6 +150,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	/** File suffix of sstable files. */
 	private static final String SST_FILE_SUFFIX = ".sst";
+
+	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+		org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap
+			.<Class<? extends StateDescriptor>, StateFactory>builder()
+			.put(ValueStateDescriptor.class, RocksDBValueState::create)
+			.put(ListStateDescriptor.class, RocksDBListState::create)
+			.put(MapStateDescriptor.class, RocksDBMapState::create)
+			.put(AggregatingStateDescriptor.class, RocksDBAggregatingState::create)
+			.put(ReducingStateDescriptor.class, RocksDBReducingState::create)
+			.put(FoldingStateDescriptor.class, RocksDBFoldingState::create)
+			.build();
+
+	private interface StateFactory {
+		<K, N, SV, S extends State, IS extends S> IS createState(
+			StateDescriptor<S, SV> stateDesc,
+			Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+			RocksDBKeyedStateBackend<K> backend) throws Exception;
+	}
 
 	/** String that identifies the operator that owns this backend. */
 	private final String operatorIdentifier;
@@ -1303,103 +1316,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	protected <N, T> InternalValueState<K, N, T> createValueState(
+	public <N, SV, S extends State, IS extends S> IS createState(
 		TypeSerializer<N> namespaceSerializer,
-		ValueStateDescriptor<T> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, T>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBValueState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				this);
-	}
-
-	@Override
-	protected <N, T> InternalListState<K, N, T> createListState(
-		TypeSerializer<N> namespaceSerializer,
-		ListStateDescriptor<T> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, List<T>>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBListState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getElementSerializer(),
-				this);
-	}
-
-	@Override
-	protected <N, T> InternalReducingState<K, N, T> createReducingState(
-		TypeSerializer<N> namespaceSerializer,
-		ReducingStateDescriptor<T> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, T>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBReducingState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getReduceFunction(),
-				this);
-	}
-
-	@Override
-	protected <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
-		TypeSerializer<N> namespaceSerializer,
-		AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, ACC>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBAggregatingState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getAggregateFunction(),
-				this);
-	}
-
-	@Override
-	protected <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
-		TypeSerializer<N> namespaceSerializer,
-		FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, ACC>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBFoldingState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getFoldFunction(),
-				this);
-	}
-
-	@Override
-	protected <N, UK, UV> InternalMapState<K, N, UK, UV> createMapState(
-		TypeSerializer<N> namespaceSerializer,
-		MapStateDescriptor<UK, UV> stateDesc) throws Exception {
-
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, Map<UK, UV>>> registerResult =
-				tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-
-		return new RocksDBMapState<>(
-				registerResult.f0,
-				registerResult.f1.getNamespaceSerializer(),
-				registerResult.f1.getStateSerializer(),
-				stateDesc.getDefaultValue(),
-				this);
+		StateDescriptor<S, SV> stateDesc) throws Exception {
+		if (!STATE_FACTORIES.containsKey(stateDesc.getClass())) {
+			String message = String.format("State %s is not supported by %s",
+				stateDesc.getClass(), this.getClass());
+			throw new UnsupportedOperationException(message);
+		}
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult =
+			tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
+		return STATE_FACTORIES.get(stateDesc.getClass()).createState(
+			stateDesc, registerResult, RocksDBKeyedStateBackend.this);
 	}
 
 	/**

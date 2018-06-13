@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -41,8 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class for state descriptors. A {@code StateDescriptor} is used for creating partitioned
- * {@link State} in stateful operations. This contains the name and can create an actual state
- * object given a {@link StateBinder} using {@link #bind(StateBinder)}.
+ * {@link State} in stateful operations.
  *
  * <p>Subclasses must correctly implement {@link #equals(Object)} and {@link #hashCode()}.
  *
@@ -235,7 +235,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * Creates a new {@link State} on the given {@link StateBinder}.
 	 *
 	 * @param stateBinder The {@code StateBackend} on which to create the {@link State}.
+	 *
+	 * @deprecated refactored to StateFactory in flink-runtime
 	 */
+	@Deprecated
+	@Internal
 	public abstract S bind(StateBinder stateBinder) throws Exception;
 
 	// ------------------------------------------------------------------------

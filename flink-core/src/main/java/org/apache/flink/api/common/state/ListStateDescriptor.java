@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -78,6 +79,8 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 
 	// ------------------------------------------------------------------------
 
+	@Deprecated
+	@Internal
 	@Override
 	public ListState<T> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createListState(this);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
@@ -85,6 +86,8 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 
 	// ------------------------------------------------------------------------
 
+	@Deprecated
+	@Internal
 	@Override
 	public ReducingState<T> bind(StateBinder stateBinder) throws Exception {
 		return stateBinder.createReducingState(this);

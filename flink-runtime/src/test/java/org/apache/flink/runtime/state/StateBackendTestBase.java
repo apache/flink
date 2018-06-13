@@ -3545,7 +3545,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			// insert some data to the backend.
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createValueState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
 				VoidNamespaceSerializer.INSTANCE,
 				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3602,7 +3602,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		try {
 			backend = createKeyedBackend(IntSerializer.INSTANCE);
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createValueState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3649,7 +3649,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, stateHandle);
 
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createValueState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3791,7 +3791,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				return;
 			}
 
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createValueState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 

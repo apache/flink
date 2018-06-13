@@ -23,7 +23,10 @@ import org.apache.flink.annotation.Internal;
 /**
  * The {@code StateBinder} is used by {@link StateDescriptor} instances to create actual
  * {@link State} objects.
+ *
+ * @deprecated refactored to StateFactory in flink-runtime
  */
+@Deprecated
 @Internal
 public interface StateBinder {
 

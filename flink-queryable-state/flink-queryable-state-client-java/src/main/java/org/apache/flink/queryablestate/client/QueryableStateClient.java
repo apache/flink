@@ -21,13 +21,24 @@ package org.apache.flink.queryablestate.client;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.queryablestate.FutureUtils;
-import org.apache.flink.queryablestate.client.state.ImmutableStateBinder;
+import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
+import org.apache.flink.queryablestate.client.state.ImmutableFoldingState;
+import org.apache.flink.queryablestate.client.state.ImmutableListState;
+import org.apache.flink.queryablestate.client.state.ImmutableMapState;
+import org.apache.flink.queryablestate.client.state.ImmutableReducingState;
+import org.apache.flink.queryablestate.client.state.ImmutableValueState;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
@@ -44,6 +55,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -66,6 +78,21 @@ import java.util.concurrent.CompletableFuture;
 public class QueryableStateClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(QueryableStateClient.class);
+
+	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+		org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap
+			.<Class<? extends StateDescriptor>, StateFactory>builder()
+			.put(ValueStateDescriptor.class, ImmutableValueState::createState)
+			.put(ListStateDescriptor.class, ImmutableListState::createState)
+			.put(MapStateDescriptor.class, ImmutableMapState::createState)
+			.put(AggregatingStateDescriptor.class, ImmutableAggregatingState::createState)
+			.put(ReducingStateDescriptor.class, ImmutableReducingState::createState)
+			.put(FoldingStateDescriptor.class, ImmutableFoldingState::createState)
+			.build();
+
+	private interface StateFactory {
+		<T, S extends State> S createState(StateDescriptor<S, T> stateDesc, byte[] serializedState) throws Exception;
+	}
 
 	/** The client that forwards the requests to the proxy. */
 	private final Client<KvStateRequest, KvStateResponse> client;
@@ -244,7 +271,14 @@ public class QueryableStateClient {
 		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace).thenApply(
 				stateResponse -> {
 					try {
-						return stateDescriptor.bind(new ImmutableStateBinder(stateResponse.getContent()));
+						if (!STATE_FACTORIES.containsKey(stateDescriptor.getClass())) {
+							String message = String.format("State %s is not supported by %s",
+								stateDescriptor.getClass(), this.getClass());
+							throw new FlinkRuntimeException(message);
+						}
+						return STATE_FACTORIES
+							.get(stateDescriptor.getClass())
+							.createState(stateDescriptor, stateResponse.getContent());
 					} catch (Exception e) {
 						throw new FlinkRuntimeException(e);
 					}

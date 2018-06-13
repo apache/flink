@@ -20,9 +20,14 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -38,9 +43,9 @@ import java.util.Collection;
  * @param <N> The type of the namespace.
  * @param <V> The type of value that the state state stores.
  */
-public class RocksDBReducingState<K, N, V>
-		extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
-		implements InternalReducingState<K, N, V> {
+class RocksDBReducingState<K, N, V>
+	extends AbstractRocksDBAppendingState<K, N, V, V, V, ReducingState<V>>
+	implements InternalReducingState<K, N, V> {
 
 	/** User-specified reduce function. */
 	private final ReduceFunction<V> reduceFunction;
@@ -55,7 +60,7 @@ public class RocksDBReducingState<K, N, V>
 	 * @param reduceFunction The reduce function used for reducing state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBReducingState(ColumnFamilyHandle columnFamily,
+	private RocksDBReducingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<V> valueSerializer,
 			V defaultValue,
@@ -162,5 +167,19 @@ public class RocksDBReducingState<K, N, V>
 		catch (Exception e) {
 			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+		RocksDBKeyedStateBackend<K> backend) {
+		return (IS) new RocksDBReducingState<>(
+			registerResult.f0,
+			registerResult.f1.getNamespaceSerializer(),
+			registerResult.f1.getStateSerializer(),
+			stateDesc.getDefaultValue(),
+			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
+			backend);
 	}
 }
