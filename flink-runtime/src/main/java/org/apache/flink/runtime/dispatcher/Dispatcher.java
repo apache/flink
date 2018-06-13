@@ -251,7 +251,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			}
 		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(new FlinkException(String.format("Failed to submit job %s.", jobId), e));
+			return FutureUtils.completedExceptionally(new FlinkException(String.format("Failed to submit job %s. reason: %s", jobId, e.getMessage()), e));
 		}
 	}
 

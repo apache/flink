@@ -166,7 +166,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 			terminationFuture.completeExceptionally(t);
 			resultFuture.completeExceptionally(t);
 
-			throw new JobExecutionException(jobGraph.getJobID(), "Could not set up JobManager", t);
+			throw new JobExecutionException(jobGraph.getJobID(), String.join(";",
+				t.getMessage(), "Could not set up JobManager"), t);
 		}
 	}
 
