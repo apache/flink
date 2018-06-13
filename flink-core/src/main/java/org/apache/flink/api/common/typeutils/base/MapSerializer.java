@@ -207,15 +207,15 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public MapSerializerConfigSnapshot snapshotConfiguration() {
+	public MapSerializerConfigSnapshot<K, V> snapshotConfiguration() {
 		return new MapSerializerConfigSnapshot<>(keySerializer, valueSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
-				((MapSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				((MapSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousKvSerializersAndConfigs.get(0).f0,

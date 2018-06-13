@@ -20,26 +20,23 @@ package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
-import scala.Option;
+import scala.util.Either;
 
 /**
- * A {@link TypeSerializerConfigSnapshot} for the Scala {@link OptionSerializer}.
- *
- * <p>This configuration snapshot class is implemented in Java because Scala does not
- * allow calling different base class constructors from subclasses, while we need that
- * for the default empty constructor.
+ * Configuration snapshot for serializers of Scala's {@link Either} type,
+ * containing configuration snapshots of the Left and Right serializers.
  */
-public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
+public class ScalaEitherSerializerConfigSnapshot<E extends Either<L, R>, L, R>
+		extends CompositeTypeSerializerConfigSnapshot<E> {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaOptionSerializerConfigSnapshot() {}
+	public ScalaEitherSerializerConfigSnapshot() {}
 
-	public ScalaOptionSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
-		super(elementSerializer);
+	public ScalaEitherSerializerConfigSnapshot(TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
+		super(leftSerializer, rightSerializer);
 	}
 
 	@Override

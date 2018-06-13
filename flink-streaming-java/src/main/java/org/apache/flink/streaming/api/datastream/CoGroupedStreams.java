@@ -553,15 +553,15 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> snapshotConfiguration() {
 			return new UnionSerializerConfigSnapshot<>(oneSerializer, twoSerializer);
 		}
 
 		@Override
-		public CompatibilityResult<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<TaggedUnion<T1, T2>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof UnionSerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-					((UnionSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+					((UnionSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<T1> oneSerializerCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousSerializersAndConfigs.get(0).f0,
@@ -592,7 +592,8 @@ public class CoGroupedStreams<T1, T2> {
 	/**
 	 * The {@link TypeSerializerConfigSnapshot} for the {@link UnionSerializer}.
 	 */
-	public static class UnionSerializerConfigSnapshot<T1, T2> extends CompositeTypeSerializerConfigSnapshot {
+	public static class UnionSerializerConfigSnapshot<T1, T2>
+			extends CompositeTypeSerializerConfigSnapshot<TaggedUnion<T1, T2>> {
 
 		private static final int VERSION = 1;
 

@@ -281,18 +281,18 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public StreamElementSerializerConfigSnapshot snapshotConfiguration() {
+	public StreamElementSerializerConfigSnapshot<T> snapshotConfiguration() {
 		return new StreamElementSerializerConfigSnapshot<>(typeSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig;
 
 		// we are compatible for data written by ourselves or the legacy MultiplexingStreamRecordSerializer
 		if (configSnapshot instanceof StreamElementSerializerConfigSnapshot) {
 			previousTypeSerializerAndConfig =
-				((StreamElementSerializerConfigSnapshot) configSnapshot).getSingleNestedSerializerAndConfig();
+				((StreamElementSerializerConfigSnapshot<?>) configSnapshot).getSingleNestedSerializerAndConfig();
 		} else {
 			return CompatibilityResult.requiresMigration();
 		}
@@ -317,7 +317,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	/**
 	 * Configuration snapshot specific to the {@link StreamElementSerializer}.
 	 */
-	public static final class StreamElementSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+	public static final class StreamElementSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<StreamElement> {
 
 		private static final int VERSION = 1;
 

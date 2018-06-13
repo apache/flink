@@ -124,7 +124,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		assertFalse(strategy.isRequiresMigration());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
 		assertTrue(strategy.isRequiresMigration());
 	}
 	
@@ -526,7 +526,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
-	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+	public static final class TestIncompatibleSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 		@Override
 		public int getVersion() {
 			return 0;

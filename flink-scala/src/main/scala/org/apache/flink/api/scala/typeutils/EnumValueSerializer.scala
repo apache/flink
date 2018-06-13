@@ -84,7 +84,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[E#Value] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[E#Value] = {
 
     configSnapshot match {
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
@@ -122,7 +122,7 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
 object EnumValueSerializer {
 
   class ScalaEnumSerializerConfigSnapshot[E <: Enumeration]
-      extends TypeSerializerConfigSnapshot {
+      extends TypeSerializerConfigSnapshot[E#Value] {
 
     var enumClass: Class[E] = _
     var enumConstants: List[(String, Int)] = _

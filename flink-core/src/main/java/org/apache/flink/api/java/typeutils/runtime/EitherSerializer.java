@@ -196,15 +196,15 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public EitherSerializerConfigSnapshot snapshotConfiguration() {
+	public EitherSerializerConfigSnapshot<L, R> snapshotConfiguration() {
 		return new EitherSerializerConfigSnapshot<>(leftSerializer, rightSerializer);
 	}
 
 	@Override
-	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousLeftRightSerializersAndConfigs =
-				((EitherSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				((EitherSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<L> leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousLeftRightSerializersAndConfigs.get(0).f0,

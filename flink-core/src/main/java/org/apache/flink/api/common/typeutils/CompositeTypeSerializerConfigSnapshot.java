@@ -38,7 +38,7 @@ import java.util.List;
  * is required.
  */
 @Internal
-public abstract class CompositeTypeSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
 	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
 

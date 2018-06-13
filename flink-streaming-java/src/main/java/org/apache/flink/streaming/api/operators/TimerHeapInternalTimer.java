@@ -242,12 +242,12 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		public TypeSerializerConfigSnapshot<InternalTimer<K, N>> snapshotConfiguration() {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 
 		@Override
-		public CompatibilityResult<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}
