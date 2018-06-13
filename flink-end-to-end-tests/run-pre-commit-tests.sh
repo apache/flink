@@ -25,6 +25,8 @@ if [ -z "$END_TO_END_DIR" ] ; then
     exit 1  # fail
 fi
 
+export END_TO_END_DIR
+
 if [ -z "$FLINK_DIR" ] ; then
     echo "You have to export the Flink distribution directory as FLINK_DIR"
     exit 1
