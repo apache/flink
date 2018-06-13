@@ -69,8 +69,14 @@ function run_local_recovery_test {
     local incremental=$4
     local kill_jvm=$5
 
-    echo "Running local recovery test on ${backend} backend: incremental checkpoints = ${incremental}, kill JVM = ${kill_jvm}."
-    TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-local-recovery-and-allocation-test/target/StickyAllocationAndLocalRecoveryTestJob.jar
+    echo "Running local recovery test with configuration:
+        parallelism: ${parallelism}
+        max attempts: ${max_attempts}
+        backend: ${backend}
+        incremental checkpoints: ${incremental}
+        kill JVM: ${kill_jvm}"
+
+    TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-local-recovery-and-allocation-test/target/StickyAllocationAndLocalRecoveryTestJob.jar
 
     # Backup conf and configure for HA
     backup_config
@@ -109,11 +115,6 @@ function run_local_recovery_test {
 
 ## MAIN
 trap cleanup_after_test_and_exit_fail EXIT
-run_local_recovery_test 4 3 "file" "false" "false"
-run_local_recovery_test 4 3 "file" "false" "true"
-run_local_recovery_test 4 10 "rocks" "false" "false"
-run_local_recovery_test 4 10 "rocks" "true" "false"
-run_local_recovery_test 4 10 "rocks" "false" "true"
-run_local_recovery_test 4 10 "rocks" "true" "true"
+run_local_recovery_test "$@"
 trap - EXIT
 exit 0
