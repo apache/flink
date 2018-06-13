@@ -31,7 +31,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.TestLogger;
@@ -53,8 +53,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testPutGetRemoveContainsTransform() throws Exception {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
 				IntSerializer.INSTANCE,
@@ -125,8 +125,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testIncrementalRehash() {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
 				IntSerializer.INSTANCE,
@@ -170,8 +170,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	@Test
 	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		final RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		final RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
 				IntSerializer.INSTANCE,
@@ -325,8 +325,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testCopyOnWriteContracts() {
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
 				IntSerializer.INSTANCE,
@@ -356,7 +356,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 
 		// no snapshot taken, we get the original back
 		Assert.assertTrue(stateTable.get(1, 1) == originalState1);
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.stateSnapshot();
 		// after snapshot1 is taken, we get a copy...
 		final ArrayList<Integer> copyState = stateTable.get(1, 1);
 		Assert.assertFalse(copyState == originalState1);
@@ -370,7 +370,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		Assert.assertTrue(copyState == stateTable.get(1, 1));
 
 		// we take snapshot2
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.stateSnapshot();
 		// after the second snapshot, copy-on-write is active again for old entries
 		Assert.assertFalse(copyState == stateTable.get(1, 1));
 		// and equality still holds
@@ -400,8 +400,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();
 		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();
 
-		RegisteredKeyedBackendStateMetaInfo<Integer, Integer> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.VALUE,
 				"test",
 				namespaceSerializer,
@@ -443,15 +443,15 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		table.put(2, 0, 1, 2);
 
 
-		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.createSnapshot();
+		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.stateSnapshot();
 
 		try {
-			final StateSnapshot.KeyGroupPartitionedSnapshot partitionedSnapshot = snapshot.partitionByKeyGroup();
+			final StateSnapshot.StateKeyGroupWriter partitionedSnapshot = snapshot.getKeyGroupWriter();
 			namespaceSerializer.disable();
 			keySerializer.disable();
 			stateSerializer.disable();
 
-			partitionedSnapshot.writeMappingsInKeyGroup(
+			partitionedSnapshot.writeStateInKeyGroup(
 				new DataOutputViewStreamWrapper(
 					new ByteArrayOutputStreamWithPos(1024)), 0);
 

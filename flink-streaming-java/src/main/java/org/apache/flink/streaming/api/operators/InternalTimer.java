@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.Keyed;
+import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
 
 import javax.annotation.Nonnull;
@@ -31,7 +33,7 @@ import javax.annotation.Nonnull;
  * @param <N> Type of the namespace to which timers are scoped.
  */
 @Internal
-public interface InternalTimer<K, N> {
+public interface InternalTimer<K, N> extends PriorityComparable<InternalTimer<?, ?>>, Keyed<K> {
 
 	/** Function to extract the key from a {@link InternalTimer}. */
 	KeyExtractorFunction<InternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION = InternalTimer::getKey;
@@ -48,6 +50,7 @@ public interface InternalTimer<K, N> {
 	 * Returns the key that is bound to this timer.
 	 */
 	@Nonnull
+	@Override
 	K getKey();
 
 	/**
@@ -55,14 +58,4 @@ public interface InternalTimer<K, N> {
 	 */
 	@Nonnull
 	N getNamespace();
-
-	@SuppressWarnings("unchecked")
-	static <T extends InternalTimer> PriorityComparator<T> getTimerComparator() {
-		return (PriorityComparator<T>) TIMER_COMPARATOR;
-	}
-
-	@SuppressWarnings("unchecked")
-	static <T extends InternalTimer> KeyExtractorFunction<T> getKeyExtractorFunction() {
-		return (KeyExtractorFunction<T>) KEY_EXTRACTOR_FUNCTION;
-	}
 }

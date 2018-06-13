@@ -209,7 +209,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 		if (broadcastState == null) {
 			broadcastState = new HeapBroadcastState<>(
-					new RegisteredBroadcastBackendStateMetaInfo<>(
+					new RegisteredBroadcastStateBackendMetaInfo<>(
 							name,
 							OperatorStateHandle.Mode.BROADCAST,
 							broadcastStateKeySerializer,
@@ -227,7 +227,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			final StateMetaInfoSnapshot metaInfoSnapshot = restoredBroadcastStateMetaInfos.get(name);
 
 			@SuppressWarnings("unchecked")
-			RegisteredBroadcastBackendStateMetaInfo<K, V> restoredMetaInfo = new RegisteredBroadcastBackendStateMetaInfo<K, V>(metaInfoSnapshot);
+			RegisteredBroadcastStateBackendMetaInfo<K, V> restoredMetaInfo = new RegisteredBroadcastStateBackendMetaInfo<K, V>(metaInfoSnapshot);
 
 			// check compatibility to determine if state migration is required
 			CompatibilityResult<K> keyCompatibility = CompatibilityUtil.resolveCompatibilityResult(
@@ -247,7 +247,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			if (!keyCompatibility.isRequiresMigration() && !valueCompatibility.isRequiresMigration()) {
 				// new serializer is compatible; use it to replace the old serializer
 				broadcastState.setStateMetaInfo(
-						new RegisteredBroadcastBackendStateMetaInfo<>(
+						new RegisteredBroadcastStateBackendMetaInfo<>(
 								name,
 								OperatorStateHandle.Mode.BROADCAST,
 								broadcastStateKeySerializer,
@@ -510,8 +510,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// Recreate all PartitionableListStates from the meta info
 				for (StateMetaInfoSnapshot restoredSnapshot : restoredOperatorMetaInfoSnapshots) {
 
-					final RegisteredOperatorBackendStateMetaInfo<?> restoredMetaInfo =
-						new RegisteredOperatorBackendStateMetaInfo<>(restoredSnapshot);
+					final RegisteredOperatorStateBackendMetaInfo<?> restoredMetaInfo =
+						new RegisteredOperatorStateBackendMetaInfo<>(restoredSnapshot);
 
 					if (restoredMetaInfo.getPartitionStateSerializer() == null ||
 						restoredMetaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer) {
@@ -546,8 +546,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				for (StateMetaInfoSnapshot restoredSnapshot : restoredBroadcastMetaInfoSnapshots) {
 
-					final RegisteredBroadcastBackendStateMetaInfo<?, ?> restoredMetaInfo =
-						new RegisteredBroadcastBackendStateMetaInfo<>(restoredSnapshot);
+					final RegisteredBroadcastStateBackendMetaInfo<?, ?> restoredMetaInfo =
+						new RegisteredBroadcastStateBackendMetaInfo<>(restoredSnapshot);
 
 					if (restoredMetaInfo.getKeySerializer() == null || restoredMetaInfo.getValueSerializer() == null ||
 						restoredMetaInfo.getKeySerializer() instanceof UnloadableDummyTypeSerializer ||
@@ -613,7 +613,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		/**
 		 * Meta information of the state, including state name, assignment mode, and serializer
 		 */
-		private RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo;
+		private RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo;
 
 		/**
 		 * The internal list the holds the elements of the state
@@ -625,12 +625,12 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		 */
 		private final ArrayListSerializer<S> internalListCopySerializer;
 
-		PartitionableListState(RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo) {
+		PartitionableListState(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
 			this(stateMetaInfo, new ArrayList<S>());
 		}
 
 		private PartitionableListState(
-				RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo,
+				RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo,
 				ArrayList<S> internalList) {
 
 			this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
@@ -643,11 +643,11 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			this(toCopy.stateMetaInfo.deepCopy(), toCopy.internalListCopySerializer.copy(toCopy.internalList));
 		}
 
-		public void setStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> stateMetaInfo) {
+		public void setStateMetaInfo(RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo) {
 			this.stateMetaInfo = stateMetaInfo;
 		}
 
-		public RegisteredOperatorBackendStateMetaInfo<S> getStateMetaInfo() {
+		public RegisteredOperatorStateBackendMetaInfo<S> getStateMetaInfo() {
 			return stateMetaInfo;
 		}
 
@@ -741,7 +741,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			// no restored state for the state name; simply create new state holder
 
 			partitionableListState = new PartitionableListState<>(
-				new RegisteredOperatorBackendStateMetaInfo<>(
+				new RegisteredOperatorStateBackendMetaInfo<>(
 					name,
 					partitionStateSerializer,
 					mode));
@@ -757,8 +757,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					mode);
 
 			StateMetaInfoSnapshot restoredSnapshot = restoredOperatorStateMetaInfos.get(name);
-			RegisteredOperatorBackendStateMetaInfo<S> metaInfo =
-				new RegisteredOperatorBackendStateMetaInfo<>(restoredSnapshot);
+			RegisteredOperatorStateBackendMetaInfo<S> metaInfo =
+				new RegisteredOperatorStateBackendMetaInfo<>(restoredSnapshot);
 
 			// check compatibility to determine if state migration is required
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
@@ -772,7 +772,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			if (!stateCompatibility.isRequiresMigration()) {
 				// new serializer is compatible; use it to replace the old serializer
 				partitionableListState.setStateMetaInfo(
-					new RegisteredOperatorBackendStateMetaInfo<>(name, newPartitionStateSerializer, mode));
+					new RegisteredOperatorStateBackendMetaInfo<>(name, newPartitionStateSerializer, mode));
 			} else {
 				// TODO state migration currently isn't possible.
 

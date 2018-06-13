@@ -34,28 +34,30 @@ import java.util.Map;
  *
  * @param <S> Type of the state.
  */
-public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMetaInfoBase {
+public class RegisteredOperatorStateBackendMetaInfo<S> extends RegisteredStateMetaInfoBase {
 
 	/**
 	 * The mode how elements in this state are assigned to tasks during restore
 	 */
+	@Nonnull
 	private final OperatorStateHandle.Mode assignmentMode;
 
 	/**
 	 * The type serializer for the elements in the state list
 	 */
+	@Nonnull
 	private final TypeSerializer<S> partitionStateSerializer;
 
-	public RegisteredOperatorBackendStateMetaInfo(
-			String name,
-			TypeSerializer<S> partitionStateSerializer,
-			OperatorStateHandle.Mode assignmentMode) {
-		super(Preconditions.checkNotNull(name));
-		this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
-		this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
+	public RegisteredOperatorStateBackendMetaInfo(
+			@Nonnull String name,
+			@Nonnull TypeSerializer<S> partitionStateSerializer,
+			@Nonnull OperatorStateHandle.Mode assignmentMode) {
+		super(name);
+		this.partitionStateSerializer = partitionStateSerializer;
+		this.assignmentMode = assignmentMode;
 	}
 
-	private RegisteredOperatorBackendStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> copy) {
+	private RegisteredOperatorStateBackendMetaInfo(@Nonnull RegisteredOperatorStateBackendMetaInfo<S> copy) {
 		this(
 			Preconditions.checkNotNull(copy).name,
 			copy.partitionStateSerializer.duplicate(),
@@ -63,10 +65,11 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredOperatorBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+	public RegisteredOperatorStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
-			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
+			(TypeSerializer<S>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.OPERATOR == snapshot.getBackendStateType());
@@ -75,34 +78,23 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	/**
 	 * Creates a deep copy of the itself.
 	 */
-	public RegisteredOperatorBackendStateMetaInfo<S> deepCopy() {
-		return new RegisteredOperatorBackendStateMetaInfo<>(this);
+	@Nonnull
+	public RegisteredOperatorStateBackendMetaInfo<S> deepCopy() {
+		return new RegisteredOperatorStateBackendMetaInfo<>(this);
 	}
 
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
-		Map<String, String> optionsMap = Collections.singletonMap(
-			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
-			assignmentMode.toString());
-		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
-		Map<String, TypeSerializer<?>> serializerMap =
-			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.duplicate());
-		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
-			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.snapshotConfiguration());
-
-		return new StateMetaInfoSnapshot(
-			name,
-			StateMetaInfoSnapshot.BackendStateType.OPERATOR,
-			optionsMap,
-			serializerConfigSnapshotsMap,
-			serializerMap);
+		return computeSnapshot();
 	}
 
+	@Nonnull
 	public OperatorStateHandle.Mode getAssignmentMode() {
 		return assignmentMode;
 	}
 
+	@Nonnull
 	public TypeSerializer<S> getPartitionStateSerializer() {
 		return partitionStateSerializer;
 	}
@@ -117,10 +109,10 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 			return false;
 		}
 
-		return (obj instanceof RegisteredOperatorBackendStateMetaInfo)
-			&& name.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getName())
-			&& assignmentMode.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getAssignmentMode())
-			&& partitionStateSerializer.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getPartitionStateSerializer());
+		return (obj instanceof RegisteredOperatorStateBackendMetaInfo)
+			&& name.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getName())
+			&& assignmentMode.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getAssignmentMode())
+			&& partitionStateSerializer.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getPartitionStateSerializer());
 	}
 
 	@Override
@@ -138,5 +130,24 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 			", assignmentMode=" + assignmentMode +
 			", partitionStateSerializer=" + partitionStateSerializer +
 			'}';
+	}
+
+	@Nonnull
+	private StateMetaInfoSnapshot computeSnapshot() {
+		Map<String, String> optionsMap = Collections.singletonMap(
+			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
+			assignmentMode.toString());
+		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
+		Map<String, TypeSerializer<?>> serializerMap =
+			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.duplicate());
+		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
+			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.snapshotConfiguration());
+
+		return new StateMetaInfoSnapshot(
+			name,
+			StateMetaInfoSnapshot.BackendStateType.OPERATOR,
+			optionsMap,
+			serializerConfigSnapshotsMap,
+			serializerMap);
 	}
 }

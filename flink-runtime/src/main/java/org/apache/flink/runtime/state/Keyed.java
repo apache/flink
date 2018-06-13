@@ -16,23 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
-
-import org.apache.flink.core.memory.DataInputView;
-
-import java.io.IOException;
+package org.apache.flink.runtime.state;
 
 /**
- * Interface for state de-serialization into {@link StateTable}s by key-group.
+ * Interface for objects that have a key attribute.
+ *
+ * @param <K> type of the key.
  */
-interface StateTableByKeyGroupReader {
+public interface Keyed<K> {
 
 	/**
-	 * Read the data for the specified key-group from the input.
-	 *
-	 * @param div        the input
-	 * @param keyGroupId the key-group to write
-	 * @throws IOException on write related problems
+	 * Returns the key attribute.
 	 */
-	void readMappingsInKeyGroup(DataInputView div, int keyGroupId) throws IOException;
+	K getKey();
 }

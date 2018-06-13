@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -91,7 +91,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * to an output as part of checkpointing.
 	 */
 	@Nullable
-	private StateSnapshot.KeyGroupPartitionedSnapshot partitionedStateTableSnapshot;
+	private StateKeyGroupWriter partitionedStateTableSnapshot;
 
 	/**
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
@@ -135,7 +135,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	@Nonnull
 	@SuppressWarnings("unchecked")
 	@Override
-	public KeyGroupPartitionedSnapshot partitionByKeyGroup() {
+	public StateKeyGroupWriter getKeyGroupWriter() {
 
 		if (partitionedStateTableSnapshot == null) {
 
@@ -158,6 +158,12 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		}
 
 		return partitionedStateTableSnapshot;
+	}
+
+	@Nonnull
+	@Override
+	public StateMetaInfoSnapshot getMetaInfoSnapshot() {
+		return owningStateTable.metaInfo.snapshot();
 	}
 
 	@Override

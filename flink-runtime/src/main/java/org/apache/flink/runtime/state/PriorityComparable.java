@@ -21,29 +21,13 @@ package org.apache.flink.runtime.state;
 import javax.annotation.Nonnull;
 
 /**
- * Function to extract a key from a given object.
- *
- * @param <T> type of the element from which we extract the key.
+ * Interface for objects that can be compared by priority.
+ * @param <T> type of the compared objects.
  */
-@FunctionalInterface
-public interface KeyExtractorFunction<T> {
-
-	KeyExtractorFunction<? extends Keyed<?>> FOR_KEYED_OBJECTS = new KeyExtractorFunction<Keyed<?>>() {
-		@Nonnull
-		@Override
-		public Object extractKeyFromElement(@Nonnull Keyed<?> element) {
-			return element.getKey();
-		}
-	};
+public interface PriorityComparable<T> {
 
 	/**
-	 * Returns the key for the given element by which the key-group can be computed.
+	 * @see PriorityComparator#comparePriority(Object, Object).
 	 */
-	@Nonnull
-	Object extractKeyFromElement(@Nonnull T element);
-
-	@SuppressWarnings("unchecked")
-	static <T extends Keyed<?>> KeyExtractorFunction<T> forKeyedObjects() {
-		return (KeyExtractorFunction<T>) FOR_KEYED_OBJECTS;
-	}
+	int comparePriorityTo(@Nonnull T other);
 }

@@ -18,27 +18,30 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
 
 /**
- * Factory for {@link KeyGroupedInternalPriorityQueue} instances.
+ * Interface to deal with state snapshot and restore of state.
+ * TODO find better name?
  */
-public interface PriorityQueueSetFactory {
+@Internal
+public interface StateSnapshotRestore {
 
 	/**
-	 * Creates a {@link KeyGroupedInternalPriorityQueue}.
-	 *
-	 * @param stateName                    unique name for associated with this queue.
-	 * @param byteOrderedElementSerializer a serializer that with a format that is lexicographically ordered in
-	 *                                     alignment with elementPriorityComparator.
-	 * @param <T>                          type of the stored elements.
-	 * @return the queue with the specified unique name.
+	 * Returns a snapshot of the state.
 	 */
 	@Nonnull
-	<T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T> create(
-		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer);
+	StateSnapshot stateSnapshot();
+
+	/**
+	 * This method returns a {@link StateSnapshotKeyGroupReader} that can be used to restore the state on a
+	 * per-key-group basis. This method tries to return a reader for the given version hint.
+	 *
+	 * @param readVersionHint the required version of the state to read.
+	 * @return a reader that reads state by key-groups, for the given read version.
+	 */
+	@Nonnull
+	StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint);
 }

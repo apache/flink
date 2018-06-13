@@ -39,6 +39,8 @@ import java.util.Map;
  */
 public class StateMetaInfoSnapshotReadersWriters {
 
+	private StateMetaInfoSnapshotReadersWriters() {}
+
 	/**
 	 * Current version for the serialization format of {@link StateMetaInfoSnapshotReadersWriters}.
 	 * - v5: Flink 1.6.x
@@ -74,22 +76,34 @@ public class StateMetaInfoSnapshotReadersWriters {
 	@Nonnull
 	public static StateMetaInfoReader getReader(int readVersion, @Nonnull StateTypeHint stateTypeHint) {
 
+		if (readVersion < CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
+			switch (stateTypeHint) {
+				case KEYED_STATE:
+					return getLegacyKeyedStateMetaInfoReader(readVersion);
+				case OPERATOR_STATE:
+					return getLegacyOperatorStateMetaInfoReader(readVersion);
+				default:
+					throw new IllegalArgumentException("Unsupported state type hint: " + stateTypeHint +
+						" with version " + readVersion);
+			}
+		} else {
+			return getReader(readVersion);
+		}
+	}
+
+	/**
+	 * Returns a reader for {@link StateMetaInfoSnapshot} with the requested state type and version number.
+	 *
+	 * @param readVersion the format version to read.
+	 * @return the requested reader.
+	 */
+	@Nonnull
+	public static StateMetaInfoReader getReader(int readVersion) {
 		if (readVersion == CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
 			// latest version shortcut
 			return CurrentReaderImpl.INSTANCE;
-		}
-
-		if (readVersion > CURRENT_STATE_META_INFO_SNAPSHOT_VERSION) {
+		} else {
 			throw new IllegalArgumentException("Unsupported read version for state meta info: " + readVersion);
-		}
-
-		switch (stateTypeHint) {
-			case KEYED_STATE:
-				return getLegacyKeyedStateMetaInfoReader(readVersion);
-			case OPERATOR_STATE:
-				return getLegacyOperatorStateMetaInfoReader(readVersion);
-			default:
-				throw new IllegalArgumentException("Unsupported state type hint: " + stateTypeHint);
 		}
 	}
 

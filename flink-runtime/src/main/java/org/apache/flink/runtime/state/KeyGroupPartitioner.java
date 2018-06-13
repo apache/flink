@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
@@ -28,7 +29,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * Abstract class that contains the base algorithm for partitioning data into key-groups. This algorithm currently works
+ * Class that contains the base algorithm for partitioning data into key-groups. This algorithm currently works
  * with two array (input, output) for optimal algorithmic complexity. Notice that this could also be implemented over a
  * single array, using some cuckoo-hashing-style element replacement. This would have worse algorithmic complexity but
  * better space efficiency. We currently prefer the trade-off in favor of better algorithmic complexity.
@@ -89,7 +90,7 @@ public class KeyGroupPartitioner<T> {
 
 	/** Cached result. */
 	@Nullable
-	protected StateSnapshot.KeyGroupPartitionedSnapshot computedResult;
+	protected StateSnapshot.StateKeyGroupWriter computedResult;
 
 	/**
 	 * Creates a new {@link KeyGroupPartitioner}.
@@ -131,7 +132,7 @@ public class KeyGroupPartitioner<T> {
 	/**
 	 * Partitions the data into key-groups and returns the result via {@link PartitioningResult}.
 	 */
-	public StateSnapshot.KeyGroupPartitionedSnapshot partitionByKeyGroup() {
+	public StateSnapshot.StateKeyGroupWriter partitionByKeyGroup() {
 		if (computedResult == null) {
 			reportAllElementKeyGroups();
 			buildHistogramByAccumulatingCounts();
@@ -198,7 +199,7 @@ public class KeyGroupPartitioner<T> {
 	 * This represents the result of key-group partitioning. The data in {@link #partitionedElements} is partitioned
 	 * w.r.t. {@link KeyGroupPartitioner#keyGroupRange}.
 	 */
-	public static class PartitioningResult<T> implements StateSnapshot.KeyGroupPartitionedSnapshot {
+	private static class PartitioningResult<T> implements StateSnapshot.StateKeyGroupWriter {
 
 		/**
 		 * Function to write one element to a {@link DataOutputView}.
@@ -249,7 +250,7 @@ public class KeyGroupPartitioner<T> {
 		}
 
 		@Override
-		public void writeMappingsInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
+		public void writeStateInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 
 			int startOffset = getKeyGroupStartOffsetInclusive(keyGroupId);
 			int endOffset = getKeyGroupEndOffsetExclusive(keyGroupId);
@@ -260,6 +261,43 @@ public class KeyGroupPartitioner<T> {
 			// write mappings
 			for (int i = startOffset; i < endOffset; ++i) {
 				elementWriterFunction.writeElement(partitionedElements[i], dov);
+			}
+		}
+	}
+
+	public static <T> StateSnapshotKeyGroupReader createKeyGroupPartitionReader(
+			@Nonnull ElementReaderFunction<T> readerFunction,
+			@Nonnull KeyGroupElementsConsumer<T> elementConsumer) {
+		return new PartitioningResultKeyGroupReader<>(readerFunction, elementConsumer);
+	}
+
+	/**
+	 * General algorithm to read key-grouped state that was written from a {@link PartitioningResult}
+	 *
+	 * @param <T> type of the elements to read.
+	 */
+	private static class PartitioningResultKeyGroupReader<T> implements StateSnapshotKeyGroupReader {
+
+		@Nonnull
+		private final ElementReaderFunction<T> readerFunction;
+
+		@Nonnull
+		private final KeyGroupElementsConsumer<T> elementConsumer;
+
+		public PartitioningResultKeyGroupReader(
+			@Nonnull ElementReaderFunction<T> readerFunction,
+			@Nonnull KeyGroupElementsConsumer<T> elementConsumer) {
+
+			this.readerFunction = readerFunction;
+			this.elementConsumer = elementConsumer;
+		}
+
+		@Override
+		public void readMappingsInKeyGroup(@Nonnull DataInputView in, @Nonnegative int keyGroupId) throws IOException {
+			int numElements = in.readInt();
+			for (int i = 0; i < numElements; i++) {
+				T element = readerFunction.readElement(in);
+				elementConsumer.consume(element, keyGroupId);
 			}
 		}
 	}
@@ -280,5 +318,29 @@ public class KeyGroupPartitioner<T> {
 		 * @throws IOException on write-related problems.
 		 */
 		void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) throws IOException;
+	}
+
+	/**
+	 * This functional interface defines how one element is read from a {@link DataInputView}.
+	 *
+	 * @param <T> type of the read elements.
+	 */
+	@FunctionalInterface
+	public interface ElementReaderFunction<T> {
+
+		@Nonnull
+		T readElement(@Nonnull DataInputView div) throws IOException;
+	}
+
+	/**
+	 * Functional interface to consume elements from a key group.
+	 *
+	 * @param <T> type of the consumed elements.
+	 */
+	@FunctionalInterface
+	public interface KeyGroupElementsConsumer<T> {
+
+
+		void consume(@Nonnull T element, @Nonnegative int keyGroupId) throws IOException;
 	}
 }
