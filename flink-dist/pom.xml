@@ -212,6 +212,7 @@ under the License.
 			<artifactId>flink-metrics-dropwizard</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<classifier>jar-with-dependencies</classifier>
 		</dependency>
 
 		<dependency>
@@ -219,6 +220,7 @@ under the License.
 			<artifactId>flink-metrics-ganglia</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<classifier>jar-with-dependencies</classifier>
 		</dependency>
 
 		<dependency>
@@ -226,6 +228,7 @@ under the License.
 			<artifactId>flink-metrics-graphite</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<classifier>jar-with-dependencies</classifier>
 		</dependency>
 
 		<dependency>
@@ -292,6 +295,7 @@ under the License.
 			<artifactId>flink-gelly-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<classifier>jar-with-dependencies</classifier>
 		</dependency>
 
 		<dependency>
@@ -299,6 +303,7 @@ under the License.
 			<artifactId>flink-ml_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<classifier>jar-with-dependencies</classifier>
 		</dependency>
 
 		<dependency>
@@ -524,6 +529,24 @@ under the License.
 						<phase>none</phase>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+    			<artifactId>maven-dependency-plugin</artifactId>
+    			<executions>
+    				<execution>
+    					<id>copy</id>
+			            <phase>package</phase>
+			            <goals>
+			              <goal>copy-dependencies</goal>
+			            </goals>
+		    			<configuration>
+		    				<includeGroupIds>org.apache.flink</includeGroupIds>
+		        			<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+		    			</configuration>
+    				</execution>
+    			</executions>
 			</plugin>
 
 			<plugin>

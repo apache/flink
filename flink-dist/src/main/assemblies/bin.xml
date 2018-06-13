@@ -189,7 +189,7 @@ under the License.
 
 		<!-- copy jar files of the gelly examples -->
 		<fileSet>
-			<directory>../flink-libraries/flink-gelly-examples/target</directory>
+			<directory>target/dependencies</directory>
 			<outputDirectory>examples/gelly</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
@@ -199,7 +199,7 @@ under the License.
 
 		<!-- copy python jar -->
 		<fileSet>
-			<directory>../flink-libraries/flink-python/target</directory>
+			<directory>target/dependencies</directory>
 			<outputDirectory>lib</outputDirectory>
 			<fileMode>0644</fileMode>
 			<includes>
