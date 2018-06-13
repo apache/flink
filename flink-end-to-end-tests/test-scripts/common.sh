@@ -24,7 +24,7 @@ if [[ -z $FLINK_DIR ]]; then
     exit 1
 fi
 
-export PASS=1
+export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
@@ -138,7 +138,6 @@ function start_local_zk {
 
             if [ "${address}" != "localhost" ]; then
                 echo "[ERROR] Parse error. Only available for localhost."
-                PASS=""
                 exit 1
             fi
             ${FLINK_DIR}/bin/zookeeper.sh start $id
@@ -186,7 +185,7 @@ function check_logs_for_errors {
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
 }
 
@@ -211,7 +210,7 @@ function check_logs_for_exceptions {
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
 }
 
@@ -219,7 +218,7 @@ function check_logs_for_non_empty_out_files {
   if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
-    PASS=""
+    EXIT_CODE=1
   fi
 }
 
