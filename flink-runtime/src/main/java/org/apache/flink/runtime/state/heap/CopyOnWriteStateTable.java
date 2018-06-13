@@ -871,8 +871,9 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 *
 	 * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
 	 */
+	@Nonnull
 	@Override
-	public CopyOnWriteStateTableSnapshot<K, N, S> createSnapshot() {
+	public CopyOnWriteStateTableSnapshot<K, N, S> stateSnapshot() {
 		return new CopyOnWriteStateTableSnapshot<>(this);
 	}
 

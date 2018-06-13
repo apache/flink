@@ -402,7 +402,11 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
-		if (getKeyedStateBackend() != null) {
+		final KeyedStateBackend<?> keyedStateBackend = getKeyedStateBackend();
+		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
+		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
+			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
+
 			KeyedStateCheckpointOutputStream out;
 
 			try {

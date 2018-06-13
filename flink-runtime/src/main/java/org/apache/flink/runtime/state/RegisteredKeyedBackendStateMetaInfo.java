@@ -29,13 +29,12 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
@@ -46,20 +45,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
 
+	@Nonnull
 	private final StateDescriptor.Type stateType;
+	@Nonnull
 	private final TypeSerializer<N> namespaceSerializer;
+	@Nonnull
 	private final TypeSerializer<S> stateSerializer;
+	@Nullable
+	private StateMetaInfoSnapshot precomputedSnapshot;
 
 	public RegisteredKeyedBackendStateMetaInfo(
-			StateDescriptor.Type stateType,
-			String name,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<S> stateSerializer) {
+			@Nonnull StateDescriptor.Type stateType,
+			@Nonnull String name,
+			@Nonnull TypeSerializer<N> namespaceSerializer,
+			@Nonnull TypeSerializer<S> stateSerializer) {
 
 		super(name);
-		this.stateType = checkNotNull(stateType);
-		this.namespaceSerializer = checkNotNull(namespaceSerializer);
-		this.stateSerializer = checkNotNull(stateSerializer);
+		this.stateType = stateType;
+		this.namespaceSerializer = namespaceSerializer;
+		this.stateSerializer = stateSerializer;
+		this.precomputedSnapshot = null;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -67,19 +72,24 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 		this(
 			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
 			snapshot.getName(),
-			(TypeSerializer<N>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
-			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
+			(TypeSerializer<N>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
+			(TypeSerializer<S>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
 
+	@Nonnull
 	public StateDescriptor.Type getStateType() {
 		return stateType;
 	}
 
+	@Nonnull
 	public TypeSerializer<N> getNamespaceSerializer() {
 		return namespaceSerializer;
 	}
 
+	@Nonnull
 	public TypeSerializer<S> getStateSerializer() {
 		return stateSerializer;
 	}
@@ -132,6 +142,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	 * This checks that the descriptor specifies identical names and state types, as well as
 	 * serializers that are compatible for the restored k/v state bytes.
 	 */
+	@Nonnull
 	public static <N, S> RegisteredKeyedBackendStateMetaInfo<N, S> resolveKvStateCompatibility(
 		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
 		TypeSerializer<N> newNamespaceSerializer,
@@ -190,6 +201,14 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
+		if (precomputedSnapshot == null) {
+			precomputedSnapshot = precomputeSnapshot();
+		}
+		return precomputedSnapshot;
+	}
+
+	@Nonnull
+	private StateMetaInfoSnapshot precomputeSnapshot() {
 		Map<String, String> optionsMap = Collections.singletonMap(
 			StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 			stateType.toString());

@@ -19,15 +19,19 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
+
+import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -96,7 +100,7 @@ public class InternalTimersSnapshotReaderWriters {
 		public final void writeTimersSnapshot(DataOutputView out) throws IOException {
 			writeKeyAndNamespaceSerializers(out);
 
-			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer = new TimerHeapInternalTimer.TimerSerializer<>(
+			LegacyTimerSerializer<K, N> timerSerializer = new LegacyTimerSerializer<>(
 				timersSnapshot.getKeySerializer(),
 				timersSnapshot.getNamespaceSerializer());
 
@@ -215,8 +219,8 @@ public class InternalTimersSnapshotReaderWriters {
 
 			restoreKeyAndNamespaceSerializers(restoredTimersSnapshot, in);
 
-			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer =
-				new TimerHeapInternalTimer.TimerSerializer<>(
+			LegacyTimerSerializer<K, N> timerSerializer =
+				new LegacyTimerSerializer<>(
 					restoredTimersSnapshot.getKeySerializer(),
 					restoredTimersSnapshot.getNamespaceSerializer());
 
@@ -287,6 +291,122 @@ public class InternalTimersSnapshotReaderWriters {
 			restoredTimersSnapshot.setKeySerializerConfigSnapshot(serializersAndConfigs.get(0).f1);
 			restoredTimersSnapshot.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(1).f0);
 			restoredTimersSnapshot.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(1).f1);
+		}
+	}
+
+	/**
+	 * A {@link TypeSerializer} used to serialize/deserialize a {@link TimerHeapInternalTimer}.
+	 */
+	public static class LegacyTimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer<K, N>> {
+
+		private static final long serialVersionUID = 1119562170939152304L;
+
+		@Nonnull
+		private final TypeSerializer<K> keySerializer;
+
+		@Nonnull
+		private final TypeSerializer<N> namespaceSerializer;
+
+		LegacyTimerSerializer(@Nonnull TypeSerializer<K> keySerializer, @Nonnull TypeSerializer<N> namespaceSerializer) {
+			this.keySerializer = keySerializer;
+			this.namespaceSerializer = namespaceSerializer;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return false;
+		}
+
+		@Override
+		public TypeSerializer<TimerHeapInternalTimer<K, N>> duplicate() {
+
+			final TypeSerializer<K> keySerializerDuplicate = keySerializer.duplicate();
+			final TypeSerializer<N> namespaceSerializerDuplicate = namespaceSerializer.duplicate();
+
+			if (keySerializerDuplicate == keySerializer &&
+				namespaceSerializerDuplicate == namespaceSerializer) {
+				// all delegate serializers seem stateless, so this is also stateless.
+				return this;
+			} else {
+				// at least one delegate serializer seems to be stateful, so we return a new instance.
+				return new LegacyTimerSerializer<>(keySerializerDuplicate, namespaceSerializerDuplicate);
+			}
+		}
+
+		@Override
+		public TimerHeapInternalTimer<K, N> createInstance() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from) {
+			return new TimerHeapInternalTimer<>(from.getTimestamp(), from.getKey(), from.getNamespace());
+		}
+
+		@Override
+		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from, TimerHeapInternalTimer<K, N> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			// we do not have fixed length
+			return -1;
+		}
+
+		@Override
+		public void serialize(TimerHeapInternalTimer<K, N> record, DataOutputView target) throws IOException {
+			keySerializer.serialize(record.getKey(), target);
+			namespaceSerializer.serialize(record.getNamespace(), target);
+			LongSerializer.INSTANCE.serialize(record.getTimestamp(), target);
+		}
+
+		@Override
+		public TimerHeapInternalTimer<K, N> deserialize(DataInputView source) throws IOException {
+			K key = keySerializer.deserialize(source);
+			N namespace = namespaceSerializer.deserialize(source);
+			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
+			return new TimerHeapInternalTimer<>(timestamp, key, namespace);
+		}
+
+		@Override
+		public TimerHeapInternalTimer<K, N> deserialize(TimerHeapInternalTimer<K, N> reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			keySerializer.copy(source, target);
+			namespaceSerializer.copy(source, target);
+			LongSerializer.INSTANCE.copy(source, target);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			return obj == this ||
+				(obj != null && obj.getClass() == getClass() &&
+					keySerializer.equals(((LegacyTimerSerializer) obj).keySerializer) &&
+					namespaceSerializer.equals(((LegacyTimerSerializer) obj).namespaceSerializer));
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return getClass().hashCode();
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
+		}
+
+		@Override
+		public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}
 }

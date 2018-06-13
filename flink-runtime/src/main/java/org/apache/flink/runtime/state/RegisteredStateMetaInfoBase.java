@@ -42,4 +42,21 @@ public abstract class RegisteredStateMetaInfoBase {
 
 	@Nonnull
 	public abstract StateMetaInfoSnapshot snapshot();
+
+	public static RegisteredStateMetaInfoBase fromMetaInfoSnapshot(@Nonnull StateMetaInfoSnapshot snapshot) {
+
+		final StateMetaInfoSnapshot.BackendStateType backendStateType = snapshot.getBackendStateType();
+		switch (backendStateType) {
+			case KEY_VALUE:
+				return new RegisteredKeyedBackendStateMetaInfo<>(snapshot);
+			case OPERATOR:
+				return new RegisteredOperatorBackendStateMetaInfo<>(snapshot);
+			case BROADCAST:
+				return new RegisteredBroadcastBackendStateMetaInfo<>(snapshot);
+			case PRIORITY_QUEUE:
+				return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
+			default:
+				throw new IllegalArgumentException("Unknown backend state type: " + backendStateType);
+		}
+	}
 }

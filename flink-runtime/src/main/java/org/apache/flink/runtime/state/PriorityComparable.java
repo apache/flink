@@ -18,27 +18,18 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
-
 import javax.annotation.Nonnull;
 
 /**
- * Factory for {@link KeyGroupedInternalPriorityQueue} instances.
+ *
+ * @param <T>
  */
-public interface PriorityQueueSetFactory {
+public interface PriorityComparable<T> {
 
 	/**
-	 * Creates a {@link KeyGroupedInternalPriorityQueue}.
 	 *
-	 * @param stateName                    unique name for associated with this queue.
-	 * @param byteOrderedElementSerializer a serializer that with a format that is lexicographically ordered in
-	 *                                     alignment with elementPriorityComparator.
-	 * @param <T>                          type of the stored elements.
-	 * @return the queue with the specified unique name.
+	 * @param other
+	 * @return
 	 */
-	@Nonnull
-	<T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T> create(
-		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer);
+	int comparePriorityTo(@Nonnull T other);
 }

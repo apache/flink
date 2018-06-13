@@ -16,14 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -46,9 +47,9 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 	@Nonnull
 	private final T[] heapArrayCopy;
 
-	/** The element serializer. */
+	/** The meta info of the state. */
 	@Nonnull
-	private final TypeSerializer<T> elementSerializer;
+	private final RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo;
 
 	/** The key-group range covered by this snapshot. */
 	@Nonnull
@@ -60,21 +61,18 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 
 	/** Result of partitioning the snapshot by key-group. */
 	@Nullable
-	private KeyGroupPartitionedSnapshot partitionedSnapshot;
+	private StateKeyGroupWriter partitionedSnapshot;
 
 	HeapPriorityQueueStateSnapshot(
 		@Nonnull T[] heapArrayCopy,
 		@Nonnull KeyExtractorFunction<T> keyExtractor,
-		@Nonnull TypeSerializer<T> elementSerializer,
+		@Nonnull RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int totalKeyGroups) {
 
-		// TODO ensure that the array contains a deep copy of elements if we are *not* dealing with immutable types.
-		assert elementSerializer.isImmutableType();
-
 		this.keyExtractor = keyExtractor;
 		this.heapArrayCopy = heapArrayCopy;
-		this.elementSerializer = elementSerializer;
+		this.metaInfo = metaInfo;
 		this.keyGroupRange = keyGroupRange;
 		this.totalKeyGroups = totalKeyGroups;
 	}
@@ -82,13 +80,15 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 	@SuppressWarnings("unchecked")
 	@Nonnull
 	@Override
-	public KeyGroupPartitionedSnapshot partitionByKeyGroup() {
+	public StateKeyGroupWriter getKeyGroupWriter() {
 
 		if (partitionedSnapshot == null) {
 
 			T[] partitioningOutput = (T[]) Array.newInstance(
 				heapArrayCopy.getClass().getComponentType(),
 				heapArrayCopy.length);
+
+			final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
 
 			KeyGroupPartitioner<T> keyGroupPartitioner =
 				new KeyGroupPartitioner<>(
@@ -104,6 +104,12 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 		}
 
 		return partitionedSnapshot;
+	}
+
+	@Nonnull
+	@Override
+	public StateMetaInfoSnapshot getMetaInfoSnapshot() {
+		return metaInfo.snapshot();
 	}
 
 	@Override

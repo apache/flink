@@ -356,7 +356,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 
 		// no snapshot taken, we get the original back
 		Assert.assertTrue(stateTable.get(1, 1) == originalState1);
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot1 = stateTable.stateSnapshot();
 		// after snapshot1 is taken, we get a copy...
 		final ArrayList<Integer> copyState = stateTable.get(1, 1);
 		Assert.assertFalse(copyState == originalState1);
@@ -370,7 +370,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		Assert.assertTrue(copyState == stateTable.get(1, 1));
 
 		// we take snapshot2
-		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.createSnapshot();
+		CopyOnWriteStateTableSnapshot<Integer, Integer, ArrayList<Integer>> snapshot2 = stateTable.stateSnapshot();
 		// after the second snapshot, copy-on-write is active again for old entries
 		Assert.assertFalse(copyState == stateTable.get(1, 1));
 		// and equality still holds
@@ -443,15 +443,15 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		table.put(2, 0, 1, 2);
 
 
-		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.createSnapshot();
+		final CopyOnWriteStateTableSnapshot<Integer, Integer, Integer> snapshot = table.stateSnapshot();
 
 		try {
-			final StateSnapshot.KeyGroupPartitionedSnapshot partitionedSnapshot = snapshot.partitionByKeyGroup();
+			final StateSnapshot.StateKeyGroupWriter partitionedSnapshot = snapshot.getKeyGroupWriter();
 			namespaceSerializer.disable();
 			keySerializer.disable();
 			stateSerializer.disable();
 
-			partitionedSnapshot.writeMappingsInKeyGroup(
+			partitionedSnapshot.writeStateInKeyGroup(
 				new DataOutputViewStreamWrapper(
 					new ByteArrayOutputStreamWithPos(1024)), 0);
 

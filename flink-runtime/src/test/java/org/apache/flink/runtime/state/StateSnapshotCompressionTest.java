@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -55,7 +56,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			true,
 			executionConfig,
 			TestLocalRecoveryConfig.disabled(),
-			mock(PriorityQueueSetFactory.class),
+			mock(HeapPriorityQueueSetFactory.class),
 			TtlTimeProvider.DEFAULT);
 
 		try {
@@ -79,7 +80,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			true,
 			executionConfig,
 			TestLocalRecoveryConfig.disabled(),
-			mock(PriorityQueueSetFactory.class),
+			mock(HeapPriorityQueueSetFactory.class),
 			TtlTimeProvider.DEFAULT);
 
 		try {
@@ -121,7 +122,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			true,
 			executionConfig,
 			TestLocalRecoveryConfig.disabled(),
-			mock(PriorityQueueSetFactory.class),
+			mock(HeapPriorityQueueSetFactory.class),
 			TtlTimeProvider.DEFAULT);
 
 		try {
@@ -164,7 +165,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			true,
 			executionConfig,
 			TestLocalRecoveryConfig.disabled(),
-			mock(PriorityQueueSetFactory.class),
+			mock(HeapPriorityQueueSetFactory.class),
 			TtlTimeProvider.DEFAULT);
 		try {
 

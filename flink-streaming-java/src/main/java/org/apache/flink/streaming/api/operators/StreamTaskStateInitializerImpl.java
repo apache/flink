@@ -209,7 +209,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			keyGroupRange,
 			keyContext,
 			keyedStatedBackend,
-			processingTimeService);
+			processingTimeService,
+			keyedStatedBackend.requiresLegacySynchronousTimerSnapshots());
 
 		// and then initialize the timer services
 		for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {

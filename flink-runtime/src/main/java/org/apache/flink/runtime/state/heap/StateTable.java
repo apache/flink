@@ -21,9 +21,12 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
-import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.StateTableByKeyGroupReader;
+import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.stream.Stream;
 
@@ -35,7 +38,7 @@ import java.util.stream.Stream;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public abstract class StateTable<K, N, S> {
+public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 
 	/**
 	 * The key context view on the backend. This provides information, such as the currently active key.
@@ -183,12 +186,16 @@ public abstract class StateTable<K, N, S> {
 
 	// Snapshot / Restore -------------------------------------------------------------------------
 
-	abstract StateSnapshot createSnapshot();
-
 	public abstract void put(K key, int keyGroup, N namespace, S state);
 
 	// For testing --------------------------------------------------------------------------------
 
 	@VisibleForTesting
 	public abstract int sizeOfNamespace(Object namespace);
+
+	@Nonnull
+	@Override
+	public StateTableByKeyGroupReader keyGroupReader(int readVersion) {
+		return StateTableByKeyGroupReaders.readerForVersion(this, readVersion);
+	}
 }
