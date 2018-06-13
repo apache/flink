@@ -133,8 +133,8 @@ public class Environment {
 
 		// merge tables
 		final Map<String, TableDescriptor> tables = new HashMap<>(env1.getTables());
-		mergedEnv.getTables().putAll(env2.getTables());
 		mergedEnv.tables = tables;
+		mergedEnv.getTables().putAll(env2.getTables());
 
 		// merge execution properties
 		mergedEnv.execution = Execution.merge(env1.getExecution(), env2.getExecution());
