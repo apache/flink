@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.NewClusterClient;
@@ -29,8 +30,9 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
@@ -323,17 +325,18 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			(BlobServerPortResponseBody response, String dispatcherAddress) -> {
 				final int blobServerPort = response.port;
 				final InetSocketAddress address = new InetSocketAddress(dispatcherAddress, blobServerPort);
-				final List<PermanentBlobKey> keys;
-				try {
-					log.info("Uploading jar files.");
-					keys = BlobClient.uploadFiles(address, flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
-					jobGraph.uploadUserArtifacts(address, flinkConfig);
-				} catch (IOException ioe) {
-					throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
-				}
 
-				for (PermanentBlobKey key : keys) {
-					jobGraph.addUserJarBlobKey(key);
+				List<Path> userJars = jobGraph.getUserJars();
+				Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
+				if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
+					try (BlobClient client = new BlobClient(address, flinkConfig)) {
+						log.info("Uploading jar files.");
+						ClientUtils.uploadAndSetUserJars(jobGraph, client);
+						log.info("Uploading jar artifacts.");
+						ClientUtils.uploadAndSetUserArtifacts(jobGraph, client);
+					} catch (IOException ioe) {
+						throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
+					}
 				}
 
 				return jobGraph;

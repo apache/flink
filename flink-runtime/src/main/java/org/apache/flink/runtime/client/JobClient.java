@@ -20,10 +20,13 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -51,6 +54,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -422,18 +427,19 @@ public class JobClient {
 		}
 
 		try {
-			jobGraph.uploadUserJars(blobServerAddress, config);
-		}
-		catch (IOException e) {
-			throw new JobSubmissionException(jobGraph.getJobID(),
-				"Could not upload the program's JAR files to the JobManager.", e);
-		}
-
-		try {
-			jobGraph.uploadUserArtifacts(blobServerAddress, config);
+			List<Path> userJars = jobGraph.getUserJars();
+			Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
+			if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
+				try (BlobClient blobClient = new BlobClient(blobServerAddress, config)) {
+					LOG.info("Uploading jar files.");
+					ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
+					LOG.info("Uploading jar artifacts.");
+					ClientUtils.uploadAndSetUserArtifacts(jobGraph, blobClient);
+				}
+			}
 		} catch (IOException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
-					"Could not upload custom user artifacts to the job manager.", e);
+					"Could not upload job files.", e);
 		}
 
 		CompletableFuture<Acknowledge> submissionFuture = jobManagerGateway.submitJob(jobGraph, ListeningBehaviour.DETACHED, timeout);

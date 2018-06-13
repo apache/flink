@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -39,6 +42,8 @@ import akka.actor.Status;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -154,22 +159,21 @@ public class JobSubmissionClientActor extends JobClientActor {
 		final CompletableFuture<Void> jarUploadFuture = blobServerAddressFuture.thenAcceptAsync(
 			(InetSocketAddress blobServerAddress) -> {
 				try {
-					jobGraph.uploadUserJars(blobServerAddress, clientConfig);
+					List<Path> userJars = jobGraph.getUserJars();
+					Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
+					if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
+						try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
+							LOG.info("Uploading jar files.");
+							ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
+							LOG.info("Uploading jar artifacts.");
+							ClientUtils.uploadAndSetUserArtifacts(jobGraph, blobClient);
+						}
+					}
 				} catch (IOException e) {
 					throw new CompletionException(
 						new JobSubmissionException(
 							jobGraph.getJobID(),
-							"Could not upload the jar files to the job manager.",
-							e));
-				}
-
-				try {
-					jobGraph.uploadUserArtifacts(blobServerAddress, clientConfig);
-				} catch (IOException e) {
-					throw new CompletionException(
-						new JobSubmissionException(
-							jobGraph.getJobID(),
-							"Could not upload custom user artifacts to the job manager.",
+							"Could not upload job files.",
 							e));
 				}
 			},

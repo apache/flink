@@ -21,6 +21,7 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -30,7 +31,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -91,6 +92,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -583,8 +585,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	public void runDetached(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
-		uploadUserArtifacts(job);
-
 		final CompletableFuture<JobSubmissionResult> submissionFuture = submitJob(job);
 
 		try {
@@ -608,7 +608,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	public JobExecutionResult executeJobBlocking(JobGraph job) throws JobExecutionException, InterruptedException {
 		checkNotNull(job, "job is null");
 
-		uploadUserArtifacts(job);
 		final CompletableFuture<JobSubmissionResult> submissionFuture = submitJob(job);
 
 		final CompletableFuture<JobResult> jobResultFuture = submissionFuture.thenCompose(
@@ -631,15 +630,6 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private void uploadUserArtifacts(JobGraph job) throws JobExecutionException {
-		try {
-			final InetSocketAddress blobAddress = new InetSocketAddress(InetAddress.getLocalHost(), blobServer.getPort());
-			job.uploadUserArtifacts(blobAddress, miniClusterConfiguration.getConfiguration());
-		} catch (IOException e) {
-			throw new JobExecutionException(job.getJobID(), "Could not upload user artifacts", e);
-		}
-	}
-
 	public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
 		final DispatcherGateway dispatcherGateway;
 		try {
@@ -653,7 +643,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// from the ResourceManager
 		jobGraph.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJarFiles(dispatcherGateway, jobGraph);
+		final CompletableFuture<BlobClient> blobClientFuture = createBlobClient(dispatcherGateway);
+
+		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJobFiles(blobClientFuture, jobGraph);
 
 		final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = jarUploadFuture.thenCompose(
 			(Void ack) -> dispatcherGateway.submitJob(jobGraph, rpcTimeout));
@@ -685,14 +677,17 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private CompletableFuture<Void> uploadAndSetJarFiles(final DispatcherGateway currentDispatcherGateway, final JobGraph job) {
+	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<BlobClient> blobClientFuture, final JobGraph job) {
 		List<Path> userJars = job.getUserJars();
-		if (!userJars.isEmpty()) {
-			CompletableFuture<List<PermanentBlobKey>> jarUploadFuture = uploadJarFiles(currentDispatcherGateway, job.getJobID(), job.getUserJars());
-			return jarUploadFuture.thenAccept(blobKeys -> {
-					for (PermanentBlobKey blobKey : blobKeys) {
-						job.addUserJarBlobKey(blobKey);
-					}
+		Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = job.getUserArtifacts();
+		if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
+			return blobClientFuture.thenAccept(blobClient -> {
+				try (BlobClient client = blobClient) {
+					ClientUtils.uploadAndSetUserJars(job, client);
+					ClientUtils.uploadAndSetUserArtifacts(job, client);
+				} catch (IOException ioe) {
+					throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
+				}
 				});
 		} else {
 			LOG.debug("No jars to upload for job {}.", job.getJobID());
@@ -700,13 +695,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private CompletableFuture<List<PermanentBlobKey>> uploadJarFiles(final DispatcherGateway currentDispatcherGateway, final JobID jobId, final List<Path> jars) {
+	private CompletableFuture<BlobClient> createBlobClient(final DispatcherGateway currentDispatcherGateway) {
 		return currentDispatcherGateway.getBlobServerPort(rpcTimeout)
 			.thenApply(blobServerPort -> {
 				InetSocketAddress blobServerAddress = new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort);
 
 				try {
-					return BlobClient.uploadFiles(blobServerAddress, miniClusterConfiguration.getConfiguration(), jobId, jars);
+					return new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration());
 				} catch (IOException ioe) {
 					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
 				}

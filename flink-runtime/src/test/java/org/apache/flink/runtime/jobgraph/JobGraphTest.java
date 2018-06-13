@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import static org.junit.Assert.*;
-
-import java.net.InetSocketAddress;
-import java.util.List;
-
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class JobGraphTest extends TestLogger {
 
@@ -263,22 +266,6 @@ public class JobGraphTest extends TestLogger {
 			fail(e.getMessage());
 		}
 	}
-
-	@Test
-	public void testConfiguringDistributedCache() throws Exception {
-		JobGraph testJob = new JobGraph("Test job");
-		testJob.addUserArtifact("dfsFile", new DistributedCache.DistributedCacheEntry("hdfs://tmp/file", false));
-
-		//it should never try to connect to that address
-		testJob.uploadUserArtifacts(new InetSocketAddress("localhost", 1111), new Configuration());
-
-		Configuration jobConfiguration = testJob.getJobConfiguration();
-		assertEquals(1, jobConfiguration.getInteger("DISTRIBUTED_CACHE_FILE_NUM", -1));
-		assertFalse(jobConfiguration.getBoolean("DISTRIBUTED_CACHE_FILE_DIR_1", true));
-		assertEquals("dfsFile", jobConfiguration.getString("DISTRIBUTED_CACHE_FILE_NAME_1", ""));
-		assertEquals("hdfs://tmp/file", jobConfiguration.getString("DISTRIBUTED_CACHE_FILE_PATH_1", ""));
-		assertFalse(jobConfiguration.getBoolean("DISTRIBUTED_CACHE_FILE_EXE_1", true));
-	}
 	
 	private static final void assertBefore(JobVertex v1, JobVertex v2, List<JobVertex> list) {
 		boolean seenFirst = false;
@@ -292,6 +279,34 @@ public class JobGraphTest extends TestLogger {
 				}
 				break;
 			}
+		}
+	}
+
+	@Test
+	public void testSetUserArtifactBlobKey() throws IOException, ClassNotFoundException {
+		JobGraph jb = new JobGraph();
+
+		final DistributedCache.DistributedCacheEntry[] entries = {
+			new DistributedCache.DistributedCacheEntry("p1", true, true),
+			new DistributedCache.DistributedCacheEntry("p2", true, false),
+			new DistributedCache.DistributedCacheEntry("p3", false, true),
+			new DistributedCache.DistributedCacheEntry("p4", true, false),
+		};
+
+		for (DistributedCache.DistributedCacheEntry entry : entries) {
+			jb.addUserArtifact(entry.filePath, entry);
+		}
+
+		for (DistributedCache.DistributedCacheEntry entry : entries) {
+			PermanentBlobKey blobKey = new PermanentBlobKey();
+			jb.setUserArtifactBlobKey(entry.filePath, blobKey);
+
+			DistributedCache.DistributedCacheEntry jobGraphEntry = jb.getUserArtifacts().get(entry.filePath);
+			assertNotNull(jobGraphEntry);
+			assertEquals(blobKey, InstantiationUtil.deserializeObject(jobGraphEntry.blobKey, ClassLoader.getSystemClassLoader(), false));
+			assertEquals(entry.isExecutable, jobGraphEntry.isExecutable);
+			assertEquals(entry.isZipped, jobGraphEntry.isZipped);
+			assertEquals(entry.filePath, jobGraphEntry.filePath);
 		}
 	}
 }
