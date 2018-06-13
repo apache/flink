@@ -132,7 +132,7 @@ public class DistributedCacheDfsTest {
 		env.execute("Distributed Cache Via Blob Test Program");
 	}
 
-	static class TestMapFunction extends RichMapFunction<Integer, String> {
+	private static class TestMapFunction extends RichMapFunction<Integer, String> {
 
 		private static final long serialVersionUID = -3917258280687242969L;
 

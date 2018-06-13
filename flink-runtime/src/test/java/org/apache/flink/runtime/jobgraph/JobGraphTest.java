@@ -20,9 +20,12 @@ package org.apache.flink.runtime.jobgraph;
 
 import static org.junit.Assert.*;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.junit.Test;
@@ -257,6 +260,22 @@ public class JobGraphTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testConfiguringDistributedCache() throws Exception {
+		JobGraph testJob = new JobGraph("Test job");
+		testJob.addUserArtifact("dfsFile", new DistributedCache.DistributedCacheEntry("hdfs://tmp/file", false));
+
+		//it should never try to connect to that address
+		testJob.uploadUserArtifacts(new InetSocketAddress("localhost", 1111), new Configuration());
+
+		Configuration jobConfiguration = testJob.getJobConfiguration();
+		assertEquals(1, jobConfiguration.getInteger("DISTRIBUTED_CACHE_FILE_NUM", -1));
+		assertFalse(jobConfiguration.getBoolean("DISTRIBUTED_CACHE_FILE_DIR_1", true));
+		assertEquals("dfsFile", jobConfiguration.getString("DISTRIBUTED_CACHE_FILE_NAME_1", ""));
+		assertEquals("hdfs://tmp/file", jobConfiguration.getString("DISTRIBUTED_CACHE_FILE_PATH_1", ""));
+		assertFalse(jobConfiguration.getBoolean("DISTRIBUTED_CACHE_FILE_EXE_1", true));
 	}
 	
 	private static final void assertBefore(JobVertex v1, JobVertex v2, List<JobVertex> list) {
