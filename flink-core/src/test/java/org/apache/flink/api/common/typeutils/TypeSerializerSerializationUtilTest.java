@@ -154,7 +154,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out),
 				configSnapshot1,
 				StringSerializer.INSTANCE);
@@ -162,14 +162,13 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerConfigSnapshot[] restoredConfigs;
+		TypeSerializerConfigSnapshot<?> restoredConfigs;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfigs = TypeSerializerSerializationUtil.readSerializerConfigSnapshots(
+			restoredConfigs = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		assertEquals(2, restoredConfigs.length);
-		assertEquals(configSnapshot1, restoredConfigs[0]);
+		assertEquals(configSnapshot1, restoredConfigs);
 	}
 
 	/**
@@ -179,7 +178,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 	public void testFailsWhenConfigurationSnapshotClassNotFound() throws Exception {
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out),
 				new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(123, "foobar"),
 				StringSerializer.INSTANCE);
@@ -188,7 +187,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			// read using a dummy classloader
-			TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null));
 			fail("Expected a ClassNotFoundException wrapped in IOException");
 		} catch (IOException expected) {

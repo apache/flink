@@ -110,14 +110,14 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out), configSnapshot, getSerializer());
 			serializedConfig = out.toByteArray();
 		}
 
 		TypeSerializerConfigSnapshot restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+			restoredConfig = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
