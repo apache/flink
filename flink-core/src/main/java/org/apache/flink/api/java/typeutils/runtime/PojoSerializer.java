@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -802,7 +803,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
 				}
 
 				// --- write registered subclasses and their serializers, in registration order
@@ -819,7 +820,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
 				}
 
 				// --- write snapshot of non-registered subclass serializer cache
@@ -836,7 +837,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					out.writeInt(outWithPos.getPosition());
-					TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
+					TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(outViewWrapper, entry.getValue().f1);
 				}
 
 				out.writeInt(outWithPos.getPosition());
@@ -891,7 +892,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(fieldSerializerOffsets[i * 2 + 1]);
-					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
+					fieldSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
 
 					fieldToSerializerConfigSnapshot.put(
 						fieldName,
@@ -917,7 +918,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					registeredSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(registeredSerializerOffsets[i * 2 + 1]);
-					registeredSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
+					registeredSubclassSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
 
 					this.registeredSubclassesToSerializerConfigSnapshots.put(
 						registeredSubclass,
@@ -943,7 +944,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					cachedSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(cachedSerializerOffsets[i * 2 + 1]);
-					cachedSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
+					cachedSubclassSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
 
 					this.nonRegisteredSubclassesToSerializerConfigSnapshots.put(
 						cachedSubclass,
