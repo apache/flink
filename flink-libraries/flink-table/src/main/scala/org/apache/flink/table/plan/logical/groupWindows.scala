@@ -59,7 +59,7 @@ case class TumblingGroupWindow(
         case _: BatchTableEnvironment
           if !(isTimePoint(timeField.resultType) || isLong(timeField.resultType)) =>
           ValidationFailure(
-            "Tumbling window expects a time attribute for grouping in a stream environment.")
+            "Tumbling window expects a time attribute for grouping in a batch environment.")
 
         // check row intervals on event-time
         case _: StreamTableEnvironment
