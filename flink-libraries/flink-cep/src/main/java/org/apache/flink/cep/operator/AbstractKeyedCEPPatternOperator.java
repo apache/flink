@@ -334,9 +334,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		}
 
 		// STEP 3
-		if (sortedTimestamps.isEmpty()) {
-			elementQueueState.clear();
-		}
 		updateNFA(nfa);
 	}
 
