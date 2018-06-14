@@ -481,7 +481,7 @@ public abstract class ClusterClient<T> {
 			actorSystem = actorSystemLoader.get();
 		} catch (FlinkException fe) {
 			throw new ProgramInvocationException("Could not start the ActorSystem needed to talk to the " +
-				"JobManager.", fe);
+				"JobManager.", jobGraph.getJobID(), fe);
 		}
 
 		try {
@@ -497,7 +497,7 @@ public abstract class ClusterClient<T> {
 
 			return lastJobExecutionResult;
 		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), jobGraph.getJobID(), e);
 		}
 	}
 
@@ -516,7 +516,8 @@ public abstract class ClusterClient<T> {
 		try {
 			jobManagerGateway = getJobManagerGateway();
 		} catch (Exception e) {
-			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.", e);
+			throw new ProgramInvocationException("Failed to retrieve the JobManager gateway.",
+				jobGraph.getJobID(), e);
 		}
 
 		try {
@@ -529,7 +530,8 @@ public abstract class ClusterClient<T> {
 				classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(),
+				jobGraph.getJobID(), e);
 		}
 	}
 
