@@ -158,8 +158,8 @@ public class SavepointHandlersTest extends TestLogger {
 		} catch (RestHandlerException rhe) {
 			assertThat(
 				rhe.getMessage(),
-				equalTo("Config key [state.savepoints.dir] is not set. " +
-					"Property [target-directory] must be provided."));
+				equalTo("[Config key [state.savepoints.dir] is not set. " +
+					"Property [target-directory] must be provided.]"));
 			assertThat(rhe.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
 		}
 	}

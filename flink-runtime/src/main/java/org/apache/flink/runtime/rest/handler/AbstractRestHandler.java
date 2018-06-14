@@ -92,7 +92,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					HandlerUtils.sendErrorResponse(
 						ctx,
 						httpRequest,
-						new ErrorResponseBody(rhe.getMessage()),
+						new ErrorResponseBody(rhe.getMessages()),
 						rhe.getHttpResponseStatus(),
 						responseHeaders);
 				} else {
