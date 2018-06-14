@@ -28,7 +28,7 @@ import org.apache.flink.cep.PatternFlatTimeoutFunction;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.PatternTimeoutFunction;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;

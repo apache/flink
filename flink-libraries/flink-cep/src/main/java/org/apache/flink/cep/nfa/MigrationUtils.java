@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.util.Preconditions;
@@ -40,7 +41,7 @@ class MigrationUtils {
 	/**
 	 * Skips bytes corresponding to serialized states. In flink 1.6+ the states are no longer kept in state.
 	 */
-	static <T> void skipSerializedStates(DataInputView in) throws IOException {
+	static void skipSerializedStates(DataInputView in) throws IOException {
 		TypeSerializer<String> nameSerializer = StringSerializer.INSTANCE;
 		TypeSerializer<State.StateType> stateTypeSerializer = new EnumSerializer<>(State.StateType.class);
 		TypeSerializer<StateTransitionAction> actionSerializer = new EnumSerializer<>(StateTransitionAction.class);
@@ -73,7 +74,7 @@ class MigrationUtils {
 		}
 	}
 
-	private static <T> void skipCondition(DataInputView in) throws IOException, ClassNotFoundException {
+	private static void skipCondition(DataInputView in) throws IOException, ClassNotFoundException {
 		boolean hasCondition = in.readBoolean();
 		if (hasCondition) {
 			int length = in.readInt();
@@ -115,13 +116,16 @@ class MigrationUtils {
 			}
 
 			NodeId nodeId;
+			EventId startEventId;
 			if (prevState != null) {
 				nodeId = sharedBuffer.getNodeId(prevState, timestamp, counter, event);
+				startEventId = sharedBuffer.getStartEventId(version.getRun());
 			} else {
 				nodeId = null;
+				startEventId = null;
 			}
 
-			computationStates.add(ComputationState.createState(state, nodeId, version, startTimestamp));
+			computationStates.add(ComputationState.createState(state, nodeId, version, startTimestamp, startEventId));
 		}
 		return computationStates;
 	}

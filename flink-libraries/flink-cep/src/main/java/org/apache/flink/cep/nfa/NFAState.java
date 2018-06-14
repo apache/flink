@@ -18,7 +18,10 @@
 
 package org.apache.flink.cep.nfa;
 
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.Queue;
 
 /**
@@ -31,16 +34,28 @@ public class NFAState {
 	 * These are the "active" intermediate states that are waiting for new matching
 	 * events to transition to new valid states.
 	 */
-	private final Queue<ComputationState> computationStates;
+	private final Queue<ComputationState> partialMatches;
+
+	private PriorityQueue<ComputationState> completedMatches;
 
 	/**
 	 * Flag indicating whether the matching status of the state machine has changed.
 	 */
 	private boolean stateChanged;
 
-	public NFAState(Queue<ComputationState> computationStates) {
-		this.computationStates = computationStates;
-		this.stateChanged = false;
+	public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
+		Comparator.<ComputationState>comparingLong(c ->
+				c.getStartEventID() != null ? c.getStartEventID().getTimestamp() : Long.MIN_VALUE)
+			.thenComparingInt(c ->
+				c.getStartEventID() != null ? c.getStartEventID().getId() : Integer.MIN_VALUE);
+
+	public NFAState(Iterable<ComputationState> states) {
+		this.partialMatches = new LinkedList<>();
+		for (ComputationState startingState : states) {
+			partialMatches.add(startingState);
+		}
+
+		this.completedMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
 	}
 
 	/**
@@ -66,8 +81,12 @@ public class NFAState {
 		this.stateChanged = true;
 	}
 
-	public Queue<ComputationState> getComputationStates() {
-		return computationStates;
+	public Queue<ComputationState> getPartialMatches() {
+		return partialMatches;
+	}
+
+	public Queue<ComputationState> getCompletedMatches() {
+		return completedMatches;
 	}
 
 	@Override
@@ -79,18 +98,18 @@ public class NFAState {
 			return false;
 		}
 		NFAState nfaState = (NFAState) o;
-		return 	Objects.equals(computationStates, nfaState.computationStates);
+		return Objects.equals(partialMatches, nfaState.partialMatches);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(computationStates, stateChanged);
+		return Objects.hash(partialMatches, stateChanged);
 	}
 
 	@Override
 	public String toString() {
 		return "NFAState{" +
-			"computationStates=" + computationStates +
+			"partialMatches=" + partialMatches +
 			", stateChanged=" + stateChanged +
 			'}';
 	}

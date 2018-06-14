@@ -2342,8 +2342,8 @@ public class NFAITCase extends TestLogger {
 		//pruning element
 		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -2386,8 +2386,8 @@ public class NFAITCase extends TestLogger {
 		//pruning element
 		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -2432,8 +2432,8 @@ public class NFAITCase extends TestLogger {
 		//pruning element
 		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -2478,8 +2478,8 @@ public class NFAITCase extends TestLogger {
 		//pruning element
 		nfa.advanceTime(sharedBuffer, nfaState, 10);
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	///////////////////////////////////////   Skip till next     /////////////////////////////

@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -213,11 +214,11 @@ public class SharedBuffer<V> {
 	 * @return Collection of previous relations starting with the given value
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public List<Map<String, List<V>>> extractPatterns(
+	public List<Map<String, List<EventId>>> extractPatterns(
 			final NodeId nodeId,
 			final DeweyNumber version) throws Exception {
 
-		List<Map<String, List<V>>> result = new ArrayList<>();
+		List<Map<String, List<EventId>>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState> extractionStates = new Stack<>();
@@ -238,15 +239,15 @@ public class SharedBuffer<V> {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final Map<String, List<V>> completePath = new LinkedHashMap<>();
+					final Map<String, List<EventId>> completePath = new LinkedHashMap<>();
 
 					while (!currentPath.isEmpty()) {
 						final NodeId currentPathEntry = currentPath.pop().f0;
 
 						String page = currentPathEntry.getPageName();
-						List<V> values = completePath
+						List<EventId> values = completePath
 							.computeIfAbsent(page, k -> new ArrayList<>());
-						values.add(eventsBuffer.get(currentPathEntry.getEventId()).getElement());
+						values.add(currentPathEntry.getEventId());
 					}
 					result.add(completePath);
 				} else {
@@ -283,6 +284,22 @@ public class SharedBuffer<V> {
 			}
 		}
 		return result;
+	}
+
+	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match) {
+		return match.entrySet().stream().sequential().collect(Collectors.toMap(
+			Map.Entry::getKey,
+			e -> e.getValue().stream().sequential().map(id -> {
+					try {
+						return eventsBuffer.get(id).getElement();
+					} catch (Exception ex) {
+						throw new RuntimeException(ex);
+					}
+				}
+			).collect(toList()),
+			(m1, m2) -> m1,
+			LinkedHashMap::new)
+		);
 	}
 
 	/**
