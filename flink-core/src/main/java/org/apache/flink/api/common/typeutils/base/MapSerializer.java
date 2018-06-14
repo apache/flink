@@ -21,10 +21,8 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -218,24 +216,15 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 				((MapSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
 					previousKvSerializersAndConfigs.get(0).f1,
 					keySerializer);
 
 			CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(1).f0,
-					UnloadableDummyTypeSerializer.class,
 					previousKvSerializersAndConfigs.get(1).f1,
 					valueSerializer);
 
 			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
 				return CompatibilityResult.compatible();
-			} else if (keyCompatResult.getConvertDeserializer() != null && valueCompatResult.getConvertDeserializer() != null) {
-				return CompatibilityResult.requiresMigration(
-					new MapSerializer<>(
-						new TypeDeserializerAdapter<>(keyCompatResult.getConvertDeserializer()),
-						new TypeDeserializerAdapter<>(valueCompatResult.getConvertDeserializer())));
 			}
 		}
 

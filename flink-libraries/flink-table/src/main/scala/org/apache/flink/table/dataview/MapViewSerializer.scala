@@ -105,14 +105,10 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
     val previousKvSerializersAndConfigs = configSnapshot.getNestedSerializersAndConfigs
 
     val keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousKvSerializersAndConfigs.get(0).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       previousKvSerializersAndConfigs.get(0).f1,
       mapSerializer.getKeySerializer)
 
     val valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousKvSerializersAndConfigs.get(1).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       previousKvSerializersAndConfigs.get(1).f1,
       mapSerializer.getValueSerializer)
 

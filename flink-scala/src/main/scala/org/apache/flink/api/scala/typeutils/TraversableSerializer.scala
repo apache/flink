@@ -164,8 +164,6 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
           : TraversableSerializerConfigSnapshot[T, E] =>
 
         val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           elementSerializer)
 

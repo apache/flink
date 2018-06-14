@@ -226,14 +226,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			// check compatibility to determine if state migration is required
 			CompatibilityResult<K> keyCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getKeySerializer(),
-					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getKeySerializerConfigSnapshot(),
 					broadcastStateKeySerializer);
 
 			CompatibilityResult<V> valueCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getValueSerializer(),
-					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getValueSerializerConfigSnapshot(),
 					broadcastStateValueSerializer);
 
@@ -759,8 +755,6 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			// check compatibility to determine if state migration is required
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
 			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getPartitionStateSerializer(),
-					UnloadableDummyTypeSerializer.class,
 					restoredMetaInfo.getPartitionStateSerializerConfigSnapshot(),
 					newPartitionStateSerializer);
 

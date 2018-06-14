@@ -21,10 +21,8 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
@@ -357,37 +355,22 @@ public class SharedBuffer<V> {
 					((SharedBufferSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
 				CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					serializerConfigSnapshots.get(0).f0,
-					UnloadableDummyTypeSerializer.class,
-					serializerConfigSnapshots.get(0).f1,
-					keySerializer);
+						serializerConfigSnapshots.get(0).f1,
+						keySerializer);
 
 				CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					serializerConfigSnapshots.get(1).f0,
-					UnloadableDummyTypeSerializer.class,
-					serializerConfigSnapshots.get(1).f1,
-					valueSerializer);
+						serializerConfigSnapshots.get(1).f1,
+						valueSerializer);
 
 				CompatibilityResult<DeweyNumber> versionCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					serializerConfigSnapshots.get(2).f0,
-					UnloadableDummyTypeSerializer.class,
-					serializerConfigSnapshots.get(2).f1,
-					versionSerializer);
+						serializerConfigSnapshots.get(2).f1,
+						versionSerializer);
 
 				if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration() &&
 					!versionCompatResult.isRequiresMigration()) {
 					return CompatibilityResult.compatible();
 				} else {
-					if (keyCompatResult.getConvertDeserializer() != null
-						&& valueCompatResult.getConvertDeserializer() != null
-						&& versionCompatResult.getConvertDeserializer() != null) {
-						return CompatibilityResult.requiresMigration(
-							new SharedBufferSerializer<>(
-								new TypeDeserializerAdapter<>(keyCompatResult.getConvertDeserializer()),
-								new TypeDeserializerAdapter<>(valueCompatResult.getConvertDeserializer()),
-								new TypeDeserializerAdapter<>(versionCompatResult.getConvertDeserializer())
-							));
-					}
+					return CompatibilityResult.requiresMigration();
 				}
 			}
 

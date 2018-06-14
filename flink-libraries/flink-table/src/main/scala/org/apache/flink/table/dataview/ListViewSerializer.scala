@@ -102,8 +102,6 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
     val previousListSerializerAndConfig = configSnapshot.getSingleNestedSerializerAndConfig
 
     val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousListSerializerAndConfig.f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       previousListSerializerAndConfig.f1,
       listSerializer.getElementSerializer)
 

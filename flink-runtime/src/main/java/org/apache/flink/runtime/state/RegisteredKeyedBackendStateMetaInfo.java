@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
@@ -273,15 +272,11 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 
 		// check compatibility results to determine if state migration is required
 		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getNamespaceSerializer(),
-			null,
 			restoredStateMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
 			newNamespaceSerializer);
 
 		TypeSerializer<S> newStateSerializer = newStateDescriptor.getSerializer();
 		CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getStateSerializer(),
-			UnloadableDummyTypeSerializer.class,
 			restoredStateMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
 			newStateSerializer);
 

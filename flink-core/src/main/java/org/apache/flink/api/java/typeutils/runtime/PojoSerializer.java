@@ -39,7 +39,6 @@ import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
@@ -598,8 +597,6 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
-			boolean requiresMigration = false;
-
 			if (clazz.equals(config.getTypeClass())) {
 				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
 
@@ -622,19 +619,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 							reorderedFields[i] = fields[fieldIndex];
 
 							compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								fieldToConfigSnapshotEntry.getValue().f0,
-								UnloadableDummyTypeSerializer.class,
 								fieldToConfigSnapshotEntry.getValue().f1,
 								fieldSerializers[fieldIndex]);
 
 							if (compatResult.isRequiresMigration()) {
-								requiresMigration = true;
-
-								if (compatResult.getConvertDeserializer() != null) {
-									reorderedFieldSerializers[i] = (TypeSerializer<Object>) compatResult.getConvertDeserializer();
-								} else {
-									return CompatibilityResult.requiresMigration();
-								}
+								return CompatibilityResult.requiresMigration();
 							} else {
 								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
 							}
@@ -671,17 +660,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousRegisteredSerializerConfig : previousRegistrations.values()) {
 						// check compatibility of subclass serializer
 						compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								previousRegisteredSerializerConfig.f0,
-								UnloadableDummyTypeSerializer.class,
 								previousRegisteredSerializerConfig.f1,
 								reorderedRegisteredSubclassSerializers[i]);
 
 						if (compatResult.isRequiresMigration()) {
-							requiresMigration = true;
-
-							if (compatResult.getConvertDeserializer() == null) {
-								return CompatibilityResult.requiresMigration();
-							}
+							return CompatibilityResult.requiresMigration();
 						}
 
 						i++;
@@ -700,19 +683,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 						// check compatibility of cached subclass serializer
 						compatResult = CompatibilityUtil.resolveCompatibilityResult(
-								previousCachedEntry.getValue().f0,
-								UnloadableDummyTypeSerializer.class,
 								previousCachedEntry.getValue().f1,
 								cachedSerializer);
 
 						if (compatResult.isRequiresMigration()) {
-							requiresMigration = true;
-
-							if (compatResult.getConvertDeserializer() != null) {
-								rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
-							} else {
-								return CompatibilityResult.requiresMigration();
-							}
+							return CompatibilityResult.requiresMigration();
 						} else {
 							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
 						}
@@ -721,26 +696,15 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					// completed compatibility checks; up to this point, we can just reconfigure
 					// the serializer so that it is compatible and migration is not required
 
-					if (!requiresMigration) {
-						this.fields = reorderedFields;
-						this.fieldSerializers = reorderedFieldSerializers;
+					this.fields = reorderedFields;
+					this.fieldSerializers = reorderedFieldSerializers;
 
-						this.registeredClasses = reorderedRegisteredSubclassesToClasstags;
-						this.registeredSerializers = reorderedRegisteredSubclassSerializers;
+					this.registeredClasses = reorderedRegisteredSubclassesToClasstags;
+					this.registeredSerializers = reorderedRegisteredSubclassSerializers;
 
-						this.subclassSerializerCache = rebuiltCache;
+					this.subclassSerializerCache = rebuiltCache;
 
-						return CompatibilityResult.compatible();
-					} else {
-						return CompatibilityResult.requiresMigration(
-							new PojoSerializer<>(
-								clazz,
-								reorderedFields,
-								reorderedFieldSerializers,
-								reorderedRegisteredSubclassesToClasstags,
-								reorderedRegisteredSubclassSerializers,
-								rebuiltCache));
-					}
+					return CompatibilityResult.compatible();
 				}
 			}
 		}

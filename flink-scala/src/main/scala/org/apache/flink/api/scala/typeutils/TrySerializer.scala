@@ -130,14 +130,10 @@ class TrySerializer[A](
       compositeConfigSnapshot.getNestedSerializersAndConfigs
 
     val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(0).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       previousSerializersAndConfigs.get(0).f1,
       elemSerializer)
 
     val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(1).f0,
-      classOf[UnloadableDummyTypeSerializer[_]],
       previousSerializersAndConfigs.get(1).f1,
       throwableSerializer)
 

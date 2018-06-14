@@ -90,20 +90,11 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
     configSnapshot match {
       case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
         val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-          crowSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           crowSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           rowSerializer)
 
         if (compatResult.isRequiresMigration) {
-          if (compatResult.getConvertDeserializer != null) {
-            CompatibilityResult.requiresMigration(
-              new CRowSerializer(
-                new TypeDeserializerAdapter(compatResult.getConvertDeserializer))
-            )
-          } else {
-            CompatibilityResult.requiresMigration()
-          }
+          CompatibilityResult.requiresMigration()
         } else {
           CompatibilityResult.compatible()
         }
