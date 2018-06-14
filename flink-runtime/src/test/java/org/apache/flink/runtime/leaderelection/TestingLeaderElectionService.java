@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import javax.annotation.Nonnull;
+
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,6 +32,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 	private LeaderContender contender;
 	private boolean hasLeadership = false;
 	private CompletableFuture<UUID> confirmationFuture = null;
+	private UUID issuedLeaderSessionId = null;
 
 	/**
 	 * Gets a future that completes when leadership is confirmed.
@@ -58,8 +61,8 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 	}
 
 	@Override
-	public synchronized boolean hasLeadership() {
-		return hasLeadership;
+	public synchronized boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+		return hasLeadership && leaderSessionId.equals(issuedLeaderSessionId);
 	}
 
 	public synchronized CompletableFuture<UUID> isLeader(UUID leaderSessionID) {
@@ -68,6 +71,7 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 		}
 		confirmationFuture = new CompletableFuture<>();
 		hasLeadership = true;
+		issuedLeaderSessionId = leaderSessionID;
 		contender.grantLeadership(leaderSessionID);
 
 		return confirmationFuture;

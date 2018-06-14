@@ -490,7 +490,8 @@ class JobManager(
 
             Option(submittedJobGraphOption) match {
               case Some(submittedJobGraph) =>
-                if (!leaderElectionService.hasLeadership()) {
+                if (leaderSessionID.isEmpty ||
+                  !leaderElectionService.hasLeadership(leaderSessionID.get)) {
                   // we've lost leadership. mission: abort.
                   log.warn(s"Lost leadership during recovery. Aborting recovery of $jobId.")
                 } else {
@@ -1381,7 +1382,8 @@ class JobManager(
           jobInfo.notifyClients(
             decorateMessage(JobSubmitSuccess(jobGraph.getJobID)))
 
-          if (leaderElectionService.hasLeadership) {
+          if (leaderSessionID.isDefined &&
+            leaderElectionService.hasLeadership(leaderSessionID.get)) {
             // There is a small chance that multiple job managers schedule the same job after if
             // they try to recover at the same time. This will eventually be noticed, but can not be
             // ruled out from the beginning.
