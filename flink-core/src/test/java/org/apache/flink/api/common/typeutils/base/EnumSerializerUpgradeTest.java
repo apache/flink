@@ -20,7 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
@@ -98,7 +98,8 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 			ByteArrayOutputStream outBuffer = new ByteArrayOutputStream();
 			DataOutputViewStreamWrapper outputViewStreamWrapper = new DataOutputViewStreamWrapper(outBuffer)) {
 
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(outputViewStreamWrapper, snapshot, enumSerializer);
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				outputViewStreamWrapper, snapshot, enumSerializer);
 			snapshotBytes = outBuffer.toByteArray();
 		}
 
@@ -110,7 +111,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 			ByteArrayInputStream inBuffer = new ByteArrayInputStream(snapshotBytes);
 			DataInputViewStreamWrapper inputViewStreamWrapper = new DataInputViewStreamWrapper(inBuffer)) {
 
-			restoredSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inputViewStreamWrapper, classLoader2);
+			restoredSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(inputViewStreamWrapper, classLoader2);
 		}
 
 		EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));
