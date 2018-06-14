@@ -424,7 +424,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			Iterator<LongValue> vertexCountIterator = vertexCount.iterator();
 			this.vertexCount = vertexCountIterator.hasNext() ? vertexCountIterator.next().getValue() : 0;
 
-			this.uniformlyDistributedScore = ((1 - dampingFactor) + dampingFactor * sumOfSinks) / this.vertexCount;
+			if (this.vertexCount != 0) {
+				this.uniformlyDistributedScore = ((1 - dampingFactor) + dampingFactor * sumOfSinks) / this.vertexCount;
+			}
 		}
 
 		@Override
