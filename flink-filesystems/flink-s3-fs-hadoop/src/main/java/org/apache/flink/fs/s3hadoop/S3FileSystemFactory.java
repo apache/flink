@@ -132,7 +132,12 @@ public class S3FileSystemFactory implements FileSystemFactory {
 			final S3AFileSystem fs = new S3AFileSystem();
 			fs.initialize(fsUri, hadoopConfig);
 
-			return new HadoopFileSystem(fs);
+			if (flinkConfig != null) {
+				return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, flinkConfig);
+			}
+			else {
+				return new HadoopFileSystem(fs);
+			}
 		}
 		catch (IOException e) {
 			throw e;

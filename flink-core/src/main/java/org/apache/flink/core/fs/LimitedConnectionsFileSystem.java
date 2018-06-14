@@ -37,6 +37,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
@@ -91,10 +92,10 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	private final long streamInactivityTimeoutNanos;
 
 	/** Rate limiter of incoming bytes for this filesystem. */
-	private final RateLimiter inputRateLimiter;
+	private final Optional<RateLimiter> inputRateLimiter;
 
 	/** Rate limiter of outgoing bytes for this filesystem. */
-	private final RateLimiter outputRateLimiter;
+	private final Optional<RateLimiter> outputRateLimiter;
 
 	/** The set of currently open output streams. */
 	@GuardedBy("lock")
@@ -205,8 +206,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			long streamOpenTimeout,
 			long streamInactivityTimeout,
 			long inputBytesPerSecondRate,
-			long outputBytesPerSecondRate
-			) {
+			long outputBytesPerSecondRate) {
 
 		checkArgument(maxNumOpenStreamsTotal >= 0, "maxNumOpenStreamsTotal must be >= 0");
 		checkArgument(maxNumOpenOutputStreams >= 0, "maxNumOpenOutputStreams must be >= 0");
@@ -235,8 +235,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		this.streamInactivityTimeoutNanos =
 				inactivityTimeoutNanos >= streamInactivityTimeout ? inactivityTimeoutNanos : Long.MAX_VALUE;
 
-		this.inputRateLimiter = inputBytesPerSecondRate > 0 ? RateLimiter.create(inputBytesPerSecondRate) : null;
-		this.outputRateLimiter = outputBytesPerSecondRate > 0 ? RateLimiter.create(outputBytesPerSecondRate) : null;
+		this.inputRateLimiter = Optional.ofNullable(inputBytesPerSecondRate > 0 ? RateLimiter.create(inputBytesPerSecondRate) : null);
+		this.outputRateLimiter = Optional.ofNullable(outputBytesPerSecondRate > 0 ? RateLimiter.create(outputBytesPerSecondRate) : null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -313,14 +313,22 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	 * Get the rate limitation on Input (bytes/s).
 	 */
 	public long getRateLimitingInput(){
-		return (long) inputRateLimiter.getRate();
+		if (inputRateLimiter.isPresent()){
+			return (long) inputRateLimiter.get().getRate();
+		} else {
+			return 0;
+		}
 	}
 
 	/**
 	 * Get the rate limitation on Output (bytes/s).
 	 */
 	public long getRateLimitingOutput(){
-		return (long) outputRateLimiter.getRate();
+		if (outputRateLimiter.isPresent()){
+			return (long) outputRateLimiter.get().getRate();
+		} else {
+			return 0;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -791,9 +799,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public void write(int b) throws IOException {
 			try {
 				originalStream.write(b);
-				if (fs.outputRateLimiter != null){
-					fs.outputRateLimiter.acquire(1);
-				}
+				fs.outputRateLimiter.ifPresent(RateLimiter::acquire);
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -804,10 +810,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public void write(byte[] b, int off, int len) throws IOException {
 			try {
 				originalStream.write(b, off, len);
-				if (fs.outputRateLimiter != null){
-					fs.outputRateLimiter.acquire(len);
-				}
-
+				fs.outputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -924,9 +927,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public int read() throws IOException {
 			try {
 				int b = originalStream.read();
-				if (fs.inputRateLimiter != null){
-					fs.inputRateLimiter.acquire();
-				}
+				fs.inputRateLimiter.ifPresent(RateLimiter::acquire);
 				return b;
 			}
 			catch (IOException e) {
@@ -939,9 +940,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public int read(byte[] b) throws IOException {
 			try {
 				int len = originalStream.read(b);
-				if (fs.inputRateLimiter != null){
-					fs.inputRateLimiter.acquire(len);
-				}
+				fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
 				return len;
 			}
 			catch (IOException e) {
@@ -954,9 +953,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public int read(byte[] b, int off, int len) throws IOException {
 			try {
 				int realLen =  originalStream.read(b, off, len);
-				if (fs.inputRateLimiter != null){
-					fs.inputRateLimiter.acquire(realLen);
-				}
+				fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(realLen));
 				return realLen;
 			}
 			catch (IOException e) {

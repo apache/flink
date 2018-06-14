@@ -131,7 +131,13 @@ public class S3FileSystemFactory implements FileSystemFactory {
 			final PrestoS3FileSystem fs = new PrestoS3FileSystem();
 			fs.initialize(initUri, hadoopConfig);
 
-			return new HadoopFileSystem(fs);
+			// create the Flink file system, optionally limiting the open connections
+			if (flinkConfig != null) {
+				return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, flinkConfig);
+			}
+			else {
+				return new HadoopFileSystem(fs);
+			}
 		}
 		catch (IOException e) {
 			throw e;

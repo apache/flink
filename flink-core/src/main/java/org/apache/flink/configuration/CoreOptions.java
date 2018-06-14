@@ -278,7 +278,7 @@ public class CoreOptions {
 	 * Unlimited be default.
 	 */
 	public static ConfigOption<Long> rateLimitingInputBytesPerSeconds(String scheme) {
-		return ConfigOptions.key("fs." + scheme + ".limit.rateLimitingInput").defaultValue(0L);
+		return ConfigOptions.key("fs." + scheme + ".limit.input-rate-limit").defaultValue(0L);
 	}
 
 	/**
@@ -286,7 +286,7 @@ public class CoreOptions {
 	 * Unlimited be default.
 	 */
 	public static ConfigOption<Long> rateLimitingOutputBytesPerSeconds(String scheme) {
-		return ConfigOptions.key("fs." + scheme + ".limit.rateLimitingOutput").defaultValue(0L);
+		return ConfigOptions.key("fs." + scheme + ".limit.output-rate-limit").defaultValue(0L);
 	}
 
 
