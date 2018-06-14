@@ -192,7 +192,6 @@ public class StringValue implements NormalizableKey<StringValue>, CharSequence, 
 		for (int i = 0; i < len; i++) {
 			this.value[i] = value.charAt(offset + i);
 		}
-		this.len = len;
 		this.hashCode = 0;
 	}
 	
