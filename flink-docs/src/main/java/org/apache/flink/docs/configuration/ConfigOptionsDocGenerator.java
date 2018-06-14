@@ -26,6 +26,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -43,8 +45,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.docs.util.Utils.escapeCharacters;
-
 /**
  * Class used for generating code based documentation of configuration parameters.
  */
@@ -58,6 +58,11 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
 	};
 
+	static final String DEFAULT_PATH_PREFIX = "src/main/java";
+
+	@VisibleForTesting
+	static final String COMMON_SECTION_FILE_NAME = "common_section.html";
+
 	private static final String CLASS_NAME_GROUP = "className";
 	private static final String CLASS_PREFIX_GROUP = "classPrefix";
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?<" + CLASS_NAME_GROUP + ">(?<" + CLASS_PREFIX_GROUP + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
@@ -69,6 +74,9 @@ public class ConfigOptionsDocGenerator {
 	 * the class is annotated with {@link ConfigGroups}. The tables contain the key, default value and description for
 	 * every {@link ConfigOption}.
 	 *
+	 * <p>One additional table is generated containing all {@link ConfigOption ConfigOptions} that are annotated with
+	 * {@link org.apache.flink.annotation.docs.Documentation.CommonOption}.
+	 *
 	 * @param args
 	 *  [0] output directory for the generated files
 	 *  [1] project root directory
@@ -78,12 +86,42 @@ public class ConfigOptionsDocGenerator {
 		String rootDir = args[1];
 
 		for (OptionsClassLocation location : LOCATIONS) {
-			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory);
+			createTable(rootDir, location.getModule(), location.getPackage(), outputDirectory, DEFAULT_PATH_PREFIX);
 		}
+
+		generateCommonSection(rootDir, outputDirectory, LOCATIONS, DEFAULT_PATH_PREFIX);
 	}
 
-	private static void createTable(String rootDir, String module, String packageName, String outputDirectory) throws IOException, ClassNotFoundException {
-		processConfigOptions(rootDir, module, packageName, optionsClass -> {
+	@VisibleForTesting
+	static void generateCommonSection(String rootDir, String outputDirectory, OptionsClassLocation[] locations, String pathPrefix) throws IOException, ClassNotFoundException {
+		List<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		for (OptionsClassLocation location : locations) {
+			commonOptions.addAll(findCommonOptions(rootDir, location.getModule(), location.getPackage(), pathPrefix));
+		}
+		commonOptions.sort((o1, o2) -> {
+			int position1 = o1.field.getAnnotation(Documentation.CommonOption.class).position();
+			int position2 = o2.field.getAnnotation(Documentation.CommonOption.class).position();
+			if (position1 == position2) {
+				return o1.option.key().compareTo(o2.option.key());
+			} else {
+				return Integer.compare(position1, position2);
+			}
+		});
+
+		String commonHtmlTable = toHtmlTable(commonOptions);
+		Files.write(Paths.get(outputDirectory, COMMON_SECTION_FILE_NAME), commonHtmlTable.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private static Collection<OptionWithMetaInfo> findCommonOptions(String rootDir, String module, String packageName, String pathPrefix) throws IOException, ClassNotFoundException {
+		Collection<OptionWithMetaInfo> commonOptions = new ArrayList<>(32);
+		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> extractConfigOptions(optionsClass).stream()
+			.filter(optionWithMetaInfo -> optionWithMetaInfo.field.getAnnotation(Documentation.CommonOption.class) != null)
+			.forEachOrdered(commonOptions::add));
+		return commonOptions;
+	}
+
+	private static void createTable(String rootDir, String module, String packageName, String outputDirectory, String pathPrefix) throws IOException, ClassNotFoundException {
+		processConfigOptions(rootDir, module, packageName, pathPrefix, optionsClass -> {
 			List<Tuple2<ConfigGroup, String>> tables = generateTablesForClass(optionsClass);
 			for (Tuple2<ConfigGroup, String> group : tables) {
 				String name;
@@ -103,8 +141,8 @@ public class ConfigOptionsDocGenerator {
 		});
 	}
 
-	static void processConfigOptions(String rootDir, String module, String packageName, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
-		Path configDir = Paths.get(rootDir, module, "src/main/java", packageName.replaceAll("\\.", "/"));
+	static void processConfigOptions(String rootDir, String module, String packageName, String pathPrefix, ThrowingConsumer<Class<?>, IOException> classConsumer) throws IOException, ClassNotFoundException {
+		Path configDir = Paths.get(rootDir, module, pathPrefix, packageName.replaceAll("\\.", "/"));
 
 		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir)) {
 			for (Path entry : stream) {
