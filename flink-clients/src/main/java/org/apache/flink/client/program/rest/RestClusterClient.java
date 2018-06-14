@@ -245,7 +245,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			try {
 				return jobSubmissionFuture.get();
 			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not submit job " + jobGraph.getJobID() + '.', ExceptionUtils.stripExecutionException(e));
+				throw new ProgramInvocationException("Could not submit job",
+					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
 			}
 		} else {
 			final CompletableFuture<JobResult> jobResultFuture = jobSubmissionFuture.thenCompose(
@@ -255,16 +256,17 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			try {
 				jobResult = jobResultFuture.get();
 			} catch (Exception e) {
-				throw new ProgramInvocationException("Could not retrieve the execution result.", ExceptionUtils.stripExecutionException(e));
+				throw new ProgramInvocationException("Could not retrieve the execution result.",
+					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));
 			}
 
 			try {
 				this.lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
 				return lastJobExecutionResult;
 			} catch (JobResult.WrappedJobException we) {
-				throw new ProgramInvocationException(we.getCause());
+				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), we.getCause());
 			} catch (IOException | ClassNotFoundException e) {
-				throw new ProgramInvocationException(e);
+				throw new ProgramInvocationException("Job failed.", jobGraph.getJobID(), e);
 			}
 		}
 	}
