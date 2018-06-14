@@ -30,6 +30,8 @@ import io.prometheus.client.exporter.PushGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 /**
  * /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus Pushgateway.
@@ -78,4 +80,15 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		}
 	}
 
+	@Override
+	public void close() {
+		if (pushGateway != null) {
+			try {
+				pushGateway.delete(jobName);
+			} catch (IOException e) {
+				log.warn("Failed to delete the job of Pushgateway", e);
+			}
+		}
+		super.close();
+	}
 }

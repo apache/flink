@@ -149,7 +149,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 				.labelNames(toArray(dimensionKeys))
 				.create();
 		} else if (metric instanceof Histogram) {
-			collector = new PrometheusReporter.HistogramSummaryProxy((Histogram) metric, scopedMetricName, helpString, dimensionKeys, dimensionValues);
+			collector = new HistogramSummaryProxy((Histogram) metric, scopedMetricName, helpString, dimensionKeys, dimensionValues);
 		} else {
 			log.warn("Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
 				metric.getClass().getName());
@@ -166,7 +166,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 		} else if (metric instanceof Meter) {
 			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Meter) metric), toArray(dimensionValues));
 		} else if (metric instanceof Histogram) {
-			((PrometheusReporter.HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
+			((HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
 		} else {
 			log.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
 				metric.getClass().getName());
