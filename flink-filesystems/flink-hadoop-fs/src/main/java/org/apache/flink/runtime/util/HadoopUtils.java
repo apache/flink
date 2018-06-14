@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Utility class for working with Hadoop-related classes. This should only be used if Hadoop
@@ -129,8 +130,12 @@ public class HadoopUtils {
 	/**
 	 * Parse configuration and load the limited FS wrapper.
 	 */
-	public static FileSystem limitIfConfigured(FileSystem fs, String scheme, org.apache.flink.configuration.Configuration config) {
-		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(config, scheme);
+	public static FileSystem limitIfConfigured(FileSystem fs, String scheme, Optional<org.apache.flink.configuration.Configuration> optional) {
+		if (!optional.isPresent()) {
+			return fs;
+		}
+
+		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(optional.get(), scheme);
 
 		// decorate only if any limit is configured
 		if (limitSettings == null) {

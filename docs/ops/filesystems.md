@@ -102,8 +102,8 @@ fs.<scheme>.limit.input: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.output: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.timeout: (milliseconds, 0 means infinite)
 fs.<scheme>.limit.stream-timeout: (milliseconds, 0 means infinite)
-fs.<scheme>.limit.input-rate-limit: (bytes/s, 0 means infinite . By default, there is no limits)
-fs.<scheme>.limit.output-rate-limit: (bytes/s, 0 means infinite. By default, there is no limits)
+fs.<scheme>.limit.input-rate: (bytes/s, 0 means infinite . By default, there is no limit)
+fs.<scheme>.limit.output-rate: (bytes/s, 0 means infinite. By default, there is no limit)
 {% endhighlight %}
 
 You can limit the number if input/output connections (streams) separately (`fs.<scheme>.limit.input` and `fs.<scheme>.limit.output`), as well as impose a limit on

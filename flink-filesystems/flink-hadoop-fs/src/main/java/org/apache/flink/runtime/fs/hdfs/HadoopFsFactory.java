@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -166,12 +167,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
 
 			// create the Flink file system, optionally limiting the open connections
-			if (flinkConfig != null) {
-				return HadoopUtils.limitIfConfigured(fs, scheme, flinkConfig);
-			}
-			else {
-				return fs;
-			}
+			return HadoopUtils.limitIfConfigured(fs, scheme, Optional.ofNullable(flinkConfig));
 		}
 		catch (ReflectiveOperationException | LinkageError e) {
 			throw new UnsupportedFileSystemSchemeException("Cannot support file system for '" + fsUri.getScheme() +

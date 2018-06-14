@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 
 /**
  * Simple factory for the S3 file system.
@@ -132,12 +133,7 @@ public class S3FileSystemFactory implements FileSystemFactory {
 			final S3AFileSystem fs = new S3AFileSystem();
 			fs.initialize(fsUri, hadoopConfig);
 
-			if (flinkConfig != null) {
-				return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, flinkConfig);
-			}
-			else {
-				return new HadoopFileSystem(fs);
-			}
+			return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, Optional.ofNullable(flinkConfig));
 		}
 		catch (IOException e) {
 			throw e;

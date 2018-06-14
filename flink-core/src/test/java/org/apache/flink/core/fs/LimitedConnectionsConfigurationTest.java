@@ -67,8 +67,8 @@ public class LimitedConnectionsConfigurationTest {
 		config.setInteger("fs." + fsScheme + ".limit.output", 40);
 		config.setInteger("fs." + fsScheme + ".limit.timeout", 12345);
 		config.setInteger("fs." + fsScheme + ".limit.stream-timeout", 98765);
-		config.setInteger("fs." + fsScheme + ".limit.rateLimitingInput", 123);
-		config.setInteger("fs." + fsScheme + ".limit.rateLimitingOutput", 223);
+		config.setInteger("fs." + fsScheme + ".limit.input-rate", 123);
+		config.setInteger("fs." + fsScheme + ".limit.output-rate", 223);
 
 		try {
 			FileSystem.initialize(config);

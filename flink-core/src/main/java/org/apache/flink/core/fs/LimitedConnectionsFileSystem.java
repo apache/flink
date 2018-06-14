@@ -194,8 +194,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	 *                                no more connections are currently permitted.
 	 * @param streamInactivityTimeout The milliseconds that a stream may spend not writing any
 	 *                                bytes before it is closed as inactive.
-	 * @param inputBytesPerSecondRate The rate limiting of Bytes red per second on the FileSystem (0 means no limit)
-	 * @param outputBytesPerSecondRate The rate limiting of Bytes written per second on the FileSystem (0 means no limit)
+	 * @param limitInputRateBytesPerSecond The rate limiting of Bytes red per second on the FileSystem (0 means no limit)
+	 * @param limitOutputRateBytesPerSecond The rate limiting of Bytes written per second on the FileSystem (0 means no limit)
 	 */
 
 	public LimitedConnectionsFileSystem(
@@ -205,16 +205,16 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			int maxNumOpenInputStreams,
 			long streamOpenTimeout,
 			long streamInactivityTimeout,
-			long inputBytesPerSecondRate,
-			long outputBytesPerSecondRate) {
+			long limitInputRateBytesPerSecond,
+			long limitOutputRateBytesPerSecond) {
 
 		checkArgument(maxNumOpenStreamsTotal >= 0, "maxNumOpenStreamsTotal must be >= 0");
 		checkArgument(maxNumOpenOutputStreams >= 0, "maxNumOpenOutputStreams must be >= 0");
 		checkArgument(maxNumOpenInputStreams >= 0, "maxNumOpenInputStreams must be >= 0");
 		checkArgument(streamOpenTimeout >= 0, "stream opening timeout must be >= 0 (0 means infinite timeout)");
 		checkArgument(streamInactivityTimeout >= 0, "stream inactivity timeout must be >= 0 (0 means infinite timeout)");
-		checkArgument(inputBytesPerSecondRate >= 0, "inputBytesPerSecondRate must be >=0");
-		checkArgument(outputBytesPerSecondRate >= 0, "outputBytesPerSecondRate must be >=0");
+		checkArgument(limitInputRateBytesPerSecond >= 0, "limitInputRateBytesPerSecond must be >=0");
+		checkArgument(limitOutputRateBytesPerSecond >= 0, "limitOutputRateBytesPerSecond must be >=0");
 
 		this.originalFs = checkNotNull(originalFs, "originalFs");
 		this.lock = new ReentrantLock(true);
@@ -235,8 +235,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		this.streamInactivityTimeoutNanos =
 				inactivityTimeoutNanos >= streamInactivityTimeout ? inactivityTimeoutNanos : Long.MAX_VALUE;
 
-		this.inputRateLimiter = Optional.ofNullable(inputBytesPerSecondRate > 0 ? RateLimiter.create(inputBytesPerSecondRate) : null);
-		this.outputRateLimiter = Optional.ofNullable(outputBytesPerSecondRate > 0 ? RateLimiter.create(outputBytesPerSecondRate) : null);
+		this.inputRateLimiter = Optional.ofNullable(limitInputRateBytesPerSecond > 0 ? RateLimiter.create(limitInputRateBytesPerSecond) : null);
+		this.outputRateLimiter = Optional.ofNullable(limitOutputRateBytesPerSecond > 0 ? RateLimiter.create(limitOutputRateBytesPerSecond) : null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -313,22 +313,14 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	 * Get the rate limitation on Input (bytes/s).
 	 */
 	public long getRateLimitingInput(){
-		if (inputRateLimiter.isPresent()){
-			return (long) inputRateLimiter.get().getRate();
-		} else {
-			return 0;
-		}
+		return inputRateLimiter.map(RateLimiter::getRate).orElse((double) 0).longValue();
 	}
 
 	/**
 	 * Get the rate limitation on Output (bytes/s).
 	 */
 	public long getRateLimitingOutput(){
-		if (outputRateLimiter.isPresent()){
-			return (long) outputRateLimiter.get().getRate();
-		} else {
-			return 0;
-		}
+		return outputRateLimiter.map(RateLimiter::getRate).orElse((double) 0).longValue();
 	}
 
 	// ------------------------------------------------------------------------
@@ -940,7 +932,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public int read(byte[] b) throws IOException {
 			try {
 				int len = originalStream.read(b);
-				fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
+				if (len >= 0) {
+					fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
+				}
 				return len;
 			}
 			catch (IOException e) {
@@ -953,7 +947,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public int read(byte[] b, int off, int len) throws IOException {
 			try {
 				int realLen =  originalStream.read(b, off, len);
-				fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(realLen));
+				if (realLen >= 0) {
+					fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(realLen));
+				}
 				return realLen;
 			}
 			catch (IOException e) {
@@ -1176,9 +1172,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			final ConfigOption<Integer> totalLimitOption = CoreOptions.fileSystemConnectionLimit(fsScheme);
 			final ConfigOption<Integer> limitInOption = CoreOptions.fileSystemConnectionLimitIn(fsScheme);
 			final ConfigOption<Integer> limitOutOption = CoreOptions.fileSystemConnectionLimitOut(fsScheme);
-			final ConfigOption<Long> rateLimitingInputOption = CoreOptions.rateLimitingInputBytesPerSeconds(fsScheme);
+			final ConfigOption<Long> rateLimitingInputOption = CoreOptions.fileSystemConnectionLimitInputRate(fsScheme);
 
-			final ConfigOption<Long> rateLimitingOutputOption = CoreOptions.rateLimitingOutputBytesPerSeconds(fsScheme);
+			final ConfigOption<Long> rateLimitingOutputOption = CoreOptions.fileSystemConnectionLimitOutputRate(fsScheme);
 
 			final int totalLimit = config.getInteger(totalLimitOption);
 			final int limitIn = config.getInteger(limitInOption);

@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 
 /**
  * Simple factory for the S3 file system.
@@ -131,13 +132,7 @@ public class S3FileSystemFactory implements FileSystemFactory {
 			final PrestoS3FileSystem fs = new PrestoS3FileSystem();
 			fs.initialize(initUri, hadoopConfig);
 
-			// create the Flink file system, optionally limiting the open connections
-			if (flinkConfig != null) {
-				return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, flinkConfig);
-			}
-			else {
-				return new HadoopFileSystem(fs);
-			}
+			return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, Optional.ofNullable(flinkConfig));
 		}
 		catch (IOException e) {
 			throw e;
