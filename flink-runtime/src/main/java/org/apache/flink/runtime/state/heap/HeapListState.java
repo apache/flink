@@ -38,9 +38,9 @@ import java.util.List;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapListState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, List<V>, Iterable<V>, ListState<V>>
-		implements InternalListState<K, N, V> {
+class HeapListState<K, N, V>
+	extends AbstractHeapMergingState<K, N, V, List<V>, Iterable<V>>
+	implements InternalListState<K, N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -51,12 +51,12 @@ public class HeapListState<K, N, V>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	public HeapListState(
-			StateTable<K, N, List<V>> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<List<V>> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			List<V> defaultValue) {
+	HeapListState(
+		StateTable<K, N, List<V>> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<List<V>> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		List<V> defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 
@@ -81,7 +81,7 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public Iterable<V> get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override

@@ -34,9 +34,9 @@ import java.io.IOException;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapReducingState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>>
-		implements InternalReducingState<K, N, V> {
+class HeapReducingState<K, N, V>
+	extends AbstractHeapMergingState<K, N, V, V, V>
+	implements InternalReducingState<K, N, V> {
 
 	private final ReduceTransformation<V> reduceTransformation;
 
@@ -83,7 +83,7 @@ public class HeapReducingState<K, N, V>
 
 	@Override
 	public V get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override

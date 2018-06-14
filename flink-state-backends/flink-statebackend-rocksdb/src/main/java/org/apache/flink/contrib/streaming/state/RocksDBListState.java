@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -96,6 +97,11 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public Iterable<V> get() {
+		return getInternal();
+	}
+
+	@Override
+	public List<V> getInternal() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
@@ -117,12 +123,12 @@ public class RocksDBListState<K, N, V>
 			}
 			return result;
 		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}
 
 	@Override
-	public void add(V value) throws IOException {
+	public void add(V value) {
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
@@ -133,12 +139,12 @@ public class RocksDBListState<K, N, V>
 			elementSerializer.serialize(value, out);
 			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
 
 	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+	public void mergeNamespaces(N target, Collection<N> sources) {
 		if (sources == null || sources.isEmpty()) {
 			return;
 		}
@@ -172,12 +178,12 @@ public class RocksDBListState<K, N, V>
 			}
 		}
 		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
+			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
 		}
 	}
 
 	@Override
-	public void update(List<V> values) throws Exception {
+	public void update(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
 		clear();
@@ -194,13 +200,13 @@ public class RocksDBListState<K, N, V>
 					throw new IOException("Failed pre-merge values in update()");
 				}
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while updating data to RocksDB", e);
+				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
 		}
 	}
 
 	@Override
-	public void addAll(List<V> values) throws Exception {
+	public void addAll(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
 		if (!values.isEmpty()) {
@@ -215,7 +221,7 @@ public class RocksDBListState<K, N, V>
 					throw new IOException("Failed pre-merge values in addAll()");
 				}
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while updating data to RocksDB", e);
+				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
 		}
 	}
@@ -236,5 +242,10 @@ public class RocksDBListState<K, N, V>
 		}
 
 		return keySerializationStream.toByteArray();
+	}
+
+	@Override
+	public void updateInternal(List<V> valueToStore) {
+		update(valueToStore);
 	}
 }

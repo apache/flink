@@ -38,11 +38,11 @@ import java.io.IOException;
  * @deprecated will be removed in a future version
  */
 @Deprecated
-public class HeapFoldingState<K, N, T, ACC>
-		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>>
-		implements InternalFoldingState<K, N, T, ACC> {
+class HeapFoldingState<K, N, T, ACC>
+	extends AbstractHeapAppendingState<K, N, T, ACC, ACC>
+	implements InternalFoldingState<K, N, T, ACC> {
 
-	/** The function used to fold the state */
+	/** The function used to fold the state. */
 	private final FoldTransformation foldTransformation;
 
 	/**
@@ -55,13 +55,13 @@ public class HeapFoldingState<K, N, T, ACC>
 	 * @param defaultValue The default value for the state.
 	 * @param foldFunction The fold function used for folding state.
 	 */
-	public HeapFoldingState(
-			StateTable<K, N, ACC> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<ACC> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			ACC defaultValue,
-			FoldFunction<T, ACC> foldFunction) {
+	HeapFoldingState(
+		StateTable<K, N, ACC> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<ACC> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		ACC defaultValue,
+		FoldFunction<T, ACC> foldFunction) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.foldTransformation = new FoldTransformation(foldFunction);
 	}
@@ -87,7 +87,7 @@ public class HeapFoldingState<K, N, T, ACC>
 
 	@Override
 	public ACC get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override
