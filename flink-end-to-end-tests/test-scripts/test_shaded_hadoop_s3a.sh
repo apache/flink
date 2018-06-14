@@ -37,9 +37,6 @@ function s3_cleanup {
   # remove any leftover settings
   sed -i -e 's/s3.access-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
   sed -i -e 's/s3.secret-key: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap s3_cleanup EXIT
 

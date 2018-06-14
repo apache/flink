@@ -24,7 +24,7 @@ if [[ -z $FLINK_DIR ]]; then
     exit 1
 fi
 
-export PASS=1
+export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
@@ -138,7 +138,6 @@ function start_local_zk {
 
             if [ "${address}" != "localhost" ]; then
                 echo "[ERROR] Parse error. Only available for localhost."
-                PASS=""
                 exit 1
             fi
             ${FLINK_DIR}/bin/zookeeper.sh start $id
@@ -168,14 +167,7 @@ function start_cluster {
   done
 }
 
-function stop_cluster {
-  "$FLINK_DIR"/bin/stop-cluster.sh
-
-  # stop zookeeper only if there are processes running
-  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
-    "$FLINK_DIR"/bin/zookeeper.sh stop
-  fi
-
+function check_logs_for_errors {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -193,8 +185,11 @@ function stop_cluster {
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
+}
+
+function check_logs_for_exceptions {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -215,13 +210,24 @@ function stop_cluster {
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
+}
 
+function check_logs_for_non_empty_out_files {
   if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
-    PASS=""
+    EXIT_CODE=1
+  fi
+}
+
+function stop_cluster {
+  "$FLINK_DIR"/bin/stop-cluster.sh
+
+  # stop zookeeper only if there are processes running
+  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
+    "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
 }
 
@@ -281,22 +287,13 @@ function check_result_hash {
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
-    PASS=""
     echo "head hexdump of actual:"
     head $outfile_prefix* | hexdump -c
+    exit 1
   else
     echo "pass $name"
     # Output files are left behind in /tmp
   fi
-}
-
-function check_all_pass {
-  if [[ ! "$PASS" ]]
-  then
-    echo "One or more tests FAILED."
-    exit 1
-  fi
-  echo "All tests PASS"
 }
 
 function s3_put {
@@ -458,37 +455,5 @@ function start_timer {
 # prints the number of minutes and seconds that have elapsed since the last call to start_timer
 function end_timer {
     duration=$SECONDS
-    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds"
 }
-
-#######################################
-# Prints the given description, runs the given test and prints how long the execution took.
-# Arguments:
-#   $1: description of the test
-#   $2: command to execute
-#######################################
-function run_test {
-    description="$1"
-    command="$2"
-
-    printf "\n==============================================================================\n"
-    printf "Running ${description}\n"
-    printf "==============================================================================\n"
-    start_timer
-    ${command}
-    exit_code="$?"
-    end_timer
-    return "${exit_code}"
-}
-
-# Shuts down the cluster and cleans up all temporary folders and files. Make sure to clean up even in case of failures.
-function cleanup {
-  stop_cluster
-  tm_kill_all
-  jm_kill_all
-  rm -rf $TEST_DATA_DIR 2> /dev/null
-  revert_default_config
-  check_all_pass
-  rm -rf $FLINK_DIR/log/* 2> /dev/null
-}
-trap cleanup EXIT
