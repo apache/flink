@@ -80,7 +80,6 @@ public class PythonPlanBinder {
 	private final Configuration operatorConfig;
 
 	private final String tmpPlanFilesDir;
-	private Path tmpDistributedDir;
 
 	private final SetCache sets = new SetCache();
 	private int currentEnvironmentID = 0;
@@ -108,8 +107,6 @@ public class PythonPlanBinder {
 		tmpPlanFilesDir = configuredPlanTmpPath != null
 			? configuredPlanTmpPath
 			: System.getProperty("java.io.tmpdir") + File.separator + "flink_plan_" + UUID.randomUUID();
-
-		tmpDistributedDir = new Path(globalConfig.getString(PythonOptions.DC_TMP_DIR));
 
 		operatorConfig = new Configuration();
 		operatorConfig.setString(PythonOptions.PYTHON_BINARY_PATH, globalConfig.getString(PythonOptions.PYTHON_BINARY_PATH));
@@ -264,24 +261,17 @@ public class PythonPlanBinder {
 	 */
 	private enum Parameters {
 		DOP,
-		MODE,
 		RETRY,
 		ID
 	}
 
 	private void receiveParameters(ExecutionEnvironment env) throws IOException {
-		for (int x = 0; x < 4; x++) {
+		for (int x = 0; x < Parameters.values().length; x++) {
 			Tuple value = (Tuple) streamer.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
 					Integer dop = value.<Integer>getField(1);
 					env.setParallelism(dop);
-					break;
-				case MODE:
-					if (value.<Boolean>getField(1)) {
-						LOG.info("Local execution specified, using default for {}.", PythonOptions.DC_TMP_DIR);
-						tmpDistributedDir = new Path(PythonOptions.DC_TMP_DIR.defaultValue());
-					}
 					break;
 				case RETRY:
 					int retry = value.<Integer>getField(1);
