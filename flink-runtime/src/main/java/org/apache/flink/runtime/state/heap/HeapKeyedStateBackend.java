@@ -55,6 +55,7 @@ import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
+import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -599,7 +600,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
 
-			final Map<String, StateTableSnapshot> cowStateStableSnapshots =
+			final Map<String, StateSnapshot> cowStateStableSnapshots =
 				new HashMap<>(stateTables.size());
 
 			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
@@ -653,7 +654,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						unregisterAndCloseStreamAndResultExtractor();
 
-						for (StateTableSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
+						for (StateSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
 							tableSnapshot.release();
 						}
 					}
@@ -689,12 +690,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
 							outView.writeInt(keyGroupId);
 
-							for (Map.Entry<String, StateTableSnapshot> kvState : cowStateStableSnapshots.entrySet()) {
+							for (Map.Entry<String, StateSnapshot> kvState : cowStateStableSnapshots.entrySet()) {
+								StateSnapshot.KeyGroupPartitionedSnapshot partitionedSnapshot =
+									kvState.getValue().partitionByKeyGroup();
 								try (OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
 									String stateName = kvState.getKey();
 									DataOutputViewStreamWrapper kgCompressionView = new DataOutputViewStreamWrapper(kgCompressionOut);
 									kgCompressionView.writeShort(kVStateToId.get(stateName));
-									kvState.getValue().writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
+									partitionedSnapshot.writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
 								} // this will just close the outer compression stream
 							}
 						}

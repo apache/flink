@@ -28,6 +28,8 @@ import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshot;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -67,7 +69,7 @@ public class StateTableSnapshotCompatibilityTest {
 			cowStateTable.put(r.nextInt(10), r.nextInt(2), list);
 		}
 
-		StateTableSnapshot snapshot = cowStateTable.createSnapshot();
+		StateSnapshot snapshot = cowStateTable.createSnapshot();
 
 		final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
 				new NestedMapsStateTable<>(keyContext, metaInfo);
@@ -95,14 +97,14 @@ public class StateTableSnapshotCompatibilityTest {
 
 	private static <K, N, S> void restoreStateTableFromSnapshot(
 			StateTable<K, N, S> stateTable,
-			StateTableSnapshot snapshot,
+			StateSnapshot snapshot,
 			KeyGroupRange keyGroupRange) throws IOException {
 
 		final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
 		final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
-
+		final StateSnapshot.KeyGroupPartitionedSnapshot keyGroupPartitionedSnapshot = snapshot.partitionByKeyGroup();
 		for (Integer keyGroup : keyGroupRange) {
-			snapshot.writeMappingsInKeyGroup(dov, keyGroup);
+			keyGroupPartitionedSnapshot.writeMappingsInKeyGroup(dov, keyGroup);
 		}
 
 		final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());

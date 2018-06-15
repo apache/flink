@@ -16,30 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.core.memory.DataOutputView;
-
-import java.io.IOException;
+import org.apache.flink.runtime.state.KeyGroupPartitioner;
+import org.apache.flink.runtime.state.KeyGroupPartitionerTestBase;
+import org.apache.flink.runtime.state.VoidNamespace;
 
 /**
- * Interface for the snapshots of a {@link StateTable}. Offers a way to serialize the snapshot (by key-group). All
- * snapshots should be released after usage.
+ * Test of {@link KeyGroupPartitioner} for timers.
  */
-interface StateTableSnapshot {
+public class KeyGroupPartitionerForTimersTest
+	extends KeyGroupPartitionerTestBase<TimerHeapInternalTimer<Integer, VoidNamespace>> {
 
-	/**
-	 * Writes the data for the specified key-group to the output.
-	 *
-	 * @param dov the output
-	 * @param keyGroupId the key-group to write
-	 * @throws IOException on write related problems
-	 */
-	void writeMappingsInKeyGroup(DataOutputView dov, int keyGroupId) throws IOException;
-
-	/**
-	 * Release the snapshot. All snapshots should be released when they are no longer used because some implementation
-	 * can only release resources after a release.
-	 */
-	void release();
+	public KeyGroupPartitionerForTimersTest() {
+		super(
+			(random -> new TimerHeapInternalTimer<>(42L, random.nextInt() & Integer.MAX_VALUE, VoidNamespace.INSTANCE)),
+			TimerHeapInternalTimer::getKey);
+	}
 }
