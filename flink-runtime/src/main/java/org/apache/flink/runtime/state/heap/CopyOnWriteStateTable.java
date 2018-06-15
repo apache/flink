@@ -636,7 +636,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		if (newCapacity < MAXIMUM_CAPACITY) {
 			threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
 		} else {
-			if (size() >= MAX_ARRAY_SIZE) {
+			if (size() > MAX_ARRAY_SIZE) {
 
 				throw new IllegalStateException("Maximum capacity of CopyOnWriteStateTable is reached and the job " +
 					"cannot continue. Please consider scaling-out your job or using a different keyed state backend " +
