@@ -153,11 +153,17 @@ There are several predefined stream sources accessible from the `StreamExecution
 
 File-based:
 
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
+- `readTextFile(path)` - Reads once the text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
 
-- `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
+- `readTextFile(path, numTimes)` - Reads `numTimes` times the text files .
 
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE`). Using the `pathFilter`, the user can further exclude files from being processed.
+- `readFile(fileInputFormat, path)` - Reads once the files as dictated by the specified file input format.
+
+- `readFile(fileInputFormat, path, numTimes)` - Reads `numTimes` times the files as dictated by the specified file input format.
+
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE`). Using `FileProcessingMode.PROCESS_N_TIMES` will be translated into `FileProcessingMode.PROCESS_ONCE`. Using the `pathFilter`, the user can further exclude files from being processed.
+
+- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo, numTimes)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once or `numTimes` times the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE` or `FileProcessingMode.PROCESS_N_TIMES`). Using the `pathFilter`, the user can further exclude files from being processed.
 
     *IMPLEMENTATION:*
 
@@ -167,7 +173,7 @@ File-based:
 
     1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
 
-    2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
+    2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE` or `FileProcessingMode.PROCESS_N_TIMES`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
 
 Socket-based:
 
