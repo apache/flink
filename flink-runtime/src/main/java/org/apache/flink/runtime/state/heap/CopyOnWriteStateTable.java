@@ -105,6 +105,9 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
+	/** Maximum save array size to allocate in a JVM. */
+	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
 	/**
 	 * Min capacity (other than zero) for a {@link CopyOnWriteStateTable}. Must be a power of two
 	 * greater than 1 (and less than 1 << 30).
@@ -630,13 +633,23 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 */
 	private StateTableEntry<K, N, S>[] makeTable(int newCapacity) {
 
-		if (MAXIMUM_CAPACITY == newCapacity) {
-			LOG.warn("Maximum capacity of 2^30 in StateTable reached. Cannot increase hash table size. This can lead " +
-					"to more collisions and lower performance. Please consider scaling-out your job or using a " +
+		if (newCapacity < MAXIMUM_CAPACITY) {
+			threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
+		} else {
+			if (size() > MAX_ARRAY_SIZE) {
+
+				throw new IllegalStateException("Maximum capacity of CopyOnWriteStateTable is reached and the job " +
+					"cannot continue. Please consider scaling-out your job or using a different keyed state backend " +
+					"implementation!");
+			} else {
+
+				LOG.warn("Maximum capacity of 2^30 in StateTable reached. Cannot increase hash table size. This can " +
+					"lead to more collisions and lower performance. Please consider scaling-out your job or using a " +
 					"different keyed state backend implementation!");
+				threshold = MAX_ARRAY_SIZE;
+			}
 		}
 
-		threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
 		@SuppressWarnings("unchecked") StateTableEntry<K, N, S>[] newTable
 				= (StateTableEntry<K, N, S>[]) new StateTableEntry[newCapacity];
 		return newTable;
