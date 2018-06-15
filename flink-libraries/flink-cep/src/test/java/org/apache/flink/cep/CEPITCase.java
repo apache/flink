@@ -60,15 +60,15 @@ public class CEPITCase extends AbstractTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Event> input = env.fromElements(
-				new Event(1, "barfoo", 1.0),
-				new Event(2, "start", 2.0),
-				new Event(3, "foobar", 3.0),
-				new SubEvent(4, "foo", 4.0, 1.0),
-				new Event(5, "middle", 5.0),
-				new SubEvent(6, "middle", 6.0, 2.0),
-				new SubEvent(7, "bar", 3.0, 3.0),
-				new Event(42, "42", 42.0),
-				new Event(8, "end", 1.0)
+			new Event(1, "barfoo", 1.0),
+			new Event(2, "start", 2.0),
+			new Event(3, "foobar", 3.0),
+			new SubEvent(4, "foo", 4.0, 1.0),
+			new Event(5, "middle", 5.0),
+			new SubEvent(6, "middle", 6.0, 2.0),
+			new SubEvent(7, "bar", 3.0, 3.0),
+			new Event(42, "42", 42.0),
+			new Event(8, "end", 1.0)
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
@@ -78,22 +78,22 @@ public class CEPITCase extends AbstractTestBase {
 				return value.getName().equals("start");
 			}
 		})
-				.followedByAny("middle").subtype(SubEvent.class).where(
-						new SimpleCondition<SubEvent>() {
-
-							@Override
-							public boolean filter(SubEvent value) throws Exception {
-								return value.getName().equals("middle");
-							}
-						}
-				)
-				.followedByAny("end").where(new SimpleCondition<Event>() {
+		.followedByAny("middle").subtype(SubEvent.class).where(
+				new SimpleCondition<SubEvent>() {
 
 					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getName().equals("end");
+					public boolean filter(SubEvent value) throws Exception {
+						return value.getName().equals("middle");
 					}
-				});
+				}
+			)
+		.followedByAny("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -102,8 +102,8 @@ public class CEPITCase extends AbstractTestBase {
 				StringBuilder builder = new StringBuilder();
 
 				builder.append(pattern.get("start").get(0).getId()).append(",")
-						.append(pattern.get("middle").get(0).getId()).append(",")
-						.append(pattern.get("end").get(0).getId());
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
@@ -126,21 +126,21 @@ public class CEPITCase extends AbstractTestBase {
 		env.setParallelism(2);
 
 		DataStream<Event> input = env.fromElements(
-				new Event(1, "barfoo", 1.0),
-				new Event(2, "start", 2.0),
-				new Event(3, "start", 2.1),
-				new Event(3, "foobar", 3.0),
-				new SubEvent(4, "foo", 4.0, 1.0),
-				new SubEvent(3, "middle", 3.2, 1.0),
-				new Event(42, "start", 3.1),
-				new SubEvent(42, "middle", 3.3, 1.2),
-				new Event(5, "middle", 5.0),
-				new SubEvent(2, "middle", 6.0, 2.0),
-				new SubEvent(7, "bar", 3.0, 3.0),
-				new Event(42, "42", 42.0),
-				new Event(3, "end", 2.0),
-				new Event(2, "end", 1.0),
-				new Event(42, "end", 42.0)
+			new Event(1, "barfoo", 1.0),
+			new Event(2, "start", 2.0),
+			new Event(3, "start", 2.1),
+			new Event(3, "foobar", 3.0),
+			new SubEvent(4, "foo", 4.0, 1.0),
+			new SubEvent(3, "middle", 3.2, 1.0),
+			new Event(42, "start", 3.1),
+			new SubEvent(42, "middle", 3.3, 1.2),
+			new Event(5, "middle", 5.0),
+			new SubEvent(2, "middle", 6.0, 2.0),
+			new SubEvent(7, "bar", 3.0, 3.0),
+			new Event(42, "42", 42.0),
+			new Event(3, "end", 2.0),
+			new Event(2, "end", 1.0),
+			new Event(42, "end", 42.0)
 		).keyBy(new KeySelector<Event, Integer>() {
 
 			@Override
@@ -156,22 +156,22 @@ public class CEPITCase extends AbstractTestBase {
 				return value.getName().equals("start");
 			}
 		})
-				.followedByAny("middle").subtype(SubEvent.class).where(
-						new SimpleCondition<SubEvent>() {
-
-							@Override
-							public boolean filter(SubEvent value) throws Exception {
-								return value.getName().equals("middle");
-							}
-						}
-				)
-				.followedByAny("end").where(new SimpleCondition<Event>() {
+			.followedByAny("middle").subtype(SubEvent.class).where(
+				new SimpleCondition<SubEvent>() {
 
 					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getName().equals("end");
+					public boolean filter(SubEvent value) throws Exception {
+						return value.getName().equals("middle");
 					}
-				});
+				}
+			)
+			.followedByAny("end").where(new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -180,8 +180,8 @@ public class CEPITCase extends AbstractTestBase {
 				StringBuilder builder = new StringBuilder();
 
 				builder.append(pattern.get("start").get(0).getId()).append(",")
-						.append(pattern.get("middle").get(0).getId()).append(",")
-						.append(pattern.get("end").get(0).getId());
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
@@ -205,13 +205,13 @@ public class CEPITCase extends AbstractTestBase {
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
-				Tuple2.of(new Event(1, "start", 1.0), 5L),
-				Tuple2.of(new Event(2, "middle", 2.0), 1L),
-				Tuple2.of(new Event(3, "end", 3.0), 3L),
-				Tuple2.of(new Event(4, "end", 4.0), 10L),
-				Tuple2.of(new Event(5, "middle", 5.0), 7L),
-				// last element for high final watermark
-				Tuple2.of(new Event(6, "middle", 5.0), 100L)
+			Tuple2.of(new Event(1, "start", 1.0), 5L),
+			Tuple2.of(new Event(2, "middle", 2.0), 1L),
+			Tuple2.of(new Event(3, "end", 3.0), 3L),
+			Tuple2.of(new Event(4, "end", 4.0), 10L),
+			Tuple2.of(new Event(5, "middle", 5.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(6, "middle", 5.0), 100L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
@@ -253,19 +253,19 @@ public class CEPITCase extends AbstractTestBase {
 		});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(
-				new PatternSelectFunction<Event, String>() {
+			new PatternSelectFunction<Event, String>() {
 
-					@Override
-					public String select(Map<String, List<Event>> pattern) {
-						StringBuilder builder = new StringBuilder();
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
 
-						builder.append(pattern.get("start").get(0).getId()).append(",")
-								.append(pattern.get("middle").get(0).getId()).append(",")
-								.append(pattern.get("end").get(0).getId());
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
 
-						return builder.toString();
-					}
+					return builder.toString();
 				}
+			}
 		);
 
 		CollectSink.VALUES.clear();
@@ -287,17 +287,17 @@ public class CEPITCase extends AbstractTestBase {
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
-				Tuple2.of(new Event(1, "start", 1.0), 5L),
-				Tuple2.of(new Event(1, "middle", 2.0), 1L),
-				Tuple2.of(new Event(2, "middle", 2.0), 4L),
-				Tuple2.of(new Event(2, "start", 2.0), 3L),
-				Tuple2.of(new Event(1, "end", 3.0), 3L),
-				Tuple2.of(new Event(3, "start", 4.1), 5L),
-				Tuple2.of(new Event(1, "end", 4.0), 10L),
-				Tuple2.of(new Event(2, "end", 2.0), 8L),
-				Tuple2.of(new Event(1, "middle", 5.0), 7L),
-				Tuple2.of(new Event(3, "middle", 6.0), 9L),
-				Tuple2.of(new Event(3, "end", 7.0), 7L)
+			Tuple2.of(new Event(1, "start", 1.0), 5L),
+			Tuple2.of(new Event(1, "middle", 2.0), 1L),
+			Tuple2.of(new Event(2, "middle", 2.0), 4L),
+			Tuple2.of(new Event(2, "start", 2.0), 3L),
+			Tuple2.of(new Event(1, "end", 3.0), 3L),
+			Tuple2.of(new Event(3, "start", 4.1), 5L),
+			Tuple2.of(new Event(1, "end", 4.0), 10L),
+			Tuple2.of(new Event(2, "end", 2.0), 8L),
+			Tuple2.of(new Event(1, "middle", 5.0), 7L),
+			Tuple2.of(new Event(3, "middle", 6.0), 9L),
+			Tuple2.of(new Event(3, "end", 7.0), 7L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
@@ -375,17 +375,17 @@ public class CEPITCase extends AbstractTestBase {
 	public void testSimplePatternWithSingleState() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Integer, Integer>> input = env.fromElements(
-				new Tuple2<>(0, 1),
-				new Tuple2<>(0, 2));
+			new Tuple2<>(0, 1),
+			new Tuple2<>(0, 2));
 
 		Pattern<Tuple2<Integer, Integer>, ?> pattern =
-				Pattern.<Tuple2<Integer, Integer>>begin("start")
-						.where(new SimpleCondition<Tuple2<Integer, Integer>>() {
-							@Override
-							public boolean filter(Tuple2<Integer, Integer> rec) throws Exception {
-								return rec.f1 == 1;
-							}
-						});
+			Pattern.<Tuple2<Integer, Integer>>begin("start")
+				.where(new SimpleCondition<Tuple2<Integer, Integer>>() {
+					@Override
+					public boolean filter(Tuple2<Integer, Integer> rec) throws Exception {
+						return rec.f1 == 1;
+					}
+				});
 
 		PatternStream<Tuple2<Integer, Integer>> pStream = CEP.pattern(input, pattern);
 
@@ -440,10 +440,10 @@ public class CEPITCase extends AbstractTestBase {
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
-				Tuple2.of(new Event(1, "start", 1.0), 1L),
-				Tuple2.of(new Event(1, "middle", 2.0), 5L),
-				Tuple2.of(new Event(1, "start", 2.0), 4L),
-				Tuple2.of(new Event(1, "end", 2.0), 6L)
+			Tuple2.of(new Event(1, "start", 1.0), 1L),
+			Tuple2.of(new Event(1, "middle", 2.0), 5L),
+			Tuple2.of(new Event(1, "start", 2.0), 4L),
+			Tuple2.of(new Event(1, "end", 2.0), 6L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
@@ -485,25 +485,25 @@ public class CEPITCase extends AbstractTestBase {
 		}).within(Time.milliseconds(3));
 
 		DataStream<Either<String, String>> result = CEP.pattern(input, pattern).select(
-				new PatternTimeoutFunction<Event, String>() {
-					@Override
-					public String timeout(Map<String, List<Event>> pattern, long timeoutTimestamp) throws Exception {
-						return pattern.get("start").get(0).getPrice() + "";
-					}
-				},
-				new PatternSelectFunction<Event, String>() {
-
-					@Override
-					public String select(Map<String, List<Event>> pattern) {
-						StringBuilder builder = new StringBuilder();
-
-						builder.append(pattern.get("start").get(0).getPrice()).append(",")
-								.append(pattern.get("middle").get(0).getPrice()).append(",")
-								.append(pattern.get("end").get(0).getPrice());
-
-						return builder.toString();
-					}
+			new PatternTimeoutFunction<Event, String>() {
+				@Override
+				public String timeout(Map<String, List<Event>> pattern, long timeoutTimestamp) throws Exception {
+					return pattern.get("start").get(0).getPrice() + "";
 				}
+			},
+			new PatternSelectFunction<Event, String>() {
+
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
+
+					builder.append(pattern.get("start").get(0).getPrice()).append(",")
+							.append(pattern.get("middle").get(0).getPrice()).append(",")
+							.append(pattern.get("end").get(0).getPrice());
+
+					return builder.toString();
+				}
+			}
 		);
 
 		CollectSink.VALUES.clear();
@@ -534,41 +534,41 @@ public class CEPITCase extends AbstractTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<Event> input = env.fromElements(
-				new Event(1, "start", 1.0),
-				new Event(2, "middle", 2.0),
-				new Event(3, "end", 3.0),
-				new Event(4, "start", 4.0),
-				new Event(5, "middle", 5.0),
-				new Event(6, "end", 6.0)
+			new Event(1, "start", 1.0),
+			new Event(2, "middle", 2.0),
+			new Event(3, "end", 3.0),
+			new Event(4, "start", 4.0),
+			new Event(5, "middle", 5.0),
+			new Event(6, "end", 6.0)
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-				.where(new SimpleCondition<Event>() {
-					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getName().equals("start");
-					}
-				})
-				.followedByAny("middle")
-				.where(new SimpleCondition<Event>() {
-					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getPrice() == 2.0;
-					}
-				})
-				.or(new SimpleCondition<Event>() {
-					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getPrice() == 5.0;
-					}
-				})
-				.followedByAny("end").where(new SimpleCondition<Event>() {
+			.where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("start");
+				}
+			})
+			.followedByAny("middle")
+			.where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getPrice() == 2.0;
+				}
+			})
+			.or(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getPrice() == 5.0;
+				}
+			})
+			.followedByAny("end").where(new SimpleCondition<Event>() {
 
-					@Override
-					public boolean filter(Event value) throws Exception {
-						return value.getName().equals("end");
-					}
-				});
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
 
@@ -610,14 +610,14 @@ public class CEPITCase extends AbstractTestBase {
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
-				Tuple2.of(new Event(1, "start", 1.0), 5L),
-				Tuple2.of(new Event(2, "middle", 2.0), 1L),
-				Tuple2.of(new Event(3, "end", 3.0), 3L),
-				Tuple2.of(new Event(4, "end", 4.0), 10L),
-				Tuple2.of(new Event(5, "middle", 6.0), 7L),
-				Tuple2.of(new Event(6, "middle", 5.0), 7L),
-				// last element for high final watermark
-				Tuple2.of(new Event(7, "middle", 5.0), 100L)
+			Tuple2.of(new Event(1, "start", 1.0), 5L),
+			Tuple2.of(new Event(2, "middle", 2.0), 1L),
+			Tuple2.of(new Event(3, "end", 3.0), 3L),
+			Tuple2.of(new Event(4, "end", 4.0), 10L),
+			Tuple2.of(new Event(5, "middle", 6.0), 7L),
+			Tuple2.of(new Event(6, "middle", 5.0), 7L),
+			// last element for high final watermark
+			Tuple2.of(new Event(7, "middle", 5.0), 100L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
@@ -661,19 +661,19 @@ public class CEPITCase extends AbstractTestBase {
 		});
 
 		DataStream<String> result = CEP.pattern(input, pattern, comparator).select(
-				new PatternSelectFunction<Event, String>() {
+			new PatternSelectFunction<Event, String>() {
 
-					@Override
-					public String select(Map<String, List<Event>> pattern) {
-						StringBuilder builder = new StringBuilder();
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
 
-						builder.append(pattern.get("start").get(0).getId()).append(",")
-								.append(pattern.get("middle").get(0).getId()).append(",")
-								.append(pattern.get("end").get(0).getId());
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+							.append(pattern.get("middle").get(0).getId()).append(",")
+							.append(pattern.get("end").get(0).getId());
 
-						return builder.toString();
-					}
+					return builder.toString();
 				}
+			}
 		);
 
 		CollectSink.VALUES.clear();
@@ -701,19 +701,19 @@ public class CEPITCase extends AbstractTestBase {
 	public void testSimpleAfterMatchSkip() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStream<Tuple2<Integer, String>> input = env.fromElements(
-				new Tuple2<>(1, "a"),
-				new Tuple2<>(2, "a"),
-				new Tuple2<>(3, "a"),
-				new Tuple2<>(4, "a"));
+			new Tuple2<>(1, "a"),
+			new Tuple2<>(2, "a"),
+			new Tuple2<>(3, "a"),
+			new Tuple2<>(4, "a"));
 
 		Pattern<Tuple2<Integer, String>, ?> pattern =
-				Pattern.<Tuple2<Integer, String>>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
-						.where(new SimpleCondition<Tuple2<Integer, String>>() {
-							@Override
-							public boolean filter(Tuple2<Integer, String> rec) throws Exception {
-								return rec.f1.equals("a");
-							}
-						}).times(2);
+			Pattern.<Tuple2<Integer, String>>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+				.where(new SimpleCondition<Tuple2<Integer, String>>() {
+					@Override
+					public boolean filter(Tuple2<Integer, String> rec) throws Exception {
+						return rec.f1.equals("a");
+					}
+				}).times(2);
 
 		PatternStream<Tuple2<Integer, String>> pStream = CEP.pattern(input, pattern);
 
