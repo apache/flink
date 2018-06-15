@@ -21,8 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -49,8 +47,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
@@ -444,42 +440,8 @@ public final class BlobClient implements Closeable {
 	 */
 	public PermanentBlobKey uploadFile(JobID jobId, Path file) throws IOException {
 		final FileSystem fs = file.getFileSystem();
-		if (fs.getFileStatus(file).isDir()) {
-			return uploadDirectory(jobId, file, fs);
-		} else {
-			try (InputStream is = fs.open(file)) {
-				return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
-			}
+		try (InputStream is = fs.open(file)) {
+			return (PermanentBlobKey) putInputStream(jobId, is, PERMANENT_BLOB);
 		}
 	}
-
-	private PermanentBlobKey uploadDirectory(JobID jobId, Path file, FileSystem fs) throws IOException {
-		try (BlobOutputStream blobOutputStream = new BlobOutputStream(jobId, PERMANENT_BLOB, socket)) {
-			try (ZipOutputStream zipStream = new ZipOutputStream(blobOutputStream)) {
-				compressDirectoryToZipfile(fs, fs.getFileStatus(file), fs.getFileStatus(file), zipStream);
-				zipStream.finish();
-				return (PermanentBlobKey) blobOutputStream.finish();
-			}
-		}
-	}
-
-	private static void compressDirectoryToZipfile(FileSystem fs, FileStatus rootDir, FileStatus sourceDir, ZipOutputStream out) throws IOException {
-		for (FileStatus file : fs.listStatus(sourceDir.getPath())) {
-			LOG.info("Zipping file: {}", file);
-			if (file.isDir()) {
-				compressDirectoryToZipfile(fs, rootDir, file, out);
-			} else {
-				String entryName = file.getPath().getPath().replace(rootDir.getPath().getPath(), "");
-				LOG.info("Zipping entry: {}, file: {}, rootDir: {}", entryName, file, rootDir);
-				ZipEntry entry = new ZipEntry(entryName);
-				out.putNextEntry(entry);
-
-				try (FSDataInputStream in = fs.open(file.getPath())) {
-					IOUtils.copyBytes(in, out, false);
-				}
-				out.closeEntry();
-			}
-		}
-	}
-
 }

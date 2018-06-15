@@ -53,8 +53,6 @@ import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
-import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
-import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -226,7 +224,6 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testJobSubmitCancelStop() throws Exception {
-		TestBlobServerPortHandler portHandler = new TestBlobServerPortHandler();
 		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
 		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
@@ -237,15 +234,12 @@ public class RestClusterClientTest extends TestLogger {
 					.build()));
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			portHandler,
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
 
-			Assert.assertFalse(portHandler.portRetrieved);
 			Assert.assertFalse(submitHandler.jobSubmitted);
 			restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
-			Assert.assertTrue(portHandler.portRetrieved);
 			Assert.assertTrue(submitHandler.jobSubmitted);
 
 			Assert.assertFalse(terminationHandler.jobCanceled);
@@ -264,11 +258,9 @@ public class RestClusterClientTest extends TestLogger {
 	@Test
 	public void testDetachedJobSubmission() throws Exception {
 
-		final TestBlobServerPortHandler testBlobServerPortHandler = new TestBlobServerPortHandler();
 		final TestJobSubmitHandler testJobSubmitHandler = new TestJobSubmitHandler();
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			testBlobServerPortHandler,
 			testJobSubmitHandler)) {
 
 			restClusterClient.setDetached(true);
@@ -280,20 +272,6 @@ public class RestClusterClientTest extends TestLogger {
 			assertThat(jobSubmissionResult.getJobID(), is(jobId));
 		}
 
-	}
-
-	private class TestBlobServerPortHandler extends TestHandler<EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
-		private volatile boolean portRetrieved = false;
-
-		private TestBlobServerPortHandler() {
-			super(BlobServerPortHeaders.getInstance());
-		}
-
-		@Override
-		protected CompletableFuture<BlobServerPortResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-			portRetrieved = true;
-			return CompletableFuture.completedFuture(new BlobServerPortResponseBody(12000));
-		}
 	}
 
 	private class TestJobSubmitHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
@@ -390,7 +368,6 @@ public class RestClusterClientTest extends TestLogger {
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
 			testJobExecutionResultHandler,
-			new TestBlobServerPortHandler(),
 			new TestJobSubmitHandler())) {
 
 			JobExecutionResult jobExecutionResult;

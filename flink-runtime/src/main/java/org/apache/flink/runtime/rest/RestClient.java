@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -53,20 +54,29 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
@@ -106,6 +116,7 @@ public class RestClient {
 				socketChannel.pipeline()
 					.addLast(new HttpClientCodec())
 					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+					.addLast(new ChunkedWriteHandler())
 					.addLast(new ClientHandler());
 			}
 		};
@@ -185,6 +196,103 @@ public class RestClient {
 	}
 
 	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, JavaType responseType) {
+		return createChannelFuture(targetAddress, targetPort)
+			.thenComposeAsync(
+				channel -> {
+					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+					channel.writeAndFlush(httpRequest);
+					return future;
+				},
+				executor)
+			.thenComposeAsync(
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
+				executor);
+	}
+
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
+			String targetAddress,
+			int targetPort,
+			M messageHeaders,
+			U messageParameters,
+			R request,
+			Collection<Path> jars,
+			Collection<Path> userArtifacts) throws IOException {
+		Preconditions.checkNotNull(targetAddress);
+		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
+		Preconditions.checkNotNull(messageHeaders);
+		Preconditions.checkNotNull(request);
+		Preconditions.checkNotNull(messageParameters);
+		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
+
+		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
+
+		LOG.debug("Sending request of class {} to {}:{}{}", request.getClass(), targetAddress, targetPort, targetUrl);
+		// serialize payload
+		StringWriter sw = new StringWriter();
+		objectMapper.writeValue(sw, request);
+		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+		// do not load file into memory, this can have weird side-effects and break functionality
+		HttpDataFactory factory = new DefaultHttpDataFactory(true);
+
+		HttpRequest httpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), messageHeaders.getTargetRestEndpointURL());
+		httpRequest.headers()
+			.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
+			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+
+		// takes care of splitting the request into multiple parts
+		HttpPostRequestEncoder bodyRequestEncoder;
+		try {
+			bodyRequestEncoder = new HttpPostRequestEncoder(factory, httpRequest, true);
+
+			Attribute requestAttribute = new MemoryAttribute(FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+			requestAttribute.setContent(payload);
+			bodyRequestEncoder.addBodyHttpData(requestAttribute);
+
+			addPathsToEncoder(jars, FileUploadHandler.HTTP_ATTRIBUTE_JARS, RestConstants.JAR_CONTENT_TYPE, bodyRequestEncoder);
+			addPathsToEncoder(userArtifacts, FileUploadHandler.HTTP_ATTRIBUTE_ARTIFACTS, RestConstants.BINARY_CONTENT_TYPE, bodyRequestEncoder);
+
+			bodyRequestEncoder.finalizeRequest();
+		} catch (HttpPostRequestEncoder.ErrorDataEncoderException e) {
+			return org.apache.flink.runtime.concurrent.FutureUtils.completedExceptionally(e);
+		}
+
+		return createChannelFuture(targetAddress, targetPort)
+			.thenComposeAsync(
+				channel -> {
+					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+
+					channel.writeAndFlush(httpRequest);
+					// if this is false the jars/artifacts are so small that they were already included in the initial request
+					if (bodyRequestEncoder.isChunked()) {
+						channel.writeAndFlush(bodyRequestEncoder);
+					}
+
+					// release data and remove temporary files if they were created
+					bodyRequestEncoder.cleanFiles();
+
+					return future;
+				},
+				executor)
+			.thenComposeAsync(
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, objectMapper.constructType(messageHeaders.getResponseClass())),
+				executor);
+	}
+
+	private static void addPathsToEncoder(Collection<Path> paths, String attributeName, String contentType, HttpPostRequestEncoder encoder) throws HttpPostRequestEncoder.ErrorDataEncoderException, IOException {
+		for (Path jar : paths) {
+			if (jar.getFileSystem().getFileStatus(jar).isDir()) {
+				throw new IllegalArgumentException("Upload of directories is not supported. Dir=" + jar.getPath());
+			}
+			File file = new File(jar.makeQualified(jar.getFileSystem()).toUri());
+			LOG.trace("Adding file {} to request.", file);
+			encoder.addBodyFileUpload(attributeName + file.getName(), file, contentType, false);
+		}
+	}
+
+	private CompletableFuture<Channel> createChannelFuture(String targetAddress, int targetPort) {
 		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
 		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
@@ -198,18 +306,7 @@ public class RestClient {
 				}
 			});
 
-		return channelFuture
-			.thenComposeAsync(
-				channel -> {
-					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-					channel.writeAndFlush(httpRequest);
-					return future;
-				},
-				executor)
-			.thenComposeAsync(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
-				executor);
+		return channelFuture;
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, JavaType responseType) {

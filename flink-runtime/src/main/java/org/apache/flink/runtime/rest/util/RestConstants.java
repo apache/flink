@@ -25,4 +25,6 @@ import org.apache.flink.configuration.ConfigConstants;
  */
 public class RestConstants {
 	public static final String REST_CONTENT_TYPE = "application/json; charset=" + ConfigConstants.DEFAULT_CHARSET.name();
+	public static final String JAR_CONTENT_TYPE = "application/x-java-archive";
+	public static final String BINARY_CONTENT_TYPE = "application/octet-stream";
 }

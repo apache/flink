@@ -30,6 +30,8 @@ import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
+import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -119,6 +121,10 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				}
 				//noinspection unchecked
 				request = (R) new FileUpload(path);
+			} else if (untypedResponseMessageHeaders == JobSubmitHeaders.getInstance()) {
+				final JobSubmitRequestBody jobSubmission = ctx.channel().attr(FileUploadHandler.SUBMITTED_JOB).get();
+				//noinspection unchecked
+				request = (R) jobSubmission;
 			} else if (msgContent.capacity() == 0) {
 				try {
 					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());

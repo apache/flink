@@ -28,7 +28,6 @@ import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.After;
@@ -39,14 +38,13 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -84,15 +82,11 @@ public class FileCacheDirectoriesTest {
 		@Override
 		public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
 			if (key.equals(permanentBlobKey)) {
-				final File zipArchive = temporaryFolder.newFile("zipArchive");
-				try (ZipOutputStream zis = new ZipOutputStream(new FileOutputStream(zipArchive))) {
-
-					final ZipEntry zipEntry = new ZipEntry("cacheFile");
-					zis.putNextEntry(zipEntry);
-
-					IOUtils.copyBytes(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), zis, false);
-				}
-				return zipArchive;
+				final java.nio.file.Path directory = temporaryFolder.newFolder("zipArchive").toPath();
+				final java.nio.file.Path containedFile = directory.resolve("cacheFile");
+				Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), containedFile);
+				Path zipPath = FileCache.compressDirectory(new Path(directory.toString()));
+				return new File(zipPath.getPath());
 			} else {
 				throw new IllegalArgumentException("This service contains only entry for " + permanentBlobKey);
 			}
@@ -205,5 +199,50 @@ public class FileCacheDirectoriesTest {
 				return super.schedule(command, delay, unit);
 			}
 		}
+	}
+
+	@Test
+	public void testCompression() throws IOException {
+		final java.nio.file.Path compressDir = temporaryFolder.newFolder("compressDir").toPath();
+		final java.nio.file.Path extractDir = temporaryFolder.newFolder("extractDir").toPath();
+
+		final java.nio.file.Path originalDir = Paths.get("rootDir");
+		final java.nio.file.Path emptySubDir = originalDir.resolve("emptyDir");
+		final java.nio.file.Path fullSubDir = originalDir.resolve("fullDir");
+		final java.nio.file.Path file1 = originalDir.resolve("file1");
+		final java.nio.file.Path file2 = originalDir.resolve("file2");
+		final java.nio.file.Path file3 = fullSubDir.resolve("file3");
+
+		Files.createDirectory(compressDir.resolve(originalDir));
+		Files.createDirectory(compressDir.resolve(emptySubDir));
+		Files.createDirectory(compressDir.resolve(fullSubDir));
+		Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file1));
+		Files.createFile(compressDir.resolve(file2));
+		Files.copy(new ByteArrayInputStream(testFileContent.getBytes(StandardCharsets.UTF_8)), compressDir.resolve(file3));
+
+		final Path zip = FileCache.compressDirectory(new Path(compressDir.resolve(originalDir).toString()));
+
+		FileCache.expandDirectory(new File(zip.getPath()), extractDir.toFile(), false);
+
+		assertTrue(Files.exists(extractDir.resolve(originalDir)));
+		assertTrue(Files.isDirectory(extractDir.resolve(originalDir)));
+
+		assertTrue(Files.exists(extractDir.resolve(emptySubDir)));
+		assertTrue(Files.isDirectory(extractDir.resolve(emptySubDir)));
+
+		assertTrue(Files.exists(extractDir.resolve(fullSubDir)));
+		assertTrue(Files.isDirectory(extractDir.resolve(fullSubDir)));
+
+		assertTrue(Files.exists(extractDir.resolve(file1)));
+		assertFalse(Files.isDirectory(extractDir.resolve(file1)));
+		assertEquals(Files.size(compressDir.resolve(file1)), Files.size(extractDir.resolve(file1)));
+
+		assertTrue(Files.exists(extractDir.resolve(file2)));
+		assertFalse(Files.isDirectory(extractDir.resolve(file2)));
+		assertEquals(Files.size(compressDir.resolve(file2)), Files.size(extractDir.resolve(file2)));
+
+		assertTrue(Files.exists(extractDir.resolve(file3)));
+		assertFalse(Files.isDirectory(extractDir.resolve(file3)));
+		assertEquals(Files.size(compressDir.resolve(file3)), Files.size(extractDir.resolve(file3)));
 	}
 }
