@@ -24,12 +24,13 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
 /**
- * Tests for {@link AbstractKeyGroupPartitionedSnapshot}.
+ * Tests for {@link KeyGroupPartitionedSnapshotImpl}.
  */
 public class AbstractKeyGroupPartitionedSnapshotTest {
 
@@ -60,34 +61,32 @@ public class AbstractKeyGroupPartitionedSnapshotTest {
 		AbstractKeyGroupPartitioner.PartitioningResult<Integer> result =
 			new AbstractKeyGroupPartitioner.PartitioningResult<>(testRange.getStartKeyGroup(), offsets, data);
 
-
-		TestAbstractKeyGroupPartitionedSnapshot testInstance = new TestAbstractKeyGroupPartitionedSnapshot(result);
+		final TestElementWriter testElementWriter = new TestElementWriter(result.getNumberOfKeyGroups());
+		StateSnapshot.KeyGroupPartitionedSnapshot testInstance =
+			new KeyGroupPartitionedSnapshotImpl<>(result, testElementWriter);
 		DataOutputView dummyOut = new DataOutputViewStreamWrapper(new ByteArrayOutputStreamWithPos());
-
 
 		for (Integer keyGroup : testRange) {
 			testInstance.writeMappingsInKeyGroup(dummyOut, keyGroup);
 		}
 
-		testInstance.validateCounts();
+		testElementWriter.validateCounts();
 	}
 
 	/**
-	 * Simple test implementation with validation of {@link AbstractKeyGroupPartitionedSnapshot}.
+	 * Simple test implementation with validation of {@link KeyGroupPartitionedSnapshotImpl.ElementWriterFunction}.
 	 */
-	static final class TestAbstractKeyGroupPartitionedSnapshot extends AbstractKeyGroupPartitionedSnapshot<Integer> {
+	static final class TestElementWriter implements KeyGroupPartitionedSnapshotImpl.ElementWriterFunction<Integer> {
 
 		@Nonnull
 		private final int[] countCheck;
 
-		TestAbstractKeyGroupPartitionedSnapshot(
-			@Nonnull AbstractKeyGroupPartitioner.PartitioningResult<Integer> partitioningResult) {
-			super(partitioningResult);
-			this.countCheck = new int[partitioningResult.getNumberOfKeyGroups()];
+		TestElementWriter(@Nonnegative int numberOfKeyGroups) {
+			this.countCheck = new int[numberOfKeyGroups];
 		}
 
 		@Override
-		protected void writeElement(@Nonnull Integer element, @Nonnull DataOutputView dov) throws IOException {
+		public void writeElement(@Nonnull Integer element, @Nonnull DataOutputView dov) {
 			++countCheck[element];
 		}
 

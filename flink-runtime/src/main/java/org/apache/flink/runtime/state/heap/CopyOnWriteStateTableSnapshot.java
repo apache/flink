@@ -21,17 +21,15 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.AbstractKeyGroupPartitionedSnapshot;
 import org.apache.flink.runtime.state.AbstractKeyGroupPartitioner;
+import org.apache.flink.runtime.state.KeyGroupPartitionedSnapshotImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.StateSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import java.io.IOException;
 
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing. Besides
@@ -94,7 +92,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * to an output as part of checkpointing.
 	 */
 	@Nullable
-	private PartitionedStateTableSnapshot partitionedStateTableSnapshot;
+	private StateSnapshot.KeyGroupPartitionedSnapshot partitionedStateTableSnapshot;
 
 	/**
 	 * Creates a new {@link CopyOnWriteStateTableSnapshot}.
@@ -152,7 +150,13 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 				keyGroupRange,
 				numberOfKeyGroups);
 
-			partitionedStateTableSnapshot = new PartitionedStateTableSnapshot(keyGroupPartitioner.partitionByKeyGroup());
+			partitionedStateTableSnapshot = new KeyGroupPartitionedSnapshotImpl<>(
+				keyGroupPartitioner.partitionByKeyGroup(),
+				(element, dov) -> {
+					localNamespaceSerializer.serialize(element.namespace, dov);
+					localKeySerializer.serialize(element.key, dov);
+					localStateSerializer.serialize(element.state, dov);
+			});
 		}
 
 		return partitionedStateTableSnapshot;
@@ -229,28 +233,6 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		@Override
 		protected CopyOnWriteStateTable.StateTableEntry<K, N, S>[] getPartitioningOutput() {
 			return snapshotData;
-		}
-	}
-
-	/**
-	 * This class represents a {@link org.apache.flink.runtime.state.StateSnapshot.KeyGroupPartitionedSnapshot} for
-	 * {@link CopyOnWriteStateTable}.
-	 */
-	private final class PartitionedStateTableSnapshot
-		extends AbstractKeyGroupPartitionedSnapshot<CopyOnWriteStateTable.StateTableEntry<K, N, S>> {
-
-		public PartitionedStateTableSnapshot(
-			@Nonnull AbstractKeyGroupPartitioner.PartitioningResult<CopyOnWriteStateTable.StateTableEntry<K, N, S>> partitioningResult) {
-			super(partitioningResult);
-		}
-
-		@Override
-		protected void writeElement(
-			@Nonnull CopyOnWriteStateTable.StateTableEntry<K, N, S> element,
-			@Nonnull DataOutputView dov) throws IOException {
-			localNamespaceSerializer.serialize(element.namespace, dov);
-			localKeySerializer.serialize(element.key, dov);
-			localStateSerializer.serialize(element.state, dov);
 		}
 	}
 }

@@ -18,17 +18,14 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.AbstractKeyGroupPartitionedSnapshot;
 import org.apache.flink.runtime.state.AbstractKeyGroupPartitioner;
+import org.apache.flink.runtime.state.KeyGroupPartitionedSnapshotImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import java.io.IOException;
 
 /**
  * This class represents the snapshot of a {@link InternalTimerHeap}.
@@ -56,7 +53,7 @@ public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
 
 	/** Result of partitioning the snapshot by key-group. */
 	@Nullable
-	private PartitionedInternalTimerHeapSnapshot partitionedSnapshot;
+	private KeyGroupPartitionedSnapshot partitionedSnapshot;
 
 	InternalTimerHeapSnapshot(
 		@Nonnull TimerHeapInternalTimer<K, N>[] timerHeapArrayCopy,
@@ -77,7 +74,9 @@ public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
 		if (partitionedSnapshot == null) {
 			TimerPartitioner<K, N> timerPartitioner =
 				new TimerPartitioner<>(timerHeapArrayCopy, keyGroupRange, totalKeyGroups);
-			partitionedSnapshot = new PartitionedInternalTimerHeapSnapshot(timerPartitioner.partitionByKeyGroup());
+			partitionedSnapshot = new KeyGroupPartitionedSnapshotImpl<>(
+				timerPartitioner.partitionByKeyGroup(),
+				timerSerializer::serialize);
 		}
 
 		return partitionedSnapshot;
@@ -127,25 +126,6 @@ public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
 		@Override
 		protected TimerHeapInternalTimer<K, N>[] getPartitioningOutput() {
 			return timersOut;
-		}
-	}
-
-	/**
-	 * Implementation of {@link AbstractKeyGroupPartitionedSnapshot} for {@link InternalTimerHeap}.
-	 */
-	private final class PartitionedInternalTimerHeapSnapshot
-		extends AbstractKeyGroupPartitionedSnapshot<TimerHeapInternalTimer<K, N>> {
-
-		PartitionedInternalTimerHeapSnapshot(
-			@Nonnull AbstractKeyGroupPartitioner.PartitioningResult<TimerHeapInternalTimer<K, N>> partitioningResult) {
-			super(partitioningResult);
-		}
-
-		@Override
-		protected void writeElement(
-			@Nonnull TimerHeapInternalTimer<K, N> element,
-			@Nonnull DataOutputView dov) throws IOException {
-			timerSerializer.serialize(element, dov);
 		}
 	}
 }

@@ -32,15 +32,21 @@ import java.io.IOException;
  *
  * @param <T> type of the written elements.
  */
-public abstract class AbstractKeyGroupPartitionedSnapshot<T> implements StateSnapshot.KeyGroupPartitionedSnapshot {
+public class KeyGroupPartitionedSnapshotImpl<T> implements StateSnapshot.KeyGroupPartitionedSnapshot {
 
 	/** The partitioning result to be written by key-group. */
 	@Nonnull
 	private final AbstractKeyGroupPartitioner.PartitioningResult<T> partitioningResult;
 
-	public AbstractKeyGroupPartitionedSnapshot(
-		@Nonnull AbstractKeyGroupPartitioner.PartitioningResult<T> partitioningResult) {
+	/** This function defines how one element from the result is written to a {@link DataOutputView}. */
+	@Nonnull
+	private final ElementWriterFunction<T> elementWriterFunction;
+
+	public KeyGroupPartitionedSnapshotImpl(
+		@Nonnull AbstractKeyGroupPartitioner.PartitioningResult<T> partitioningResult,
+		@Nonnull ElementWriterFunction<T> elementWriterFunction) {
 		this.partitioningResult = partitioningResult;
+		this.elementWriterFunction = elementWriterFunction;
 	}
 
 	@Override
@@ -56,18 +62,27 @@ public abstract class AbstractKeyGroupPartitionedSnapshot<T> implements StateSna
 
 		// write mappings
 		for (int i = startOffset; i < endOffset; ++i) {
-			writeElement(groupedOut[i], dov);
+			elementWriterFunction.writeElement(groupedOut[i], dov);
 			groupedOut[i] = null; // free asap for GC
 		}
 	}
 
 	/**
-	 * This method defines how to write a single element to the output.
+	 * This functional interface defines how one element is written to a {@link DataOutputView}.
 	 *
-	 * @param element the element to be written.
-	 * @param dov the output view to write the element.
-	 * @throws IOException on write-related problems.
+	 * @param <T> type of the written elements.
 	 */
-	protected abstract void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) throws IOException;
+	@FunctionalInterface
+	public interface ElementWriterFunction<T> {
+
+		/**
+		 * This method defines how to write a single element to the output.
+		 *
+		 * @param element the element to be written.
+		 * @param dov     the output view to write the element.
+		 * @throws IOException on write-related problems.
+		 */
+		void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) throws IOException;
+	}
 }
 
