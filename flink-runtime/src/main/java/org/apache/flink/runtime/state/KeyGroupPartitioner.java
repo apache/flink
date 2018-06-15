@@ -32,6 +32,8 @@ import java.io.IOException;
  * with two array (input, output) for optimal algorithmic complexity. Notice that this could also be implemented over a
  * single array, using some cuckoo-hashing-style element replacement. This would have worse algorithmic complexity but
  * better space efficiency. We currently prefer the trade-off in favor of better algorithmic complexity.
+ *
+ * @param <T> type of the partitioned elements.
  */
 public class KeyGroupPartitioner<T> {
 
