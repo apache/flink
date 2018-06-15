@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 
 /**
  * Abstract class that contains the base algorithm for partitioning data into key-groups. This algorithm currently works
@@ -30,7 +33,20 @@ import javax.annotation.Nullable;
  * single array, using some cuckoo-hashing-style element replacement. This would have worse algorithmic complexity but
  * better space efficiency. We currently prefer the trade-off in favor of better algorithmic complexity.
  */
-public abstract class AbstractKeyGroupPartitioner<T> {
+public class KeyGroupPartitioner<T> {
+
+	/**
+	 * The input data for the partitioning. All elements to consider must be densely in the index interval
+	 * [0, {@link #numberOfElements}[, without null values.
+	 */
+	@Nonnull
+	protected final T[] partitioningSource;
+
+	/**
+	 * The output array for the partitioning. The size must be {@link #numberOfElements} (or bigger).
+	 */
+	@Nonnull
+	protected final T[] partitioningDestination;
 
 	/** Total number of input elements. */
 	@Nonnegative
@@ -61,22 +77,49 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 	@Nonnegative
 	protected final int firstKeyGroup;
 
+	/** Function to extract the key from a given element. */
+	@Nonnull
+	protected final KeyExtractorFunction<T> keyExtractorFunction;
+
+	/** Function to write an element to a {@link DataOutputView}. */
+	@Nonnull
+	protected final ElementWriterFunction<T> elementWriterFunction;
+
 	/** Cached result. */
 	@Nullable
-	protected PartitioningResult<T> computedResult;
+	protected StateSnapshot.KeyGroupPartitionedSnapshot computedResult;
 
 	/**
+	 * Creates a new {@link KeyGroupPartitioner}.
+	 *
+	 * @param partitioningSource the input for the partitioning. All elements must be densely packed in the index
+	 *                              interval [0, {@link #numberOfElements}[, without null values.
+	 * @param numberOfElements the number of elements to consider from the input, starting at input index 0.
+	 * @param partitioningDestination the output of the partitioning. Must have capacity of at least numberOfElements.
 	 * @param keyGroupRange the key-group range of the data that will be partitioned by this instance.
 	 * @param totalKeyGroups the total number of key groups in the job.
+	 * @param keyExtractorFunction this function extracts the partition key from an element.
 	 */
-	public AbstractKeyGroupPartitioner(
+	public KeyGroupPartitioner(
+		@Nonnull T[] partitioningSource,
 		@Nonnegative int numberOfElements,
+		@Nonnull T[] partitioningDestination,
 		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnegative int totalKeyGroups) {
+		@Nonnegative int totalKeyGroups,
+		@Nonnull KeyExtractorFunction<T> keyExtractorFunction,
+		@Nonnull ElementWriterFunction<T> elementWriterFunction) {
 
+		Preconditions.checkState(partitioningSource != partitioningDestination);
+		Preconditions.checkState(partitioningSource.length >= numberOfElements);
+		Preconditions.checkState(partitioningDestination.length >= numberOfElements);
+
+		this.partitioningSource = partitioningSource;
+		this.partitioningDestination = partitioningDestination;
 		this.numberOfElements = numberOfElements;
 		this.keyGroupRange = keyGroupRange;
 		this.totalKeyGroups = totalKeyGroups;
+		this.keyExtractorFunction = keyExtractorFunction;
+		this.elementWriterFunction = elementWriterFunction;
 		this.firstKeyGroup = keyGroupRange.getStartKeyGroup();
 		this.elementKeyGroups = new int[numberOfElements];
 		this.counterHistogram = new int[keyGroupRange.getNumberOfKeyGroups()];
@@ -86,10 +129,10 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 	/**
 	 * Partitions the data into key-groups and returns the result via {@link PartitioningResult}.
 	 */
-	public PartitioningResult<T> partitionByKeyGroup() {
+	public StateSnapshot.KeyGroupPartitionedSnapshot partitionByKeyGroup() {
 		if (computedResult == null) {
 			reportAllElementKeyGroups();
-			buildHistogramFromCounts();
+			buildHistogramByAccumulatingCounts();
 			executePartitioning();
 		}
 		return computedResult;
@@ -99,34 +142,15 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 	 * This method iterates over the input data and reports the key-group for each element.
 	 */
 	protected void reportAllElementKeyGroups() {
-		final T[] input = getPartitioningInput();
 
-		Preconditions.checkState(input.length >= numberOfElements);
+		Preconditions.checkState(partitioningSource.length >= numberOfElements);
 
 		for (int i = 0; i < numberOfElements; ++i) {
-			int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(extractKeyFromElement(input[i]), totalKeyGroups);
+			int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(
+				keyExtractorFunction.extractKeyFromElement(partitioningSource[i]), totalKeyGroups);
 			reportKeyGroupOfElementAtIndex(i, keyGroup);
 		}
 	}
-
-	/**
-	 * Returns the key for the given element by which the key-group can be computed.
-	 */
-	@Nonnull
-	protected abstract Object extractKeyFromElement(T element);
-
-	/**
-	 * Returns the input data for the partitioning. All elements to consider must be densely in the index interval
-	 * [0, {@link #numberOfElements}[, without null values.
-	 */
-	@Nonnull
-	protected abstract T[] getPartitioningInput();
-
-	/**
-	 * Returns the output array for the partitioning. The size must be {@link #numberOfElements} (or bigger).
-	 */
-	@Nonnull
-	protected abstract T[] getPartitioningOutput();
 
 	/**
 	 * This method reports in the bookkeeping data that the element at the given index belongs to the given key-group.
@@ -140,39 +164,45 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 	/**
 	 * This method creates a histogram from the counts per key-group in {@link #counterHistogram}.
 	 */
-	private void buildHistogramFromCounts() {
+	private void buildHistogramByAccumulatingCounts() {
 		int sum = 0;
 		for (int i = 0; i < counterHistogram.length; ++i) {
 			int currentSlotValue = counterHistogram[i];
 			counterHistogram[i] = sum;
 			sum += currentSlotValue;
 		}
+
+		// sanity check that the sum matches the expected number of elements.
+		Preconditions.checkState(sum == numberOfElements);
 	}
 
 	private void executePartitioning() {
-
-		final T[] in = getPartitioningInput();
-		final T[] out = getPartitioningOutput();
-
-		Preconditions.checkState(in != out);
-		Preconditions.checkState(in.length >= numberOfElements);
-		Preconditions.checkState(out.length >= numberOfElements);
 
 		// We repartition the entries by their pre-computed key-groups, using the histogram values as write indexes
 		for (int inIdx = 0; inIdx < numberOfElements; ++inIdx) {
 			int effectiveKgIdx = elementKeyGroups[inIdx];
 			int outIdx = counterHistogram[effectiveKgIdx]++;
-			out[outIdx] = in[inIdx];
+			partitioningDestination[outIdx] = partitioningSource[inIdx];
 		}
 
-		this.computedResult = new PartitioningResult<>(firstKeyGroup, counterHistogram, out);
+		this.computedResult = new PartitioningResult<>(
+			elementWriterFunction,
+			firstKeyGroup,
+			counterHistogram,
+			partitioningDestination);
 	}
 
 	/**
 	 * This represents the result of key-group partitioning. The data in {@link #partitionedElements} is partitioned
-	 * w.r.t. {@link AbstractKeyGroupPartitioner#keyGroupRange}.
+	 * w.r.t. {@link KeyGroupPartitioner#keyGroupRange}.
 	 */
-	public static class PartitioningResult<T> {
+	public static class PartitioningResult<T> implements StateSnapshot.KeyGroupPartitionedSnapshot {
+
+		/**
+		 * Function to write one element to a {@link DataOutputView}.
+		 */
+		@Nonnull
+		private final ElementWriterFunction<T> elementWriterFunction;
 
 		/**
 		 * The exclusive-end-offsets for all key-groups of the covered range for the partitioning. Exclusive-end-offset
@@ -188,42 +218,78 @@ public abstract class AbstractKeyGroupPartitioner<T> {
 		@Nonnull
 		private final T[] partitionedElements;
 
+		/**
+		 * The first key-group of the range covered in the partitioning.
+		 */
+		@Nonnegative
 		private final int firstKeyGroup;
 
 		PartitioningResult(
+			@Nonnull ElementWriterFunction<T> elementWriterFunction,
 			@Nonnegative int firstKeyGroup,
 			@Nonnull int[] keyGroupEndOffsets,
 			@Nonnull T[] partitionedElements) {
-
+			this.elementWriterFunction = elementWriterFunction;
 			this.firstKeyGroup = firstKeyGroup;
 			this.keyGroupOffsets = keyGroupEndOffsets;
 			this.partitionedElements = partitionedElements;
 		}
 
-		@Nonnull
-		public T[] getPartitionedElements() {
-			return partitionedElements;
-		}
-
 		@Nonnegative
-		public int getKeyGroupStartOffsetInclusive(int keyGroup) {
+		private int getKeyGroupStartOffsetInclusive(int keyGroup) {
 			int idx = keyGroup - firstKeyGroup - 1;
 			return idx < 0 ? 0 : keyGroupOffsets[idx];
 		}
 
 		@Nonnegative
-		public int getKeyGroupEndOffsetExclusive(int keyGroup) {
+		private int getKeyGroupEndOffsetExclusive(int keyGroup) {
 			return keyGroupOffsets[keyGroup - firstKeyGroup];
 		}
 
-		@Nonnegative
-		public int getFirstKeyGroup() {
-			return firstKeyGroup;
-		}
+		@Override
+		public void writeMappingsInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 
-		@Nonnegative
-		public int getNumberOfKeyGroups() {
-			return keyGroupOffsets.length;
+			int startOffset = getKeyGroupStartOffsetInclusive(keyGroupId);
+			int endOffset = getKeyGroupEndOffsetExclusive(keyGroupId);
+
+			// write number of mappings in key-group
+			dov.writeInt(endOffset - startOffset);
+
+			// write mappings
+			for (int i = startOffset; i < endOffset; ++i) {
+				elementWriterFunction.writeElement(partitionedElements[i], dov);
+			}
 		}
+	}
+
+	/**
+	 * @param <T> type of the element from which we extract the key.
+	 */
+	@FunctionalInterface
+	public interface KeyExtractorFunction<T> {
+
+		/**
+		 * Returns the key for the given element by which the key-group can be computed.
+		 */
+		@Nonnull
+		Object extractKeyFromElement(@Nonnull T element);
+	}
+
+	/**
+	 * This functional interface defines how one element is written to a {@link DataOutputView}.
+	 *
+	 * @param <T> type of the written elements.
+	 */
+	@FunctionalInterface
+	public interface ElementWriterFunction<T> {
+
+		/**
+		 * This method defines how to write a single element to the output.
+		 *
+		 * @param element the element to be written.
+		 * @param dov     the output view to write the element.
+		 * @throws IOException on write-related problems.
+		 */
+		void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) throws IOException;
 	}
 }

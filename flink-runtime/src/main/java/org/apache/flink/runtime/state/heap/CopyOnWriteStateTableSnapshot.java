@@ -21,8 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.AbstractKeyGroupPartitioner;
-import org.apache.flink.runtime.state.KeyGroupPartitionedSnapshotImpl;
+import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateSnapshot;
@@ -144,19 +143,18 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			final KeyGroupRange keyGroupRange = keyContext.getKeyGroupRange();
 			final int numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
 
-			StateTableKeyGroupPartitioner<K, N, S> keyGroupPartitioner = new StateTableKeyGroupPartitioner<>(
+			final StateTableKeyGroupPartitioner<K, N, S> keyGroupPartitioner = new StateTableKeyGroupPartitioner<>(
 				snapshotData,
 				numberOfEntriesInSnapshotData,
 				keyGroupRange,
-				numberOfKeyGroups);
-
-			partitionedStateTableSnapshot = new KeyGroupPartitionedSnapshotImpl<>(
-				keyGroupPartitioner.partitionByKeyGroup(),
+				numberOfKeyGroups,
 				(element, dov) -> {
 					localNamespaceSerializer.serialize(element.namespace, dov);
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
-			});
+				});
+
+			partitionedStateTableSnapshot = keyGroupPartitioner.partitionByKeyGroup();
 		}
 
 		return partitionedStateTableSnapshot;
@@ -175,7 +173,9 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	}
 
 	/**
-	 * This class is the implementation of {@link AbstractKeyGroupPartitioner} for {@link CopyOnWriteStateTable}.
+	 * This class is the implementation of {@link KeyGroupPartitioner} for {@link CopyOnWriteStateTable}. This class
+	 * swaps input and output in {@link #reportAllElementKeyGroups()} for performance reasons, so that we can reuse
+	 * the non-flattened original snapshot array as partitioning output.
 	 *
 	 * @param <K> type of key.
 	 * @param <N> type of namespace.
@@ -183,56 +183,38 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 */
 	@VisibleForTesting
 	protected static final class StateTableKeyGroupPartitioner<K, N, S>
-		extends AbstractKeyGroupPartitioner<CopyOnWriteStateTable.StateTableEntry<K, N, S>> {
-
-		@Nonnull
-		private final CopyOnWriteStateTable.StateTableEntry<K, N, S>[] snapshotData;
-
-		@Nonnull
-		private final CopyOnWriteStateTable.StateTableEntry<K, N, S>[] flattenedData;
+		extends KeyGroupPartitioner<CopyOnWriteStateTable.StateTableEntry<K, N, S>> {
 
 		@SuppressWarnings("unchecked")
 		StateTableKeyGroupPartitioner(
 			@Nonnull CopyOnWriteStateTable.StateTableEntry<K, N, S>[] snapshotData,
 			@Nonnegative int stateTableSize,
 			@Nonnull KeyGroupRange keyGroupRange,
-			@Nonnegative int totalKeyGroups) {
+			@Nonnegative int totalKeyGroups,
+			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction) {
 
-			super(stateTableSize, keyGroupRange, totalKeyGroups);
-			this.snapshotData = snapshotData;
-			this.flattenedData = new CopyOnWriteStateTable.StateTableEntry[numberOfElements];
+			super(
+				new CopyOnWriteStateTable.StateTableEntry[stateTableSize],
+				stateTableSize,
+				snapshotData,
+				keyGroupRange,
+				totalKeyGroups,
+				CopyOnWriteStateTable.StateTableEntry::getKey,
+				elementWriterFunction);
 		}
 
 		@Override
 		protected void reportAllElementKeyGroups() {
 			// In this step we i) 'flatten' the linked list of entries to a second array and ii) report key-groups.
 			int flattenIndex = 0;
-			for (CopyOnWriteStateTable.StateTableEntry<K, N, S> entry : snapshotData) {
+			for (CopyOnWriteStateTable.StateTableEntry<K, N, S> entry : partitioningDestination) {
 				while (null != entry) {
 					final int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(entry.key, totalKeyGroups);
 					reportKeyGroupOfElementAtIndex(flattenIndex, keyGroup);
-					flattenedData[flattenIndex++] = entry;
+					partitioningSource[flattenIndex++] = entry;
 					entry = entry.next;
 				}
 			}
-		}
-
-		@Nonnull
-		@Override
-		protected Object extractKeyFromElement(CopyOnWriteStateTable.StateTableEntry<K, N, S> element) {
-			return element.getKey();
-		}
-
-		@Nonnull
-		@Override
-		protected CopyOnWriteStateTable.StateTableEntry<K, N, S>[] getPartitioningInput() {
-			return flattenedData;
-		}
-
-		@Nonnull
-		@Override
-		protected CopyOnWriteStateTable.StateTableEntry<K, N, S>[] getPartitioningOutput() {
-			return snapshotData;
 		}
 	}
 }
