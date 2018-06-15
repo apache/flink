@@ -497,7 +497,8 @@ public abstract class ClusterClient<T> {
 
 			return lastJobExecutionResult;
 		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage() +
+				". The job ID: " + jobGraph.getJobID(), e);
 		}
 	}
 
@@ -529,7 +530,8 @@ public abstract class ClusterClient<T> {
 				classLoader);
 			return new JobSubmissionResult(jobGraph.getJobID());
 		} catch (JobExecutionException e) {
-			throw new ProgramInvocationException("The program execution failed: " + e.getMessage(), e);
+			throw new ProgramInvocationException("The program execution failed: " + e.getMessage() +
+				". The job ID: " + jobGraph.getJobID(), e);
 		}
 	}
 
