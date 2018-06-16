@@ -27,9 +27,9 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -109,15 +110,11 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
-
-		CollectSink.VALUES.sort(String::compareTo);
-
-		assertEquals(Arrays.asList("2,6,8"), CollectSink.VALUES);
+		assertEquals(Arrays.asList("2,6,8"), resultList);
 	}
 
 	@Test
@@ -187,15 +184,13 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
 
-		CollectSink.VALUES.sort(String::compareTo);
-
-		assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), CollectSink.VALUES);
+		assertEquals(Arrays.asList("2,2,2", "3,3,3", "42,42,42"), resultList);
 	}
 
 	@Test
@@ -268,15 +263,13 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		);
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
 
-		CollectSink.VALUES.sort(String::compareTo);
-
-		assertEquals(Arrays.asList("1,5,4"), CollectSink.VALUES);
+		assertEquals(Arrays.asList("1,5,4"), resultList);
 	}
 
 	@Test
@@ -345,30 +338,28 @@ public class CEPITCase extends AbstractTestBase {
 		});
 
 		DataStream<String> result = CEP.pattern(input, pattern).select(
-				new PatternSelectFunction<Event, String>() {
+			new PatternSelectFunction<Event, String>() {
 
-					@Override
-					public String select(Map<String, List<Event>> pattern) {
-						StringBuilder builder = new StringBuilder();
+				@Override
+				public String select(Map<String, List<Event>> pattern) {
+					StringBuilder builder = new StringBuilder();
 
-						builder.append(pattern.get("start").get(0).getId()).append(",")
-								.append(pattern.get("middle").get(0).getId()).append(",")
-								.append(pattern.get("end").get(0).getId());
+					builder.append(pattern.get("start").get(0).getId()).append(",")
+							.append(pattern.get("middle").get(0).getId()).append(",")
+							.append(pattern.get("end").get(0).getId());
 
-						return builder.toString();
-					}
+					return builder.toString();
 				}
+			}
 		);
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(String::compareTo);
 
-		CollectSink.VALUES.sort(String::compareTo);
-
-		assertEquals(Arrays.asList("1,1,1", "2,2,2"), CollectSink.VALUES);
+		assertEquals(Arrays.asList("1,1,1", "2,2,2"), resultList);
 	}
 
 	@Test
@@ -396,15 +387,11 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<Tuple2<Integer, Integer>> resultList = new ArrayList<>();
 
-		result.map(Tuple2::toString).addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
-
-		CollectSink.VALUES.sort(String::compareTo);
-
-		assertEquals(Arrays.asList("(0,1)"), CollectSink.VALUES);
+		assertEquals(Arrays.asList(new Tuple2<>(0, 1)), resultList);
 	}
 
 	@Test
@@ -423,13 +410,11 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<Integer> resultList = new ArrayList<>();
 
-		result.map(val -> val.toString()).addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
-
-		assertEquals(Arrays.asList("3"), CollectSink.VALUES);
+		assertEquals(Arrays.asList(3), resultList);
 	}
 
 	@Test
@@ -498,30 +483,24 @@ public class CEPITCase extends AbstractTestBase {
 					StringBuilder builder = new StringBuilder();
 
 					builder.append(pattern.get("start").get(0).getPrice()).append(",")
-							.append(pattern.get("middle").get(0).getPrice()).append(",")
-							.append(pattern.get("end").get(0).getPrice());
+						.append(pattern.get("middle").get(0).getPrice()).append(",")
+						.append(pattern.get("end").get(0).getPrice());
 
 					return builder.toString();
 				}
 			}
 		);
 
-		CollectSink.VALUES.clear();
+		List<Either<String, String>> resultList = new ArrayList<>();
 
-		result.map(new MapFunction<Either<String, String>, String>() {
-			@Override
-			public String map(Either<String, String> value) throws Exception {
-				return value.toString();
-			}
-		}).addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(Comparator.comparing(either -> either.toString()));
 
-		CollectSink.VALUES.sort(String::compareTo);
+		List<Either<String, String>> expected = Arrays.asList(Either.Left.of("1.0"), Either.Left.of("2.0"),
+												Either.Left.of("2.0"), Either.Right.of("2.0,2.0,2.0"));
 
-		List<String> expected = Arrays.asList("Left(1.0)\nLeft(2.0)\nLeft(2.0)\nRight(2.0,2.0,2.0)".split("\n"));
-
-		assertEquals(expected, CollectSink.VALUES);
+		assertEquals(expected, resultList);
 	}
 
 	/**
@@ -577,25 +556,24 @@ public class CEPITCase extends AbstractTestBase {
 				StringBuilder builder = new StringBuilder();
 
 				builder.append(pattern.get("start").get(0).getId()).append(",")
-						.append(pattern.get("middle").get(0).getId()).append(",")
-						.append(pattern.get("end").get(0).getId());
+					.append(pattern.get("middle").get(0).getId()).append(",")
+					.append(pattern.get("end").get(0).getId());
 
 				return builder.toString();
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
-
-		env.execute();
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
 		List<String> expected = Arrays.asList("1,5,6\n1,2,3\n4,5,6\n1,2,6".split("\n"));
 
 		expected.sort(String::compareTo);
-		CollectSink.VALUES.sort(String::compareTo);
 
-		assertEquals(expected, CollectSink.VALUES);
+		resultList.sort(String::compareTo);
+
+		assertEquals(expected, resultList);
 	}
 
 	/**
@@ -668,26 +646,25 @@ public class CEPITCase extends AbstractTestBase {
 					StringBuilder builder = new StringBuilder();
 
 					builder.append(pattern.get("start").get(0).getId()).append(",")
-							.append(pattern.get("middle").get(0).getId()).append(",")
-							.append(pattern.get("end").get(0).getId());
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
 
 					return builder.toString();
 				}
 			}
 		);
 
-		CollectSink.VALUES.clear();
+		List<String> resultList = new ArrayList<>();
 
-		result.addSink(new CollectSink());
-
-		env.execute();
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
 		List<String> expected = Arrays.asList("1,6,4\n1,5,4".split("\n"));
 
 		expected.sort(String::compareTo);
-		CollectSink.VALUES.sort(String::compareTo);
 
-		assertEquals(expected, CollectSink.VALUES);
+		resultList.sort(String::compareTo);
+
+		assertEquals(expected, resultList);
 	}
 
 	private static class CustomEventComparator implements EventComparator<Event> {
@@ -724,32 +701,14 @@ public class CEPITCase extends AbstractTestBase {
 			}
 		});
 
-		CollectSink.VALUES.clear();
+		List<Tuple2<Integer, String>> resultList = new ArrayList<>();
 
-		result.map(new MapFunction<Tuple2<Integer, String>, String>() {
-			@Override
-			public String map(Tuple2<Integer, String> value) throws Exception {
-				return value.toString();
-			}
-		}).addSink(new CollectSink());
+		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		env.execute();
+		resultList.sort(Comparator.comparing(tuple2 -> tuple2.toString()));
 
-		CollectSink.VALUES.sort(String::compareTo);
+		List<Tuple2<Integer, String>> expected = Arrays.asList(Tuple2.of(1, "a"), Tuple2.of(3, "a"));
 
-		List<String> expected = Arrays.asList("(1,a)\n(3,a)".split("\n"));
-
-		assertEquals(expected, CollectSink.VALUES);
+		assertEquals(expected, resultList);
 	}
-
-	private static class CollectSink implements SinkFunction<String> {
-
-		public static final List<String> VALUES = new ArrayList<>();
-
-		@Override
-		public synchronized void invoke(String value) throws Exception {
-			VALUES.add(value);
-		}
-	}
-
 }
