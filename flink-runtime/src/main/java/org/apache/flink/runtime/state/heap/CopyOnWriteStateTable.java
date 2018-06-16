@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -605,11 +604,21 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		StateTableEntry<K, N, S>[] table = primaryTable;
+
+		// In order to reuse the copied array as the destination array for the partitioned records in
+		// CopyOnWriteStateTableSnapshot#partitionByKeyGroup(), we need to make sure that the copied array
+		// is big enough to hold the flattened entries. In fact, given the current rehashing algorithm, we only
+		// need to do this check when isRehashing() is false, but in order to get a more robust code(in case that
+		// the rehashing algorithm may changed in the future), we do this check for all the case.
+		final int totalTableIndexSize = rehashIndex + table.length;
+		final int totalEntriesSize = size();
+		final int copiedArraySize = totalEntriesSize > totalTableIndexSize ? totalEntriesSize : totalTableIndexSize;
+		final StateTableEntry<K, N, S>[] copy = new StateTableEntry[copiedArraySize];
+
 		if (isRehashing()) {
 			// consider both tables for the snapshot, the rehash index tells us which part of the two tables we need
 			final int localRehashIndex = rehashIndex;
 			final int localCopyLength = table.length - localRehashIndex;
-			StateTableEntry<K, N, S>[] copy = new StateTableEntry[localRehashIndex + table.length];
 			// for the primary table, take every index >= rhIdx.
 			System.arraycopy(table, localRehashIndex, copy, 0, localCopyLength);
 
@@ -618,12 +627,12 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			table = incrementalRehashTable;
 			System.arraycopy(table, 0, copy, localCopyLength, localRehashIndex);
 			System.arraycopy(table, table.length >>> 1, copy, localCopyLength + localRehashIndex, localRehashIndex);
-
-			return copy;
 		} else {
 			// we only need to copy the primary table
-			return Arrays.copyOf(table, table.length);
+			System.arraycopy(table, 0, copy, 0, table.length);
 		}
+
+		return copy;
 	}
 
 	/**
