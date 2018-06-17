@@ -552,20 +552,16 @@ public class BucketingSink<T>
 		// clean the base directory in case of rescaling.
 
 		int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-		Path partPath = new Path(bucketPath, partPrefix + "-" + subtaskIndex + "-" + bucketState.partCounter);
+		Path partPath = assemblePartPath(bucketPath, subtaskIndex, bucketState.partCounter);
 		while (fs.exists(partPath) ||
 				fs.exists(getPendingPathFor(partPath)) ||
 				fs.exists(getInProgressPathFor(partPath))) {
 			bucketState.partCounter++;
-			partPath = new Path(bucketPath, partPrefix + "-" + subtaskIndex + "-" + bucketState.partCounter);
+			partPath = assemblePartPath(bucketPath, subtaskIndex, bucketState.partCounter);
 		}
 
 		// Record the creation time of the bucket
 		bucketState.creationTime = processingTimeService.getCurrentProcessingTime();
-
-		if (partSuffix != null) {
-			partPath = partPath.suffix(partSuffix);
-		}
 
 		// increase, so we don't have to check for this name next time
 		bucketState.partCounter++;
@@ -586,6 +582,11 @@ public class BucketingSink<T>
 
 		bucketState.writer.open(fs, inProgressPath);
 		bucketState.isWriterOpen = true;
+	}
+
+	private Path assemblePartPath(Path bucket, int subtaskIndex, int partIndex) {
+		String localPartSuffix = partSuffix != null ? partSuffix : "";
+		return new Path(bucket, String.format("%s-%s-%s%s", partPrefix, subtaskIndex, partIndex, localPartSuffix));
 	}
 
 	/**
