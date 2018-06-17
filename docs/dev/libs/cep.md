@@ -31,7 +31,7 @@ This page describes the API calls available in Flink CEP. We start by presenting
 which allows you to specify the patterns that you want to detect in your stream, before presenting how you can
 [detect and act upon matching event sequences](#detecting-patterns). We then present the assumptions the CEP
 library makes when [dealing with lateness](#handling-lateness-in-event-time) in event time and how you can
-[migrate your job](#migrating-from-an-older-flink-version) from an older Flink version to Flink-1.3.
+[migrate your job](#migrating-from-an-older-flink-versionpre-13) from an older Flink version to Flink-1.3.
 
 * This will be replaced by the TOC
 {:toc}
@@ -408,7 +408,7 @@ input `"a1", "c", "a2", "b"` will have the following results:
 
  1. **Strict Contiguity**: `{a2 b}` -- the `"c"` after `"a1"` causes `"a1"` to be discarded.
 
- 2. **Relaxed Contiguity**: `{a1 b}` and `{a1 a2 b}` -- `c` is ignored.
+ 2. **Relaxed Contiguity**: `{a1 b}` and `{a1 a2 b}` -- `"c"` is ignored.
 
  3. **Non-Deterministic Relaxed Contiguity**: `{a1 b}`, `{a2 b}`, and `{a1 a2 b}`.
 
@@ -834,7 +834,7 @@ them between consecutive patterns, you can use:
 or
 
 1. `notNext()`, if you do not want an event type to directly follow another
-2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types
+2. `notFollowedBy()`, if you do not want an event type to be anywhere between two other event types.
 
 {% warn Attention %} A pattern sequence cannot end in `notFollowedBy()`.
 
@@ -886,14 +886,14 @@ val relaxedNot: Pattern[Event, _] = start.notFollowedBy("not").where(...)
 
 Relaxed contiguity means that only the first succeeding matching event will be matched, while
 with non-deterministic relaxed contiguity, multiple matches will be emitted for the same beginning. As an example,
-a pattern `a b`, given the event sequence `"a", "c", "b1", "b2"`, will give the following results:
+a pattern `"a b"`, given the event sequence `"a", "c", "b1", "b2"`, will give the following results:
 
-1. Strict Contiguity between `a` and `b`: `{}` (no match), the `"c"` after `"a"` causes `"a"` to be discarded.
+1. Strict Contiguity between `"a"` and `"b"`: `{}` (no match), the `"c"` after `"a"` causes `"a"` to be discarded.
 
-2. Relaxed Contiguity between `a` and `b`: `{a b1}`, as relaxed continuity is viewed as "skip non-matching events
+2. Relaxed Contiguity between `"a"` and `"b"`: `{a b1}`, as relaxed continuity is viewed as "skip non-matching events
 till the next matching one".
 
-3. Non-Deterministic Relaxed Contiguity between `a` and `b`: `{a b1}`, `{a b2}`, as this is the most general form.
+3. Non-Deterministic Relaxed Contiguity between `"a"` and `"b"`: `{a b1}`, `{a b2}`, as this is the most general form.
 
 It's also possible to define a temporal constraint for the pattern to be valid.
 For example, you can define that a pattern should occur within 10 seconds via the `pattern.within()` method.
@@ -1117,11 +1117,22 @@ pattern.within(Time.seconds(10));
     </thead>
     <tbody>
         <tr>
-            <td><strong>begin()</strong></td>
+            <td><strong>begin(#name)</strong></td>
             <td>
             <p>Defines a starting pattern:</p>
 {% highlight scala %}
 val start = Pattern.begin[Event]("start")
+{% endhighlight %}
+            </td>
+        </tr>
+       <tr>
+            <td><strong>begin(#pattern_sequence)</strong></td>
+            <td>
+            <p>Defines a starting pattern:</p>
+{% highlight scala %}
+val start = Pattern.begin(
+    Pattern.begin[Event]("start").where(...).followedBy("middle").where(...)
+)
 {% endhighlight %}
             </td>
         </tr>
@@ -1460,16 +1471,16 @@ PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 OutputTag<String> outputTag = new OutputTag<String>("side-output"){};
 
 SingleOutputStreamOperator<ComplexEvent> result = patternStream.select(
-    new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
     outputTag,
+    new PatternTimeoutFunction<Event, TimeoutEvent>() {...},
     new PatternSelectFunction<Event, ComplexEvent>() {...}
 );
 
 DataStream<TimeoutEvent> timeoutResult = result.getSideOutput(outputTag);
 
 SingleOutputStreamOperator<ComplexEvent> flatResult = patternStream.flatSelect(
-    new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
     outputTag,
+    new PatternFlatTimeoutFunction<Event, TimeoutEvent>() {...},
     new PatternFlatSelectFunction<Event, ComplexEvent>() {...}
 );
 
@@ -1524,7 +1535,49 @@ In `CEP` the order in which elements are processed matters. To guarantee that el
 
 To guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes
 *correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last
-seen watermark. Late elements are not further processed.
+seen watermark. Late elements are not further processed. Also, you can specify a sideOutput tag to collect the late elements come after the last seen watermark, you can use it like this.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+{% highlight java %}
+PatternStream<Event> patternStream = CEP.pattern(input, pattern);
+
+OutputTag<String> lateDataOutputTag = new OutputTag<String>("late-data"){};
+
+SingleOutputStreamOperator<ComplexEvent> result = patternStream
+    .sideOutputLateData(lateDataOutputTag)
+    .select(
+        new PatternSelectFunction<Event, ComplexEvent>() {...}
+    );
+
+DataStream<String> lateData = result.getSideOutput(lateDataOutputTag);
+
+
+{% endhighlight %}
+
+</div>
+
+<div data-lang="scala" markdown="1">
+
+{% highlight scala %}
+
+val patternStream: PatternStream[Event] = CEP.pattern(input, pattern)
+
+val lateDataOutputTag = OutputTag[String]("late-data")
+
+val result: SingleOutputStreamOperator[ComplexEvent] = patternStream
+      .sideOutputLateData(lateDataOutputTag)
+      .select{
+          pattern: Map[String, Iterable[ComplexEvent]] => ComplexEvent()
+      }
+
+val lateData: DataStream<String> = result.getSideOutput(lateDataOutputTag)
+
+{% endhighlight %}
+
+</div>
+</div>
 
 ## Examples
 

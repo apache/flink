@@ -20,13 +20,10 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.testutils.category.LegacyAndNew;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.net.InetAddress;
 
@@ -35,7 +32,6 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests the network buffer calculation from heap size.
  */
-@Category(LegacyAndNew.class)
 public class NetworkBufferCalculationTest extends TestLogger {
 
 	/**
@@ -102,7 +98,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			InetAddress.getLoopbackAddress(),
 			new String[] {},
 			new String[] {},
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			networkConfig,
 			QueryableStateConfiguration.disabled(),
 			1,

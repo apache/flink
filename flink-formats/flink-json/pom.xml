@@ -66,8 +66,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -91,6 +89,11 @@ under the License.
 		<profile>
 			<!-- Create SQL Client uber jars for releases -->
 			<id>release</id>
+			<activation>
+				<property>
+					<name>release</name>
+				</property>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>

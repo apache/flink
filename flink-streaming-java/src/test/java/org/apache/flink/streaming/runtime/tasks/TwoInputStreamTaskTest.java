@@ -21,12 +21,14 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -36,6 +38,8 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -47,6 +51,8 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
@@ -380,6 +386,67 @@ public class TwoInputStreamTaskTest {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
 				expectedOutput,
 				testHarness.getOutput());
+	}
+
+	@Test
+	public void testOperatorMetricReuse() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
+			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
+				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+			}
+		};
+
+		final StreamMockEnvironment env = new StreamMockEnvironment(
+			testHarness.jobConfig, testHarness.taskConfig, testHarness.memorySize, new MockInputSplitProvider(), testHarness.bufferSize, new TestTaskStateManager()) {
+			@Override
+			public TaskMetricGroup getMetricGroup() {
+				return taskMetricGroup;
+			}
+		};
+
+		final Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning();
+
+		final int numRecords1 = 5;
+		final int numRecords2 = 3;
+
+		for (int x = 0; x < numRecords1; x++) {
+			testHarness.processElement(new StreamRecord<>("hello"), 0, 0);
+		}
+
+		for (int x = 0; x < numRecords2; x++) {
+			testHarness.processElement(new StreamRecord<>("hello"), 1, 0);
+		}
+		testHarness.waitForInputProcessing();
+
+		assertEquals(numRecords1 + numRecords2, numRecordsInCounter.getCount());
+		assertEquals((numRecords1 + numRecords2) * 2 * 2 * 2, numRecordsOutCounter.getCount());
+	}
+
+	static class DuplicatingOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
+
+		@Override
+		public void processElement1(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+		}
+
+		@Override
+		public void processElement2(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+		}
 	}
 
 	@Test

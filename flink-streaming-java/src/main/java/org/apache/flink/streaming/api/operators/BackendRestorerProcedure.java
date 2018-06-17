@@ -105,6 +105,8 @@ public class BackendRestorerProcedure<
 
 			++alternativeIdx;
 
+			// IMPORTANT: please be careful when modifying the log statements because they are used for validation in
+			// the automatic end-to-end tests. Those tests might fail if they are not aligned with the log message!
 			if (restoreState.isEmpty()) {
 				LOG.debug("Creating {} with empty state.", logDescription);
 			} else {
@@ -125,6 +127,10 @@ public class BackendRestorerProcedure<
 
 				LOG.warn("Exception while restoring {} from alternative ({}/{}), will retry while more " +
 					"alternatives are available.", logDescription, alternativeIdx, restoreOptions.size(), ex);
+
+				if (backendCloseableRegistry.isClosed()) {
+					throw new FlinkException("Stopping restore attempts for already cancelled task.", collectedException);
+				}
 			}
 		}
 

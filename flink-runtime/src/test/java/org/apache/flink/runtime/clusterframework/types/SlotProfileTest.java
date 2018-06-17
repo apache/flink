@@ -97,6 +97,11 @@ public class SlotProfileTest {
 		match = runMatching(slotProfile);
 
 		Assert.assertEquals(ssc4, match);
+
+		slotProfile = new SlotProfile(resourceProfile, Arrays.asList(tml3, tml1, tml3, tmlX), Collections.emptyList());
+		match = runMatching(slotProfile);
+
+		Assert.assertEquals(ssc3, match);
 	}
 
 	@Test

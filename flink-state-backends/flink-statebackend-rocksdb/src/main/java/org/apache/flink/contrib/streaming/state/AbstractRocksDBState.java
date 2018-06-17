@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -111,7 +112,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 			byte[] key = keySerializationStream.toByteArray();
 			backend.db.delete(columnFamily, writeOptions, key);
 		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while removing entry from RocksDB", e);
+			throw new FlinkRuntimeException("Error while removing entry from RocksDB", e);
 		}
 	}
 
@@ -153,6 +154,25 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 				tmpKeySerializationDateDataOutputView);
 
 		return backend.db.get(columnFamily, tmpKeySerializationStream.toByteArray());
+	}
+
+	byte[] getKeyBytes() {
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			return keySerializationStream.toByteArray();
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Error while serializing key", e);
+		}
+	}
+
+	byte[] getValueBytes(V value) {
+		try {
+			keySerializationStream.reset();
+			valueSerializer.serialize(value, new DataOutputViewStreamWrapper(keySerializationStream));
+			return keySerializationStream.toByteArray();
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Error while serializing value", e);
+		}
 	}
 
 	protected void writeCurrentKeyWithGroupAndNamespace() throws IOException {

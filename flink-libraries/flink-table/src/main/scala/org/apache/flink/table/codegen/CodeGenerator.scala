@@ -1895,7 +1895,7 @@ abstract class CodeGenerator(
   }
 
   /**
-    * Adds a reusable MessageDigest to the member area of the generated [[Function]].
+    * Adds a known reusable MessageDigest to the member area of the generated [[Function]].
     *
     * @return member variable term
     */
@@ -1904,20 +1904,69 @@ abstract class CodeGenerator(
 
     val field =
       s"""
-         |final java.security.MessageDigest $fieldTerm;
-         |""".stripMargin
+        |final java.security.MessageDigest $fieldTerm;
+        |""".stripMargin
     reusableMemberStatements.add(field)
 
-    val fieldInit =
+    val init =
       s"""
-         |try {
-         |  $fieldTerm = java.security.MessageDigest.getInstance("$algorithm");
-         |} catch (java.security.NoSuchAlgorithmException e) {
-         |  throw new RuntimeException("Algorithm for '$algorithm' is not available.", e);
-         |}
-         |""".stripMargin
+        |try {
+        |  $fieldTerm = java.security.MessageDigest.getInstance("$algorithm");
+        |} catch (java.security.NoSuchAlgorithmException e) {
+        |  throw new RuntimeException("Algorithm for '$algorithm' is not available.", e);
+        |}
+        |""".stripMargin
 
-    reusableInitStatements.add(fieldInit)
+    reusableInitStatements.add(init)
+    fieldTerm
+  }
+
+  /**
+    * Adds a constant SHA2 reusable MessageDigest to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableSha2MessageDigest(constant: GeneratedExpression): String = {
+    require(constant.literal, "Literal expected")
+    val fieldTerm = newName("messageDigest")
+
+    val field =
+        s"""
+           |final java.security.MessageDigest $fieldTerm;
+           |""".stripMargin
+      reusableMemberStatements.add(field)
+
+    val bitLen = constant.resultTerm
+    val init = s"""
+      |if ($bitLen == 224 || $bitLen == 256 || $bitLen == 384 || $bitLen == 512) {
+      |  try {
+      |    $fieldTerm = java.security.MessageDigest.getInstance("SHA-" + $bitLen);
+      |  } catch (java.security.NoSuchAlgorithmException e) {
+      |    throw new RuntimeException(
+      |      "Algorithm for 'SHA-" + $bitLen + "' is not available.", e);
+      |  }
+      |} else {
+      |  throw new RuntimeException("Unsupported algorithm.");
+      |}
+      |""".stripMargin
+
+    val nullableInit = if (nullCheck) {
+      s"""
+        |${constant.code}
+        |if (${constant.nullTerm}) {
+        |  $fieldTerm = null;
+        |} else {
+        |  $init
+        |}
+        |""".stripMargin
+    } else {
+      s"""
+         |${constant.code}
+         |$init
+         |""".stripMargin
+    }
+    reusableInitStatements.add(nullableInit)
+
     fieldTerm
   }
 }

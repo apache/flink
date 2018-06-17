@@ -144,8 +144,7 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-		ByteBuf unwrap = slice2.unwrap();
-		assertSame(buffer, unwrap);
+		assertSame(buffer, slice2.unwrap().unwrap());
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(slice1.getMemorySegmentOffset(), slice2.getMemorySegmentOffset());
@@ -160,8 +159,7 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice();
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-		ByteBuf unwrap = slice2.unwrap();
-		assertSame(buffer, unwrap);
+		assertSame(buffer, slice2.unwrap().unwrap());
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(2, slice2.getMemorySegmentOffset());
@@ -175,8 +173,7 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 2);
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
-		ByteBuf unwrap = slice2.unwrap();
-		assertSame(buffer, unwrap);
+		assertSame(buffer, slice2.unwrap().unwrap());
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(1, slice2.getMemorySegmentOffset());
@@ -190,8 +187,7 @@ public class ReadOnlySlicedBufferTest {
 		ReadOnlySlicedNetworkBuffer slice1 = buffer.readOnlySlice(1, 5);
 		buffer.readByte(); // should not influence the second slice at all
 		ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
-		ByteBuf unwrap = slice2.unwrap();
-		assertSame(buffer, unwrap);
+		assertSame(buffer, slice2.unwrap().unwrap());
 		assertSame(slice1.getMemorySegment(), slice2.getMemorySegment());
 		assertEquals(1, slice1.getMemorySegmentOffset());
 		assertEquals(2, slice2.getMemorySegmentOffset());
@@ -326,22 +322,22 @@ public class ReadOnlySlicedBufferTest {
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe1() {
-		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
+		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice());
 	}
 
 	@Test
 	public void testGetNioBufferReadableThreadSafe2() {
-		BufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
+		NetworkBufferTest.testGetNioBufferReadableThreadSafe(buffer.readOnlySlice(1, 2));
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe1() {
-		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
+		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(), DATA_SIZE);
 	}
 
 	@Test
 	public void testGetNioBufferThreadSafe2() {
-		BufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
+		NetworkBufferTest.testGetNioBufferThreadSafe(buffer.readOnlySlice(1, 2), 2);
 	}
 
 	@Test

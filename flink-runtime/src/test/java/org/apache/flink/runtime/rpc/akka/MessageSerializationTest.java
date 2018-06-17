@@ -24,7 +24,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -34,7 +33,6 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,7 +49,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests that akka rpc invocation messages are properly serialized and errors reported
  */
-@Category(New.class)
 public class MessageSerializationTest extends TestLogger {
 	private static ActorSystem actorSystem1;
 	private static ActorSystem actorSystem2;

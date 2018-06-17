@@ -22,7 +22,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isArray, isComparable, isNumeric}
 import org.apache.flink.table.validate._
 
@@ -162,4 +162,79 @@ case class IsNotFalse(child: Expression) extends UnaryExpression {
   }
 
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
+}
+
+abstract class BetweenComparison(
+    expr: Expression,
+    lowerBound: Expression,
+    upperBound: Expression)
+  extends Expression {
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.BOOLEAN_TYPE_INFO
+
+  override private[flink] def children: Seq[Expression] = Seq(expr, lowerBound, upperBound)
+
+  override private[flink] def validateInput(): ValidationResult = {
+    (expr.resultType, lowerBound.resultType, upperBound.resultType) match {
+      case (exprType, lowerType, upperType)
+          if isNumeric(exprType) && isNumeric(lowerType) && isNumeric(upperType) =>
+        ValidationSuccess
+      case (exprType, lowerType, upperType)
+          if isComparable(exprType) && exprType == lowerType && exprType == upperType =>
+        ValidationSuccess
+      case (exprType, lowerType, upperType) =>
+        ValidationFailure(
+          s"Between is only supported for numeric types and " +
+            s"identical comparable types, but got $exprType, $lowerType and $upperType"
+        )
+    }
+  }
+}
+
+case class Between(
+    expr: Expression,
+    lowerBound: Expression,
+    upperBound: Expression)
+  extends BetweenComparison(expr, lowerBound, upperBound) {
+
+  override def toString: String = s"($expr).between($lowerBound, $upperBound)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.and(
+      relBuilder.call(
+        SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+        expr.toRexNode,
+        lowerBound.toRexNode
+      ),
+      relBuilder.call(
+        SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+        expr.toRexNode,
+        upperBound.toRexNode
+      )
+    )
+  }
+}
+
+case class NotBetween(
+    expr: Expression,
+    lowerBound: Expression,
+    upperBound: Expression)
+  extends BetweenComparison(expr, lowerBound, upperBound) {
+
+  override def toString: String = s"($expr).notBetween($lowerBound, $upperBound)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.or(
+      relBuilder.call(
+        SqlStdOperatorTable.LESS_THAN,
+        expr.toRexNode,
+        lowerBound.toRexNode
+      ),
+      relBuilder.call(
+        SqlStdOperatorTable.GREATER_THAN,
+        expr.toRexNode,
+        upperBound.toRexNode
+      )
+    )
+  }
 }

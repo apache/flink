@@ -18,26 +18,27 @@
 
 package org.apache.flink.api.common.functions;
 
-import java.io.Serializable;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
+
+import java.io.Serializable;
 
 /**
  * Generic interface used for combine functions ("combiners"). Combiners act as auxiliaries to a {@link GroupReduceFunction}
  * and "pre-reduce" the data. The combine functions typically do not see the entire group of elements, but
  * only a sub-group.
- * <p>
- * Combine functions are frequently helpful in increasing the program efficiency, because they allow the system to
+ *
+ * <p>Combine functions are frequently helpful in increasing the program efficiency, because they allow the system to
  * reduce the data volume earlier, before the entire groups have been collected.
- * <p>
- * This special variant of the combine function supports to return more than one element per group.
+ *
+ * <p>This special variant of the combine function supports to return more than one element per group.
  * It is frequently less efficient to use than the {@link CombineFunction}.
- * 
+ *
  * @param <IN> The data type processed by the combine function.
  * @param <OUT> The data type emitted by the combine function.
  */
 @Public
+@FunctionalInterface
 public interface GroupCombineFunction<IN, OUT> extends Function, Serializable {
 
 	/**

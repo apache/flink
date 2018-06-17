@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
 
@@ -182,7 +183,7 @@ public abstract class StateTable<K, N, S> {
 
 	// Snapshot / Restore -------------------------------------------------------------------------
 
-	abstract StateTableSnapshot createSnapshot();
+	abstract StateSnapshot createSnapshot();
 
 	public abstract void put(K key, int keyGroup, N namespace, S state);
 

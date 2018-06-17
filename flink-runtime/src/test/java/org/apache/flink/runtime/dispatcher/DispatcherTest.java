@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
@@ -48,9 +47,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -65,7 +62,6 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -76,12 +72,10 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -116,7 +110,6 @@ import static org.junit.Assert.fail;
 /**
  * Test for the {@link Dispatcher} component.
  */
-@Category(New.class)
 public class DispatcherTest extends TestLogger {
 
 	private static RpcService rpcService;
@@ -535,45 +528,6 @@ public class DispatcherTest extends TestLogger {
 		@Override
 		public void initializeOnMaster(ClassLoader loader) throws Exception {
 			throw failure;
-		}
-	}
-
-	private static class TestingDispatcher extends Dispatcher {
-
-		private TestingDispatcher(
-				RpcService rpcService,
-				String endpointId,
-				Configuration configuration,
-				HighAvailabilityServices highAvailabilityServices,
-				ResourceManagerGateway resourceManagerGateway,
-				BlobServer blobServer,
-				HeartbeatServices heartbeatServices,
-				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServicePath,
-				ArchivedExecutionGraphStore archivedExecutionGraphStore,
-				JobManagerRunnerFactory jobManagerRunnerFactory,
-				FatalErrorHandler fatalErrorHandler) throws Exception {
-			super(
-				rpcService,
-				endpointId,
-				configuration,
-				highAvailabilityServices,
-				highAvailabilityServices.getSubmittedJobGraphStore(),
-				resourceManagerGateway,
-				blobServer,
-				heartbeatServices,
-				jobManagerMetricGroup,
-				metricQueryServicePath,
-				archivedExecutionGraphStore,
-				jobManagerRunnerFactory,
-				fatalErrorHandler,
-				null);
-		}
-
-		@VisibleForTesting
-		void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
-			runAsync(
-				() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
 		}
 	}
 

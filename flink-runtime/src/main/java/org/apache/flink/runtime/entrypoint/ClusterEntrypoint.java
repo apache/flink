@@ -42,6 +42,7 @@ import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -346,6 +347,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 
 			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
 
+			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
+
 			dispatcher = createDispatcher(
 				configuration,
 				rpcService,
@@ -357,7 +360,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestBaseUrl());
+				webMonitorEndpoint.getRestBaseUrl(),
+				historyServerArchivist);
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();
@@ -657,7 +661,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress) throws Exception;
+		@Nullable String restAddress,
+		HistoryServerArchivist historyServerArchivist) throws Exception;
 
 	protected abstract ResourceManager<?> createResourceManager(
 		Configuration configuration,

@@ -155,7 +155,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 		resultFuture.whenComplete(
 			(Void ignored, Throwable throwable) -> {
 				if (throwable != null) {
-					log.debug("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
+					log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
 					fileBlobKeys.invalidate(taskManagerId);
 
 					final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);

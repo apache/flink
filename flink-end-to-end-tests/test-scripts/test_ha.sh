@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$FLINK_DIR/examples/streaming/StateMachineExample.jar\ --error-rate\ 0.0\ --sleep\ 2
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 
 JM_WATCHDOG_PID=0
 TM_WATCHDOG_PID=0
@@ -42,36 +42,36 @@ function stop_cluster_and_watchdog() {
             wait ${TM_WATCHDOG_PID} 2> /dev/null
         fi
 
-        cleanup
         CLEARED=1
     fi
 }
 
 function verify_logs() {
-    local OUTPUT=$1
-    local JM_FAILURES=$2
+    local OUTPUT=$FLINK_DIR/log/*.out
+    local JM_FAILURES=$1
+    local EXIT_CODE=0
 
     # verify that we have no alerts
     if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
-        echo "FAILURE: Alerts found at the StateMachineExample with 0.0 error rate."
-        PASS=""
+        echo "FAILURE: Alerts found at the general purpose DataStream job."
+        EXIT_CODE=1
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
     if ! [ `grep -r --include '*standalonesession*.log' Recovered SubmittedJobGraph "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${JM_FAILURES} ]; then
         echo "FAILURE: A JM did not take over."
-        PASS=""
+        EXIT_CODE=1
     fi
 
     # search the logs for JMs that log completed checkpoints
     if ! [ `grep -r --include '*standalonesession*.log' Completed checkpoint "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((JM_FAILURES + 1)) ]; then
         echo "FAILURE: A JM did not execute the job."
-        PASS=""
+        EXIT_CODE=1
     fi
 
-    if [[ ! "$PASS" ]]; then
+    if [[ $EXIT_CODE != 0 ]]; then
         echo "One or more tests FAILED."
-        exit 1
+        exit $EXIT_CODE
     fi
 }
 
@@ -151,7 +151,6 @@ function run_ha_test() {
     local BACKEND=$2
     local ASYNC=$3
     local INCREM=$4
-    local OUTPUT=$5
 
     local JM_KILLS=3
     local CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
@@ -166,11 +165,19 @@ function run_ha_test() {
     # submit a job in detached mode and let it run
     local JOB_ID=$($FLINK_DIR/bin/flink run -d -p ${PARALLELISM} \
      $TEST_PROGRAM_JAR \
-        --backend ${BACKEND} \
-        --checkpoint-dir "file://${CHECKPOINT_DIR}" \
-        --async-checkpoints ${ASYNC} \
-        --incremental-checkpoints ${INCREM} \
-        --output ${OUTPUT} | grep "Job has been submitted with JobID" | sed 's/.* //g')
+        --environment.parallelism ${PARALLELISM} \
+        --test.semantics exactly-once \
+        --test.simulate_failure true \
+        --test.simulate_failure.num_records 200 \
+        --test.simulate_failure.num_checkpoints 1 \
+        --test.simulate_failure.max_failures 20 \
+        --state_backend ${BACKEND} \
+        --state_backend.checkpoint_directory "file://${CHECKPOINT_DIR}" \
+        --state_backend.file.async ${ASYNC} \
+        --state_backend.rocks.incremental ${INCREM} \
+        --sequence_generator_source.sleep_time 15 \
+        --sequence_generator_source.sleep_after_elements 1 \
+        | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
     wait_job_running ${JOB_ID}
 
@@ -196,14 +203,17 @@ function run_ha_test() {
         sleep 60
     done
 
-    verify_logs ${OUTPUT} ${JM_KILLS}
+    verify_logs ${JM_KILLS}
 
     # kill the cluster and zookeeper
     stop_cluster_and_watchdog
 }
 
+trap stop_cluster_and_watchdog INT
 trap stop_cluster_and_watchdog EXIT
-run_ha_test 4 "file" "false" "false" "${TEST_DATA_DIR}/output.txt"
-run_ha_test 4 "rocks" "false" "false" "${TEST_DATA_DIR}/output.txt"
-run_ha_test 4 "file" "true" "false" "${TEST_DATA_DIR}/output.txt"
-run_ha_test 4 "rocks" "false" "true" "${TEST_DATA_DIR}/output.txt"
+
+STATE_BACKEND_TYPE=${1:-file}
+STATE_BACKEND_FILE_ASYNC=${2:-true}
+STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
+
+run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}

@@ -192,6 +192,10 @@ public class DeweyNumber implements Serializable {
 
 		private final IntSerializer elemSerializer = IntSerializer.INSTANCE;
 
+		public static final DeweyNumberSerializer INSTANCE = new DeweyNumberSerializer();
+
+		private DeweyNumberSerializer() {}
+
 		@Override
 		public boolean isImmutableType() {
 			return false;

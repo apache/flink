@@ -26,6 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -62,7 +63,7 @@ public class EmbeddedLeaderService {
 	private EmbeddedLeaderElectionService currentLeaderConfirmed;
 
 	/** fencing UID for the current leader (or proposed leader). */
-	private UUID currentLeaderSessionId;
+	private volatile UUID currentLeaderSessionId;
 
 	/** the cached address of the current leader. */
 	private String currentLeaderAddress;
@@ -356,8 +357,8 @@ public class EmbeddedLeaderService {
 		}
 
 		@Override
-		public boolean hasLeadership() {
-			return isLeader;
+		public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+			return isLeader && leaderSessionId.equals(currentLeaderSessionId);
 		}
 
 		void shutdown(Exception cause) {

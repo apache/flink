@@ -50,8 +50,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private final String[] tmpDirectories;
 
 	private final Time timeout;
+
 	// null indicates an infinite duration
+	@Nullable
 	private final Time maxRegistrationDuration;
+
 	private final Time initialRegistrationPause;
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
@@ -74,7 +77,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		int numberSlots,
 		String[] tmpDirectories,
 		Time timeout,
-		Time maxRegistrationDuration,
+		@Nullable Time maxRegistrationDuration,
 		Time initialRegistrationPause,
 		Time maxRegistrationPause,
 		Time refusedRegistrationPause,
@@ -108,6 +111,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return timeout;
 	}
 
+	@Nullable
 	public Time getMaxRegistrationDuration() {
 		return maxRegistrationDuration;
 	}
@@ -116,6 +120,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return initialRegistrationPause;
 	}
 
+	@Nullable
 	public Time getMaxRegistrationPause() {
 		return maxRegistrationPause;
 	}

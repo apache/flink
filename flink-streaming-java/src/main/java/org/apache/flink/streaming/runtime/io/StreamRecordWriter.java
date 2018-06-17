@@ -106,6 +106,8 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 			}
 			catch (InterruptedException e) {
 				// ignore on close
+				// restore interrupt flag to fast exit further blocking calls
+				Thread.currentThread().interrupt();
 			}
 		}
 	}

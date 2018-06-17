@@ -28,9 +28,9 @@ import java.io.IOException;
 /**
  * Utils for RocksDB state serialization and deserialization.
  */
-public class RocksDBKeySerializationUtils {
+class RocksDBKeySerializationUtils {
 
-	public static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
+	static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
 		int keyGroup = 0;
 		for (int i = 0; i < keyGroupPrefixBytes; ++i) {
 			keyGroup <<= 8;
@@ -93,7 +93,7 @@ public class RocksDBKeySerializationUtils {
 		int keyGroupPrefixBytes,
 		DataOutputView keySerializationDateDataOutputView) throws IOException {
 		for (int i = keyGroupPrefixBytes; --i >= 0; ) {
-			keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
+			keySerializationDateDataOutputView.writeByte(extractByteAtPosition(keyGroup, i));
 		}
 	}
 
@@ -137,5 +137,16 @@ public class RocksDBKeySerializationUtils {
 			keySerializationDateDataOutputView.writeByte(value);
 			value >>>= 8;
 		} while (value != 0);
+	}
+
+	public static void serializeKeyGroup(int keyGroup, byte[] startKeyGroupPrefixBytes) {
+		final int keyGroupPrefixBytes = startKeyGroupPrefixBytes.length;
+		for (int j = 0; j < keyGroupPrefixBytes; ++j) {
+			startKeyGroupPrefixBytes[j] = extractByteAtPosition(keyGroup, keyGroupPrefixBytes - j - 1);
+		}
+	}
+
+	private static byte extractByteAtPosition(int value, int byteIdx) {
+		return (byte) ((value >>> (byteIdx << 3)));
 	}
 }

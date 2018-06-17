@@ -97,7 +97,7 @@ public class TestDataGenerator {
 	private static String generateRandomString(Random rnd, int maxLen) {
 		char[] chars = new char[rnd.nextInt(maxLen + 1)];
 		for (int i = 0; i < chars.length; i++) {
-			chars[i] = (char) rnd.nextInt(Character.MAX_VALUE);
+			chars[i] = (char) rnd.nextInt(Character.MIN_SURROGATE);
 		}
 		return new String(chars);
 	}

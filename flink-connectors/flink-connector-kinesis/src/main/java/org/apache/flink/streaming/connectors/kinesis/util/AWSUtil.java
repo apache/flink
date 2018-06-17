@@ -79,14 +79,15 @@ public class AWSUtil {
 		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
 		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
 				.withCredentials(AWSUtil.getCredentialsProvider(configProps))
-				.withClientConfiguration(awsClientConfig)
-				.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
+				.withClientConfiguration(awsClientConfig);
 
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
 			// Set signingRegion as null, to facilitate mocking Kinesis for local tests
 			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
 													configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
 													null));
+		} else {
+			builder.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		}
 		return builder.build();
 	}

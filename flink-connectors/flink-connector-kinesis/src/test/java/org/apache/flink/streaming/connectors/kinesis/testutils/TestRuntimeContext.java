@@ -20,9 +20,9 @@ package org.apache.flink.streaming.connectors.kinesis.testutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
@@ -45,12 +45,10 @@ public class TestRuntimeContext extends StreamingRuntimeContext {
 
 		super(
 			new TestStreamOperator(),
-			new MockEnvironment(
-				"mockTask",
-				4 * MemoryManager.DEFAULT_PAGE_SIZE,
-				null,
-				16,
-				new TestTaskStateManager()),
+			new MockEnvironmentBuilder()
+				.setTaskName("mockTask")
+				.setMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+				.build(),
 			Collections.emptyMap());
 
 		this.isCheckpointingEnabled = isCheckpointingEnabled;
@@ -85,6 +83,11 @@ public class TestRuntimeContext extends StreamingRuntimeContext {
 		@Override
 		public ExecutionConfig getExecutionConfig() {
 			return new ExecutionConfig();
+		}
+
+		@Override
+		public OperatorID getOperatorID() {
+			return new OperatorID(42, 44);
 		}
 	}
 }

@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class ZooKeeperRunningJobsRegistry implements RunningJobsRegistry {
 
 	private static final Charset ENCODING = Charset.forName("utf-8");
 
-	/** The ZooKeeper client to use */
+	/** The ZooKeeper client to use. */
 	private final CuratorFramework client;
 
 	private final String runningJobPath;
@@ -88,7 +89,7 @@ public class ZooKeeperRunningJobsRegistry implements RunningJobsRegistry {
 						return JobSchedulingStatus.valueOf(name);
 					}
 					catch (IllegalArgumentException e) {
-						throw new IOException("Found corrupt data in ZooKeeper: " + 
+						throw new IOException("Found corrupt data in ZooKeeper: " +
 								Arrays.toString(data) + " is no valid job status");
 					}
 				}

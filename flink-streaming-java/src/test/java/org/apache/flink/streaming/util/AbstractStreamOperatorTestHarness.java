@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -137,30 +138,51 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			int subtaskIndex) throws Exception {
 		this(
 			operator,
-			new MockEnvironment(
-				"MockTask",
-				3 * 1024 * 1024,
-				new MockInputSplitProvider(),
-				1024,
-				new Configuration(),
-				new ExecutionConfig(),
-				new TestTaskStateManager(),
-				maxParallelism,
-				parallelism,
-				subtaskIndex),
-			true);
+			new MockEnvironmentBuilder()
+				.setTaskName("MockTask")
+				.setMemorySize(3 * 1024 * 1024)
+				.setInputSplitProvider(new MockInputSplitProvider())
+				.setBufferSize(1024)
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(parallelism)
+				.setSubtaskIndex(subtaskIndex)
+				.build(),
+			true,
+			new OperatorID());
+	}
+
+	public AbstractStreamOperatorTestHarness(
+			StreamOperator<OUT> operator,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			OperatorID operatorID) throws Exception {
+		this(
+			operator,
+			new MockEnvironmentBuilder()
+				.setTaskName("MockTask")
+				.setMemorySize(3 * 1024 * 1024)
+				.setInputSplitProvider(new MockInputSplitProvider())
+				.setBufferSize(1024)
+				.setMaxParallelism(maxParallelism)
+				.setParallelism(parallelism)
+				.setSubtaskIndex(subtaskIndex)
+				.build(),
+			true,
+			operatorID);
 	}
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			MockEnvironment env) throws Exception {
-		this(operator, env, false);
+		this(operator, env, false, new OperatorID());
 	}
 
 	private AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			MockEnvironment env,
-			boolean environmentIsInternal) throws Exception {
+			boolean environmentIsInternal,
+			OperatorID operatorID) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		this.sideOutputLists = new HashMap<>();
@@ -168,7 +190,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		Configuration underlyingConfig = env.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
-		this.config.setOperatorID(new OperatorID());
+		this.config.setOperatorID(operatorID);
 		this.executionConfig = env.getExecutionConfig();
 		this.closableRegistry = new CloseableRegistry();
 		this.checkpointLock = new Object();
@@ -480,7 +502,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
-	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions)}.
+	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, org.apache.flink.runtime.state.CheckpointStreamFactory)}.
 	 */
 	public OperatorSnapshotFinalizer snapshotWithLocalState(long checkpointId, long timestamp) throws Exception {
 

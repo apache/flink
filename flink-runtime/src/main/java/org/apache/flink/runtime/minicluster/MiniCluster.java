@@ -40,6 +40,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -357,6 +358,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost");
 
+				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, dispatcherRestEndpoint);
+
 				dispatcher = new StandaloneDispatcher(
 					jobManagerRpcService,
 					Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
@@ -370,7 +373,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					new MemoryArchivedExecutionGraphStore(),
 					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
-					dispatcherRestEndpoint.getRestBaseUrl());
+					dispatcherRestEndpoint.getRestBaseUrl(),
+					historyServerArchivist);
 
 				dispatcher.start();
 

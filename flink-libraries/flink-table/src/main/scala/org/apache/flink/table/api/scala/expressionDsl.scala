@@ -773,11 +773,64 @@ trait ImplicitExpressionOperations {
   def sha1() = Sha1(expr)
 
   /**
+    * Returns the SHA-224 hash of the string argument; null if string is null.
+    *
+    * @return string of 56 hexadecimal digits or null
+    */
+  def sha224() = Sha224(expr)
+
+  /**
     * Returns the SHA-256 hash of the string argument; null if string is null.
     *
     * @return string of 64 hexadecimal digits or null
     */
   def sha256() = Sha256(expr)
+
+  /**
+    * Returns the SHA-384 hash of the string argument; null if string is null.
+    *
+    * @return string of 96 hexadecimal digits or null
+    */
+  def sha384() = Sha384(expr)
+
+  /**
+    * Returns the SHA-512 hash of the string argument; null if string is null.
+    *
+    * @return string of 128 hexadecimal digits or null
+    */
+  def sha512() = Sha512(expr)
+
+  /**
+    * Returns the hash for the given string expression using the SHA-2 family of hash
+    * functions (SHA-224, SHA-256, SHA-384, or SHA-512).
+    *
+    * @param hashLength bit length of the result (either 224, 256, 384, or 512)
+    * @return string or null if one of the arguments is null.
+    */
+  def sha2(hashLength: Expression) = Sha2(expr, hashLength)
+
+  /**
+    * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
+    * False otherwise. The parameters must be numeric types or identical comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def between(lowerBound: Expression, upperBound: Expression) =
+    Between(expr, lowerBound, upperBound)
+
+  /**
+    * Returns true if the given expression is not between lowerBound and upperBound (both
+    * inclusive). False otherwise. The parameters must be numeric types or identical
+    * comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def notBetween(lowerBound: Expression, upperBound: Expression) =
+    NotBetween(expr, lowerBound, upperBound)
 }
 
 /**

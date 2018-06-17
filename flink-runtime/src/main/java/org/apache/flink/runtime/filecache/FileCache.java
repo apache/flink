@@ -204,7 +204,12 @@ public class FileCache {
 				Path target = new Path(tempDirToUse.getAbsolutePath() + "/" + sourceFile);
 
 				// kick off the copying
-				Callable<Path> cp = new CopyFromBlobProcess(entry, jobID, blobService, target);
+				Callable<Path> cp;
+				if (entry.blobKey != null) {
+					cp = new CopyFromBlobProcess(entry, jobID, blobService, target);
+				} else {
+					cp = new CopyFromDFSProcess(entry, target);
+				}
 				FutureTask<Path> copyTask = new FutureTask<>(cp);
 				executorService.submit(copyTask);
 
@@ -299,6 +304,30 @@ public class FileCache {
 				return Path.fromLocalFile(file);
 			}
 
+		}
+	}
+
+	/**
+	 * Asynchronous file copy process.
+	 */
+	private static class CopyFromDFSProcess implements Callable<Path> {
+
+		private final Path filePath;
+		private final Path cachedPath;
+		private boolean executable;
+
+		public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
+			this.filePath = new Path(e.filePath);
+			this.executable = e.isExecutable;
+			this.cachedPath = cachedPath;
+		}
+
+		@Override
+		public Path call() throws IOException {
+			// let exceptions propagate. we can retrieve them later from
+			// the future and report them upon access to the result
+			FileUtils.copy(filePath, cachedPath, this.executable);
+			return cachedPath;
 		}
 	}
 

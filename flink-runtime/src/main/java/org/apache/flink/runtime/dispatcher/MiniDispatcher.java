@@ -71,6 +71,7 @@ public class MiniDispatcher extends Dispatcher {
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress,
+			HistoryServerArchivist historyServerArchivist,
 			JobGraph jobGraph,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
@@ -87,7 +88,8 @@ public class MiniDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			restAddress);
+			restAddress,
+			historyServerArchivist);
 
 		this.executionMode = checkNotNull(executionMode);
 		this.jobTerminationFuture = new CompletableFuture<>();

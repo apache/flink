@@ -75,6 +75,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
+
 /**
  * This client is the counter-part to the {@link RestServerEndpoint}.
  */
@@ -247,7 +249,14 @@ public class RestClient {
 
 		@Override
 		protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-			if (msg instanceof FullHttpResponse) {
+			if (msg instanceof HttpResponse && ((HttpResponse) msg).status().equals(REQUEST_ENTITY_TOO_LARGE)) {
+				jsonFuture.completeExceptionally(
+					new RestClientException(
+						String.format(
+							REQUEST_ENTITY_TOO_LARGE + ". Try to raise [%s]",
+							RestOptions.CLIENT_MAX_CONTENT_LENGTH.key()),
+						((HttpResponse) msg).status()));
+			} else if (msg instanceof FullHttpResponse) {
 				readRawResponse((FullHttpResponse) msg);
 			} else {
 				LOG.error("Implementation error: Received a response that wasn't a FullHttpResponse.");

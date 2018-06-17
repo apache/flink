@@ -29,9 +29,9 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapValueState<K, N, V>
-		extends AbstractHeapState<K, N, V, ValueState<V>>
-		implements InternalValueState<K, N, V> {
+class HeapValueState<K, N, V>
+	extends AbstractHeapState<K, N, V>
+	implements InternalValueState<K, N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -42,12 +42,12 @@ public class HeapValueState<K, N, V>
 	 * @param namespaceSerializer The serializer for the namespace.
 	 * @param defaultValue The default value for the state.
 	 */
-	public HeapValueState(
-			StateTable<K, N, V> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<V> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			V defaultValue) {
+	HeapValueState(
+		StateTable<K, N, V> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<V> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		V defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 

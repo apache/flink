@@ -24,7 +24,7 @@ if [[ -z $FLINK_DIR ]]; then
     exit 1
 fi
 
-export PASS=1
+export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
@@ -97,7 +97,6 @@ function create_ha_config() {
     jobmanager.heap.mb: 1024
     taskmanager.heap.mb: 1024
     taskmanager.numberOfTaskSlots: 4
-    parallelism.default: 1
 
     #==============================================================================
     # High Availability
@@ -139,7 +138,6 @@ function start_local_zk {
 
             if [ "${address}" != "localhost" ]; then
                 echo "[ERROR] Parse error. Only available for localhost."
-                PASS=""
                 exit 1
             fi
             ${FLINK_DIR}/bin/zookeeper.sh start $id
@@ -157,9 +155,9 @@ function start_cluster {
     # without the || true this would exit our script if the JobManager is not yet up
     QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" 2> /dev/null || true)
 
-    if [[ "$QUERY_RESULT" == "" ]]; then
-      echo "Dispatcher/TaskManagers are not yet up"
-    elif [[ "$QUERY_RESULT" != "{\"taskmanagers\":[]}" ]]; then
+    # ensure the taskmanagers field is there at all and is not empty
+    if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
+
       echo "Dispatcher REST endpoint is up."
       break
     fi
@@ -169,14 +167,7 @@ function start_cluster {
   done
 }
 
-function stop_cluster {
-  "$FLINK_DIR"/bin/stop-cluster.sh
-
-  # stop zookeeper only if there are processes running
-  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
-    "$FLINK_DIR"/bin/zookeeper.sh stop
-  fi
-
+function check_logs_for_errors {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -194,8 +185,11 @@ function stop_cluster {
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
+}
+
+function check_logs_for_exceptions {
   if grep -rv "GroupCoordinatorNotAvailableException" $FLINK_DIR/log \
       | grep -v "RetriableCommitFailedException" \
       | grep -v "NoAvailableBrokersException" \
@@ -216,13 +210,24 @@ function stop_cluster {
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
-    PASS=""
+    EXIT_CODE=1
   fi
+}
 
+function check_logs_for_non_empty_out_files {
   if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
-    PASS=""
+    EXIT_CODE=1
+  fi
+}
+
+function stop_cluster {
+  "$FLINK_DIR"/bin/stop-cluster.sh
+
+  # stop zookeeper only if there are processes running
+  if ! [ "`jps | grep 'FlinkZooKeeperQuorumPeer' | wc -l`" = "0" ]; then
+    "$FLINK_DIR"/bin/zookeeper.sh stop
   fi
 }
 
@@ -237,6 +242,23 @@ function wait_job_running {
       break
     fi
     sleep 1
+  done
+}
+
+function wait_job_terminal_state {
+  local job=$1
+  local terminal_state=$2
+
+  echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
+
+  while : ; do
+    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+
+    if [[ -z $N ]]; then
+      sleep 1
+    else
+      break
+    fi
   done
 }
 
@@ -265,22 +287,13 @@ function check_result_hash {
   if [[ "$actual" != "$expected" ]]
   then
     echo "FAIL $name: Output hash mismatch.  Got $actual, expected $expected."
-    PASS=""
     echo "head hexdump of actual:"
     head $outfile_prefix* | hexdump -c
+    exit 1
   else
     echo "pass $name"
     # Output files are left behind in /tmp
   fi
-}
-
-function check_all_pass {
-  if [[ ! "$PASS" ]]
-  then
-    echo "One or more tests FAILED."
-    exit 1
-  fi
-  echo "All tests PASS"
 }
 
 function s3_put {
@@ -318,6 +331,39 @@ function s3_delete {
     -H "Content-Type: ${contentType}" \
     -H "Authorization: AWS ${s3Key}:${signature}" \
     https://${bucket}.s3.amazonaws.com/${s3_file}
+}
+
+# This function starts the given number of task managers and monitors their processes. If a task manager process goes
+# away a replacement is started.
+function tm_watchdog {
+  local expectedTm=$1
+  while true;
+  do
+    runningTm=`jps | grep -Eo 'TaskManagerRunner|TaskManager' | wc -l`;
+    count=$((expectedTm-runningTm))
+    for (( c=0; c<count; c++ ))
+    do
+      $FLINK_DIR/bin/taskmanager.sh start > /dev/null
+    done
+    sleep 5;
+  done
+}
+
+# Kills all job manager.
+function jm_kill_all {
+  kill_all 'StandaloneSessionClusterEntrypoint'
+}
+
+# Kills all task manager.
+function tm_kill_all {
+  kill_all 'TaskManagerRunner|TaskManager'
+}
+
+# Kills all processes that match the given name.
+function kill_all {
+  local pid=`jps | grep -E "${1}" | cut -d " " -f 1`
+  kill ${pid} 2> /dev/null
+  wait ${pid} 2> /dev/null
 }
 
 function kill_random_taskmanager {
@@ -380,12 +426,34 @@ function wait_oper_metric_num_in_records {
     done
 }
 
-# make sure to clean up even in case of failures
-function cleanup {
-  stop_cluster
-  check_all_pass
-  rm -rf $TEST_DATA_DIR
-  rm -f $FLINK_DIR/log/*
-  revert_default_config
+function wait_num_checkpoints {
+    JOB=$1
+    NUM_CHECKPOINTS=$2
+
+    echo "Waiting for job ($JOB) to have at least $NUM_CHECKPOINTS completed checkpoints ..."
+
+    while : ; do
+      N=$(grep -o "Completed checkpoint [1-9]* for job $JOB" $FLINK_DIR/log/*standalonesession*.log | awk '{print $3}' | tail -1)
+
+      if [ -z $N ]; then
+        N=0
+      fi
+
+      if (( N < NUM_CHECKPOINTS )); then
+        sleep 1
+      else
+        break
+      fi
+    done
 }
-trap cleanup EXIT
+
+# Starts the timer. Note that nested timers are not supported.
+function start_timer {
+    SECONDS=0
+}
+
+# prints the number of minutes and seconds that have elapsed since the last call to start_timer
+function end_timer {
+    duration=$SECONDS
+    echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds"
+}

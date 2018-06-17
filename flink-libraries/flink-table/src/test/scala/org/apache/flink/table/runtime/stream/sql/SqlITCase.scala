@@ -480,7 +480,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -512,7 +511,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestArrayOfArrayFromTable(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -542,7 +540,6 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testUnnestObjectArrayFromTableWithFilter(): Unit = {
-
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
@@ -565,6 +562,77 @@ class SqlITCase extends StreamingWithStateTestBase {
       "2,[(13,41.6), (14,45.2136)],14,45.2136",
       "3,[(18,42.6)],18,42.6")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUnnestMultiSetFromCollectResult(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val data = List(
+      (1, 1, (12, "45.6")),
+      (2, 2, (12, "45.612")),
+      (3, 2, (13, "41.6")),
+      (4, 3, (14, "45.2136")),
+      (5, 3, (18, "42.6")))
+    tEnv.registerTable("t1", env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c))
+
+    val t2 = tEnv.sqlQuery("SELECT b, COLLECT(c) as `set` FROM t1 GROUP BY b")
+    tEnv.registerTable("t2", t2)
+
+    val result = tEnv
+      .sqlQuery("SELECT b, id, point FROM t2, UNNEST(t2.`set`) AS A(id, point) WHERE b < 3")
+      .toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,12,45.6",
+      "2,12,45.612",
+      "2,13,41.6")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testLeftUnnestMultiSetFromCollectResult(): Unit = {
+    val data = List(
+      (1, "1", "Hello"),
+      (1, "2", "Hello2"),
+      (2, "2", "Hello"),
+      (3, null.asInstanceOf[String], "Hello"),
+      (4, "4", "Hello"),
+      (5, "5", "Hello"),
+      (5, null.asInstanceOf[String], "Hello"),
+      (6, "6", "Hello"),
+      (7, "7", "Hello World"),
+      (7, "8", "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("t1", t1)
+
+    val t2 = tEnv.sqlQuery("SELECT a, COLLECT(b) as `set` FROM t1 GROUP BY a")
+    tEnv.registerTable("t2", t2)
+
+    val result = tEnv
+      .sqlQuery("SELECT a, s FROM t2 LEFT JOIN UNNEST(t2.`set`) AS A(s) ON TRUE WHERE a < 5")
+      .toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "1,2",
+      "2,2",
+      "3,null",
+      "4,4"
+    )
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test

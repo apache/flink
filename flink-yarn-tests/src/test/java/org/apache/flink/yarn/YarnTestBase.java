@@ -336,7 +336,7 @@ public abstract class YarnTestBase extends TestLogger {
 			// scan each file for prohibited strings.
 			File f = new File(dir.getAbsolutePath() + "/" + name);
 			try {
-				Scanner scanner = new Scanner(f);
+				BufferingScanner scanner = new BufferingScanner(new Scanner(f), 10);
 				while (scanner.hasNextLine()) {
 					final String lineFromFile = scanner.nextLine();
 					for (String aProhibited : prohibited) {
@@ -358,15 +358,26 @@ public abstract class YarnTestBase extends TestLogger {
 								StringBuilder logExcerpt = new StringBuilder();
 
 								logExcerpt.append(System.lineSeparator());
+
+								// include some previous lines in case of irregular formatting
+								for (String previousLine : scanner.getPreviousLines()) {
+									logExcerpt.append(previousLine);
+									logExcerpt.append(System.lineSeparator());
+								}
+
 								logExcerpt.append(lineFromFile);
 								logExcerpt.append(System.lineSeparator());
 								// extract potential stack trace from log
 								while (scanner.hasNextLine()) {
 									String line = scanner.nextLine();
-									if (!line.isEmpty() && (Character.isWhitespace(line.charAt(0)) || line.startsWith("Caused by"))) {
-										logExcerpt.append(line);
-										logExcerpt.append(System.lineSeparator());
-									} else {
+									logExcerpt.append(line);
+									logExcerpt.append(System.lineSeparator());
+									if (line.isEmpty() || (!Character.isWhitespace(line.charAt(0)) && !line.startsWith("Caused by"))) {
+										// the cause has been printed, now add a few more lines in case of irregular formatting
+										for (int x = 0; x < 10 && scanner.hasNextLine(); x++) {
+											logExcerpt.append(scanner.nextLine());
+											logExcerpt.append(System.lineSeparator());
+										}
 										break;
 									}
 								}
@@ -867,5 +878,38 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
+	}
+
+	/**
+	 * Wrapper around a {@link Scanner} that buffers the last N lines read.
+	 */
+	private static class BufferingScanner {
+
+		private final Scanner scanner;
+		private final int numLinesBuffered;
+		private final List<String> bufferedLines;
+
+		BufferingScanner(Scanner scanner, int numLinesBuffered) {
+			this.scanner = scanner;
+			this.numLinesBuffered = numLinesBuffered;
+			this.bufferedLines = new ArrayList<>(numLinesBuffered);
+		}
+
+		public boolean hasNextLine() {
+			return scanner.hasNextLine();
+		}
+
+		public String nextLine() {
+			if (bufferedLines.size() == numLinesBuffered) {
+				bufferedLines.remove(0);
+			}
+			String line = scanner.nextLine();
+			bufferedLines.add(line);
+			return line;
+		}
+
+		public List<String> getPreviousLines() {
+			return new ArrayList<>(bufferedLines);
+		}
 	}
 }

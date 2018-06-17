@@ -3308,7 +3308,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.update(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 
 		}
@@ -3330,7 +3330,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? , ?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
@@ -3357,7 +3357,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
@@ -3384,7 +3384,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ? ,?>) kvState).getStateTable();
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?, ?>) kvState).getStateTable();
 			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
@@ -3755,6 +3755,33 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 						assertFalse(it.hasNext()); // finally verify we have no more elements
 					}
 				});
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testApplyToAllKeysLambdaFunction() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+			ListStateDescriptor<String> listStateDescriptor =
+				new ListStateDescriptor<>("foo", StringSerializer.INSTANCE);
+
+			ListState<String> listState =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor);
+
+			for (int i = 0; i < 100; ++i) {
+				backend.setCurrentKey(i);
+				listState.add("Hello" + i);
+			}
+
+			// valid state value via applyToAllKeys().
+			backend.applyToAllKeys(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, listStateDescriptor,
+				(Integer key, ListState<String> state) -> assertEquals("Hello" + key, state.get().iterator().next())
+			);
 		}
 		finally {
 			IOUtils.closeQuietly(backend);

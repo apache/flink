@@ -23,7 +23,7 @@ PARALLELISM="${PARALLELISM:-100}"
 
 TEST=flink-high-parallelism-iterations-test
 TEST_PROGRAM_NAME=HighParallelismIterationsTestProgram
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/$TEST/target/$TEST_PROGRAM_NAME.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
 echo "Run Not So MiniCluster Iterations Graph Connected Components Program"
 
@@ -60,9 +60,6 @@ function test_cleanup {
 
   # revert our modifications to the Flink distribution
   mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT
