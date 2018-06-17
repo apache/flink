@@ -65,6 +65,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,6 +75,8 @@ import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTe
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.PENDING_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.VALID_LENGTH_SUFFIX;
 import static org.apache.flink.streaming.connectors.fs.bucketing.BucketingSinkTestUtils.checkLocalFs;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for the {@link BucketingSink}.
@@ -837,6 +841,81 @@ public class BucketingSinkTest extends TestLogger {
 
 		dataFileStream.close();
 		inStream.close();
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsSpecifiedAndPreviousPartFileInProgressState()
+		throws Exception {
+		testThatPartIndexIsIncremented(".my", "part-0-0.my" + IN_PROGRESS_SUFFIX);
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsSpecifiedAndPreviousPartFileInPendingState()
+		throws Exception {
+		testThatPartIndexIsIncremented(".my", "part-0-0.my" + PENDING_SUFFIX);
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsSpecifiedAndPreviousPartFileInFinalState()
+		throws Exception {
+		testThatPartIndexIsIncremented(".my", "part-0-0.my");
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsNotSpecifiedAndPreviousPartFileInProgressState()
+		throws Exception {
+		testThatPartIndexIsIncremented(null, "part-0-0" + IN_PROGRESS_SUFFIX);
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsNotSpecifiedAndPreviousPartFileInPendingState()
+		throws Exception {
+		testThatPartIndexIsIncremented(null, "part-0-0" + PENDING_SUFFIX);
+	}
+
+	@Test
+	public void testThatPartIndexIsIncrementedWhenPartSuffixIsNotSpecifiedAndPreviousPartFileInFinalState()
+		throws Exception {
+		testThatPartIndexIsIncremented(null, "part-0-0");
+	}
+
+	private void testThatPartIndexIsIncremented(String partSuffix, String existingPartFile) throws Exception {
+		File outDir = tempFolder.newFolder();
+		long inactivityInterval = 100;
+
+		java.nio.file.Path bucket = Paths.get(outDir.getPath());
+		Files.createFile(bucket.resolve(existingPartFile));
+
+		String basePath = outDir.getAbsolutePath();
+		BucketingSink<String> sink = new BucketingSink<String>(basePath)
+			.setBucketer(new BasePathBucketer<>())
+			.setInactiveBucketCheckInterval(inactivityInterval)
+			.setInactiveBucketThreshold(inactivityInterval)
+			.setPartPrefix(PART_PREFIX)
+			.setInProgressPrefix("")
+			.setPendingPrefix("")
+			.setValidLengthPrefix("")
+			.setInProgressSuffix(IN_PROGRESS_SUFFIX)
+			.setPendingSuffix(PENDING_SUFFIX)
+			.setValidLengthSuffix(VALID_LENGTH_SUFFIX)
+			.setPartSuffix(partSuffix)
+			.setBatchSize(0);
+
+		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createTestSink(sink, 1, 0)) {
+			testHarness.setup();
+			testHarness.open();
+
+			testHarness.setProcessingTime(0L);
+
+			testHarness.processElement(new StreamRecord<>("test1", 1L));
+
+			testHarness.setProcessingTime(101L);
+			testHarness.snapshot(0, 0);
+			testHarness.notifyOfCompletedCheckpoint(0);
+		}
+
+		String expectedFileName = partSuffix == null ? "part-0-1" : "part-0-1" + partSuffix;
+		assertThat(Files.exists(bucket.resolve(expectedFileName)), is(true));
 	}
 
 	private static class StreamWriterWithConfigCheck<K, V> extends AvroKeyValueSinkWriter<K, V> {
