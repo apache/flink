@@ -196,6 +196,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			super(
 				new CopyOnWriteStateTable.StateTableEntry[stateTableSize],
 				stateTableSize,
+				// We have made sure that the snapshotData is big enough to hold the flattened entries in
+				// CopyOnWriteStateTable#snapshotTableArrays(), we can safely reuse it as the destination array here.
 				snapshotData,
 				keyGroupRange,
 				totalKeyGroups,
