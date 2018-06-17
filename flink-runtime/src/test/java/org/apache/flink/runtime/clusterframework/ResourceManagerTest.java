@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManage
 import org.apache.flink.runtime.clusterframework.messages.RemoveResource;
 import org.apache.flink.runtime.clusterframework.messages.ResourceRemoved;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -45,6 +46,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
@@ -53,6 +55,8 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -77,9 +81,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import scala.Option;
 
 import static org.junit.Assert.assertEquals;
@@ -87,6 +94,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -568,6 +576,9 @@ public class ResourceManagerTest extends TestLogger {
 				runnable.run();
 			}
 
+			// wait for the content of the runnable to be executed in the main thread.
+			TimeUnit.MILLISECONDS.sleep(100);
+
 			verify(taskExecutorGateway, times(1)).heartbeatFromResourceManager(eq(resourceManagerResourceID));
 
 			// run the timeout runnable to simulate a heartbeat timeout
@@ -670,6 +681,9 @@ public class ResourceManagerTest extends TestLogger {
 				runnable.run();
 			}
 
+			// wait for the content of the runnable to be executed in the main thread.
+			TimeUnit.MILLISECONDS.sleep(100);
+
 			verify(jobMasterGateway, times(1)).heartbeatFromResourceManager(eq(rmResourceId));
 
 			// run the timeout runnable to simulate a heartbeat timeout
@@ -679,6 +693,192 @@ public class ResourceManagerTest extends TestLogger {
 
 		} finally {
 			RpcUtils.terminateRpcService(rpcService, timeout);
+		}
+	}
+
+	@Test
+	public void testStopSendingHeartbeatWhenRMBlocked() throws Exception {
+
+		final String jobMasterAddress = "jm";
+		final String taskExecutorAddress = "tm";
+		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+		final ResourceID tmResourceId = new ResourceID(taskExecutorAddress);
+		final ResourceID rmResourceId = ResourceID.generate();
+		final ResourceManagerId rmLeaderId = ResourceManagerId.generate();
+		final JobMasterId jobMasterId = JobMasterId.generate();
+		final JobID jobId = new JobID();
+
+		final CompletableFuture<Boolean> jmHeartbeatFromRMFuture = new CompletableFuture<>();
+		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				jmHeartbeatFromRMFuture.complete(true);
+				return null;
+			}
+		}).when(jobMasterGateway).heartbeatFromResourceManager(any(ResourceID.class));
+
+		final CompletableFuture<Boolean> tmHeartbeatFromRMFuture = new CompletableFuture<>();
+		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				tmHeartbeatFromRMFuture.complete(true);
+				return null;
+			}
+		}).when(taskExecutorGateway).heartbeatFromResourceManager(any(ResourceID.class));
+
+
+		final TestingRpcService rpcService = new TestingRpcService();
+		rpcService.registerGateway(jobMasterAddress, jobMasterGateway);
+		rpcService.registerGateway(taskExecutorAddress, taskExecutorGateway);
+
+		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
+		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
+		final SettableLeaderRetrievalService jmLeaderRetrievalService = new SettableLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
+		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+		highAvailabilityServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
+
+		final long heartbeatInterval = 1L;
+		final long heartbeatTimeout = 5L;
+		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
+		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
+
+		final MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor(),
+			Time.minutes(5L));
+
+		final BlockedResourceManager resourceManager = new BlockedResourceManager(
+			rpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			rmResourceId,
+			resourceManagerConfiguration,
+			highAvailabilityServices,
+			heartbeatServices,
+			mock(SlotManager.class),
+			metricRegistry,
+			jobLeaderIdService,
+			new ClusterInformation("localhost", 1234),
+			mock(FatalErrorHandler.class));
+
+		try {
+
+			resourceManager.start();
+
+			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+			rmLeaderElectionService.isLeader(rmLeaderId.toUUID()).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// register the job master.
+			CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
+				jobMasterId,
+				jmResourceId,
+				jobMasterAddress,
+				jobId,
+				timeout);
+			RegistrationResponse jmRegisterResponse = successfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			assertTrue(jmRegisterResponse instanceof JobMasterRegistrationSuccess);
+
+			// register the task manager.
+			CompletableFuture<RegistrationResponse> tmRegisterSuccessfulFuture = rmGateway.registerTaskExecutor(
+				taskExecutorAddress,
+				tmResourceId,
+				8888,
+				new HardwareDescription(1, 1024, 1024, 512),
+				timeout);
+			RegistrationResponse tmRegisterResponse = tmRegisterSuccessfulFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			assertTrue(tmRegisterResponse instanceof TaskExecutorRegistrationSuccess);
+
+			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor, times(2)).scheduleAtFixedRate(
+				heartbeatRunnableCaptor.capture(),
+				eq(0L),
+				eq(heartbeatInterval),
+				eq(TimeUnit.MILLISECONDS));
+
+			List<Runnable> heartbeatRunnable = heartbeatRunnableCaptor.getAllValues();
+
+			// will block the resource manager.
+			rmGateway.cancelSlotRequest(new AllocationID());
+
+			// run all the heartbeat requests
+			for (Runnable runnable : heartbeatRunnable) {
+				runnable.run();
+			}
+
+			// test resource manager stop sending heartbeat to job master.
+			try {
+				jmHeartbeatFromRMFuture.get(Time.milliseconds(400L).toMilliseconds(), TimeUnit.MILLISECONDS);
+				fail("Should be failed of TimeoutException, because the resource manager has been blocked, it can't send any heartbeats.");
+			} catch (TimeoutException expected) {
+				// we expected this.
+			}
+
+			// test resource manager stop sending heartbeat to task manager.
+			try {
+				tmHeartbeatFromRMFuture.get(Time.milliseconds(400L).toMilliseconds(), TimeUnit.MILLISECONDS);
+				fail("Should be failed of TimeoutException, because the resource manager has been blocked, it can't send any heartbeats.");
+			} catch (TimeoutException expected) {
+				// we expected this.
+			}
+		} finally {
+			resourceManager.stopBlocking();
+			RpcUtils.terminateRpcService(rpcService, timeout);
+		}
+	}
+
+	/**
+	 * A resource manager that will be blocked when calling cancelSlotRequest.
+	 */
+	public class BlockedResourceManager extends StandaloneResourceManager {
+
+		private CompletableFuture<Boolean> blockingFuture = new CompletableFuture<>();
+
+		public BlockedResourceManager(
+			RpcService rpcService,
+			String resourceManagerEndpointId,
+			ResourceID resourceId,
+			ResourceManagerConfiguration resourceManagerConfiguration,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			SlotManager slotManager,
+			MetricRegistry metricRegistry,
+			JobLeaderIdService jobLeaderIdService,
+			ClusterInformation clusterInformation,
+			FatalErrorHandler fatalErrorHandler) {
+			super(
+				rpcService,
+				resourceManagerEndpointId,
+				resourceId,
+				resourceManagerConfiguration,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				clusterInformation,
+				fatalErrorHandler);
+		}
+
+		@Override
+		public void cancelSlotRequest(AllocationID allocationID) {
+			try {
+				blockingFuture.get();
+			} catch (InterruptedException e) {
+				fail();
+			} catch (ExecutionException e) {
+				fail();
+			}
+		}
+
+		public void stopBlocking() {
+			blockingFuture.complete(true);
 		}
 	}
 }

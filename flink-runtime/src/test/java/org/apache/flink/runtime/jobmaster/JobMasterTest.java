@@ -41,6 +41,7 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -67,6 +69,8 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -90,6 +94,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 
 import javax.annotation.Nonnull;
 
@@ -98,17 +103,26 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link JobMaster}.
@@ -695,6 +709,93 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testStopSendingHeartbeatWhenJMBlocked() throws Exception {
+
+		final CompletableFuture<ResourceID> heartbeatResourceIdFuture = new CompletableFuture<>();
+
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setHeartbeatJobManagerConsumer(heartbeatResourceIdFuture::complete)
+			.createTestingTaskExecutorGateway();
+
+		final TestingRpcService rpcService = new TestingRpcService();
+		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
+		final long heartbeatInterval = 1L;
+		final long heartbeatTimeout = 5L;
+		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
+		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
+
+		final BlockedJobMaster jobMaster = new BlockedJobMaster(
+			rpcService,
+			jobMasterConfiguration,
+			jmResourceId,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices,
+			heartbeatServices,
+			blobServer,
+			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			new NoOpOnCompletionActions(),
+			testingFatalErrorHandler,
+			JobMasterTest.class.getClassLoader());
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			// register task manager will trigger monitor heartbeat target, schedule heartbeat request at interval time
+			CompletableFuture<RegistrationResponse> registrationResponse = jobMasterGateway.registerTaskManager(
+				taskExecutorGateway.getAddress(),
+				taskManagerLocation,
+				testingTimeout);
+
+			// wait for the completion of the registration
+			RegistrationResponse tmRegisterResponse = registrationResponse.get();
+
+			assertTrue(tmRegisterResponse instanceof JMTMRegistrationSuccess);
+
+			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+			verify(scheduledExecutor, times(1)).scheduleAtFixedRate(
+				heartbeatRunnableCaptor.capture(),
+				eq(0L),
+				eq(heartbeatInterval),
+				eq(TimeUnit.MILLISECONDS));
+
+			List<Runnable> heartbeatRunnable = heartbeatRunnableCaptor.getAllValues();
+
+			// will block the job master.
+			jobMasterGateway.stop(Time.of(10000L, TimeUnit.MILLISECONDS));
+
+			// run all the heartbeat requests
+			for (Runnable runnable : heartbeatRunnable) {
+				runnable.run();
+			}
+
+			// test job master stop sending heartbeat to task manager.
+			try {
+				heartbeatResourceIdFuture.get(Time.milliseconds(500L).toMilliseconds(), TimeUnit.MILLISECONDS);
+				fail("Should be failed of TimeoutException, because the job master has been blocked, it can't send heartbeats any more.");
+			} catch (TimeoutException expected) {
+				// we expected this.
+			} finally {
+				// unblock job master.
+				jobMaster.stopBlocking();
+			}
+		} finally {
+			jobManagerSharedServices.shutdown();
+			RpcUtils.terminateRpcService(rpcService, testingTimeout);
+		}
+	}
+
 	private JobGraph producerConsumerJobGraph() {
 		final JobVertex producer = new JobVertex("Producer");
 		producer.setInvokableClass(NoOpInvokable.class);
@@ -778,6 +879,58 @@ public class JobMasterTest extends TestLogger {
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
 			JobMasterTest.class.getClassLoader());
+	}
+
+	/**
+	 * A job master will be blocked when calling rescaleJob.
+	 */
+	private static final class BlockedJobMaster extends JobMaster {
+
+		private CompletableFuture<Boolean> blockingFuture = new CompletableFuture<>();
+
+		public BlockedJobMaster(
+			RpcService rpcService,
+			JobMasterConfiguration jobMasterConfiguration,
+			ResourceID resourceId,
+			JobGraph jobGraph,
+			HighAvailabilityServices highAvailabilityService,
+			JobManagerSharedServices jobManagerSharedServices,
+			HeartbeatServices heartbeatServices,
+			BlobServer blobServer,
+			JobManagerJobMetricGroupFactory jobMetricGroupFactory,
+			OnCompletionActions jobCompletionActions,
+			FatalErrorHandler fatalErrorHandler,
+			ClassLoader userCodeLoader) throws Exception {
+			super(
+				rpcService,
+				jobMasterConfiguration,
+				resourceId,
+				jobGraph,
+				highAvailabilityService,
+				jobManagerSharedServices,
+				heartbeatServices,
+				blobServer,
+				jobMetricGroupFactory,
+				jobCompletionActions,
+				fatalErrorHandler,
+				userCodeLoader);
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> stop(Time time) {
+			try {
+				blockingFuture.get();
+			} catch (InterruptedException e) {
+				fail();
+			} catch (ExecutionException e) {
+				fail();
+			}
+			return null;
+		}
+
+		public void stopBlocking() {
+			blockingFuture.complete(true);
+		}
 	}
 
 	/**

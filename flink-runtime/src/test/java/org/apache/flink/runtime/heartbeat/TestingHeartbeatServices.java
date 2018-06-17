@@ -53,7 +53,7 @@ public class TestingHeartbeatServices extends HeartbeatServices {
 			heartbeatTimeout,
 			resourceId,
 			heartbeatListener,
-			org.apache.flink.runtime.concurrent.Executors.directExecutor(),
+			executorSupplier,
 			scheduledExecutorToUse,
 			log);
 	}
