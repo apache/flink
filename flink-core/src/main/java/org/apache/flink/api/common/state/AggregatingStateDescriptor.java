@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.state;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -92,15 +91,6 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 
 		super(name, typeSerializer, null);
 		this.aggFunction = checkNotNull(aggFunction);
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Deprecated
-	@Internal
-	@Override
-	public AggregatingState<IN, OUT> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createAggregatingState(this);
 	}
 
 	/**

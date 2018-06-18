@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.state;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RichFunction;
@@ -96,15 +95,6 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 		if (foldFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("FoldFunction of FoldingState can not be a RichFunction.");
 		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Deprecated
-	@Internal
-	@Override
-	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createFoldingState(this);
 	}
 
 	/**
