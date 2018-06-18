@@ -37,8 +37,8 @@ public class InternalTimersSnapshot<K, N> {
 	private TypeSerializer<N> namespaceSerializer;
 	private TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot;
 
-	private Set<InternalTimer<K, N>> eventTimeTimers;
-	private Set<InternalTimer<K, N>> processingTimeTimers;
+	private Set<TimerHeapInternalTimer<K, N>> eventTimeTimers;
+	private Set<TimerHeapInternalTimer<K, N>> processingTimeTimers;
 
 	/** Empty constructor used when restoring the timers. */
 	public InternalTimersSnapshot() {}
@@ -49,8 +49,8 @@ public class InternalTimersSnapshot<K, N> {
 			TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot,
-			@Nullable Set<InternalTimer<K, N>> eventTimeTimers,
-			@Nullable Set<InternalTimer<K, N>> processingTimeTimers) {
+			@Nullable Set<TimerHeapInternalTimer<K, N>> eventTimeTimers,
+			@Nullable Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
@@ -92,19 +92,19 @@ public class InternalTimersSnapshot<K, N> {
 		this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
 	}
 
-	public Set<InternalTimer<K, N>> getEventTimeTimers() {
+	public Set<TimerHeapInternalTimer<K, N>> getEventTimeTimers() {
 		return eventTimeTimers;
 	}
 
-	public void setEventTimeTimers(Set<InternalTimer<K, N>> eventTimeTimers) {
+	public void setEventTimeTimers(Set<TimerHeapInternalTimer<K, N>> eventTimeTimers) {
 		this.eventTimeTimers = eventTimeTimers;
 	}
 
-	public Set<InternalTimer<K, N>> getProcessingTimeTimers() {
+	public Set<TimerHeapInternalTimer<K, N>> getProcessingTimeTimers() {
 		return processingTimeTimers;
 	}
 
-	public void setProcessingTimeTimers(Set<InternalTimer<K, N>> processingTimeTimers) {
+	public void setProcessingTimeTimers(Set<TimerHeapInternalTimer<K, N>> processingTimeTimers) {
 		this.processingTimeTimers = processingTimeTimers;
 	}
 
