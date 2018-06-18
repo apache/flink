@@ -123,8 +123,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Map of state names to their corresponding restored state meta info.
 	 *
-	 * <p></p>
-	 * TODO this map can be removed when eager-state registration is in place.
+	 * <p>TODO this map can be removed when eager-state registration is in place.
 	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
 	 */
 	private final Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredKvStateMetaInfos;
@@ -219,13 +218,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public <N, SV, S extends State, IS extends S> IS createState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
-		if (!STATE_FACTORIES.containsKey(stateDesc.getClass())) {
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
 		StateTable<K, N, SV> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return STATE_FACTORIES.get(stateDesc.getClass()).createState(stateDesc, stateTable, keySerializer);
+		return stateFactory.createState(stateDesc, stateTable, keySerializer);
 	}
 
 	@Override

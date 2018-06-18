@@ -1319,15 +1319,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public <N, SV, S extends State, IS extends S> IS createState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
-		if (!STATE_FACTORIES.containsKey(stateDesc.getClass())) {
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
-			throw new UnsupportedOperationException(message);
+			throw new FlinkRuntimeException(message);
 		}
 		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult =
 			tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
-		return STATE_FACTORIES.get(stateDesc.getClass()).createState(
-			stateDesc, registerResult, RocksDBKeyedStateBackend.this);
+		return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
 	}
 
 	/**

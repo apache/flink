@@ -271,14 +271,14 @@ public class QueryableStateClient {
 		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace).thenApply(
 				stateResponse -> {
 					try {
-						if (!STATE_FACTORIES.containsKey(stateDescriptor.getClass())) {
+						StateFactory stateFactory = STATE_FACTORIES
+							.get(stateDescriptor.getClass());
+						if (stateFactory == null) {
 							String message = String.format("State %s is not supported by %s",
 								stateDescriptor.getClass(), this.getClass());
 							throw new FlinkRuntimeException(message);
 						}
-						return STATE_FACTORIES
-							.get(stateDescriptor.getClass())
-							.createState(stateDescriptor, stateResponse.getContent());
+						return stateFactory.createState(stateDescriptor, stateResponse.getContent());
 					} catch (Exception e) {
 						throw new FlinkRuntimeException(e);
 					}
