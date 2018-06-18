@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.util.Preconditions;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -73,7 +74,11 @@ public final class FileUploads implements AutoCloseable {
 	@Override
 	public void close() throws IOException {
 		for (Path file : uploadedFiles) {
-			Files.delete(file);
+			try {
+				Files.delete(file);
+			} catch (FileNotFoundException ignored) {
+				// file may have been moved by a handler
+			}
 		}
 		for (Path directory : directoriesToClean) {
 			Files.walkFileTree(directory, CleanupFileVisitor.get());
@@ -113,7 +118,11 @@ public final class FileUploads implements AutoCloseable {
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 			FileVisitResult result = super.visitFile(file, attrs);
-			Files.delete(file);
+			try {
+				Files.delete(file);
+			} catch (FileNotFoundException ignored) {
+				// file may have been moved by a handler
+			}
 			return result;
 		}
 
