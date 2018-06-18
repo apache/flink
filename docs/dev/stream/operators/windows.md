@@ -1412,7 +1412,6 @@ val globalResults = resultsPerKey
 In this example, the results for time window `[0, 5)` from the first operation will also end up in
 time window `[0, 5)` in the subsequent windowed operation. This allows calculating a sum per key
 and then calculating the top-k elements within the same window in the second operation.
-and then calculating the top-k elements within the same window in the second operation.
 
 ## Useful state size considerations
 
