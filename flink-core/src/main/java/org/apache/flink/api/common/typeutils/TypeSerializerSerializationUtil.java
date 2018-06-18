@@ -203,7 +203,7 @@ public class TypeSerializerSerializationUtil {
 			new ArrayList<>(numSerializersAndConfigSnapshots);
 
 		TypeSerializer<?> serializer;
-		TypeSerializerConfigSnapshot configSnapshot;
+		TypeSerializerConfigSnapshot<?> configSnapshot;
 		try (
 			ByteArrayInputStreamWithPos bufferWithPos = new ByteArrayInputStreamWithPos(buffer);
 			DataInputViewStreamWrapper bufferWrapper = new DataInputViewStreamWrapper(bufferWithPos)) {
@@ -214,10 +214,17 @@ public class TypeSerializerSerializationUtil {
 				serializer = tryReadSerializer(bufferWrapper, userCodeClassLoader, true);
 
 				bufferWithPos.setPosition(offsets[i * 2 + 1]);
-				configSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(bufferWrapper, userCodeClassLoader);
 
-				serializersAndConfigSnapshots.add(
-					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(serializer, configSnapshot));
+				// the config snapshot is replaced with a dummy one, which wraps
+				// the actual config snapshot and the deserialized serializer.
+				// this is for backwards compatibility reasons, since before Flink 1.6, some serializers
+				// do not return config snapshots that can be used as a factory for themselves.
+				configSnapshot = new BackwardsCompatibleConfigSnapshot<>(
+					TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
+						bufferWrapper, userCodeClassLoader),
+					serializer);
+
+				serializersAndConfigSnapshots.add(new Tuple2<>(serializer, configSnapshot));
 			}
 		}
 

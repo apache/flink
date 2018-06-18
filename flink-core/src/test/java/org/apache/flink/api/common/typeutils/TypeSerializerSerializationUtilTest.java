@@ -229,9 +229,13 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
 		Assert.assertEquals(2, restored.size());
 		Assert.assertTrue(restored.get(0).f0 instanceof UnloadableDummyTypeSerializer);
-		Assert.assertEquals(IntSerializer.INSTANCE.snapshotConfiguration(), restored.get(0).f1);
+		Assert.assertEquals(
+			IntSerializer.INSTANCE.snapshotConfiguration(),
+			((BackwardsCompatibleConfigSnapshot) restored.get(0).f1).getWrappedConfigSnapshot());
 		Assert.assertTrue(restored.get(1).f0 instanceof UnloadableDummyTypeSerializer);
-		Assert.assertEquals(DoubleSerializer.INSTANCE.snapshotConfiguration(), restored.get(1).f1);
+		Assert.assertEquals(
+			DoubleSerializer.INSTANCE.snapshotConfiguration(),
+			((BackwardsCompatibleConfigSnapshot) restored.get(1).f1).getWrappedConfigSnapshot());
 	}
 
 	/**
