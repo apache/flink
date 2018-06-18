@@ -96,7 +96,8 @@ public class FileUploadHandlerTest {
 	private static MultipartMixedHandler mixedHandler;
 	private static MultipartJsonHandler jsonHandler;
 	private static MultipartFileHandler fileHandler;
-	private static File file;
+	private static File file1;
+	private static File file2;
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -114,6 +115,11 @@ public class FileUploadHandlerTest {
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
+		file1 = TEMPORARY_FOLDER.newFile();
+		Files.write(file1.toPath(), "hello".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		file2 = TEMPORARY_FOLDER.newFile();
+		Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
+
 		mixedHandler = new MultipartMixedHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
 		jsonHandler = new MultipartJsonHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
 		fileHandler = new MultipartFileHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
@@ -127,9 +133,6 @@ public class FileUploadHandlerTest {
 
 		serverEndpoint.start();
 		serverAddress = serverEndpoint.getRestBaseUrl();
-
-		file = TEMPORARY_FOLDER.newFile();
-		Files.write(file.toPath(), "hello world".getBytes(ConfigConstants.DEFAULT_CHARSET));
 	}
 
 	@AfterClass
@@ -145,9 +148,11 @@ public class FileUploadHandlerTest {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
 
 		if (includeFile) {
-			okhttp3.RequestBody filePayload = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file);
+			okhttp3.RequestBody filePayload1 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file1);
+			builder = builder.addFormDataPart("file1", file1.getName(), filePayload1);
 
-			builder = builder.addFormDataPart("file", "tmp", filePayload);
+			okhttp3.RequestBody filePayload2 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file2);
+			builder = builder.addFormDataPart("file2", file2.getName(), filePayload2);
 		}
 
 		if (includeJson) {
@@ -358,11 +363,22 @@ public class FileUploadHandlerTest {
 		static void verifyFileUpload(FileUploads fileUploads) throws RestHandlerException {
 			Collection<Path> uploadedFiles = fileUploads.getUploadedFiles();
 			try {
-				assertEquals(1, uploadedFiles.size());
+				assertEquals(2, uploadedFiles.size());
 
-				byte[] originalContent = Files.readAllBytes(file.toPath());
-				byte[] receivedContent = Files.readAllBytes(uploadedFiles.iterator().next());
-				assertArrayEquals(originalContent, receivedContent);
+				for (Path uploadedFile : uploadedFiles) {
+					File matchingFile;
+					if (uploadedFile.getFileName().toString().equals(file1.getName())) {
+						matchingFile = file1;
+					} else if (uploadedFile.getFileName().toString().equals(file2.getName())) {
+						matchingFile = file2;
+					} else {
+						throw new RestHandlerException("Received file with unknown name " + uploadedFile.getFileName() + '.', HttpResponseStatus.INTERNAL_SERVER_ERROR);
+					}
+
+					byte[] originalContent = Files.readAllBytes(matchingFile.toPath());
+					byte[] receivedContent = Files.readAllBytes(uploadedFile);
+					assertArrayEquals(originalContent, receivedContent);
+				}
 			} catch (Exception e) {
 				// return 505 to differentiate from common BAD_REQUEST responses in this test
 				throw new RestHandlerException("Test verification failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
