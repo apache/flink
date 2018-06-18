@@ -19,35 +19,48 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
- * Implementation of {@link InternalTimer} for the {@link InternalTimerHeap}.
+ * Implementation of {@link InternalTimer} to use with a {@link HeapPriorityQueueSet}.
  *
  * @param <K> Type of the keys to which timers are scoped.
  * @param <N> Type of the namespace to which timers are scoped.
  */
 @Internal
-public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
+public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N>, HeapPriorityQueueElement {
 
-	/** The index that indicates that a tracked internal timer is not tracked. */
-	private static final int NOT_MANAGED_BY_TIMER_QUEUE_INDEX = Integer.MIN_VALUE;
+	/** Function to extract the key from a {@link TimerHeapInternalTimer}. */
+	private static final KeyExtractorFunction<TimerHeapInternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION =
+		TimerHeapInternalTimer::getKey;
 
+	/** Function to compare instances of {@link TimerHeapInternalTimer}. */
+	private static final Comparator<TimerHeapInternalTimer<?, ?>> TIMER_COMPARATOR =
+		(o1, o2) -> Long.compare(o1.getTimestamp(), o2.getTimestamp());
+
+	/** The key for which the timer is scoped. */
 	@Nonnull
 	private final K key;
 
+	/** The namespace for which the timer is scoped. */
 	@Nonnull
 	private final N namespace;
 
+	/** The expiration timestamp. */
 	private final long timestamp;
 
 	/**
@@ -60,7 +73,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		this.timestamp = timestamp;
 		this.key = key;
 		this.namespace = namespace;
-		this.timerHeapIndex = NOT_MANAGED_BY_TIMER_QUEUE_INDEX;
+		this.timerHeapIndex = NOT_CONTAINED;
 	}
 
 	@Override
@@ -96,19 +109,14 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		return false;
 	}
 
-	/**
-	 * Returns the current index of this timer in the owning timer heap.
-	 */
-	int getTimerHeapIndex() {
+	@Override
+	public int getInternalIndex() {
 		return timerHeapIndex;
 	}
 
-	/**
-	 * Sets the current index of this timer in the owning timer heap and should only be called by the managing heap.
-	 * @param timerHeapIndex the new index in the timer heap.
-	 */
-	void setTimerHeapIndex(int timerHeapIndex) {
-		this.timerHeapIndex = timerHeapIndex;
+	@Override
+	public void setInternalIndex(int newIndex) {
+		this.timerHeapIndex = newIndex;
 	}
 
 	/**
@@ -116,7 +124,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 	 * removed.
 	 */
 	void removedFromTimerQueue() {
-		setTimerHeapIndex(NOT_MANAGED_BY_TIMER_QUEUE_INDEX);
+		setInternalIndex(NOT_CONTAINED);
 	}
 
 	@Override
@@ -136,10 +144,22 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 				'}';
 	}
 
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	static <T extends TimerHeapInternalTimer> Comparator<T> getTimerComparator() {
+		return (Comparator<T>) TIMER_COMPARATOR;
+	}
+
+	@SuppressWarnings("unchecked")
+	@VisibleForTesting
+	static <T extends TimerHeapInternalTimer> KeyExtractorFunction<T> getKeyExtractorFunction() {
+		return (KeyExtractorFunction<T>) KEY_EXTRACTOR_FUNCTION;
+	}
+
 	/**
 	 * A {@link TypeSerializer} used to serialize/deserialize a {@link TimerHeapInternalTimer}.
 	 */
-	public static class TimerSerializer<K, N> extends TypeSerializer<InternalTimer<K, N>> {
+	public static class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer<K, N>> {
 
 		private static final long serialVersionUID = 1119562170939152304L;
 
@@ -160,7 +180,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public TypeSerializer<InternalTimer<K, N>> duplicate() {
+		public TypeSerializer<TimerHeapInternalTimer<K, N>> duplicate() {
 
 			final TypeSerializer<K> keySerializerDuplicate = keySerializer.duplicate();
 			final TypeSerializer<N> namespaceSerializerDuplicate = namespaceSerializer.duplicate();
@@ -176,17 +196,17 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public InternalTimer<K, N> createInstance() {
+		public TimerHeapInternalTimer<K, N> createInstance() {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public InternalTimer<K, N> copy(InternalTimer<K, N> from) {
+		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from) {
 			return new TimerHeapInternalTimer<>(from.getTimestamp(), from.getKey(), from.getNamespace());
 		}
 
 		@Override
-		public InternalTimer<K, N> copy(InternalTimer<K, N> from, InternalTimer<K, N> reuse) {
+		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from, TimerHeapInternalTimer<K, N> reuse) {
 			return copy(from);
 		}
 
@@ -197,14 +217,14 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public void serialize(InternalTimer<K, N> record, DataOutputView target) throws IOException {
+		public void serialize(TimerHeapInternalTimer<K, N> record, DataOutputView target) throws IOException {
 			keySerializer.serialize(record.getKey(), target);
 			namespaceSerializer.serialize(record.getNamespace(), target);
 			LongSerializer.INSTANCE.serialize(record.getTimestamp(), target);
 		}
 
 		@Override
-		public InternalTimer<K, N> deserialize(DataInputView source) throws IOException {
+		public TimerHeapInternalTimer<K, N> deserialize(DataInputView source) throws IOException {
 			K key = keySerializer.deserialize(source);
 			N namespace = namespaceSerializer.deserialize(source);
 			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
@@ -212,7 +232,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public InternalTimer<K, N> deserialize(InternalTimer<K, N> reuse, DataInputView source) throws IOException {
+		public TimerHeapInternalTimer<K, N> deserialize(TimerHeapInternalTimer<K, N> reuse, DataInputView source) throws IOException {
 			return deserialize(source);
 		}
 
@@ -247,7 +267,7 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N> {
 		}
 
 		@Override
-		public CompatibilityResult<InternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
 		}
 	}
