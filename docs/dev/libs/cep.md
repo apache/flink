@@ -296,12 +296,14 @@ middle.oneOrMore()
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-middle.oneOrMore().where(
-    (value, ctx) => {
-        lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
-        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
-    }
-)
+middle.oneOrMore()
+    .subtype(classOf[SubEvent])
+    .where(
+        (value, ctx) => {
+            lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
+            value.getName.startsWith("foo") && sum + value.getPrice < 5.0
+        }
+    )
 {% endhighlight %}
 </div>
 </div>
