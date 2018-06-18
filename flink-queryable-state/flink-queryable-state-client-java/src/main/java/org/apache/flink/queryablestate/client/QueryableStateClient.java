@@ -32,6 +32,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
 import org.apache.flink.queryablestate.client.state.ImmutableFoldingState;
@@ -57,6 +58,8 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Client for querying Flink's managed state.
@@ -80,15 +83,14 @@ public class QueryableStateClient {
 	private static final Logger LOG = LoggerFactory.getLogger(QueryableStateClient.class);
 
 	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
-		org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap
-			.<Class<? extends StateDescriptor>, StateFactory>builder()
-			.put(ValueStateDescriptor.class, ImmutableValueState::createState)
-			.put(ListStateDescriptor.class, ImmutableListState::createState)
-			.put(MapStateDescriptor.class, ImmutableMapState::createState)
-			.put(AggregatingStateDescriptor.class, ImmutableAggregatingState::createState)
-			.put(ReducingStateDescriptor.class, ImmutableReducingState::createState)
-			.put(FoldingStateDescriptor.class, ImmutableFoldingState::createState)
-			.build();
+		Stream.of(
+			Tuple2.of(ValueStateDescriptor.class, (StateFactory) ImmutableValueState::createState),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) ImmutableListState::createState),
+			Tuple2.of(MapStateDescriptor.class, (StateFactory) ImmutableMapState::createState),
+			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) ImmutableAggregatingState::createState),
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) ImmutableReducingState::createState),
+			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) ImmutableFoldingState::createState)
+		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {
 		<T, S extends State> S createState(StateDescriptor<S, T> stateDesc, byte[] serializedState) throws Exception;
@@ -268,21 +270,24 @@ public class QueryableStateClient {
 			return FutureUtils.getFailedFuture(e);
 		}
 
-		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace).thenApply(
-				stateResponse -> {
-					try {
-						StateFactory stateFactory = STATE_FACTORIES
-							.get(stateDescriptor.getClass());
-						if (stateFactory == null) {
-							String message = String.format("State %s is not supported by %s",
-								stateDescriptor.getClass(), this.getClass());
-							throw new FlinkRuntimeException(message);
-						}
-						return stateFactory.createState(stateDescriptor, stateResponse.getContent());
-					} catch (Exception e) {
-						throw new FlinkRuntimeException(e);
-					}
-				});
+		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace)
+			.thenApply(stateResponse -> createState(stateResponse, stateDescriptor));
+	}
+
+	private <T, S extends State> S createState(
+		KvStateResponse stateResponse,
+		StateDescriptor<S, T> stateDescriptor) {
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDescriptor.getClass());
+		if (stateFactory == null) {
+			String message = String.format("State %s is not supported by %s",
+				stateDescriptor.getClass(), this.getClass());
+			throw new FlinkRuntimeException(message);
+		}
+		try {
+			return stateFactory.createState(stateDescriptor, stateResponse.getContent());
+		} catch (Exception e) {
+			throw new FlinkRuntimeException(e);
+		}
 	}
 
 	/**

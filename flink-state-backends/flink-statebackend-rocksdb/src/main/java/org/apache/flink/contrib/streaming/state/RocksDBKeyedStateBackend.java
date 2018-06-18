@@ -128,6 +128,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -152,15 +153,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private static final String SST_FILE_SUFFIX = ".sst";
 
 	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
-		org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap
-			.<Class<? extends StateDescriptor>, StateFactory>builder()
-			.put(ValueStateDescriptor.class, RocksDBValueState::create)
-			.put(ListStateDescriptor.class, RocksDBListState::create)
-			.put(MapStateDescriptor.class, RocksDBMapState::create)
-			.put(AggregatingStateDescriptor.class, RocksDBAggregatingState::create)
-			.put(ReducingStateDescriptor.class, RocksDBReducingState::create)
-			.put(FoldingStateDescriptor.class, RocksDBFoldingState::create)
-			.build();
+		Stream.of(
+			Tuple2.of(ValueStateDescriptor.class, (StateFactory) RocksDBValueState::create),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) RocksDBListState::create),
+			Tuple2.of(MapStateDescriptor.class, (StateFactory) RocksDBMapState::create),
+			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) RocksDBAggregatingState::create),
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) RocksDBReducingState::create),
+			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) RocksDBFoldingState::create)
+		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {
 		<K, N, SV, S extends State, IS extends S> IS createState(

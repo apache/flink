@@ -93,15 +93,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
 	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
-		org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap
-			.<Class<? extends StateDescriptor>, StateFactory>builder()
-			.put(ValueStateDescriptor.class, HeapValueState::create)
-			.put(ListStateDescriptor.class, HeapListState::create)
-			.put(MapStateDescriptor.class, HeapMapState::create)
-			.put(AggregatingStateDescriptor.class, HeapAggregatingState::create)
-			.put(ReducingStateDescriptor.class, HeapReducingState::create)
-			.put(FoldingStateDescriptor.class, HeapFoldingState::create)
-			.build();
+		Stream.of(
+			Tuple2.of(ValueStateDescriptor.class, (StateFactory) HeapValueState::create),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) HeapListState::create),
+			Tuple2.of(MapStateDescriptor.class, (StateFactory) HeapMapState::create),
+			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) HeapAggregatingState::create),
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) HeapReducingState::create),
+			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) HeapFoldingState::create)
+		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private interface StateFactory {
 		<K, N, SV, S extends State, IS extends S> IS createState(
