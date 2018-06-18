@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-distributed-cache-via-blob-test/target/DistributedCacheViaBlobTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-distributed-cache-via-blob-test/target/DistributedCacheViaBlobTestProgram.jar
 
 echo "Testing distributing files via DistributedCache & BlobServer"
 
@@ -36,5 +36,5 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo "Output from Flink program does not match expected output."
   echo -e "EXPECTED: $EXPECTED"
   echo -e "ACTUAL: $OUTPUT"
-  PASS=""
+  exit 1
 fi

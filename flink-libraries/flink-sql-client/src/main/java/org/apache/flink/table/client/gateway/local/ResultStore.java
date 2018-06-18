@@ -44,13 +44,11 @@ import java.util.Map;
  */
 public class ResultStore {
 
-	private Configuration flinkConfig;
-
-	private Map<String, DynamicResult<?>> results;
+	private final Configuration flinkConfig;
+	private final Map<String, DynamicResult<?>> results;
 
 	public ResultStore(Configuration flinkConfig) {
 		this.flinkConfig = flinkConfig;
-
 		results = new HashMap<>();
 	}
 
@@ -58,19 +56,26 @@ public class ResultStore {
 	 * Creates a result. Might start threads or opens sockets so every created result must be closed.
 	 */
 	public <T> DynamicResult<T> createResult(Environment env, TableSchema schema, ExecutionConfig config) {
-		if (!env.getExecution().isStreamingExecution()) {
-			throw new SqlExecutionException("Emission is only supported in streaming environments yet.");
-		}
 
 		final TypeInformation<Row> outputType = Types.ROW_NAMED(schema.getColumnNames(), schema.getTypes());
-		// determine gateway address (and port if possible)
-		final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
-		final int gatewayPort = getGatewayPort(env.getDeployment());
 
-		if (env.getExecution().isChangelogMode()) {
-			return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+		if (env.getExecution().isStreamingExecution()) {
+			// determine gateway address (and port if possible)
+			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
+			final int gatewayPort = getGatewayPort(env.getDeployment());
+
+			if (env.getExecution().isChangelogMode()) {
+				return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+			} else {
+				return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+			}
+
 		} else {
-			return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+			// Batch Execution
+			if (!env.getExecution().isTableMode()) {
+				throw new SqlExecutionException("Results of batch queries can only be served in table mode.");
+			}
+			return new MaterializedCollectBatchResult<>(outputType, config);
 		}
 	}
 

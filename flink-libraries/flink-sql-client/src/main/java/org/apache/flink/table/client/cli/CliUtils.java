@@ -93,7 +93,12 @@ public final class CliUtils {
 	public static String[] rowToString(Row row) {
 		final String[] fields = new String[row.getArity()];
 		for (int i = 0; i < row.getArity(); i++) {
-			fields[i] = row.getField(i).toString();
+			final Object field = row.getField(i);
+			if (field == null) {
+				fields[i] = CliStrings.NULL_COLUMN;
+			} else {
+				fields[i] = field.toString();
+			}
 		}
 		return fields;
 	}

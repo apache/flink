@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-stream-sql-test/target/StreamSQLTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-stream-sql-test/target/StreamSQLTestProgram.jar
 
 # copy flink-table jar into lib folder
 cp $FLINK_DIR/opt/flink-table*jar $FLINK_DIR/lib
@@ -42,9 +42,6 @@ function sql_cleanup() {
 
   # remove flink-table from lib folder
   rm $FLINK_DIR/lib/flink-table*jar
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT

@@ -150,6 +150,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		clearedJobLatch = new OneShotLatch();
 		runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
 		highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
+		highAvailabilityServices.setSubmittedJobGraphStore(new InMemorySubmittedJobGraphStore());
 
 		storedBlobFuture = new CompletableFuture<>();
 		deleteAllFuture = new CompletableFuture<>();
@@ -177,7 +178,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			configuration,
 			highAvailabilityServices,
-			new InMemorySubmittedJobGraphStore(),
+			highAvailabilityServices.getSubmittedJobGraphStore(),
 			new TestingResourceManagerGateway(),
 			blobServer,
 			new HeartbeatServices(1000L, 1000L),
@@ -185,9 +186,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			null,
 			new MemoryArchivedExecutionGraphStore(),
 			new TestingJobManagerRunnerFactory(resultFuture, CompletableFuture.completedFuture(null)),
-			fatalErrorHandler,
-			null,
-			VoidHistoryServerArchivist.INSTANCE);
+			fatalErrorHandler);
 
 		dispatcher.start();
 
@@ -358,8 +357,23 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	}
 
 	private static final class TestingDispatcher extends Dispatcher {
-		public TestingDispatcher(RpcService rpcService, String endpointId, Configuration configuration, HighAvailabilityServices highAvailabilityServices, SubmittedJobGraphStore submittedJobGraphStore, ResourceManagerGateway resourceManagerGateway, BlobServer blobServer, HeartbeatServices heartbeatServices, JobManagerMetricGroup jobManagerMetricGroup, @Nullable String metricServiceQueryPath, ArchivedExecutionGraphStore archivedExecutionGraphStore, JobManagerRunnerFactory jobManagerRunnerFactory, FatalErrorHandler fatalErrorHandler, @Nullable String restAddress, HistoryServerArchivist historyServerArchivist) throws Exception {
-			super(rpcService, endpointId, configuration, highAvailabilityServices, submittedJobGraphStore, resourceManagerGateway, blobServer, heartbeatServices, jobManagerMetricGroup, metricServiceQueryPath, archivedExecutionGraphStore, jobManagerRunnerFactory, fatalErrorHandler, restAddress, historyServerArchivist);
+		TestingDispatcher(RpcService rpcService, String endpointId, Configuration configuration, HighAvailabilityServices highAvailabilityServices, SubmittedJobGraphStore submittedJobGraphStore, ResourceManagerGateway resourceManagerGateway, BlobServer blobServer, HeartbeatServices heartbeatServices, JobManagerMetricGroup jobManagerMetricGroup, @Nullable String metricServiceQueryPath, ArchivedExecutionGraphStore archivedExecutionGraphStore, JobManagerRunnerFactory jobManagerRunnerFactory, FatalErrorHandler fatalErrorHandler) throws Exception {
+			super(
+				rpcService,
+				endpointId,
+				configuration,
+				highAvailabilityServices,
+				submittedJobGraphStore,
+				resourceManagerGateway,
+				blobServer,
+				heartbeatServices,
+				jobManagerMetricGroup,
+				metricServiceQueryPath,
+				archivedExecutionGraphStore,
+				jobManagerRunnerFactory,
+				fatalErrorHandler,
+				null,
+				VoidHistoryServerArchivist.INSTANCE);
 		}
 	}
 

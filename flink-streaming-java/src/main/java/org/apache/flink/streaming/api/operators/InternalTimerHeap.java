@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.StateSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -54,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <K> type of the key of the internal timers managed by this priority queue.
  * @param <N> type of the namespace of the internal timers managed by this priority queue.
  */
-public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {//implements Queue<TimerHeapInternalTimer<K, N>>, Set<TimerHeapInternalTimer<K, N>> {
+public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {
 
 	/**
 	 * A safe maximum size for arrays in the JVM.
@@ -136,7 +137,7 @@ public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {/
 	 * @param namespace the timer namespace.
 	 * @return true iff a new timer with given timestamp, key, and namespace was added to the heap.
 	 */
-	public boolean scheduleTimer(long timestamp, K key, N namespace) {
+	public boolean scheduleTimer(long timestamp, @Nonnull K key, @Nonnull N namespace) {
 		return addInternal(new TimerHeapInternalTimer<>(timestamp, key, namespace));
 	}
 
@@ -148,7 +149,7 @@ public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {/
 	 * @param namespace the timer namespace.
 	 * @return true iff a timer with given timestamp, key, and namespace was found and removed from the heap.
 	 */
-	public boolean stopTimer(long timestamp, K key, N namespace) {
+	public boolean stopTimer(long timestamp, @Nonnull K key, @Nonnull N namespace) {
 		return removeInternal(new TimerHeapInternalTimer<>(timestamp, key, namespace));
 	}
 
@@ -210,18 +211,29 @@ public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {/
 	/**
 	 * Returns an unmodifiable set of all timers in the given key-group.
 	 */
+	@Nonnull
 	Set<InternalTimer<K, N>> getTimersForKeyGroup(@Nonnegative int keyGroupIdx) {
 		return Collections.unmodifiableSet(getDedupMapForKeyGroup(keyGroupIdx).keySet());
 	}
 
 	@VisibleForTesting
 	@SuppressWarnings("unchecked")
+	@Nonnull
 	List<Set<InternalTimer<K, N>>> getTimersByKeyGroup() {
 		List<Set<InternalTimer<K, N>>> result = new ArrayList<>(deduplicationMapsByKeyGroup.length);
 		for (int i = 0; i < deduplicationMapsByKeyGroup.length; ++i) {
 			result.add(i, Collections.unmodifiableSet(deduplicationMapsByKeyGroup[i].keySet()));
 		}
 		return result;
+	}
+
+	@Nonnull
+	StateSnapshot snapshot(TimerHeapInternalTimer.TimerSerializer<K, N> serializer) {
+		return new InternalTimerHeapSnapshot<>(
+			Arrays.copyOfRange(queue, 1, size + 1),
+			serializer,
+			keyGroupRange,
+			totalNumberOfKeyGroups);
 	}
 
 	private boolean addInternal(TimerHeapInternalTimer<K, N> timer) {

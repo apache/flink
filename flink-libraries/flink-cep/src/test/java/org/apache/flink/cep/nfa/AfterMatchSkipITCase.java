@@ -19,7 +19,6 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
-import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -34,6 +33,7 @@ import java.util.List;
 
 import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
 import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.apache.flink.cep.utils.NFAUtils.compile;
 
 /**
  * IT tests covering {@link AfterMatchSkipStrategy}.
@@ -41,7 +41,7 @@ import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
 public class AfterMatchSkipITCase extends TestLogger{
 
 	@Test
-	public void testSkipToNext() {
+	public void testSkipToNext() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a", 0.0);
@@ -67,7 +67,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(3);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -80,7 +80,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipPastLast() {
+	public void testSkipPastLast() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a", 0.0);
@@ -106,7 +106,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(3);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -117,7 +117,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToFirst() {
+	public void testSkipToFirst() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event ab1 = new Event(1, "ab", 0.0);
@@ -150,7 +150,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}).times(2);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -161,7 +161,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToLast() {
+	public void testSkipToLast() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event ab1 = new Event(1, "ab", 0.0);
@@ -193,7 +193,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).times(2);
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -204,7 +204,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipPastLast2() {
+	public void testSkipPastLast2() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a1", 0.0);
@@ -251,7 +251,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 					return value.getName().contains("d");
 				}
 		});
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -268,7 +268,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipPastLast3() {
+	public void testSkipPastLast3() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a1", 0.0);
@@ -297,7 +297,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				}
 			}
 		);
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -307,7 +307,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToFirstWithOptionalMatch() {
+	public void testSkipToFirstWithOptionalMatch() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event ab1 = new Event(1, "ab1", 0.0);
@@ -341,7 +341,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("c");
 			}
 		});
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -352,7 +352,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToFirstAtStartPosition() {
+	public void testSkipToFirstAtStartPosition() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event ab1 = new Event(1, "ab1", 0.0);
@@ -380,7 +380,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("c");
 			}
 		});
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -391,7 +391,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToFirstWithOneOrMore() {
+	public void testSkipToFirstWithOneOrMore() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a1", 0.0);
@@ -425,7 +425,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).oneOrMore().consecutive();
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
@@ -437,7 +437,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 	}
 
 	@Test
-	public void testSkipToLastWithOneOrMore() {
+	public void testSkipToLastWithOneOrMore() throws Exception {
 		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
 		Event a1 = new Event(1, "a1", 0.0);
@@ -471,7 +471,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 				return value.getName().contains("b");
 			}
 		}).oneOrMore().consecutive();
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = compile(pattern, false);
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 

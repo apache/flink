@@ -46,14 +46,8 @@ public class Execution {
 
 	public boolean isStreamingExecution() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
+			properties.get(PropertyStrings.EXECUTION_TYPE),
 			PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING);
-	}
-
-	public boolean isBatchExecution() {
-		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
-			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
 	}
 
 	public TimeCharacteristic getTimeCharacteristic() {
@@ -88,8 +82,14 @@ public class Execution {
 
 	public boolean isChangelogMode() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_RESULT_MODE, PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG),
+			properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
 			PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG);
+	}
+
+	public boolean isTableMode() {
+		return Objects.equals(
+				properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
+				PropertyStrings.EXECUTION_RESULT_MODE_VALUE_TABLE);
 	}
 
 	public Map<String, String> toProperties() {

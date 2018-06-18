@@ -76,13 +76,6 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 		super(name, new ListSerializer<>(typeSerializer), null);
 	}
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public ListState<T> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createListState(this);
-	}
-
 	/**
 	 * Gets the serializer for the elements contained in the list.
 	 *

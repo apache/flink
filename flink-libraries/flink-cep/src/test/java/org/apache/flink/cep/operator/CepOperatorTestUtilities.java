@@ -84,6 +84,8 @@ public class CepOperatorTestUtilities {
 			comparator,
 			null,
 			new PatternSelectFunction<Event, Map<String, List<Event>>>() {
+				private static final long serialVersionUID = -7143807777582726991L;
+
 				@Override
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;

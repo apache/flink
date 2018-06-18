@@ -34,9 +34,6 @@ function test_cleanup {
   trap "" EXIT
 
   rollback_flink_slf4j_metric_reporter
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap test_cleanup INT
 trap test_cleanup EXIT
@@ -48,7 +45,7 @@ CHECKPOINT_DIR_URI="file://$CHECKPOINT_DIR"
 
 echo "Running externalized checkpoints test, with STATE_BACKEND_TYPE=$STATE_BACKEND_TYPE STATE_BACKEND_FILE_ASYNC=$STATE_BACKEND_FILE_ASYNC SIMULATE_FAILURE=$SIMULATE_FAILURE ..."
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
 BASE_JOB_CMD="$FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
   --test.semantics exactly-once \
   --environment.externalize_checkpoint true \
@@ -91,14 +88,12 @@ CHECKPOINT_PATH=$(ls -d $CHECKPOINT_DIR/$DATASTREAM_JOB/chk-[1-9]*)
 
 if [ -z $CHECKPOINT_PATH ]; then
   echo "Expected an externalized checkpoint to be present, but none exists."
-  PASS=""
   exit 1
 fi
 
 NUM_CHECKPOINTS=$(echo $CHECKPOINT_PATH | wc -l | tr -d ' ')
 if (( $NUM_CHECKPOINTS > 1 )); then
   echo "Expected only exactly 1 externalized checkpoint to be present, but $NUM_CHECKPOINTS exists."
-  PASS=""
   exit 1
 fi
 

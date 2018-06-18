@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import javax.annotation.Nonnull;
+
 import java.util.UUID;
 
 /**
@@ -62,10 +64,11 @@ public interface LeaderElectionService {
 
 	/**
 	 * Returns true if the {@link LeaderContender} with which the service has been started owns
-	 * currently the leadership.
+	 * currently the leadership under the given leader session id.
+	 *
+	 * @param leaderSessionId identifying the current leader
 	 *
 	 * @return true if the associated {@link LeaderContender} is the leader, otherwise false
 	 */
-	boolean hasLeadership();
-
+	boolean hasLeadership(@Nonnull UUID leaderSessionId);
 }

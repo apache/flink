@@ -55,15 +55,11 @@ import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
+import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-import org.apache.flink.runtime.state.internal.InternalFoldingState;
-import org.apache.flink.runtime.state.internal.InternalListState;
-import org.apache.flink.runtime.state.internal.InternalMapState;
-import org.apache.flink.runtime.state.internal.InternalReducingState;
-import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.function.SupplierWithException;
@@ -96,6 +92,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
+	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+		Stream.of(
+			Tuple2.of(ValueStateDescriptor.class, (StateFactory) HeapValueState::create),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) HeapListState::create),
+			Tuple2.of(MapStateDescriptor.class, (StateFactory) HeapMapState::create),
+			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) HeapAggregatingState::create),
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) HeapReducingState::create),
+			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) HeapFoldingState::create)
+		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+
+	private interface StateFactory {
+		<K, N, SV, S extends State, IS extends S> IS createState(
+			StateDescriptor<S, SV> stateDesc,
+			StateTable<K, N, SV> stateTable,
+			TypeSerializer<K> keySerializer) throws Exception;
+	}
+
 	/**
 	 * Map of state tables that stores all state of key/value states. We store it centrally so
 	 * that we can easily checkpoint/restore it.
@@ -109,8 +122,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Map of state names to their corresponding restored state meta info.
 	 *
-	 * <p>
-	 * TODO this map can be removed when eager-state registration is in place.
+	 * <p>TODO this map can be removed when eager-state registration is in place.
 	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
 	 */
 	private final Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredKvStateMetaInfos;
@@ -202,91 +214,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, V> InternalValueState<K, N, V> createValueState(
-			TypeSerializer<N> namespaceSerializer,
-			ValueStateDescriptor<V> stateDesc) throws Exception {
-
-		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapValueState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue());
-	}
-
-	@Override
-	public <N, T> InternalListState<K, N, T> createListState(
-			TypeSerializer<N> namespaceSerializer,
-			ListStateDescriptor<T> stateDesc) throws Exception {
-
-		StateTable<K, N, List<T>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapListState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue());
-	}
-
-	@Override
-	public <N, T> InternalReducingState<K, N, T> createReducingState(
-			TypeSerializer<N> namespaceSerializer,
-			ReducingStateDescriptor<T> stateDesc) throws Exception {
-
-		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapReducingState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getReduceFunction());
-	}
-
-	@Override
-	public <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
-			TypeSerializer<N> namespaceSerializer,
-			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
-
-		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapAggregatingState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getAggregateFunction());
-	}
-
-	@Override
-	public <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
-			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-
-		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapFoldingState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue(),
-				stateDesc.getFoldFunction());
-	}
-
-	@Override
-	protected <N, UK, UV> InternalMapState<K, N, UK, UV> createMapState(
-			TypeSerializer<N> namespaceSerializer,
-			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
-
-		StateTable<K, N, Map<UK, UV>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-
-		return new HeapMapState<>(
-				stateTable,
-				keySerializer,
-				stateTable.getStateSerializer(),
-				stateTable.getNamespaceSerializer(),
-				stateDesc.getDefaultValue());
+	public <N, SV, S extends State, IS extends S> IS createState(
+		TypeSerializer<N> namespaceSerializer,
+		StateDescriptor<S, SV> stateDesc) throws Exception {
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+		if (stateFactory == null) {
+			String message = String.format("State %s is not supported by %s",
+				stateDesc.getClass(), this.getClass());
+			throw new FlinkRuntimeException(message);
+		}
+		StateTable<K, N, SV> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return stateFactory.createState(stateDesc, stateTable, keySerializer);
 	}
 
 	@Override
@@ -410,7 +348,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					int writtenKeyGroupIndex = inView.readInt();
 
 					try (InputStream kgCompressionInStream =
-							 streamCompressionDecorator.decorateWithCompression(fsDataInputStream)) {
+							streamCompressionDecorator.decorateWithCompression(fsDataInputStream)) {
 
 						DataInputViewStreamWrapper kgCompressionInView =
 							new DataInputViewStreamWrapper(kgCompressionInStream);
@@ -599,7 +537,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
 
-			final Map<String, StateTableSnapshot> cowStateStableSnapshots =
+			final Map<String, StateSnapshot> cowStateStableSnapshots =
 				new HashMap<>(stateTables.size());
 
 			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
@@ -653,7 +591,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						unregisterAndCloseStreamAndResultExtractor();
 
-						for (StateTableSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
+						for (StateSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
 							tableSnapshot.release();
 						}
 					}
@@ -689,12 +627,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
 							outView.writeInt(keyGroupId);
 
-							for (Map.Entry<String, StateTableSnapshot> kvState : cowStateStableSnapshots.entrySet()) {
+							for (Map.Entry<String, StateSnapshot> kvState : cowStateStableSnapshots.entrySet()) {
+								StateSnapshot.KeyGroupPartitionedSnapshot partitionedSnapshot =
+									kvState.getValue().partitionByKeyGroup();
 								try (OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(localStream)) {
 									String stateName = kvState.getKey();
 									DataOutputViewStreamWrapper kgCompressionView = new DataOutputViewStreamWrapper(kgCompressionOut);
 									kgCompressionView.writeShort(kVStateToId.get(stateName));
-									kvState.getValue().writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
+									partitionedSnapshot.writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
 								} // this will just close the outer compression stream
 							}
 						}

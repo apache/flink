@@ -98,7 +98,7 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 				graph.addJar(new Path(jar.toURI()));
 			}
 			catch (URISyntaxException e) {
-				throw new ProgramInvocationException("Invalid jar path. Unexpected error. :(");
+				throw new ProgramInvocationException("Invalid jar path. Unexpected error. :(", graph.getJobID());
 			}
 		}
 		return Tuple2.of(graph, classLoader);
