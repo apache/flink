@@ -247,7 +247,7 @@ public class FileUploadHandlerTest {
 	}
 
 	private static class MultipartMixedHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-		TestRequestBody lastReceivedRequest = null;
+		volatile TestRequestBody lastReceivedRequest = null;
 
 		MultipartMixedHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
 			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartMixedHeaders.INSTANCE);
@@ -309,7 +309,7 @@ public class FileUploadHandlerTest {
 	}
 
 	private static class MultipartJsonHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
-		TestRequestBody lastReceivedRequest = null;
+		volatile TestRequestBody lastReceivedRequest = null;
 
 		MultipartJsonHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
 			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartJsonHeaders.INSTANCE);
