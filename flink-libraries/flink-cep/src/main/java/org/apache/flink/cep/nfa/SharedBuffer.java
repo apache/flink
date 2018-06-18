@@ -18,8 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -32,6 +31,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -150,7 +150,7 @@ public class SharedBuffer<V> {
 	public static final class SharedBufferSerializerConfigSnapshot<K, V>
 			extends CompositeTypeSerializerConfigSnapshot<SharedBuffer<V>> {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public SharedBufferSerializerConfigSnapshot() {
@@ -168,12 +168,32 @@ public class SharedBuffer<V> {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[]{VERSION, 1};
+		}
+
+		@Override
+		protected boolean containsSerializers() {
+			return getReadVersion() < 2;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected TypeSerializer<SharedBuffer<V>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+			return new SharedBufferSerializer<>(
+				(TypeSerializer<K>) restoredNestedSerializers[0],
+				(TypeSerializer<V>) restoredNestedSerializers[1],
+				(TypeSerializer<DeweyNumber>) restoredNestedSerializers[2]);
+		}
 	}
 
 	/**
 	 * A {@link TypeSerializer} for the {@link SharedBuffer}.
 	 */
-	public static class SharedBufferSerializer<K, V> extends TypeSerializer<SharedBuffer<V>> {
+	public static class SharedBufferSerializer<K, V>
+			extends CompositeTypeSerializer<SharedBuffer<V>> {
 
 		private static final long serialVersionUID = -3254176794680331560L;
 
@@ -191,6 +211,15 @@ public class SharedBuffer<V> {
 			final TypeSerializer<K> keySerializer,
 			final TypeSerializer<V> valueSerializer,
 			final TypeSerializer<DeweyNumber> versionSerializer) {
+
+			super(
+				new SharedBufferSerializerConfigSnapshot<>(
+					Preconditions.checkNotNull(keySerializer),
+					Preconditions.checkNotNull(valueSerializer),
+					Preconditions.checkNotNull(versionSerializer)),
+				keySerializer,
+				valueSerializer,
+				versionSerializer);
 
 			this.keySerializer = keySerializer;
 			this.valueSerializer = valueSerializer;
@@ -338,43 +367,6 @@ public class SharedBuffer<V> {
 		@Override
 		public int hashCode() {
 			return 37 * keySerializer.hashCode() + valueSerializer.hashCode();
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot<SharedBuffer<V>> snapshotConfiguration() {
-			return new SharedBufferSerializerConfigSnapshot<>(
-				keySerializer,
-				valueSerializer,
-				versionSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<SharedBuffer<V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof SharedBufferSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializerConfigSnapshots =
-					((SharedBufferSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-				CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						serializerConfigSnapshots.get(0).f1,
-						keySerializer);
-
-				CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						serializerConfigSnapshots.get(1).f1,
-						valueSerializer);
-
-				CompatibilityResult<DeweyNumber> versionCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						serializerConfigSnapshots.get(2).f1,
-						versionSerializer);
-
-				if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration() &&
-					!versionCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				} else {
-					return CompatibilityResult.requiresMigration();
-				}
-			}
-
-			return CompatibilityResult.requiresMigration();
 		}
 	}
 }

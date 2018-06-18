@@ -24,12 +24,10 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -587,7 +585,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	 */
 	@VisibleForTesting
 	@Internal
-	public static final class StateSerializer<TXN, CONTEXT> extends TypeSerializer<State<TXN, CONTEXT>> {
+	public static final class StateSerializer<TXN, CONTEXT> extends CompositeTypeSerializer<State<TXN, CONTEXT>> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -597,8 +595,16 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		public StateSerializer(
 				TypeSerializer<TXN> transactionSerializer,
 				TypeSerializer<CONTEXT> contextSerializer) {
-			this.transactionSerializer = checkNotNull(transactionSerializer);
-			this.contextSerializer = checkNotNull(contextSerializer);
+
+			super(
+				new StateSerializerConfigSnapshot<>(
+					checkNotNull(transactionSerializer),
+					checkNotNull(contextSerializer)),
+				transactionSerializer,
+				contextSerializer);
+
+			this.transactionSerializer = transactionSerializer;
+			this.contextSerializer = contextSerializer;
 		}
 
 		@Override
@@ -759,34 +765,6 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 			result = 31 * result + contextSerializer.hashCode();
 			return result;
 		}
-
-		@Override
-		public TypeSerializerConfigSnapshot<State<TXN, CONTEXT>> snapshotConfiguration() {
-			return new StateSerializerConfigSnapshot<>(transactionSerializer, contextSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
-				TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousSerializersAndConfigs.get(0).f1,
-						transactionSerializer);
-
-				CompatibilityResult<CONTEXT> contextCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousSerializersAndConfigs.get(1).f1,
-						contextSerializer);
-
-				if (!txnCompatResult.isRequiresMigration() && !contextCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				}
-			}
-
-			return CompatibilityResult.requiresMigration();
-		}
 	}
 
 	/**
@@ -798,7 +776,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
 			extends CompositeTypeSerializerConfigSnapshot<State<TXN, CONTEXT>> {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public StateSerializerConfigSnapshot() {}
@@ -812,6 +790,24 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[]{VERSION, 1};
+		}
+
+		@Override
+		protected boolean containsSerializers() {
+			return getReadVersion() < 2;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected TypeSerializer<State<TXN, CONTEXT>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+			return new StateSerializer<>(
+				(TypeSerializer<TXN>) restoredNestedSerializers[0],
+				(TypeSerializer<CONTEXT>) restoredNestedSerializers[1]);
 		}
 	}
 }

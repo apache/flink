@@ -21,7 +21,9 @@ package org.apache.flink.api.java.typeutils.runtime;
 import java.io.IOException;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -33,7 +35,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	private static final long serialVersionUID = 1L;
 	
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		super(tupleClass, fieldSerializers);
+		super(
+			tupleClass,
+			new TupleSerializerConfigSnapshot<>(tupleClass, fieldSerializers),
+			fieldSerializers);
 	}
 
 	@Override
@@ -147,6 +152,20 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		}
 		return reuse;
 	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		CompatibilityResult<T> result = super.ensureCompatibility(configSnapshot);
+
+		final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
+
+		if (!result.isRequiresMigration() && !tupleClass.equals(config.getTupleClass())) {
+			return CompatibilityResult.requiresMigration();
+		}
+
+		return result;
+	}
 	
 	private T instantiateRaw() {
 		try {
@@ -155,10 +174,5 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
-	}
-
-	@Override
-	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		return new TupleSerializer<>(tupleClass, fieldSerializers);
 	}
 }

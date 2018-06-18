@@ -18,12 +18,9 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Row;
@@ -31,7 +28,6 @@ import org.apache.flink.types.Row;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoAndCopyNullMask;
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
@@ -42,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Serializer for {@link Row}.
  */
 @Internal
-public final class RowSerializer extends TypeSerializer<Row> {
+public final class RowSerializer extends CompositeTypeSerializer<Row> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -54,7 +50,10 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	@SuppressWarnings("unchecked")
 	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
-		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
+
+		super(new RowSerializerConfigSnapshot(checkNotNull(fieldSerializers)), fieldSerializers);
+
+		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.arity = fieldSerializers.length;
 		this.nullMask = new boolean[fieldSerializers.length];
 	}
@@ -260,52 +259,35 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	// Serializer configuration snapshotting & compatibility
 	// --------------------------------------------------------------------------------------------
 
-	@Override
-	public RowSerializerConfigSnapshot snapshotConfiguration() {
-		return new RowSerializerConfigSnapshot(fieldSerializers);
-	}
-
-	@Override
-	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
-				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
-
-				CompatibilityResult<?> compatResult;
-				int i = 0;
-				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
-					compatResult = CompatibilityUtil.resolveCompatibilityResult(f.f1, fieldSerializers[i]);
-
-					if (compatResult.isRequiresMigration()) {
-						return CompatibilityResult.requiresMigration();
-					}
-
-					i++;
-				}
-
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
-	}
-
 	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot<Row> {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty nullary constructor is required for deserializing the configuration. */
 		public RowSerializerConfigSnapshot() {}
 
-		public RowSerializerConfigSnapshot(TypeSerializer[] fieldSerializers) {
+		public RowSerializerConfigSnapshot(TypeSerializer<?>[] fieldSerializers) {
 			super(fieldSerializers);
 		}
 
 		@Override
 		public int getVersion() {
 			return VERSION;
+		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[]{VERSION, 1};
+		}
+
+		@Override
+		protected boolean containsSerializers() {
+			return getReadVersion() < 2;
+		}
+
+		@Override
+		protected TypeSerializer<Row> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+			return new RowSerializer(restoredNestedSerializers);
 		}
 	}
 }

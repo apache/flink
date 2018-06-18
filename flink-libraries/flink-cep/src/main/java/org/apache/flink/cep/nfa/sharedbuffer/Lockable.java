@@ -18,13 +18,12 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -92,11 +91,15 @@ public final class Lockable<T> {
 	}
 
 	/** Serializer for {@link Lockable}. */
-	public static class LockableTypeSerializer<E> extends TypeSerializer<Lockable<E>> {
+	public static class LockableTypeSerializer<E> extends CompositeTypeSerializer<Lockable<E>> {
 		private static final long serialVersionUID = 3298801058463337340L;
 		private final TypeSerializer<E> elementSerializer;
 
 		LockableTypeSerializer(TypeSerializer<E> elementSerializer) {
+			super(
+				new LockableSerializerConfigSnapshot<>(Preconditions.checkNotNull(elementSerializer)),
+				elementSerializer);
+
 			this.elementSerializer = elementSerializer;
 		}
 
@@ -178,32 +181,6 @@ public final class Lockable<T> {
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj.getClass().equals(LockableTypeSerializer.class);
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot<Lockable<E>> snapshotConfiguration() {
-			return new LockableSerializerConfigSnapshot<>(elementSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			if (configSnapshot instanceof LockableSerializerConfigSnapshot) {
-				@SuppressWarnings("unchecked")
-				LockableSerializerConfigSnapshot<E> snapshot = (LockableSerializerConfigSnapshot<E>) configSnapshot;
-
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> nestedSerializerAndConfig =
-					snapshot.getSingleNestedSerializerAndConfig();
-
-				CompatibilityResult<E> inputComaptibilityResult = elementSerializer
-					.internalEnsureCompatibility(nestedSerializerAndConfig.f1);
-				if (inputComaptibilityResult.isRequiresMigration()) {
-					return CompatibilityResult.requiresMigration();
-				} else {
-					return CompatibilityResult.compatible();
-				}
-			} else {
-				return CompatibilityResult.requiresMigration();
-			}
 		}
 	}
 }

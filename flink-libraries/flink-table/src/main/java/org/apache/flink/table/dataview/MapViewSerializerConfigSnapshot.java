@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.table.api.dataview.MapView;
@@ -40,5 +41,11 @@ public class MapViewSerializerConfigSnapshot<K, V> extends CompositeTypeSerializ
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<MapView<K, V>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new MapViewSerializer<>((MapSerializer<K, V>) restoredNestedSerializers[0]);
 	}
 }

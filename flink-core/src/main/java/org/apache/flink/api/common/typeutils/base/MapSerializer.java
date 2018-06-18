@@ -19,17 +19,13 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -45,7 +41,7 @@ import java.util.HashMap;
  * @param <V> The type of the values in the map.
  */
 @Internal
-public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
+public final class MapSerializer<K, V> extends CompositeTypeSerializer<Map<K, V>> {
 
 	private static final long serialVersionUID = -6885593032367050078L;
 	
@@ -62,8 +58,16 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	 * @param valueSerializer The serializer for the values in the map
 	 */
 	public MapSerializer(TypeSerializer<K> keySerializer, TypeSerializer<V> valueSerializer) {
-		this.keySerializer = Preconditions.checkNotNull(keySerializer, "The key serializer cannot be null");
-		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "The value serializer cannot be null.");
+
+		super(
+			new MapSerializerConfigSnapshot<>(
+				Preconditions.checkNotNull(keySerializer, "The key serializer cannot be null."),
+				Preconditions.checkNotNull(valueSerializer, "The value serializer cannot be null.")),
+			keySerializer,
+			valueSerializer);
+
+		this.keySerializer = keySerializer;
+		this.valueSerializer = valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------
@@ -198,36 +202,5 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	@Override
 	public int hashCode() {
 		return keySerializer.hashCode() * 31 + valueSerializer.hashCode();
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public MapSerializerConfigSnapshot<K, V> snapshotConfiguration() {
-		return new MapSerializerConfigSnapshot<>(keySerializer, valueSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
-				((MapSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(0).f1,
-					keySerializer);
-
-			CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousKvSerializersAndConfigs.get(1).f1,
-					valueSerializer);
-
-			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
 	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.{CollectionSerializerConfigSnapshot, ListSerializer}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.ListView
+import org.apache.flink.util.Preconditions
 
 /**
   * A serializer for [[ListView]]. The serializer relies on an element
@@ -34,7 +35,9 @@ import org.apache.flink.table.api.dataview.ListView
   * @tparam T The type of element in the list.
   */
 class ListViewSerializer[T](val listSerializer: ListSerializer[T])
-  extends TypeSerializer[ListView[T]] {
+  extends CompositeTypeSerializer[ListView[T]](
+    new ListViewSerializerConfigSnapshot[T](Preconditions.checkNotNull(listSerializer)),
+    listSerializer) {
 
   override def isImmutableType: Boolean = false
 
@@ -75,40 +78,13 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
   override def equals(obj: Any): Boolean = canEqual(this) &&
     listSerializer.equals(obj.asInstanceOf[ListViewSerializer[_]].listSerializer)
 
-  override def snapshotConfiguration(): ListViewSerializerConfigSnapshot[T] =
-    new ListViewSerializerConfigSnapshot[T](listSerializer)
+  override def isComparableSnapshot(
+      configSnapshot: TypeSerializerConfigSnapshot[_]): Boolean = {
 
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[ListView[T]] = {
-
-    configSnapshot match {
-      case snapshot: ListViewSerializerConfigSnapshot[T] =>
-        checkCompatibility(snapshot)
-
+    configSnapshot.isInstanceOf[ListViewSerializerConfigSnapshot[T]] ||
       // backwards compatibility path;
       // Flink versions older or equal to 1.5.x returns a
       // CollectionSerializerConfigSnapshot as the snapshot
-      case legacySnapshot: CollectionSerializerConfigSnapshot[java.util.List[T], T] =>
-        checkCompatibility(legacySnapshot)
-
-      case _ => CompatibilityResult.requiresMigration[ListView[T]]
-    }
-  }
-
-  private def checkCompatibility(
-      configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[ListView[T]] = {
-
-    val previousListSerializerAndConfig = configSnapshot.getSingleNestedSerializerAndConfig
-
-    val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousListSerializerAndConfig.f1,
-      listSerializer.getElementSerializer)
-
-    if (!compatResult.isRequiresMigration) {
-      CompatibilityResult.compatible[ListView[T]]
-    } else {
-      CompatibilityResult.requiresMigration[ListView[T]]
-    }
+      configSnapshot.isInstanceOf[CollectionSerializerConfigSnapshot[_, T]]
   }
 }

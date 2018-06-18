@@ -19,8 +19,7 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -863,7 +862,7 @@ public class NFA<T> {
 	@Deprecated
 	public static final class NFASerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<MigratedNFA<T>> {
 
-		private static final int VERSION = 1;
+		private static final int VERSION = 2;
 
 		/** This empty constructor is required for deserializing the configuration. */
 		public NFASerializerConfigSnapshot() {}
@@ -879,13 +878,31 @@ public class NFA<T> {
 		public int getVersion() {
 			return VERSION;
 		}
+
+		@Override
+		public int[] getCompatibleVersions() {
+			return new int[]{VERSION, 1};
+		}
+
+		@Override
+		protected boolean containsSerializers() {
+			return getReadVersion() < 2;
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected TypeSerializer<MigratedNFA<T>> restoreSerializer(TypeSerializer<?>... restoredNestedSerializers) {
+			return new NFASerializer<>(
+				(TypeSerializer<T>) restoredNestedSerializers[0],
+				(TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>>) restoredNestedSerializers[1]);
+		}
 	}
 
 	/**
 	 * Only for backward compatibility with <=1.5.
 	 */
 	@Deprecated
-	public static class NFASerializer<T> extends TypeSerializer<MigratedNFA<T>> {
+	public static class NFASerializer<T> extends CompositeTypeSerializer<MigratedNFA<T>> {
 
 		private static final long serialVersionUID = 2098282423980597010L;
 
@@ -903,6 +920,14 @@ public class NFA<T> {
 		NFASerializer(
 				TypeSerializer<T> typeSerializer,
 				TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
+
+			super(
+				new NFASerializerConfigSnapshot<>(
+					Preconditions.checkNotNull(typeSerializer),
+					Preconditions.checkNotNull(sharedBufferSerializer)),
+				typeSerializer,
+				sharedBufferSerializer);
+
 			this.eventSerializer = typeSerializer;
 			this.sharedBufferSerializer = sharedBufferSerializer;
 		}
@@ -982,34 +1007,6 @@ public class NFA<T> {
 		@Override
 		public int hashCode() {
 			return 37 * sharedBufferSerializer.hashCode() + eventSerializer.hashCode();
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot<MigratedNFA<T>> snapshotConfiguration() {
-			return new NFASerializerConfigSnapshot<>(eventSerializer, sharedBufferSerializer);
-		}
-
-		@Override
-		public CompatibilityResult<MigratedNFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
-					((NFASerializerConfigSnapshot<?>) configSnapshot).getNestedSerializersAndConfigs();
-
-				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-						serializersAndConfigs.get(0).f1,
-						eventSerializer);
-
-				CompatibilityResult<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufCompatResult =
-						CompatibilityUtil.resolveCompatibilityResult(
-								serializersAndConfigs.get(1).f1,
-								sharedBufferSerializer);
-
-				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
-				}
-			}
-
-			return CompatibilityResult.requiresMigration();
 		}
 	}
 }

@@ -33,7 +33,7 @@ import scala.Option;
  */
 public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Option<E>> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public ScalaOptionSerializerConfigSnapshot() {}
@@ -45,5 +45,21 @@ public final class ScalaOptionSerializerConfigSnapshot<E> extends CompositeTypeS
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<Option<E>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new OptionSerializer<>((TypeSerializer<E>) restoredNestedSerializers[0]);
 	}
 }

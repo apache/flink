@@ -19,17 +19,14 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
@@ -41,7 +38,7 @@ import static org.apache.flink.types.Either.Right;
  * @param <R> the Right value type
  */
 @Internal
-public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
+public class EitherSerializer<L, R> extends CompositeTypeSerializer<Either<L, R>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,6 +47,14 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	private final TypeSerializer<R> rightSerializer;
 
 	public EitherSerializer(TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
+
+		super(
+			new EitherSerializerConfigSnapshot<>(
+				Preconditions.checkNotNull(leftSerializer),
+				Preconditions.checkNotNull(rightSerializer)),
+			leftSerializer,
+			rightSerializer);
+
 		this.leftSerializer = leftSerializer;
 		this.rightSerializer = rightSerializer;
 	}
@@ -187,36 +192,5 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public int hashCode() {
 		return 17 * leftSerializer.hashCode() + rightSerializer.hashCode();
-	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public EitherSerializerConfigSnapshot<L, R> snapshotConfiguration() {
-		return new EitherSerializerConfigSnapshot<>(leftSerializer, rightSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
-			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousLeftRightSerializersAndConfigs =
-				((EitherSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
-
-			CompatibilityResult<L> leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousLeftRightSerializersAndConfigs.get(0).f1,
-					leftSerializer);
-
-			CompatibilityResult<R> rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousLeftRightSerializersAndConfigs.get(1).f1,
-					rightSerializer);
-
-			if (!leftCompatResult.isRequiresMigration() && !rightCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.table.api.dataview.ListView;
@@ -39,5 +40,11 @@ public final class ListViewSerializerConfigSnapshot<T> extends CompositeTypeSeri
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<ListView<T>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new ListViewSerializer<>((ListSerializer<T>) restoredNestedSerializers[0]);
 	}
 }

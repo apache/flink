@@ -31,7 +31,7 @@ import java.util.Map;
 @Internal
 public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerializerConfigSnapshot<Map<K, V>> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public MapSerializerConfigSnapshot() {}
@@ -41,7 +41,25 @@ public final class MapSerializerConfigSnapshot<K, V> extends CompositeTypeSerial
 	}
 
 	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<Map<K, V>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new MapSerializer<>(
+			(TypeSerializer<K>) restoredNestedSerializers[0],
+			(TypeSerializer<V>) restoredNestedSerializers[1]);
 	}
 }

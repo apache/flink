@@ -32,7 +32,9 @@ import org.apache.flink.types.NullFieldException
 abstract class CaseClassSerializer[T <: Product](
     clazz: Class[T],
     scalaFieldSerializers: Array[TypeSerializer[_]])
-  extends TupleSerializerBase[T](clazz, scalaFieldSerializers)
+  // TODO configuration snapshot of case class serializers is to
+  // TODO be implemented in follow-up commits
+  extends TupleSerializerBase[T](clazz, null, scalaFieldSerializers)
   with Cloneable {
 
   @transient var fields : Array[AnyRef] = _
@@ -79,15 +81,6 @@ abstract class CaseClassSerializer[T <: Product](
 
   override def createOrReuseInstance(fields: Array[Object], reuse: T) : T = {
     createInstance(fields)
-  }
-
-  override def createSerializerInstance(
-      tupleClass: Class[T],
-      fieldSerializers: Array[TypeSerializer[_]]): TupleSerializerBase[T] = {
-    this.getClass
-      .getConstructors()(0)
-      .newInstance(tupleClass, fieldSerializers)
-      .asInstanceOf[CaseClassSerializer[T]]
   }
 
   def copy(from: T, reuse: T): T = {

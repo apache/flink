@@ -38,7 +38,7 @@ import java.io.IOException;
 @Internal
 public final class GenericArraySerializerConfigSnapshot<C> extends CompositeTypeSerializerConfigSnapshot<C[]> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	private Class<C> componentClass;
 
@@ -79,6 +79,11 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 		return VERSION;
 	}
 
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
 	public Class<C> getComponentClass() {
 		return componentClass;
 	}
@@ -93,5 +98,18 @@ public final class GenericArraySerializerConfigSnapshot<C> extends CompositeType
 	@Override
 	public int hashCode() {
 		return super.hashCode() * 31 + componentClass.hashCode();
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<C[]> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new GenericArraySerializer<>(
+			componentClass,
+			(TypeSerializer<C>) restoredNestedSerializers[0]);
 	}
 }

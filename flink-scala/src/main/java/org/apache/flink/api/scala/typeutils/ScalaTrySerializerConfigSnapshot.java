@@ -33,7 +33,7 @@ import scala.util.Try;
  */
 public class ScalaTrySerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot<Try<E>> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public ScalaTrySerializerConfigSnapshot() {}
@@ -48,5 +48,23 @@ public class ScalaTrySerializerConfigSnapshot<E> extends CompositeTypeSerializer
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<Try<E>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new TrySerializer<>(
+			(TypeSerializer<E>) restoredNestedSerializers[0],
+			(TypeSerializer<Throwable>) restoredNestedSerializers[1]);
 	}
 }

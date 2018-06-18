@@ -16,27 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 
-import scala.util.Either;
+import java.util.ArrayList;
 
 /**
- * Configuration snapshot for serializers of Scala's {@link Either} type,
- * containing configuration snapshots of the Left and Right serializers.
+ * A {@link TypeSerializerConfigSnapshot} for the {@link ArrayListSerializer}.
  */
-public class ScalaEitherSerializerConfigSnapshot<E extends Either<L, R>, L, R>
-		extends CompositeTypeSerializerConfigSnapshot<E> {
+public class ArrayListSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<ArrayList<T>> {
 
-	private static final int VERSION = 1;
+	private final int VERSION = 1;
 
-	/** This empty nullary constructor is required for deserializing the configuration. */
-	public ScalaEitherSerializerConfigSnapshot() {}
-
-	public ScalaEitherSerializerConfigSnapshot(TypeSerializer<L> leftSerializer, TypeSerializer<R> rightSerializer) {
-		super(leftSerializer, rightSerializer);
+	public ArrayListSerializerConfigSnapshot(TypeSerializer<T> elementSerializer) {
+		super(elementSerializer);
 	}
 
 	@Override
@@ -46,9 +42,7 @@ public class ScalaEitherSerializerConfigSnapshot<E extends Either<L, R>, L, R>
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected TypeSerializer<E> restoreSerializer(TypeSerializer<?>... restoredNestedSerializers) {
-		return new EitherSerializer<>(
-			(TypeSerializer<L>) restoredNestedSerializers[0],
-			(TypeSerializer<R>) restoredNestedSerializers[1]);
+	protected TypeSerializer<ArrayList<T>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new ArrayListSerializer<>((TypeSerializer<T>) restoredNestedSerializers[0]);
 	}
 }

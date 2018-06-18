@@ -40,4 +40,9 @@ public class LockableSerializerConfigSnapshot<E> extends CompositeTypeSerializer
 		return VERSION;
 	}
 
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<Lockable<E>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new Lockable.LockableTypeSerializer<>((TypeSerializer<E>) restoredNestedSerializers[0]);
+	}
 }

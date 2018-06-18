@@ -28,12 +28,17 @@ import java.util.Collection;
  * Configuration snapshot of a serializer for collection types.
  *
  * @param <T> Type of the element.
+ *
+ * @deprecated this configuration snapshot is not capable of being a factory for all serializers that
+ *             previously write this as their configuration snapshot, and therefore deprecated. It is no
+ *             longer written by any of Flink's serializers, but is still here for backwards compatibility.
  */
 @Internal
+@Deprecated
 public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T>
 		extends CompositeTypeSerializerConfigSnapshot<C> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CollectionSerializerConfigSnapshot() {}
@@ -43,7 +48,23 @@ public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T
 	}
 
 	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		// versions that still used this config snapshot always still wrote the serializers
+		return true;
+	}
+
+	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	protected TypeSerializer<C> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		throw new UnsupportedOperationException();
 	}
 }

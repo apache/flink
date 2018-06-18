@@ -30,7 +30,7 @@ import org.apache.flink.types.Either;
 @Internal
 public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public EitherSerializerConfigSnapshot() {}
@@ -42,5 +42,23 @@ public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSer
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	protected TypeSerializer<Either<L, R>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new EitherSerializer<>(
+			(TypeSerializer<L>) restoredNestedSerializers[0],
+			(TypeSerializer<R>) restoredNestedSerializers[1]);
 	}
 }

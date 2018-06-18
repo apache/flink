@@ -18,10 +18,9 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeutils._
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.util.Preconditions
 
 import scala.util.{Failure, Success, Try}
 
@@ -32,12 +31,15 @@ import scala.util.{Failure, Success, Try}
 @SerialVersionUID(-3052182891252564491L)
 class TrySerializer[A](
     private val elemSerializer: TypeSerializer[A],
-    private val executionConfig: ExecutionConfig)
-  extends TypeSerializer[Try[A]] {
+    private val throwableSerializer: TypeSerializer[Throwable])
+  extends CompositeTypeSerializer[Try[A]](
+    new ScalaTrySerializerConfigSnapshot[A](
+      Preconditions.checkNotNull(elemSerializer),
+      Preconditions.checkNotNull(throwableSerializer)),
+    elemSerializer,
+    throwableSerializer) {
 
   override def duplicate: TrySerializer[A] = this
-
-  val throwableSerializer = new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
 
   override def createInstance: Try[A] = {
     Failure(new RuntimeException("Empty Failure"))
@@ -97,51 +99,20 @@ class TrySerializer[A](
   }
 
   override def hashCode(): Int = {
-    31 * elemSerializer.hashCode() + executionConfig.hashCode()
+    31 * elemSerializer.hashCode() + throwableSerializer.hashCode()
   }
 
   // --------------------------------------------------------------------------------------------
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): ScalaTrySerializerConfigSnapshot[A] = {
-    new ScalaTrySerializerConfigSnapshot[A](elemSerializer, throwableSerializer)
-  }
-
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Try[A]] = {
-
-    configSnapshot match {
-      case trySerializerConfigSnapshot
-          : ScalaTrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(trySerializerConfigSnapshot)
-      case legacyTrySerializerConfigSnapshot
-          : TrySerializer.TrySerializerConfigSnapshot[A] =>
-        ensureCompatibility(legacyTrySerializerConfigSnapshot)
-      case _ => CompatibilityResult.requiresMigration()
-    }
-  }
-
-  private def ensureCompatibility(
-      compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Try[A]])
-        : CompatibilityResult[Try[A]] = {
-
-    val previousSerializersAndConfigs =
-      compositeConfigSnapshot.getNestedSerializersAndConfigs
-
-    val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(0).f1,
-      elemSerializer)
-
-    val throwableCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-      previousSerializersAndConfigs.get(1).f1,
-      throwableSerializer)
-
-    if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
-    } else {
-      CompatibilityResult.compatible()
-    }
+  override def isComparableSnapshot(
+      configSnapshot: TypeSerializerConfigSnapshot[_]): Boolean = {
+    configSnapshot.isInstanceOf[ScalaTrySerializerConfigSnapshot[A]] ||
+      // backwards compatibility path;
+      // Flink versions older or equal to 1.5.x returns a
+      // TrySerializer.TrySerializerConfigSnapshot as the snapshot
+      configSnapshot.isInstanceOf[TrySerializer.TrySerializerConfigSnapshot[A]]
   }
 }
 
@@ -155,10 +126,23 @@ object TrySerializer {
       extends CompositeTypeSerializerConfigSnapshot[Try[A]]() {
 
     override def getVersion: Int = TrySerializerConfigSnapshot.VERSION
+
+    override def restoreSerializer(
+        restoredNestedSerializers: TypeSerializer[_]*
+      ): TypeSerializer[Try[A]] = {
+
+      new TrySerializer[A](
+        restoredNestedSerializers(0).asInstanceOf[TypeSerializer[A]],
+        restoredNestedSerializers(1).asInstanceOf[TypeSerializer[Throwable]])
+    }
+
+    override def containsSerializers(): Boolean = {
+      getReadVersion < 2
+    }
   }
 
   object TrySerializerConfigSnapshot {
-    val VERSION = 1
+    val VERSION = 2
   }
 
 }

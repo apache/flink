@@ -17,26 +17,31 @@
  */
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 @SuppressWarnings("ForLoopReplaceableByForEach")
-final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
+final public class ArrayListSerializer<T> extends CompositeTypeSerializer<ArrayList<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
 	private final TypeSerializer<T> elementSerializer;
 
 	public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
+
+		super(
+			new ArrayListSerializerConfigSnapshot<>(checkNotNull(elementSerializer)),
+			elementSerializer);
+
 		this.elementSerializer = elementSerializer;
 	}
 
@@ -138,30 +143,9 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 		return elementSerializer.hashCode();
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
 	@Override
-	public TypeSerializerConfigSnapshot<ArrayList<T>> snapshotConfiguration() {
-		return new CollectionSerializerConfigSnapshot<>(elementSerializer);
-	}
-
-	@Override
-	public CompatibilityResult<ArrayList<T>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof CollectionSerializerConfigSnapshot) {
-			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousElemSerializerAndConfig =
-				((CollectionSerializerConfigSnapshot<?, ?>) configSnapshot).getSingleNestedSerializerAndConfig();
-
-			CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-					previousElemSerializerAndConfig.f1,
-					elementSerializer);
-
-			if (!compatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
-			}
-		}
-
-		return CompatibilityResult.requiresMigration();
+	protected boolean isComparableSnapshot(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		return configSnapshot instanceof ArrayListSerializerConfigSnapshot
+			|| configSnapshot instanceof CollectionSerializerConfigSnapshot;
 	}
 }

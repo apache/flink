@@ -21,6 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
@@ -29,12 +30,12 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Snapshot of a tuple serializer's configuration.
+ * Snapshot of a {@link TupleSerializer}'s configuration.
  */
 @Internal
-public final class TupleSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<T> {
+public final class TupleSerializerConfigSnapshot<T extends Tuple> extends CompositeTypeSerializerConfigSnapshot<T> {
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 2;
 
 	private Class<T> tupleClass;
 
@@ -70,6 +71,21 @@ public final class TupleSerializerConfigSnapshot<T> extends CompositeTypeSeriali
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
+	}
+
+	@Override
+	protected boolean containsSerializers() {
+		return getReadVersion() < 2;
+	}
+
+	@Override
+	protected TypeSerializer<T> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new TupleSerializer<>(tupleClass, restoredNestedSerializers);
 	}
 
 	public Class<T> getTupleClass() {

@@ -149,15 +149,6 @@ private[flink] trait TypeInformationGen[C <: Context] {
             override def createInstance(fields: Array[AnyRef]): T = {
               instance.splice
             }
-
-            override def createSerializerInstance(
-                tupleClass: Class[T],
-                fieldSerializers: Array[TypeSerializer[_]]) = {
-              this.getClass
-                .getConstructors()(0)
-                .newInstance(tupleClass, fieldSerializers)
-                .asInstanceOf[CaseClassSerializer[T]]
-            }
           }
         }
       }

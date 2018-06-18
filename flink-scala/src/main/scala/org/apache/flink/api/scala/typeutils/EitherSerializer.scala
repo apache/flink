@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializerConfigSnapshot
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.util.Preconditions
 
 /**
  * Serializer for [[Either]].
@@ -30,7 +31,12 @@ import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 class EitherSerializer[A, B, T <: Either[A, B]](
     val leftSerializer: TypeSerializer[A],
     val rightSerializer: TypeSerializer[B])
-  extends TypeSerializer[T] {
+  extends CompositeTypeSerializer[T](
+    new ScalaEitherSerializerConfigSnapshot[T, A, B](
+      Preconditions.checkNotNull(leftSerializer),
+      Preconditions.checkNotNull(rightSerializer)),
+    leftSerializer,
+    rightSerializer) {
 
   override def duplicate: EitherSerializer[A,B,T] = this
 
@@ -111,47 +117,13 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): ScalaEitherSerializerConfigSnapshot[T, A, B] = {
-    new ScalaEitherSerializerConfigSnapshot[T, A, B](leftSerializer, rightSerializer)
-  }
+  override def isComparableSnapshot(
+      configSnapshot: TypeSerializerConfigSnapshot[_]): Boolean = {
 
-  override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
-
-    configSnapshot match {
-      case eitherSerializerConfig: ScalaEitherSerializerConfigSnapshot[T, A, B] =>
-        checkCompatibility(eitherSerializerConfig)
-
+    configSnapshot.isInstanceOf[ScalaEitherSerializerConfigSnapshot[T, A, B]] ||
       // backwards compatibility path;
       // Flink versions older or equal to 1.5.x uses a
       // EitherSerializerConfigSnapshot as the snapshot
-      case legacyConfig: EitherSerializerConfigSnapshot[A, B] =>
-        checkCompatibility(legacyConfig)
-
-      case _ => CompatibilityResult.requiresMigration()
-    }
-  }
-
-  private def checkCompatibility(
-      configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[T] = {
-
-    val previousLeftRightSerWithConfigs =
-      configSnapshot.getNestedSerializersAndConfigs
-
-    val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousLeftRightSerWithConfigs.get(0).f1,
-      leftSerializer)
-
-    val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousLeftRightSerWithConfigs.get(1).f1,
-      rightSerializer)
-
-    if (leftCompatResult.isRequiresMigration
-      || rightCompatResult.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
-    } else {
-      CompatibilityResult.compatible()
-    }
+      configSnapshot.isInstanceOf[EitherSerializerConfigSnapshot[A, B]]
   }
 }
