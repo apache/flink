@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.runtime
 import java.io.InputStream
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil
+import org.apache.flink.api.common.typeutils.{BackwardsCompatibleConfigSnapshot, TypeSerializerSerializationUtil}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.runtime.TupleSerializerCompatibilityTestGenerator._
@@ -55,11 +55,19 @@ class TupleSerializerCompatibilityTest {
       assertNotNull(oldSerializer)
       assertNotNull(oldConfigSnapshot)
       assertTrue(oldSerializer.isInstanceOf[CaseClassSerializer[_]])
-      assertTrue(oldConfigSnapshot.isInstanceOf[TupleSerializerConfigSnapshot[_]])
+      assertTrue(oldConfigSnapshot.isInstanceOf[BackwardsCompatibleConfigSnapshot[_]])
+
+      val wrappedOldConfigSnapshot = oldConfigSnapshot
+        .asInstanceOf[BackwardsCompatibleConfigSnapshot[_]]
+        .getWrappedConfigSnapshot
+
+      assertTrue(wrappedOldConfigSnapshot.isInstanceOf[TupleSerializerConfigSnapshot[_]])
 
       val currentSerializer = createTypeInformation[TestCaseClass]
         .createSerializer(new ExecutionConfig())
-      assertFalse(currentSerializer.ensureCompatibility(oldConfigSnapshot).isRequiresMigration)
+      assertFalse(currentSerializer
+        .ensureCompatibility(wrappedOldConfigSnapshot)
+        .isRequiresMigration)
 
       // test old data serialization
       is.close()

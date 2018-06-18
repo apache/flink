@@ -65,8 +65,16 @@ public class CompatibilityUtil {
 			TypeSerializerConfigSnapshot precedingSerializerConfigSnapshot,
 			TypeSerializer<T> newSerializer) {
 
-		if (precedingSerializerConfigSnapshot != null) {
-			CompatibilityResult<T> initialResult = newSerializer.ensureCompatibility(precedingSerializerConfigSnapshot);
+		TypeSerializerConfigSnapshot<?> actualConfigSnapshot;
+		if (precedingSerializerConfigSnapshot instanceof BackwardsCompatibleConfigSnapshot) {
+			actualConfigSnapshot =
+				((BackwardsCompatibleConfigSnapshot) precedingSerializerConfigSnapshot).getWrappedConfigSnapshot();
+		} else {
+			actualConfigSnapshot = precedingSerializerConfigSnapshot;
+		}
+
+		if (actualConfigSnapshot != null) {
+			CompatibilityResult<T> initialResult = newSerializer.ensureCompatibility(actualConfigSnapshot);
 
 			if (!initialResult.isRequiresMigration()) {
 				return initialResult;

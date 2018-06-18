@@ -19,12 +19,12 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
-import org.apache.flink.api.java.typeutils.runtime.PojoSerializer.PojoSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.formats.avro.generated.SimpleUser;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
@@ -100,16 +100,19 @@ public class BackwardsCompatibleAvroSerializerTest {
 		assertNotNull(configSnapshot);
 
 		assertTrue(serializer instanceof PojoSerializer);
-		assertTrue(configSnapshot instanceof PojoSerializerConfigSnapshot);
+		assertTrue(configSnapshot instanceof BackwardsCompatibleConfigSnapshot);
+
+		TypeSerializerConfigSnapshot<?> wrappedConfigSnapshot =
+			((BackwardsCompatibleConfigSnapshot) configSnapshot).getWrappedConfigSnapshot();
 
 		// sanity check for the test: check that the test data works with the original serializer
 		validateDeserialization(serializer);
 
 		// sanity check for the test: check that a PoJoSerializer and the original serializer work together
-		assertFalse(serializer.ensureCompatibility(configSnapshot).isRequiresMigration());
+		assertFalse(serializer.ensureCompatibility(wrappedConfigSnapshot).isRequiresMigration());
 
 		final TypeSerializer<SimpleUser> newSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
-		assertFalse(newSerializer.ensureCompatibility(configSnapshot).isRequiresMigration());
+		assertFalse(newSerializer.ensureCompatibility(wrappedConfigSnapshot).isRequiresMigration());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(newSerializer);
