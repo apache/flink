@@ -46,14 +46,14 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 		new DataOutputViewStreamWrapper(new ByteArrayOutputStreamWithPos(0));
 
 	@Nonnull
-	protected final KeyGroupPartitioner.KeyExtractorFunction<T> keyExtractorFunction;
+	protected final KeyExtractorFunction<T> keyExtractorFunction;
 
 	@Nonnull
 	protected final Function<Random, T> elementGenerator;
 
 	protected KeyGroupPartitionerTestBase(
 		@Nonnull Function<Random, T> elementGenerator,
-		@Nonnull KeyGroupPartitioner.KeyExtractorFunction<T> keyExtractorFunction) {
+		@Nonnull KeyExtractorFunction<T> keyExtractorFunction) {
 
 		this.elementGenerator = elementGenerator;
 		this.keyExtractorFunction = keyExtractorFunction;
@@ -138,7 +138,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 	static final class ValidatingElementWriterDummy<T> implements KeyGroupPartitioner.ElementWriterFunction<T> {
 
 		@Nonnull
-		private final KeyGroupPartitioner.KeyExtractorFunction<T> keyExtractorFunction;
+		private final KeyExtractorFunction<T> keyExtractorFunction;
 		@Nonnegative
 		private final int numberOfKeyGroups;
 		@Nonnull
@@ -147,7 +147,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 		private int currentKeyGroup;
 
 		ValidatingElementWriterDummy(
-			@Nonnull KeyGroupPartitioner.KeyExtractorFunction<T> keyExtractorFunction,
+			@Nonnull KeyExtractorFunction<T> keyExtractorFunction,
 			@Nonnegative int numberOfKeyGroups,
 			@Nonnull Set<T> allElementsSet) {
 			this.keyExtractorFunction = keyExtractorFunction;

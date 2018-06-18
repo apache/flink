@@ -104,7 +104,7 @@ public class HeapInternalTimerServiceTest {
 		int endKeyGroupIdx = totalNoOfKeyGroups - 1; // we have 0 to 99
 
 		@SuppressWarnings("unchecked")
-		Set<InternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
+		Set<TimerHeapInternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
 
 		TestKeyContext keyContext = new TestKeyContext();
 		HeapInternalTimerService<Integer, String> timerService =
@@ -123,7 +123,7 @@ public class HeapInternalTimerServiceTest {
 			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
 
 			// add it in the adequate expected set of timers per keygroup
-			Set<InternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
+			Set<TimerHeapInternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
 			if (timerSet == null) {
 				timerSet = new HashSet<>();
 				expectedNonEmptyTimerSets[keyGroupIdx] = timerSet;
@@ -136,16 +136,16 @@ public class HeapInternalTimerServiceTest {
 			timerService.registerProcessingTimeTimer(timer.getNamespace(), timer.getTimestamp());
 		}
 
-		List<Set<InternalTimer<Integer, String>>> eventTimeTimers =
+		List<Set<TimerHeapInternalTimer<Integer, String>>> eventTimeTimers =
 			timerService.getEventTimeTimersPerKeyGroup();
-		List<Set<InternalTimer<Integer, String>>> processingTimeTimers =
+		List<Set<TimerHeapInternalTimer<Integer, String>>> processingTimeTimers =
 			timerService.getProcessingTimeTimersPerKeyGroup();
 
 		// finally verify that the actual timers per key group sets are the expected ones.
 		for (int i = 0; i < expectedNonEmptyTimerSets.length; i++) {
-			Set<InternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
-			Set<InternalTimer<Integer, String>> actualEvent = eventTimeTimers.get(i);
-			Set<InternalTimer<Integer, String>> actualProcessing = processingTimeTimers.get(i);
+			Set<TimerHeapInternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
+			Set<TimerHeapInternalTimer<Integer, String>> actualEvent = eventTimeTimers.get(i);
+			Set<TimerHeapInternalTimer<Integer, String>> actualProcessing = processingTimeTimers.get(i);
 
 			if (expected == null) {
 				Assert.assertTrue(actualEvent.isEmpty());

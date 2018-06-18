@@ -22,9 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -46,12 +50,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/**
 	 * Processing time timers that are currently in-flight.
 	 */
-	private final InternalTimerHeap<K, N> processingTimeTimersQueue;
+	private final HeapPriorityQueueSet<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue;
 
 	/**
 	 * Event time timers that are currently in-flight.
 	 */
-	private final InternalTimerHeap<K, N> eventTimeTimersQueue;
+	private final HeapPriorityQueueSet<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
 	 * Information concerning the local key-group range.
@@ -106,8 +110,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 		this.localKeyGroupRangeStartIdx = startIdx;
 
-		this.eventTimeTimersQueue = new InternalTimerHeap<>(128, localKeyGroupRange, totalKeyGroups);
-		this.processingTimeTimersQueue = new InternalTimerHeap<>(128, localKeyGroupRange, totalKeyGroups);
+		this.eventTimeTimersQueue = createPriorityQueue(localKeyGroupRange, totalKeyGroups);
+		this.processingTimeTimersQueue = createPriorityQueue(localKeyGroupRange, totalKeyGroups);
 	}
 
 	/**
@@ -188,7 +192,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	@Override
 	public void registerProcessingTimeTimer(N namespace, long time) {
 		InternalTimer<K, N> oldHead = processingTimeTimersQueue.peek();
-		if (processingTimeTimersQueue.scheduleTimer(time, (K) keyContext.getCurrentKey(), namespace)) {
+		if (processingTimeTimersQueue.add(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace))) {
 			long nextTriggerTime = oldHead != null ? oldHead.getTimestamp() : Long.MAX_VALUE;
 			// check if we need to re-schedule our timer to earlier
 			if (time < nextTriggerTime) {
@@ -202,17 +206,17 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	@Override
 	public void registerEventTimeTimer(N namespace, long time) {
-		eventTimeTimersQueue.scheduleTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		eventTimeTimersQueue.add(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
 	public void deleteProcessingTimeTimer(N namespace, long time) {
-		processingTimeTimersQueue.stopTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		processingTimeTimersQueue.remove(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
 	public void deleteEventTimeTimer(N namespace, long time) {
-		eventTimeTimersQueue.stopTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		eventTimeTimersQueue.remove(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
@@ -256,12 +260,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 */
 	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
 		return new InternalTimersSnapshot<>(
-				keySerializer,
-				keySerializer.snapshotConfiguration(),
-				namespaceSerializer,
-				namespaceSerializer.snapshotConfiguration(),
-				eventTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx),
-				processingTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx));
+			keySerializer,
+			keySerializer.snapshotConfiguration(),
+			namespaceSerializer,
+			namespaceSerializer.snapshotConfiguration(),
+			eventTimeTimersQueue.getElementsForKeyGroup(keyGroupIdx),
+			processingTimeTimersQueue.getElementsForKeyGroup(keyGroupIdx));
 	}
 
 	/**
@@ -287,36 +291,43 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
 		// restore the event time timers
-		eventTimeTimersQueue.bulkAddRestoredTimers(restoredTimersSnapshot.getEventTimeTimers());
+		eventTimeTimersQueue.addAll(restoredTimersSnapshot.getEventTimeTimers());
 
 		// restore the processing time timers
-		processingTimeTimersQueue.bulkAddRestoredTimers(restoredTimersSnapshot.getProcessingTimeTimers());
+		processingTimeTimersQueue.addAll(restoredTimersSnapshot.getProcessingTimeTimers());
 	}
 
+	@VisibleForTesting
 	public int numProcessingTimeTimers() {
 		return this.processingTimeTimersQueue.size();
 	}
 
+	@VisibleForTesting
 	public int numEventTimeTimers() {
 		return this.eventTimeTimersQueue.size();
 	}
 
+	@VisibleForTesting
 	public int numProcessingTimeTimers(N namespace) {
-		int count = 0;
-		for (InternalTimer<K, N> timer : processingTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
-		return count;
+		return countTimersInNamespaceInternal(namespace, processingTimeTimersQueue);
 	}
 
+	@VisibleForTesting
 	public int numEventTimeTimers(N namespace) {
+		return countTimersInNamespaceInternal(namespace, eventTimeTimersQueue);
+	}
+
+	private int countTimersInNamespaceInternal(N namespace, InternalPriorityQueue<TimerHeapInternalTimer<K, N>> queue) {
 		int count = 0;
-		for (InternalTimer<K, N> timer : eventTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
+		try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator = queue.iterator()) {
+			while (iterator.hasNext()) {
+				final TimerHeapInternalTimer<K, N> timer = iterator.next();
+				if (timer.getNamespace().equals(namespace)) {
+					count++;
+				}
 			}
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Exception when closing iterator.", e);
 		}
 		return count;
 	}
@@ -327,17 +338,28 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	@VisibleForTesting
-	List<Set<InternalTimer<K, N>>> getEventTimeTimersPerKeyGroup() {
-		return eventTimeTimersQueue.getTimersByKeyGroup();
+	List<Set<TimerHeapInternalTimer<K, N>>> getEventTimeTimersPerKeyGroup() {
+		return eventTimeTimersQueue.getElementsByKeyGroup();
 	}
 
 	@VisibleForTesting
-	List<Set<InternalTimer<K, N>>> getProcessingTimeTimersPerKeyGroup() {
-		return processingTimeTimersQueue.getTimersByKeyGroup();
+	List<Set<TimerHeapInternalTimer<K, N>>> getProcessingTimeTimersPerKeyGroup() {
+		return processingTimeTimersQueue.getElementsByKeyGroup();
 	}
 
 	private boolean areSnapshotSerializersIncompatible(InternalTimersSnapshot<?, ?> restoredSnapshot) {
 		return (this.keyDeserializer != null && !this.keyDeserializer.equals(restoredSnapshot.getKeySerializer())) ||
 			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredSnapshot.getNamespaceSerializer()));
+	}
+
+	private static <K, N> HeapPriorityQueueSet<TimerHeapInternalTimer<K, N>> createPriorityQueue(
+		KeyGroupRange localKeyGroupRange,
+		int totalKeyGroups) {
+		return new HeapPriorityQueueSet<>(
+			TimerHeapInternalTimer.getTimerComparator(),
+			TimerHeapInternalTimer.getKeyExtractorFunction(),
+			128,
+			localKeyGroupRange,
+			totalKeyGroups);
 	}
 }

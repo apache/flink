@@ -265,19 +265,6 @@ public class KeyGroupPartitioner<T> {
 	}
 
 	/**
-	 * @param <T> type of the element from which we extract the key.
-	 */
-	@FunctionalInterface
-	public interface KeyExtractorFunction<T> {
-
-		/**
-		 * Returns the key for the given element by which the key-group can be computed.
-		 */
-		@Nonnull
-		Object extractKeyFromElement(@Nonnull T element);
-	}
-
-	/**
 	 * This functional interface defines how one element is written to a {@link DataOutputView}.
 	 *
 	 * @param <T> type of the written elements.
