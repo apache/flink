@@ -55,7 +55,7 @@ public class CompatibilityUtil {
 			TypeSerializer<T> newSerializer) {
 
 		if (precedingSerializerConfigSnapshot != null) {
-			return newSerializer.ensureCompatibility(precedingSerializerConfigSnapshot);
+			return newSerializer.internalEnsureCompatibility(precedingSerializerConfigSnapshot);
 		} else {
 			// if the configuration snapshot of the preceding serializer cannot be provided,
 			// we can only simply assume that the new serializer is compatible

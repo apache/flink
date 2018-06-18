@@ -67,7 +67,7 @@ public class KryoSerializerCompatibilityTest {
 			kryoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
-		CompatibilityResult<TestClass> compatResult = kryoSerializerForA.ensureCompatibility(kryoSerializerConfigSnapshot);
+		CompatibilityResult<TestClass> compatResult = kryoSerializerForA.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
 		assertFalse(compatResult.isRequiresMigration());
 	}
 
@@ -110,7 +110,7 @@ public class KryoSerializerCompatibilityTest {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		CompatibilityResult<TestClassB> compatResult = kryoSerializerForB.ensureCompatibility(kryoSerializerConfigSnapshot);
+		CompatibilityResult<TestClassB> compatResult = kryoSerializerForB.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
 		assertTrue(compatResult.isRequiresMigration());
 	}
 
@@ -270,7 +270,7 @@ public class KryoSerializerCompatibilityTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		CompatibilityResult<TestClass> compatResult = kryoSerializer.ensureCompatibility(kryoSerializerConfigSnapshot);
+		CompatibilityResult<TestClass> compatResult = kryoSerializer.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
 		assertFalse(compatResult.isRequiresMigration());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());

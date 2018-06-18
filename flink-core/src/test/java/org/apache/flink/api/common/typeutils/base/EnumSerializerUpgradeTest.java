@@ -114,7 +114,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 		}
 
 		EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));
-		return enumSerializer2.ensureCompatibility(restoredSnapshot);
+		return enumSerializer2.internalEnsureCompatibility(restoredSnapshot);
 	}
 
 	private static ClassLoader compileAndLoadEnum(File root, String filename, String source) throws IOException {

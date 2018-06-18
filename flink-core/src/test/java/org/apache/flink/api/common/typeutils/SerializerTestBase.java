@@ -120,11 +120,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
+		CompatibilityResult strategy = getSerializer().internalEnsureCompatibility(restoredConfig);
 		assertFalse(strategy.isRequiresMigration());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
+		strategy = getSerializer().internalEnsureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
 		assertTrue(strategy.isRequiresMigration());
 	}
 	

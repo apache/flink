@@ -357,7 +357,7 @@ public class OperatorStateBackendTest {
 
 		@Override
 		public CompatibilityResult<Integer> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			return IntSerializer.INSTANCE.ensureCompatibility(configSnapshot);
+			return IntSerializer.INSTANCE.internalEnsureCompatibility(configSnapshot);
 		}
 	}
 
