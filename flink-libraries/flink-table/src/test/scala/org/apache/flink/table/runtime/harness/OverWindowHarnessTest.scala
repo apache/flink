@@ -244,6 +244,21 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     verify(expectedOutput, result, new RowResultSortComparator())
 
+    // test for clean-up timer NPE
+    testHarness.setProcessingTime(20000)
+
+    // timer registered for 23000
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong), change = true)))
+
+    // update clean-up timer to 25500. Previous timer should not clean up
+    testHarness.setProcessingTime(22500)
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong), change = true)))
+
+    // 23000 clean-up timer should fire but not fail with an NPE
+    testHarness.setProcessingTime(23001)
+
     testHarness.close()
   }
 
