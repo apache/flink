@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.runtime.rest.handler.FileUploads;
+
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
@@ -27,6 +29,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
@@ -37,8 +40,10 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
@@ -52,7 +57,10 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileUploadHandler.class);
 
-	static final AttributeKey<Path> UPLOADED_FILE = AttributeKey.valueOf("UPLOADED_FILE");
+	public static final String HTTP_ATTRIBUTE_REQUEST = "request";
+
+	private static final AttributeKey<FileUploads> UPLOADED_FILES = AttributeKey.valueOf("UPLOADED_FILES");
+	private static final AttributeKey<byte[]> UPLOADED_JSON = AttributeKey.valueOf("JSON");
 
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
@@ -61,6 +69,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	private HttpPostRequestDecoder currentHttpPostRequestDecoder;
 
 	private HttpRequest currentHttpRequest;
+	private byte[] currentJsonPayload;
+	private Path currentUploadDir;
 
 	public FileUploadHandler(final Path uploadDir) {
 		super(false);
@@ -72,10 +82,12 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	protected void channelRead0(final ChannelHandlerContext ctx, final HttpObject msg) throws Exception {
 		if (msg instanceof HttpRequest) {
 			final HttpRequest httpRequest = (HttpRequest) msg;
+			LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
 			if (httpRequest.getMethod().equals(HttpMethod.POST)) {
 				if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
 					currentHttpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
 					currentHttpRequest = httpRequest;
+					currentUploadDir = Files.createDirectory(uploadDir.resolve(UUID.randomUUID().toString()));
 				} else {
 					ctx.fireChannelRead(msg);
 				}
@@ -95,14 +107,22 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					final DiskFileUpload fileUpload = (DiskFileUpload) data;
 					checkState(fileUpload.isCompleted());
 
-					final Path dest = uploadDir.resolve(Paths.get(UUID.randomUUID() +
-						"_" + fileUpload.getFilename()));
+					final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
 					fileUpload.renameTo(dest.toFile());
-					ctx.channel().attr(UPLOADED_FILE).set(dest);
+				} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+					final Attribute request = (Attribute) data;
+					// this could also be implemented by using the first found Attribute as the payload
+					if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
+						currentJsonPayload = request.get();
+					} else {
+						LOG.warn("Received unknown attribute {}, will be ignored.", data.getName());
+					}
 				}
 			}
 
 			if (httpContent instanceof LastHttpContent) {
+				ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(Collections.singleton(currentUploadDir)));
+				ctx.channel().attr(UPLOADED_JSON).set(currentJsonPayload);
 				ctx.fireChannelRead(currentHttpRequest);
 				ctx.fireChannelRead(httpContent);
 				reset();
@@ -116,5 +136,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
 		currentHttpRequest = null;
+		currentUploadDir = null;
+		currentJsonPayload = null;
+	}
+
+	public static Optional<byte[]> getMultipartJsonPayload(ChannelHandlerContext ctx) {
+		return Optional.ofNullable(ctx.channel().attr(UPLOADED_JSON).get());
+	}
+
+	public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
+		return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).get())
+			.orElse(FileUploads.EMPTY);
 	}
 }
