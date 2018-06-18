@@ -132,6 +132,14 @@ class ProcTimeBoundedRangeOver(
 
     val currentTime = timestamp - 1
     var i = 0
+    // get the list of elements of current proctime
+    val currentElements = rowMapState.get(currentTime)
+
+    // Expired clean-up timers pass the needToCleanupState() check.
+    // Perform a null check to verify that we have data to process.
+    if (null == currentElements) {
+      return
+    }
 
     // initialize the accumulators
     var accumulators = accumulatorState.value()
@@ -171,8 +179,7 @@ class ProcTimeBoundedRangeOver(
       i += 1
     }
 
-    // get the list of elements of current proctime
-    val currentElements = rowMapState.get(currentTime)
+
     // add current elements to aggregator. Multiple elements might
     // have arrived in the same proctime
     // the same accumulator value will be computed for all elements
