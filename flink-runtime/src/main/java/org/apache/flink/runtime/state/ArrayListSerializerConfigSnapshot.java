@@ -16,25 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.dataview;
+package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.table.api.dataview.ListView;
+
+import java.util.ArrayList;
 
 /**
- * A {@link TypeSerializerConfigSnapshot} for the {@link ListViewSerializer}.
- *
- * @param <T> the type of the list elements.
+ * A {@link TypeSerializerConfigSnapshot} for the {@link ArrayListSerializer}.
  */
-public final class ListViewSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<ListView<T>> {
+public class ArrayListSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot<ArrayList<T>> {
 
-	private static final int VERSION = 1;
+	private final int VERSION = 1;
 
-	public ListViewSerializerConfigSnapshot(ListSerializer<T> listSerializer) {
-		super(listSerializer);
+	public ArrayListSerializerConfigSnapshot(TypeSerializer<T> elementSerializer) {
+		super(elementSerializer);
 	}
 
 	@Override
@@ -44,12 +42,12 @@ public final class ListViewSerializerConfigSnapshot<T> extends CompositeTypeSeri
 
 	@SuppressWarnings("unchecked")
 	@Override
-	protected TypeSerializer<ListView<T>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
-		return new ListViewSerializer<>((ListSerializer<T>) restoredNestedSerializers[0]);
+	protected TypeSerializer<ArrayList<T>> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		return new ArrayListSerializer<>((TypeSerializer<T>) restoredNestedSerializers[0]);
 	}
 
 	@Override
 	protected boolean isRecognizableSerializer(TypeSerializer<?> newSerializer) {
-		return newSerializer instanceof ListViewSerializer;
+		return newSerializer instanceof ArrayListSerializer;
 	}
 }

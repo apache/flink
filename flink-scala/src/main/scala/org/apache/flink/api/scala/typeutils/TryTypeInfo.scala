@@ -17,13 +17,13 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 
 import scala.collection.JavaConverters._
-
 import scala.util.Try
 
 /**
@@ -52,10 +52,15 @@ class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A])
   def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[T] = {
     if (elemTypeInfo == null) {
       // this happens when the type of a DataSet is None, i.e. DataSet[Failure]
-      new TrySerializer(new NothingSerializer, executionConfig).asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(
+        new NothingSerializer,
+        new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+      ).asInstanceOf[TypeSerializer[T]]
     } else {
-      new TrySerializer(elemTypeInfo.createSerializer(executionConfig), executionConfig)
-        .asInstanceOf[TypeSerializer[T]]
+      new TrySerializer(
+        elemTypeInfo.createSerializer(executionConfig),
+        new KryoSerializer[Throwable](classOf[Throwable], executionConfig)
+      ).asInstanceOf[TypeSerializer[T]]
     }
   }
 

@@ -20,23 +20,20 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
-public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
+public abstract class TupleSerializerBase<T> extends CompositeTypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -49,9 +46,15 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	private int length = -2;
 
 	@SuppressWarnings("unchecked")
-	public TupleSerializerBase(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
+	public TupleSerializerBase(
+			Class<T> tupleClass,
+			CompositeTypeSerializerConfigSnapshot<T> serializerConfigSnapshot,
+			TypeSerializer<?>[] fieldSerializers) {
+
+		super(serializerConfigSnapshot, fieldSerializers);
+
 		this.tupleClass = checkNotNull(tupleClass);
-		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
+		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.arity = fieldSerializers.length;
 	}
 	
@@ -121,49 +124,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 	public boolean canEqual(Object obj) {
 		return obj instanceof TupleSerializerBase;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public TupleSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new TupleSerializerConfigSnapshot<>(tupleClass, fieldSerializers);
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
-			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
-
-			if (tupleClass.equals(config.getTupleClass())) {
-				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
-					((TupleSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
-
-				if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
-
-					TypeSerializerSchemaCompatibility<Object> compatResult;
-					int i = 0;
-					for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
-						compatResult = CompatibilityUtil.resolveCompatibilityResult(f.f1, fieldSerializers[i]);
-
-						if (compatResult.isIncompatible()) {
-							return TypeSerializerSchemaCompatibility.incompatible();
-						}
-
-						i++;
-					}
-
-					return TypeSerializerSchemaCompatibility.compatibleAsIs();
-				}
-			}
-		}
-
-		return TypeSerializerSchemaCompatibility.incompatible();
-	}
-
-	protected abstract TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers);
 
 	@VisibleForTesting
 	public TypeSerializer<Object>[] getFieldSerializers() {

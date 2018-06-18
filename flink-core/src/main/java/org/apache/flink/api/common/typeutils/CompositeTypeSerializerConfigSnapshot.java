@@ -40,7 +40,7 @@ import java.util.List;
 @Internal
 public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 
-	private List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs;
+	private List<TypeSerializerConfigSnapshot<?>> nestedSerializerConfigs;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
 	public CompositeTypeSerializerConfigSnapshot() {}
@@ -48,35 +48,56 @@ public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSeria
 	public CompositeTypeSerializerConfigSnapshot(TypeSerializer<?>... nestedSerializers) {
 		Preconditions.checkNotNull(nestedSerializers);
 
-		this.nestedSerializersAndConfigs = new ArrayList<>(nestedSerializers.length);
+		this.nestedSerializerConfigs = new ArrayList<>(nestedSerializers.length);
 		for (TypeSerializer<?> nestedSerializer : nestedSerializers) {
-			TypeSerializerConfigSnapshot configSnapshot = nestedSerializer.snapshotConfiguration();
-			this.nestedSerializersAndConfigs.add(
-				new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-					nestedSerializer.duplicate(),
-					Preconditions.checkNotNull(configSnapshot)));
+			this.nestedSerializerConfigs.add(
+				Preconditions.checkNotNull(
+					nestedSerializer.snapshotConfiguration(),
+					"Configuration snapshots of nested serializers cannot be null."));
 		}
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
-		TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(out, nestedSerializersAndConfigs);
+		TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshots(out, nestedSerializerConfigs);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
-		this.nestedSerializersAndConfigs =
-			TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
+
+		if (!containsSerializers()) {
+			this.nestedSerializerConfigs = TypeSerializerConfigSnapshotSerializationUtil
+				.readSerializerConfigSnapshots(in, getUserCodeClassLoader());
+		} else {
+			// backwards compatible path
+			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> nestedSerializersAndConfigs =
+				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, getUserCodeClassLoader());
+
+			this.nestedSerializerConfigs = new ArrayList<>(nestedSerializersAndConfigs.size());
+			for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> entry : nestedSerializersAndConfigs) {
+				this.nestedSerializerConfigs.add(new BackwardsCompatibleConfigSnapshot<>(entry.f1, entry.f0));
+			}
+		}
 	}
 
-	public List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> getNestedSerializersAndConfigs() {
-		return nestedSerializersAndConfigs;
+	/**
+	 * Return whether or not this composite type serializer config snapshot still contains
+	 * serializers. Subclasses should uptick their version, and use that to compare against the read version
+	 * of the config snapshot to determine this. By default, it is assumed that all composite
+	 * type serializer config snapshots do not contain serializers.
+	 */
+	protected boolean containsSerializers() {
+		return false;
 	}
 
-	public Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> getSingleNestedSerializerAndConfig() {
-		return nestedSerializersAndConfigs.get(0);
+	public int getNumNestedSerializers() {
+		return nestedSerializerConfigs.size();
+	}
+
+	public TypeSerializerConfigSnapshot<?> getNestedSerializerConfigSnapshot(int index) {
+		return nestedSerializerConfigs.get(index);
 	}
 
 	@Override
@@ -90,11 +111,56 @@ public abstract class CompositeTypeSerializerConfigSnapshot<T> extends TypeSeria
 		}
 
 		return (obj.getClass().equals(getClass()))
-				&& nestedSerializersAndConfigs.equals(((CompositeTypeSerializerConfigSnapshot) obj).getNestedSerializersAndConfigs());
+				&& nestedSerializerConfigs.equals(((CompositeTypeSerializerConfigSnapshot) obj).nestedSerializerConfigs);
 	}
 
 	@Override
 	public int hashCode() {
-		return nestedSerializersAndConfigs.hashCode();
+		return nestedSerializerConfigs.hashCode();
 	}
+
+	@Override
+	public final TypeSerializer<T> restoreSerializer() {
+		TypeSerializer<?>[] restoredNestedSerializers = new TypeSerializer[nestedSerializerConfigs.size()];
+
+		int i = 0;
+		for (TypeSerializerConfigSnapshot<?> config : nestedSerializerConfigs) {
+			restoredNestedSerializers[i] = config.restoreSerializer();
+			i++;
+		}
+
+		return restoreSerializer(restoredNestedSerializers);
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<?> newSerializer) {
+		if (isRecognizableSerializer(newSerializer)) {
+			TypeSerializer<?>[] newNestedSerializers = ((CompositeTypeSerializer) newSerializer).getNestedSerializers();
+
+			int i = 0;
+			for (TypeSerializerConfigSnapshot<?> nestedSerializerConfig : nestedSerializerConfigs) {
+				TypeSerializerSchemaCompatibility<?> nestedSchemaCompat =
+					nestedSerializerConfig.resolveSchemaCompatibility(newNestedSerializers[i]);
+
+				if (nestedSchemaCompat.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.incompatible();
+				}
+				i++;
+			}
+
+			return TypeSerializerSchemaCompatibility.compatibleAsIs();
+		} else {
+			return TypeSerializerSchemaCompatibility.incompatible();
+		}
+	}
+
+	/**
+	 * Restore the composite type serializer with the restored nested serializers.
+	 *
+	 * @param restoredNestedSerializers the restored nested serializers.
+	 * @return the restored composite type serializer.
+	 */
+	protected abstract TypeSerializer<T> restoreSerializer(TypeSerializer<?>... restoredNestedSerializers);
+
+	protected abstract boolean isRecognizableSerializer(TypeSerializer<?> newSerializer);
 }

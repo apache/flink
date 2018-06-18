@@ -47,4 +47,15 @@ public class TraversableSerializerConfigSnapshot<T extends TraversableOnce<E>, E
 	public int getVersion() {
 		return VERSION;
 	}
+
+	@Override
+	protected TypeSerializer<T> restoreSerializer(TypeSerializer<?>[] restoredNestedSerializers) {
+		// TODO to be implemented in follow-up commits
+		return null;
+	}
+
+	@Override
+	protected boolean isRecognizableSerializer(TypeSerializer<?> newSerializer) {
+		return newSerializer instanceof TraversableSerializer;
+	}
 }

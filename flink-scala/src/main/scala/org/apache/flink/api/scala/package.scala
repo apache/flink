@@ -118,11 +118,5 @@ package object scala {
     override def createInstance(fields: Array[AnyRef]) = {
       (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
     }
-
-    override def createSerializerInstance(
-        tupleClass: Class[(T1, T2)],
-        fieldSerializers: Array[TypeSerializer[_]]) = {
-      new Tuple2CaseClassSerializer[T1, T2](tupleClass, fieldSerializers)
-    }
   }
 }

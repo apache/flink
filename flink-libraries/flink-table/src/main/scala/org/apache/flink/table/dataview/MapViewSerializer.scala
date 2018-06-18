@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.{MapSerializer, MapSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.util.Preconditions
 
 /**
   * A serializer for [[MapView]]. The serializer relies on a key serializer and a value
@@ -36,7 +37,9 @@ import org.apache.flink.table.api.dataview.MapView
   * @tparam V The type of the values in the map.
   */
 class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
-  extends TypeSerializer[MapView[K, V]] {
+  extends CompositeTypeSerializer[MapView[K, V]](
+    new MapViewSerializerConfigSnapshot[K, V](Preconditions.checkNotNull(mapSerializer)),
+    mapSerializer) {
 
   override def isImmutableType: Boolean = false
 
@@ -77,45 +80,13 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
   override def equals(obj: Any): Boolean = canEqual(this) &&
     mapSerializer.equals(obj.asInstanceOf[MapViewSerializer[_, _]].mapSerializer)
 
-  override def snapshotConfiguration(): MapViewSerializerConfigSnapshot[K, V] =
-    new MapViewSerializerConfigSnapshot[K, V](mapSerializer)
+  override def isComparableSnapshot(
+      configSnapshot: TypeSerializerConfigSnapshot[_]): Boolean = {
 
-  // copy and modified from MapSerializer.ensureCompatibility
-  override def ensureCompatibility(configSnapshot: TypeSerializerConfigSnapshot[_])
-  : TypeSerializerSchemaCompatibility[MapView[K, V]] = {
-
-    configSnapshot match {
-      case snapshot: MapViewSerializerConfigSnapshot[K, V] =>
-        checkCompatibility(snapshot)
-
+    configSnapshot.isInstanceOf[MapViewSerializerConfigSnapshot[K, V]] ||
       // backwards compatibility path;
       // Flink versions older or equal to 1.5.x returns a
       // MapSerializerConfigSnapshot as the snapshot
-      case legacySnapshot: MapSerializerConfigSnapshot[K, V] =>
-        checkCompatibility(legacySnapshot)
-
-      case _ => TypeSerializerSchemaCompatibility.incompatible()
-    }
-  }
-
-  private def checkCompatibility(
-      configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): TypeSerializerSchemaCompatibility[MapView[K, V]] = {
-
-    val previousKvSerializersAndConfigs = configSnapshot.getNestedSerializersAndConfigs
-
-    val keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousKvSerializersAndConfigs.get(0).f1,
-      mapSerializer.getKeySerializer)
-
-    val valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-      previousKvSerializersAndConfigs.get(1).f1,
-      mapSerializer.getValueSerializer)
-
-    if (!keyCompatResult.isIncompatible && !valueCompatResult.isIncompatible) {
-      TypeSerializerSchemaCompatibility.compatibleAsIs()
-    } else {
-      TypeSerializerSchemaCompatibility.incompatible()
-    }
+      configSnapshot.isInstanceOf[MapSerializerConfigSnapshot[K, V]]
   }
 }

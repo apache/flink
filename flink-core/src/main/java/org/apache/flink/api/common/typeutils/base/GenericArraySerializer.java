@@ -22,11 +22,9 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
+
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -38,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <C> The component type.
  */
 @Internal
-public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
+public final class GenericArraySerializer<C> extends CompositeTypeSerializer<C[]> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,8 +48,13 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	
 	
 	public GenericArraySerializer(Class<C> componentClass, TypeSerializer<C> componentSerializer) {
-		this.componentClass = checkNotNull(componentClass);
-		this.componentSerializer = checkNotNull(componentSerializer);
+
+		super(
+			new GenericArraySerializerConfigSnapshot<>(checkNotNull(componentClass), checkNotNull(componentSerializer)),
+			componentSerializer);
+
+		this.componentClass = componentClass;
+		this.componentSerializer = componentSerializer;
 	}
 
 	@Override
@@ -191,34 +194,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 		return "Serializer " + componentClass.getName() + "[]";
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public GenericArraySerializerConfigSnapshot<C> snapshotConfiguration() {
-		return new GenericArraySerializerConfigSnapshot<>(componentClass, componentSerializer);
-	}
-
-	@Override
-	public TypeSerializerSchemaCompatibility<C[]> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
-			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
-
-			if (componentClass.equals(config.getComponentClass())) {
-				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousComponentSerializerAndConfig =
-					config.getSingleNestedSerializerAndConfig();
-
-				TypeSerializerSchemaCompatibility<C> compatResult = CompatibilityUtil.resolveCompatibilityResult(
-						previousComponentSerializerAndConfig.f1,
-						componentSerializer);
-
-				if (!compatResult.isIncompatible()) {
-					return TypeSerializerSchemaCompatibility.compatibleAsIs();
-				}
-			}
-		}
-
-		return TypeSerializerSchemaCompatibility.compatibleAsIs();
+	Class<C> getComponentClass() {
+		return componentClass;
 	}
 }

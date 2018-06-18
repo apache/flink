@@ -33,7 +33,10 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	private static final long serialVersionUID = 1L;
 	
 	public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		super(tupleClass, fieldSerializers);
+		super(
+			tupleClass,
+			new TupleSerializerConfigSnapshot<>(tupleClass, fieldSerializers),
+			fieldSerializers);
 	}
 
 	@Override
@@ -147,7 +150,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		}
 		return reuse;
 	}
-	
+
 	private T instantiateRaw() {
 		try {
 			return tupleClass.newInstance();
@@ -155,10 +158,5 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 		catch (Exception e) {
 			throw new RuntimeException("Cannot instantiate tuple.", e);
 		}
-	}
-
-	@Override
-	protected TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
-		return new TupleSerializer<>(tupleClass, fieldSerializers);
 	}
 }
