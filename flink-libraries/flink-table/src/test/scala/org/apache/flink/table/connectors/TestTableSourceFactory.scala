@@ -16,41 +16,49 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
 /**
-  * Table source factory for testing with a wildcard format ("format.*").
+  * Table source factory for testing.
   */
-class TestWildcardFormatTableSourceFactory extends TableSourceFactory[Row] with TableSource[Row] {
+class TestTableSourceFactory extends TableSourceFactory[Row] with DiscoverableTableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "wildcard")
+    context.put(CONNECTOR_TYPE, "test")
+    context.put(FORMAT_TYPE, "test")
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
+    context.put(FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    properties.add("format.*")
+    // connector
+    properties.add("format.path")
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
     properties.add("failing")
     properties
   }
 
-  override def create(properties: util.Map[String, String]): TableSource[Row] = {
-    this
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+    if (properties.get("failing") == "true") {
+      throw new IllegalArgumentException("Error in this factory.")
+    }
+    new TableSource[Row] {
+      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
+
+      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
+    }
   }
-
-  override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
-
-  override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
 }

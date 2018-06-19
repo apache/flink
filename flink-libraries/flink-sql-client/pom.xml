@@ -159,7 +159,7 @@ under the License.
 										<include>org.codehaus.commons.compiler.properties</include>
 										<include>org/codehaus/janino/**</include>
 										<include>org/codehaus/commons/**</include>
-										<include>META-INF/services/org.apache.flink.table.sources.TableSourceFactory</include>
+										<include>META-INF/services/org.apache.flink.table.connectors.DiscoverableTableFactory</include>
 										<!-- flink-sql-client -->
 										<include>org/jline/**</include>
 										<include>com/fasterxml/jackson/**</include>

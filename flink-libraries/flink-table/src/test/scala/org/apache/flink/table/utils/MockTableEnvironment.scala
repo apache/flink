@@ -46,6 +46,8 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = ???
 
+  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = ???
+
   override protected def createUniqueTableName(): String = ???
 
   override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])

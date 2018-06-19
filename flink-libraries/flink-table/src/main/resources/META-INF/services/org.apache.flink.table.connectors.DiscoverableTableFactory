@@ -13,5 +13,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.table.sources.TestFixedFormatTableFactory
-org.apache.flink.table.sources.TestWildcardFormatTableSourceFactory
+org.apache.flink.table.sources.CsvTableSourceFactory
+org.apache.flink.table.sinks.CsvTableSinkFactory

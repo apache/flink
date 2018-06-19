@@ -16,29 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.client.config;
+
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.TableSinkDescriptor;
+
+import java.util.Map;
 
 /**
-  * Validator for [[TableDescriptor]].
-  */
-class TableDescriptorValidator extends DescriptorValidator {
+ * Configuration of a table sink.
+ */
+public class Sink extends TableSinkDescriptor {
 
-  override def validate(properties: DescriptorProperties): Unit = {
-    // nothing to do
-  }
-}
+	private String name;
+	private Map<String, String> properties;
 
-object TableDescriptorValidator {
+	protected Sink(String name, Map<String, String> properties) {
+		this.name = name;
+		this.properties = properties;
+	}
 
-  /**
-    * Key for describing the type of this table, valid values are ('source', 'sink', 'both').
-    */
-  val TABLE_TYPE = "type"
+	public String getName() {
+		return name;
+	}
 
-  /**
-    * Valid TABLE_TYPE value.
-    */
-  val TABLE_TYPE_VALUE_SOURCE = "source"
-  val TABLE_TYPE_VALUE_SINK = "sink"
-  val TABLE_TYPE_VALUE_SOURCE_SINK = "both"
+	public Map<String, String> getProperties() {
+		return properties;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void addProperties(DescriptorProperties properties) {
+		this.properties.forEach(properties::putString);
+	}
 }

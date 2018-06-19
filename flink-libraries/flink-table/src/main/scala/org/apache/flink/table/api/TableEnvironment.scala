@@ -56,7 +56,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -465,6 +465,16 @@ abstract class TableEnvironment(val config: TableConfig) {
       tableSink: TableSink[_]): Unit
 
   /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
+
+  /**
     * Replaces a registered Table with another Table under the same name.
     * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
@@ -750,8 +760,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     getTable(sinkTableName) match {
-      case s: TableSinkTable[_] =>
-        val tableSink = s.tableSink
+
+      // check for registered table that wraps a sink
+      case s: TableSourceSinkTable[_, _] if s.tableSinkTable.isDefined =>
+        val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getTypes
         val sinkFieldTypes = tableSink.getFieldTypes
@@ -775,6 +787,7 @@ abstract class TableEnvironment(val config: TableConfig) {
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }
+
         // emit the table to the configured table sink
         writeToSink(table, tableSink, conf)
       case _ =>
@@ -821,7 +834,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     rootSchema.getTableNames.contains(name)
   }
 
-  private def getTable(name: String): org.apache.calcite.schema.Table = {
+  protected def getTable(name: String): org.apache.calcite.schema.Table = {
     rootSchema.getTable(name)
   }
 

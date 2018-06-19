@@ -48,6 +48,8 @@ public class Environment {
 
 	private Deployment deployment;
 
+	private static final String NAME = "name";
+
 	public Environment() {
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
@@ -62,20 +64,21 @@ public class Environment {
 	public void setTables(List<Map<String, Object>> tables) {
 		this.tables = new HashMap<>(tables.size());
 		tables.forEach(config -> {
-			if (!config.containsKey(TableDescriptorValidator.TABLE_TYPE())) {
-				throw new SqlClientException("The 'type' attribute of a table is missing.");
+			if (!config.containsKey(NAME)) {
+				throw new SqlClientException("The 'name' attribute of a table is missing.");
 			}
-			if (config.get(TableDescriptorValidator.TABLE_TYPE()).equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
-				config.remove(TableDescriptorValidator.TABLE_TYPE());
-				final Source s = Source.create(config);
-				if (this.tables.containsKey(s.getName())) {
-					throw new SqlClientException("Duplicate source name '" + s.getName() + "'.");
-				}
-				this.tables.put(s.getName(), s);
-			} else {
-				throw new SqlClientException(
-						"Invalid table 'type' attribute value, only 'source' is supported");
+			final Object nameObject = config.get(NAME);
+			if (nameObject == null || !(nameObject instanceof String) || ((String) nameObject).length() <= 0) {
+				throw new SqlClientException("Invalid table name '" + nameObject + "'.");
 			}
+			final String name = (String) nameObject;
+			final Map<String, Object> properties = new HashMap<>(config);
+			properties.remove(NAME);
+
+			if (this.tables.containsKey(name)) {
+				throw new SqlClientException("Duplicate table name '" + name + "'.");
+			}
+			this.tables.put(name, createTableDescriptor(name, properties));
 		});
 	}
 
@@ -194,5 +197,32 @@ public class Environment {
 		enrichedEnv.deployment = Deployment.enrich(env.deployment, properties);
 
 		return enrichedEnv;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a table descriptor from a YAML config map.
+	 *
+	 * @param name name of the table
+	 * @param config YAML config map
+	 * @return table descriptor describing a source, sink, or both
+	 */
+	private static TableDescriptor createTableDescriptor(String name, Map<String, Object> config) {
+		final Object typeObject = config.get(TableDescriptorValidator.TABLE_TYPE());
+		if (typeObject == null || !(typeObject instanceof String)) {
+			throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'.");
+		}
+		final String type = (String) config.get(TableDescriptorValidator.TABLE_TYPE());
+		final Map<String, String> normalizedConfig = ConfigUtil.normalizeYaml(config);
+		if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
+			return new Source(name, normalizedConfig);
+		} else if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SINK())) {
+			return new Sink(name, normalizedConfig);
+		} else if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE_SINK())) {
+			return new SourceSink(name, normalizedConfig);
+		}
+		throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'. " +
+			"Only 'source', 'sink', and 'both' are supported.");
 	}
 }

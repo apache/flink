@@ -23,6 +23,8 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connectors.DiscoverableTableFactory;
+import org.apache.flink.table.connectors.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
@@ -30,7 +32,6 @@ import org.apache.flink.table.formats.DeserializationSchemaFactory;
 import org.apache.flink.table.formats.TableFormatFactoryService;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -71,7 +72,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link KafkaTableSource}.
  */
-public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
+public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>, DiscoverableTableFactory {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -118,7 +119,7 @@ public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>
 	}
 
 	@Override
-	public TableSource<Row> create(Map<String, String> properties) {
+	public TableSource<Row> createTableSource(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 
