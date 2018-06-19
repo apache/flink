@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
@@ -58,18 +60,27 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRespon
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -88,7 +99,7 @@ public class RestClient {
 	// used to open connections to a rest server endpoint
 	private final Executor executor;
 
-	private Bootstrap bootstrap;
+	private final Bootstrap bootstrap;
 
 	public RestClient(RestClientConfiguration configuration, Executor executor) {
 		Preconditions.checkNotNull(configuration);
@@ -106,6 +117,7 @@ public class RestClient {
 				socketChannel.pipeline()
 					.addLast(new HttpClientCodec())
 					.addLast(new HttpObjectAggregator(configuration.getMaxContentLength()))
+					.addLast(new ChunkedWriteHandler()) // required for multipart-requests
 					.addLast(new ClientHandler());
 			}
 		};
@@ -145,12 +157,43 @@ public class RestClient {
 		}
 	}
 
-	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, R request) throws IOException {
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
+		String targetAddress,
+		int targetPort,
+		M messageHeaders,
+		U messageParameters,
+		R request) throws IOException {
+		return internalSendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, false, new DefaultProcessor());
+	}
+
+	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
+		String targetAddress,
+		int targetPort,
+		M messageHeaders,
+		U messageParameters,
+		R request,
+		Collection<FileUpload> fileUploads) throws IOException {
+		if (fileUploads.isEmpty()) {
+			return sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request);
+		} else {
+			return internalSendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, true, new MultipartProcessor(fileUploads));
+		}
+	}
+
+	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody, T> CompletableFuture<P> internalSendRequest(
+		String targetAddress,
+		int targetPort,
+		M messageHeaders,
+		U messageParameters,
+		R request,
+		boolean multipart,
+		RequestProcessor<T> requestProcessor) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
 		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
+		Preconditions.checkNotNull(requestProcessor);
 		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
 
 		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
@@ -162,12 +205,24 @@ public class RestClient {
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
 		// create request and set headers
-		FullHttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl, payload);
+		final FullHttpRequest httpRequest;
+		if (multipart) {
+			httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl);
+		} else {
+			httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl, payload);
+		}
+
 		httpRequest.headers()
-			.add(HttpHeaders.Names.CONTENT_LENGTH, payload.capacity())
-			.add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE)
 			.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
 			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+
+		if (!multipart) {
+			httpRequest.headers()
+				.add(HttpHeaders.Names.CONTENT_LENGTH, payload.capacity())
+				.add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+		}
+
+		T finalRequest = requestProcessor.createRequest(httpRequest, payload);
 
 		final JavaType responseType;
 
@@ -181,10 +236,10 @@ public class RestClient {
 				typeParameters.toArray(new Class<?>[typeParameters.size()]));
 		}
 
-		return submitRequest(targetAddress, targetPort, httpRequest, responseType);
+		return submitRequest(targetAddress, targetPort, finalRequest, requestProcessor, responseType);
 	}
 
-	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, FullHttpRequest httpRequest, JavaType responseType) {
+	private <P extends ResponseBody, T> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, T request, RequestProcessor<T> processor, JavaType responseType) {
 		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
 		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
@@ -203,13 +258,97 @@ public class RestClient {
 				channel -> {
 					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
 					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-					channel.writeAndFlush(httpRequest);
+					try {
+						processor.writeRequest(request, channel);
+					} catch (IOException e) {
+						return FutureUtils.completedExceptionally(new FlinkException("Could not write request.", e));
+					}
 					return future;
 				},
 				executor)
 			.thenComposeAsync(
 				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
 				executor);
+	}
+
+	private interface RequestProcessor<T> {
+		T createRequest(HttpRequest request, ByteBuf jsonPayload) throws IOException;
+
+		void writeRequest(T body, Channel channel) throws IOException;
+	}
+
+	private static final class DefaultProcessor implements RequestProcessor<HttpRequest> {
+
+		@Override
+		public HttpRequest createRequest(HttpRequest request, ByteBuf jsonPayload) throws IOException {
+			return request;
+		}
+
+		@Override
+		public void writeRequest(HttpRequest body, Channel channel) throws IOException {
+			channel.writeAndFlush(body);
+		}
+	}
+
+	private static final class MultipartProcessor implements RequestProcessor<HttpPostRequestEncoder> {
+
+		private final Collection<FileUpload> fileUploads;
+
+		MultipartProcessor(Collection<FileUpload> fileUploads) {
+			this.fileUploads = fileUploads;
+		}
+
+		@Override
+		public HttpPostRequestEncoder createRequest(HttpRequest httpRequest, ByteBuf jsonPayload) throws IOException {
+			// takes care of splitting the request into multiple parts
+			HttpPostRequestEncoder bodyRequestEncoder;
+			try {
+				// we could use mixed attributes here but we have to ensure that the minimum size is greater than
+				// any file as the upload otherwise fails
+				DefaultHttpDataFactory httpDataFactory = new DefaultHttpDataFactory(true);
+				// the FileUploadHandler explicitly checks for multipart headers
+				bodyRequestEncoder = new HttpPostRequestEncoder(httpDataFactory, httpRequest, true);
+
+				Attribute requestAttribute = new MemoryAttribute(FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+				requestAttribute.setContent(jsonPayload);
+				bodyRequestEncoder.addBodyHttpData(requestAttribute);
+
+				int fileIndex = 0;
+				for (FileUpload fileUpload : fileUploads) {
+					Path path = fileUpload.getFile();
+					if (Files.isDirectory(path)) {
+						throw new IllegalArgumentException("Upload of directories is not supported. Dir=" + path);
+					}
+					File file = path.toFile();
+					LOG.trace("Adding file {} to request.", file);
+					bodyRequestEncoder.addBodyFileUpload("file_" + fileIndex, file, fileUpload.getContentType(), false);
+					fileIndex++;
+				}
+
+				return bodyRequestEncoder;
+			} catch (HttpPostRequestEncoder.ErrorDataEncoderException e) {
+				throw new IOException("Could not encode request.", e);
+			}
+		}
+
+		@Override
+		public void writeRequest(HttpPostRequestEncoder bodyRequestEncoder, Channel channel) throws IOException {
+			HttpRequest request;
+			try {
+				request = bodyRequestEncoder.finalizeRequest();
+			} catch (HttpPostRequestEncoder.ErrorDataEncoderException e) {
+				throw new IOException("Could not finalize request.", e);
+			}
+
+			channel.writeAndFlush(request);
+			// this should never be false as we explicitly set the encoder to use multipart messages
+			if (bodyRequestEncoder.isChunked()) {
+				channel.writeAndFlush(bodyRequestEncoder);
+			}
+
+			// release data and remove temporary files if they were created
+			bodyRequestEncoder.cleanFiles();
+		}
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, JavaType responseType) {
