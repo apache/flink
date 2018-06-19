@@ -23,9 +23,9 @@ import java.io._
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
-import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
+import org.apache.flink.configuration.{Configuration, CoreOptions, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Settings
@@ -137,20 +137,36 @@ object FlinkShell {
     }
   }
 
+  private type LocalCluster = Either[StandaloneMiniCluster, MiniCluster]
+
   def fetchConnectionInfo(
     configuration: Configuration,
     config: Config
-  ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient[_]]]) = {
+  ): (String, Int, Option[Either[LocalCluster , ClusterClient[_]]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = configuration
         config.setInteger(JobManagerOptions.PORT, 0)
 
-        val miniCluster = new StandaloneMiniCluster(config)
+        val (miniCluster, port) = config.getString(CoreOptions.MODE) match {
+          case CoreOptions.LEGACY_MODE => {
+            val cluster = new StandaloneMiniCluster(config)
 
-        println("\nStarting local Flink cluster (host: localhost, " +
-          s"port: ${miniCluster.getPort}).\n")
-        ("localhost", miniCluster.getPort, Some(Left(miniCluster)))
+            (Left(cluster), cluster.getPort)
+          }
+          case CoreOptions.NEW_MODE => {
+            val miniClusterConfig = new MiniClusterConfiguration.Builder()
+              .setConfiguration(config)
+              .build()
+            val cluster = new MiniCluster(miniClusterConfig)
+            cluster.start()
+
+            (Right(cluster), cluster.getRestAddress.getPort)
+          }
+        }
+
+        println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
+        ("localhost", port, Some(Left(miniCluster)))
 
       case ExecutionMode.REMOTE => // Remote mode
         if (config.host.isEmpty || config.port.isEmpty) {
@@ -193,7 +209,8 @@ object FlinkShell {
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(configuration, config)
       val conf = cluster match {
-        case Some(Left(miniCluster)) => miniCluster.getConfiguration
+        case Some(Left(Left(miniCluster))) => miniCluster.getConfiguration
+        case Some(Left(Right(_))) => configuration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
         case None => configuration
       }
@@ -223,7 +240,8 @@ object FlinkShell {
     } finally {
       repl.closeInterpreter()
       cluster match {
-        case Some(Left(miniCluster)) => miniCluster.close()
+        case Some(Left(Left(legacyMiniCluster))) => legacyMiniCluster.close()
+        case Some(Left(Right(newMiniCluster))) => newMiniCluster.close()
         case Some(Right(yarnCluster)) => yarnCluster.shutdown()
         case _ =>
       }

@@ -19,19 +19,16 @@
 package org.apache.flink.api.scala
 
 import java.io._
+import java.util.Objects
 
-import akka.actor.ActorRef
-import akka.pattern.Patterns
-import org.apache.flink.configuration.{Configuration, CoreOptions, TaskManagerOptions}
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
+import org.apache.flink.configuration.{Configuration, CoreOptions, RestOptions, TaskManagerOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
+import org.apache.flink.test.util.MiniClusterResource
 import org.apache.flink.util.TestLogger
-import org.junit.rules.TemporaryFolder
 import org.junit._
+import org.junit.rules.TemporaryFolder
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.FiniteDuration
 import scala.tools.nsc.Settings
 
 class ScalaShellITCase extends TestLogger {
@@ -280,11 +277,11 @@ class ScalaShellITCase extends TestLogger {
     BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))
 
     val args = cluster match {
-      case Some(cl) =>
+      case Some(_) =>
         Array(
           "remote",
-          cl.getHostname,
-          Integer.toString(cl.getPort),
+          hostname,
+          Integer.toString(port),
           "--configDir",
           dir.getAbsolutePath)
       case None => throw new IllegalStateException("Cluster has not been started.")
@@ -314,17 +311,43 @@ class ScalaShellITCase extends TestLogger {
 }
 
 object ScalaShellITCase {
-  var cluster: Option[StandaloneMiniCluster] = None
 
-  val parallelism = 4
   val configuration = new Configuration()
+  var cluster: Option[Either[MiniCluster, StandaloneMiniCluster]] = None
+
+  var port: Int = _
+  var hostname : String = _
+  val parallelism: Int = 4
 
   @BeforeClass
   def beforeAll(): Unit = {
-    configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism)
-    configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
+    val isNew = Objects.equals(MiniClusterResource.NEW_CODEBASE,
+      System.getProperty(MiniClusterResource.CODEBASE_KEY))
+    if (isNew) {
+      configuration.setString(CoreOptions.MODE, CoreOptions.NEW_MODE)
+      // set to different than default so not to interfere with ScalaShellLocalStartupITCase
+      configuration.setInteger(RestOptions.PORT, 8082)
+      val miniConfig = new MiniClusterConfiguration.Builder()
+        .setConfiguration(configuration)
+        .setNumSlotsPerTaskManager(parallelism)
+        .build()
 
-    cluster = Option(new StandaloneMiniCluster(configuration))
+      val miniCluster = new MiniCluster(miniConfig)
+      miniCluster.start()
+      port = miniCluster.getRestAddress.getPort
+      hostname = miniCluster.getRestAddress.getHost
+
+      cluster = Some(Left(miniCluster))
+    } else {
+      configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
+      configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism)
+      val standaloneCluster = new StandaloneMiniCluster(configuration)
+
+      hostname = standaloneCluster.getHostname
+      port = standaloneCluster.getPort
+
+      cluster = Some(Right(standaloneCluster))
+    }
   }
 
   @AfterClass
@@ -332,7 +355,10 @@ object ScalaShellITCase {
     // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
 
-    cluster.foreach(_.close)
+    cluster.foreach {
+      case Left(miniCluster) => miniCluster.close()
+      case Right(miniCluster) => miniCluster.close()
+    }
   }
 
   /**
@@ -350,18 +376,18 @@ object ScalaShellITCase {
     System.setOut(new PrintStream(baos))
 
     cluster match {
-      case Some(cl) =>
+      case Some(_) =>
         val repl = externalJars match {
           case Some(ej) => new FlinkILoop(
-            cl.getHostname,
-            cl.getPort,
+            hostname,
+            port,
             configuration,
             Option(Array(ej)),
             in, new PrintWriter(out))
 
           case None => new FlinkILoop(
-            cl.getHostname,
-            cl.getPort,
+            hostname,
+            port,
             configuration,
             in, new PrintWriter(out))
         }
