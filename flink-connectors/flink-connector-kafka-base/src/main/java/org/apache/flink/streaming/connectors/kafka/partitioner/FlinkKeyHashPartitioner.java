@@ -45,7 +45,7 @@ public class FlinkKeyHashPartitioner<T> extends FlinkKafkaPartitioner<T> {
 			partitions != null && partitions.length > 0,
 			"Partitions of the target topic is empty.");
 
-		return partitions[hash(key) % partitions.length];
+		return partitions[Math.abs(hash(key)) % partitions.length];
 	}
 
 	/**

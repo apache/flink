@@ -23,6 +23,8 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKeyHashParti
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 /**
  * Tests for the {@link FlinkKeyHashPartitioner}.
  */
@@ -76,6 +78,31 @@ public class FlinkKeyHashPartitionerTest {
 
 		part.open(2, 3);
 		Assert.assertEquals(0, part.partition("abc", "abc2".getBytes(), null, null, partitions));
+	}
+
+	private static class NegativeHashPartitioner<T> extends FlinkKeyHashPartitioner<T> {
+		private static final long serialVersionUID = 6591915886288619235L;
+		@Override
+		protected int hash(@Nullable byte[] key) {
+			// Force the return value to ALWAYS be nagative for this test
+			return -1 * Math.abs(super.hash(key));
+		}
+	}
+
+	/**
+	 * Ensure it is ok if the hash function returns a negative value.
+	 */
+	@Test
+	public void testNegativeHashGuard() {
+		FlinkKeyHashPartitioner<String> part = new NegativeHashPartitioner<>();
+
+		int[] partitions = new int[]{0, 1};
+
+		part.open(0, 4);
+		Assert.assertEquals(0, part.partition("abc", "abc1".getBytes(), null, null, partitions));
+		Assert.assertEquals(1, part.partition("abc", "abc2".getBytes(), null, null, partitions));
+		Assert.assertEquals(0, part.partition("abc", "abc3".getBytes(), null, null, partitions));
+		Assert.assertEquals(1, part.partition("abc", "abc4".getBytes(), null, null, partitions));
 	}
 
 }
