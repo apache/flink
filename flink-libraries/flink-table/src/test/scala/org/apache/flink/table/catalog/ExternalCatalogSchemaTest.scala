@@ -27,7 +27,7 @@ import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.validate.SqlMonikerType
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestBase
@@ -78,9 +78,9 @@ class ExternalCatalogSchemaTest extends TableTestBase {
   def testGetTable(): Unit = {
     val relOptTable = calciteCatalogReader.getTable(Lists.newArrayList(schemaName, db, tb))
     assertNotNull(relOptTable)
-    val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
-    tableSourceTable match {
-      case tst: TableSourceTable[_] =>
+    val tableSourceSinkTable = relOptTable.unwrap(classOf[TableSourceSinkTable[_, _]])
+    tableSourceSinkTable.tableSourceTableOpt match {
+      case Some(tst: TableSourceTable[_]) =>
         assertTrue(tst.tableSource.isInstanceOf[CsvTableSource])
       case _ =>
         fail("unexpected table type!")

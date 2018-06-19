@@ -19,20 +19,19 @@
 package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.descriptors.TableSinkDescriptor;
 
 import java.util.Map;
 
 /**
- * Configuration of a table source. Parses an entry in the `tables` list of an environment
+ * Configuration of a table sink. Parses an entry in the `tables` list of an environment
  * file and translates to table descriptor properties.
  */
-public class Source extends TableSourceDescriptor {
-
+public class Sink extends TableSinkDescriptor {
 	private String name;
 	private Map<String, String> properties;
 
-	protected Source(String name, Map<String, String> properties) {
+	protected Sink(String name, Map<String, String> properties) {
 		this.name = name;
 		this.properties = properties;
 	}

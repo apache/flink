@@ -46,16 +46,22 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Sink;
+import org.apache.flink.table.client.config.Source;
+import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.connectors.TableFactoryService;
+import org.apache.flink.table.connectors.TableSinkFactory;
+import org.apache.flink.table.connectors.TableSourceFactory;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -80,6 +86,7 @@ public class ExecutionContext<T> {
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
@@ -100,14 +107,22 @@ public class ExecutionContext<T> {
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
 
-		// create table sources
+		// create table sources & sinks.
 		tableSources = new HashMap<>();
+		tableSinks = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
-			if (descriptor instanceof TableSourceDescriptor) {
-				final TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
-					(TableSourceDescriptor) descriptor,
-					classLoader);
-				tableSources.put(name, tableSource);
+			final DescriptorProperties properties = new DescriptorProperties(true);
+			descriptor.addProperties(properties);
+			final Map<String, String> propertyMap = properties.asMap();
+			if (descriptor instanceof Source || descriptor instanceof SourceSink) {
+				final TableSourceFactory<?> factory = (TableSourceFactory<?>)
+					TableFactoryService.find(TableSourceFactory.class, descriptor, classLoader);
+				tableSources.put(name, factory.createTableSource(propertyMap));
+			}
+			if (descriptor instanceof Sink || descriptor instanceof SourceSink) {
+				final TableSinkFactory<?> factory = (TableSinkFactory<?>)
+					TableFactoryService.find(TableSinkFactory.class, descriptor, classLoader);
+				tableSinks.put(name, factory.createTableSink(propertyMap));
 			}
 		});
 
@@ -223,6 +238,9 @@ public class ExecutionContext<T> {
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
+
+			// register table sinks
+			tableSinks.forEach(tableEnv::registerTableSink);
 
 			// register user-defined functions
 			if (tableEnv instanceof StreamTableEnvironment) {
