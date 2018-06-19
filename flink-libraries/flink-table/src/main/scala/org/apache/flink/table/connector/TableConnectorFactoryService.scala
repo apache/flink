@@ -16,57 +16,57 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connector
 
 import java.util.{ServiceConfigurationError, ServiceLoader}
 
-import org.apache.flink.table.api.{AmbiguousTableSourceException, NoMatchingTableSourceException, TableException, ValidationException}
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION
-import org.apache.flink.table.descriptors.MetadataValidator.METADATA_PROPERTY_VERSION
-import org.apache.flink.table.descriptors.StatisticsValidator.STATISTICS_PROPERTY_VERSION
-import org.apache.flink.table.descriptors._
+import org.apache.flink.table.api._
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
+import org.apache.flink.table.descriptors.FormatDescriptorValidator._
+import org.apache.flink.table.descriptors.MetadataValidator._
+import org.apache.flink.table.descriptors.StatisticsValidator._
+import org.apache.flink.table.descriptors.{DescriptorProperties, TableDescriptor, TableDescriptorValidator}
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.Logging
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
-  * Service provider interface for finding suitable table source factories for the given properties.
+  * Unified interface to create TableConnectors, e.g. [[org.apache.flink.table.sources.TableSource]]
+  * and [[org.apache.flink.table.sinks.TableSink]].
   */
-object TableSourceFactoryService extends Logging {
+class TableConnectorFactoryService[T] extends Logging {
 
-  private lazy val defaultLoader = ServiceLoader.load(classOf[TableSourceFactory[_]])
+  private lazy val defaultLoader = ServiceLoader.load(classOf[TableConnectorFactory[_]])
 
-  def findAndCreateTableSource(descriptor: TableSourceDescriptor): TableSource[_] = {
-    findAndCreateTableSource(descriptor, null)
+  def findAndCreateTableConnector(descriptor: TableDescriptor): T = {
+    findAndCreateTableConnector(descriptor, null)
   }
 
-  def findAndCreateTableSource(
-      descriptor: TableSourceDescriptor,
-      classLoader: ClassLoader)
-    : TableSource[_] = {
+  def findAndCreateTableConnector(descriptor: TableDescriptor, classLoader: ClassLoader)
+  : T = {
 
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
-    findAndCreateTableSource(properties.asMap.asScala.toMap, classLoader)
+    findAndCreateTableConnector(properties.asMap.asScala.toMap, classLoader)
   }
 
-  def findAndCreateTableSource(properties: Map[String, String]): TableSource[_] = {
-    findAndCreateTableSource(properties, null)
+  def findAndCreateTableConnector(properties: Map[String, String]): T = {
+    findAndCreateTableConnector(properties, null)
   }
 
-  def findAndCreateTableSource(
-      properties: Map[String, String],
-      classLoader: ClassLoader)
-    : TableSource[_] = {
+  def findAndCreateTableConnector(properties: Map[String, String],
+                                  classLoader: ClassLoader)
+  : T = {
 
-    var matchingFactory: Option[(TableSourceFactory[_], Seq[String])] = None
+    var matchingFactory: Option[(TableConnectorFactory[T], Seq[String])] = None
     try {
       val iter = if (classLoader == null) {
         defaultLoader.iterator()
       } else {
-        val customLoader = ServiceLoader.load(classOf[TableSourceFactory[_]], classLoader)
+        val customLoader = ServiceLoader.load(classOf[TableConnectorFactory[_]], classLoader)
         customLoader.iterator()
       }
       while (iter.hasNext) {
@@ -98,10 +98,12 @@ object TableSourceFactoryService extends Logging {
         plainContext.remove(STATISTICS_PROPERTY_VERSION)
 
         // check if required context is met
-        if (plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
+        if (properties.get(TableDescriptorValidator.TABLE_TYPE).get.equals(factory.tableType()) &&
+          plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
           matchingFactory match {
-            case Some(_) => throw new AmbiguousTableSourceException(properties)
-            case None => matchingFactory = Some((factory, requiredContext.keys.toSeq))
+            case Some(_) => throw new AmbiguousTableConnectorException(properties)
+            case None => matchingFactory =
+              Some((factory.asInstanceOf[TableConnectorFactory[T]], requiredContext.keys.toSeq))
           }
         }
       }
@@ -112,7 +114,7 @@ object TableSourceFactoryService extends Logging {
     }
 
     val (factory, context) = matchingFactory
-      .getOrElse(throw new NoMatchingTableSourceException(properties))
+      .getOrElse(throw new NoMatchingTableConnectorException(properties))
 
     val plainProperties = mutable.ArrayBuffer[String]()
     properties.keys.foreach { k =>
@@ -141,22 +143,26 @@ object TableSourceFactoryService extends Logging {
 
     // check for supported properties
     plainProperties.foreach { k =>
-      if (!supportedProperties.contains(k)) {
+      if (!k.equals(TableDescriptorValidator.TABLE_TYPE) && !supportedProperties.contains(k)) {
         throw new ValidationException(
           s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
-          s"property '$k'. Supported properties are: \n" +
-          s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
+            s"property '$k'. Supported properties are: \n" +
+            s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
       }
     }
 
-    // create the table source
+    // create the table connector
     try {
       factory.create(properties.asJava)
     } catch {
       case t: Throwable =>
         throw new TableException(
-          s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
+          s"Table connector factory '${factory.getClass.getCanonicalName}' caused an exception.",
           t)
     }
   }
 }
+
+object TableSourceFactoryService extends TableConnectorFactoryService[TableSource[_]]
+
+object TableSinkFactoryService extends TableConnectorFactoryService[TableSink[_]]

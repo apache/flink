@@ -57,9 +57,14 @@ public interface Executor {
 	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink job (detached) and returns the result descriptor.
+	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
+
+	/**
+	 * Submits a Flink SQL update job (detached).
+	 */
+	void executeUpdate(SessionContext session, String query) throws SqlExecutionException;
 
 	/**
 	 * Asks for the next changelog results (non-blocking).

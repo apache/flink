@@ -159,7 +159,7 @@ under the License.
 										<include>org.codehaus.commons.compiler.properties</include>
 										<include>org/codehaus/janino/**</include>
 										<include>org/codehaus/commons/**</include>
-										<include>META-INF/services/org.apache.flink.table.sources.TableSourceFactory</include>
+										<include>META-INF/services/org.apache.flink.table.connector.TableConnectorFactory</include>
 										<!-- flink-sql-client -->
 										<include>org/jline/**</include>
 										<include>com/fasterxml/jackson/**</include>
@@ -177,13 +177,13 @@ under the License.
 				<version>2.4</version>
 				<executions>
 					<execution>
-						<id>create-table-source-factory-jar</id>
+						<id>create-table-connector-factory-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>table-source-factory</finalName>
+							<finalName>table-connector-factory</finalName>
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-table-source-factory.xml</descriptor>

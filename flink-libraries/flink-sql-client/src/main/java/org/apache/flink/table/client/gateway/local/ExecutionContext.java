@@ -44,11 +44,15 @@ import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Sink;
+import org.apache.flink.table.client.config.Source;
+import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.connector.TableSinkFactoryService;
+import org.apache.flink.table.connector.TableSourceFactoryService;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -73,6 +77,7 @@ public class ExecutionContext<T> {
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, TableSink<?>> tableSinks;
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
 	private final CustomCommandLine<T> activeCommandLine;
@@ -92,13 +97,25 @@ public class ExecutionContext<T> {
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
 
-		// create table sources
+		// create table sources & sinks.
 		tableSources = new HashMap<>();
+		tableSinks = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
-			if (descriptor instanceof TableSourceDescriptor) {
-				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
-						(TableSourceDescriptor) descriptor, classLoader);
-				tableSources.put(name, tableSource);
+			if (descriptor instanceof Source) {
+				tableSources.put(name,
+						(TableSource<?>) TableSourceFactoryService.findAndCreateTableConnector(
+								descriptor, classLoader));
+			} else if (descriptor instanceof Sink) {
+				tableSinks.put(name,
+						(TableSink<?>) TableSinkFactoryService.findAndCreateTableConnector(
+								descriptor, classLoader));
+			} else if (descriptor instanceof SourceSink) {
+				tableSources.put(name,
+						(TableSource<?>) TableSourceFactoryService.findAndCreateTableConnector(
+								((SourceSink) descriptor).toSource(), classLoader));
+				tableSinks.put(name,
+						(TableSink<?>) TableSinkFactoryService.findAndCreateTableConnector(
+								((SourceSink) descriptor).toSink(), classLoader));
 			}
 		});
 
@@ -206,7 +223,12 @@ public class ExecutionContext<T> {
 			queryConfig = createQueryConfig();
 
 			// register table sources
-			tableSources.forEach(tableEnv::registerTableSource);
+			tableSources.forEach((name, source) -> {
+				tableEnv.registerTableSource(name, (TableSource) source);
+			});
+			tableSinks.forEach((name, sink) -> {
+				tableEnv.registerTableSink(name, sink);
+			});
 		}
 
 		public QueryConfig getQueryConfig() {

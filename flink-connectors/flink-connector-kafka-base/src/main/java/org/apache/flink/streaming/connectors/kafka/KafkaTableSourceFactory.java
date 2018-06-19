@@ -21,13 +21,14 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.connector.TableConnectorFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.descriptors.TableDescriptorValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -68,7 +69,12 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link KafkaJsonTableSource}.
  */
-abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
+abstract class KafkaTableSourceFactory implements TableConnectorFactory<TableSource<Row>> {
+
+	@Override
+	public String tableType() {
+		return TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE();
+	}
 
 	@Override
 	public Map<String, String> requiredContext() {

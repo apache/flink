@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
+import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.table.descriptors.FileSystemValidator._
 
 /**
   * Connector descriptor for a file system.
@@ -27,6 +28,8 @@ class FileSystem extends ConnectorDescriptor(
     CONNECTOR_TYPE_VALUE, version = 1, formatNeeded = true) {
 
   private var path: Option[String] = None
+  private var numFiles: Option[Int] = None
+  private var writeMode: Option[String] = None
 
   /**
     * Sets the path to a file or directory in a file system.
@@ -39,10 +42,32 @@ class FileSystem extends ConnectorDescriptor(
   }
 
   /**
+    * Set the number of files to write.
+    *
+    * @param n number of files
+    */
+  def numFiles(n: Int): FileSystem = {
+    this.numFiles = Some(n)
+    this
+  }
+
+  /**
+    * Set the write mode.
+    *
+    * @param mode write mode.
+    */
+  def writeMode(mode: String): FileSystem = {
+    this.writeMode = Some(mode)
+    this
+  }
+
+  /**
     * Internal method for properties conversion.
     */
   override protected def addConnectorProperties(properties: DescriptorProperties): Unit = {
     path.foreach(properties.putString(CONNECTOR_PATH, _))
+    writeMode.foreach(mode => properties.putString(WRITE_MODE, mode))
+    numFiles.foreach(properties.putInt(NUM_FILES, _))
   }
 }
 

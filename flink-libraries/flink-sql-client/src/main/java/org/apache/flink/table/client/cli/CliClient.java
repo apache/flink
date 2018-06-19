@@ -210,6 +210,9 @@ public class CliClient {
 				case SELECT:
 					callSelect(cmdCall);
 					break;
+				case INSERT:
+					callInsert(cmdCall);
+					break;
 				case SOURCE:
 					callSource(cmdCall);
 					break;
@@ -333,6 +336,10 @@ public class CliClient {
 		} catch (SqlExecutionException e) {
 			printException(e);
 		}
+	}
+
+	private void callInsert(SqlCommandCall cmdCall) {
+		executor.executeUpdate(context, cmdCall.operands[0]);
 	}
 
 	private void callSource(SqlCommandCall cmdCall) {

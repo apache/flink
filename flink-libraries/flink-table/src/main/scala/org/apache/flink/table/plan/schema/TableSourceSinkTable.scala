@@ -21,29 +21,23 @@ package org.apache.flink.table.plan.schema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sinks.TableSink
 
-/** Class which implements the logic to convert a [[TableSink]] to Calcite Table */
-class TableSinkTable[T](
-    val tableSink: TableSink[T],
-    val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN) {
+class TableSourceSinkTable[T1, T2](val tableSourceTableOpt: Option[TableSourceTable[T1]],
+                                   val tableSinkTableOpt: Option[TableSinkTable[T2]])
+  extends AbstractTable {
 
-  /** Returns the row type of the table with this tableSink.
-    *
-    * @param typeFactory Type factory with which to create the type
-    * @return Row type
-    */
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildLogicalRowType(tableSink.getFieldNames, tableSink.getFieldTypes)
+  // In streaming case, the table schema as source and sink can differ because of extra
+  // rowtime/proctime fields. We will always return the source table schema if tableSourceTable
+  // is not None, otherwise return the sink table schema. We move the Calcite validation logic of
+  // the sink table schema into Flink. This allows us to have different schemas as source and sink
+  // of the same table.
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    tableSourceTableOpt.map(_.getRowType(typeFactory))
+      .orElse(tableSinkTableOpt.map(_.getRowType(typeFactory))).orNull
   }
 
-  /**
-    * Returns statistics of current table
-    *
-    * @return statistics of current table
-    */
-  def getStatistic: Statistic = statistic
+  override def getStatistic: Statistic = {
+    tableSourceTableOpt.map(_.getStatistic)
+      .orElse(tableSinkTableOpt.map(_.getStatistic)).orNull
+  }
 }

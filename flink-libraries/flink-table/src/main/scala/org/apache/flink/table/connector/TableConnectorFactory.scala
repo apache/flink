@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connector
 
 import java.util
 
-/**
-  * A factory to create a [[TableSource]]. This factory is used with Java's Service Provider
-  * Interfaces (SPI) for discovering. A factory is called with a set of normalized properties that
-  * describe the desired table source. The factory allows for matching to the given set of
-  * properties and creating a configured [[TableSource]] accordingly.
-  *
-  * Classes that implement this interface need to be added to the
-  * "META_INF/services/org.apache.flink.table.sources.TableSourceFactory' file of a JAR file in
-  * the current classpath to be found.
-  */
-trait TableSourceFactory[T] {
+trait TableConnectorFactory[T] {
+  /**
+    * Specify the type of the table connector, check
+    * [[org.apache.flink.table.descriptors.TableDescriptorValidator]] for all values.
+    *
+    * @return the table connector type,.
+    */
+  def tableType() : String
 
   /**
     * Specifies the context that this factory has been implemented for. The framework guarantees
@@ -67,11 +64,11 @@ trait TableSourceFactory[T] {
   def supportedProperties(): util.List[String]
 
   /**
-    * Creates and configures a [[TableSource]] using the given properties.
+    * Creates and configures a [[org.apache.flink.table.sources.TableSource]] or
+    * [[org.apache.flink.table.sinks.TableSink]] using the given properties.
     *
-    * @param properties normalized properties describing a table source
-    * @return the configured table source
+    * @param properties normalized properties describing a table connector.
+    * @return the configured table connector
     */
-  def create(properties: util.Map[String, String]): TableSource[T]
-
+  def create(properties: util.Map[String, String]): T
 }

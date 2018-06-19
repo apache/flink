@@ -18,22 +18,29 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
-/** Table which defines an external table via a [[TableSource]] */
+/** Abstract class which define the interfaces required to convert a [[TableSource]] to
+  * a Calcite Table */
 abstract class TableSourceTable[T](
     val tableSource: TableSource[T],
-    val statistic: FlinkStatistic)
-  extends AbstractTable {
+    val statistic: FlinkStatistic) {
+
+  /** Returns the row type of the table with this tableSource.
+    *
+    * @param typeFactory Type factory with which to create the type
+    * @return Row type
+    */
+  def getRowType(typeFactory: RelDataTypeFactory): RelDataType
 
   /**
     * Returns statistics of current table
     *
     * @return statistics of current table
     */
-  override def getStatistic: Statistic = statistic
+  def getStatistic: Statistic = statistic
 
 }

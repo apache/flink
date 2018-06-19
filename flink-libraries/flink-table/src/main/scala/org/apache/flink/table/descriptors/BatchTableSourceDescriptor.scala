@@ -19,7 +19,8 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableException, ValidationException}
-import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceFactoryService}
+import org.apache.flink.table.connector.TableSourceFactoryService
+import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 
 class BatchTableSourceDescriptor(tableEnv: BatchTableEnvironment, connector: ConnectorDescriptor)
   extends TableSourceDescriptor {
@@ -43,7 +44,7 @@ class BatchTableSourceDescriptor(tableEnv: BatchTableEnvironment, connector: Con
     * Searches for the specified table source, configures it accordingly, and returns it.
     */
   def toTableSource: TableSource[_] = {
-    val source = TableSourceFactoryService.findAndCreateTableSource(this)
+    val source = TableSourceFactoryService.findAndCreateTableConnector(this)
     source match {
       case _: BatchTableSource[_] => source
       case _ => throw new TableException(

@@ -69,6 +69,7 @@ public final class SqlCommandParser {
 					return new String[] {operands.substring(0, delimiter), operands.substring(delimiter + 1)};
 				}
 			case SELECT:
+			case INSERT:
 				return new String[] {originalCall};
 			default:
 				return new String[] {operands};
@@ -89,6 +90,7 @@ public final class SqlCommandParser {
 		DESCRIBE("describe"),
 		EXPLAIN("explain"),
 		SELECT("select"),
+		INSERT("insert"),
 		SET("set"),
 		RESET("reset"),
 		SOURCE("source");

@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
+import org.apache.flink.table.descriptors.FileSystemValidator._
+
+import scala.collection.JavaConversions._
 
 /**
   * Validator for [[FileSystem]].
@@ -30,6 +33,8 @@ class FileSystemValidator extends ConnectorDescriptorValidator {
     super.validate(properties)
     properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, isOptional = false)
     properties.validateString(CONNECTOR_PATH, isOptional = false, minLen = 1)
+    properties.validateInt(NUM_FILES, isOptional = true, min = 1)
+    properties.validateEnumValues(WRITE_MODE, true, WriteMode.values().map(_.toString).toList)
   }
 }
 
@@ -37,5 +42,6 @@ object FileSystemValidator {
 
   val CONNECTOR_TYPE_VALUE = "filesystem"
   val CONNECTOR_PATH = "connector.path"
-
+  val NUM_FILES = "connector.num-files"
+  val WRITE_MODE = "connector.write-mode"
 }

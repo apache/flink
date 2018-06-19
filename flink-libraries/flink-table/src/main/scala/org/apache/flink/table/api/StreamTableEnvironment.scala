@@ -42,7 +42,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamRel, UpdateAsRetractionTrait}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTableSourceTable, TableSinkTable}
+import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.conversion._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -121,7 +121,21 @@ abstract class StreamTableEnvironment(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
-        registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
+        Option(getTable(name)) match {
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTableOpt match {
+            case Some(_: TableSourceTable[_]) =>
+              throw new TableException(s"Table \'$name\' already exists. " +
+                s"Please, choose a different name.")
+            case _ => replaceRegisteredTable(name,
+              new TableSourceSinkTable(Some(new StreamTableSourceTable(streamTableSource)),
+                table.tableSinkTableOpt))
+          }
+          case None => registerTableInternal(name,
+            new TableSourceSinkTable(Some(new StreamTableSourceTable(streamTableSource)),
+              None))
+          case _ => throw new TableException(s"Table \'$name\' already exists. " +
+            s"Please, choose a different name.")
+        }
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
           "StreamTableEnvironment")
@@ -178,14 +192,39 @@ abstract class StreamTableEnvironment(
       throw new TableException("Same number of field names and types required.")
     }
 
-    tableSink match {
+    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+      throw TableException("TableSink is not configured.")
+    }
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+    configuredSink match {
       case streamTableSink@(
         _: AppendStreamTableSink[_] |
         _: UpsertStreamTableSink[_] |
         _: RetractStreamTableSink[_]) =>
 
-        val configuredSink = streamTableSink.configure(fieldNames, fieldTypes)
-        registerTableInternal(name, new TableSinkTable(configuredSink))
+        Option(getTable(name)) match {
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTableOpt match {
+            case Some(_: TableSinkTable[_]) =>
+              throw new TableException(s"Table \'$name\' already exists. " +
+                s"Please, choose a different name.")
+            case _ => replaceRegisteredTable(name, new TableSourceSinkTable(
+              table.tableSourceTableOpt,
+              Some(new TableSinkTable(configuredSink))))
+          }
+          case None => registerTableInternal(name,
+            new TableSourceSinkTable(None, Some(new TableSinkTable(configuredSink))))
+          case _ => throw new TableException(s"Table \'$name\' already exists. " +
+            s"Please, choose a different name.")
+        }
       case _ =>
         throw new TableException(
           "Only AppendStreamTableSink, UpsertStreamTableSink, and RetractStreamTableSink can be " +

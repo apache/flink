@@ -62,16 +62,34 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+  - name: TableNumber3
+    type: sink
+    schema:
+      - name: IntegerField1
+        type: INT
+      - name: StringField1
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_2"
+      num-files: 1
+    format:
+      type: csv
+      fields:
+        - name: IntegerField1
+          type: INT
+        - name: StringField1
+          type: VARCHAR
 
 execution:
-  type: "$VAR_2"
+  type: "$VAR_3"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
   parallelism: 1
   max-parallelism: 16
   min-idle-state-retention: 0
   max-idle-state-retention: 0
-  result-mode: "$VAR_3"
+  result-mode: "$VAR_4"
 
 deployment:
   response-timeout: 5000

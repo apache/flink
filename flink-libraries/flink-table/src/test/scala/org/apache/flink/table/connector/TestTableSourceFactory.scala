@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connector
 
 import java.util
 
@@ -24,12 +24,14 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.descriptors.TableDescriptorValidator
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
 /**
   * Table source factory for testing.
   */
-class TestTableSourceFactory extends TableSourceFactory[Row] {
+class TestTableSourceFactory extends TableConnectorFactory[TableSource[Row]] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -60,4 +62,6 @@ class TestTableSourceFactory extends TableSourceFactory[Row] {
       override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
     }
   }
+
+  override def tableType(): String = TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE
 }

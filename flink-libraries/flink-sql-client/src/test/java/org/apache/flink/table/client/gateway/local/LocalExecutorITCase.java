@@ -43,9 +43,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
@@ -69,6 +74,9 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
+
+	@Rule
+	public TemporaryFolder folder = new TemporaryFolder();
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
@@ -101,7 +109,8 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> actualTables = executor.listTables(session);
 
-		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2");
+		final List<String> expectedTables =
+				Arrays.asList("TableNumber1", "TableNumber2", "TableNumber3");
 		assertEquals(expectedTables, actualTables);
 	}
 
@@ -149,14 +158,47 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testStreamQueryExecutionChangelog() throws Exception {
+	public void testExecuteUpdate() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
+		File outputFile = folder.newFile("output.csv");
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_3", "changelog");
+		replaceVars.put("$VAR_2", outputFile.getAbsolutePath());
+		replaceVars.put("$VAR_3", "streaming");
+		replaceVars.put("$VAR_4", "changelog");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			executor.executeUpdate(
+					session, "INSERT INTO TableNumber3 SELECT * FROM TableNumber1");
+			Thread.sleep(1000);
+		} finally {
+			executor.stop(session);
+			assertEquals("42,Hello World#" +
+							"22,Hello World#" +
+							"32,Hello World#" +
+							"32,Hello World#" +
+							"42,Hello World#" +
+							"52,Hello World!!!!",
+					Files.lines(outputFile.toPath()).collect(Collectors.joining("#")));
+		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void testQueryExecutionChangelog() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		File outputFile = folder.newFile("output.csv");
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_1", "/");
+		replaceVars.put("$VAR_2", outputFile.getAbsolutePath());
+		replaceVars.put("$VAR_3", "streaming");
+		replaceVars.put("$VAR_4", "changelog");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -200,11 +242,13 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testStreamQueryExecutionTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
+		File outputFile = folder.newFile("output.csv");
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "streaming");
-		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_2", outputFile.getAbsolutePath());
+		replaceVars.put("$VAR_3", "streaming");
+		replaceVars.put("$VAR_4", "table");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -235,11 +279,13 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testBatchQueryExecution() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
+		File outputFile = folder.newFile("output.csv");
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "batch");
-		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_2", outputFile.getAbsolutePath());
+		replaceVars.put("$VAR_3", "batch");
+		replaceVars.put("$VAR_4", "table");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());

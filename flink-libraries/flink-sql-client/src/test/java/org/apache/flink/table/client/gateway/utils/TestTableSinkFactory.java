@@ -20,26 +20,20 @@ package org.apache.flink.table.client.gateway.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.connector.TableConnectorFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.descriptors.TableDescriptorValidator;
-import org.apache.flink.table.sources.DefinedProctimeAttribute;
-import org.apache.flink.table.sources.DefinedRowtimeAttributes;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
@@ -49,13 +43,13 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 
 /**
- * Table source factory for testing the classloading in {@link DependencyTest}.
+ * Table sink factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSourceFactory implements TableConnectorFactory<TableSource<Row>> {
+public class TestTableSinkFactory implements TableConnectorFactory<TableSink<Row>> {
 
 	@Override
 	public String tableType() {
-		return TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE();
+		return TableDescriptorValidator.TABLE_TYPE_VALUE_SINK();
 	}
 
 	@Override
@@ -77,35 +71,27 @@ public class TestTableSourceFactory implements TableConnectorFactory<TableSource
 	}
 
 	@Override
-	public TableSource<Row> create(Map<String, String> properties) {
+	public TableSink<Row> create(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
-		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
-		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
-		return new TestTableSource(
+		return new TestTableSink(
 			params.getTableSchema(SCHEMA()),
-			properties.get("connector.test-property"),
-			proctime.orElse(null),
-			rowtime);
+			properties.get("connector.test-property"));
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Test table source.
+	 * Test table sink.
 	 */
-	public static class TestTableSource implements StreamTableSource<Row>, DefinedRowtimeAttributes, DefinedProctimeAttribute {
+	public static class TestTableSink implements TableSink<Row>, AppendStreamTableSink<Row> {
 
 		private final TableSchema schema;
 		private final String property;
-		private final String proctime;
-		private final List<RowtimeAttributeDescriptor> rowtime;
 
-		public TestTableSource(TableSchema schema, String property, String proctime, List<RowtimeAttributeDescriptor> rowtime) {
+		public TestTableSink(TableSchema schema, String property) {
 			this.schema = schema;
 			this.property = property;
-			this.proctime = proctime;
-			this.rowtime = rowtime;
 		}
 
 		public String getProperty() {
@@ -113,33 +99,27 @@ public class TestTableSourceFactory implements TableConnectorFactory<TableSource
 		}
 
 		@Override
-		public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-			return null;
-		}
-
-		@Override
-		public TypeInformation<Row> getReturnType() {
+		public TypeInformation<Row> getOutputType() {
 			return Types.ROW(schema.getColumnNames(), schema.getTypes());
 		}
 
 		@Override
-		public TableSchema getTableSchema() {
-			return schema;
+		public String[] getFieldNames() {
+			return schema.getColumnNames();
 		}
 
 		@Override
-		public String explainSource() {
-			return "TestTableSource";
+		public TypeInformation<?>[] getFieldTypes() {
+			return schema.getTypes();
 		}
 
 		@Override
-		public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
-			return rowtime;
+		public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+			return new TestTableSink(new TableSchema(fieldNames, fieldTypes), property);
 		}
 
 		@Override
-		public String getProctimeAttribute() {
-			return proctime;
+		public void emitDataStream(DataStream<Row> dataStream) {
 		}
 	}
 }
