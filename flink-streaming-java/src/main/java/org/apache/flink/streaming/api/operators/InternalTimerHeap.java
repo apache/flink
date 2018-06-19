@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -56,11 +57,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * @param <N> type of the namespace of the internal timers managed by this priority queue.
  */
 public class InternalTimerHeap<K, N> implements Iterable<InternalTimer<K, N>> {
-
-	/**
-	 * A safe maximum size for arrays in the JVM.
-	 */
-	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
 	/**
 	 * Comparator for {@link TimerHeapInternalTimer}, based on the timestamp in ascending order.

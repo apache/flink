@@ -39,6 +39,8 @@ import java.util.TreeSet;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
+
 /**
  * Implementation of Flink's in-memory state tables with copy-on-write support. This map does not support null values
  * for key or namespace.
@@ -103,9 +105,6 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * The logger.
 	 */
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
-
-	/** Maximum save array size to allocate in a JVM. */
-	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
 	/**
 	 * Min capacity (other than zero) for a {@link CopyOnWriteStateTable}. Must be a power of two
