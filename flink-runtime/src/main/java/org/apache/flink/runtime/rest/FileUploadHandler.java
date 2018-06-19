@@ -110,7 +110,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				final HttpContent httpContent = (HttpContent) msg;
 				currentHttpPostRequestDecoder.offer(httpContent);
 
-				while (currentHttpPostRequestDecoder.hasNext()) {
+				while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT && currentHttpPostRequestDecoder.hasNext()) {
 					final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
 					if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
 						final DiskFileUpload fileUpload = (DiskFileUpload) data;
