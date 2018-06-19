@@ -42,11 +42,13 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.time.StopWatch;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -235,7 +237,17 @@ public class BucketingSink<T>
 	 */
 	private static final String DEFAULT_PART_PREFIX = "part";
 
-	/**
+  /**
+   * The default prefix for the valid in-progress file.
+   */
+	private static final String DEFAULT_VALID_IN_PROGRESS_PREFIX = "_";
+
+  /**
+   * The default suffix for the valid in-progress file.
+   */
+	private static final String DEFAULT_VALID_IN_PROGRESS_SUFFIX = ".valid-in-progress";
+
+  /**
 	 * The default suffix for part files.
 	 */
 	private static final String DEFAULT_PART_SUFFIX = null;
@@ -284,7 +296,11 @@ public class BucketingSink<T>
 	private String partPrefix = DEFAULT_PART_PREFIX;
 	private String partSuffix = DEFAULT_PART_SUFFIX;
 
+	private String validInProgressPrefix = DEFAULT_VALID_IN_PROGRESS_PREFIX;
+	private String validInProgressSuffix = DEFAULT_VALID_IN_PROGRESS_SUFFIX;
+
 	private boolean useTruncate = true;
+	private boolean forceTruncateInProgressFile = false;
 
 	/**
 	 * The timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
@@ -382,7 +398,6 @@ public class BucketingSink<T>
 		if (this.refTruncate == null) {
 			this.refTruncate = reflectTruncate(fs);
 		}
-
 		OperatorStateStore stateStore = context.getOperatorStateStore();
 		restoredBucketStates = stateStore.getSerializableListState("bucket-states");
 
@@ -420,6 +435,15 @@ public class BucketingSink<T>
 				return processingTimeService.getCurrentProcessingTime();
 			}
 		};
+	}
+
+  /**
+   * When recovery the in-progress file from checkpoint, and hadoop version does not support truncate() function,
+   * enable force truncate will truncate the in-progress file through reading and writing a new file.
+   * Note: it may take a long time to truncate the in-progress file when the in-progress file is large.
+   */
+	public void enableForceTruncateInProgressFile(boolean forceTruncateInProgressFile) {
+		this.forceTruncateInProgressFile = forceTruncateInProgressFile;
 	}
 
 	/**
@@ -679,6 +703,10 @@ public class BucketingSink<T>
 		return new Path(path.getParent(), validLengthPrefix + path.getName()).suffix(validLengthSuffix);
 	}
 
+	private Path getValidInProgressPathFor(Path path) {
+		return new Path(path.getParent(), validInProgressPrefix + path.getName()).suffix(validInProgressSuffix);
+	}
+
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (state.bucketStates) {
@@ -760,7 +788,6 @@ public class BucketingSink<T>
 		Preconditions.checkNotNull(restoredState);
 
 		for (BucketState<T> bucketState : restoredState.bucketStates.values()) {
-
 			// we can clean all the pending files since they were renamed to
 			// final files after this checkpoint was successful
 			// (we re-start from the last **successful** checkpoint)
@@ -833,25 +860,8 @@ public class BucketingSink<T>
 					LOG.debug("Truncating {} to valid length {}", partPath, validLength);
 					// some-one else might still hold the lease from a previous try, we are
 					// recovering, after all ...
-					if (fs instanceof DistributedFileSystem) {
-						DistributedFileSystem dfs = (DistributedFileSystem) fs;
-						LOG.debug("Trying to recover file lease {}", partPath);
-						dfs.recoverLease(partPath);
-						boolean isclosed = dfs.isFileClosed(partPath);
-						StopWatch sw = new StopWatch();
-						sw.start();
-						while (!isclosed) {
-							if (sw.getTime() > asyncTimeout) {
-								break;
-							}
-							try {
-								Thread.sleep(500);
-							} catch (InterruptedException e1) {
-								// ignore it
-							}
-							isclosed = dfs.isFileClosed(partPath);
-						}
-					}
+					checkLeaseAndFileClosed(partPath);
+
 					Boolean truncated = (Boolean) refTruncate.invoke(fs, partPath, validLength);
 					if (!truncated) {
 						LOG.debug("Truncate did not immediately complete for {}, waiting...", partPath);
@@ -875,6 +885,29 @@ public class BucketingSink<T>
 							throw new RuntimeException("Truncate did not truncate to right length. Should be " + validLength + " is " + newLen + ".");
 						}
 					}
+				} else if (forceTruncateInProgressFile) {
+					checkLeaseAndFileClosed(partPath);
+					Path validInProgressFilePath = getValidInProgressPathFor(partPath);
+					if (fs.exists(partPath)) {
+						FSDataInputStream partFileIn = fs.open(partPath);
+						FSDataOutputStream validInProgressFileOut = fs.create(validInProgressFilePath, true);
+						try {
+							IOUtils.copyBytes(partFileIn, validInProgressFileOut, (Long) validLength, true);
+							fs.rename(partPath, partInProgressPath);
+							try {
+								fs.rename(validInProgressFilePath, partPath);
+							} catch (IOException e) {
+								fs.rename(partInProgressPath, partPath);
+								throw e;
+							}
+							fs.delete(partInProgressPath, true);
+						} catch (IOException e) {
+							if (fs.exists(validInProgressFilePath)) {
+								fs.delete(validInProgressFilePath, false);
+							}
+							throw e;
+						}
+					}
 				} else {
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
 					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
@@ -891,6 +924,28 @@ public class BucketingSink<T>
 			} catch (InvocationTargetException | IllegalAccessException e) {
 				LOG.error("Could not invoke truncate.", e);
 				throw new RuntimeException("Could not invoke truncate.", e);
+			}
+		}
+	}
+
+	private void checkLeaseAndFileClosed(Path partPath) throws IOException {
+		if (fs instanceof DistributedFileSystem) {
+			DistributedFileSystem dfs = (DistributedFileSystem) fs;
+			LOG.debug("Trying to recover file lease {}", partPath);
+			dfs.recoverLease(partPath);
+			boolean isclosed = dfs.isFileClosed(partPath);
+			StopWatch sw = new StopWatch();
+			sw.start();
+			while (!isclosed) {
+				if (sw.getTime() > asyncTimeout) {
+					break;
+				}
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e1) {
+					// ignore it
+				}
+				isclosed = dfs.isFileClosed(partPath);
 			}
 		}
 	}
