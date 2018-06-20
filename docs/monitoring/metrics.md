@@ -700,6 +700,32 @@ Flink metric types are mapped to Prometheus metric types as follows:
 
 All Flink metrics variables (see [List of all Variables](#list-of-all-variables)) are exported to Prometheus as labels. 
 
+### PrometheusPushGateway (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-prometheus-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Parameters:
+
+{% include generated/prometheus_push_gateway_reporter_configuration.html %}
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+metrics.reporter.promgateway.host: localhost
+metrics.reporter.promgateway.port: 9091
+metrics.reporter.promgateway.jobName: myJob
+metrics.reporter.promgateway.randomJobNameSuffix: true
+metrics.reporter.promgateway.deleteOnShutdown: false
+
+{% endhighlight %}
+
+The PrometheusPushGatewayReporter pushes metrics to a [Pushgateway](https://github.com/prometheus/pushgateway), which can be scraped by Prometheus.
+
+Please see the [Prometheus documentation](https://prometheus.io/docs/practices/pushing/) for use-cases.
+
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
 
 In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder
