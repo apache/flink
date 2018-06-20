@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -132,6 +131,6 @@ public class JarUploadHandlerTest extends TestLogger {
 			EmptyMessageParameters.getInstance(),
 			Collections.emptyMap(),
 			Collections.emptyMap(),
-			new FileUploads(Collections.singleton(uploadedFile)));
+			Collections.singleton(uploadedFile));
 	}
 }

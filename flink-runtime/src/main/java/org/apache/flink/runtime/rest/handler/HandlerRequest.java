@@ -43,21 +43,21 @@ import java.util.StringJoiner;
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
 	private final R requestBody;
-	private final FileUploads uploadedFiles;
+	private final Collection<Path> uploadedFiles;
 	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
 	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
 	public HandlerRequest(R requestBody, M messageParameters) throws HandlerRequestException {
-		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap(), FileUploads.EMPTY);
+		this(requestBody, messageParameters, Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList());
 	}
 
 	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters) throws HandlerRequestException {
-		this(requestBody, messageParameters, receivedPathParameters, receivedQueryParameters, FileUploads.EMPTY);
+		this(requestBody, messageParameters, receivedPathParameters, receivedQueryParameters, Collections.emptyList());
 	}
 
-	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, FileUploads uploadedFiles) throws HandlerRequestException {
+	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<Path> uploadedFiles) throws HandlerRequestException {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
-		this.uploadedFiles = Preconditions.checkNotNull(uploadedFiles);
+		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
 		Preconditions.checkNotNull(messageParameters);
 		Preconditions.checkNotNull(receivedQueryParameters);
 		Preconditions.checkNotNull(receivedPathParameters);
@@ -142,6 +142,6 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 
 	@Nonnull
 	public Collection<Path> getUploadedFiles() {
-		return uploadedFiles.getUploadedFiles();
+		return uploadedFiles;
 	}
 }

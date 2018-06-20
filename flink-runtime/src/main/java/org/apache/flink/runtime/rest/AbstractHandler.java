@@ -144,7 +144,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 						untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
 						routedRequest.getRouteResult().pathParams(),
 						routedRequest.getRouteResult().queryParams(),
-						uploadedFiles);
+						uploadedFiles.getUploadedFiles());
 				} catch (HandlerRequestException hre) {
 					log.error("Could not create the handler request.", hre);
 
