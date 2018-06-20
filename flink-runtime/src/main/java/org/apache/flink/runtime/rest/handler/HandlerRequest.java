@@ -26,6 +26,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -139,7 +141,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 	}
 
 	@Nonnull
-	public FileUploads getFileUploads() {
-		return uploadedFiles;
+	public Collection<Path> getUploadedFiles() {
+		return uploadedFiles.getUploadedFiles();
 	}
 }

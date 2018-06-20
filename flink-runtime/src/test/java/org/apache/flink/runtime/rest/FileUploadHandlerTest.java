@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
-import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -255,7 +254,7 @@ public class FileUploadHandlerTest {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			MultipartFileHandler.verifyFileUpload(request.getFileUploads());
+			MultipartFileHandler.verifyFileUpload(request.getUploadedFiles());
 			this.lastReceivedRequest = request.getRequestBody();
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
@@ -317,7 +316,7 @@ public class FileUploadHandlerTest {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			Collection<Path> uploadedFiles = request.getFileUploads().getUploadedFiles();
+			Collection<Path> uploadedFiles = request.getUploadedFiles();
 			if (!uploadedFiles.isEmpty()) {
 				throw new RestHandlerException("This handler should not have received file uploads.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			}
@@ -356,12 +355,11 @@ public class FileUploadHandlerTest {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			verifyFileUpload(request.getFileUploads());
+			verifyFileUpload(request.getUploadedFiles());
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
 
-		static void verifyFileUpload(FileUploads fileUploads) throws RestHandlerException {
-			Collection<Path> uploadedFiles = fileUploads.getUploadedFiles();
+		static void verifyFileUpload(Collection<Path> uploadedFiles) throws RestHandlerException {
 			try {
 				assertEquals(2, uploadedFiles.size());
 

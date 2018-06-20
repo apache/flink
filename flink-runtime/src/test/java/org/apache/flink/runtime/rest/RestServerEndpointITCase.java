@@ -661,7 +661,7 @@ public class RestServerEndpointITCase extends TestLogger {
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
-			Collection<Path> uploadedFiles = request.getFileUploads().getUploadedFiles();
+			Collection<Path> uploadedFiles = request.getUploadedFiles();
 			if (uploadedFiles.size() != 1) {
 				throw new RestHandlerException("Expected 1 file, received " + uploadedFiles.size() + '.', HttpResponseStatus.BAD_REQUEST);
 			}

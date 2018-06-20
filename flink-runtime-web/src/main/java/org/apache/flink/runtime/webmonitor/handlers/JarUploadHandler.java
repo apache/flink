@@ -70,7 +70,7 @@ public class JarUploadHandler extends
 	protected CompletableFuture<JarUploadResponseBody> handleRequest(
 			@Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
 			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-		Collection<Path> uploadedFiles = request.getFileUploads().getUploadedFiles();
+		Collection<Path> uploadedFiles = request.getUploadedFiles().getUploadedFiles();
 		if (uploadedFiles.size() != 1) {
 			throw new RestHandlerException("Exactly 1 file must be sent, received " + uploadedFiles.size() + '.', HttpResponseStatus.BAD_REQUEST);
 		}
