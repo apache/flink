@@ -59,7 +59,7 @@ public final class FileUploads implements AutoCloseable {
 				directories.add(fileOrDirectory);
 				FileAdderVisitor visitor = new FileAdderVisitor();
 				Files.walkFileTree(fileOrDirectory, visitor);
-				files.addAll(visitor.get());
+				files.addAll(visitor.getContainedFiles());
 			} else {
 				files.add(fileOrDirectory);
 			}
@@ -90,7 +90,7 @@ public final class FileUploads implements AutoCloseable {
 
 		private final Collection<Path> files = new ArrayList<>(4);
 
-		Collection<Path> get() {
+		Collection<Path> getContainedFiles() {
 			return files;
 		}
 
