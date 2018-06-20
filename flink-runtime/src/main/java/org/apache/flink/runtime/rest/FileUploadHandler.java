@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.rest.handler.FileUploads;
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
@@ -28,6 +30,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
@@ -40,6 +43,7 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -115,7 +119,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 						currentJsonPayload = request.get();
 					} else {
-						LOG.warn("Received unknown attribute {}, will be ignored.", data.getName());
+						LOG.warn("Received unknown attribute {}.", data.getName());
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							currentHttpRequest,
+							new ErrorResponseBody("Received unknown attribute " + data.getName() + '.'),
+							HttpResponseStatus.BAD_REQUEST,
+							Collections.emptyMap()
+						);
+						deleteUploadedFiles();
+						reset();
+						return;
 					}
 				}
 			}
@@ -129,6 +143,13 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 			}
 		} else {
 			ctx.fireChannelRead(msg);
+		}
+	}
+
+	private void deleteUploadedFiles() {
+		try (FileUploads uploads = new FileUploads(Collections.singleton(currentUploadDir))) {
+		} catch (IOException e) {
+			LOG.warn("Could not cleanup uploaded files.", e);
 		}
 	}
 
