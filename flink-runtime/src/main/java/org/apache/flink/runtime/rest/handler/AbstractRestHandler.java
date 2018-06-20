@@ -73,11 +73,6 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) {
 		CompletableFuture<P> response;
 
-		if (!messageHeaders.acceptsFileUploads() && !handlerRequest.getUploadedFiles().isEmpty()) {
-			processRestHandlerException(ctx, httpRequest, new RestHandlerException("File uploads not allowed.", HttpResponseStatus.BAD_REQUEST));
-			return;
-		}
-
 		try {
 			response = handleRequest(handlerRequest, gateway);
 		} catch (RestHandlerException e) {

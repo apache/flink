@@ -106,6 +106,16 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 
 			try (FileUploads uploadedFiles = FileUploadHandler.getMultipartFileUploads(ctx)) {
 
+				if (!untypedResponseMessageHeaders.acceptsFileUploads() && !uploadedFiles.getUploadedFiles().isEmpty()) {
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						new ErrorResponseBody("File uploads not allowed."),
+						HttpResponseStatus.BAD_REQUEST,
+						responseHeaders);
+					return;
+				}
+
 				R request;
 				if (msgContent.capacity() == 0) {
 					try {
