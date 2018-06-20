@@ -121,16 +121,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 							currentJsonPayload = request.get();
 						} else {
+							HttpRequest tmpRequest = currentHttpRequest;
+							deleteUploadedFiles();
+							reset();
 							LOG.warn("Received unknown attribute {}.", data.getName());
 							HandlerUtils.sendErrorResponse(
 								ctx,
-								currentHttpRequest,
+								tmpRequest,
 								new ErrorResponseBody("Received unknown attribute " + data.getName() + '.'),
 								HttpResponseStatus.BAD_REQUEST,
 								Collections.emptyMap()
 							);
-							deleteUploadedFiles();
-							reset();
 							return;
 						}
 					}
@@ -174,6 +175,9 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	}
 
 	private void reset() {
+		// destroy() can fail because some data is stored multiple times in the decoder causing an IllegalReferenceCountException
+		// see https://github.com/netty/netty/issues/7814
+		currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
 		currentHttpRequest = null;

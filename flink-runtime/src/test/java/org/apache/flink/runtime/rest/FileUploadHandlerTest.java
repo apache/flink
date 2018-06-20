@@ -68,8 +68,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -94,13 +96,16 @@ public class FileUploadHandlerTest extends TestLogger {
 	private static MultipartFileHandler fileHandler;
 	private static File file1;
 	private static File file2;
+	
+	private static Path configuredUploadDir;
 
 	@BeforeClass
 	public static void setup() throws Exception {
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.PORT, 0);
 		config.setString(RestOptions.ADDRESS, "localhost");
-		config.setString(WebOptions.UPLOAD_DIR, TEMPORARY_FOLDER.newFolder().getCanonicalPath());
+		configuredUploadDir = TEMPORARY_FOLDER.newFolder().toPath();
+		config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 
@@ -140,6 +145,13 @@ public class FileUploadHandlerTest extends TestLogger {
 		}
 	}
 
+	private static Request buildMixedRequestWithUnknownAttribute(String headerUrl) throws IOException {
+		MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder = addJsonPart(builder, RANDOM.nextInt(), "hello");
+		builder = addFilePart(builder);
+		return finalizeRequest(builder, headerUrl);
+	}
+
 	private static Request buildFileRequest(String headerUrl) {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
 		builder = addFilePart(builder);
@@ -148,13 +160,13 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	private static Request buildJsonRequest(String headerUrl, int index) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
-		builder = addJsonPart(builder, index);
+		builder = addJsonPart(builder, index, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
 		return finalizeRequest(builder, headerUrl);
 	}
 
 	private static Request buildMixedRequest(String headerUrl, int index) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
-		builder = addJsonPart(builder, index);
+		builder = addJsonPart(builder, index, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
 		builder = addFilePart(builder);
 		return finalizeRequest(builder, headerUrl);
 	}
@@ -178,7 +190,7 @@ public class FileUploadHandlerTest extends TestLogger {
 			.addFormDataPart("file2", file2.getName(), filePayload2);
 	}
 
-	private static MultipartBody.Builder addJsonPart(MultipartBody.Builder builder, int index) throws IOException {
+	private static MultipartBody.Builder addJsonPart(MultipartBody.Builder builder, int index, String attribute) throws IOException {
 		TestRequestBody jsonRequestBody = new TestRequestBody(index);
 
 		StringWriter sw = new StringWriter();
@@ -186,7 +198,7 @@ public class FileUploadHandlerTest extends TestLogger {
 
 		String jsonPayload = sw.toString();
 
-		return builder.addFormDataPart(org.apache.flink.runtime.rest.FileUploadHandler.HTTP_ATTRIBUTE_REQUEST, jsonPayload);
+		return builder.addFormDataPart(attribute, jsonPayload);
 	}
 
 	@Test
@@ -257,6 +269,29 @@ public class FileUploadHandlerTest extends TestLogger {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
+	}
+
+	@Test
+	public void testUploadCleanupOnFailure() throws IOException {
+		OkHttpClient client = new OkHttpClient();
+
+		Request request = buildMixedRequestWithUnknownAttribute(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
+		try (Response response = client.newCall(request).execute()) {
+			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+		}
+		assertUploadDirectoryIsEmpty();
+	}
+
+	private static void assertUploadDirectoryIsEmpty() throws IOException {
+		Preconditions.checkArgument(
+			1 == Files.list(configuredUploadDir).count(),
+			"Directory structure in rest upload directory has changed. Test must be adjusted");
+		Optional<Path> actualUploadDir = Files.list(configuredUploadDir).findAny();
+		Preconditions.checkArgument(
+			actualUploadDir.isPresent(),
+			"Expected upload directory does not exist.");
+		System.out.println(Files.list(actualUploadDir.get()).collect(Collectors.toList()));
+		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
 	}
 
 	private static class MultipartMixedHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
