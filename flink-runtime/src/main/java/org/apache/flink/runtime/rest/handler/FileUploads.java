@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.io.FileNotFoundException;
@@ -81,7 +82,7 @@ public final class FileUploads implements AutoCloseable {
 			}
 		}
 		for (Path directory : directoriesToClean) {
-			Files.walkFileTree(directory, CleanupFileVisitor.get());
+			FileUtils.deleteDirectory(directory.toFile());
 		}
 	}
 
@@ -104,33 +105,4 @@ public final class FileUploads implements AutoCloseable {
 		}
 	}
 
-	private static final class CleanupFileVisitor extends SimpleFileVisitor<Path> {
-
-		static final CleanupFileVisitor INSTANCE = new CleanupFileVisitor();
-
-		private CleanupFileVisitor() {
-		}
-
-		static CleanupFileVisitor get() {
-			return INSTANCE;
-		}
-
-		@Override
-		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-			FileVisitResult result = super.visitFile(file, attrs);
-			try {
-				Files.delete(file);
-			} catch (FileNotFoundException ignored) {
-				// file may have been moved by a handler
-			}
-			return result;
-		}
-
-		@Override
-		public FileVisitResult postVisitDirectory(Path dir, IOException e) throws IOException {
-			FileVisitResult result = super.postVisitDirectory(dir, e);
-			Files.delete(dir);
-			return result;
-		}
-	}
 }
