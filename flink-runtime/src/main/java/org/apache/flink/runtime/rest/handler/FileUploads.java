@@ -45,27 +45,26 @@ public final class FileUploads implements AutoCloseable {
 	@SuppressWarnings("resource")
 	public static final FileUploads EMPTY = new FileUploads();
 
+	public static FileUploads forDirectory(Path directory) throws IOException {
+		final Collection<Path> files = new ArrayList<>(4);
+		Preconditions.checkArgument(directory.isAbsolute(), "Path must be absolute.");
+		Preconditions.checkArgument(Files.isDirectory(directory), "Path must be a directory.");
+
+		FileAdderVisitor visitor = new FileAdderVisitor();
+		Files.walkFileTree(directory, visitor);
+		files.addAll(visitor.getContainedFiles());
+		
+		return new FileUploads(Collections.singleton(directory), files);
+	}
+
 	private FileUploads() {
 		this.directoriesToClean = Collections.emptyList();
 		this.uploadedFiles = Collections.emptyList();
 	}
 
-	public FileUploads(Collection<Path> uploadedFilesOrDirectory) throws IOException {
-		final Collection<Path> files = new ArrayList<>(4);
-		final Collection<Path> directories = new ArrayList<>(1);
-		for (Path fileOrDirectory : uploadedFilesOrDirectory) {
-			Preconditions.checkArgument(fileOrDirectory.isAbsolute(), "Path must be absolute.");
-			if (Files.isDirectory(fileOrDirectory)) {
-				directories.add(fileOrDirectory);
-				FileAdderVisitor visitor = new FileAdderVisitor();
-				Files.walkFileTree(fileOrDirectory, visitor);
-				files.addAll(visitor.getContainedFiles());
-			} else {
-				files.add(fileOrDirectory);
-			}
-		}
-		directoriesToClean = Collections.unmodifiableCollection(directories);
-		uploadedFiles = Collections.unmodifiableCollection(files);
+	public FileUploads(Collection<Path> directoriesToClean, Collection<Path> uploadedFiles) {
+		this.directoriesToClean = Preconditions.checkNotNull(directoriesToClean);
+		this.uploadedFiles = Preconditions.checkNotNull(uploadedFiles);
 	}
 
 	public Collection<Path> getUploadedFiles() {

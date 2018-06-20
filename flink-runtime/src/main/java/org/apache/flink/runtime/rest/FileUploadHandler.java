@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -136,7 +137,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				}
 
 				if (httpContent instanceof LastHttpContent) {
-					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(Collections.singleton(currentUploadDir)));
+					ctx.channel().attr(UPLOADED_FILES).set(FileUploads.forDirectory(currentUploadDir));
 					ctx.fireChannelRead(currentHttpRequest);
 					if (currentJsonPayload != null) {
 						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
@@ -164,7 +165,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	private void deleteUploadedFiles() {
 		if (currentUploadDir != null) {
-			try (FileUploads uploads = new FileUploads(Collections.singleton(currentUploadDir))) {
+			try {
+				FileUtils.deleteDirectory(currentUploadDir.toFile());
 			} catch (IOException e) {
 				LOG.warn("Could not cleanup uploaded files.", e);
 			}
