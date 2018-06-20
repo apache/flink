@@ -336,8 +336,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						// Container completed unexpectedly ~> start a new one
 						final Container container = yarnWorkerNode.getContainer();
 						internalRequestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
-						closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 					}
+					// Eagerly close the connection with task manager.
+					closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 				}
 			}
 		);
