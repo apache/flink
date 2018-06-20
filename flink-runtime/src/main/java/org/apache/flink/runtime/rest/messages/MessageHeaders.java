@@ -63,13 +63,4 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	 * @return description for the header
 	 */
 	String getDescription();
-
-	/**
-	 * Returns whether this header allows file uploads.
-	 *
-	 * @return whether this header allows file uploads
-	 */
-	default boolean acceptsFileUploads() {
-		return false;
-	}
 }
