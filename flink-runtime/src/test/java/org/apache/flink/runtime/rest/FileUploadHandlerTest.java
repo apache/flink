@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -70,7 +71,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -468,7 +468,7 @@ public class FileUploadHandlerTest extends TestLogger {
 			RestServerEndpointConfiguration configuration,
 			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers) throws IOException {
 			super(configuration);
-			this.handlers = requireNonNull(handlers);
+			this.handlers = Preconditions.checkNotNull(handlers);
 		}
 
 		@Override
