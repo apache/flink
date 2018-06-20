@@ -22,6 +22,7 @@ import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
@@ -64,7 +65,6 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	public static final String HTTP_ATTRIBUTE_REQUEST = "request";
 
 	private static final AttributeKey<FileUploads> UPLOADED_FILES = AttributeKey.valueOf("UPLOADED_FILES");
-	private static final AttributeKey<byte[]> UPLOADED_JSON = AttributeKey.valueOf("JSON");
 
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
@@ -137,9 +137,12 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 				if (httpContent instanceof LastHttpContent) {
 					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(Collections.singleton(currentUploadDir)));
-					ctx.channel().attr(UPLOADED_JSON).set(currentJsonPayload);
 					ctx.fireChannelRead(currentHttpRequest);
-					ctx.fireChannelRead(httpContent);
+					if (currentJsonPayload != null) {
+						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
+					} else {
+						ctx.fireChannelRead(httpContent);
+					}
 					reset();
 				}
 			} else {
@@ -174,10 +177,6 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		currentHttpRequest = null;
 		currentUploadDir = null;
 		currentJsonPayload = null;
-	}
-
-	public static Optional<byte[]> getMultipartJsonPayload(ChannelHandlerContext ctx) {
-		return Optional.ofNullable(ctx.channel().attr(UPLOADED_JSON).get());
 	}
 
 	public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {

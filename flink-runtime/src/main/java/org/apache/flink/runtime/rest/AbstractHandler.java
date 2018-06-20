@@ -40,7 +40,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappi
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
-import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -104,13 +103,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				return;
 			}
 
-			final ByteBuf msgContent;
-			Optional<byte[]> multipartJsonPayload = FileUploadHandler.getMultipartJsonPayload(ctx);
-			if (multipartJsonPayload.isPresent()) {
-				msgContent = Unpooled.wrappedBuffer(multipartJsonPayload.get());
-			} else {
-				msgContent = ((FullHttpRequest) httpRequest).content();
-			}
+			final ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
 			try (FileUploads uploadedFiles = FileUploadHandler.getMultipartFileUploads(ctx)) {
 
