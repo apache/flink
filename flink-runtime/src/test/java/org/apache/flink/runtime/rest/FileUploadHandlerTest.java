@@ -37,7 +37,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -141,29 +140,26 @@ public class FileUploadHandlerTest extends TestLogger {
 		}
 	}
 
-	private static Request buildRequest(String headerUrl, int index, boolean includeFile, boolean includeJson) throws IOException {
-		Preconditions.checkArgument(includeFile || includeJson, "You have to either include JSON or a file.");
+	private static Request buildFileRequest(String headerUrl) {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder = addFilePart(builder);
+		return finalizeRequest(builder, headerUrl);
+	}
 
-		if (includeFile) {
-			okhttp3.RequestBody filePayload1 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file1);
-			builder = builder.addFormDataPart("file1", file1.getName(), filePayload1);
+	private static Request buildJsonRequest(String headerUrl, int index) throws IOException {
+		MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder = addJsonPart(builder, index);
+		return finalizeRequest(builder, headerUrl);
+	}
 
-			okhttp3.RequestBody filePayload2 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file2);
-			builder = builder.addFormDataPart("file2", file2.getName(), filePayload2);
-		}
+	private static Request buildMixedRequest(String headerUrl, int index) throws IOException {
+		MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder = addJsonPart(builder, index);
+		builder = addFilePart(builder);
+		return finalizeRequest(builder, headerUrl);
+	}
 
-		if (includeJson) {
-			TestRequestBody jsonRequestBody = new TestRequestBody(index);
-
-			StringWriter sw = new StringWriter();
-			OBJECT_MAPPER.writeValue(sw, jsonRequestBody);
-
-			String jsonPayload = sw.toString();
-
-			builder = builder.addFormDataPart(org.apache.flink.runtime.rest.FileUploadHandler.HTTP_ATTRIBUTE_REQUEST, jsonPayload);
-		}
-
+	private static Request finalizeRequest(MultipartBody.Builder builder, String headerUrl) {
 		MultipartBody multipartBody = builder
 			.setType(MultipartBody.FORM)
 			.build();
@@ -174,24 +170,43 @@ public class FileUploadHandlerTest extends TestLogger {
 			.build();
 	}
 
+	private static MultipartBody.Builder addFilePart(MultipartBody.Builder builder) {
+		okhttp3.RequestBody filePayload1 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file1);
+		okhttp3.RequestBody filePayload2 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file2);
+
+		return builder.addFormDataPart("file1", file1.getName(), filePayload1)
+			.addFormDataPart("file2", file2.getName(), filePayload2);
+	}
+
+	private static MultipartBody.Builder addJsonPart(MultipartBody.Builder builder, int index) throws IOException {
+		TestRequestBody jsonRequestBody = new TestRequestBody(index);
+
+		StringWriter sw = new StringWriter();
+		OBJECT_MAPPER.writeValue(sw, jsonRequestBody);
+
+		String jsonPayload = sw.toString();
+
+		return builder.addFormDataPart(org.apache.flink.runtime.rest.FileUploadHandler.HTTP_ATTRIBUTE_REQUEST, jsonPayload);
+	}
+
 	@Test
 	public void testMixedMultipart() throws Exception {
 		OkHttpClient client = new OkHttpClient();
 
-		Request jsonRequest = buildRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), false, true);
+		Request jsonRequest = buildJsonRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt());
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			// explicitly rejected by the test handler implementation
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
 
-		Request fileRequest = buildRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), true, false);
+		Request fileRequest = buildFileRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(fileRequest).execute()) {
 			// expected JSON payload is missing
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 
 		int mixedId = RANDOM.nextInt();
-		Request mixedRequest = buildRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), mixedId, true, true);
+		Request mixedRequest = buildMixedRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), mixedId);
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			assertEquals(mixedHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 			assertEquals(mixedId, mixedHandler.lastReceivedRequest.index);
@@ -203,19 +218,19 @@ public class FileUploadHandlerTest extends TestLogger {
 		OkHttpClient client = new OkHttpClient();
 
 		int jsonId = RANDOM.nextInt();
-		Request jsonRequest = buildRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), jsonId, false, true);
+		Request jsonRequest = buildJsonRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), jsonId);
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			assertEquals(jsonHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 			assertEquals(jsonId, jsonHandler.lastReceivedRequest.index);
 		}
 
-		Request fileRequest = buildRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), true, false);
+		Request fileRequest = buildFileRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(fileRequest).execute()) {
 			// either because JSON payload is missing or FileUploads are outright forbidden
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 
-		Request mixedRequest = buildRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), true, true);
+		Request mixedRequest = buildMixedRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt());
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			// FileUploads are outright forbidden
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
@@ -226,18 +241,18 @@ public class FileUploadHandlerTest extends TestLogger {
 	public void testFileMultipart() throws Exception {
 		OkHttpClient client = new OkHttpClient();
 
-		Request jsonRequest = buildRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), false, true);
+		Request jsonRequest = buildJsonRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt());
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 
-		Request fileRequest = buildRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), true, false);
+		Request fileRequest = buildFileRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(fileRequest).execute()) {
 			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 		}
 
-		Request mixedRequest = buildRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt(), true, true);
+		Request mixedRequest = buildMixedRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), RANDOM.nextInt());
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
