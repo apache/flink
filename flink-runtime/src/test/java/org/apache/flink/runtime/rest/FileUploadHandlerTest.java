@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -81,7 +82,7 @@ import static org.mockito.Mockito.when;
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files and/or json are properly
  * handled.
  */
-public class FileUploadHandlerTest {
+public class FileUploadHandlerTest extends TestLogger {
 
 	private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
 	private static final Random RANDOM = new Random();

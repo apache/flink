@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,7 +35,7 @@ import java.util.Collections;
 /**
  * Tests for {@link FileUploads}.
  */
-public class FileUploadsTest {
+public class FileUploadsTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
