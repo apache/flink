@@ -20,7 +20,9 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
@@ -326,6 +328,37 @@ case class TemporalOverlaps(
     val r = relBuilder.call(SqlStdOperatorTable.CASE, le, end, start)
     (l, r)
   }
+}
+
+  /**
+    * Standard conversion of the TIMESTAMPADD operator.
+    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#TimestampAddConvertlet]]
+    */
+case class TimestampAdd(unit: Expression, count: Expression, timestamp: Expression) extends Expression {
+  override private[flink] def children = unit :: count :: timestamp :: Nil
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    var timeUnit : Option[TimeUnit] = None
+    if (unit.isInstanceOf[Literal]) {
+        var unitValue= unit.asInstanceOf[Literal].value.toString()
+        val sqlTsiArray = Array("SQL_TSI_YEAR", "SQL_TSI_QUARTER", "SQL_TSI_MONTH", "SQL_TSI_WEEK",
+            "SQL_TSI_DAY", "SQL_TSI_HOUR", "SQL_TSI_MINUTE", "SQL_TSI_SECOND")
+        if (sqlTsiArray.contains(unitValue)) {
+          unitValue = unitValue.split("_").last
+        }
+        timeUnit = Some(TimeUnit.valueOf(unitValue))
+    }
+
+    relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, timestamp.toRexNode,
+        relBuilder.call(SqlStdOperatorTable.MULTIPLY,
+          relBuilder.getRexBuilder.makeIntervalLiteral(timeUnit.get.multiplier,
+              new SqlIntervalQualifier(timeUnit.get,null,SqlParserPos.ZERO)),
+          count.toRexNode))
+  }
+
+  override def toString: String = s"timestampAdd(${children.mkString(", ")})"
+
+  override private[flink] def resultType = STRING_TYPE_INFO
 }
 
 case class DateFormat(timestamp: Expression, format: Expression) extends Expression {

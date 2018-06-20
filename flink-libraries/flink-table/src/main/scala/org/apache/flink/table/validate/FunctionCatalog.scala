@@ -247,6 +247,7 @@ object FunctionCatalog {
     "temporalOverlaps" -> classOf[TemporalOverlaps],
     "dateTimePlus" -> classOf[Plus],
     "dateFormat" -> classOf[DateFormat],
+    "timestampAdd" -> classOf[TimestampAdd],
 
     // item
     "at" -> classOf[ItemAt],

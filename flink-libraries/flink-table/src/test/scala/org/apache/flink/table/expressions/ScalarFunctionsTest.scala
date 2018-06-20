@@ -1817,11 +1817,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testTimestampAdd(): Unit = {
     val data = Seq(
-      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+      (1, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
+      (3, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
+      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
+      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
+      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp")
     )
 
     val YEAR = Seq(
@@ -1901,26 +1901,56 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
 
     for ((interval, result) <- intervalMapResults) {
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+      testAllApis(
+        timestampAdd(interval, data.head._1, data.head._3),
+        s"timestampAdd('$interval', ${data.head._1}, ${data.head._4})",
+        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})",
+        result.head)
+      testAllApis(
+        timestampAdd(interval, data(1)._1, data(1)._3),
+        s"timestampAdd('$interval', ${data(1)._1}, ${data(1)._4})",
+        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})",
+        result(1))
+      testAllApis(
+        timestampAdd(interval, data(2)._1, data(2)._3),
+        s"timestampAdd('$interval', ${data(2)._1}, ${data(2)._4})",
+        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})",
+        result(2))
+      testAllApis(
+        timestampAdd(interval, data(3)._1, data(3)._3),
+        s"timestampAdd('$interval', ${data(3)._1}, ${data(3)._4})",
+        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})",
+        result(3))
+      testAllApis(
+        timestampAdd(interval, data(4)._1, data(4)._3),
+        s"timestampAdd('$interval', ${data(4)._1}, ${data(4)._4})",
+        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})",
+        result(4))
     }
 
-    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+    testAllApis(
+        timestampAdd("HOUR", Null(Types.INT), "2016-02-24 12:42:25".toTimestamp),
+        "timestampAdd('HOUR', Null(INT), '2016-02-24 12:42:25'.toTimestamp)",
+        "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
+        "null")
 
-    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+    testAllApis(
+        timestampAdd("HOUR", -200, Null(Types.SQL_TIMESTAMP)),
+        "timestampAdd('HOUR', -200, Null(SQL_TIMESTAMP))",
+        "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
+        "null")
 
-    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
+    testAllApis(
+        timestampAdd("DAY", 1, "2016-06-15".toDate),
+        "timestampAdd('DAY', 1, '2016-06-15'.toDate)",
+        "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
+        "2016-06-16")
 
-    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
-
+    testAllApis(
+        timestampAdd("MONTH", 3, Null(Types.SQL_TIMESTAMP)),
+        "timestampAdd('MONTH', 3, Null(SQL_TIMESTAMP))",
+        "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
+        "null")
   }
 
   // ----------------------------------------------------------------------------------------------
