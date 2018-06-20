@@ -540,7 +540,7 @@ public class SlotSharingGroupAssignment {
 	 */
 	private void internalDisposeEmptySharedSlot(SharedSlot sharedSlot) {
 		// sanity check
-		if (sharedSlot.isAlive() | !sharedSlot.getSubSlots().isEmpty()) {
+		if (sharedSlot.isAlive() || !sharedSlot.getSubSlots().isEmpty()) {
 			throw new IllegalArgumentException();
 		}
 		

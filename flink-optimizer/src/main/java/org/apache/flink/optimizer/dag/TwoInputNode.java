@@ -685,15 +685,15 @@ public abstract class TwoInputNode extends OptimizerNode {
 			}
 			
 			// okay combinations are both all dam or both no dam
-			if ( (damOnAllLeftPaths & damOnAllRightPaths) | (!someDamOnLeftPaths & !someDamOnRightPaths) ) {
+			if ( (damOnAllLeftPaths && damOnAllRightPaths) || (!someDamOnLeftPaths && !someDamOnRightPaths) ) {
 				// good, either both materialize already on the way, or both fully pipeline
 			} else {
-				if (someDamOnLeftPaths & !damOnAllRightPaths) {
+				if (someDamOnLeftPaths && !damOnAllRightPaths) {
 					// right needs a pipeline breaker
 					in2.setTempMode(in2.getTempMode().makePipelineBreaker());
 				}
 				
-				if (someDamOnRightPaths & !damOnAllLeftPaths) {
+				if (someDamOnRightPaths && !damOnAllLeftPaths) {
 					// right needs a pipeline breaker
 					in1.setTempMode(in1.getTempMode().makePipelineBreaker());
 				}
