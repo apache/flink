@@ -574,17 +574,6 @@ trait ImplicitExpressionOperations {
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
   /**
-    * Returns the quarter of a year from a SQL date.
-    *
-    * e.g. "1994-09-27".toDate.quarter() leads to 3
-    *
-    * @deprecated This method will be used for describing an interval of months in future versions.
-    *             Use `extract(TimeIntervalUnit.QUARTER)` instead.
-    */
-  @deprecated
-  def quarter() = Quarter(expr)
-
-  /**
     * Rounds down a time point to the given unit.
     *
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
@@ -605,98 +594,126 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of months
     */
-  def year = toMonthInterval(expr, 12)
+  def year: Expression = toMonthInterval(expr, 12)
 
   /**
     * Creates an interval of the given number of years.
     *
     * @return interval of months
     */
-  def years = year
+  def years: Expression = year
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarter: Expression = toMonthInterval(expr, 3)
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarters: Expression = quarter
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def month = toMonthInterval(expr, 1)
+  def month: Expression = toMonthInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def months = month
+  def months: Expression = month
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def week: Expression = toMilliInterval(expr, 7 * MILLIS_PER_DAY)
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def weeks: Expression = week
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def day = toMilliInterval(expr, MILLIS_PER_DAY)
+  def day: Expression = toMilliInterval(expr, MILLIS_PER_DAY)
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def days = day
+  def days: Expression = day
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+  def hour: Expression = toMilliInterval(expr, MILLIS_PER_HOUR)
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hours = hour
+  def hours: Expression = hour
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
+  def minute: Expression = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minutes = minute
+  def minutes: Expression = minute
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def second = toMilliInterval(expr, MILLIS_PER_SECOND)
+  def second: Expression = toMilliInterval(expr, MILLIS_PER_SECOND)
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def seconds = second
+  def seconds: Expression = second
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def milli = toMilliInterval(expr, 1)
+  def milli: Expression = toMilliInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def millis = milli
+  def millis: Expression = milli
 
   // Row interval type
 
@@ -705,7 +722,7 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of rows
     */
-  def rows = toRowInterval(expr)
+  def rows: Expression = toRowInterval(expr)
 
   // Advanced type helper functions
 
