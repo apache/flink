@@ -213,20 +213,6 @@ public abstract class ClusterClient<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Interface which allows to load an {@link ActorSystem}.
-	 */
-	public interface ActorSystemLoader extends AutoCloseable {
-
-		/**
-		 * Get an {@link ActorSystem}.
-		 *
-		 * @return {@link ActorSystem}
-		 * @throws FlinkException
-		 */
-		ActorSystem get() throws FlinkException;
-	}
-
-	/**
 	 * Utility class to lazily instantiate an {@link ActorSystem}.
 	 */
 	protected static class LazyActorSystemLoader implements ActorSystemLoader {
