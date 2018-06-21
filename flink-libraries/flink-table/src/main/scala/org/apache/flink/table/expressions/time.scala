@@ -334,7 +334,12 @@ case class TemporalOverlaps(
     * Standard conversion of the TIMESTAMPADD operator.
     * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#TimestampAddConvertlet]]
     */
-case class TimestampAdd(unit: Expression, count: Expression, timestamp: Expression) extends Expression {
+case class TimestampAdd(
+    unit: Expression,
+    count: Expression,
+    timestamp: Expression)
+  extends Expression {
+
   override private[flink] def children = unit :: count :: timestamp :: Nil
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {

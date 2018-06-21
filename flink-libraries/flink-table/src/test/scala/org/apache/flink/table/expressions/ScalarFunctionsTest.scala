@@ -1816,12 +1816,27 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testTimestampAdd(): Unit = {
-    val data = Seq(
-      (1, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
-      (3, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
-      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
-      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp"),
-      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'", "2017-11-29 22:58:58.998".toTimestamp, "'2017-11-29 22:58:58.998'.toTimestamp")
+    val data = Seq((
+        1,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        3,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        -1,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        -61,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"),(
+        -1000,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp")
     )
 
     val YEAR = Seq(
