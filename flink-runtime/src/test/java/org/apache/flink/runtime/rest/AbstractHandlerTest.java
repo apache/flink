@@ -69,7 +69,9 @@ public class AbstractHandlerTest extends TestLogger {
 
 	@Test
 	public void testFileCleanup() throws Exception {
-		final Path file = temporaryFolder.newFile().toPath();
+		final Path dir = temporaryFolder.newFolder().toPath();
+		final Path file = dir.resolve("file");
+		Files.createFile(file);
 
 		final String restAddress = "http://localhost:1234";
 		RestfulGateway mockRestfulGateway = TestingRestfulGateway.newBuilder()
@@ -90,7 +92,7 @@ public class AbstractHandlerTest extends TestLogger {
 		RoutedRequest<?> routerRequest = new RoutedRequest<>(routeResult, request);
 
 		Attribute<FileUploads> attribute = new SimpleAttribute();
-		attribute.set(new FileUploads(Collections.emptyList(), Collections.singleton(file)));
+		attribute.set(new FileUploads(dir));
 		Channel channel = mock(Channel.class);
 		when(channel.attr(any(AttributeKey.class))).thenReturn(attribute);
 

@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
  * Tests for {@link FileUploads}.
@@ -44,7 +43,7 @@ public class FileUploadsTest extends TestLogger {
 	public void testRelativePathRejection() throws IOException {
 		Path relative = Paths.get("root");
 		try {
-			FileUploads.forDirectory(relative);
+			new FileUploads(relative);
 			Assert.fail();
 		} catch (IllegalArgumentException iae) {
 			// expected
@@ -64,26 +63,12 @@ public class FileUploadsTest extends TestLogger {
 		Files.createFile(tmp.resolve(rootFile));
 		Files.createFile(tmp.resolve(subFile));
 
-		try (FileUploads fileUploads = FileUploads.forDirectory(tmp.resolve(rootDir))) {
+		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
 			Collection<Path> detectedFiles = fileUploads.getUploadedFiles();
 
 			Assert.assertEquals(2, detectedFiles.size());
 			Assert.assertTrue(detectedFiles.contains(tmp.resolve(rootFile)));
 			Assert.assertTrue(detectedFiles.contains(tmp.resolve(subFile)));
-		}
-	}
-
-	@Test
-	public void testNoDirectory() throws IOException {
-		Path rootFile = Paths.get("rootFile");
-
-		Path tmp = temporaryFolder.getRoot().toPath();
-		Files.createFile(tmp.resolve(rootFile));
-
-		try (FileUploads fileUploads = new FileUploads(Collections.emptyList(), Collections.singleton(tmp.resolve(rootFile)))) {
-			Collection<Path> detectedFiles = fileUploads.getUploadedFiles();
-			Assert.assertEquals(1, detectedFiles.size());
-			Assert.assertTrue(detectedFiles.contains(tmp.resolve(rootFile)));
 		}
 	}
 
@@ -94,7 +79,7 @@ public class FileUploadsTest extends TestLogger {
 		Path tmp = temporaryFolder.getRoot().toPath();
 		Files.createDirectory(tmp.resolve(rootDir));
 
-		try (FileUploads fileUploads = FileUploads.forDirectory(tmp.resolve(rootDir))) {
+		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
 			Collection<Path> detectedFiles = fileUploads.getUploadedFiles();
 			Assert.assertEquals(0, detectedFiles.size());
 		}
@@ -113,7 +98,7 @@ public class FileUploadsTest extends TestLogger {
 		Files.createFile(tmp.resolve(rootFile));
 		Files.createFile(tmp.resolve(subFile));
 
-		try (FileUploads fileUploads = FileUploads.forDirectory(tmp.resolve(rootDir))) {
+		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
 			Assert.assertTrue(Files.exists(tmp.resolve(rootDir)));
 			Assert.assertTrue(Files.exists(tmp.resolve(subDir)));
 			Assert.assertTrue(Files.exists(tmp.resolve(rootFile)));

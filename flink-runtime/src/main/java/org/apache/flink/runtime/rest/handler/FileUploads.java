@@ -21,7 +21,9 @@ package org.apache.flink.runtime.rest.handler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.io.FileNotFoundException;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -39,49 +41,38 @@ import java.util.Collections;
  * For convenience during testing it also accepts files directly.
  */
 public final class FileUploads implements AutoCloseable {
-	private final Collection<Path> directoriesToClean;
-	private final Collection<Path> uploadedFiles;
+	@Nullable
+	private final Path uploadDirectory;
 
-	@SuppressWarnings("resource")
 	public static final FileUploads EMPTY = new FileUploads();
 
-	public static FileUploads forDirectory(Path directory) throws IOException {
-		final Collection<Path> files = new ArrayList<>(4);
-		Preconditions.checkArgument(directory.isAbsolute(), "Path must be absolute.");
-		Preconditions.checkArgument(Files.isDirectory(directory), "Path must be a directory.");
+	private FileUploads() {
+		this.uploadDirectory = null;
+	}
+
+	public FileUploads(@Nonnull Path uploadDirectory) {
+		Preconditions.checkNotNull(uploadDirectory, "UploadDirectory must not be null.");
+		Preconditions.checkArgument(Files.exists(uploadDirectory), "UploadDirectory does not exist.");
+		Preconditions.checkArgument(Files.isDirectory(uploadDirectory), "UploadDirectory is not a directory.");
+		Preconditions.checkArgument(uploadDirectory.isAbsolute(), "UploadDirectory is not absolute.");
+		this.uploadDirectory = uploadDirectory;
+	}
+
+	public Collection<Path> getUploadedFiles() throws IOException {
+		if (uploadDirectory == null) {
+			return Collections.emptyList();
+		}
 
 		FileAdderVisitor visitor = new FileAdderVisitor();
-		Files.walkFileTree(directory, visitor);
-		files.addAll(visitor.getContainedFiles());
+		Files.walkFileTree(uploadDirectory, visitor);
 
-		return new FileUploads(Collections.singleton(directory), files);
-	}
-
-	private FileUploads() {
-		this.directoriesToClean = Collections.emptyList();
-		this.uploadedFiles = Collections.emptyList();
-	}
-
-	public FileUploads(Collection<Path> directoriesToClean, Collection<Path> uploadedFiles) {
-		this.directoriesToClean = Preconditions.checkNotNull(directoriesToClean);
-		this.uploadedFiles = Preconditions.checkNotNull(uploadedFiles);
-	}
-
-	public Collection<Path> getUploadedFiles() {
-		return uploadedFiles;
+		return Collections.unmodifiableCollection(visitor.getContainedFiles());
 	}
 
 	@Override
 	public void close() throws IOException {
-		for (Path file : uploadedFiles) {
-			try {
-				Files.delete(file);
-			} catch (FileNotFoundException ignored) {
-				// file may have been moved by a handler
-			}
-		}
-		for (Path directory : directoriesToClean) {
-			FileUtils.deleteDirectory(directory.toFile());
+		if (uploadDirectory != null) {
+			FileUtils.deleteDirectory(uploadDirectory.toFile());
 		}
 	}
 

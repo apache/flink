@@ -138,7 +138,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				}
 
 				if (httpContent instanceof LastHttpContent) {
-					ctx.channel().attr(UPLOADED_FILES).set(FileUploads.forDirectory(currentUploadDir));
+					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
 					ctx.fireChannelRead(currentHttpRequest);
 					if (currentJsonPayload != null) {
 						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
