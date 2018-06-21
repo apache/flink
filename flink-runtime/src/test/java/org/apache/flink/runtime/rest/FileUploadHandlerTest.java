@@ -145,6 +145,14 @@ public class FileUploadHandlerTest extends TestLogger {
 		}
 	}
 
+	private static Request buildMalformedRequest(String headerUrl) {
+		MultipartBody.Builder builder = new MultipartBody.Builder();
+		builder = addFilePart(builder);
+		// this causes a failure in the FileUploadHandler since the request should only contain form-data
+		builder = builder.addPart(okhttp3.RequestBody.create(MediaType.parse("text/plain"), "crash"));
+		return finalizeRequest(builder, headerUrl);
+	}
+
 	private static Request buildMixedRequestWithUnknownAttribute(String headerUrl) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
 		builder = addJsonPart(builder, RANDOM.nextInt(), "hello");
@@ -272,12 +280,27 @@ public class FileUploadHandlerTest extends TestLogger {
 	}
 
 	@Test
-	public void testUploadCleanupOnFailure() throws IOException {
+	public void testUploadCleanupOnUnknownAttribute() throws IOException {
 		OkHttpClient client = new OkHttpClient();
 
 		Request request = buildMixedRequestWithUnknownAttribute(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
+		}
+		assertUploadDirectoryIsEmpty();
+	}
+
+	/**
+	 * Crashes the handler be submitting a malformed multipart request and tests that the upload directory is cleaned up.
+	 */
+	@Test
+	public void testUploadCleanupOnFailure() throws IOException {
+		OkHttpClient client = new OkHttpClient();
+
+		Request request = buildMalformedRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
+		try (Response response = client.newCall(request).execute()) {
+			// decoding errors aren't handled separately by the FileUploadHandler
+			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
 		assertUploadDirectoryIsEmpty();
 	}
