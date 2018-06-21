@@ -290,7 +290,6 @@ public class FileUploadHandlerTest extends TestLogger {
 		Preconditions.checkArgument(
 			actualUploadDir.isPresent(),
 			"Expected upload directory does not exist.");
-		System.out.println(Files.list(actualUploadDir.get()).collect(Collectors.toList()));
 		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
 	}
 
