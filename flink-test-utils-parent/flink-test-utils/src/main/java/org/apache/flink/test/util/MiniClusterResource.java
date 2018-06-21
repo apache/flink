@@ -21,7 +21,13 @@ package org.apache.flink.test.util;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.configuration.*;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -30,6 +36,8 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+
+import org.junit.Assume;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -37,6 +45,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 
 /**
  * Starts a Flink mini cluster as a resource and registers the respective
@@ -50,7 +61,7 @@ public class MiniClusterResource extends ExternalResource {
 
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
-	private final TestBaseUtils.CodebaseType miniClusterType;
+	private final TestBaseUtils.CodebaseType codebaseType;
 
 	private JobExecutorService jobExecutorService;
 
@@ -74,12 +85,12 @@ public class MiniClusterResource extends ExternalResource {
 			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
 			final boolean enableClusterClient) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
-		this.miniClusterType = miniClusterResourceConfiguration.getCodebaseType();
+		this.codebaseType = miniClusterResourceConfiguration.getCodebaseType();
 		this.enableClusterClient = enableClusterClient;
 	}
 
-	public TestBaseUtils.CodebaseType getMiniClusterType() {
-		return miniClusterType;
+	public TestBaseUtils.CodebaseType getCodebaseType() {
+		return codebaseType;
 	}
 
 	public int getNumberSlots() {
@@ -110,9 +121,12 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
+		// verify that we are running in the correct test profile
+		Assume.assumeThat(TestBaseUtils.getCodebaseType(), is(equalTo(codebaseType)));
+
 		temporaryFolder.create();
 
-		startJobExecutorService(miniClusterType);
+		startJobExecutorService(codebaseType);
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
@@ -140,17 +154,19 @@ public class MiniClusterResource extends ExternalResource {
 
 		clusterClient = null;
 
-		final CompletableFuture<?> terminationFuture = jobExecutorService.closeAsync();
+		if (jobExecutorService != null) {
+			final CompletableFuture<?> terminationFuture = jobExecutorService.closeAsync();
 
-		try {
-			terminationFuture.get(
-				miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
-				TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			try {
+				terminationFuture.get(
+					miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+					TimeUnit.MILLISECONDS);
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			jobExecutorService = null;
 		}
-
-		jobExecutorService = null;
 
 		if (exception != null) {
 			LOG.warn("Could not properly shut down the MiniClusterResource.", exception);

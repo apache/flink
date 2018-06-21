@@ -56,7 +56,6 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -155,7 +154,7 @@ public class WebFrontendITCase extends TestLogger {
 		if (notFoundJobConnection.getResponseCode() >= 400) {
 			// we don't set the content-encoding header
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
+			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
 				Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 			} else {
 				Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
@@ -283,7 +282,7 @@ public class WebFrontendITCase extends TestLogger {
 		final Deadline deadline = testTimeout.fromNow();
 
 		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
-			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
+			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
 				// stop the job
 				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
@@ -358,7 +357,7 @@ public class WebFrontendITCase extends TestLogger {
 			HttpTestClient.SimpleHttpResponse response = client
 				.getNextResponse(deadline.timeLeft());
 
-			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
+			if (CLUSTER.getCodebaseType() == TestBaseUtils.CodebaseType.NEW) {
 				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			} else {
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
