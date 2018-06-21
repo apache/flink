@@ -1228,7 +1228,7 @@ Thus, in order to infer the metric identifier:
       <td>Meter</td>
     </tr>
     <tr>
-      <th rowspan="5"><strong>Task/Operator</strong></th>
+      <th rowspan="6"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
       <td>Counter</td>
@@ -1254,15 +1254,15 @@ Thus, in order to infer the metric identifier:
       <td>Counter</td>
     </tr>
     <tr>
-      <th rowspan="5"><strong>Operator</strong></th>
       <td>currentInputWatermark</td>
       <td>
-        The last watermark this operator has received (in milliseconds).
-        <p><strong>Note:</strong> For operators with 2 inputs this is the minimum of the last received watermarks.</p>
+        The last watermark this operator/tasks has received (in milliseconds).
+        <p><strong>Note:</strong> For operators/tasks with 2 inputs this is the minimum of the last received watermarks.</p>
       </td>
       <td>Gauge</td>
     </tr>
     <tr>
+      <th rowspan="4"><strong>Operator</strong></th>
       <td>currentInput1Watermark</td>
       <td>
         The last watermark this operator has received in its first input (in milliseconds).
