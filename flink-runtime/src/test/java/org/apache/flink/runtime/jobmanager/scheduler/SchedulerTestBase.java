@@ -296,7 +296,7 @@ public class SchedulerTestBase extends TestLogger {
 		@Override
 		public void releaseTaskManager(ResourceID resourceId) {
 			try {
-				slotPool.releaseTaskManager(resourceId).get();
+				slotPool.releaseTaskManager(resourceId, null).get();
 			} catch (Exception e) {
 				throw new RuntimeException("Should not have happened.", e);
 			}
