@@ -55,7 +55,7 @@ setup_kafka_dist
 setup_confluent_dist
 
 cd flink-end-to-end-tests/flink-confluent-schema-registry
-mvn clean package -Pbuild-jar -nsu
+mvn clean package -nsu
 
 start_kafka_cluster
 start_confluent_schema_registry
@@ -65,7 +65,7 @@ sleep 5
 cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
 sed -i -e "s/web.port: 8081/web.port: 8082/" $FLINK_DIR/conf/flink-conf.yaml
 
-TEST_PROGRAM_JAR=target/flink-confluent-schema-registry-1.6-SNAPSHOT.jar
+TEST_PROGRAM_JAR=target/TestAvroConsumerConfluent.jar
 
 INPUT_MESSAGE_1='{"name":"Alyssa","favoriteNumber":"250","favoriteColor":"green","eventType":"meeting"}'
 INPUT_MESSAGE_2='{"name":"Charlie","favoriteNumber":"10","favoriteColor":"blue","eventType":"meeting"}'
@@ -79,7 +79,6 @@ curl -X POST \
   -d '{"schema": "{\"namespace\": \"example.avro\",\"type\": \"record\",\"name\": \"User\",\"fields\": [{\"name\": \"name\", \"type\": \"string\", \"default\": \"\"},{\"name\": \"favoriteNumber\",  \"type\": \"string\", \"default\": \"\"},{\"name\": \"favoriteColor\", \"type\": \"string\", \"default\": \"\"},{\"name\": \"eventType\",\"type\": {\"name\": \"EventType\",\"type\": \"enum\", \"symbols\": [\"meeting\"] }}]}"}'
 
 echo "Sending messages to Kafka topic [test-avro-input] ..."
-
 
 send_messages_to_kafka_avro $INPUT_MESSAGE_1 test-avro-input $USER_SCHEMA
 send_messages_to_kafka_avro $INPUT_MESSAGE_2 test-avro-input $USER_SCHEMA

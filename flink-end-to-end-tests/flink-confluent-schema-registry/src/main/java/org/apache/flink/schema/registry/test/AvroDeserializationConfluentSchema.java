@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
+package org.apache.flink.schema.registry.test;
+
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
-import io.confluent.kafka.serializers.KafkaAvroDecoder;
-import org.apache.avro.generic.GenericData;
-import tech.allegro.schema.json2avro.converter.JsonAvroConverter;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 
 import java.io.IOException;
 
@@ -34,16 +33,10 @@ import java.io.IOException;
 public class AvroDeserializationConfluentSchema<T> implements DeserializationSchema<T> {
 
 	private static final long serialVersionUID = 1L;
-
-	private Class<T> avroType;
+	private final Class<T> avroType;
 	private final String schemaRegistryUrl;
 	private final int identityMapCapacity;
-	private KafkaAvroDecoder kafkaAvroDecoder;
-
-	private ObjectMapper mapper;
-
-	private JsonAvroConverter jsonAvroConverter;
-
+	private transient KafkaAvroDeserializer kafaAvroDeserializer;
 	public AvroDeserializationConfluentSchema(Class<T> avroType, String schemaRegistyUrl) {
 		this(avroType, schemaRegistyUrl, AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT);
 	}
@@ -56,20 +49,13 @@ public class AvroDeserializationConfluentSchema<T> implements DeserializationSch
 
 	@Override
 	public T deserialize(byte[] message) throws IOException {
-		if (kafkaAvroDecoder == null) {
+		if (kafaAvroDeserializer == null) {
 			SchemaRegistryClient schemaRegistryClient = new CachedSchemaRegistryClient(this.schemaRegistryUrl, this.identityMapCapacity);
-			this.kafkaAvroDecoder = new KafkaAvroDecoder(schemaRegistryClient);
-		}
-		if (mapper == null) {
-			this.mapper = new ObjectMapper();
+			this.kafaAvroDeserializer = new KafkaAvroDeserializer(schemaRegistryClient);
 		}
 
-		if (jsonAvroConverter == null) {
-			jsonAvroConverter = new JsonAvroConverter();
-		}
-		GenericData.Record record = (GenericData.Record) this.kafkaAvroDecoder.fromBytes(message);
-		byte[] messageBytes = jsonAvroConverter.convertToJson(record);
-		return (T) this.mapper.readValue(messageBytes, avroType);
+		Object messageBytes = this.kafaAvroDeserializer.deserialize("payload", message);
+		return (T) messageBytes;
 	}
 
 	@Override
@@ -82,4 +68,3 @@ public class AvroDeserializationConfluentSchema<T> implements DeserializationSch
 		return TypeInformation.of(avroType);
 	}
 }
-
