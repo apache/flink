@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsChe
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link FsCheckpointStorage}, which implements the checkpoint storage
@@ -202,6 +204,31 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		Path checkpointPath = location.getCheckpointDirectory();
 		File checkpointDir = new File(checkpointPath.getPath());
 		assertFalse(checkpointDir.exists());
+	}
+
+	@Test
+	public void testResolveCheckpointStorageLocation() throws Exception {
+		FileSystem checkpointFileSystem = mock(FileSystem.class);
+		FsCheckpointStorage storage = new FsCheckpointStorage(
+			new Path("hdfs:///checkpoint/") {
+				// we need to override the getFileSystem because the default implement will try to get the hdfs file system, which will failed.
+				@Override
+				public FileSystem getFileSystem() throws IOException {
+					return checkpointFileSystem;
+				}
+			}, null, new JobID(), FILE_SIZE_THRESHOLD);
+
+		FsCheckpointStorageLocation checkpointStreamFactory =
+			(FsCheckpointStorageLocation) storage.resolveCheckpointStorageLocation(1, CheckpointStorageLocationReference.getDefault());
+		assertEquals(checkpointFileSystem, checkpointStreamFactory.getFileSystem());
+
+		CheckpointStorageLocationReference savepointLocationReference =
+			AbstractFsCheckpointStorage.encodePathAsReference(new Path("file:///savepoint/"));
+
+		FsCheckpointStorageLocation savepointStreamFactory =
+			(FsCheckpointStorageLocation) storage.resolveCheckpointStorageLocation(2, savepointLocationReference);
+		FileSystem fileSystem = savepointStreamFactory.getFileSystem();
+		assertTrue(fileSystem instanceof LocalFileSystem);
 	}
 
 	// ------------------------------------------------------------------------
