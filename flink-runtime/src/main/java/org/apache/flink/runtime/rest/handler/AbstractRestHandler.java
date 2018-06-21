@@ -70,7 +70,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	}
 
 	@Override
-	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) throws RestHandlerException {
+	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) {
 		CompletableFuture<P> response;
 
 		try {
@@ -87,14 +87,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				if (error instanceof RestHandlerException) {
 					final RestHandlerException rhe = (RestHandlerException) error;
 
-					log.error("Exception occurred in REST handler.", error);
-
-					HandlerUtils.sendErrorResponse(
-						ctx,
-						httpRequest,
-						new ErrorResponseBody(rhe.getMessage()),
-						rhe.getHttpResponseStatus(),
-						responseHeaders);
+					processRestHandlerException(ctx, httpRequest, rhe);
 				} else {
 					log.error("Implementation error: Unhandled exception.", error);
 					HandlerUtils.sendErrorResponse(
@@ -113,6 +106,17 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					responseHeaders);
 			}
 		});
+	}
+
+	private void processRestHandlerException(ChannelHandlerContext ctx, HttpRequest httpRequest, RestHandlerException rhe) {
+		log.error("Exception occurred in REST handler.", rhe);
+
+		HandlerUtils.sendErrorResponse(
+			ctx,
+			httpRequest,
+			new ErrorResponseBody(rhe.getMessage()),
+			rhe.getHttpResponseStatus(),
+			responseHeaders);
 	}
 
 	/**
