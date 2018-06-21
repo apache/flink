@@ -281,7 +281,7 @@ public class MesosResourceManagerTest extends TestLogger {
 				1.0, 1, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
 				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(),
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
-				Option.<String>empty());
+				Option.<String>empty(), Collections.<String>emptyList());
 
 			// resource manager
 			rmConfiguration = new ResourceManagerConfiguration(
