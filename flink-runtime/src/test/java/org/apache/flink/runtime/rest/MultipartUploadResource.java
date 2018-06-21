@@ -36,18 +36,17 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
+import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -56,11 +55,14 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
@@ -74,29 +76,31 @@ import static org.mockito.Mockito.when;
 /**
  * Test base for verifying support of multipart uploads via REST.
  */
-public abstract class MultipartUploadTestBase extends TestLogger {
+public class MultipartUploadResource extends ExternalResource {
 
-	@ClassRule
-	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+	private static final Logger LOG = LoggerFactory.getLogger(MultipartUploadResource.class);
 
-	private static RestServerEndpoint serverEndpoint;
-	protected static String serverAddress;
-	protected static InetSocketAddress serverSocketAddress;
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	protected static MultipartMixedHandler mixedHandler;
-	protected static MultipartJsonHandler jsonHandler;
-	protected static MultipartFileHandler fileHandler;
-	protected static File file1;
-	protected static File file2;
+	private RestServerEndpoint serverEndpoint;
+	protected String serverAddress;
+	protected InetSocketAddress serverSocketAddress;
 
-	protected static Path configuredUploadDir;
+	protected MultipartMixedHandler mixedHandler;
+	protected MultipartJsonHandler jsonHandler;
+	protected MultipartFileHandler fileHandler;
+	protected File file1;
+	protected File file2;
 
-	@BeforeClass
-	public static void setup() throws Exception {
+	private Path configuredUploadDir;
+
+	@Override
+	public void before() throws Exception {
+		temporaryFolder.create();
 		Configuration config = new Configuration();
 		config.setInteger(RestOptions.PORT, 0);
 		config.setString(RestOptions.ADDRESS, "localhost");
-		configuredUploadDir = TEMPORARY_FOLDER.newFolder().toPath();
+		configuredUploadDir = temporaryFolder.newFolder().toPath();
 		config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
@@ -108,14 +112,14 @@ public abstract class MultipartUploadTestBase extends TestLogger {
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
-		file1 = TEMPORARY_FOLDER.newFile();
+		file1 = temporaryFolder.newFile();
 		Files.write(file1.toPath(), "hello".getBytes(ConfigConstants.DEFAULT_CHARSET));
-		file2 = TEMPORARY_FOLDER.newFile();
+		file2 = temporaryFolder.newFile();
 		Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		mixedHandler = new MultipartMixedHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
+		mixedHandler = new MultipartMixedHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
 		jsonHandler = new MultipartJsonHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
-		fileHandler = new MultipartFileHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
+		fileHandler = new MultipartFileHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever, Arrays.asList(file1.toPath(), file2.toPath()));
 
 		final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = Arrays.asList(
 			Tuple2.of(mixedHandler.getMessageHeaders(), mixedHandler),
@@ -129,33 +133,74 @@ public abstract class MultipartUploadTestBase extends TestLogger {
 		serverSocketAddress = serverEndpoint.getServerAddress();
 	}
 
-	@Before
-	public void reset() {
+	public Collection<File> getFilesToUpload() {
+		return Arrays.asList(file1, file2);
+	}
+
+	public String getServerAddress() {
+		return serverAddress;
+	}
+
+	public InetSocketAddress getServerSocketAddress() {
+		return serverSocketAddress;
+	}
+
+	public MultipartMixedHandler getMixedHandler() {
+		return mixedHandler;
+	}
+
+	public MultipartFileHandler getFileHandler() {
+		return fileHandler;
+	}
+
+	public MultipartJsonHandler getJsonHandler() {
+		return jsonHandler;
+	}
+
+	public void resetState() {
 		mixedHandler.lastReceivedRequest = null;
 		jsonHandler.lastReceivedRequest = null;
 	}
 
-	@AfterClass
-	public static void teardown() throws Exception {
+	@Override
+	public void after() {
+		temporaryFolder.delete();
 		if (serverEndpoint != null) {
-			serverEndpoint.close();
+			try {
+				serverEndpoint.close();
+			} catch (Exception e) {
+				LOG.warn("Could not properly shutdown RestServerEndpoint.", e);
+			}
 			serverEndpoint = null;
 		}
+	}
+
+	public void assertUploadDirectoryIsEmpty() throws IOException {
+		Preconditions.checkArgument(
+			1 == Files.list(configuredUploadDir).count(),
+			"Directory structure in rest upload directory has changed. Test must be adjusted");
+		Optional<Path> actualUploadDir = Files.list(configuredUploadDir).findAny();
+		Preconditions.checkArgument(
+			actualUploadDir.isPresent(),
+			"Expected upload directory does not exist.");
+		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
 	}
 
 	/**
 	 * Handler that accepts a mixed request consisting of a {@link TestRequestBody} and {@link #file1} and {@link #file2}.
 	 */
-	protected static class MultipartMixedHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+	public static class MultipartMixedHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+		private final Collection<Path> expectedFiles;
 		volatile TestRequestBody lastReceivedRequest = null;
 
-		MultipartMixedHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
+		MultipartMixedHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
 			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartMixedHeaders.INSTANCE);
+			this.expectedFiles = expectedFiles;
 		}
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<TestRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			MultipartFileHandler.verifyFileUpload(request.getUploadedFiles());
+			MultipartFileHandler.verifyFileUpload(expectedFiles, request.getUploadedFiles());
 			this.lastReceivedRequest = request.getRequestBody();
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
@@ -211,7 +256,7 @@ public abstract class MultipartUploadTestBase extends TestLogger {
 	/**
 	 * Handler that accepts a json request consisting of a {@link TestRequestBody}.
 	 */
-	protected static class MultipartJsonHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+	public static class MultipartJsonHandler extends AbstractRestHandler<RestfulGateway, TestRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 		volatile TestRequestBody lastReceivedRequest = null;
 
 		MultipartJsonHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
@@ -254,34 +299,38 @@ public abstract class MultipartUploadTestBase extends TestLogger {
 	/**
 	 * Handler that accepts a file request consisting of and {@link #file1} and {@link #file2}.
 	 */
-	protected static class MultipartFileHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+	public static class MultipartFileHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-		MultipartFileHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever) {
+		private final Collection<Path> expectedFiles;
+
+		MultipartFileHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<RestfulGateway> leaderRetriever, Collection<Path> expectedFiles) {
 			super(localRestAddress, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), MultipartFileHeaders.INSTANCE);
+			this.expectedFiles = expectedFiles;
 		}
 
 		@Override
 		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-			verifyFileUpload(request.getUploadedFiles());
+			verifyFileUpload(expectedFiles, request.getUploadedFiles());
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
 
-		static void verifyFileUpload(Collection<Path> uploadedFiles) throws RestHandlerException {
+		static void verifyFileUpload(Collection<Path> expectedFiles, Collection<Path> uploadedFiles) throws RestHandlerException {
 			try {
-				assertEquals(2, uploadedFiles.size());
+				assertEquals(expectedFiles.size(), uploadedFiles.size());
 
-				for (Path uploadedFile : uploadedFiles) {
-					File matchingFile;
-					if (uploadedFile.getFileName().toString().equals(file1.getName())) {
-						matchingFile = file1;
-					} else if (uploadedFile.getFileName().toString().equals(file2.getName())) {
-						matchingFile = file2;
-					} else {
-						throw new RestHandlerException("Received file with unknown name " + uploadedFile.getFileName() + '.', HttpResponseStatus.INTERNAL_SERVER_ERROR);
-					}
+				List<Path> expectedList = new ArrayList<>(expectedFiles);
+				List<Path> actualList = new ArrayList<>(uploadedFiles);
+				expectedList.sort(Comparator.comparing(Path::toString));
+				actualList.sort(Comparator.comparing(Path::toString));
 
-					byte[] originalContent = Files.readAllBytes(matchingFile.toPath());
-					byte[] receivedContent = Files.readAllBytes(uploadedFile);
+				for (int x = 0; x < expectedList.size(); x++) {
+					Path expected = expectedList.get(x);
+					Path actual = actualList.get(x);
+
+					assertEquals(expected.getFileName().toString(), actual.getFileName().toString());
+
+					byte[] originalContent = Files.readAllBytes(expected);
+					byte[] receivedContent = Files.readAllBytes(actual);
 					assertArrayEquals(originalContent, receivedContent);
 				}
 			} catch (Exception e) {

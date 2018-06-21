@@ -25,27 +25,38 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Tests for the multipart functionality of the {@link RestClient}.
  */
-public class RestClientMultipartTest extends MultipartUploadTestBase {
+public class RestClientMultipartTest extends TestLogger {
+
+	@ClassRule
+	public static final MultipartUploadResource MULTIPART_UPLOAD_RESOURCE = new MultipartUploadResource();
 
 	private static RestClient restClient;
 
 	@BeforeClass
 	public static void setupClient() throws ConfigurationException {
 		restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), TestingUtils.defaultExecutor());
+	}
+
+	@After
+	public void reset() {
+		MULTIPART_UPLOAD_RESOURCE.resetState();
 	}
 
 	@AfterClass
@@ -57,46 +68,48 @@ public class RestClientMultipartTest extends MultipartUploadTestBase {
 
 	@Test
 	public void testMixedMultipart() throws Exception {
-		Collection<FileUpload> files = Arrays.asList(new FileUpload(file1.toPath(), "application/octet-stream"), new FileUpload(file2.toPath(), "application/octet-stream"));
+		Collection<FileUpload> files = MULTIPART_UPLOAD_RESOURCE.getFilesToUpload().stream()
+			.map(file -> new FileUpload(file.toPath(), "application/octet-stream")).collect(Collectors.toList());
 
-		TestRequestBody json = new TestRequestBody();
+		MultipartUploadResource.TestRequestBody json = new MultipartUploadResource.TestRequestBody();
 		CompletableFuture<EmptyResponseBody> responseFuture = restClient.sendRequest(
-			serverSocketAddress.getHostName(),
-			serverSocketAddress.getPort(),
-			mixedHandler.getMessageHeaders(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getHostName(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getPort(),
+			MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders(),
 			EmptyMessageParameters.getInstance(),
 			json,
 			files
 		);
 
 		responseFuture.get();
-		Assert.assertEquals(json, mixedHandler.lastReceivedRequest);
+		Assert.assertEquals(json, MULTIPART_UPLOAD_RESOURCE.getMixedHandler().lastReceivedRequest);
 	}
 
 	@Test
 	public void testJsonMultipart() throws Exception {
-		TestRequestBody json = new TestRequestBody();
+		MultipartUploadResource.TestRequestBody json = new MultipartUploadResource.TestRequestBody();
 		CompletableFuture<EmptyResponseBody> responseFuture = restClient.sendRequest(
-			serverSocketAddress.getHostName(),
-			serverSocketAddress.getPort(),
-			jsonHandler.getMessageHeaders(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getHostName(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getPort(),
+			MULTIPART_UPLOAD_RESOURCE.getJsonHandler().getMessageHeaders(),
 			EmptyMessageParameters.getInstance(),
 			json,
 			Collections.emptyList()
 		);
 
 		responseFuture.get();
-		Assert.assertEquals(json, jsonHandler.lastReceivedRequest);
+		Assert.assertEquals(json, MULTIPART_UPLOAD_RESOURCE.getJsonHandler().lastReceivedRequest);
 	}
 
 	@Test
 	public void testFileMultipart() throws Exception {
-		Collection<FileUpload> files = Arrays.asList(new FileUpload(file1.toPath(), "application/octet-stream"), new FileUpload(file2.toPath(), "application/octet-stream"));
+		Collection<FileUpload> files = MULTIPART_UPLOAD_RESOURCE.getFilesToUpload().stream()
+			.map(file -> new FileUpload(file.toPath(), "application/octet-stream")).collect(Collectors.toList());
 
 		CompletableFuture<EmptyResponseBody> responseFuture = restClient.sendRequest(
-			serverSocketAddress.getHostName(),
-			serverSocketAddress.getPort(),
-			fileHandler.getMessageHeaders(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getHostName(),
+			MULTIPART_UPLOAD_RESOURCE.getServerSocketAddress().getPort(),
+			MULTIPART_UPLOAD_RESOURCE.getFileHandler().getMessageHeaders(),
 			EmptyMessageParameters.getInstance(),
 			EmptyRequestBody.getInstance(),
 			files

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -29,14 +29,13 @@ import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.junit.After;
+import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Optional;
-import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 
@@ -44,9 +43,17 @@ import static org.junit.Assert.assertEquals;
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files and/or json are properly
  * handled.
  */
-public class FileUploadHandlerTest extends MultipartUploadTestBase {
+public class FileUploadHandlerTest extends TestLogger {
+
+	@ClassRule
+	public static final MultipartUploadResource MULTIPART_UPLOAD_RESOURCE = new MultipartUploadResource();
 
 	private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
+
+	@After
+	public void reset() {
+		MULTIPART_UPLOAD_RESOURCE.resetState();
+	}
 
 	private static Request buildMalformedRequest(String headerUrl) {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
@@ -58,7 +65,7 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 
 	private static Request buildMixedRequestWithUnknownAttribute(String headerUrl) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
-		builder = addJsonPart(builder, new TestRequestBody(), "hello");
+		builder = addJsonPart(builder, new MultipartUploadResource.TestRequestBody(), "hello");
 		builder = addFilePart(builder);
 		return finalizeRequest(builder, headerUrl);
 	}
@@ -69,13 +76,13 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 		return finalizeRequest(builder, headerUrl);
 	}
 
-	private static Request buildJsonRequest(String headerUrl, TestRequestBody json) throws IOException {
+	private static Request buildJsonRequest(String headerUrl, MultipartUploadResource.TestRequestBody json) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
 		builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
 		return finalizeRequest(builder, headerUrl);
 	}
 
-	private static Request buildMixedRequest(String headerUrl, TestRequestBody json) throws IOException {
+	private static Request buildMixedRequest(String headerUrl, MultipartUploadResource.TestRequestBody json) throws IOException {
 		MultipartBody.Builder builder = new MultipartBody.Builder();
 		builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
 		builder = addFilePart(builder);
@@ -88,20 +95,22 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 			.build();
 
 		return new Request.Builder()
-			.url(serverAddress + headerUrl)
+			.url(MULTIPART_UPLOAD_RESOURCE.serverAddress + headerUrl)
 			.post(multipartBody)
 			.build();
 	}
 
 	private static MultipartBody.Builder addFilePart(MultipartBody.Builder builder) {
-		okhttp3.RequestBody filePayload1 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file1);
-		okhttp3.RequestBody filePayload2 = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file2);
+		for (File file : MULTIPART_UPLOAD_RESOURCE.getFilesToUpload()) {
+			okhttp3.RequestBody filePayload = okhttp3.RequestBody.create(MediaType.parse("application/octet-stream"), file);
 
-		return builder.addFormDataPart("file1", file1.getName(), filePayload1)
-			.addFormDataPart("file2", file2.getName(), filePayload2);
+			builder = builder.addFormDataPart(file.getName(), file.getName(), filePayload);
+		}
+
+		return builder;
 	}
 
-	private static MultipartBody.Builder addJsonPart(MultipartBody.Builder builder, TestRequestBody jsonRequestBody, String attribute) throws IOException {
+	private static MultipartBody.Builder addJsonPart(MultipartBody.Builder builder, MultipartUploadResource.TestRequestBody jsonRequestBody, String attribute) throws IOException {
 		StringWriter sw = new StringWriter();
 		OBJECT_MAPPER.writeValue(sw, jsonRequestBody);
 
@@ -114,7 +123,9 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 	public void testMixedMultipart() throws Exception {
 		OkHttpClient client = new OkHttpClient();
 
-		Request jsonRequest = buildJsonRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), new TestRequestBody());
+		MultipartUploadResource.MultipartMixedHandler mixedHandler = MULTIPART_UPLOAD_RESOURCE.getMixedHandler();
+
+		Request jsonRequest = buildJsonRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), new MultipartUploadResource.TestRequestBody());
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			// explicitly rejected by the test handler implementation
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
@@ -126,7 +137,7 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 
-		TestRequestBody json = new TestRequestBody();
+		MultipartUploadResource.TestRequestBody json = new MultipartUploadResource.TestRequestBody();
 		Request mixedRequest = buildMixedRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			assertEquals(mixedHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
@@ -138,7 +149,9 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 	public void testJsonMultipart() throws Exception {
 		OkHttpClient client = new OkHttpClient();
 
-		TestRequestBody json = new TestRequestBody();
+		MultipartUploadResource.MultipartJsonHandler jsonHandler = MULTIPART_UPLOAD_RESOURCE.getJsonHandler();
+
+		MultipartUploadResource.TestRequestBody json = new MultipartUploadResource.TestRequestBody();
 		Request jsonRequest = buildJsonRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			assertEquals(jsonHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
@@ -151,7 +164,7 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
 
-		Request mixedRequest = buildMixedRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), new TestRequestBody());
+		Request mixedRequest = buildMixedRequest(jsonHandler.getMessageHeaders().getTargetRestEndpointURL(), new MultipartUploadResource.TestRequestBody());
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			// FileUploads are outright forbidden
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
@@ -162,7 +175,9 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 	public void testFileMultipart() throws Exception {
 		OkHttpClient client = new OkHttpClient();
 
-		Request jsonRequest = buildJsonRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), new TestRequestBody());
+		MultipartUploadResource.MultipartFileHandler fileHandler = MULTIPART_UPLOAD_RESOURCE.getFileHandler();
+
+		Request jsonRequest = buildJsonRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), new MultipartUploadResource.TestRequestBody());
 		try (Response response = client.newCall(jsonRequest).execute()) {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
@@ -173,7 +188,7 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 			assertEquals(fileHandler.getMessageHeaders().getResponseStatusCode().code(), response.code());
 		}
 
-		Request mixedRequest = buildMixedRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), new TestRequestBody());
+		Request mixedRequest = buildMixedRequest(fileHandler.getMessageHeaders().getTargetRestEndpointURL(), new MultipartUploadResource.TestRequestBody());
 		try (Response response = client.newCall(mixedRequest).execute()) {
 			// JSON payload did not match expected format
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
@@ -184,11 +199,11 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 	public void testUploadCleanupOnUnknownAttribute() throws IOException {
 		OkHttpClient client = new OkHttpClient();
 
-		Request request = buildMixedRequestWithUnknownAttribute(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
+		Request request = buildMixedRequestWithUnknownAttribute(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
 			assertEquals(HttpResponseStatus.BAD_REQUEST.code(), response.code());
 		}
-		assertUploadDirectoryIsEmpty();
+		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
 	}
 
 	/**
@@ -198,22 +213,11 @@ public class FileUploadHandlerTest extends MultipartUploadTestBase {
 	public void testUploadCleanupOnFailure() throws IOException {
 		OkHttpClient client = new OkHttpClient();
 
-		Request request = buildMalformedRequest(mixedHandler.getMessageHeaders().getTargetRestEndpointURL());
+		Request request = buildMalformedRequest(MULTIPART_UPLOAD_RESOURCE.getMixedHandler().getMessageHeaders().getTargetRestEndpointURL());
 		try (Response response = client.newCall(request).execute()) {
 			// decoding errors aren't handled separately by the FileUploadHandler
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
-		assertUploadDirectoryIsEmpty();
-	}
-
-	private static void assertUploadDirectoryIsEmpty() throws IOException {
-		Preconditions.checkArgument(
-			1 == Files.list(configuredUploadDir).count(),
-			"Directory structure in rest upload directory has changed. Test must be adjusted");
-		Optional<Path> actualUploadDir = Files.list(configuredUploadDir).findAny();
-		Preconditions.checkArgument(
-			actualUploadDir.isPresent(),
-			"Expected upload directory does not exist.");
-		assertEquals("Not all files were cleaned up.", 0, Files.list(actualUploadDir.get()).count());
+		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
 	}
 }
