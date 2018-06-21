@@ -58,9 +58,8 @@ public class JobRetrievalITCase extends TestLogger {
 		new MiniClusterResourceConfiguration.Builder()
 			.setNumberTaskManagers(1)
 			.setNumberSlotsPerTaskManager(4)
-			.build(),
-		TestBaseUtils.CodebaseType.NEW
-	);
+			.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+			.build());
 
 	private RestClusterClient<StandaloneClusterId> client;
 

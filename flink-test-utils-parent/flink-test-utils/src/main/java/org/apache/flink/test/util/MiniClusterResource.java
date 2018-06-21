@@ -71,26 +71,10 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public MiniClusterResource(
-		final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
-		final TestBaseUtils.CodebaseType miniClusterType) {
-		this(miniClusterResourceConfiguration, miniClusterType, false);
-	}
-
-	public MiniClusterResource(
-		final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
-		final boolean enableClusterClient) {
-		this(
-			miniClusterResourceConfiguration,
-			miniClusterResourceConfiguration.getCodebaseType(),
-			enableClusterClient);
-	}
-
-	private MiniClusterResource(
-		final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
-		final TestBaseUtils.CodebaseType miniClusterType,
-		final boolean enableClusterClient) {
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final boolean enableClusterClient) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
-		this.miniClusterType = Preconditions.checkNotNull(miniClusterType);
+		this.miniClusterType = miniClusterResourceConfiguration.getCodebaseType();
 		this.enableClusterClient = enableClusterClient;
 	}
 

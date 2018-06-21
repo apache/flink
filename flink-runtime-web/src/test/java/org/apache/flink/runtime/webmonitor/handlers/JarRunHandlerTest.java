@@ -68,9 +68,8 @@ public class JarRunHandlerTest {
 				.setConfiguration(config)
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(1)
-				.build(),
-			TestBaseUtils.CodebaseType.NEW
-		);
+				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+				.build());
 		clusterResource.before();
 
 		try {

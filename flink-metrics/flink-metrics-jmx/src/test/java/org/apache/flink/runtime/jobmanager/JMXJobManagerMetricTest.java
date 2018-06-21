@@ -64,10 +64,10 @@ public class JMXJobManagerMetricTest extends TestLogger {
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
 		new MiniClusterResourceConfiguration.Builder()
-		.setConfiguration(getConfiguration())
-		.setNumberSlotsPerTaskManager(1)
-		.setNumberTaskManagers(1)
-		.build(),
+			.setConfiguration(getConfiguration())
+			.setNumberSlotsPerTaskManager(1)
+			.setNumberTaskManagers(1)
+			.build(),
 		true);
 
 	private static Configuration getConfiguration() {

@@ -81,9 +81,8 @@ public class HistoryServerTest extends TestLogger {
 				.setConfiguration(clusterConfig)
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(1)
-				.build(),
-			TestBaseUtils.CodebaseType.NEW
-		);
+				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+				.build());
 		cluster.before();
 	}
 
