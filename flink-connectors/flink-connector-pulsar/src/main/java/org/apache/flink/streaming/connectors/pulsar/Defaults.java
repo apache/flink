@@ -24,6 +24,7 @@ public class Defaults {
 
 	public static final String SERVICE_URL = "pulsar://localhost:6650";
 	public static final long ACKNOWLEDGEMENT_BATCH_SIZE = 100;
+	public static final long MAX_ACKNOWLEDGEMENT_BATCH_SIZE = 1000;
 
 	private Defaults() {}
 }

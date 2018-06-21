@@ -86,7 +86,7 @@ public class PulsarSourceBuilder<T> {
 	 * @return this builder
 	 */
 	public PulsarSourceBuilder<T> acknowledgementBatchSize(long size) {
-		if (size > 0) {
+		if (size > 0 && size <= Defaults.MAX_ACKNOWLEDGEMENT_BATCH_SIZE) {
 			acknowledgementBatchSize = size;
 		}
 		return this;
