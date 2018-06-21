@@ -151,11 +151,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 		HttpRequest tmpRequest = currentHttpRequest;
 		deleteUploadedFiles();
 		reset();
-		if (e == null) {
-			LOG.warn(errorMessage);
-		} else {
-			LOG.warn(errorMessage, e);
-		}
+		LOG.warn(errorMessage, e);
 		HandlerUtils.sendErrorResponse(
 			ctx,
 			tmpRequest,
