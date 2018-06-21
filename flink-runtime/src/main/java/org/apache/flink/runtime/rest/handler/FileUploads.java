@@ -53,7 +53,7 @@ public final class FileUploads implements AutoCloseable {
 		FileAdderVisitor visitor = new FileAdderVisitor();
 		Files.walkFileTree(directory, visitor);
 		files.addAll(visitor.getContainedFiles());
-		
+
 		return new FileUploads(Collections.singleton(directory), files);
 	}
 

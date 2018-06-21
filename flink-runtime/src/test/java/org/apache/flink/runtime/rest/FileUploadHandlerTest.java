@@ -71,7 +71,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -96,7 +95,7 @@ public class FileUploadHandlerTest extends TestLogger {
 	private static MultipartFileHandler fileHandler;
 	private static File file1;
 	private static File file2;
-	
+
 	private static Path configuredUploadDir;
 
 	@BeforeClass
