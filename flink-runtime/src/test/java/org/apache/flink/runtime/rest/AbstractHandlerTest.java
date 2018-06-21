@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
@@ -61,7 +62,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for {@link AbstractHandler}.
  */
-public class AbstractHandlerTest {
+public class AbstractHandlerTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
