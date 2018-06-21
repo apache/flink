@@ -285,14 +285,14 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 	private static class LazApplicationClientLoader {
 
 		private final Configuration flinkConfig;
-		private final LazyActorSystemLoader actorSystemLoader;
+		private final ActorSystemLoader actorSystemLoader;
 		private final HighAvailabilityServices highAvailabilityServices;
 
 		private ActorRef applicationClient;
 
 		private LazApplicationClientLoader(
 				Configuration flinkConfig,
-				LazyActorSystemLoader actorSystemLoader,
+				ActorSystemLoader actorSystemLoader,
 				HighAvailabilityServices highAvailabilityServices) {
 			this.flinkConfig = Preconditions.checkNotNull(flinkConfig, "flinkConfig");
 			this.actorSystemLoader = Preconditions.checkNotNull(actorSystemLoader, "actorSystemLoader");

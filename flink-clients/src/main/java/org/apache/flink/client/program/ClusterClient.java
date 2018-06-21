@@ -104,8 +104,8 @@ public abstract class ClusterClient<T> {
 	/** The optimizer used in the optimization of batch programs. */
 	final Optimizer compiler;
 
-	/** The actor system used to communicate with the JobManager. Lazily initialized upon first use */
-	protected final LazyActorSystemLoader actorSystemLoader;
+	/** The actor system used to communicate with the JobManager. */
+	protected final ActorSystemLoader actorSystemLoader;
 
 	/** Configuration of the client. */
 	protected final Configuration flinkConfig;
@@ -171,7 +171,10 @@ public abstract class ClusterClient<T> {
 	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
 	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
 	 */
-	public ClusterClient(Configuration flinkConfig, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices) {
+	public ClusterClient(
+			Configuration flinkConfig,
+			HighAvailabilityServices highAvailabilityServices,
+			boolean sharedHaServices) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
 
@@ -188,14 +191,45 @@ public abstract class ClusterClient<T> {
 		this.sharedHaServices = sharedHaServices;
 	}
 
+	public ClusterClient(
+			Configuration flinkConfig,
+			HighAvailabilityServices highAvailabilityServices,
+			boolean sharedHaServices,
+			ActorSystemLoader actorSystemLoader) {
+		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
+
+		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
+		this.lookupTimeout = AkkaUtils.getLookupTimeout(flinkConfig);
+
+		this.actorSystemLoader = Preconditions.checkNotNull(actorSystemLoader);
+
+		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+		this.sharedHaServices = sharedHaServices;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Interface which allows to load an {@link ActorSystem}.
+	 */
+	public interface ActorSystemLoader extends AutoCloseable {
+
+		/**
+		 * Get an {@link ActorSystem}.
+		 *
+		 * @return {@link ActorSystem}
+		 * @throws FlinkException
+		 */
+		ActorSystem get() throws FlinkException;
+	}
+
+	/**
 	 * Utility class to lazily instantiate an {@link ActorSystem}.
 	 */
-	protected static class LazyActorSystemLoader {
+	protected static class LazyActorSystemLoader implements ActorSystemLoader {
 
 		private final Logger log;
 
@@ -226,7 +260,8 @@ public abstract class ClusterClient<T> {
 			return actorSystem != null;
 		}
 
-		public void shutdown() {
+		@Override
+		public void close() throws Exception {
 			if (isLoaded()) {
 				actorSystem.shutdown();
 				actorSystem.awaitTermination();
@@ -239,6 +274,7 @@ public abstract class ClusterClient<T> {
 		 * @return ActorSystem
 		 * @throws Exception if the ActorSystem could not be created
 		 */
+		@Override
 		public ActorSystem get() throws FlinkException {
 
 			if (!isLoaded()) {
@@ -276,7 +312,7 @@ public abstract class ClusterClient<T> {
 	 */
 	public void shutdown() throws Exception {
 		synchronized (this) {
-			actorSystemLoader.shutdown();
+			actorSystemLoader.close();
 
 			if (!sharedHaServices && highAvailabilityServices != null) {
 				highAvailabilityServices.close();
