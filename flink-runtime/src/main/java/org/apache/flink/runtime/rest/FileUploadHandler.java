@@ -45,6 +45,8 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -121,17 +123,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 							currentJsonPayload = request.get();
 						} else {
-							HttpRequest tmpRequest = currentHttpRequest;
-							deleteUploadedFiles();
-							reset();
-							LOG.warn("Received unknown attribute {}.", data.getName());
-							HandlerUtils.sendErrorResponse(
-								ctx,
-								tmpRequest,
-								new ErrorResponseBody("Received unknown attribute " + data.getName() + '.'),
-								HttpResponseStatus.BAD_REQUEST,
-								Collections.emptyMap()
-							);
+							handleError(ctx, "Received unknown attribute " + data.getName() + '.', HttpResponseStatus.BAD_REQUEST, null);
 							return;
 						}
 					}
@@ -151,18 +143,26 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				ctx.fireChannelRead(msg);
 			}
 		} catch (Exception e) {
-			HttpRequest tmpRequest = currentHttpRequest;
-			deleteUploadedFiles();
-			reset();
-			LOG.warn("Internal server error. File upload failed.", e);
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				tmpRequest,
-				new ErrorResponseBody("File upload failed."),
-				HttpResponseStatus.INTERNAL_SERVER_ERROR,
-				Collections.emptyMap()
-			);
+			handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
 		}
+	}
+
+	private void handleError(ChannelHandlerContext ctx, String errorMessage, HttpResponseStatus responseStatus, @Nullable Throwable e) {
+		HttpRequest tmpRequest = currentHttpRequest;
+		deleteUploadedFiles();
+		reset();
+		if (e == null) {
+			LOG.warn(errorMessage);
+		} else {
+			LOG.warn(errorMessage, e);
+		}
+		HandlerUtils.sendErrorResponse(
+			ctx,
+			tmpRequest,
+			new ErrorResponseBody(errorMessage),
+			responseStatus,
+			Collections.emptyMap()
+		);
 	}
 
 	private void deleteUploadedFiles() {
