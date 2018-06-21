@@ -58,6 +58,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHtt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
@@ -189,7 +190,7 @@ public class RestClient {
 		objectMapper.writeValue(sw, request);
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		Request httpRequest = createRequest(targetAddress, targetPort, targetUrl, messageHeaders.getHttpMethod(), payload, fileUploads);
+		Request httpRequest = createRequest(targetAddress, targetPort, targetUrl, messageHeaders.getHttpMethod().getNettyHttpMethod(), payload, fileUploads);
 
 		final JavaType responseType;
 
@@ -206,10 +207,10 @@ public class RestClient {
 		return submitRequest(targetAddress, targetPort, httpRequest, responseType);
 	}
 
-	private static Request createRequest(String targetAddress, int targetPort, String targetUrl, HttpMethodWrapper httpMethod, ByteBuf jsonPayload, Collection<FileUpload> fileUploads) throws IOException {
+	private static Request createRequest(String targetAddress, int targetPort, String targetUrl, HttpMethod httpMethod, ByteBuf jsonPayload, Collection<FileUpload> fileUploads) throws IOException {
 		if (fileUploads.isEmpty()) {
 
-			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod.getNettyHttpMethod(), targetUrl, jsonPayload);
+			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl, jsonPayload);
 
 			httpRequest.headers()
 				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
@@ -219,7 +220,7 @@ public class RestClient {
 
 			return new SimpleRequest(httpRequest);
 		} else {
-			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod.getNettyHttpMethod(), targetUrl);
+			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl);
 
 			httpRequest.headers()
 				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
