@@ -132,8 +132,7 @@ public class RescalingITCase extends TestLogger {
 					.setConfiguration(config)
 					.setNumberTaskManagers(numTaskManagers)
 					.setNumberSlotsPerTaskManager(numSlots)
-					.build(),
-				true);
+					.build());
 			cluster.before();
 		}
 	}

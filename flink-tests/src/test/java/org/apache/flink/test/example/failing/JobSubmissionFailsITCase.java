@@ -56,8 +56,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(NUM_TM)
 			.setNumberSlotsPerTaskManager(NUM_SLOTS / NUM_TM)
-			.build(),
-		true);
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();

@@ -73,8 +73,7 @@ public class HAQueryableStateFsBackendITCase extends AbstractQueryableStateTestB
 				.setConfiguration(getConfig())
 				.setNumberTaskManagers(NUM_TMS)
 				.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-				.build(),
-			true);
+				.build());
 
 		miniClusterResource.before();
 

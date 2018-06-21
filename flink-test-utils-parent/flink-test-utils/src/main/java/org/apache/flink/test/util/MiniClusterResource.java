@@ -19,6 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.DefaultActorSystemLoader;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
@@ -32,11 +33,13 @@ import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import akka.actor.ActorSystem;
 import org.junit.Assume;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
@@ -45,6 +48,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -65,8 +70,6 @@ public class MiniClusterResource extends ExternalResource {
 
 	private JobExecutorService jobExecutorService;
 
-	private final boolean enableClusterClient;
-
 	private ClusterClient<?> clusterClient;
 
 	private Configuration restClusterClientConfig;
@@ -78,15 +81,8 @@ public class MiniClusterResource extends ExternalResource {
 	private int webUIPort = -1;
 
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-		this(miniClusterResourceConfiguration, false);
-	}
-
-	public MiniClusterResource(
-			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
-			final boolean enableClusterClient) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
 		this.codebaseType = miniClusterResourceConfiguration.getCodebaseType();
-		this.enableClusterClient = enableClusterClient;
 	}
 
 	public TestBaseUtils.CodebaseType getCodebaseType() {
@@ -98,12 +94,6 @@ public class MiniClusterResource extends ExternalResource {
 	}
 
 	public ClusterClient<?> getClusterClient() {
-		if (!enableClusterClient) {
-			// this check is technically only necessary for legacy clusters
-			// we still fail here to keep the behaviors in sync
-			throw new IllegalStateException("To use the client you must enable it with the constructor.");
-		}
-
 		return clusterClient;
 	}
 
@@ -194,12 +184,27 @@ public class MiniClusterResource extends ExternalResource {
 
 		final LocalFlinkMiniCluster flinkMiniCluster = TestBaseUtils.startCluster(
 			configuration,
-			!enableClusterClient); // the cluster client only works if separate actor systems are used
+			miniClusterResourceConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED);
 
 		jobExecutorService = flinkMiniCluster;
-		if (enableClusterClient) {
-			clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
+
+		switch (miniClusterResourceConfiguration.getRpcServiceSharing()) {
+			case SHARED:
+				Option<ActorSystem> actorSystemOption = flinkMiniCluster.firstActorSystem();
+				Preconditions.checkState(actorSystemOption.isDefined());
+
+				final ActorSystem actorSystem = actorSystemOption.get();
+				clusterClient = new StandaloneClusterClient(
+					configuration,
+					flinkMiniCluster.highAvailabilityServices(),
+					true,
+					new DefaultActorSystemLoader(actorSystem));
+				break;
+			case DEDICATED:
+				clusterClient = new StandaloneClusterClient(configuration, flinkMiniCluster.highAvailabilityServices(), true);
+				break;
 		}
+
 		Configuration restClientConfig = new Configuration();
 		restClientConfig.setInteger(JobManagerOptions.PORT, flinkMiniCluster.getLeaderRPCPort());
 		this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
@@ -240,9 +245,8 @@ public class MiniClusterResource extends ExternalResource {
 		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 		jobExecutorService = miniCluster;
-		if (enableClusterClient) {
-			clusterClient = new MiniClusterClient(configuration, miniCluster);
-		}
+		clusterClient = new MiniClusterClient(configuration, miniCluster);
+
 		Configuration restClientConfig = new Configuration();
 		restClientConfig.setString(JobManagerOptions.ADDRESS, miniCluster.getRestAddress().getHost());
 		restClientConfig.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());

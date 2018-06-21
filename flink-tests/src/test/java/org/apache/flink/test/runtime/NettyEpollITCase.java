@@ -79,8 +79,7 @@ public class NettyEpollITCase extends TestLogger {
 					.setConfiguration(config)
 					.setNumberTaskManagers(NUM_TASK_MANAGERS)
 					.setNumberSlotsPerTaskManager(1)
-					.build(),
-				true);
+					.build());
 			cluster.before();
 			return cluster;
 		}

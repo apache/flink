@@ -238,9 +238,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				new MiniClusterResourceConfiguration.Builder()
 					.setNumberTaskManagers(numTaskManagers)
 					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-					.build(),
-				true
-			);
+					.build());
 			cluster.before();
 
 			try {

@@ -89,8 +89,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(1)
 			.setNumberSlotsPerTaskManager(1)
-			.build(),
-		true);
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();

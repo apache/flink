@@ -67,8 +67,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 			.setConfiguration(getConfiguration())
 			.setNumberSlotsPerTaskManager(1)
 			.setNumberTaskManagers(1)
-			.build(),
-		true);
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration flinkConfiguration = new Configuration();

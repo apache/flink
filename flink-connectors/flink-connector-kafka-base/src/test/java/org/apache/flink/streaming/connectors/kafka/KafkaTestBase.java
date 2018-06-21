@@ -86,8 +86,7 @@ public abstract class KafkaTestBase extends TestLogger {
 			.setConfiguration(getFlinkConfiguration())
 			.setNumberTaskManagers(NUM_TMS)
 			.setNumberSlotsPerTaskManager(TM_SLOTS)
-			.build(),
-		true);
+			.build());
 
 	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 

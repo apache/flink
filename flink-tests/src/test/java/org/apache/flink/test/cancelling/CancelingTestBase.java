@@ -61,8 +61,7 @@ public abstract class CancelingTestBase extends TestLogger {
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(2)
 			.setNumberSlotsPerTaskManager(4)
-			.build(),
-		true);
+			.build());
 
 	// --------------------------------------------------------------------------------------------
 

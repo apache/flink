@@ -232,8 +232,7 @@ public class SavepointITCase extends TestLogger {
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
 				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-				.build(),
-			true);
+				.build());
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -301,8 +300,7 @@ public class SavepointITCase extends TestLogger {
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
 				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-				.build(),
-			true);
+				.build());
 
 		LOG.info("Shutting down Flink cluster.");
 		cluster.before();
@@ -346,8 +344,7 @@ public class SavepointITCase extends TestLogger {
 				.setConfiguration(config)
 				.setNumberTaskManagers(numTaskManagers)
 				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-				.build(),
-			true);
+				.build());
 		LOG.info("Restarting Flink cluster.");
 		cluster.before();
 		client = cluster.getClusterClient();
@@ -583,8 +580,7 @@ public class SavepointITCase extends TestLogger {
 				.setConfiguration(config)
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(2 * jobGraph.getMaximumParallelism())
-				.build(),
-			true);
+				.build());
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
 
@@ -713,8 +709,7 @@ public class SavepointITCase extends TestLogger {
 					.setConfiguration(config)
 					.setNumberTaskManagers(numTaskManagers)
 					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
-					.build(),
-				true);
+					.build());
 		}
 	}
 }

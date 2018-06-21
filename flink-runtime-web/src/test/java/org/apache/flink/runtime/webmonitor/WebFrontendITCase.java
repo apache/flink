@@ -84,9 +84,7 @@ public class WebFrontendITCase extends TestLogger {
 			.setConfiguration(CLUSTER_CONFIGURATION)
 			.setNumberTaskManagers(NUM_TASK_MANAGERS)
 			.setNumberSlotsPerTaskManager(NUM_SLOTS)
-			.build(),
-		true
-	);
+			.build());
 
 	private static Configuration getClusterConfiguration() {
 		Configuration config = new Configuration();

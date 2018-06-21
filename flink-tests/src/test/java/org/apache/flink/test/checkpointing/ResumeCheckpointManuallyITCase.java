@@ -268,8 +268,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 				.setConfiguration(config)
 				.setNumberTaskManagers(NUM_TASK_MANAGERS)
 				.setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
-				.build(),
-			true);
+				.build());
 
 		cluster.before();
 

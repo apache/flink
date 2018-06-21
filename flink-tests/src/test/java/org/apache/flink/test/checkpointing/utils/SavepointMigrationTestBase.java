@@ -93,8 +93,7 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 				.setConfiguration(getConfiguration())
 				.setNumberTaskManagers(1)
 				.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-				.build(),
-			true);
+				.build());
 	}
 
 	private Configuration getConfiguration() throws Exception {

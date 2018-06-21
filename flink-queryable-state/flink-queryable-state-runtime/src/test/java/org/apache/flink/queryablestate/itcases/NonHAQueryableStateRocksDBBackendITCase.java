@@ -57,8 +57,7 @@ public class NonHAQueryableStateRocksDBBackendITCase extends AbstractQueryableSt
 			.setConfiguration(getConfig())
 			.setNumberTaskManagers(NUM_TMS)
 			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-			.build(),
-		true);
+			.build());
 
 	@Override
 	protected AbstractStateBackend createStateBackend() throws Exception {

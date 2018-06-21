@@ -76,8 +76,7 @@ public class LocalExecutorITCase extends TestLogger {
 			.setConfiguration(getConfig())
 			.setNumberTaskManagers(NUM_TMS)
 			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-			.build(),
-		true);
+			.build());
 
 	private static ClusterClient<?> clusterClient;
 

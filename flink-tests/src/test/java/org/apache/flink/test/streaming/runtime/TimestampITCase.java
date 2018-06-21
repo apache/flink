@@ -83,8 +83,7 @@ public class TimestampITCase extends TestLogger {
 			.setConfiguration(getConfiguration())
 			.setNumberTaskManagers(NUM_TASK_MANAGERS)
 			.setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
-			.build(),
-		true);
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
