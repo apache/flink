@@ -190,7 +190,7 @@ public class RestClient {
 		objectMapper.writeValue(sw, request);
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		Request httpRequest = createRequest(targetAddress, targetPort, targetUrl, messageHeaders.getHttpMethod().getNettyHttpMethod(), payload, fileUploads);
+		Request httpRequest = createRequest(targetAddress + ':' + targetPort, targetUrl, messageHeaders.getHttpMethod().getNettyHttpMethod(), payload, fileUploads);
 
 		final JavaType responseType;
 
@@ -207,13 +207,13 @@ public class RestClient {
 		return submitRequest(targetAddress, targetPort, httpRequest, responseType);
 	}
 
-	private static Request createRequest(String targetAddress, int targetPort, String targetUrl, HttpMethod httpMethod, ByteBuf jsonPayload, Collection<FileUpload> fileUploads) throws IOException {
+	private static Request createRequest(String targetAddress, String targetUrl, HttpMethod httpMethod, ByteBuf jsonPayload, Collection<FileUpload> fileUploads) throws IOException {
 		if (fileUploads.isEmpty()) {
 
 			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl, jsonPayload);
 
 			httpRequest.headers()
-				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
+				.set(HttpHeaders.Names.HOST, targetAddress)
 				.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE)
 				.add(HttpHeaders.Names.CONTENT_LENGTH, jsonPayload.capacity())
 				.add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
@@ -223,7 +223,7 @@ public class RestClient {
 			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl);
 
 			httpRequest.headers()
-				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
+				.set(HttpHeaders.Names.HOST, targetAddress)
 				.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
 			// takes care of splitting the request into multiple parts
