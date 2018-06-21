@@ -64,7 +64,6 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 
 	public static final String METRIC_OUTSTANDING_RECORDS_COUNT = "outstandingRecordsCount";
 
-
 	private static final long serialVersionUID = 6447077318449477846L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisProducer.class);
@@ -171,6 +170,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * @param queueLimit The maximum length of the internal queue before backpressuring
 	 */
 	public void setQueueLimit(int queueLimit) {
+		checkArgument(queueLimit > 0, "queueLimit must be a positive number");
 		this.queueLimit = queueLimit;
 	}
 
@@ -257,8 +257,11 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		}
 
 		checkAndPropagateAsyncError();
-		enforceQueueLimit();
-		checkAndPropagateAsyncError();
+		boolean didWaitForFlush = enforceQueueLimit();
+
+		if (didWaitForFlush) {
+			checkAndPropagateAsyncError();
+		}
 
 		String stream = defaultStream;
 		String partition = defaultPartition;
@@ -371,8 +374,10 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * flush some of the records until we are below the limit again.
 	 * We don't want to flush _all_ records at this point since that would
 	 * break record aggregation.
+	 *
+	 * @return boolean whether flushing occurred or not
 	 */
-	private void enforceQueueLimit() {
+	private boolean enforceQueueLimit() {
 		int attempt = 0;
 		while (producer.getOutstandingRecordsCount() >= queueLimit) {
 			backpressureCycles.inc();
@@ -387,6 +392,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 				break;
 			}
 		}
+		return attempt > 0;
 	}
 
 	/**

@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.annotation.Internal;
+
+@Internal
 public class TimeoutLatch {
 
 	private final Object lock = new Object();
