@@ -72,7 +72,7 @@ public abstract class KafkaTableSource
 	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 	/** The startup mode for the contained consumer (default is {@link StartupMode#GROUP_OFFSETS}). */
-	private StartupMode startupMode;
+	private StartupMode startupMode = StartupMode.GROUP_OFFSETS;
 
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
 	private Map<KafkaTopicPartition, Long> specificStartupOffsets;
