@@ -27,7 +27,6 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ReturnListener;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -259,10 +258,12 @@ public class RMQSinkTest {
 		}
 	}
 
-	private class DummyReturnHandler implements ReturnListener {
+	private class DummyReturnHandler implements SerializableReturnListener {
+
+		private static final long serialVersionUID = 1L;
+
 		@Override
-		public void handleReturn(int arg0, String arg1, String arg2, String arg3, BasicProperties arg4, byte[] arg5)
-				throws IOException {
+		public void handleReturn(final int replyCode, final String replyText, final String exchange, final String routingKey, final BasicProperties properties, final byte[] body) {
 		}
 	}
 

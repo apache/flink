@@ -53,20 +53,22 @@ public interface RMQSinkPublishOptions<IN> extends java.io.Serializable {
 	String computeExchange(IN a);
 
 	/**
-	 * Compute the mandatory flag used in basic.publish method
-	 * See AMQP API help for values.
-	 * A ReturnListener is mandatory if this flag can be true (if not it is ignored and forced to false)
+	 * Compute the mandatory flag passed to method {@link com.rabbitmq.client.Channel#basicPublish(String, String, boolean, boolean, BasicProperties, byte[])}.
+	 * A {@link SerializableReturnListener} is mandatory if this flag can be true.
 	 * @param a The data used by the sink
 	 * @return The mandatory flag
 	 */
-	boolean computeMandatory(IN a);
+	default boolean computeMandatory(IN a) {
+		return false;
+	}
 
 	/**
-	 * Compute the immediate flag
-	 * See AMQP API help for values.
-	 * A ReturnListener is mandatory if this flag can be true (if not it is ignored and forced to false)
+	 * Compute the immediate flag passed to method {@link com.rabbitmq.client.Channel#basicPublish(String, String, boolean, boolean, BasicProperties, byte[])}.
+	 * A {@link SerializableReturnListener} is mandatory if this flag can be true.
 	 * @param a The data used by the sink
 	 * @return The mandatory flag
 	 */
-	boolean computeImmediate(IN a);
+	default boolean computeImmediate(IN a) {
+		return false;
+	}
 }

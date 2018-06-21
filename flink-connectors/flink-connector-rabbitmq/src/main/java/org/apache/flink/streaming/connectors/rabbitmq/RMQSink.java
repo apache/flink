@@ -22,13 +22,15 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
+import org.apache.flink.util.Preconditions;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ReturnListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -42,25 +44,34 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RMQSink.class);
 
+	@Nullable
 	protected final String queueName;
+
 	private final RMQConnectionConfig rmqConnectionConfig;
 	protected transient Connection connection;
 	protected transient Channel channel;
 	protected SerializationSchema<IN> schema;
 	private boolean logFailuresOnly = false;
 
+	@Nullable
 	private final RMQSinkPublishOptions<IN> publishOptions;
-	private final ReturnListener returnListener;
+
+	@Nullable
+	private final SerializableReturnListener returnListener;
 
 	/**
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param queueName The queue to publish messages to.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
 	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
-	 * @param returnListener A ReturnListener implementation object to handle returned message event
+	 * @param returnListener A SerializableReturnListener implementation object to handle returned message event
      */
-	private RMQSink(RMQConnectionConfig rmqConnectionConfig, String queueName, SerializationSchema<IN> schema,
-			RMQSinkPublishOptions<IN> publishOptions, ReturnListener returnListener) {
+	private RMQSink(
+			RMQConnectionConfig rmqConnectionConfig,
+			@Nullable String queueName,
+			SerializationSchema<IN> schema,
+			@Nullable RMQSinkPublishOptions<IN> publishOptions,
+			@Nullable SerializableReturnListener returnListener) {
 		this.rmqConnectionConfig = rmqConnectionConfig;
 		this.queueName = queueName;
 		this.schema = schema;
@@ -95,11 +106,11 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	 * @param rmqConnectionConfig The RabbitMQ connection configuration {@link RMQConnectionConfig}.
 	 * @param schema A {@link SerializationSchema} for turning the Java objects received into bytes
 	 * @param publishOptions A {@link RMQSinkPublishOptions} for providing message's routing key and/or properties
-	 * @param returnListener A ReturnListener implementation object to handle returned message event
+	 * @param returnListener A SerializableReturnListener implementation object to handle returned message event
      */
 	@PublicEvolving
 	public RMQSink(RMQConnectionConfig rmqConnectionConfig, SerializationSchema<IN> schema,
-			RMQSinkPublishOptions<IN> publishOptions, ReturnListener returnListener) {
+			RMQSinkPublishOptions<IN> publishOptions, SerializableReturnListener returnListener) {
 		this(rmqConnectionConfig, null, schema, publishOptions, returnListener);
 	}
 
@@ -161,23 +172,15 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 				boolean mandatory = publishOptions.computeMandatory(value);
 				boolean immediate = publishOptions.computeImmediate(value);
 
-				if (returnListener == null && (mandatory || immediate)) {
-					throw new IllegalStateException("Setting mandatory and/or immediate flags to true requires a ReturnListener.");
-				} else {
-					String rk = publishOptions.computeRoutingKey(value);
-					if (rk == null) {
-						throw new NullPointerException("computeRoutingKey returned an anormal 'null' value.");
-					}
-					String exchange = publishOptions.computeExchange(value);
-					if (exchange == null) {
-						throw new NullPointerException("computeExchange returned an anormal 'null' value.");
-					}
+				Preconditions.checkState(!(returnListener == null && (mandatory || immediate)),
+					"Setting mandatory and/or immediate flags to true requires a ReturnListener.");
 
-					channel.basicPublish(exchange, rk, mandatory, immediate,
-									publishOptions.computeProperties(value), msg);
-				}
+				String rk = publishOptions.computeRoutingKey(value);
+				String exchange = publishOptions.computeExchange(value);
+
+				channel.basicPublish(exchange, rk, mandatory, immediate,
+					publishOptions.computeProperties(value), msg);
 			}
-
 		} catch (IOException e) {
 			if (logFailuresOnly) {
 				LOG.error("Cannot send RMQ message {} at {}", queueName, rmqConnectionConfig.getHost(), e);
