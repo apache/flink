@@ -254,7 +254,8 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 				Collections.<ConstraintEvaluator>emptyList(),
 				"",
 				Option.<String>empty(),
-				Option.<String>empty());
+				Option.<String>empty(),
+				Collections.<String>emptyList());
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(

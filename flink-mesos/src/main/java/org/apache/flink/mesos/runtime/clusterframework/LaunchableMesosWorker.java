@@ -36,6 +36,7 @@ import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
 import org.apache.mesos.Protos;
+import org.apache.mesos.Protos.CommandInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -245,6 +246,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// ship additional files
 		for (ContainerSpecification.Artifact artifact : containerSpec.getArtifacts()) {
 			cmd.addUris(Utils.uri(resolver, artifact));
+		}
+
+		// add user-specified URIs
+		for (String uri : params.uris()) {
+			cmd.addUris(CommandInfo.URI.newBuilder().setValue(uri));
 		}
 
 		// propagate environment variables
