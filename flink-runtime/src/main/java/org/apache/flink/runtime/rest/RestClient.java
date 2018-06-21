@@ -55,7 +55,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
@@ -82,6 +81,7 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -158,42 +158,27 @@ public class RestClient {
 	}
 
 	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
-		String targetAddress,
-		int targetPort,
-		M messageHeaders,
-		U messageParameters,
-		R request) throws IOException {
-		return internalSendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, false, new DefaultProcessor());
+			String targetAddress,
+			int targetPort,
+			M messageHeaders,
+			U messageParameters,
+			R request) throws IOException {
+		return sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, Collections.emptyList());
 	}
 
 	public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P> sendRequest(
-		String targetAddress,
-		int targetPort,
-		M messageHeaders,
-		U messageParameters,
-		R request,
-		Collection<FileUpload> fileUploads) throws IOException {
-		if (fileUploads.isEmpty()) {
-			return sendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request);
-		} else {
-			return internalSendRequest(targetAddress, targetPort, messageHeaders, messageParameters, request, true, new MultipartProcessor(fileUploads));
-		}
-	}
-
-	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody, T> CompletableFuture<P> internalSendRequest(
-		String targetAddress,
-		int targetPort,
-		M messageHeaders,
-		U messageParameters,
-		R request,
-		boolean multipart,
-		RequestProcessor<T> requestProcessor) throws IOException {
+			String targetAddress,
+			int targetPort,
+			M messageHeaders,
+			U messageParameters,
+			R request,
+			Collection<FileUpload> fileUploads) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
 		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(request);
 		Preconditions.checkNotNull(messageParameters);
-		Preconditions.checkNotNull(requestProcessor);
+		Preconditions.checkNotNull(fileUploads);
 		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
 
 		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
@@ -204,25 +189,7 @@ public class RestClient {
 		objectMapper.writeValue(sw, request);
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
-		// create request and set headers
-		final FullHttpRequest httpRequest;
-		if (multipart) {
-			httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl);
-		} else {
-			httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, messageHeaders.getHttpMethod().getNettyHttpMethod(), targetUrl, payload);
-		}
-
-		httpRequest.headers()
-			.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
-			.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
-
-		if (!multipart) {
-			httpRequest.headers()
-				.add(HttpHeaders.Names.CONTENT_LENGTH, payload.capacity())
-				.add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
-		}
-
-		T finalRequest = requestProcessor.createRequest(httpRequest, payload);
+		Request httpRequest = createRequest(targetAddress, targetPort, targetUrl, messageHeaders.getHttpMethod(), payload, fileUploads);
 
 		final JavaType responseType;
 
@@ -236,70 +203,28 @@ public class RestClient {
 				typeParameters.toArray(new Class<?>[typeParameters.size()]));
 		}
 
-		return submitRequest(targetAddress, targetPort, finalRequest, requestProcessor, responseType);
+		return submitRequest(targetAddress, targetPort, httpRequest, responseType);
 	}
 
-	private <P extends ResponseBody, T> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, T request, RequestProcessor<T> processor, JavaType responseType) {
-		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
+	private static Request createRequest(String targetAddress, int targetPort, String targetUrl, HttpMethodWrapper httpMethod, ByteBuf jsonPayload, Collection<FileUpload> fileUploads) throws IOException {
+		if (fileUploads.isEmpty()) {
 
-		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod.getNettyHttpMethod(), targetUrl, jsonPayload);
 
-		connectFuture.addListener(
-			(ChannelFuture future) -> {
-				if (future.isSuccess()) {
-					channelFuture.complete(future.channel());
-				} else {
-					channelFuture.completeExceptionally(future.cause());
-				}
-			});
+			httpRequest.headers()
+				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
+				.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE)
+				.add(HttpHeaders.Names.CONTENT_LENGTH, jsonPayload.capacity())
+				.add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
 
-		return channelFuture
-			.thenComposeAsync(
-				channel -> {
-					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
-					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
-					try {
-						processor.writeRequest(request, channel);
-					} catch (IOException e) {
-						return FutureUtils.completedExceptionally(new FlinkException("Could not write request.", e));
-					}
-					return future;
-				},
-				executor)
-			.thenComposeAsync(
-				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
-				executor);
-	}
+			return new SimpleRequest(httpRequest);
+		} else {
+			HttpRequest httpRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod.getNettyHttpMethod(), targetUrl);
 
-	private interface RequestProcessor<T> {
-		T createRequest(HttpRequest request, ByteBuf jsonPayload) throws IOException;
+			httpRequest.headers()
+				.set(HttpHeaders.Names.HOST, targetAddress + ':' + targetPort)
+				.set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		void writeRequest(T body, Channel channel) throws IOException;
-	}
-
-	private static final class DefaultProcessor implements RequestProcessor<HttpRequest> {
-
-		@Override
-		public HttpRequest createRequest(HttpRequest request, ByteBuf jsonPayload) throws IOException {
-			return request;
-		}
-
-		@Override
-		public void writeRequest(HttpRequest body, Channel channel) throws IOException {
-			channel.writeAndFlush(body);
-		}
-	}
-
-	private static final class MultipartProcessor implements RequestProcessor<HttpPostRequestEncoder> {
-
-		private final Collection<FileUpload> fileUploads;
-
-		MultipartProcessor(Collection<FileUpload> fileUploads) {
-			this.fileUploads = fileUploads;
-		}
-
-		@Override
-		public HttpPostRequestEncoder createRequest(HttpRequest httpRequest, ByteBuf jsonPayload) throws IOException {
 			// takes care of splitting the request into multiple parts
 			HttpPostRequestEncoder bodyRequestEncoder;
 			try {
@@ -324,31 +249,50 @@ public class RestClient {
 					bodyRequestEncoder.addBodyFileUpload("file_" + fileIndex, file, fileUpload.getContentType(), false);
 					fileIndex++;
 				}
-
-				return bodyRequestEncoder;
 			} catch (HttpPostRequestEncoder.ErrorDataEncoderException e) {
 				throw new IOException("Could not encode request.", e);
 			}
-		}
 
-		@Override
-		public void writeRequest(HttpPostRequestEncoder bodyRequestEncoder, Channel channel) throws IOException {
-			HttpRequest request;
 			try {
-				request = bodyRequestEncoder.finalizeRequest();
+				httpRequest = bodyRequestEncoder.finalizeRequest();
 			} catch (HttpPostRequestEncoder.ErrorDataEncoderException e) {
 				throw new IOException("Could not finalize request.", e);
 			}
 
-			channel.writeAndFlush(request);
-			// this should never be false as we explicitly set the encoder to use multipart messages
-			if (bodyRequestEncoder.isChunked()) {
-				channel.writeAndFlush(bodyRequestEncoder);
-			}
-
-			// release data and remove temporary files if they were created
-			bodyRequestEncoder.cleanFiles();
+			return new MultipartRequest(httpRequest, bodyRequestEncoder);
 		}
+	}
+
+	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, Request httpRequest, JavaType responseType) {
+		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
+
+		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+
+		connectFuture.addListener(
+			(ChannelFuture future) -> {
+				if (future.isSuccess()) {
+					channelFuture.complete(future.channel());
+				} else {
+					channelFuture.completeExceptionally(future.cause());
+				}
+			});
+
+		return channelFuture
+			.thenComposeAsync(
+				channel -> {
+					ClientHandler handler = channel.pipeline().get(ClientHandler.class);
+					CompletableFuture<JsonResponse> future = handler.getJsonFuture();
+					try {
+						httpRequest.writeTo(channel);
+					} catch (IOException e) {
+						return FutureUtils.completedExceptionally(new FlinkException("Could not write request.", e));
+					}
+					return future;
+				},
+				executor)
+			.thenComposeAsync(
+				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
+				executor);
 	}
 
 	private static <P extends ResponseBody> CompletableFuture<P> parseResponse(JsonResponse rawResponse, JavaType responseType) {
@@ -376,6 +320,45 @@ public class RestClient {
 			}
 		}
 		return responseFuture;
+	}
+
+	private interface Request {
+		void writeTo(Channel channel) throws IOException;
+	}
+
+	private static final class SimpleRequest implements Request {
+		private final HttpRequest httpRequest;
+
+		SimpleRequest(HttpRequest httpRequest) {
+			this.httpRequest = httpRequest;
+		}
+
+		@Override
+		public void writeTo(Channel channel) {
+			channel.writeAndFlush(httpRequest);
+		}
+	}
+
+	private static final class MultipartRequest implements Request {
+		private final HttpRequest httpRequest;
+		private final HttpPostRequestEncoder bodyRequestEncoder;
+
+		MultipartRequest(HttpRequest httpRequest, HttpPostRequestEncoder bodyRequestEncoder) {
+			this.httpRequest = httpRequest;
+			this.bodyRequestEncoder = bodyRequestEncoder;
+		}
+
+		@Override
+		public void writeTo(Channel channel) {
+			channel.writeAndFlush(httpRequest);
+			// this should never be false as we explicitly set the encoder to use multipart messages
+			if (bodyRequestEncoder.isChunked()) {
+				channel.writeAndFlush(bodyRequestEncoder);
+			}
+
+			// release data and remove temporary files if they were created
+			bodyRequestEncoder.cleanFiles();
+		}
 	}
 
 	private static class ClientHandler extends SimpleChannelInboundHandler<Object> {
