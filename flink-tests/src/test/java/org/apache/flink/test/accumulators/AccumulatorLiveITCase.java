@@ -42,6 +42,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -84,10 +85,11 @@ public class AccumulatorLiveITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			1,
-			1),
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(1)
+			.build(),
 		true);
 
 	private static Configuration getConfiguration() {

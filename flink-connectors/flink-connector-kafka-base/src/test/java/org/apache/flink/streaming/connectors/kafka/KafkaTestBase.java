@@ -27,6 +27,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
@@ -81,10 +82,11 @@ public abstract class KafkaTestBase extends TestLogger {
 
 	@ClassRule
 	public static MiniClusterResource flink = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getFlinkConfiguration(),
-			NUM_TMS,
-			TM_SLOTS),
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getFlinkConfiguration())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(TM_SLOTS)
+			.build(),
 		true);
 
 	protected static FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);

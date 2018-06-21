@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResource.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AssumptionViolatedException;
@@ -75,10 +75,11 @@ public class NettyEpollITCase extends TestLogger {
 			Configuration config = new Configuration();
 			config.setString(TRANSPORT_TYPE, "epoll");
 			MiniClusterResource cluster = new MiniClusterResource(
-				new MiniClusterResourceConfiguration(
-					config,
-					NUM_TASK_MANAGERS,
-					1),
+				new MiniClusterResourceConfiguration.Builder()
+					.setConfiguration(config)
+					.setNumberTaskManagers(NUM_TASK_MANAGERS)
+					.setNumberSlotsPerTaskManager(1)
+					.build(),
 				true);
 			cluster.before();
 			return cluster;

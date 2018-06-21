@@ -33,6 +33,7 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -52,10 +53,11 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			8));
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(2)
+			.setNumberSlotsPerTaskManager(8)
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();

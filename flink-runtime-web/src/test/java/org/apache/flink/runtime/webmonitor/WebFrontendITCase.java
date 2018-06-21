@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -80,10 +81,11 @@ public class WebFrontendITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			CLUSTER_CONFIGURATION,
-			NUM_TASK_MANAGERS,
-			NUM_SLOTS),
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(CLUSTER_CONFIGURATION)
+			.setNumberTaskManagers(NUM_TASK_MANAGERS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS)
+			.build(),
 		true
 	);
 
@@ -153,7 +155,7 @@ public class WebFrontendITCase extends TestLogger {
 		if (notFoundJobConnection.getResponseCode() >= 400) {
 			// we don't set the content-encoding header
 			Assert.assertNull(notFoundJobConnection.getContentEncoding());
-			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
+			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
 				Assert.assertEquals("application/json; charset=UTF-8", notFoundJobConnection.getContentType());
 			} else {
 				Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
@@ -281,7 +283,7 @@ public class WebFrontendITCase extends TestLogger {
 		final Deadline deadline = testTimeout.fromNow();
 
 		try (HttpTestClient client = new HttpTestClient("localhost", CLUSTER.getWebUIPort())) {
-			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
+			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
 				// stop the job
 				client.sendPatchRequest("/jobs/" + jid + "/?mode=stop", deadline.timeLeft());
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
@@ -356,7 +358,7 @@ public class WebFrontendITCase extends TestLogger {
 			HttpTestClient.SimpleHttpResponse response = client
 				.getNextResponse(deadline.timeLeft());
 
-			if (Objects.equals(MiniClusterResource.NEW_CODEBASE, System.getProperty(MiniClusterResource.CODEBASE_KEY))) {
+			if (Objects.equals(CLUSTER.getMiniClusterType(), TestBaseUtils.CodebaseType.NEW)) {
 				assertEquals(HttpResponseStatus.ACCEPTED, response.getStatus());
 			} else {
 				assertEquals(HttpResponseStatus.OK, response.getStatus());

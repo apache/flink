@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.AfterClass;
@@ -70,10 +71,11 @@ public class KafkaShortRetentionTestBase implements Serializable {
 
 	@ClassRule
 	public static MiniClusterResource flink = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			NUM_TMS,
-			TM_SLOTS));
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(TM_SLOTS)
+			.build());
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();

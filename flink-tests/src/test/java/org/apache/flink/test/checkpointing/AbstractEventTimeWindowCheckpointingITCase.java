@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -106,10 +107,11 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	protected final MiniClusterResource getMiniClusterResource() {
 		return new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				getConfigurationSafe(),
-				2,
-				PARALLELISM / 2));
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(getConfigurationSafe())
+				.setNumberTaskManagers(2)
+				.setNumberSlotsPerTaskManager(PARALLELISM / 2)
+				.build());
 	}
 
 	private Configuration getConfigurationSafe() {

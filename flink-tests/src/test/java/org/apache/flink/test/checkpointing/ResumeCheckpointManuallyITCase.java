@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -263,10 +264,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		}
 
 		MiniClusterResource cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				NUM_TASK_MANAGERS,
-				SLOTS_PER_TASK_MANAGER),
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(NUM_TASK_MANAGERS)
+				.setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
+				.build(),
 			true);
 
 		cluster.before();

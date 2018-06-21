@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -227,11 +228,11 @@ public class SavepointITCase extends TestLogger {
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
 		MiniClusterResource cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				numTaskManagers,
-				numSlotsPerTaskManager
-			),
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(numTaskManagers)
+				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+				.build(),
 			true);
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
@@ -296,11 +297,11 @@ public class SavepointITCase extends TestLogger {
 
 		// Start Flink
 		MiniClusterResource cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				numTaskManagers,
-				numSlotsPerTaskManager
-			),
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(numTaskManagers)
+				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+				.build(),
 			true);
 
 		LOG.info("Shutting down Flink cluster.");
@@ -341,11 +342,11 @@ public class SavepointITCase extends TestLogger {
 		// create a new TestingCluster to make sure we start with completely
 		// new resources
 		cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				numTaskManagers,
-				numSlotsPerTaskManager
-			),
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(numTaskManagers)
+				.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+				.build(),
 			true);
 		LOG.info("Restarting Flink cluster.");
 		cluster.before();
@@ -578,11 +579,11 @@ public class SavepointITCase extends TestLogger {
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
 		MiniClusterResource cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				1,
-				2 * jobGraph.getMaximumParallelism()
-			),
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(2 * jobGraph.getMaximumParallelism())
+				.build(),
 			true);
 		cluster.before();
 		ClusterClient<?> client = cluster.getClusterClient();
@@ -708,11 +709,11 @@ public class SavepointITCase extends TestLogger {
 
 		MiniClusterResource get() {
 			return new MiniClusterResource(
-				new MiniClusterResource.MiniClusterResourceConfiguration(
-					config,
-					numTaskManagers,
-					numSlotsPerTaskManager
-				),
+				new MiniClusterResourceConfiguration.Builder()
+					.setConfiguration(config)
+					.setNumberTaskManagers(numTaskManagers)
+					.setNumberSlotsPerTaskManager(numSlotsPerTaskManager)
+					.build(),
 				true);
 		}
 	}

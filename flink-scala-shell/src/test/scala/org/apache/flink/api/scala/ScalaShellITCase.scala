@@ -24,7 +24,8 @@ import java.util.Objects
 import org.apache.flink.configuration.{Configuration, CoreOptions, RestOptions, TaskManagerOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
-import org.apache.flink.test.util.MiniClusterResource
+import org.apache.flink.test.util.{MiniClusterResource, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils.CodebaseType
 import org.apache.flink.util.TestLogger
 import org.junit._
 import org.junit.rules.TemporaryFolder
@@ -321,8 +322,7 @@ object ScalaShellITCase {
 
   @BeforeClass
   def beforeAll(): Unit = {
-    val isNew = Objects.equals(MiniClusterResource.NEW_CODEBASE,
-      System.getProperty(MiniClusterResource.CODEBASE_KEY))
+    val isNew = TestBaseUtils.isNewCodebase()
     if (isNew) {
       configuration.setString(CoreOptions.MODE, CoreOptions.NEW_MODE)
       // set to different than default so not to interfere with ScalaShellLocalStartupITCase

@@ -230,7 +230,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 			final Time rpcTimeout = miniClusterConfiguration.getRpcTimeout();
 			final int numTaskManagers = miniClusterConfiguration.getNumTaskManagers();
-			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED;
+			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED;
 
 			try {
 				initializeIOFormatClasses(configuration);
@@ -916,7 +916,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	@Nonnull
 	private CompletionStage<Void> terminateRpcServices() {
 		final int numRpcServices;
-		if (miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+		if (miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED) {
 			numRpcServices = 1;
 		} else {
 			numRpcServices = 1 + 2 + miniClusterConfiguration.getNumTaskManagers(); // common, JM, RM, TMs
@@ -927,7 +927,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		synchronized (lock) {
 			rpcTerminationFutures.add(commonRpcService.stopService());
 
-			if (miniClusterConfiguration.getRpcServiceSharing() != MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+			if (miniClusterConfiguration.getRpcServiceSharing() != RpcServiceSharing.SHARED) {
 				rpcTerminationFutures.add(jobManagerRpcService.stopService());
 				rpcTerminationFutures.add(resourceManagerRpcService.stopService());
 

@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -71,10 +72,11 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfig(),
-			NUM_TMS,
-			NUM_SLOTS_PER_TM),
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfig())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+			.build(),
 		true);
 
 	private static ClusterClient<?> clusterClient;

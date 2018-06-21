@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -69,10 +70,10 @@ public class DistributedCacheDfsTest {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			new org.apache.flink.configuration.Configuration(),
-			1,
-			1));
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(1)
+			.build());
 
 	private static MiniDFSCluster hdfsCluster;
 	private static Configuration conf = new Configuration();

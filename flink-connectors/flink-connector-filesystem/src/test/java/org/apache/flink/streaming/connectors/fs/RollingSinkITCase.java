@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -118,10 +119,10 @@ public class RollingSinkITCase extends TestLogger {
 				+ "/";
 
 		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				new org.apache.flink.configuration.Configuration(),
-				1,
-				4));
+			new MiniClusterResourceConfiguration.Builder()
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(4)
+				.build());
 
 		miniClusterResource.before();
 	}
