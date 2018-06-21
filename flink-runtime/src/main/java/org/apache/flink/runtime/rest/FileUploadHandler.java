@@ -151,16 +151,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				ctx.fireChannelRead(msg);
 			}
 		} catch (Exception e) {
+			HttpRequest tmpRequest = currentHttpRequest;
+			deleteUploadedFiles();
+			reset();
 			LOG.warn("Internal server error. File upload failed.", e);
 			HandlerUtils.sendErrorResponse(
 				ctx,
-				currentHttpRequest,
+				tmpRequest,
 				new ErrorResponseBody("File upload failed."),
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				Collections.emptyMap()
 			);
-			deleteUploadedFiles();
-			reset();
 		}
 	}
 
