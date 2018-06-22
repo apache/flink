@@ -183,10 +183,11 @@ public class SlotSharingManager {
 	 * 		or null if there was no root slot which did not contain the given groupId
 	 */
 	@Nullable
-	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, SlotProfile.ProfileToSlotContextMatcher matcher) {
+	MultiTaskSlotLocality getResolvedRootSlot(AbstractID groupId, SchedulingStrategy matcher, SlotProfile slotProfile) {
 		synchronized (lock) {
 			Collection<Set<MultiTaskSlot>> resolvedRootSlotsValues = this.resolvedRootSlots.values();
 			return matcher.findMatchWithLocality(
+				slotProfile,
 				resolvedRootSlotsValues.stream().flatMap(Collection::stream),
 				(MultiTaskSlot multiTaskSlot) -> multiTaskSlot.getSlotContextFuture().join(),
 				(MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId),
