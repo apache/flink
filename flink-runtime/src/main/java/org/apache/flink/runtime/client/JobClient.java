@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 
 import akka.actor.ActorRef;
@@ -430,14 +431,9 @@ public class JobClient {
 			List<Path> userJars = jobGraph.getUserJars();
 			Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
 			if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
-				try (BlobClient blobClient = new BlobClient(blobServerAddress, config)) {
-					LOG.info("Uploading jar files.");
-					ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
-					LOG.info("Uploading jar artifacts.");
-					ClientUtils.uploadAndSetUserArtifacts(jobGraph, blobClient);
-				}
+				ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
 			}
-		} catch (IOException e) {
+		} catch (FlinkException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
 					"Could not upload job files.", e);
 		}

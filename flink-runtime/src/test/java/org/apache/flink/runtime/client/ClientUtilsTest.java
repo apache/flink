@@ -72,7 +72,7 @@ public class ClientUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void uploadAndSetUserJars() throws IOException {
+	public void uploadAndSetUserJars() throws Exception {
 		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
 		JobGraph jobGraph = new JobGraph();
 
@@ -85,9 +85,7 @@ public class ClientUtilsTest extends TestLogger {
 		assertEquals(jars.size(), jobGraph.getUserJars().size());
 		assertEquals(0, jobGraph.getUserJarBlobKeys().size());
 
-		try (BlobClient blobClient = new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration())) {
-			ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
-		}
+		ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
 
 		assertEquals(jars.size(), jobGraph.getUserJars().size());
 		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
@@ -126,9 +124,7 @@ public class ClientUtilsTest extends TestLogger {
 		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
 		assertEquals(0, jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());
 
-		try (BlobClient blobClient = new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration())) {
-			ClientUtils.uploadAndSetUserArtifacts(jobGraph, blobClient);
-		}
+		ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(new InetSocketAddress("localhost", blobServer.getPort()), new Configuration()));
 
 		assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
 		assertEquals(localArtifacts.size(), jobGraph.getUserArtifacts().values().stream().filter(entry -> entry.blobKey != null).count());

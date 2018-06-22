@@ -24,10 +24,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +40,23 @@ public enum ClientUtils {
 	;
 
 	/**
+	 * Uploads all files required for the execution of the given {@link JobGraph} using the {@link BlobClient} from
+	 * the given {@link Supplier}.
+	 *
+	 * @param jobGraph jobgraph requiring files
+	 * @param clientSupplier supplier of blob client to upload files with
+	 * @throws IOException if the upload fails
+	 */
+	public static void uploadJobGraphFiles(JobGraph jobGraph, SupplierWithException<BlobClient, IOException> clientSupplier) throws FlinkException {
+		try (BlobClient client = clientSupplier.get()) {
+			uploadAndSetUserJars(jobGraph, client);
+			uploadAndSetUserArtifacts(jobGraph, client);
+		} catch (IOException ioe) {
+			throw new FlinkException("Could not upload job files.", ioe);
+		}
+	}
+
+	/**
 	 * Uploads the user jars from the given {@link JobGraph} using the given {@link BlobClient},
 	 * and sets the appropriate blobkeys.
 	 *
@@ -44,7 +64,7 @@ public enum ClientUtils {
 	 * @param blobClient client to upload jars with
 	 * @throws IOException if the upload fails
 	 */
-	public static void uploadAndSetUserJars(JobGraph jobGraph, BlobClient blobClient) throws IOException {
+	private static void uploadAndSetUserJars(JobGraph jobGraph, BlobClient blobClient) throws IOException {
 		Collection<PermanentBlobKey> blobKeys = uploadUserJars(jobGraph.getJobID(), jobGraph.getUserJars(), blobClient);
 		setUserJarBlobKeys(blobKeys, jobGraph);
 	}
@@ -70,7 +90,7 @@ public enum ClientUtils {
 	 * @param blobClient client to upload artifacts with
 	 * @throws IOException if the upload fails
 	 */
-	public static void uploadAndSetUserArtifacts(JobGraph jobGraph, BlobClient blobClient) throws IOException {
+	private static void uploadAndSetUserArtifacts(JobGraph jobGraph, BlobClient blobClient) throws IOException {
 		Collection<Tuple2<String, Path>> artifactPaths = jobGraph.getUserArtifacts().entrySet().stream()
 			.map(entry -> Tuple2.of(entry.getKey(), new Path(entry.getValue().filePath)))
 			.collect(Collectors.toList());

@@ -100,6 +100,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.CheckedSupplier;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -329,13 +330,10 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				List<Path> userJars = jobGraph.getUserJars();
 				Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
 				if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
-					try (BlobClient client = new BlobClient(address, flinkConfig)) {
-						log.info("Uploading jar files.");
-						ClientUtils.uploadAndSetUserJars(jobGraph, client);
-						log.info("Uploading jar artifacts.");
-						ClientUtils.uploadAndSetUserArtifacts(jobGraph, client);
-					} catch (IOException ioe) {
-						throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
+					try {
+						ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(address, flinkConfig));
+					} catch (Exception e) {
+						throw new CompletionException(e);
 					}
 				}
 

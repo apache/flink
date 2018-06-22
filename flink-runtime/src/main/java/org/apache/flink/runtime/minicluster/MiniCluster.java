@@ -682,11 +682,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = job.getUserArtifacts();
 		if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
 			return blobClientFuture.thenAccept(blobClient -> {
-				try (BlobClient client = blobClient) {
-					ClientUtils.uploadAndSetUserJars(job, client);
-					ClientUtils.uploadAndSetUserArtifacts(job, client);
-				} catch (IOException ioe) {
-					throw new CompletionException(new FlinkException("Could not upload job files.", ioe));
+				try {
+					ClientUtils.uploadJobGraphFiles(job, () -> blobClient);
+				} catch (FlinkException e) {
+					throw new CompletionException(e);
 				}
 				});
 		} else {
