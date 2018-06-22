@@ -140,9 +140,9 @@ Use one of the following commands to __create a project__:
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
 {% endhighlight %}
     </div>
