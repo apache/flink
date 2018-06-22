@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSchedulingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -104,7 +106,10 @@ public class SchedulerTestBase extends TestLogger {
 			case SLOT_POOL:
 				rpcService = new TestingRpcService();
 				final JobID jobId = new JobID();
-				final TestingSlotPool slotPool = new TestingSlotPool(rpcService, jobId);
+				final TestingSlotPool slotPool = new TestingSlotPool(
+					rpcService,
+					jobId,
+					PreviousAllocationSchedulingStrategy.getInstance());
 				testingSlotProvider = new TestingSlotPoolSlotProvider(slotPool);
 
 				final JobMasterId jobMasterId = JobMasterId.generate();
@@ -392,8 +397,8 @@ public class SchedulerTestBase extends TestLogger {
 
 	private static final class TestingSlotPool extends SlotPool {
 
-		public TestingSlotPool(RpcService rpcService, JobID jobId) {
-			super(rpcService, jobId);
+		public TestingSlotPool(RpcService rpcService, JobID jobId, SchedulingStrategy schedulingStrategy) {
+			super(rpcService, jobId, schedulingStrategy);
 		}
 
 		CompletableFuture<Integer> getNumberOfAvailableSlots() {

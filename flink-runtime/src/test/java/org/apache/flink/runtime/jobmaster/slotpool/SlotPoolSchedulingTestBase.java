@@ -74,7 +74,8 @@ public class SlotPoolSchedulingTestBase extends TestLogger {
 
 		slotPool = new SlotPool(
 			testingRpcService,
-			jobId);
+			jobId,
+			PreviousAllocationSchedulingStrategy.getInstance());
 
 		slotPool.start(jobMasterId, jobMasterAddress);
 
