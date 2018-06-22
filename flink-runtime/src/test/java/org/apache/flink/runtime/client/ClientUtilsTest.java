@@ -53,7 +53,7 @@ public class ClientUtilsTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static BlobServer blobServer;
+	private static BlobServer blobServer = null;
 
 	@BeforeClass
 	public static void setup() throws IOException {
