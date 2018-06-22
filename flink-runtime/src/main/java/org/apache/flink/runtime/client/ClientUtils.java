@@ -76,7 +76,7 @@ public enum ClientUtils {
 		setUserJarBlobKeys(blobKeys, jobGraph);
 	}
 
-	private static Collection<PermanentBlobKey> uploadUserJars(JobID jobId, Collection<Path> userJars, BlobClient blobClient) throws IOException {
+	public static Collection<PermanentBlobKey> uploadUserJars(JobID jobId, Collection<Path> userJars, BlobClient blobClient) throws IOException {
 		Collection<PermanentBlobKey> blobKeys = new ArrayList<>(userJars.size());
 		for (Path jar : userJars) {
 			final PermanentBlobKey blobKey = blobClient.uploadFile(jobId, jar);
@@ -85,7 +85,7 @@ public enum ClientUtils {
 		return blobKeys;
 	}
 
-	private static void setUserJarBlobKeys(Collection<PermanentBlobKey> blobKeys, JobGraph jobGraph) {
+	public static void setUserJarBlobKeys(Collection<PermanentBlobKey> blobKeys, JobGraph jobGraph) {
 		blobKeys.forEach(jobGraph::addUserJarBlobKey);
 	}
 
@@ -106,7 +106,7 @@ public enum ClientUtils {
 		setUserArtifactBlobKeys(jobGraph, blobKeys);
 	}
 
-	private static Collection<Tuple2<String, PermanentBlobKey>> uploadUserArtifacts(JobID jobID, Collection<Tuple2<String, Path>> userArtifacts, BlobClient blobClient) throws IOException {
+	public static Collection<Tuple2<String, PermanentBlobKey>> uploadUserArtifacts(JobID jobID, Collection<Tuple2<String, Path>> userArtifacts, BlobClient blobClient) throws IOException {
 		Collection<Tuple2<String, PermanentBlobKey>> blobKeys = new ArrayList<>(userArtifacts.size());
 		for (Tuple2<String, Path> userArtifact : userArtifacts) {
 			// only upload local files
@@ -118,7 +118,7 @@ public enum ClientUtils {
 		return blobKeys;
 	}
 
-	private static void setUserArtifactBlobKeys(JobGraph jobGraph, Collection<Tuple2<String, PermanentBlobKey>> blobKeys) throws IOException {
+	public static void setUserArtifactBlobKeys(JobGraph jobGraph, Collection<Tuple2<String, PermanentBlobKey>> blobKeys) throws IOException {
 		for (Tuple2<String, PermanentBlobKey> blobKey : blobKeys) {
 			jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
 		}
