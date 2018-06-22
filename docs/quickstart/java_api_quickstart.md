@@ -55,9 +55,9 @@ Use one of the following commands to __create a project__:
     <div class="tab-pane" id="quickstart-script">
     {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash
+    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
     {% endhighlight %}
 
