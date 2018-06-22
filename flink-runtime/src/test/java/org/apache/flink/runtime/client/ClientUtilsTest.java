@@ -60,6 +60,13 @@ public class ClientUtilsTest extends TestLogger {
 		blobServer.start();
 	}
 
+	@AfterClass
+	public static void teardown() throws IOException {
+		if (blobServer != null) {
+			blobServer.close();
+		}
+	}
+
 	@Test
 	public void uploadAndSetUserJars() throws IOException {
 		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
