@@ -91,8 +91,10 @@ public enum ClientUtils {
 		return blobKeys;
 	}
 
-	private static void setUserArtifactBlobKeys(JobGraph jobGraph, Collection<Tuple2<String, PermanentBlobKey>> blobKeys) {
-		blobKeys.forEach(blobKey -> jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1));
+	private static void setUserArtifactBlobKeys(JobGraph jobGraph, Collection<Tuple2<String, PermanentBlobKey>> blobKeys) throws IOException {
+		for (Tuple2<String, PermanentBlobKey> blobKey : blobKeys) {
+			jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
+		}
 		jobGraph.finalizeUserArtifactEntries();
 	}
 }
