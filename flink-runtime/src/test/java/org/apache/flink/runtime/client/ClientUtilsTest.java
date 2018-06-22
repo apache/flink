@@ -18,16 +18,20 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -88,10 +92,14 @@ public class ClientUtilsTest extends TestLogger {
 		assertEquals(jars.size(), jobGraph.getUserJars().size());
 		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
 		assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().stream().distinct().count());
+
+		for (PermanentBlobKey blobKey : jobGraph.getUserJarBlobKeys()) {
+			blobServer.getFile(jobGraph.getJobID(), blobKey);
+		}
 	}
 
 	@Test
-	public void uploadAndSetUserArtifacts() throws IOException {
+	public void uploadAndSetUserArtifacts() throws Exception {
 		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
 		JobGraph jobGraph = new JobGraph();
 
@@ -128,18 +136,23 @@ public class ClientUtilsTest extends TestLogger {
 		// 1 unique key for each local artifact, and null for distributed artifacts
 		assertEquals(localArtifacts.size() + 1, jobGraph.getUserArtifacts().values().stream().map(entry -> entry.blobKey).distinct().count());
 		for (DistributedCache.DistributedCacheEntry original : localArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), false);
+			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), false, jobGraph.getJobID());
 		}
 		for (DistributedCache.DistributedCacheEntry original : distributedArtifacts) {
-			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), true);
+			assertState(original, jobGraph.getUserArtifacts().get(original.filePath), true, jobGraph.getJobID());
 		}
 	}
 
-	private static void assertState(DistributedCache.DistributedCacheEntry original, DistributedCache.DistributedCacheEntry actual, boolean isBlobKeyNull) {
+	private static void assertState(DistributedCache.DistributedCacheEntry original, DistributedCache.DistributedCacheEntry actual, boolean isBlobKeyNull, JobID jobId) throws Exception {
 		assertEquals(original.isZipped, actual.isZipped);
 		assertEquals(original.isExecutable, actual.isExecutable);
 		assertEquals(original.filePath, actual.filePath);
 		assertEquals(isBlobKeyNull, actual.blobKey == null);
+		if (!isBlobKeyNull) {
+			blobServer.getFile(
+				jobId,
+				InstantiationUtil.<PermanentBlobKey>deserializeObject(actual.blobKey, ClientUtilsTest.class.getClassLoader()));
+		}
 	}
 
 }
