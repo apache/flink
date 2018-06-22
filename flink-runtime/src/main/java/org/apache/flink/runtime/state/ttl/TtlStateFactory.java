@@ -32,9 +32,10 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateFactory;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
-import java.util.List;
+import javax.annotation.Nonnull;
+
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,6 +43,7 @@ import java.util.stream.Stream;
 /**
  * This state factory wraps state objects, produced by backends, with TTL logic.
  */
+@SuppressWarnings("unchecked")
 public class TtlStateFactory {
 	public static <N, SV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
 		TypeSerializer<N> namespaceSerializer,
@@ -49,13 +51,18 @@ public class TtlStateFactory {
 		KeyedStateFactory originalStateFactory,
 		TtlConfig ttlConfig,
 		TtlTimeProvider timeProvider) throws Exception {
-		return ttlConfig.getTtlUpdateType() == TtlUpdateType.Disabled ?
+		Preconditions.checkNotNull(namespaceSerializer);
+		Preconditions.checkNotNull(stateDesc);
+		Preconditions.checkNotNull(originalStateFactory);
+		Preconditions.checkNotNull(ttlConfig);
+		Preconditions.checkNotNull(timeProvider);
+		return ttlConfig.getTtlUpdateType() == TtlConfig.TtlUpdateType.Disabled ?
 			originalStateFactory.createState(namespaceSerializer, stateDesc) :
 			new TtlStateFactory(originalStateFactory, ttlConfig, timeProvider)
 				.createState(namespaceSerializer, stateDesc);
 	}
 
-	private final Map<Class<? extends StateDescriptor>, StateFactory> stateFactories;
+	private final Map<Class<? extends StateDescriptor>, KeyedStateFactory> stateFactories;
 
 	private final KeyedStateFactory originalStateFactory;
 	private final TtlConfig ttlConfig;
@@ -68,49 +75,40 @@ public class TtlStateFactory {
 		this.stateFactories = createStateFactories();
 	}
 
-	private Map<Class<? extends StateDescriptor>, StateFactory> createStateFactories() {
+	@SuppressWarnings("deprecation")
+	private Map<Class<? extends StateDescriptor>, KeyedStateFactory> createStateFactories() {
 		return Stream.of(
-			Tuple2.of(ValueStateDescriptor.class, (StateFactory) this::createValueState),
-			Tuple2.of(ListStateDescriptor.class, (StateFactory) this::createListState),
-			Tuple2.of(MapStateDescriptor.class, (StateFactory) this::createMapState),
-			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) this::createReducingState),
-			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) this::createAggregatingState),
-			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) this::createFoldingState)
+			Tuple2.of(ValueStateDescriptor.class, (KeyedStateFactory) this::createValueState),
+			Tuple2.of(ListStateDescriptor.class, (KeyedStateFactory) this::createListState),
+			Tuple2.of(MapStateDescriptor.class, (KeyedStateFactory) this::createMapState),
+			Tuple2.of(ReducingStateDescriptor.class, (KeyedStateFactory) this::createReducingState),
+			Tuple2.of(AggregatingStateDescriptor.class, (KeyedStateFactory) this::createAggregatingState),
+			Tuple2.of(FoldingStateDescriptor.class, (KeyedStateFactory) this::createFoldingState)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
-	}
-
-	private interface StateFactory {
-		<N, SV, S extends State, IS extends S> IS create(
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, SV> stateDesc) throws Exception;
 	}
 
 	private <N, SV, S extends State, IS extends S> IS createState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
-		StateFactory stateFactory = stateFactories.get(stateDesc.getClass());
+		KeyedStateFactory stateFactory = stateFactories.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), TtlStateFactory.class);
 			throw new FlinkRuntimeException(message);
 		}
-		return stateFactory.create(namespaceSerializer, stateDesc);
+		return stateFactory.createState(namespaceSerializer, stateDesc);
 	}
 
-	@SuppressWarnings("unchecked")
 	private <N, SV, S extends State, IS extends S> IS createValueState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
-		SV defVal = stateDesc.getDefaultValue();
-		TtlValue<SV> ttlDefVal = defVal == null ? null : new TtlValue<>(defVal, Long.MAX_VALUE);
 		ValueStateDescriptor<TtlValue<SV>> ttlDescriptor = new ValueStateDescriptor<>(
-			stateDesc.getName(), new TtlSerializer<>(stateDesc.getSerializer()), ttlDefVal);
+			stateDesc.getName(), new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlValueState<>(
 			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
-	@SuppressWarnings("unchecked")
 	private <T, N, SV, S extends State, IS extends S> IS createListState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -122,7 +120,6 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, listStateDesc.getSerializer());
 	}
 
-	@SuppressWarnings("unchecked")
 	private <UK, UV, N, SV, S extends State, IS extends S> IS createMapState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -136,7 +133,6 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, mapStateDesc.getSerializer());
 	}
 
-	@SuppressWarnings("unchecked")
 	private <N, SV, S extends State, IS extends S> IS createReducingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -150,7 +146,6 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
-	@SuppressWarnings("unchecked")
 	private <IN, OUT, N, SV, S extends State, IS extends S> IS createAggregatingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -165,7 +160,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, stateDesc.getSerializer(), ttlAggregateFunction);
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings("deprecation")
 	private <T, N, SV, S extends State, IS extends S> IS createFoldingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -175,33 +170,41 @@ public class TtlStateFactory {
 		FoldingStateDescriptor<T, TtlValue<SV>> ttlDescriptor = new FoldingStateDescriptor<>(
 			stateDesc.getName(),
 			ttlInitAcc,
-			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider),
+			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider, initAcc),
 			new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlFoldingState<>(
 			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
+	/** Serializer for user state value with TTL. */
 	private static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
+
 		TtlSerializer(TypeSerializer<T> userValueSerializer) {
-			super(Arrays.asList(userValueSerializer, new LongSerializer()));
+			super(true, userValueSerializer, LongSerializer.INSTANCE);
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
-		protected TtlValue<T> composeValue(List values) {
-			return new TtlValue<>((T) values.get(0), (Long) values.get(1));
+		public TtlValue<T> createInstance(@Nonnull Object ... values) {
+			Preconditions.checkArgument(values.length == 2);
+			return new TtlValue<>((T) values[0], (long) values[1]);
 		}
 
 		@Override
-		protected List decomposeValue(TtlValue<T> v) {
-			return Arrays.asList(v.getUserValue(), v.getExpirationTimestamp());
+		protected void setField(@Nonnull TtlValue<T> v, int index, Object fieldValue) {
+			throw new UnsupportedOperationException("TtlValue is immutable");
 		}
 
 		@Override
-		@SuppressWarnings("unchecked")
-		protected CompositeSerializer<TtlValue<T>> createSerializerInstance(List<TypeSerializer> typeSerializers) {
-			return new TtlSerializer<>(typeSerializers.get(0));
+		protected Object getField(@Nonnull TtlValue<T> v, int index) {
+			return index == 0 ? v.getUserValue() : v.getLastAccessTimestamp();
+		}
+
+		@Override
+		protected CompositeSerializer<TtlValue<T>> createSerializerInstance(TypeSerializer<?> ... originalSerializers) {
+			Preconditions.checkNotNull(originalSerializers);
+			Preconditions.checkArgument(originalSerializers.length == 2);
+			return new TtlSerializer<>((TypeSerializer<T>) originalSerializers[0]);
 		}
 	}
 }

@@ -48,8 +48,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	KeyedStateBackend<K>,
 	Snapshotable<SnapshotResult<KeyedStateHandle>, Collection<KeyedStateHandle>>,
 	Closeable,
-	CheckpointListener,
-	KeyedStateFactory{
+	CheckpointListener {
 
 	/** {@link TypeSerializer} for our key. */
 	protected final TypeSerializer<K> keySerializer;

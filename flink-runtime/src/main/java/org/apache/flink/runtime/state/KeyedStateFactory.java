@@ -21,11 +21,12 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 
-/** This factory produces concrete state objects in backends. */
+/** This factory produces concrete internal state objects. */
 public interface KeyedStateFactory {
 	/**
-	 * Creates and returns a new {@link State}.
+	 * Creates and returns a new {@link InternalKvState}.
 	 *
 	 * @param namespaceSerializer TypeSerializer for the state namespace.
 	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
