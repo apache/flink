@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -29,7 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Contains utility methods for clients.
@@ -72,18 +71,21 @@ public enum ClientUtils {
 	 * @throws IOException if the upload fails
 	 */
 	public static void uploadAndSetUserArtifacts(JobGraph jobGraph, BlobClient blobClient) throws IOException {
-		Collection<Tuple2<String, PermanentBlobKey>> blobKeys = uploadUserArtifacts(jobGraph.getJobID(), jobGraph.getUserArtifacts(), blobClient);
+		Collection<Tuple2<String, Path>> artifactPaths = jobGraph.getUserArtifacts().entrySet().stream()
+			.map(entry -> Tuple2.of(entry.getKey(), new Path(entry.getValue().filePath)))
+			.collect(Collectors.toList());
+
+		Collection<Tuple2<String, PermanentBlobKey>> blobKeys = uploadUserArtifacts(jobGraph.getJobID(), artifactPaths, blobClient);
 		setUserArtifactBlobKeys(jobGraph, blobKeys);
 	}
 
-	private static Collection<Tuple2<String, PermanentBlobKey>> uploadUserArtifacts(JobID jobID, Map<String, DistributedCache.DistributedCacheEntry> userArtifacts, BlobClient blobClient) throws IOException {
+	private static Collection<Tuple2<String, PermanentBlobKey>> uploadUserArtifacts(JobID jobID, Collection<Tuple2<String, Path>> userArtifacts, BlobClient blobClient) throws IOException {
 		Collection<Tuple2<String, PermanentBlobKey>> blobKeys = new ArrayList<>(userArtifacts.size());
-		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
-			Path path = new Path(userArtifact.getValue().filePath);
+		for (Tuple2<String, Path> userArtifact : userArtifacts) {
 			// only upload local files
-			if (!path.getFileSystem().isDistributedFS()) {
-				final PermanentBlobKey blobKey = blobClient.uploadFile(jobID, new Path(userArtifact.getValue().filePath));
-				blobKeys.add(Tuple2.of(userArtifact.getKey(), blobKey));
+			if (!userArtifact.f1.getFileSystem().isDistributedFS()) {
+				final PermanentBlobKey blobKey = blobClient.uploadFile(jobID, userArtifact.f1);
+				blobKeys.add(Tuple2.of(userArtifact.f0, blobKey));
 			}
 		}
 		return blobKeys;
