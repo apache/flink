@@ -42,7 +42,7 @@ import java.util.Collection;
 import static org.junit.Assert.assertEquals;
 
 /**
- * TODO: add javadoc.
+ * Tests for {@link ClientUtils}.
  */
 public class ClientUtilsTest extends TestLogger {
 
