@@ -25,7 +25,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -114,15 +114,10 @@ public class JarRunHandler extends
 
 		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
-			final List<PermanentBlobKey> keys;
-			try {
-				keys = BlobClient.uploadFiles(address, configuration, jobGraph.getJobID(), jobGraph.getUserJars());
+			try (BlobClient blobClient = new BlobClient(address, configuration)) {
+				ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
 			} catch (IOException ioe) {
 				throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
-			}
-
-			for (PermanentBlobKey key : keys) {
-				jobGraph.addUserJarBlobKey(key);
 			}
 
 			return jobGraph;
