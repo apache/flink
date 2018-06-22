@@ -95,9 +95,9 @@ public class AvailableSlotsTest extends TestLogger {
 		assertTrue(availableSlots.contains(slot1.getAllocationId()));
 		assertTrue(availableSlots.containsTaskManager(resource1));
 
-		assertNull(availableSlots.poll(SlotProfile.noLocality(DEFAULT_TESTING_BIG_PROFILE)));
+		assertNull(availableSlots.poll(LocationPreferenceSchedulingStrategy.getInstance(), SlotProfile.noLocality(DEFAULT_TESTING_BIG_PROFILE)));
 
-		SlotAndLocality slotAndLocality = availableSlots.poll(SlotProfile.noLocality(DEFAULT_TESTING_PROFILE));
+		SlotAndLocality slotAndLocality = availableSlots.poll(LocationPreferenceSchedulingStrategy.getInstance(), SlotProfile.noLocality(DEFAULT_TESTING_PROFILE));
 		assertEquals(slot1, slotAndLocality.getSlot());
 		assertEquals(0, availableSlots.size());
 		assertFalse(availableSlots.contains(slot1.getAllocationId()));

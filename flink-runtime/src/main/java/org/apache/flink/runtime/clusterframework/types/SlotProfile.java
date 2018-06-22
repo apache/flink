@@ -18,26 +18,13 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 /**
  * A slot profile describes the profile of a slot into which a task wants to be scheduled. The profile contains
@@ -97,164 +84,6 @@ public class SlotProfile {
 	}
 
 	/**
-	 * Returns the matcher for this profile that helps to find slots that fit the profile.
-	 */
-	public ProfileToSlotContextMatcher matcher() {
-		if (priorAllocations.isEmpty()) {
-			return new LocalityAwareRequirementsToSlotMatcher(preferredLocations);
-		} else {
-			return new PreviousAllocationProfileToSlotContextMatcher(priorAllocations);
-		}
-	}
-
-	/**
-	 * Classes that implement this interface provide a method to match objects to somehow represent slot candidates
-	 * against the {@link SlotProfile} that produced the matcher object. A matching candidate is transformed into a
-	 * desired result. If the matcher does not find a matching candidate, it returns null.
-	 */
-	public interface ProfileToSlotContextMatcher {
-
-		/**
-		 * This method takes the candidate slots, extracts slot contexts from them, filters them by the profile
-		 * requirements and potentially by additional requirements, and produces a result from a match.
-		 *
-		 * @param candidates                   stream of candidates to match against.
-		 * @param contextExtractor             function to extract the {@link SlotContext} from the candidates.
-		 * @param additionalRequirementsFilter predicate to specify additional requirements for each candidate.
-		 * @param resultProducer               function to produce a result from a matching candidate input.
-		 * @param <IN>                         type of the objects against we match the profile.
-		 * @param <OUT>                        type of the produced output from a matching object.
-		 * @return the result produced by resultProducer if a matching candidate was found or null otherwise.
-		 */
-		@Nullable
-		<IN, OUT> OUT findMatchWithLocality(
-			@Nonnull Stream<IN> candidates,
-			@Nonnull Function<IN, SlotContext> contextExtractor,
-			@Nonnull Predicate<IN> additionalRequirementsFilter,
-			@Nonnull BiFunction<IN, Locality, OUT> resultProducer);
-	}
-
-	/**
-	 * This matcher implementation is the presence of prior allocations. Prior allocations are supposed to overrule
-	 * other locality requirements, such as preferred locations. Prior allocations also require strict matching and
-	 * this matcher returns null if it cannot find a candidate for the same prior allocation. The background is that
-	 * this will force the scheduler tor request a new slot that is guaranteed to be not the prior location of any
-	 * other subtask, so that subtasks do not steal another subtasks prior allocation in case that the own prior
-	 * allocation is no longer available (e.g. machine failure). This is important to enable local recovery for all
-	 * tasks that can still return to their prior allocation.
-	 */
-	@VisibleForTesting
-	public static class PreviousAllocationProfileToSlotContextMatcher implements ProfileToSlotContextMatcher {
-
-		/** Set of prior allocations. */
-		private final HashSet<AllocationID> priorAllocations;
-
-		@VisibleForTesting
-		PreviousAllocationProfileToSlotContextMatcher(@Nonnull Collection<AllocationID> priorAllocations) {
-			this.priorAllocations = new HashSet<>(priorAllocations);
-			Preconditions.checkState(
-				this.priorAllocations.size() > 0,
-				"This matcher should only be used if there are prior allocations!");
-		}
-
-		public <I, O> O findMatchWithLocality(
-			@Nonnull Stream<I> candidates,
-			@Nonnull Function<I, SlotContext> contextExtractor,
-			@Nonnull Predicate<I> additionalRequirementsFilter,
-			@Nonnull BiFunction<I, Locality, O> resultProducer) {
-
-			Predicate<I> filterByAllocation =
-				(candidate) -> priorAllocations.contains(contextExtractor.apply(candidate).getAllocationId());
-
-			return candidates
-				.filter(filterByAllocation.and(additionalRequirementsFilter))
-				.findFirst()
-				.map((result) -> resultProducer.apply(result, Locality.LOCAL)) // TODO introduce special locality?
-				.orElse(null);
-		}
-	}
-
-	/**
-	 * This matcher is used whenever no prior allocation was specified in the {@link SlotProfile}. This implementation
-	 * tries to achieve best possible locality if a preferred location is specified in the profile.
-	 */
-	@VisibleForTesting
-	public static class LocalityAwareRequirementsToSlotMatcher implements ProfileToSlotContextMatcher {
-
-		private final Collection<TaskManagerLocation> locationPreferences;
-
-		/**
-		 * Calculates the candidate's locality score.
-		 */
-		private static final BiFunction<Integer, Integer, Integer> LOCALITY_EVALUATION_FUNCTION
-			= (localWeigh, hostLocalWeigh) -> localWeigh * 10 + hostLocalWeigh;
-
-		@VisibleForTesting
-		public LocalityAwareRequirementsToSlotMatcher(@Nonnull Collection<TaskManagerLocation> locationPreferences) {
-			this.locationPreferences = new ArrayList<>(locationPreferences);
-		}
-
-		@Override
-		public <IN, OUT> OUT findMatchWithLocality(
-			@Nonnull Stream<IN> candidates,
-			@Nonnull Function<IN, SlotContext> contextExtractor,
-			@Nonnull Predicate<IN> additionalRequirementsFilter,
-			@Nonnull BiFunction<IN, Locality, OUT> resultProducer) {
-
-			// if we have no location preferences, we can only filter by the additional requirements.
-			if (locationPreferences.isEmpty()) {
-				return candidates
-					.filter(additionalRequirementsFilter)
-					.findFirst()
-					.map((result) -> resultProducer.apply(result, Locality.UNCONSTRAINED))
-					.orElse(null);
-			}
-
-			// we build up two indexes, one for resource id and one for host names of the preferred locations.
-			final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
-			final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
-
-			for (TaskManagerLocation locationPreference : locationPreferences) {
-				preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
-				preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
-			}
-
-			Iterator<IN> iterator = candidates.iterator();
-
-			IN bestCandidate = null;
-			int bestCandidateScore = Integer.MIN_VALUE;
-			Locality bestCandidateLocality = null;
-
-			while (iterator.hasNext()) {
-				IN candidate = iterator.next();
-				if (additionalRequirementsFilter.test(candidate)) {
-					SlotContext slotContext = contextExtractor.apply(candidate);
-
-					// this gets candidate is local-weigh
-					Integer localWeigh = preferredResourceIDs.getOrDefault(slotContext.getTaskManagerLocation().getResourceID(), 0);
-
-					// this gets candidate is host-local-weigh
-					Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(slotContext.getTaskManagerLocation().getFQDNHostname(), 0);
-
-					int candidateScore = LOCALITY_EVALUATION_FUNCTION.apply(localWeigh, hostLocalWeigh);
-					if (candidateScore > bestCandidateScore) {
-						bestCandidateScore = candidateScore;
-						bestCandidate = candidate;
-						bestCandidateLocality = localWeigh > 0 ? Locality.LOCAL : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
-					}
-				}
-			}
-
-			// at the end of the iteration, we return the candidate with best possible locality or null.
-			if (bestCandidate != null) {
-				return resultProducer.apply(bestCandidate, bestCandidateLocality);
-			} else {
-				return null;
-			}
-		}
-	}
-
-	/**
 	 * Returns a slot profile that has no requirements.
 	 */
 	public static SlotProfile noRequirements() {
@@ -266,5 +95,27 @@ public class SlotProfile {
 	 */
 	public static SlotProfile noLocality(ResourceProfile resourceProfile) {
 		return new SlotProfile(resourceProfile, Collections.emptyList(), Collections.emptyList());
+	}
+
+	/**
+	 * Returns a slot profile for the given resource profile and the preferred locations.
+	 *
+	 * @param resourceProfile specifying the slot requirements
+	 * @param preferredLocations specifying the preferred locations
+	 * @return Slot profile with the given resource profile and preferred locations
+	 */
+	public static SlotProfile preferredLocality(ResourceProfile resourceProfile, Collection<TaskManagerLocation> preferredLocations) {
+		return new SlotProfile(resourceProfile, preferredLocations, Collections.emptyList());
+	}
+
+	/**
+	 * Returns a slot profile for the given resource profile and the prior allocations.
+	 *
+	 * @param resourceProfile specifying the slot requirements
+	 * @param priorAllocations specifying the prior allocations
+	 * @return Slot profile with the given resource profile and prior allocations
+	 */
+	public static SlotProfile priorAllocation(ResourceProfile resourceProfile, Collection<AllocationID> priorAllocations) {
+		return new SlotProfile(resourceProfile, Collections.emptyList(), priorAllocations);
 	}
 }
