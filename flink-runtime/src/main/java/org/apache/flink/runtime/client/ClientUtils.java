@@ -95,6 +95,6 @@ public enum ClientUtils {
 		for (Tuple2<String, PermanentBlobKey> blobKey : blobKeys) {
 			jobGraph.setUserArtifactBlobKey(blobKey.f0, blobKey.f1);
 		}
-		jobGraph.finalizeUserArtifactEntries();
+		jobGraph.writeUserArtifactEntriesToConfiguration();
 	}
 }

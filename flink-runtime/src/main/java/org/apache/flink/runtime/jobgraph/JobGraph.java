@@ -567,7 +567,7 @@ public class JobGraph implements Serializable {
 		));
 	}
 
-	public void finalizeUserArtifactEntries() {
+	public void writeUserArtifactEntriesToConfiguration() {
 		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
 			DistributedCache.writeFileInfoToConfig(
 				userArtifact.getKey(),
