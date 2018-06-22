@@ -555,13 +555,10 @@ public class JobGraph implements Serializable {
 		return "JobGraph(jobId: " + jobID + ")";
 	}
 
-	public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey) {
+	public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey) throws IOException {
 		byte[] serializedBlobKey;
-		try {
-			serializedBlobKey = InstantiationUtil.serializeObject(blobKey);
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Could not serialize blobkey " + blobKey + ".", e);
-		}
+		serializedBlobKey = InstantiationUtil.serializeObject(blobKey);
+
 		userArtifacts.computeIfPresent(entryName, (key, originalEntry) -> new DistributedCache.DistributedCacheEntry(
 			originalEntry.filePath,
 			originalEntry.isExecutable,
