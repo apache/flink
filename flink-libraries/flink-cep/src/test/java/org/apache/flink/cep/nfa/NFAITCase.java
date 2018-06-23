@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -2837,13 +2838,14 @@ public class NFAITCase extends TestLogger {
 		Event b = new Event(41, "b", 2.0);
 
 		SharedBuffer<Event> spiedBuffer = Mockito.spy(sharedBuffer);
-		NFA<Event> nfa = compile(pattern, false);
-
-		nfa.process(spiedBuffer, nfa.createInitialNFAState(), a, 1);
-		nfa.process(spiedBuffer, nfa.createInitialNFAState(), b, 2);
-		Mockito.verify(spiedBuffer, Mockito.never()).advanceTime(anyLong());
-		nfa.advanceTime(spiedBuffer, nfa.createInitialNFAState(), 2);
-		Mockito.verify(spiedBuffer, Mockito.times(1)).advanceTime(2);
-
+		try (SharedBufferAccessor<Event> accessor = Mockito.spy(spiedBuffer.getAccessor())) {
+			Mockito.when(spiedBuffer.getAccessor()).thenReturn(accessor);
+			NFA<Event> nfa = compile(pattern, false);
+			nfa.process(spiedBuffer, nfa.createInitialNFAState(), a, 1);
+			nfa.process(spiedBuffer, nfa.createInitialNFAState(), b, 2);
+			Mockito.verify(accessor, Mockito.never()).advanceTime(anyLong());
+			nfa.advanceTime(spiedBuffer, nfa.createInitialNFAState(), 2);
+			Mockito.verify(accessor, Mockito.times(1)).advanceTime(2);
+		}
 	}
 }

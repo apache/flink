@@ -109,9 +109,9 @@ public class NFAStateAccessTest {
 				inputEvent.getTimestamp());
 		}
 
-		assertEquals(5, sharedBuffer.getStateReads());
-		assertEquals(6, sharedBuffer.getStateWrites());
-		assertEquals(11, sharedBuffer.getStateAccesses());
+		assertEquals(2, sharedBuffer.getStateReads());
+		assertEquals(3, sharedBuffer.getStateWrites());
+		assertEquals(5, sharedBuffer.getStateAccesses());
 	}
 
 	@Test
@@ -190,8 +190,8 @@ public class NFAStateAccessTest {
 				inputEvent.getTimestamp());
 		}
 
-		assertEquals(20, sharedBuffer.getStateReads());
-		assertEquals(24, sharedBuffer.getStateWrites());
-		assertEquals(44, sharedBuffer.getStateAccesses());
+		assertEquals(8, sharedBuffer.getStateReads());
+		assertEquals(12, sharedBuffer.getStateWrites());
+		assertEquals(20, sharedBuffer.getStateAccesses());
 	}
 }

@@ -25,27 +25,14 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import org.apache.commons.lang3.StringUtils;
-
-import javax.annotation.Nullable;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A shared buffer implementation which stores values under according state. Additionally, the values can be
@@ -70,12 +57,16 @@ public class SharedBuffer<V> {
 	private static final String eventsStateName = "sharedBuffer-events";
 	private static final String eventsCountStateName = "sharedBuffer-events-count";
 
-	/** The buffer holding the unique events seen so far. */
 	private MapState<EventId, Lockable<V>> eventsBuffer;
-
 	/** The number of events seen so far in the stream per timestamp. */
 	private MapState<Long, Integer> eventsCount;
 	private MapState<NodeId, Lockable<SharedBufferNode>> entries;
+
+	/** The cache of eventsBuffer State. */
+	private Map<EventId, Lockable<V>> eventsBufferCache = new HashMap<>();
+
+	/** The cache of sharedBufferNode. */
+	private Map<NodeId, Lockable<SharedBufferNode>> entryCache = new HashMap<>();
 
 	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
 		this.eventsBuffer = stateStore.getMapState(
@@ -95,46 +86,6 @@ public class SharedBuffer<V> {
 				eventsCountStateName,
 				LongSerializer.INSTANCE,
 				IntSerializer.INSTANCE));
-	}
-
-	/**
-	 * Notifies shared buffer that there will be no events with timestamp &lt;&eq; the given value. I allows to clear
-	 * internal counters for number of events seen so far per timestamp.
-	 *
-	 * @param timestamp watermark, no earlier events will arrive
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public void advanceTime(long timestamp) throws Exception {
-		Iterator<Long> iterator = eventsCount.keys().iterator();
-		while (iterator.hasNext()) {
-			Long next = iterator.next();
-			if (next < timestamp) {
-				iterator.remove();
-			}
-		}
-	}
-
-	/**
-	 * Adds another unique event to the shared buffer and assigns a unique id for it. It automatically creates a
-	 * lock on this event, so it won't be removed during processing of that event. Therefore the lock should be removed
-	 * after processing all {@link org.apache.flink.cep.nfa.ComputationState}s
-	 *
-	 * <p><b>NOTE:</b>Should be called only once for each unique event!
-	 *
-	 * @param value event to be registered
-	 * @return unique id of that event that should be used when putting entries to the buffer.
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public EventId registerEvent(V value, long timestamp) throws Exception {
-		Integer id = eventsCount.get(timestamp);
-		if (id == null) {
-			id = 0;
-		}
-
-		EventId eventId = new EventId(id, timestamp);
-		eventsBuffer.put(eventId, new Lockable<>(value, 1));
-		eventsCount.put(timestamp, id + 1);
-		return eventId;
 	}
 
 	/**
@@ -162,39 +113,34 @@ public class SharedBuffer<V> {
 	}
 
 	/**
-	 * Stores given value (value + timestamp) under the given state. It assigns a preceding element
-	 * relation to the previous entry.
+	 * Construct an accessor to deal with this sharedBuffer.
 	 *
-	 * @param stateName      name of the state that the event should be assigned to
-	 * @param eventId        unique id of event assigned by this SharedBuffer
-	 * @param previousNodeId id of previous entry (might be null if start of new run)
-	 * @param version        Version of the previous relation
-	 * @return assigned id of this element
-	 * @throws Exception Thrown if the system cannot access the state.
+	 * @return an accessor to deal with this sharedBuffer.
 	 */
-	public NodeId put(
-			final String stateName,
-			final EventId eventId,
-			@Nullable final NodeId previousNodeId,
-			final DeweyNumber version) throws Exception {
+	public SharedBufferAccessor<V> getAccessor() {
+		return new SharedBufferAccessor<>(this);
+	}
 
-		if (previousNodeId != null) {
-			lockNode(previousNodeId);
+	void advanceTime(long timestamp) throws Exception {
+		Iterator<Long> iterator = eventsCount.keys().iterator();
+		while (iterator.hasNext()) {
+			Long next = iterator.next();
+			if (next < timestamp) {
+				iterator.remove();
+			}
 		}
+	}
 
-		NodeId currentNodeId = new NodeId(eventId, getOriginalNameFromInternal(stateName));
-		Lockable<SharedBufferNode> currentNode = entries.get(currentNodeId);
-		if (currentNode == null) {
-			currentNode = new Lockable<>(new SharedBufferNode(), 0);
-			lockEvent(eventId);
+	EventId registerEvent(V value, long timestamp) throws Exception {
+		Integer id = eventsCount.get(timestamp);
+		if (id == null) {
+			id = 0;
 		}
-
-		currentNode.getElement().addEdge(new SharedBufferEdge(
-			previousNodeId,
-			version));
-		entries.put(currentNodeId, currentNode);
-
-		return currentNodeId;
+		EventId eventId = new EventId(id, timestamp);
+		Lockable<V> lockableValue = new Lockable<>(value, 1);
+		eventsCount.put(timestamp, id + 1);
+		eventsBufferCache.put(eventId, lockableValue);
+		return eventId;
 	}
 
 	/**
@@ -204,227 +150,120 @@ public class SharedBuffer<V> {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	public boolean isEmpty() throws Exception {
-		return Iterables.isEmpty(eventsBuffer.keys());
+		return Iterables.isEmpty(eventsBufferCache.keySet()) && Iterables.isEmpty(eventsBuffer.keys());
 	}
 
 	/**
-	 * Returns all elements from the previous relation starting at the given entry.
-	 *
-	 * @param nodeId  id of the starting entry
-	 * @param version Version of the previous relation which shall be extracted
-	 * @return Collection of previous relations starting with the given value
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public List<Map<String, List<EventId>>> extractPatterns(
-			final NodeId nodeId,
-			final DeweyNumber version) throws Exception {
-
-		List<Map<String, List<EventId>>> result = new ArrayList<>();
-
-		// stack to remember the current extraction states
-		Stack<ExtractionState> extractionStates = new Stack<>();
-
-		// get the starting shared buffer entry for the previous relation
-		Lockable<SharedBufferNode> entryLock = entries.get(nodeId);
-
-		if (entryLock != null) {
-			SharedBufferNode entry = entryLock.getElement();
-			extractionStates.add(new ExtractionState(Tuple2.of(nodeId, entry), version, new Stack<>()));
-
-			// use a depth first search to reconstruct the previous relations
-			while (!extractionStates.isEmpty()) {
-				final ExtractionState extractionState = extractionStates.pop();
-				// current path of the depth first search
-				final Stack<Tuple2<NodeId, SharedBufferNode>> currentPath = extractionState.getPath();
-				final Tuple2<NodeId, SharedBufferNode> currentEntry = extractionState.getEntry();
-
-				// termination criterion
-				if (currentEntry == null) {
-					final Map<String, List<EventId>> completePath = new LinkedHashMap<>();
-
-					while (!currentPath.isEmpty()) {
-						final NodeId currentPathEntry = currentPath.pop().f0;
-
-						String page = currentPathEntry.getPageName();
-						List<EventId> values = completePath
-							.computeIfAbsent(page, k -> new ArrayList<>());
-						values.add(currentPathEntry.getEventId());
-					}
-					result.add(completePath);
-				} else {
-
-					// append state to the path
-					currentPath.push(currentEntry);
-
-					boolean firstMatch = true;
-					for (SharedBufferEdge edge : currentEntry.f1.getEdges()) {
-						// we can only proceed if the current version is compatible to the version
-						// of this previous relation
-						final DeweyNumber currentVersion = extractionState.getVersion();
-						if (currentVersion.isCompatibleWith(edge.getDeweyNumber())) {
-							final NodeId target = edge.getTarget();
-							Stack<Tuple2<NodeId, SharedBufferNode>> newPath;
-
-							if (firstMatch) {
-								// for the first match we don't have to copy the current path
-								newPath = currentPath;
-								firstMatch = false;
-							} else {
-								newPath = new Stack<>();
-								newPath.addAll(currentPath);
-							}
-
-							extractionStates.push(new ExtractionState(
-								target != null ? Tuple2.of(target, entries.get(target).getElement()) : null,
-								edge.getDeweyNumber(),
-								newPath));
-						}
-					}
-				}
-
-			}
-		}
-		return result;
-	}
-
-	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match) {
-		return materializeMatch(match, new HashMap<>());
-	}
-
-	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match, Map<EventId, V> cache) {
-
-		Map<String, List<V>> materializedMatch = new LinkedHashMap<>(match.size());
-
-		for (Map.Entry<String, List<EventId>> pattern : match.entrySet()) {
-			List<V> events = new ArrayList<>(pattern.getValue().size());
-			for (EventId eventId : pattern.getValue()) {
-				V event = cache.computeIfAbsent(eventId, id -> {
-					try {
-						return eventsBuffer.get(id).getElement();
-					} catch (Exception ex) {
-						throw new WrappingRuntimeException(ex);
-					}
-				});
-				events.add(event);
-			}
-			materializedMatch.put(pattern.getKey(), events);
-		}
-
-		return materializedMatch;
-	}
-
-	/**
-	 * Increases the reference counter for the given entry so that it is not
-	 * accidentally removed.
-	 *
-	 * @param node id of the entry
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public void lockNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = entries.get(node);
-		if (sharedBufferNode != null) {
-			sharedBufferNode.lock();
-			entries.put(node, sharedBufferNode);
-		}
-	}
-
-	/**
-	 * Decreases the reference counter for the given entry so that it can be
-	 * removed once the reference counter reaches 0.
-	 *
-	 * @param node id of the entry
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public void releaseNode(final NodeId node) throws Exception {
-		Lockable<SharedBufferNode> sharedBufferNode = entries.get(node);
-		if (sharedBufferNode != null) {
-			if (sharedBufferNode.release()) {
-				removeNode(node, sharedBufferNode.getElement());
-			} else {
-				entries.put(node, sharedBufferNode);
-			}
-		}
-	}
-
-	private void removeNode(NodeId node, SharedBufferNode sharedBufferNode) throws Exception {
-		entries.remove(node);
-		EventId eventId = node.getEventId();
-		releaseEvent(eventId);
-
-		for (SharedBufferEdge sharedBufferEdge : sharedBufferNode.getEdges()) {
-			releaseNode(sharedBufferEdge.getTarget());
-		}
-	}
-
-	private void lockEvent(EventId eventId) throws Exception {
-		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
-		checkState(
-			eventWrapper != null,
-			"Referring to non existent event with id %s",
-			eventId);
-		eventWrapper.lock();
-		eventsBuffer.put(eventId, eventWrapper);
-	}
-
-	/**
-	 * Decreases the reference counter for the given event so that it can be
-	 * removed once the reference counter reaches 0.
+	 * Inserts or updates an event in cache.
 	 *
 	 * @param eventId id of the event
-	 * @throws Exception Thrown if the system cannot access the state.
+	 * @param event event body
 	 */
-	public void releaseEvent(EventId eventId) throws Exception {
-		Lockable<V> eventWrapper = eventsBuffer.get(eventId);
-		if (eventWrapper != null) {
-			if (eventWrapper.release()) {
-				eventsBuffer.remove(eventId);
-			} else {
-				eventsBuffer.put(eventId, eventWrapper);
-			}
-		}
+	void upsertEvent(EventId eventId, Lockable<V> event) {
+		this.eventsBufferCache.put(eventId, event);
 	}
 
 	/**
-	 * Helper class to store the extraction state while extracting a sequence of values following
-	 * the versioned entry edges.
+	 * Inserts or updates a shareBufferNode in cache.
+	 *
+	 * @param nodeId id of the event
+	 * @param entry SharedBufferNode
 	 */
-	private static class ExtractionState {
+	void upsertEntry(NodeId nodeId, Lockable<SharedBufferNode> entry) {
+		this.entryCache.put(nodeId, entry);
+	}
 
-		private final Tuple2<NodeId, SharedBufferNode> entry;
-		private final DeweyNumber version;
-		private final Stack<Tuple2<NodeId, SharedBufferNode>> path;
+	/**
+	 * Removes an event from cache and state.
+	 *
+	 * @param eventId id of the event
+	 */
+	void removeEvent(EventId eventId) throws Exception {
+		this.eventsBufferCache.remove(eventId);
+		this.eventsBuffer.remove(eventId);
+	}
 
-		ExtractionState(
-				final Tuple2<NodeId, SharedBufferNode> entry,
-				final DeweyNumber version,
-				final Stack<Tuple2<NodeId, SharedBufferNode>> path) {
-			this.entry = entry;
-			this.version = version;
-			this.path = path;
+	/**
+	 * Removes a ShareBufferNode from cache and state.
+	 *
+	 * @param nodeId id of the event
+	 */
+	void removeEntry(NodeId nodeId) throws Exception {
+		this.entryCache.remove(nodeId);
+		this.entries.remove(nodeId);
+	}
+
+	/**
+	 * It always returns node either from state or cache.
+	 *
+	 * @param nodeId id of the node
+	 * @return SharedBufferNode
+	 */
+	Lockable<SharedBufferNode> getEntry(NodeId nodeId) {
+		return entryCache.computeIfAbsent(nodeId, id -> {
+			try {
+				return entries.get(id);
+			} catch (Exception ex) {
+				throw new WrappingRuntimeException(ex);
+			}
+		});
+	}
+
+	/**
+	 * It always returns event either from state or cache.
+	 *
+	 * @param eventId id of the event
+	 * @return event
+	 */
+	Lockable<V> getEvent(EventId eventId) {
+		return eventsBufferCache.computeIfAbsent(eventId, id -> {
+			try {
+				return eventsBuffer.get(id);
+			} catch (Exception ex) {
+				throw new WrappingRuntimeException(ex);
+			}
+		});
+	}
+
+	/**
+	 * Flush the event and node from cache to state.
+	 *
+	 * @throws Exception Thrown if the system cannot access the state.
+	 */
+	void flushCache() throws Exception {
+		if (!entryCache.isEmpty()) {
+			entries.putAll(entryCache);
+			entryCache.clear();
 		}
-
-		public Tuple2<NodeId, SharedBufferNode> getEntry() {
-			return entry;
-		}
-
-		public Stack<Tuple2<NodeId, SharedBufferNode>> getPath() {
-			return path;
-		}
-
-		public DeweyNumber getVersion() {
-			return version;
-		}
-
-		@Override
-		public String toString() {
-			return "ExtractionState(" + entry + ", " + version + ", [" +
-				StringUtils.join(path, ", ") + "])";
+		if (!eventsBufferCache.isEmpty()) {
+			eventsBuffer.putAll(eventsBufferCache);
+			eventsBufferCache.clear();
 		}
 	}
 
 	@VisibleForTesting
 	Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
 		return eventsCount.iterator();
+	}
+
+	@VisibleForTesting
+	public int getEventsBufferCacheSize() {
+		return eventsBufferCache.size();
+	}
+
+	@VisibleForTesting
+	public int getEventsBufferSize() throws Exception {
+		return Iterables.size(eventsBuffer.entries());
+	}
+
+	@VisibleForTesting
+	public int getSharedBufferNodeSize() throws Exception {
+		return Iterables.size(entries.entries());
+	}
+
+	@VisibleForTesting
+	public int getSharedBufferNodeCacheSize() throws Exception {
+		return entryCache.size();
 	}
 
 }
