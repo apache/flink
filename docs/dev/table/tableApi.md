@@ -2811,7 +2811,7 @@ timestampAdd(unit, interval, timestamp)
 {% endhighlight %}
       </td>
       <td>
-        <p>Adds a (signed) integer interval to a timestamp. The unit for the interval is given by the unit argument, which should be one of the following values: <code>"SECOND"</code>, <code>"MINUTE"</code>, <code>"HOUR"</code>, <code>"DAY"</code>, <code>"WEEK"</code>, <code>"MONTH"</code>, <code>"QUARTER"</code>, or <code>"YEAR"</code>. E.g. <code>timestampAdd("WEEK", 1, '2003-01-02'.toDate)</code> leads to <code>2003-01-09</code>.</p>
+        <p>Adds a (signed) integer interval to a timestamp. The unit for the interval is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>. E.g. <code>timestampAdd("WEEK", 1, '2003-01-02'.toDate)</code> leads to <code>2003-01-09</code>.</p>
       </td>
     </tr>
 

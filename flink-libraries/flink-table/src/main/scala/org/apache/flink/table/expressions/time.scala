@@ -340,30 +340,59 @@ case class TimestampAdd(
     timestamp: Expression)
   extends Expression {
 
-  override private[flink] def children = unit :: count :: timestamp :: Nil
+  private[flink] final val sqlTsiArray = Array("SQL_TSI_YEAR", "SQL_TSI_QUARTER", "SQL_TSI_MONTH",
+    "SQL_TSI_WEEK", "SQL_TSI_DAY", "SQL_TSI_HOUR", "SQL_TSI_MINUTE", "SQL_TSI_SECOND")
 
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
-    var timeUnit : Option[TimeUnit] = None
-    if (unit.isInstanceOf[Literal]) {
-        var unitValue= unit.asInstanceOf[Literal].value.toString()
-        val sqlTsiArray = Array("SQL_TSI_YEAR", "SQL_TSI_QUARTER", "SQL_TSI_MONTH", "SQL_TSI_WEEK",
-            "SQL_TSI_DAY", "SQL_TSI_HOUR", "SQL_TSI_MINUTE", "SQL_TSI_SECOND")
-        if (sqlTsiArray.contains(unitValue)) {
-          unitValue = unitValue.split("_").last
+  override private[flink] def children: Seq[Expression] = unit :: count :: timestamp :: Nil
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (!TypeCheckUtils.isString(unit.resultType)) {
+      return ValidationFailure(s"TimestampAdd operator requires unit to be of type " +
+        s"String Literal, but get ${unit.resultType}.")
+    }
+    if (!TypeCheckUtils.isTimePoint(timestamp.resultType)) {
+      return ValidationFailure(s"TimestampAdd operator requires timestamp to be of type " +
+        s"SqlTimeTypeInfo, but get ${timestamp.resultType}.")
+    }
+    ValidationSuccess
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val timeUnit = unit match {
+      case Literal(value: String, STRING_TYPE_INFO) =>
+        if (sqlTsiArray.contains(value)) {
+          Some(TimeUnit.valueOf(value.split("_").last))
+        } else {
+          Some(TimeUnit.valueOf(value))
         }
-        timeUnit = Some(TimeUnit.valueOf(unitValue))
+      case _ => None
     }
 
-    relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, timestamp.toRexNode,
+    val interval = count match {
+      case Literal(value: Int, INT_TYPE_INFO) =>
+        makeInterval(value.toLong, timeUnit)
+      case Literal(value: Long, LONG_TYPE_INFO) =>
+        makeInterval(value, timeUnit)
+      case _ =>
         relBuilder.call(SqlStdOperatorTable.MULTIPLY,
           relBuilder.getRexBuilder.makeIntervalLiteral(timeUnit.get.multiplier,
-              new SqlIntervalQualifier(timeUnit.get,null,SqlParserPos.ZERO)),
-          count.toRexNode))
+            new SqlIntervalQualifier(timeUnit.get, null, SqlParserPos.ZERO)),
+          count.toRexNode)
+    }
+
+    relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, timestamp.toRexNode, interval)
   }
 
   override def toString: String = s"timestampAdd(${children.mkString(", ")})"
 
-  override private[flink] def resultType = STRING_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  private[flink] def makeInterval(value: Long, timeUnit: Option[TimeUnit])
+    (implicit relBuilder: RelBuilder) = {
+    val countWithUnit = timeUnit.get.multiplier.multiply(java.math.BigDecimal.valueOf(value))
+      relBuilder.getRexBuilder.makeIntervalLiteral(countWithUnit,
+        new SqlIntervalQualifier(timeUnit.get, null, SqlParserPos.ZERO))
+  }
 }
 
 case class DateFormat(timestamp: Expression, format: Expression) extends Expression {
