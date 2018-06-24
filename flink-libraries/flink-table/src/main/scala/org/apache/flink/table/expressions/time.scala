@@ -349,6 +349,17 @@ case class TimestampAdd(
     if (!TypeCheckUtils.isString(unit.resultType)) {
       return ValidationFailure(s"TimestampAdd operator requires unit to be of type " +
         s"String Literal, but get ${unit.resultType}.")
+    } else {
+      val unitStr = unit.toString()
+      if (!sqlTsiArray.contains(unitStr) &&
+        !sqlTsiArray.map(item => item.split("_").last).contains(unitStr)) {
+          return ValidationFailure(s"TimestampAdd operator requires unit to be one of (YEAR, " +
+            s"QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, or SECOND but get ${unit.toString()}.")
+      }
+    }
+    if (!TypeCheckUtils.isInteger(count.resultType) && !TypeCheckUtils.isLong(count.resultType)) {
+      return ValidationFailure(s"TimestampAdd operator requires count to be of type " +
+        s"Integer or Long, but get ${count.resultType}.")
     }
     if (!TypeCheckUtils.isTimePoint(timestamp.resultType)) {
       return ValidationFailure(s"TimestampAdd operator requires timestamp to be of type " +
@@ -390,8 +401,8 @@ case class TimestampAdd(
   private[flink] def makeInterval(value: Long, timeUnit: Option[TimeUnit])
     (implicit relBuilder: RelBuilder) = {
     val countWithUnit = timeUnit.get.multiplier.multiply(java.math.BigDecimal.valueOf(value))
-      relBuilder.getRexBuilder.makeIntervalLiteral(countWithUnit,
-        new SqlIntervalQualifier(timeUnit.get, null, SqlParserPos.ZERO))
+    relBuilder.getRexBuilder.makeIntervalLiteral(countWithUnit,
+      new SqlIntervalQualifier(timeUnit.get, null, SqlParserPos.ZERO))
   }
 }
 
