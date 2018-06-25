@@ -324,16 +324,15 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				Collection<FileUpload> filesToUpload = new ArrayList<>(8);
 
 				// TODO: need configurable location
-				final String jobGraphFileName;
+				final java.nio.file.Path jobGraphFile;
 				try {
-					final java.nio.file.Path tempFile = Files.createTempFile("flink-jobgraph", ".bin");
-					try (OutputStream fileOut = Files.newOutputStream(tempFile)) {
+					jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
+					try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
 						try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
 							objectOut.writeObject(jobGraph);
 						}
 					}
-					filesToUpload.add(new FileUpload(tempFile, RestConstants.CONTENT_TYPE_BINARY));
-					jobGraphFileName = tempFile.getFileName().toString();
+					filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 				} catch (IOException e) {
 					throw new RuntimeException("lol", e);
 				}
@@ -348,15 +347,25 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 					filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
 				}
 
-				return sendRetriableRequest(
+				final CompletableFuture<JobSubmitResponseBody> submitFuture = sendRetriableRequest(
 					JobSubmitHeaders.getInstance(),
 					EmptyMessageParameters.getInstance(),
 					new JobSubmitRequestBody(
-						jobGraphFileName,
+						jobGraphFile.getFileName().toString(),
 						jarFileNames,
 						artifactFileNames),
 					filesToUpload,
 					isConnectionProblemOrServiceUnavailable());
+
+				submitFuture
+					.whenComplete((ignored, ignore) -> {
+						try {
+							Files.delete(jobGraphFile);
+						} catch (IOException e) {
+							log.warn("Could not delete temporary file {}.", jobGraphFile, e);
+						}
+					});
+				return submitFuture;
 			}).thenCompose(future -> future);
 
 		return submissionFuture
