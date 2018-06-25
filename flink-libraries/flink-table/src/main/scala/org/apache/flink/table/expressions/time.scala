@@ -354,7 +354,7 @@ case class TimestampAdd(
       if (!sqlTsiArray.contains(unitStr) &&
         !sqlTsiArray.map(item => item.split("_").last).contains(unitStr)) {
           return ValidationFailure(s"TimestampAdd operator requires unit to be one of (YEAR, " +
-            s"QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, or SECOND but get ${unit.toString()}.")
+            s"QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, or SECOND), but get ${unit.toString()}.")
       }
     }
     if (!TypeCheckUtils.isInteger(count.resultType) && !TypeCheckUtils.isLong(count.resultType)) {
