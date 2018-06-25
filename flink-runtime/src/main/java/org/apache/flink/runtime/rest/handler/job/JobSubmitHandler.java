@@ -57,6 +57,10 @@ import java.util.stream.Collectors;
  */
 public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
 
+	private static final String FILE_TYPE_GRAPH = "JobGraph";
+	private static final String FILE_TYPE_JAR = "Jar";
+	private static final String FILE_TYPE_ARTIFACT = "Artifact";
+
 	public JobSubmitHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
@@ -75,17 +79,17 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		JobSubmitRequestBody requestBody = request.getRequestBody();
 
-		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, "JobGraph", nameToFile);
+		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_GRAPH, nameToFile);
 
 		Collection<org.apache.flink.core.fs.Path> jarFiles = new ArrayList<>(requestBody.jarFileNames.size());
 		for (String jarFileName : requestBody.jarFileNames) {
-			Path jarFile = getPathAndAssertUpload(jarFileName, "Jar", nameToFile);
+			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFile);
 			jarFiles.add(new org.apache.flink.core.fs.Path(jarFile.toString()));
 		}
 
 		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(requestBody.artifactFileNames.size());
 		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : requestBody.artifactFileNames) {
-			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, "Artifact", nameToFile);
+			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFile);
 			artifacts.add(Tuple2.of(artifactFileName.entryName, new org.apache.flink.core.fs.Path(artifactFile.toString())));
 		}
 
