@@ -81,18 +81,6 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_GRAPH, nameToFile);
 
-		Collection<org.apache.flink.core.fs.Path> jarFiles = new ArrayList<>(requestBody.jarFileNames.size());
-		for (String jarFileName : requestBody.jarFileNames) {
-			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFile);
-			jarFiles.add(new org.apache.flink.core.fs.Path(jarFile.toString()));
-		}
-
-		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(requestBody.artifactFileNames.size());
-		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : requestBody.artifactFileNames) {
-			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFile);
-			artifacts.add(Tuple2.of(artifactFileName.entryName, new org.apache.flink.core.fs.Path(artifactFile.toString())));
-		}
-
 		// TODO: use executor
 		CompletableFuture<JobGraph> jobGraphFuture = CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
@@ -106,6 +94,18 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			}
 			return jobGraph;
 		});
+
+		Collection<org.apache.flink.core.fs.Path> jarFiles = new ArrayList<>(requestBody.jarFileNames.size());
+		for (String jarFileName : requestBody.jarFileNames) {
+			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFile);
+			jarFiles.add(new org.apache.flink.core.fs.Path(jarFile.toString()));
+		}
+
+		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(requestBody.artifactFileNames.size());
+		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : requestBody.artifactFileNames) {
+			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFile);
+			artifacts.add(Tuple2.of(artifactFileName.entryName, new org.apache.flink.core.fs.Path(artifactFile.toString())));
+		}
 
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
