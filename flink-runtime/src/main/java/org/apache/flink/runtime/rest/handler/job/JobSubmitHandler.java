@@ -50,6 +50,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 /**
@@ -61,12 +62,16 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private static final String FILE_TYPE_JAR = "Jar";
 	private static final String FILE_TYPE_ARTIFACT = "Artifact";
 
+	private final Executor executor;
+
 	public JobSubmitHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
-			Map<String, String> headers) {
+			Map<String, String> headers,
+			Executor executor) {
 		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
+		this.executor = executor;
 	}
 
 	@Override
@@ -81,7 +86,6 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_GRAPH, nameToFile);
 
-		// TODO: use executor
 		CompletableFuture<JobGraph> jobGraphFuture = CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
 			try (ObjectInputStream objectIn = new ObjectInputStream(Files.newInputStream(jobGraphFile))) {
@@ -93,7 +97,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 					e));
 			}
 			return jobGraph;
-		});
+		}, executor);
 
 		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(nameToFile, requestBody.jarFileNames);
 

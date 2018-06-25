@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
 
@@ -92,7 +93,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT,
-			Collections.emptyMap());
+			Collections.emptyMap(),
+			TestingUtils.defaultExecutor());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -123,7 +125,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT,
-			Collections.emptyMap());
+			Collections.emptyMap(),
+			TestingUtils.defaultExecutor());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
