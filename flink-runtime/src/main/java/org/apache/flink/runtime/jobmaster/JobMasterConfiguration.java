@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.util.Preconditions;
@@ -76,13 +75,7 @@ public class JobMasterConfiguration {
 
 	public static JobMasterConfiguration fromConfiguration(Configuration configuration) {
 
-		final Time rpcTimeout;
-
-		try {
-			rpcTimeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
-		} catch (NumberFormatException e) {
-			throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage());
-		}
+		final Time rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
 		final Time slotRequestTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 		final Time slotIdleTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
