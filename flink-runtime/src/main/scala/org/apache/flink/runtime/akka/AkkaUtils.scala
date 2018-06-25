@@ -609,9 +609,14 @@ object AkkaUtils {
   }
 
   def getTimeoutAsTime(config: Configuration): Time = {
-    val duration = Duration(config.getString(AkkaOptions.ASK_TIMEOUT))
+    try {
+      val duration = Duration(config.getString(AkkaOptions.ASK_TIMEOUT))
 
-    Time.milliseconds(duration.toMillis)
+      Time.milliseconds(duration.toMillis)
+    } catch {
+      case _: NumberFormatException =>
+        throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage)
+    }
   }
 
   def getDefaultTimeout: Time = {
