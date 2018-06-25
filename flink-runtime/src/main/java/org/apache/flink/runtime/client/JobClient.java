@@ -428,11 +428,7 @@ public class JobClient {
 		}
 
 		try {
-			List<Path> userJars = jobGraph.getUserJars();
-			Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
-			if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
-				ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
-			}
+			ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, config));
 		} catch (FlinkException e) {
 			throw new JobSubmissionException(jobGraph.getJobID(),
 					"Could not upload job files.", e);

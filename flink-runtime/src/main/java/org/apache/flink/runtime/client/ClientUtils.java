@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -30,6 +31,8 @@ import org.apache.flink.util.function.SupplierWithException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -48,11 +51,15 @@ public enum ClientUtils {
 	 * @throws IOException if the upload fails
 	 */
 	public static void uploadJobGraphFiles(JobGraph jobGraph, SupplierWithException<BlobClient, IOException> clientSupplier) throws FlinkException {
-		try (BlobClient client = clientSupplier.get()) {
-			uploadAndSetUserJars(jobGraph, client);
-			uploadAndSetUserArtifacts(jobGraph, client);
-		} catch (IOException ioe) {
-			throw new FlinkException("Could not upload job files.", ioe);
+		List<Path> userJars = jobGraph.getUserJars();
+		Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
+		if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
+			try (BlobClient client = clientSupplier.get()) {
+				uploadAndSetUserJars(jobGraph, client);
+				uploadAndSetUserArtifacts(jobGraph, client);
+			} catch (IOException ioe) {
+				throw new FlinkException("Could not upload job files.", ioe);
+			}
 		}
 	}
 

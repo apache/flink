@@ -21,12 +21,10 @@ package org.apache.flink.runtime.minicluster;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -91,8 +89,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -678,20 +674,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<BlobClient> blobClientFuture, final JobGraph job) {
-		List<Path> userJars = job.getUserJars();
-		Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = job.getUserArtifacts();
-		if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
-			return blobClientFuture.thenAccept(blobClient -> {
-				try {
-					ClientUtils.uploadJobGraphFiles(job, () -> blobClient);
-				} catch (FlinkException e) {
-					throw new CompletionException(e);
-				}
-				});
-		} else {
-			LOG.debug("No jars to upload for job {}.", job.getJobID());
-			return CompletableFuture.completedFuture(null);
-		}
+		return blobClientFuture.thenAccept(blobClient -> {
+			try {
+				ClientUtils.uploadJobGraphFiles(job, () -> blobClient);
+			} catch (FlinkException e) {
+				throw new CompletionException(e);
+			}
+		});
 	}
 
 	private CompletableFuture<BlobClient> createBlobClient(final DispatcherGateway currentDispatcherGateway) {

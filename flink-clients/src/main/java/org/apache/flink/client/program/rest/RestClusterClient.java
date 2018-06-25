@@ -326,14 +326,10 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				final int blobServerPort = response.port;
 				final InetSocketAddress address = new InetSocketAddress(dispatcherAddress, blobServerPort);
 
-				List<Path> userJars = jobGraph.getUserJars();
-				Map<String, DistributedCache.DistributedCacheEntry> userArtifacts = jobGraph.getUserArtifacts();
-				if (!userJars.isEmpty() || !userArtifacts.isEmpty()) {
-					try {
-						ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(address, flinkConfig));
-					} catch (Exception e) {
-						throw new CompletionException(e);
-					}
+				try {
+					ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(address, flinkConfig));
+				} catch (Exception e) {
+					throw new CompletionException(e);
 				}
 
 				return jobGraph;
