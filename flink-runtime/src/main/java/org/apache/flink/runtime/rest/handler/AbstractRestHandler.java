@@ -70,7 +70,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 	}
 
 	@Override
-	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) {
+	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<R, M> handlerRequest, T gateway) {
 		CompletableFuture<P> response;
 
 		try {
@@ -79,6 +79,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			response = FutureUtils.completedExceptionally(e);
 		}
 
+		CompletableFuture<Void> processingFinishedFuture = new CompletableFuture<>();
 		response.whenComplete((P resp, Throwable throwable) -> {
 			if (throwable != null) {
 
@@ -105,7 +106,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					messageHeaders.getResponseStatusCode(),
 					responseHeaders);
 			}
-		});
+		}).whenComplete((P resp, Throwable throwable) -> processingFinishedFuture.complete(null));
+		return processingFinishedFuture;
 	}
 
 	private void processRestHandlerException(ChannelHandlerContext ctx, HttpRequest httpRequest, RestHandlerException rhe) {

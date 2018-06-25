@@ -117,7 +117,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 	}
 
 	@Override
-	protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
+	protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, M> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
 		final ResourceID taskManagerId = handlerRequest.getPathParameter(TaskManagerIdPathParameter.class);
 
 		final CompletableFuture<TransientBlobKey> blobKeyFuture;
@@ -152,6 +152,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			},
 			ctx.executor());
 
+		CompletableFuture<Void> processingFinishedFuture = new CompletableFuture<>();
 		resultFuture.whenComplete(
 			(Void ignored, Throwable throwable) -> {
 				if (throwable != null) {
@@ -177,7 +178,9 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 						httpResponseStatus,
 						responseHeaders);
 				}
-			});
+			})
+			.whenComplete((Void ignored, Throwable throwable) -> processingFinishedFuture.complete(null));
+		return processingFinishedFuture;
 	}
 
 	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, ResourceID taskManagerResourceId);
