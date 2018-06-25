@@ -61,6 +61,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -212,9 +213,12 @@ public class JobMasterTest extends TestLogger {
 		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -277,9 +281,12 @@ public class JobMasterTest extends TestLogger {
 		rpcService.registerGateway(resourceManagerAddress, resourceManagerGateway);
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -333,7 +340,7 @@ public class JobMasterTest extends TestLogger {
 		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -382,8 +389,9 @@ public class JobMasterTest extends TestLogger {
 		completedCheckpointStore.addCheckpoint(completedCheckpoint);
 		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -412,7 +420,7 @@ public class JobMasterTest extends TestLogger {
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
 
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			restartingJobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
@@ -496,7 +504,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testCloseUnestablishedResourceManagerConnection() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -544,7 +552,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testReconnectionAfterDisconnect() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -588,7 +596,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testResourceManagerConnectionAfterRegainingLeadership() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -633,7 +641,7 @@ public class JobMasterTest extends TestLogger {
 	public void testRequestPartitionState() throws Exception {
 		final JobGraph producerConsumerJobGraph = producerConsumerJobGraph();
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			producerConsumerJobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
@@ -746,12 +754,12 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-			JobMasterConfiguration jobMasterConfiguration,
+			Configuration configuration,
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityServices,
 			JobManagerSharedServices jobManagerSharedServices) throws Exception {
 		return createJobMaster(
-			jobMasterConfiguration,
+			configuration,
 			jobGraph,
 			highAvailabilityServices,
 			jobManagerSharedServices,
@@ -760,17 +768,21 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-		JobMasterConfiguration jobMasterConfiguration,
-		JobGraph jobGraph,
-		HighAvailabilityServices highAvailabilityServices,
-		JobManagerSharedServices jobManagerSharedServices,
-		HeartbeatServices heartbeatServices) throws Exception {
+			Configuration configuration,
+			JobGraph jobGraph,
+			HighAvailabilityServices highAvailabilityServices,
+			JobManagerSharedServices jobManagerSharedServices,
+			HeartbeatServices heartbeatServices) throws Exception {
+
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
 		return new JobMaster(
 			rpcService,
 			jobMasterConfiguration,
 			jmResourceId,
 			jobGraph,
 			highAvailabilityServices,
+			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
 			jobManagerSharedServices,
 			heartbeatServices,
 			blobServer,
