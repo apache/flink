@@ -639,9 +639,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// from the ResourceManager
 		jobGraph.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<BlobClient> blobClientFuture = createBlobClient(dispatcherGateway);
+		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = createBlobServerAddress(dispatcherGateway);
 
-		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJobFiles(blobClientFuture, jobGraph);
+		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);
 
 		final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = jarUploadFuture.thenCompose(
 			(Void ack) -> dispatcherGateway.submitJob(jobGraph, rpcTimeout));
@@ -673,27 +673,19 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<BlobClient> blobClientFuture, final JobGraph job) {
-		return blobClientFuture.thenAccept(blobClient -> {
+	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<InetSocketAddress> blobServerAddressFuture, final JobGraph job) {
+		return blobServerAddressFuture.thenAccept(blobServerAddress -> {
 			try {
-				ClientUtils.uploadJobGraphFiles(job, () -> blobClient);
+				ClientUtils.uploadJobGraphFiles(job, () -> new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration()));
 			} catch (FlinkException e) {
 				throw new CompletionException(e);
 			}
 		});
 	}
 
-	private CompletableFuture<BlobClient> createBlobClient(final DispatcherGateway currentDispatcherGateway) {
+	private CompletableFuture<InetSocketAddress> createBlobServerAddress(final DispatcherGateway currentDispatcherGateway) {
 		return currentDispatcherGateway.getBlobServerPort(rpcTimeout)
-			.thenApply(blobServerPort -> {
-				InetSocketAddress blobServerAddress = new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort);
-
-				try {
-					return new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration());
-				} catch (IOException ioe) {
-					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
-				}
-			});
+			.thenApply(blobServerPort -> new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort));
 	}
 
 	// ------------------------------------------------------------------------
