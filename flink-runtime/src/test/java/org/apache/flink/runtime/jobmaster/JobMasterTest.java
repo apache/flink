@@ -60,6 +60,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -690,6 +691,53 @@ public class JobMasterTest extends TestLogger {
 			final CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId));
 
 			assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
+	@Test
+	public void testJMFailThePendingRequestWhenTMKilledEagerly() throws Exception {
+
+		final JobVertex producer = new JobVertex("JV");
+		producer.setSlotSharingGroup(new SlotSharingGroup());
+		producer.setInvokableClass(NoOpInvokable.class);
+
+		final JobGraph jobGraph = new JobGraph(producer);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		final JobMaster jobMaster = createJobMaster(
+			JobMasterConfiguration.fromConfiguration(configuration),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		jobMaster.start(jobMasterId, testingTimeout);
+
+		try {
+
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+			final CompletableFuture<AllocationID> cancelledAllocationIdFuture = new CompletableFuture<>();
+
+			testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+
+			testingResourceManagerGateway.setCancelSlotConsumer(allocationID -> cancelledAllocationIdFuture.complete(allocationID));
+
+			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			AllocationID allocationID = allocationIdFuture.get();
+
+			// Since the job master won't register with any TMs because we are using the TestingResourceManagerGateway as the resource manager,
+			// so we mock the "TM eagerly killed" by calling the JobMaster#taskManagerTerminated() here.
+			jobMaster.taskManagerTerminated(new ResourceID("eagerly killed tm"), Collections.singleton(allocationID), new Exception("mocked exception"));
+
+			AllocationID cancelledAllocationId = cancelledAllocationIdFuture.get();
+
+			assertThat(allocationID, Matchers.equalTo(cancelledAllocationId));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
