@@ -180,6 +180,26 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	/**
+	 * Creates a new entropy based {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 * @param entropyInjectionKey The string that specifies entropy key in the checkpoint uri
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing, String entropyInjectionKey) throws IOException {
+		this(new FsStateBackend(checkpointDataUri, entropyInjectionKey),
+			enableIncrementalCheckpointing);
+	}
+
+	/**
 	 * Creates a new {@code RocksDBStateBackend} that uses the given state backend to store its
 	 * checkpoint data streams. Typically, one would supply a filesystem or database state backend
 	 * here where the snapshots from RocksDB would be stored.
@@ -208,6 +228,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  State backend methods

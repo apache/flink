@@ -38,12 +38,19 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 	 * rather than in files */
 	public static final String MEMORY_THRESHOLD_CONF_KEY = "state.backend.fs.memory-threshold";
 
+	/** The key defines the pattern in checkpoint uri where entropy value should be injected or substituted */
+	public static final String CHECKPOINT_DIRECTORY_ENTROPY_KEY_CONF_KEY = "state.backend.fs.checkpointdir.injectEntropy.key";
+
+
 
 	@Override
 	public FsStateBackend createFromConfig(Configuration config) throws IllegalConfigurationException {
 		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
 		final int memoryThreshold = config.getInteger(
 			MEMORY_THRESHOLD_CONF_KEY, FsStateBackend.DEFAULT_FILE_STATE_THRESHOLD);
+
+		final String entropyInjectionKey = config.getString(CHECKPOINT_DIRECTORY_ENTROPY_KEY_CONF_KEY, "__ENTROPY_KEY__");
+
 
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
@@ -53,7 +60,7 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 
 		try {
 			Path path = new Path(checkpointDirURI);
-			return new FsStateBackend(path.toUri(), memoryThreshold);
+			return new FsStateBackend(path.toUri(), memoryThreshold, entropyInjectionKey);
 		}
 		catch (IOException | IllegalArgumentException e) {
 			throw new IllegalConfigurationException("Invalid configuration for the state backend", e);

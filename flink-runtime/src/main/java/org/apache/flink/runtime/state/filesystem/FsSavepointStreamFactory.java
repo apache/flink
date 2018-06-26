@@ -39,11 +39,12 @@ public class FsSavepointStreamFactory extends FsCheckpointStreamFactory {
 			JobID jobId,
 			int fileStateSizeThreshold) throws IOException {
 
-		super(checkpointDataUri, jobId, fileStateSizeThreshold);
+		super(checkpointDataUri, jobId, fileStateSizeThreshold,"");
 	}
 
 	@Override
-	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID) throws IOException {
+	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID,
+								  String entropyInjectionKey) throws IOException {
 		// No checkpoint specific directory required as the savepoint directory
 		// is already unique.
 		return checkpointDirectory;

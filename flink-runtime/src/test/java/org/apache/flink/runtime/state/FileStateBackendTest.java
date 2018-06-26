@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.state;
 
+import java.nio.file.FileSystems;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.junit.Ignore;
@@ -158,6 +161,171 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testEntropyStateOutputStream() throws IOException {
+		File basePath = tempFolder.newFolder().getAbsoluteFile();
+		final String path = basePath.getAbsolutePath();
+		final String entropyKey = "_ENTROPY_";
+
+		final String pathWithEntropy = path + FileSystems.getDefault().getSeparator() + entropyKey;
+
+		try {
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(new File(pathWithEntropy).toURI(), 15, entropyKey));
+			JobID jobId = new JobID();
+
+			// we know how FsCheckpointStreamFactory is implemented so we know where it
+			// will store checkpoints
+			File checkpointPath = new File(pathWithEntropy, jobId.toString());
+
+			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_entropy");
+
+			byte[] state1 = new byte[1274673];
+			byte[] state2 = new byte[1];
+			byte[] state3 = new byte[0];
+			byte[] state4 = new byte[177];
+
+			Random rnd = new Random();
+			rnd.nextBytes(state1);
+			rnd.nextBytes(state2);
+			rnd.nextBytes(state3);
+			rnd.nextBytes(state4);
+
+			long checkpointId = 97231523453L;
+
+			CheckpointStreamFactory.CheckpointStateOutputStream stream1 =
+				streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+
+			CheckpointStreamFactory.CheckpointStateOutputStream stream2 =
+				streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+
+			CheckpointStreamFactory.CheckpointStateOutputStream stream3 =
+				streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+
+			stream1.write(state1);
+			stream2.write(state2);
+			stream3.write(state3);
+
+			FileStateHandle handle1 = (FileStateHandle) stream1.closeAndGetHandle();
+			ByteStreamStateHandle handle2 = (ByteStreamStateHandle) stream2.closeAndGetHandle();
+			ByteStreamStateHandle handle3 = (ByteStreamStateHandle) stream3.closeAndGetHandle();
+
+			// use with try-with-resources
+			StreamStateHandle handle4;
+			try (CheckpointStreamFactory.CheckpointStateOutputStream stream4 =
+					 streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis())) {
+				stream4.write(state4);
+				handle4 = stream4.closeAndGetHandle();
+			}
+
+			// close before accessing handle
+			CheckpointStreamFactory.CheckpointStateOutputStream stream5 =
+				streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
+			stream5.write(state4);
+			stream5.close();
+			try {
+				stream5.closeAndGetHandle();
+				fail();
+			} catch (IOException e) {
+				// uh-huh
+			}
+
+			validateBytesInStream(handle1.openInputStream(), state1);
+			handle1.discardState();
+			assertFalse(isDirectoryEmpty(basePath));
+			ensureLocalFileDeleted(handle1.getFilePath());
+
+			validateBytesInStream(handle2.openInputStream(), state2);
+			handle2.discardState();
+
+			// nothing was written to the stream, so it will return nothing
+			assertNull(handle3);
+
+			validateBytesInStream(handle4.openInputStream(), state4);
+			handle4.discardState();
+			assertTrue(isDirectoryEmpty(checkpointPath));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testEntropyCheckpointStream() throws Exception {
+		File basePath = tempFolder.newFolder().getAbsoluteFile();
+		{
+			final String path = basePath.getAbsolutePath();
+			final String entropyKey = "_ENTROPY_";
+
+			verifyEntropy(path, entropyKey, false);
+		}
+
+		{
+			final String path = basePath.getAbsolutePath();
+			final String entropyKey = "";
+
+			verifyEntropy(path, entropyKey, false);
+		}
+	}
+
+	@Test
+	public void testEntropyInvalidCharsCheckpointStream() throws Exception {
+		File basePath = tempFolder.newFolder().getAbsoluteFile();
+		{
+			final String path = basePath.getAbsolutePath();
+			final String entropyKey = "#$**!^\\";
+
+			verifyEntropy(path, entropyKey, true);
+		}
+
+		{
+			final String path = basePath.getAbsolutePath();
+			final String entropyKey = "//\\";
+
+			verifyEntropy(path, entropyKey, true);
+		}
+	}
+
+	private void verifyEntropy(String path, String entropyKey, boolean invalid) {
+		//add the entropy pattern at the end of the path
+		final String pathWithEntropy = path + FileSystems.getDefault().getSeparator() + entropyKey;
+
+		try {
+			// the state backend has a very low in-mem state threshold (15 bytes)
+			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(new File(pathWithEntropy).toURI(), 15, entropyKey));
+			JobID jobId = new JobID();
+
+			// we know how FsCheckpointStreamFactory is implemented so we know where it
+			// will store checkpoints
+			File checkpointPath = new File(pathWithEntropy, jobId.toString());
+
+			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_entropy");
+			final Path chkpointPath = ((FsCheckpointStreamFactory)streamFactory).getCheckpointDirectory();
+
+			if (entropyKey == null || entropyKey.isEmpty()) {
+				assert(true);
+				return;
+			}
+			//check entropyKey got replaced by the actual 4 character random alphanumeric string
+			assert(!chkpointPath.getPath().contains(entropyKey));
+			final String[] segments = chkpointPath.getPath().split(FileSystems.getDefault().getSeparator());
+
+			//jobid gets suffixed after the entropy
+			final String entropy = segments[segments.length - 2];
+			assert(entropy.length() == 4);
+			assert(StringUtils.isAlphanumeric(entropy));
+
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			if (!invalid) {
+				fail(e.getMessage());
+			} else {
+				assert(true);
+			}
 		}
 	}
 

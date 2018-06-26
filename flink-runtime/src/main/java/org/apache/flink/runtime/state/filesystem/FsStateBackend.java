@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import java.util.regex.Pattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FileSystem;
@@ -66,6 +67,12 @@ public class FsStateBackend extends AbstractStateBackend {
 
 	/** Switch to chose between synchronous and asynchronous snapshots */
 	private final boolean asynchronousSnapshots;
+
+	/** invalid chars for the entropy key */
+	private static final Pattern INVALID_ENTROPY_KEY_CHARS_PATTERN = Pattern.compile("^.*[~#@*+%{}<>\\[\\]|\"\\\\].*$");
+
+	/** Entropy injection key */
+	private final String entropyInjectionKey;
 
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
@@ -212,6 +219,67 @@ public class FsStateBackend extends AbstractStateBackend {
 	}
 
 	/**
+	 * Creates a new entropy based state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
+	 *                             rather than in files
+	 * @param entropyInjectionKey String that identifies the entropy key in the checkpoint uri
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 * @throws IllegalArgumentException Thrown, if the {@code fileStateSizeThreshold} is out of bounds.
+	 */
+	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold,
+						  String entropyInjectionKey) throws IOException {
+
+		checkArgument(fileStateSizeThreshold >= 0, "The threshold for file state size must be " +
+			"zero or larger.");
+		checkArgument(fileStateSizeThreshold <= MAX_FILE_STATE_THRESHOLD,
+			"The threshold for file state size cannot be larger than %s", MAX_FILE_STATE_THRESHOLD);
+
+		checkArgument(!INVALID_ENTROPY_KEY_CHARS_PATTERN.matcher(entropyInjectionKey).matches());
+
+		this.fileStateThreshold = fileStateSizeThreshold;
+		this.basePath = validateAndNormalizeUri(checkpointDataUri);
+
+		this.asynchronousSnapshots = true;
+		this.entropyInjectionKey = entropyInjectionKey;
+	}
+
+	/**
+	 * Creates a new entropy based state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param entropyInjectionKey String that identifies the entropy key in the checkpoint uri
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 * @throws IllegalArgumentException Thrown, if the {@code fileStateSizeThreshold} is out of bounds.
+	 */
+
+	public FsStateBackend(URI checkpointDataUri,
+						  String entropyInjectionKey) throws IOException {
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, entropyInjectionKey);
+	}
+
+	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
 	 *
@@ -243,6 +311,7 @@ public class FsStateBackend extends AbstractStateBackend {
 		this.basePath = validateAndNormalizeUri(checkpointDataUri);
 
 		this.asynchronousSnapshots = asynchronousSnapshots;
+		this.entropyInjectionKey = "";
 	}
 
 	/**
@@ -274,7 +343,8 @@ public class FsStateBackend extends AbstractStateBackend {
 
 	@Override
 	public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-		return new FsCheckpointStreamFactory(basePath, jobId, fileStateThreshold);
+		return new FsCheckpointStreamFactory(basePath, jobId, fileStateThreshold,
+			entropyInjectionKey);
 	}
 
 	@Override

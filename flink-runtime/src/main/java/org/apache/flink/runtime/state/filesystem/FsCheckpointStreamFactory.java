@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import java.net.URISyntaxException;
+import org.apache.commons.text.RandomStringGenerator;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -63,6 +66,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** Cached handle to the file system for file operations */
 	private final FileSystem filesystem;
 
+	/** Default random entropy string length*/
+	private static final int DEFAULT_RANDOM_ENTROPY_LENGTH = 4;
+
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
@@ -84,7 +90,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	public FsCheckpointStreamFactory(
 			Path checkpointDataUri,
 			JobID jobId,
-			int fileStateSizeThreshold) throws IOException {
+			int fileStateSizeThreshold,
+			String entropyInjectionKey) throws IOException {
 
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
@@ -98,7 +105,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		Path basePath = checkpointDataUri;
 		filesystem = basePath.getFileSystem();
 
-		checkpointDirectory = createBasePath(filesystem, basePath, jobId);
+		checkpointDirectory = createBasePath(filesystem, basePath, jobId, entropyInjectionKey);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Initialed file stream factory to URI {}.", checkpointDirectory);
@@ -127,10 +134,51 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 	}
 
-	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID) throws IOException {
-		Path dir = new Path(checkpointDirectory, jobID.toString());
+	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID,
+								 String entropyInjectionKey) throws IOException {
+		Path checkpointDirectoryWithEntropy;
+		try {
+			checkpointDirectoryWithEntropy = injectEntropy(checkpointDirectory, entropyInjectionKey);
+		}
+		catch(URISyntaxException ex) {
+			throw new IOException("URI error occurred while injecting entropy to checkpoint path.", ex);
+		}
+		Path dir = new Path(checkpointDirectoryWithEntropy, jobID.toString());
 		fs.mkdirs(dir);
 		return dir;
+	}
+
+	protected Path injectEntropy(Path basePath, String entropyInjectionKey)
+		throws URISyntaxException {
+
+		final URI originalUri = basePath.toUri();
+		String chkpointPath = originalUri.getPath();
+		String retPath = chkpointPath;
+
+		if (!entropyInjectionKey.isEmpty() && chkpointPath.contains(entropyInjectionKey)) {
+			final String randomChars = new RandomStringGenerator.Builder()
+				.withinRange('0', 'z')
+				.filteredBy(Character::isLetterOrDigit)
+				.build()
+				.generate(DEFAULT_RANDOM_ENTROPY_LENGTH);
+			retPath = chkpointPath.replaceAll(entropyInjectionKey, randomChars);
+			LOG.debug("Entropy injected checkpoint path {}", retPath);
+		} else {
+			if (entropyInjectionKey.isEmpty()) {
+				LOG.warn("Entropy inject key is empty, hence entropy not injected");
+			} else {
+				LOG.warn("Entropy inject key is non-empty: {} , however key is not found in checkpoint path : {}", entropyInjectionKey, chkpointPath);
+			}
+		}
+		URI stateUri = new URI(originalUri.getScheme(), originalUri.getAuthority(),
+			retPath, originalUri.getQuery(), originalUri.getFragment());
+
+		return new Path(stateUri);
+	}
+
+	@VisibleForTesting
+	public Path getCheckpointDirectory() {
+		return checkpointDirectory;
 	}
 
 	protected Path createCheckpointDirPath(Path checkpointDirectory, long checkpointID) {

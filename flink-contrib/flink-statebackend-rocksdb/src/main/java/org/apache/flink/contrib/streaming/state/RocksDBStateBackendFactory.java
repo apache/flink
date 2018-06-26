@@ -44,12 +44,16 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBSt
 	/** The key under which the config stores the directory where RocksDB should be stored. */
 	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
 
+	/** The key defines the pattern in checkpoint uri where entropy value should be injected or substituted. */
+	public static final String CHECKPOINT_DIRECTORY_ENTROPY_KEY_CONF_KEY = "state.backend.fs.checkpointdir.injectEntropy.key";
+
 	@Override
 	public RocksDBStateBackend createFromConfig(Configuration config)
 			throws IllegalConfigurationException, IOException {
 
 		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
 		final String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+		final String entropyInjectionKey = config.getString(CHECKPOINT_DIRECTORY_ENTROPY_KEY_CONF_KEY, "__ENTROPY_KEY__");
 
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
@@ -59,7 +63,8 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBSt
 
 		try {
 			Path path = new Path(checkpointDirURI);
-			RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri());
+			RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri(),
+				true, entropyInjectionKey);
 			if (rocksdbLocalPath != null) {
 				String[] directories = rocksdbLocalPath.split(",|" + File.pathSeparator);
 				backend.setDbStoragePaths(directories);
