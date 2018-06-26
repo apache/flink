@@ -46,7 +46,6 @@ import akka.actor.AddressFromURIString;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,10 +113,10 @@ public class JarRunHandler extends
 
 		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
-			try (BlobClient blobClient = new BlobClient(address, configuration)) {
-				ClientUtils.uploadAndSetUserJars(jobGraph, blobClient);
-			} catch (IOException ioe) {
-				throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
+			try {
+				ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(address, configuration));
+			} catch (FlinkException e) {
+				throw new CompletionException(e);
 			}
 
 			return jobGraph;
