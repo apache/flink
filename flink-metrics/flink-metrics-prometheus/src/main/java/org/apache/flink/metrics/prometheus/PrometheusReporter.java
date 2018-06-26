@@ -193,13 +193,37 @@ public class PrometheusReporter implements MetricReporter {
 		}
 	}
 
+	private static void removeMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+		if (metric instanceof Gauge) {
+			((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+		} else if (metric instanceof Counter) {
+			((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+		} else if (metric instanceof Meter) {
+			((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+		} else if (metric instanceof Histogram) {
+			((HistogramSummaryProxy) collector).remove(dimensionValues);
+		} else {
+			LOG.warn("Cannot remove unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+				metric.getClass().getName());
+		}
+	}
+
 	@Override
 	public void notifyOfRemovedMetric(final Metric metric, final String metricName, final MetricGroup group) {
+
+		List<String> dimensionValues = new LinkedList<>();
+		for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
+			dimensionValues.add(CHARACTER_FILTER.filterCharacters(dimension.getValue()));
+		}
+
 		final String scopedMetricName = getScopedName(metricName, group);
 		synchronized (this) {
 			final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount = collectorsWithCountByMetricName.get(scopedMetricName);
 			final Integer count = collectorWithCount.getValue();
 			final Collector collector = collectorWithCount.getKey();
+
+			removeMetric(metric, dimensionValues, collector);
+
 			if (count == 1) {
 				try {
 					CollectorRegistry.defaultRegistry.unregister(collector);
@@ -293,6 +317,10 @@ public class PrometheusReporter implements MetricReporter {
 
 		void addChild(final Histogram histogram, final List<String> labelValues) {
 			histogramsByLabelValues.put(labelValues, histogram);
+		}
+
+		void remove(final List<String> labelValues) {
+			histogramsByLabelValues.remove(labelValues);
 		}
 
 		private void addSamples(final List<String> labelValues, final Histogram histogram, final List<MetricFamilySamples.Sample> samples) {
