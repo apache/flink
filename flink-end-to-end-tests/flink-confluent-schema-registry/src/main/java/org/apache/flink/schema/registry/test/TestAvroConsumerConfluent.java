@@ -18,6 +18,7 @@
 package org.apache.flink.schema.registry.test;
 
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
@@ -55,14 +56,19 @@ public class TestAvroConsumerConfluent {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
+
 		DataStreamSource<User> input = env
 			.addSource(
 				new FlinkKafkaConsumer010(
 					parameterTool.getRequired("input-topic"),
-					new AvroDeserializationConfluentSchema(User.class, schemaRegistryUrl),
+					ConfluentRegistryAvroDeserializationSchema.forSpecific(User.class, schemaRegistryUrl),
 					config).setStartFromEarliest());
+
 		FlinkKafkaProducer010<User> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010(
-			parameterTool.getRequired("output-topic"), new AvroSerializationConfluentSchema(schemaRegistryUrl, "users"), config);
+			parameterTool.getRequired("output-topic"),
+			new AvroSerializationConfluentSchema(schemaRegistryUrl,
+				"users"),
+			config);
 
 		input.addSink(stringFlinkKafkaProducer010);
 		env.execute("Kafka 0.10 Confluent Schema Registry AVRO Example");
