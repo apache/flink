@@ -34,8 +34,6 @@ public class JobMasterConfiguration {
 
 	private final Time slotRequestTimeout;
 
-	private final Time slotIdleTimeout;
-
 	private final String tmpDirectory;
 
 	private final Configuration configuration;
@@ -43,12 +41,10 @@ public class JobMasterConfiguration {
 	public JobMasterConfiguration(
 			Time rpcTimeout,
 			Time slotRequestTimeout,
-			Time slotIdleTimeout,
 			String tmpDirectory,
 			Configuration configuration) {
 		this.rpcTimeout = Preconditions.checkNotNull(rpcTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
-		this.slotIdleTimeout = Preconditions.checkNotNull(slotIdleTimeout);
 		this.tmpDirectory = Preconditions.checkNotNull(tmpDirectory);
 		this.configuration = Preconditions.checkNotNull(configuration);
 	}
@@ -59,10 +55,6 @@ public class JobMasterConfiguration {
 
 	public Time getSlotRequestTimeout() {
 		return slotRequestTimeout;
-	}
-
-	public Time getSlotIdleTimeout() {
-		return slotIdleTimeout;
 	}
 
 	public String getTmpDirectory() {
@@ -78,14 +70,12 @@ public class JobMasterConfiguration {
 		final Time rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
 
 		final Time slotRequestTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
-		final Time slotIdleTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
 
 		final String tmpDirectory = ConfigurationUtils.parseTempDirectories(configuration)[0];
 
 		return new JobMasterConfiguration(
 			rpcTimeout,
 			slotRequestTimeout,
-			slotIdleTimeout,
 			tmpDirectory,
 			configuration);
 	}
