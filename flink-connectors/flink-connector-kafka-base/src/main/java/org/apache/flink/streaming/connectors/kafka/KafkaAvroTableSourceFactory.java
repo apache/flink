@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -65,7 +65,7 @@ public abstract class KafkaAvroTableSourceFactory extends KafkaTableSourceFactor
 		final Class<? extends SpecificRecordBase> avroRecordClass =
 				params.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecordBase.class);
 		builder.forAvroRecordClass(avroRecordClass);
-		final TableSchema formatSchema = TableSchema.fromTypeInfo(AvroRecordClassConverter.convert(avroRecordClass));
+		final TableSchema formatSchema = TableSchema.fromTypeInfo(AvroSchemaConverter.convertToTypeInfo(avroRecordClass));
 
 		// field mapping
 		final Map<String, String> mapping = SchemaValidator.deriveFieldMapping(params, Optional.of(formatSchema));

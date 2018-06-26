@@ -87,7 +87,6 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 		this(JsonSchemaConverter.convert(jsonSchema));
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
 		try {
