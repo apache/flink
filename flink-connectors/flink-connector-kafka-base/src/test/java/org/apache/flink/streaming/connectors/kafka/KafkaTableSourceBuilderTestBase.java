@@ -50,9 +50,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Abstract test base for all Kafka table sources.
+ * Abstract test base for all format-specific Kafka table sources with builders.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
-public abstract class KafkaTableSourceTestBase {
+@Deprecated
+public abstract class KafkaTableSourceBuilderTestBase {
 
 	static final String[] FIELD_NAMES =
 		new String[]{"field1", "field2", "time1", "time2", "field3"};

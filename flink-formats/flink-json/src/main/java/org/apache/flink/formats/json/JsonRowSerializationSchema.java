@@ -39,6 +39,7 @@ import java.math.BigInteger;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.Objects;
 
 /**
  * Serialization schema that serializes an object of Flink types into a JSON bytes.
@@ -89,7 +90,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
 	 */
 	public JsonRowSerializationSchema(String jsonSchema) {
-		this(JsonSchemaConverter.convert(jsonSchema));
+		this(JsonRowSchemaConverter.convert(jsonSchema));
 	}
 
 	@Override
@@ -105,6 +106,23 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 			throw new RuntimeException("Could not serialize row '" + row + "'. " +
 				"Make sure that the schema matches the input.", t);
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final JsonRowSerializationSchema that = (JsonRowSerializationSchema) o;
+		return Objects.equals(typeInfo, that.typeInfo);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(typeInfo);
 	}
 
 	// --------------------------------------------------------------------------------------------

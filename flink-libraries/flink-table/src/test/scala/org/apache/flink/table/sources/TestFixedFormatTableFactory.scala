@@ -27,13 +27,13 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROP
 import org.apache.flink.types.Row
 
 /**
-  * Table source factory for testing.
+  * Table source factory for testing with a fixed format.
   */
-class TestTableSourceFactory extends TableSourceFactory[Row] {
+class TestFixedFormatTableFactory extends TableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "test")
+    context.put(CONNECTOR_TYPE, "fixed")
     context.put(FORMAT_TYPE, "test")
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
     context.put(FORMAT_PROPERTY_VERSION, "1")
@@ -42,7 +42,6 @@ class TestTableSourceFactory extends TableSourceFactory[Row] {
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    // connector
     properties.add("format.path")
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")

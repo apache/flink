@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.table.formats
 
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_010;
+import java.util
+
+import org.apache.flink.api.common.serialization.SerializationSchema
 
 /**
- * Factory for creating configured instances of {@link Kafka010AvroTableSource}.
- */
-public class Kafka010AvroTableSourceFactory extends KafkaAvroTableSourceFactory {
+  * Factory for creating configured instances of [[SerializationSchema]].
+  *
+  * @tparam T record type that the format produces or consumes
+  */
+trait SerializationSchemaFactory[T] extends TableFormatFactory[T] {
 
-	@Override
-	protected KafkaAvroTableSource.Builder createKafkaAvroBuilder() {
-		return new Kafka010AvroTableSource.Builder();
-	}
+  /**
+    * Creates and configures a [[SerializationSchema]] using the given properties.
+    *
+    * @param properties normalized properties describing the format
+    * @return the configured serialization schema or null if the factory cannot provide an
+    *         instance of this class
+    */
+  def createSerializationSchema(properties: util.Map[String, String]): SerializationSchema[T]
 
-	@Override
-	protected String kafkaVersion() {
-		return CONNECTOR_VERSION_VALUE_010;
-	}
 }
