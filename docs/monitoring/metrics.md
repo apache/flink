@@ -426,7 +426,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 Every metric is assigned an identifier and a set of key-value pairs under which the metric will be reported.
 
-THe identifier is based on 3 components: the user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
+The identifier is based on 3 components: a user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
 You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
