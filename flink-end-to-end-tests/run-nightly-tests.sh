@@ -43,6 +43,8 @@ echo "Flink distribution directory: $FLINK_DIR"
 
 # run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
 
+run_test "ConnectedComponents iterations with high parallelism end-to-end test" "$END_TO_END_DIR/test-scripts/test_high_parallelism_iterations.sh 25"
+
 run_test "Queryable state (rocksdb) end-to-end test" "$END_TO_END_DIR/test-scripts/test_queryable_state.sh rocksdb"
 run_test "Queryable state (rocksdb) with TM restart end-to-end test" "$END_TO_END_DIR/test-scripts/test_queryable_state_restart_tm.sh"
 
