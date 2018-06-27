@@ -216,7 +216,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 	throws IOException
 	{
 		// sanity checks
-		if (memoryManager == null | (ioManager == null && !noSpillingMemory) | serializerFactory == null | comparator == null) {
+		if (memoryManager == null || (ioManager == null && !noSpillingMemory) || serializerFactory == null || comparator == null) {
 			throw new NullPointerException();
 		}
 		if (parentTask == null) {
