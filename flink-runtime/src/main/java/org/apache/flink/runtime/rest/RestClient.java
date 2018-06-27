@@ -415,16 +415,14 @@ public class RestClient {
 			ByteBuf content = msg.content();
 
 			JsonNode rawResponse;
-			try {
-				InputStream in = new ByteBufInputStream(content);
+			try (InputStream in = new ByteBufInputStream(content)) {
 				rawResponse = objectMapper.readTree(in);
 				LOG.debug("Received response {}.", rawResponse);
 			} catch (JsonParseException je) {
 				LOG.error("Response was not valid JSON.", je);
 				// let's see if it was a plain-text message instead
 				content.readerIndex(0);
-				try {
-					ByteBufInputStream in = new ByteBufInputStream(content);
+				try (ByteBufInputStream in = new ByteBufInputStream(content)) {
 					byte[] data = new byte[in.available()];
 					in.readFully(data);
 					String message = new String(data);
@@ -439,6 +437,7 @@ public class RestClient {
 				jsonFuture.completeExceptionally(new RestClientException("Response could not be read.", ioe, msg.getStatus()));
 				return;
 			}
+
 			jsonFuture.complete(new JsonResponse(rawResponse, msg.getStatus()));
 		}
 	}
