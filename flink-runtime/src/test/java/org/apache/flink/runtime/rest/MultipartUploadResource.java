@@ -52,6 +52,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -113,7 +114,9 @@ public class MultipartUploadResource extends ExternalResource {
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
 		file1 = temporaryFolder.newFile();
-		Files.write(file1.toPath(), "hello".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		try (RandomAccessFile rw = new RandomAccessFile(file1, "rw")) {
+			rw.setLength(1024 * 1024 * 64);
+		}
 		file2 = temporaryFolder.newFile();
 		Files.write(file2.toPath(), "world".getBytes(ConfigConstants.DEFAULT_CHARSET));
 

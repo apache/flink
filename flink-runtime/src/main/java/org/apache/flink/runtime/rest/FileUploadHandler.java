@@ -79,6 +79,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	private HttpRequest currentHttpRequest;
 	private byte[] currentJsonPayload;
 	private Path currentUploadDir;
+	private boolean currentRequestFailed = false;
 
 	public FileUploadHandler(final Path uploadDir) {
 		super(false);
@@ -90,6 +91,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	protected void channelRead0(final ChannelHandlerContext ctx, final HttpObject msg) throws Exception {
 		try {
 			if (msg instanceof HttpRequest) {
+				currentRequestFailed = false;
 				final HttpRequest httpRequest = (HttpRequest) msg;
 				LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
 				if (httpRequest.getMethod().equals(HttpMethod.POST)) {
@@ -145,6 +147,8 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					}
 					reset();
 				}
+			} else if (currentRequestFailed) {
+				LOG.trace("Swallowing content for failed request. {}", msg);
 			} else {
 				ctx.fireChannelRead(msg);
 			}
@@ -154,6 +158,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	}
 
 	private void handleError(ChannelHandlerContext ctx, String errorMessage, HttpResponseStatus responseStatus, @Nullable Throwable e) {
+		currentRequestFailed = true;
 		HttpRequest tmpRequest = currentHttpRequest;
 		deleteUploadedFiles();
 		reset();
@@ -180,7 +185,12 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	private void reset() {
 		// destroy() can fail because some data is stored multiple times in the decoder causing an IllegalReferenceCountException
 		// see https://github.com/netty/netty/issues/7814
-		currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
+		try {
+			currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
+		} catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ned) {
+			// this method always fails if not all chunks were offered to the decoder yet
+			LOG.debug("Error while resetting handler.", ned);
+		}
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
 		currentHttpRequest = null;
