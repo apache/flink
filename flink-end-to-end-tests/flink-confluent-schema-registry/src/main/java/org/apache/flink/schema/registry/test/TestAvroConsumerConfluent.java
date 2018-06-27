@@ -17,9 +17,12 @@
 
 package org.apache.flink.schema.registry.test;
 
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.registry.confluent.ConfluentRegistryAvroDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
@@ -64,13 +67,20 @@ public class TestAvroConsumerConfluent {
 					ConfluentRegistryAvroDeserializationSchema.forSpecific(User.class, schemaRegistryUrl),
 					config).setStartFromEarliest());
 
-		FlinkKafkaProducer010<User> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010(
+		SingleOutputStreamOperator<String> mapToString = input
+			.map(new MapFunction<User, String>() {
+				@Override
+				public String map(User value) throws Exception {
+					return value.toString();
+				}
+			});
+
+		FlinkKafkaProducer010<String> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010(
 			parameterTool.getRequired("output-topic"),
-			new AvroSerializationConfluentSchema(schemaRegistryUrl,
-				"users"),
+			new SimpleStringSchema(),
 			config);
 
-		input.addSink(stringFlinkKafkaProducer010);
+		mapToString.addSink(stringFlinkKafkaProducer010);
 		env.execute("Kafka 0.10 Confluent Schema Registry AVRO Example");
 	}
 }

@@ -74,11 +74,6 @@ under the License.
 			<artifactId>flink-avro-confluent-registry</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>io.confluent</groupId>
-			<artifactId>kafka-avro-serializer</artifactId>
-			<version>${confluent.version}</version>
-		</dependency>
 	</dependencies>
 
 	<build>

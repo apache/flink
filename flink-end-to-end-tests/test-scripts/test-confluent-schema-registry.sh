@@ -22,11 +22,12 @@ source "$(dirname "$0")"/kafka-common.sh
 
 function verify_output {
   local expected=$(printf $1)
+  local result=$(echo $2 | sed 's/ //g')
 
-  if [[ "$2" != "$expected" ]]; then
+  if [[ "$result" != "$expected" ]]; then
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED FOR KEY: --$expected--"
-    echo -e "ACTUAL: --$2--"
+    echo -e "ACTUAL: --$result--"
     PASS=""
     exit 1
   fi
@@ -92,14 +93,14 @@ $FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
   --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest \
   --schema-registry-url http://localhost:8081
 
-echo "Reading messages from Kafka topic [test-avro-out] ..."
+#echo "Reading messages from Kafka topic [test-avro-out] ..."
 
-KEY_1_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out | grep Alyssa)
-KEY_2_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out | grep Charlie)
-KEY_3_MSGS=$(read_messages_from_kafka_avro 3 test-avro-out | grep Ben)
+KEY_1_MSGS=$(read_messages_from_kafka 3 test-avro-out  Alyssa_consumer | grep Alyssa)
+KEY_2_MSGS=$(read_messages_from_kafka 3 test-avro-out Charlie_consumer | grep Charlie)
+KEY_3_MSGS=$(read_messages_from_kafka 3 test-avro-out Ben_consumer | grep Ben)
 
 ## Verifying AVRO output with actual message
-verify_output $INPUT_MESSAGE_1 $KEY_1_MSGS
-verify_output $INPUT_MESSAGE_2 $KEY_2_MSGS
-verify_output $INPUT_MESSAGE_3 $KEY_3_MSGS
+verify_output $INPUT_MESSAGE_1 "$KEY_1_MSGS"
+verify_output $INPUT_MESSAGE_2 "$KEY_2_MSGS"
+verify_output $INPUT_MESSAGE_3 "$KEY_3_MSGS"
 
