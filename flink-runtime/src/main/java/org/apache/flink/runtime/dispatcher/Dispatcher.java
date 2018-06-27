@@ -322,9 +322,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
-		if (jobManagerRunners.isEmpty()) {
-			log.info("empty");
-		}
 		return CompletableFuture.completedFuture(
 			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
 	}
