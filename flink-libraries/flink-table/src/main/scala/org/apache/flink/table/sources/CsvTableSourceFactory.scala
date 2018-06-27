@@ -71,7 +71,10 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     // validate
     new FileSystemValidator().validate(params)
     new CsvValidator().validate(params)
-    new SchemaValidator().validate(params)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = false,
+      supportsSourceWatermarks = false).validate(params)
 
     // build
     val csvTableSourceBuilder = new CsvTableSource.Builder

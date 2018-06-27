@@ -18,13 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.formats.DeserializationSchemaFactory;
+import org.apache.flink.table.formats.TableFormatFactoryService;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceFactory;
@@ -35,13 +38,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
@@ -66,21 +69,16 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 
 /**
- * Factory for creating configured instances of {@link KafkaJsonTableSource}.
+ * Factory for creating configured instances of {@link KafkaTableSource}.
  */
-abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
+public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
 		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION(), kafkaVersion()); // version
-
-		context.put(FORMAT_TYPE(), formatType()); // format
-
 		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility
-		context.put(FORMAT_PROPERTY_VERSION(), String.valueOf(formatPropertyVersion()));
-
 		return context;
 	}
 
@@ -113,7 +111,8 @@ abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
 
-		properties.addAll(formatProperties());
+		// format wildcard
+		properties.add(FORMAT() + ".*");
 
 		return properties;
 	}
@@ -124,101 +123,90 @@ abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
 		params.putProperties(properties);
 
 		// validate
-		new SchemaValidator(true).validate(params);
+		// allow Kafka timestamps to be used, watermarks can not be received from source
+		new SchemaValidator(true, supportsKafkaTimestamps(), false).validate(params);
 		new KafkaValidator().validate(params);
-		formatValidator().validate(params);
 
-		// build
-		final KafkaTableSource.Builder builder = createBuilderWithFormat(params);
-
-		// topic
-		final String topic = params.getString(CONNECTOR_TOPIC);
-		builder.forTopic(topic);
-
-		// properties
-		final Properties props = new Properties();
-		final List<Map<String, String>> propsList = params.getFixedIndexedProperties(
-			CONNECTOR_PROPERTIES,
-			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
-		propsList.forEach(kv -> props.put(
-			params.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
-			params.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
-		));
-		builder.withKafkaProperties(props);
-
-		// startup mode
-		params
-			.getOptionalString(CONNECTOR_STARTUP_MODE)
-			.ifPresent(startupMode -> {
-				switch (startupMode) {
-
-				case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_EARLIEST:
-					builder.fromEarliest();
-					break;
-
-				case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_LATEST:
-					builder.fromLatest();
-					break;
-
-				case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS:
-					builder.fromGroupOffsets();
-					break;
-
-				case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-					final Map<KafkaTopicPartition, Long> offsetMap = new HashMap<>();
-
-					final List<Map<String, String>> offsetList = params.getFixedIndexedProperties(
-						CONNECTOR_SPECIFIC_OFFSETS,
-						Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-					offsetList.forEach(kv -> {
-						final int partition = params.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
-						final long offset = params.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-						final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
-						offsetMap.put(topicPartition, offset);
-					});
-					builder.fromSpecificOffsets(offsetMap);
-					break;
-				}
-			});
+		// deserialization schema using format discovery
+		final DeserializationSchemaFactory<?> formatFactory = TableFormatFactoryService.find(
+			DeserializationSchemaFactory.class,
+			properties,
+			this.getClass().getClassLoader());
+		@SuppressWarnings("unchecked")
+		final DeserializationSchema<Row> deserializationSchema = (DeserializationSchema<Row>) formatFactory
+			.createDeserializationSchema(properties);
 
 		// schema
 		final TableSchema schema = params.getTableSchema(SCHEMA());
-		builder.withSchema(schema);
 
 		// proctime
-		SchemaValidator.deriveProctimeAttribute(params).ifPresent(builder::withProctimeAttribute);
+		final String proctimeAttribute = SchemaValidator.deriveProctimeAttribute(params).orElse(null);
 
 		// rowtime
-		final List<RowtimeAttributeDescriptor> descriptors = SchemaValidator.deriveRowtimeAttributes(params);
-		if (descriptors.size() > 1) {
-			throw new TableException("More than one rowtime attribute is not supported yet.");
-		} else if (descriptors.size() == 1) {
-			final RowtimeAttributeDescriptor desc = descriptors.get(0);
-			builder.withRowtimeAttribute(desc.getAttributeName(), desc.getTimestampExtractor(), desc.getWatermarkStrategy());
-		}
+		final List<RowtimeAttributeDescriptor> rowtimeAttributes = SchemaValidator.deriveRowtimeAttributes(params);
 
-		return builder.build();
+		// field mapping
+		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(params, Optional.of(schema));
+
+		// properties
+		final Properties kafkaProperties = new Properties();
+		final List<Map<String, String>> propsList = params.getFixedIndexedProperties(
+			CONNECTOR_PROPERTIES,
+			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+		propsList.forEach(kv -> kafkaProperties.put(
+			params.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+			params.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+		));
+
+		// topic
+		final String topic = params.getString(CONNECTOR_TOPIC);
+
+		// startup mode
+		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
+		final StartupMode startupMode = params
+			.getOptionalString(CONNECTOR_STARTUP_MODE)
+			.map(modeString -> {
+				switch (modeString) {
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_EARLIEST:
+						return StartupMode.EARLIEST;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_LATEST:
+						return StartupMode.LATEST;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS:
+						return StartupMode.GROUP_OFFSETS;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
+						final List<Map<String, String>> offsetList = params.getFixedIndexedProperties(
+							CONNECTOR_SPECIFIC_OFFSETS,
+							Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+						offsetList.forEach(kv -> {
+							final int partition = params.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
+							final long offset = params.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+							final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+							specificOffsets.put(topicPartition, offset);
+						});
+						return StartupMode.SPECIFIC_OFFSETS;
+					default:
+						throw new TableException("Unsupported startup mode. Validator should have checked that.");
+				}
+			}).orElse(StartupMode.GROUP_OFFSETS);
+
+		return createKafkaTableSource(
+			schema,
+			proctimeAttribute,
+			rowtimeAttributes,
+			fieldMapping,
+			topic,
+			kafkaProperties,
+			deserializationSchema,
+			startupMode,
+			specificOffsets);
 	}
 
-	/**
-	 * Returns the format type string (e.g., "json").
-	 */
-	protected abstract String formatType();
-
-	/**
-	 * Returns the format property version.
-	 */
-	protected abstract int formatPropertyVersion();
-
-	/**
-	 * Returns the properties of the format.
-	 */
-	protected abstract List<String> formatProperties();
-
-	/**
-	 * Returns the validator for the format.
-	 */
-	protected abstract FormatDescriptorValidator formatValidator();
+	// --------------------------------------------------------------------------------------------
+	// For version-specific factories
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Returns the Kafka version.
@@ -226,8 +214,36 @@ abstract class KafkaTableSourceFactory implements TableSourceFactory<Row> {
 	protected abstract String kafkaVersion();
 
 	/**
-	 * Creates a builder with all the format-related configurations have been set.
+	 * True if the Kafka source supports Kafka timestamps, false otherwise.
+	 *
+	 * @return True if the Kafka source supports Kafka timestamps, false otherwise.
 	 */
-	protected abstract KafkaTableSource.Builder createBuilderWithFormat(DescriptorProperties params);
+	protected abstract boolean supportsKafkaTimestamps();
+
+	/**
+	 * Constructs the version-specific Kafka table source.
+	 *
+	 * @param schema                      Schema of the produced table.
+	 * @param proctimeAttribute           Field name of the processing time attribute, null if no
+	 *                                    processing time field is defined.
+	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
+	 * @param fieldMapping                Mapping for the fields of the table schema to
+	 *                                    fields of the physical returned type or null.
+	 * @param topic                       Kafka topic to consume.
+	 * @param properties                  Properties for the Kafka consumer.
+	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
+	 * @param startupMode                 Startup mode for the contained consumer.
+	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
+	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
+	 */
+	protected abstract KafkaTableSource createKafkaTableSource(
+		TableSchema schema,
+		String proctimeAttribute,
+		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+		Map<String, String> fieldMapping,
+		String topic, Properties properties,
+		DeserializationSchema<Row> deserializationSchema,
+		StartupMode startupMode,
+		Map<KafkaTopicPartition, Long> specificStartupOffsets);
 
 }

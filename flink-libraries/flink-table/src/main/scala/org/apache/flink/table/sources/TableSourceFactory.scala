@@ -63,6 +63,15 @@ trait TableSourceFactory[T] {
     *
     * Note: Use "#" to denote an array of values where "#" represents one or more digits. Property
     * versions like "format.property-version" must not be part of the supported properties.
+    *
+    * In some cases it might be useful to declare wildcards "*". Wildcards can only be declared at
+    * the end of a property key.
+    *
+    * For example, if an arbitrary format should be supported:
+    *   - format.*
+    *
+    * Note: Wildcards should be used with caution as they might swallow unsupported properties
+    * and thus might lead to undesired behavior.
     */
   def supportedProperties(): util.List[String]
 

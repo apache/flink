@@ -19,6 +19,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.formats.TableFormatFactory
 
 /**
   * Exception for all errors occurring during expression parsing.
@@ -139,6 +140,85 @@ case class CatalogAlreadyExistException(
     extends RuntimeException(s"Catalog $catalog already exists.", cause) {
 
   def this(catalog: String) = this(catalog, null)
+}
+
+/**
+  * Exception for not finding a [[org.apache.flink.table.formats.TableFormatFactory]] for the
+  * given properties.
+  *
+  * @param message message that indicates the current matching step
+  * @param factoryClass required factory class
+  * @param formatFactories all found factories
+  * @param properties properties that describe the table format
+  * @param cause the cause
+  */
+case class NoMatchingTableFormatException(
+      message: String,
+      factoryClass: Class[_],
+      formatFactories: Seq[TableFormatFactory[_]],
+      properties: Map[String, String],
+      cause: Throwable)
+    extends RuntimeException(
+      s"""Could not find a suitable table format factory for '${factoryClass.getName}' in
+        |the classpath.
+        |
+        |Reason: $message
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following format factories have been considered:
+        |${formatFactories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
+      cause) {
+
+  def this(
+      message: String,
+      factoryClass: Class[_],
+      formatFactories: Seq[TableFormatFactory[_]],
+      properties: Map[String, String]) = {
+    this(message, factoryClass, formatFactories, properties, null)
+  }
+}
+
+/**
+  * Exception for finding more than one [[org.apache.flink.table.formats.TableFormatFactory]] for
+  * the given properties.
+  *
+  * @param matchingFormatFactories format factories that match the properties
+  * @param factoryClass required factory class
+  * @param formatFactories all found factories
+  * @param properties properties that describe the table format
+  * @param cause the cause
+  */
+case class AmbiguousTableFormatException(
+      matchingFormatFactories: Seq[TableFormatFactory[_]],
+      factoryClass: Class[_],
+      formatFactories: Seq[TableFormatFactory[_]],
+      properties: Map[String, String],
+      cause: Throwable)
+    extends RuntimeException(
+      s"""More than one suitable table format factory for '${factoryClass.getName}' could
+        |be found in the classpath.
+        |
+        |The following format factories match:
+        |${matchingFormatFactories.map(_.getClass.getName).mkString("\n")}
+        |
+        |The following properties are requested:
+        |${DescriptorProperties.toString(properties)}
+        |
+        |The following format factories have been considered:
+        |${formatFactories.map(_.getClass.getName).mkString("\n")}
+        |""".stripMargin,
+      cause) {
+
+  def this(
+      matchingFormatFactories: Seq[TableFormatFactory[_]],
+      factoryClass: Class[_],
+      formatFactories: Seq[TableFormatFactory[_]],
+      properties: Map[String, String]) = {
+    this(matchingFormatFactories, factoryClass, formatFactories, properties, null)
+  }
 }
 
 /**

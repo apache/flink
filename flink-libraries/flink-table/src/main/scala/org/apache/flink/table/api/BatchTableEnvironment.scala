@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.descriptors.{BatchTableSourceDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -110,16 +111,44 @@ abstract class BatchTableEnvironment(
     }
   }
 
-// TODO expose this once we have enough table source factories that can deal with it
-//  /**
-//    * Creates a table from a descriptor that describes the source connector, source encoding,
-//    * the resulting table schema, and other properties.
-//    *
-//    * @param connectorDescriptor connector descriptor describing the source of the table
-//    */
-//  def from(connectorDescriptor: ConnectorDescriptor): BatchTableSourceDescriptor = {
-//    new BatchTableSourceDescriptor(this, connectorDescriptor)
-//  }
+  /**
+    * Creates a table from a descriptor that describes the source connector, the source format,
+    * the resulting table schema, and other properties.
+    *
+    * Descriptors allow for declaring communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
+    * are configured accordingly.
+    *
+    * The following example shows how to read from a Kafka connector using a JSON format and
+    * creating a table:
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .from(
+    *     new Kafka()
+    *       .version("0.11")
+    *       .topic("clicks")
+    *       .property("zookeeper.connect", "localhost")
+    *       .property("group.id", "click-group")
+    *       .startFromEarliest())
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *       .field("proc-time", "TIMESTAMP").proctime())
+    *   .toTable()
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the source of the table
+    */
+  def from(connectorDescriptor: ConnectorDescriptor): BatchTableSourceDescriptor = {
+    new BatchTableSourceDescriptor(this, connectorDescriptor)
+  }
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this

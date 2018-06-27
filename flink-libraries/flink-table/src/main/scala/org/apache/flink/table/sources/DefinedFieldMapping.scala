@@ -50,7 +50,8 @@ trait DefinedFieldMapping {
     * type. It can also provide a mapping for fields which are not in the [[TableSchema]] to make
     * fields in the physical [[TypeInformation]] accessible for a [[TimestampExtractor]].
     *
-    * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields.
+    * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields or
+    *         null if no mapping is necessary.
     */
   def getFieldMapping: JMap[String, String]
 }

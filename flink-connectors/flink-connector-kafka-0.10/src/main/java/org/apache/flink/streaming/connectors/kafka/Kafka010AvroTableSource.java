@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
@@ -35,8 +35,13 @@ import java.util.Properties;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.10.
+ *
+ * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+ *             with descriptors for schema and format instead. Descriptors allow for
+ *             implementation-agnostic definition of tables. See also
+ *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
  */
-@PublicEvolving
+@Deprecated
 public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 
 	/**
@@ -46,7 +51,9 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * @param properties Properties for the Kafka consumer.
 	 * @param schema     Schema of the produced table.
 	 * @param record     Avro specific record.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	public Kafka010AvroTableSource(
 		String topic,
 		Properties properties,
@@ -69,7 +76,9 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * the value to the field of the Avro record.</p>
 	 *
 	 * @param fieldMapping A mapping from schema fields to Avro fields.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	@Override
 	public void setFieldMapping(Map<String, String> fieldMapping) {
 		super.setFieldMapping(fieldMapping);
@@ -79,7 +88,9 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * Declares a field of the schema to be a processing time attribute.
 	 *
 	 * @param proctimeAttribute The name of the field that becomes the processing time field.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	@Override
 	public void setProctimeAttribute(String proctimeAttribute) {
 		super.setProctimeAttribute(proctimeAttribute);
@@ -89,7 +100,9 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * Declares a field of the schema to be a rowtime attribute.
 	 *
 	 * @param rowtimeAttributeDescriptor The descriptor of the rowtime attribute.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	public void setRowtimeAttributeDescriptor(RowtimeAttributeDescriptor rowtimeAttributeDescriptor) {
 		Preconditions.checkNotNull(rowtimeAttributeDescriptor, "Rowtime attribute descriptor must not be null.");
 		super.setRowtimeAttributeDescriptors(Collections.singletonList(rowtimeAttributeDescriptor));
@@ -102,15 +115,27 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 
 	/**
 	 * Returns a builder to configure and create a {@link Kafka010AvroTableSource}.
+	 *
 	 * @return A builder to configure and create a {@link Kafka010AvroTableSource}.
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	public static Builder builder() {
 		return new Builder();
 	}
 
 	/**
 	 * A builder to configure and create a {@link Kafka010AvroTableSource}.
+	 *
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	public static class Builder extends KafkaAvroTableSource.Builder<Kafka010AvroTableSource, Kafka010AvroTableSource.Builder> {
 
 		@Override
@@ -127,7 +152,9 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 		 * Builds and configures a {@link Kafka010AvroTableSource}.
 		 *
 		 * @return A configured {@link Kafka010AvroTableSource}.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		@Override
 		public Kafka010AvroTableSource build() {
 			Kafka010AvroTableSource tableSource = new Kafka010AvroTableSource(

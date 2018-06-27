@@ -16,22 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.table.formats.utils
 
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_08;
+import org.apache.flink.api.common.serialization.SerializationSchema
+import org.apache.flink.types.Row
 
 /**
- * Factory for creating configured instances of {@link Kafka08JsonTableSource}.
- */
-public class Kafka08JsonTableSourceFactory extends KafkaJsonTableSourceFactory {
+  * Serialization schema for testing purposes.
+  */
+class TestSerializationSchema extends SerializationSchema[Row] {
 
-	@Override
-	protected KafkaJsonTableSource.Builder createKafkaJsonBuilder() {
-		return new Kafka08JsonTableSource.Builder();
-	}
-
-	@Override
-	protected String kafkaVersion() {
-		return CONNECTOR_VERSION_VALUE_08;
-	}
+  override def serialize(element: Row): Array[Byte] = throw new UnsupportedOperationException()
 }
