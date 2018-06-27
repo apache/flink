@@ -174,7 +174,12 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	private void reset() {
 		// destroy() can fail because some data is stored multiple times in the decoder causing an IllegalReferenceCountException
 		// see https://github.com/netty/netty/issues/7814
-		currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
+		try {
+			currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
+		} catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ned) {
+			// this method always fails if not all chunks were offered to the decoder yet
+			LOG.debug("Error while resetting {}.", getClass(), ned);
+		}
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
 		currentHttpRequest = null;
