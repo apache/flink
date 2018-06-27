@@ -42,12 +42,12 @@ public interface SchedulingStrategy {
 	 * requirements and potentially by additional requirements, and produces a result from a match.
 	 *
 	 * @param slotProfile slotProfile for which to find a matching slot
-	 * @param candidates                   stream of candidates to match against.
-	 * @param contextExtractor             function to extract the {@link SlotContext} from the candidates.
+	 * @param candidates stream of candidates to match against.
+	 * @param contextExtractor function to extract the {@link SlotContext} from the candidates.
 	 * @param additionalRequirementsFilter predicate to specify additional requirements for each candidate.
-	 * @param resultProducer               function to produce a result from a matching candidate input.
-	 * @param <IN>                         type of the objects against we match the profile.
-	 * @param <OUT>                        type of the produced output from a matching object.
+	 * @param resultProducer function to produce a result from a matching candidate input.
+	 * @param <IN> type of the objects against we match the profile.
+	 * @param <OUT> type of the produced output from a matching object.
 	 * @return the result produced by resultProducer if a matching candidate was found or null otherwise.
 	 */
 	@Nullable

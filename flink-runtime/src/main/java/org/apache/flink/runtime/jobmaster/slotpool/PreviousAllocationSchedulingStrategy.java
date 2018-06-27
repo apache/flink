@@ -42,7 +42,7 @@ public class PreviousAllocationSchedulingStrategy extends LocationPreferenceSche
 
 	private static final PreviousAllocationSchedulingStrategy INSTANCE = new PreviousAllocationSchedulingStrategy();
 
-	PreviousAllocationSchedulingStrategy() {}
+	private PreviousAllocationSchedulingStrategy() {}
 
 	@Nullable
 	@Override
