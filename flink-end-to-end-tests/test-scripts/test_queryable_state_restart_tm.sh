@@ -20,8 +20,8 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/queryable_state_base.sh
 
-QUERYABLE_STATE_SERVER_JAR=${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-queryable-state-test/target/QsStateProducer.jar
-QUERYABLE_STATE_CLIENT_JAR=${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-queryable-state-test/target/QsStateClient.jar
+QUERYABLE_STATE_SERVER_JAR=${END_TO_END_DIR}/flink-queryable-state-test/target/QsStateProducer.jar
+QUERYABLE_STATE_CLIENT_JAR=${END_TO_END_DIR}/flink-queryable-state-test/target/QsStateClient.jar
 
 #####################
 # Test that queryable state works as expected with HA mode when restarting a taskmanager
