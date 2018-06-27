@@ -66,6 +66,12 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<artifactSet>
+								<includes>
+									<include>com.squareup.okhttp3</include>
+									<include>com.squareup.okio</include>
+								</includes>
+							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<relocations combine.children="append">
 								<relocation>
