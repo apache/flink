@@ -351,14 +351,14 @@ public class RestClient {
 
 		@Override
 		public void writeTo(Channel channel) {
-			channel.writeAndFlush(httpRequest);
+			ChannelFuture future = channel.writeAndFlush(httpRequest);
 			// this should never be false as we explicitly set the encoder to use multipart messages
 			if (bodyRequestEncoder.isChunked()) {
-				channel.writeAndFlush(bodyRequestEncoder);
+				future = channel.writeAndFlush(bodyRequestEncoder);
 			}
 
-			// release data and remove temporary files if they were created
-			bodyRequestEncoder.cleanFiles();
+			// release data and remove temporary files if they were created, once the writing is complete
+			future.addListener((ignored) -> bodyRequestEncoder.cleanFiles());
 		}
 	}
 
