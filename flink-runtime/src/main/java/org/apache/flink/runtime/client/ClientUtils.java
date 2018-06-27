@@ -71,7 +71,7 @@ public enum ClientUtils {
 	 * @param blobClient client to upload jars with
 	 * @throws IOException if the upload fails
 	 */
-	public static void uploadAndSetUserJars(JobGraph jobGraph, BlobClient blobClient) throws IOException {
+	private static void uploadAndSetUserJars(JobGraph jobGraph, BlobClient blobClient) throws IOException {
 		Collection<PermanentBlobKey> blobKeys = uploadUserJars(jobGraph.getJobID(), jobGraph.getUserJars(), blobClient);
 		setUserJarBlobKeys(blobKeys, jobGraph);
 	}
