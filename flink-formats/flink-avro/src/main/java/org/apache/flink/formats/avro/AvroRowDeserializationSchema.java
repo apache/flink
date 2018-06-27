@@ -60,6 +60,7 @@ import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 
 /**
@@ -173,6 +174,24 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		return typeInfo;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final AvroRowDeserializationSchema that = (AvroRowDeserializationSchema) o;
+		return Objects.equals(recordClazz, that.recordClazz) &&
+			Objects.equals(schemaString, that.schemaString);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(recordClazz, schemaString);
 	}
 
 	// --------------------------------------------------------------------------------------------

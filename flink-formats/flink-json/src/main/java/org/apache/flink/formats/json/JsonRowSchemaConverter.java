@@ -49,9 +49,9 @@ import java.util.Set;
  * <p>This converter has been developed for JSON Schema draft-07 but also includes keywords of
  * older drafts to be as compatible as possible.
  */
-public final class JsonSchemaConverter {
+public final class JsonRowSchemaConverter {
 
-	private JsonSchemaConverter() {
+	private JsonRowSchemaConverter() {
 		// private
 	}
 

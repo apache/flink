@@ -35,8 +35,12 @@ import static org.junit.Assert.assertNull;
 
 /**
  * Abstract test base for all Kafka Avro table sources.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
-public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestBase {
+@Deprecated
+public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceBuilderTestBase {
 
 	@Override
 	protected void configureBuilder(KafkaTableSource.Builder builder) {

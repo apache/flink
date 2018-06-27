@@ -49,6 +49,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableSourceDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -510,6 +511,43 @@ abstract class TableEnvironment(val config: TableConfig) {
       case None => throw new TableException(s"Table '${tablePath.mkString(".")}' was not found.")
     }
   }
+
+  /**
+    * Creates a table from a descriptor that describes the source connector, the source format,
+    * the resulting table schema, and other properties.
+    *
+    * Descriptors allow for declaring communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
+    * are configured accordingly.
+    *
+    * The following example shows how to read from a Kafka connector using a JSON format and
+    * creating table:
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .from(
+    *     new Kafka()
+    *       .version("0.11")
+    *       .topic("clicks")
+    *       .property("zookeeper.connect", "localhost")
+    *       .property("group.id", "click-group")
+    *       .startFromEarliest())
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *       .field("proc-time", "TIMESTAMP").proctime())
+    *   .toTable()
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the source of the table
+    */
+  def from(connectorDescriptor: ConnectorDescriptor): TableSourceDescriptor
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")

@@ -139,9 +139,14 @@ object TableSourceFactoryService extends Logging {
       Seq[String]()
     }
 
+    // extract wildcard prefixes
+    val wildcards = supportedProperties
+      .filter(_.endsWith("*"))
+      .map(s => s.substring(0, s.length - 1))
+
     // check for supported properties
     plainProperties.foreach { k =>
-      if (!supportedProperties.contains(k)) {
+      if (!supportedProperties.contains(k) && !wildcards.exists(k.startsWith)) {
         throw new ValidationException(
           s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
           s"property '$k'. Supported properties are: \n" +

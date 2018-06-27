@@ -31,6 +31,8 @@ class TableSourceFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
+    props.put(CONNECTOR_TYPE, "fixed")
+    props.put(FORMAT_TYPE, "test")
     assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
   }
 
@@ -38,12 +40,15 @@ class TableSourceFactoryServiceTest {
   def testInvalidContext(): Unit = {
     val props = properties()
     props.put(CONNECTOR_TYPE, "FAIL")
+    props.put(FORMAT_TYPE, "test")
     TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   @Test
   def testDifferentContextVersion(): Unit = {
     val props = properties()
+    props.put(CONNECTOR_TYPE, "fixed")
+    props.put(FORMAT_TYPE, "test")
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
     assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
@@ -52,6 +57,8 @@ class TableSourceFactoryServiceTest {
   @Test(expected = classOf[ValidationException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
+    props.put(CONNECTOR_TYPE, "fixed")
+    props.put(FORMAT_TYPE, "test")
     props.put("format.path_new", "/new/path")
     TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
@@ -59,14 +66,24 @@ class TableSourceFactoryServiceTest {
   @Test(expected = classOf[TableException])
   def testFailingFactory(): Unit = {
     val props = properties()
+    props.put(CONNECTOR_TYPE, "fixed")
+    props.put(FORMAT_TYPE, "test")
     props.put("failing", "true")
+    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+  }
+
+  @Test
+  def testWildcardFormat(): Unit = {
+    val props = properties()
+    props.put(CONNECTOR_TYPE, "wildcard")
+    props.put(FORMAT_TYPE, "test")
+    props.put("format.type", "not-test")
+    props.put("format.not-test-property", "wildcard-property")
     TableSourceFactoryService.findAndCreateTableSource(props.toMap)
   }
 
   private def properties(): mutable.Map[String, String] = {
     val properties = mutable.Map[String, String]()
-    properties.put(CONNECTOR_TYPE, "test")
-    properties.put(FORMAT_TYPE, "test")
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")
     properties.put(FORMAT_PROPERTY_VERSION, "1")
     properties.put("format.path", "/path/to/target")

@@ -23,7 +23,7 @@ import java.util.Optional
 
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
-import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_FROM, ROWTIME_TIMESTAMPS_TYPE, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD}
+import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
 
@@ -33,7 +33,11 @@ import scala.collection.mutable
 /**
   * Validator for [[Schema]].
   */
-class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorValidator {
+class SchemaValidator(
+    isStreamEnvironment: Boolean,
+    supportsSourceTimestamps: Boolean,
+    supportsSourceWatermarks: Boolean)
+  extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
@@ -50,7 +54,7 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
       properties
         .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
       properties
-        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", isOptional = false)
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", requireRow = false, isOptional = false)
       properties
         .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
       // either proctime or rowtime
@@ -73,7 +77,10 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
         properties.validatePrefixExclusion(rowtime)
       } else if (properties.hasPrefix(rowtime)) {
         // check rowtime
-        val rowtimeValidator = new RowtimeValidator(s"$SCHEMA.$i.")
+        val rowtimeValidator = new RowtimeValidator(
+          supportsSourceTimestamps,
+          supportsSourceWatermarks,
+          s"$SCHEMA.$i.")
         rowtimeValidator.validate(properties)
         // no proctime
         properties.validateExclusion(proctime)
@@ -84,11 +91,42 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
 
 object SchemaValidator {
 
+  /**
+    * Prefix for schema-related properties.
+    */
   val SCHEMA = "schema"
+
   val SCHEMA_NAME = "name"
   val SCHEMA_TYPE = "type"
   val SCHEMA_PROCTIME = "proctime"
   val SCHEMA_FROM = "from"
+
+  /**
+    * Returns keys for a [[org.apache.flink.table.sources.TableSourceFactory.supportedProperties()]]
+    * method that are accepted for schema derivation using
+    * [[deriveFormatFields(DescriptorProperties)]].
+    */
+  def getSchemaDerivationKeys: util.List[String] = {
+    val keys = new util.ArrayList[String]()
+
+    // schema
+    keys.add(SCHEMA + ".#." + SCHEMA_TYPE)
+    keys.add(SCHEMA + ".#." + SCHEMA_NAME)
+    keys.add(SCHEMA + ".#." + SCHEMA_FROM)
+
+    // time attributes
+    keys.add(SCHEMA + ".#." + SCHEMA_PROCTIME)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY)
+
+    keys
+  }
 
   // utilities
 
