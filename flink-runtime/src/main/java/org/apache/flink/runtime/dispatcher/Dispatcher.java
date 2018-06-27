@@ -829,18 +829,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public void onAddedJobGraph(final JobID jobId) {
-		getRpcService().execute(() -> {
-			final SubmittedJobGraph submittedJobGraph;
-			try {
-				submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
-			} catch (final Exception e) {
-				log.error("Could not recover job graph for job {}.", jobId, e);
-				return;
-			}
-			runAsync(() -> {
-				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
+		final CompletableFuture<SubmittedJobGraph> recoveredJob = getRpcService().execute(
+			() -> submittedJobGraphStore.recoverJobGraph(jobId));
+
+		final CompletableFuture<Acknowledge> submissionFuture = recoveredJob.thenComposeAsync(
+			(SubmittedJobGraph submittedJobGraph) -> submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT),
+			getMainThreadExecutor());
+
+		submissionFuture.whenComplete(
+			(Acknowledge acknowledge, Throwable throwable) -> {
+				if (throwable != null) {
+					onFatalError(
+						new DispatcherException(
+							String.format("Could not start the added job %s", jobId),
+							ExceptionUtils.stripCompletionException(throwable)));
+				}
 			});
-		});
 	}
 
 	@Override
@@ -849,7 +853,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			try {
 				removeJobAndRegisterTerminationFuture(jobId, false);
 			} catch (final Exception e) {
-				log.error("Could not remove job {}.", jobId, e);
+				onFatalError(new DispatcherException(String.format("Could not remove job %s.", jobId), e));
 			}
 		});
 	}
