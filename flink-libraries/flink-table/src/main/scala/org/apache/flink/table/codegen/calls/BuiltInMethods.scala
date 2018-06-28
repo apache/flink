@@ -73,6 +73,12 @@ object BuiltInMethods {
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
 
+  val ATAN2 = Types.lookupMethod(classOf[Math], "atan2", classOf[Double], classOf[Double])
+  val ATAN2_DEC = Types.lookupMethod(
+    classOf[ScalarFunctions], "atan2", classOf[Double], classOf[JBigDecimal])
+  val ATAN2_DEC_DEC = Types.lookupMethod(classOf[ScalarFunctions], "atan2",
+    classOf[JBigDecimal], classOf[JBigDecimal])
+
   val DEGREES = Types.lookupMethod(classOf[Math], "toDegrees", classOf[Double])
   val DEGREES_DEC = Types.lookupMethod(classOf[SqlFunctions], "degrees", classOf[JBigDecimal])
 

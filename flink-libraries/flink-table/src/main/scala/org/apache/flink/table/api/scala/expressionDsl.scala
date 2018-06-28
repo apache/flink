@@ -1181,6 +1181,15 @@ object concat {
 }
 
 /**
+  * Calculates the arc tangent of a given coordinate.
+  */
+object atan2 {
+  def apply(expr: Expression, other: Expression): Expression = {
+    Atan2(expr, other)
+  }
+}
+
+/**
   * Returns the string that results from concatenating the arguments and separator.
   * Returns NULL If the separator is NULL.
   *

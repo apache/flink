@@ -243,6 +243,19 @@ case class Atan(child: Expression) extends UnaryExpression {
   }
 }
 
+case class Atan2(left: Expression, right: Expression) extends BinaryExpression with InputTypeSpec {
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    BIG_DEC_TYPE_INFO :: BIG_DEC_TYPE_INFO :: Nil
+
+  override def toString: String = s"atan2($left, $right)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ATAN2, left.toRexNode, right.toRexNode)
+  }
+}
+
 case class Degrees(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
 
