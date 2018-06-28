@@ -74,6 +74,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1014,6 +1015,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
 		}
+
+		@Override
+		public void notifyTaskManagerTerminated(JobID jobId, ResourceID resourceID, Set<AllocationID> allocationIDS, Exception cause) {
+			validateRunsInMainThread();
+
+			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+			if (jobManagerRegistration != null) {
+				jobManagerRegistration.getJobManagerGateway().taskManagerTerminated(resourceID, allocationIDS, cause);
+			}
+		}
 	}
 
 	private class JobLeaderIdActionsImpl implements JobLeaderIdActions {
@@ -1118,6 +1129,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
+		}
+	}
+
+	protected void notifyTaskManagerCompleted(ResourceID resourceID, Exception cause) {
+		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+		if (workerRegistration != null) {
+			slotManager.notifyTaskManagerFailed(resourceID, workerRegistration.getInstanceID(), cause);
+		} else {
+			log.warn("TaskManager failed before registering with ResourceManager successfully.");
 		}
 	}
 }

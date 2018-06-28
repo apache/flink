@@ -48,6 +48,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -278,4 +279,13 @@ public interface JobMasterGateway extends
 	 * not available (yet).
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
+
+	/**
+	 * Notifies that the task manager has terminated.
+	 *
+	 * @param resourceID identifying the task manager
+	 * @param allocationIDs held by this job that belong to the task manager
+	 * @param cause of the task manager termination
+	 */
+	void taskManagerTerminated(ResourceID resourceID, Set<AllocationID> allocationIDs, Exception cause);
 }

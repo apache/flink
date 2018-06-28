@@ -20,8 +20,11 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+
+import java.util.Set;
 
 /**
  * Testing implementation of the {@link ResourceActions}.
@@ -39,6 +42,11 @@ public class TestingResourceActions implements ResourceActions {
 
 	@Override
 	public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
+
+	}
+
+	@Override
+	public void notifyTaskManagerTerminated(JobID jobId, ResourceID resourceID, Set<AllocationID> allocationIDs, Exception cause) {
 
 	}
 }
