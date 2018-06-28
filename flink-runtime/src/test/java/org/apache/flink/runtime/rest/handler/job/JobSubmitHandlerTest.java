@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -86,5 +88,33 @@ public class JobSubmitHandlerTest extends TestLogger {
 
 		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway)
 			.get();
+	}
+
+	@Test
+	public void testFailedJobSubmission() throws Exception {
+		final String errorMessage = "test";
+		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
+		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(FutureUtils.completedExceptionally(new Exception(errorMessage)));
+
+		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
+			() -> CompletableFuture.completedFuture(mockGateway),
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap());
+
+		JobGraph job = new JobGraph("testjob");
+		JobSubmitRequestBody request = new JobSubmitRequestBody(job);
+
+		try {
+			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway)
+				.get();
+		} catch (Exception e) {
+			Throwable t = ExceptionUtils.stripExecutionException(e);
+			if (t instanceof RestHandlerException){
+				Assert.assertTrue(t.getMessage().equals("Job submission failed."));
+			} else {
+				throw e;
+			}
+		}
 	}
 }
