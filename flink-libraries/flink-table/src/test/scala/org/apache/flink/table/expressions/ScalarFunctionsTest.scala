@@ -1161,6 +1161,51 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testAtan2(): Unit = {
+    testAllApis(
+      atan2('f25, 'f26),
+      "atan2(f25, f26)",
+      "ATAN2(f25, f26)",
+      math.atan2(0.42.toByte, 0.toByte).toString)
+
+    testAllApis(
+      Atan2('f26, 'f25),
+      "atan2(f26, f25)",
+      "ATAN2(f26, f25)",
+      math.atan2(0.toShort, 0.toShort).toString)
+
+    testAllApis(
+      Atan2('f27, 'f27),
+      "atan2(f27, f27)",
+      "ATAN2(f27, f27)",
+      math.atan2(0.toLong, 0.toLong).toString)
+
+    testAllApis(
+      Atan2('f28, 'f28),
+      "atan2(f28, f28)",
+      "ATAN2(f28, f28)",
+      math.atan2(0.45.toFloat, 0.45.toFloat).toString)
+
+    testAllApis(
+      Atan2('f29, 'f29),
+      "atan2(f29, f29)",
+      "ATAN2(f29, f29)",
+      math.atan2(0.46, 0.46).toString)
+
+    testAllApis(
+      Atan2('f30, 'f30),
+      "atan2(f30, f30)",
+      "ATAN2(f30, f30)",
+      math.atan2(1, 1).toString)
+
+    testAllApis(
+      Atan2('f31, 'f31),
+      "atan2(f31, f31)",
+      "ATAN2(f31, f31)",
+      math.atan2(-0.1231231321321321111, -0.1231231321321321111).toString)
+  }
+
+  @Test
   def testDegrees(): Unit = {
     testAllApis(
       'f2.degrees(),
