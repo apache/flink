@@ -51,6 +51,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
+import org.mockito.internal.verification.Times;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.verification.VerificationMode;
@@ -1110,7 +1111,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		timeAdaptor.advanceTime(testHarness, 0L);
 
 		// trigger is not called if there is no more window (timer is silently ignored)
-		timeAdaptor.verifyTriggerCallback(mockTrigger, never(), null, null);
+		timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
 		verify(mockWindowFunction, never())
 				.process(anyInt(), anyTimeWindow(), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
@@ -1174,7 +1175,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 		timeAdaptor.advanceTime(testHarness, 0L);
 
 		// trigger is not called if there is no more window (timer is silently ignored)
-		timeAdaptor.verifyTriggerCallback(mockTrigger, never(), null, null);
+		timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
 		verify(mockWindowFunction, never())
 				.process(anyInt(), anyTimeWindow(), anyInternalWindowContext(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
