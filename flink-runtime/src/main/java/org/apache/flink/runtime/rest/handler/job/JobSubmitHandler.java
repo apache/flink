@@ -142,7 +142,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
 			artifacts.add(Tuple2.of(artifactFileName.entryName, new org.apache.flink.core.fs.Path(artifactFile.toString())));
 		}
-		
+
 		return artifacts;
 	}
 
