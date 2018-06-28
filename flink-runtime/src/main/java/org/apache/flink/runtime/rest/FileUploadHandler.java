@@ -178,7 +178,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 			currentHttpPostRequestDecoder.getBodyHttpDatas().clear();
 		} catch (HttpPostRequestDecoder.NotEnoughDataDecoderException ned) {
 			// this method always fails if not all chunks were offered to the decoder yet
-			LOG.debug("Error while resetting {}.", getClass(), ned);
+			LOG.debug("Error while resetting handler.", ned);
 		}
 		currentHttpPostRequestDecoder.destroy();
 		currentHttpPostRequestDecoder = null;
