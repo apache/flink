@@ -104,6 +104,12 @@ public class HistoryServer {
 		LOG.info("Loading configuration from {}", configDir);
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
+		try {
+			FileSystem.initialize(flinkConfig);
+		} catch (IOException e) {
+			throw new Exception("Error while setting the default filesystem scheme from configuration.", e);
+		}
+
 		// run the history server
 		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
 
