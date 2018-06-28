@@ -99,8 +99,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	private final long bucketGranularity;
 
-	private long lastWatermark = Long.MIN_VALUE;
-
 	private transient MapState<Long, List<Tuple3<T1, Long, Boolean>>> leftBuffer;
 	private transient MapState<Long, List<Tuple3<T2, Long, Boolean>>> rightBuffer;
 
@@ -287,22 +285,19 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	private void registerCleanupTimer() {
-		if (this.lastWatermark == Long.MIN_VALUE) {
+
+		long currentWatermark = this.internalTimerService.currentWatermark();
+		if (currentWatermark == Long.MIN_VALUE) {
 			return;
 		}
 
-		long triggerTime = this.lastWatermark + 1;
+		long triggerTime = currentWatermark + 1;
 		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, triggerTime);
 	}
 
 	private boolean dataIsLate(long rightTs) {
-		return this.lastWatermark != Long.MIN_VALUE && rightTs < lastWatermark;
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		this.lastWatermark = mark.getTimestamp();
+		long currentWatermark = internalTimerService.currentWatermark();
+		return currentWatermark != Long.MIN_VALUE && rightTs < currentWatermark;
 	}
 
 	private void collect(T1 left, T2 right, long leftTs, long rightTs) throws Exception {
