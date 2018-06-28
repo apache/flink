@@ -28,6 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer010;
 
 import example.avro.User;
+import org.apache.avro.specific.SpecificRecordBase;
 
 import java.util.Properties;
 
@@ -40,7 +41,6 @@ import java.util.Properties;
 public class TestAvroConsumerConfluent {
 
 	public static void main(String[] args) throws Exception {
-		Properties config = new Properties();
 		// parse input arguments
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
@@ -52,6 +52,7 @@ public class TestAvroConsumerConfluent {
 				"--schema-registry-url <confluent schema registry> --group.id <some id>");
 			return;
 		}
+		Properties config = new Properties();
 		config.setProperty("bootstrap.servers", parameterTool.getRequired("bootstrap.servers"));
 		config.setProperty("group.id", parameterTool.getRequired("group.id"));
 		config.setProperty("zookeeper.connect", parameterTool.getRequired("zookeeper.connect"));
@@ -62,20 +63,15 @@ public class TestAvroConsumerConfluent {
 
 		DataStreamSource<User> input = env
 			.addSource(
-				new FlinkKafkaConsumer010(
+				new FlinkKafkaConsumer010<>(
 					parameterTool.getRequired("input-topic"),
 					ConfluentRegistryAvroDeserializationSchema.forSpecific(User.class, schemaRegistryUrl),
 					config).setStartFromEarliest());
 
 		SingleOutputStreamOperator<String> mapToString = input
-			.map(new MapFunction<User, String>() {
-				@Override
-				public String map(User value) throws Exception {
-					return value.toString();
-				}
-			});
+			.map((MapFunction<User, String>) SpecificRecordBase::toString);
 
-		FlinkKafkaProducer010<String> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010(
+		FlinkKafkaProducer010<String> stringFlinkKafkaProducer010 = new FlinkKafkaProducer010<>(
 			parameterTool.getRequired("output-topic"),
 			new SimpleStringSchema(),
 			config);

@@ -150,6 +150,13 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<configuration>
+					<excludes>**/example/avro/*</excludes>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>

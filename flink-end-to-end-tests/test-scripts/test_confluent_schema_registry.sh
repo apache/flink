@@ -28,7 +28,6 @@ function verify_output {
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED FOR KEY: --$expected--"
     echo -e "ACTUAL: --$result--"
-    PASS=""
     exit 1
   fi
 }
@@ -41,12 +40,6 @@ function test_cleanup {
 
   stop_kafka_cluster
   stop_confluent_schema_registry
-
-  # revert our modifications to the Flink distribution
-  mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 
 trap test_cleanup INT
@@ -55,18 +48,10 @@ trap test_cleanup EXIT
 setup_kafka_dist
 setup_confluent_dist
 
-cd flink-end-to-end-tests/flink-confluent-schema-registry
-mvn clean package -nsu
-
 start_kafka_cluster
 start_confluent_schema_registry
-sleep 5
 
-# modify configuration to use port 8082 for Flink
-cp $FLINK_DIR/conf/flink-conf.yaml $FLINK_DIR/conf/flink-conf.yaml.bak
-sed -i -e "s/web.port: 8081/web.port: 8082/" $FLINK_DIR/conf/flink-conf.yaml
-
-TEST_PROGRAM_JAR=target/TestAvroConsumerConfluent.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-confluent-schema-registry/target/TestAvroConsumerConfluent.jar
 
 INPUT_MESSAGE_1='{"name":"Alyssa","favoriteNumber":"250","favoriteColor":"green","eventType":"meeting"}'
 INPUT_MESSAGE_2='{"name":"Charlie","favoriteNumber":"10","favoriteColor":"blue","eventType":"meeting"}'
@@ -74,7 +59,7 @@ INPUT_MESSAGE_3='{"name":"Ben","favoriteNumber":"7","favoriteColor":"red","event
 USER_SCHEMA='{"namespace":"example.avro","type":"record","name":"User","fields":[{"name":"name","type":"string","default":""},{"name":"favoriteNumber","type":"string","default":""},{"name":"favoriteColor","type":"string","default":""},{"name":"eventType","type":{"name":"EventType","type":"enum","symbols":["meeting"]}}]}'
 
 curl -X POST \
-  http://localhost:8081/subjects/users-value/versions \
+  ${SCHEMA_REGISTRY_URL}/subjects/users-value/versions \
   -H 'cache-control: no-cache' \
   -H 'content-type: application/vnd.schemaregistry.v1+json' \
   -d '{"schema": "{\"namespace\": \"example.avro\",\"type\": \"record\",\"name\": \"User\",\"fields\": [{\"name\": \"name\", \"type\": \"string\", \"default\": \"\"},{\"name\": \"favoriteNumber\",  \"type\": \"string\", \"default\": \"\"},{\"name\": \"favoriteColor\", \"type\": \"string\", \"default\": \"\"},{\"name\": \"eventType\",\"type\": {\"name\": \"EventType\",\"type\": \"enum\", \"symbols\": [\"meeting\"] }}]}"}'
@@ -87,11 +72,13 @@ send_messages_to_kafka_avro $INPUT_MESSAGE_3 test-avro-input $USER_SCHEMA
 
 start_cluster
 
+create_kafka_topic 1 1 test-avro-out
+
 # Read Avro message from [test-avro-input], check the schema and send message to [test-avro-out]
 $FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR \
   --input-topic test-avro-input --output-topic test-avro-out \
   --bootstrap.servers localhost:9092 --zookeeper.connect localhost:2181 --group.id myconsumer --auto.offset.reset earliest \
-  --schema-registry-url http://localhost:8081
+  --schema-registry-url ${SCHEMA_REGISTRY_URL}
 
 #echo "Reading messages from Kafka topic [test-avro-out] ..."
 
