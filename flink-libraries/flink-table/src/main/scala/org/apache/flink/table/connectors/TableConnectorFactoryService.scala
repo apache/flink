@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector
+package org.apache.flink.table.connectors
 
 import java.util.{ServiceConfigurationError, ServiceLoader}
 
@@ -98,7 +98,7 @@ class TableConnectorFactoryService[T] extends Logging {
         plainContext.remove(STATISTICS_PROPERTY_VERSION)
 
         // check if required context is met
-        if (properties.get(TableDescriptorValidator.TABLE_TYPE).get.equals(factory.tableType()) &&
+        if (properties.get(TableDescriptorValidator.TABLE_TYPE).get.equals(factory.getType()) &&
           plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
           matchingFactory match {
             case Some(_) => throw new AmbiguousTableConnectorException(properties)

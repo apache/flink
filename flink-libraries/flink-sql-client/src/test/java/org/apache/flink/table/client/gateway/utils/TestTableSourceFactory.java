@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
-import org.apache.flink.table.connector.TableConnectorFactory;
+import org.apache.flink.table.connectors.TableConnectorFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.descriptors.TableDescriptorValidator;
@@ -54,7 +54,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 public class TestTableSourceFactory implements TableConnectorFactory<TableSource<Row>> {
 
 	@Override
-	public String tableType() {
+	public String getType() {
 		return TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE();
 	}
 

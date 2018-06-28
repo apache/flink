@@ -42,7 +42,7 @@ under the License.
 		<file>
 			<source>src/test/resources/test-factory-services-file</source>
 			<outputDirectory>META-INF/services</outputDirectory>
-			<destName>org.apache.flink.table.connector.TableConnectorFactory</destName>
+			<destName>org.apache.flink.table.connectors.TableConnectorFactory</destName>
 			<fileMode>0755</fileMode>
 		</file>
 	</files>

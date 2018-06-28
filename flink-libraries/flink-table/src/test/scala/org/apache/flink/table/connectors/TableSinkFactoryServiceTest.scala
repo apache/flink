@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector
+package org.apache.flink.table.connectors
 
 import org.apache.flink.table.api.{NoMatchingTableConnectorException, TableException, ValidationException}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
@@ -65,8 +65,7 @@ class TableSinkFactoryServiceTest {
 
   private def properties(): mutable.Map[String, String] = {
     val properties = mutable.Map[String, String]()
-    properties.put(TableDescriptorValidator.TABLE_TYPE,
-      TableDescriptorValidator.TABLE_TYPE_VALUE_SINK)
+    properties.put(TableDescriptorValidator.TABLE_TYPE, "sink")
     properties.put(CONNECTOR_TYPE, "test")
     properties.put(FORMAT_TYPE, "test")
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")

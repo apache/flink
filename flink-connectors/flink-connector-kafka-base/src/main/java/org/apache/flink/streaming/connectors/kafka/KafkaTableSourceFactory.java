@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.TableConnectorFactory;
+import org.apache.flink.table.connectors.TableConnectorFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.KafkaValidator;
@@ -72,7 +72,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 abstract class KafkaTableSourceFactory implements TableConnectorFactory<TableSource<Row>> {
 
 	@Override
-	public String tableType() {
+	public String getType() {
 		return TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE();
 	}
 

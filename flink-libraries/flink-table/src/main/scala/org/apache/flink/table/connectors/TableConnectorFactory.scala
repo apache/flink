@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector
+package org.apache.flink.table.connectors
 
 import java.util
 
@@ -25,9 +25,9 @@ trait TableConnectorFactory[T] {
     * Specify the type of the table connector, check
     * [[org.apache.flink.table.descriptors.TableDescriptorValidator]] for all values.
     *
-    * @return the table connector type,.
+    * @return the table connector type.
     */
-  def tableType() : String
+  def getType() : String
 
   /**
     * Specifies the context that this factory has been implemented for. The framework guarantees

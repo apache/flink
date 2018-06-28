@@ -142,7 +142,7 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.connector.TableConnectorFactory]] for the
+  * Exception for not finding a [[org.apache.flink.table.connectors.TableConnectorFactory]] for the
   * given properties.
   *
   * @param properties properties that describe the table connector
@@ -159,7 +159,7 @@ case class NoMatchingTableConnectorException(properties: Map[String, String], ca
 }
 
 /**
-  * Exception for finding more than one [[org.apache.flink.table.connector.TableConnectorFactory]]
+  * Exception for finding more than one [[org.apache.flink.table.connectors.TableConnectorFactory]]
   * for the given properties.
   *
   * @param properties properties that describe the table connector

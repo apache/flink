@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.connector.TableSourceFactoryService
+import org.apache.flink.table.connectors.TableSourceFactoryService
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}

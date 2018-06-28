@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connector
+package org.apache.flink.table.connectors
 
 import org.apache.flink.table.api.{NoMatchingTableConnectorException, TableException, ValidationException}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}

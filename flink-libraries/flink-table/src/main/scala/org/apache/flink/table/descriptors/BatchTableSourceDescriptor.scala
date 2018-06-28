@@ -19,7 +19,7 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableException, ValidationException}
-import org.apache.flink.table.connector.TableSourceFactoryService
+import org.apache.flink.table.connectors.TableSourceFactoryService
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 
 class BatchTableSourceDescriptor(tableEnv: BatchTableEnvironment, connector: ConnectorDescriptor)

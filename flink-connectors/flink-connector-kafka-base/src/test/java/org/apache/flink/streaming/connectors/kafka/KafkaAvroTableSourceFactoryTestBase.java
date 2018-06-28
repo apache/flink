@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connector.TableSourceFactoryService;
+import org.apache.flink.table.connectors.TableSourceFactoryService;
 import org.apache.flink.table.descriptors.Avro;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Kafka;
