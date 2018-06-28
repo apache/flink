@@ -776,12 +776,15 @@ public class TimeBoundedStreamJoinOperatorTest {
 		}
 	}
 
-	private StreamRecord<Tuple2<TestElem, TestElem>> streamRecordOf(long lhsTs,
-		long rhsTs) {
+	private StreamRecord<Tuple2<TestElem, TestElem>> streamRecordOf(
+		long lhsTs,
+		long rhsTs
+	) {
 		TestElem lhs = new TestElem(lhsTs, "lhs");
 		TestElem rhs = new TestElem(rhsTs, "rhs");
 
-		return new StreamRecord<>(Tuple2.of(lhs, rhs), lhsTs);
+		long ts = Math.max(lhsTs, rhsTs);
+		return new StreamRecord<>(Tuple2.of(lhs, rhs), ts);
 	}
 
 	private static class TestElem {

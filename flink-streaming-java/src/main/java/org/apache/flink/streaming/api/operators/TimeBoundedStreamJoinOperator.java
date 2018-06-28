@@ -320,7 +320,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	private void collect(T1 left, T2 right, long leftTs, long rightTs) throws Exception {
-		collector.setAbsoluteTimestamp(leftTs);
+		long ts = Math.max(leftTs, rightTs);
+		collector.setAbsoluteTimestamp(ts);
 		context.leftTs = leftTs;
 		context.rightTs = rightTs;
 		userFunction.processElement(left, right, context, this.collector);
