@@ -98,7 +98,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private final TypeSerializer<T2> rightTypeSerializer;
 
 	private final long bucketGranularity;
-	private final long watermarkDelay;
 
 	private long lastWatermark = Long.MIN_VALUE;
 
@@ -150,7 +149,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
 
 		this.bucketGranularity = bucketGranularity;
-		this.watermarkDelay = (upperBound < 0) ? 0 : upperBound;
 	}
 
 	@Override
@@ -298,25 +296,13 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	private boolean dataIsLate(long rightTs) {
-		return this.lastWatermark != Long.MIN_VALUE && rightTs < lastWatermark - watermarkDelay;
+		return this.lastWatermark != Long.MIN_VALUE && rightTs < lastWatermark;
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
-
-		// We can not clean our state here directly because we are not in a keyed context. Instead
-		// we set a field containing the last watermark that we have seen, and for every element in
-		// processElement1(...) / processElement2(...) we register a timer with time: watermark + 1
-		// This watermark + 1 will then trigger the onEventTime(...) method for the next watermark,
-		// where we are in a keyed context again, which we can use to clean up our state.
+		super.processWatermark(mark);
 		this.lastWatermark = mark.getTimestamp();
-
-		if (timeServiceManager != null) {
-			timeServiceManager.advanceWatermark(mark);
-		}
-
-		// emit the watermark with the calculated delay, so we don't produce late data
-		output.emitWatermark(new Watermark(this.lastWatermark - watermarkDelay));
 	}
 
 	private void collect(T1 left, T2 right, long leftTs, long rightTs) throws Exception {
