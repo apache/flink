@@ -40,6 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
@@ -76,10 +77,10 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 	@Override
 	protected CompletableFuture<JobSubmitResponseBody> handleRequest(@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-		Collection<Path> uploadedFiles = request.getUploadedFiles();
+		Collection<File> uploadedFiles = request.getUploadedFiles();
 		Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
-			path -> path.getFileName().toString(),
-			entry -> entry
+			path -> path.toPath().getFileName().toString(),
+			File::toPath
 		));
 
 		if (uploadedFiles.size() != nameToFile.size()) {

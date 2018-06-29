@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 /**
  * Simple container for the request to a handler, that contains the {@link RequestBody} and path/query parameters.
@@ -43,7 +45,7 @@ import java.util.StringJoiner;
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
 	private final R requestBody;
-	private final Collection<Path> uploadedFiles;
+	private final Collection<File> uploadedFiles;
 	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
 	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
@@ -57,7 +59,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 
 	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<Path> uploadedFiles) throws HandlerRequestException {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
-		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
+		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles).stream().map(Path::toFile).collect(Collectors.toList()));
 		Preconditions.checkNotNull(messageParameters);
 		Preconditions.checkNotNull(receivedQueryParameters);
 		Preconditions.checkNotNull(receivedPathParameters);
@@ -141,7 +143,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 	}
 
 	@Nonnull
-	public Collection<Path> getUploadedFiles() {
+	public Collection<File> getUploadedFiles() {
 		return uploadedFiles;
 	}
 }
