@@ -496,6 +496,24 @@ public abstract class FileSystem {
 	public abstract FSDataInputStream open(Path f) throws IOException;
 
 	/**
+	 * Creates a new {@link ResumableWriter}. A recoverable writer creates streams that can
+	 * persist and recover their intermediate state.
+	 * Persisting and recovering intermediate state is a core building block for writing to
+	 * files that span multiple checkpoints.
+	 *
+	 * <p>The returned object can act as a shared factory to open and recover multiple streams.
+	 *
+	 * <p>This method is optional on file systems and various file system implementations may
+	 * not support this method, throwing an {@code UnsupportedOperationException}.
+	 *
+	 * @return A ResumableWriter for this file system.
+	 * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
+	 */
+	public ResumableWriter createRecoverableWriter() throws IOException {
+		throw new UnsupportedOperationException("This file system does not support recoverable writers.");
+	}
+
+	/**
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
 	 *
 	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
