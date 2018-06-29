@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -166,6 +168,75 @@ public class JobSubmitHandlerTest extends TestLogger {
 				.get();
 		} catch (Exception e) {
 			ExceptionUtils.findThrowable(e, candidate -> candidate instanceof RestHandlerException && candidate.getMessage().contains("count"));
+		}
+	}
+
+	@Test
+	public void testFileHandling() throws Exception {
+		final String dcEntryName = "entry";
+
+		CompletableFuture<JobGraph> submittedJobGraphFuture = new CompletableFuture<>();
+		DispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder()
+			.setBlobServerPort(blobServer.getPort())
+			.setSubmitFunction(submittedJobGraph -> {
+				submittedJobGraphFuture.complete(submittedJobGraph);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			})
+			.build();
+
+		GatewayRetriever<DispatcherGateway> gatewayRetriever = new TestGatewayRetriever(dispatcherGateway);
+
+		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
+			gatewayRetriever,
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap(),
+			TestingUtils.defaultExecutor());
+
+		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
+		final Path jarFile = TEMPORARY_FOLDER.newFile().toPath();
+		final Path artifactFile = TEMPORARY_FOLDER.newFile().toPath();
+
+		final JobGraph jobGraph = new JobGraph();
+		// the entry that should be updated
+		jobGraph.addUserArtifact(dcEntryName, new DistributedCache.DistributedCacheEntry("random", false));
+		try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
+			try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
+				objectOut.writeObject(jobGraph);
+			}
+		}
+
+		JobSubmitRequestBody request = new JobSubmitRequestBody(
+			jobGraphFile.getFileName().toString(),
+			Collections.singletonList(jarFile.getFileName().toString()),
+			Collections.singleton(new JobSubmitRequestBody.DistributedCacheFile(dcEntryName, artifactFile.getFileName().toString())));
+
+		handler.handleRequest(new HandlerRequest<>(
+				request,
+				EmptyMessageParameters.getInstance(),
+				Collections.emptyMap(),
+				Collections.emptyMap(),
+				Arrays.asList(jobGraphFile, jarFile, artifactFile)), dispatcherGateway)
+			.get();
+
+		Assert.assertTrue("No JobGraph was submitted.", submittedJobGraphFuture.isDone());
+		final JobGraph submittedJobGraph = submittedJobGraphFuture.get();
+		Assert.assertEquals(1, submittedJobGraph.getUserJarBlobKeys().size());
+		Assert.assertEquals(1, submittedJobGraph.getUserArtifacts().size());
+		Assert.assertNotNull(submittedJobGraph.getUserArtifacts().get(dcEntryName).blobKey);
+	}
+
+	private static class TestGatewayRetriever implements GatewayRetriever<DispatcherGateway> {
+
+		private final DispatcherGateway dispatcherGateway;
+
+		TestGatewayRetriever(DispatcherGateway dispatcherGateway) {
+			this.dispatcherGateway = dispatcherGateway;
+		}
+
+		@Override
+		public CompletableFuture<DispatcherGateway> getFuture() {
+			return CompletableFuture.completedFuture(dispatcherGateway);
 		}
 	}
 }
