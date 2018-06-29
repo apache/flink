@@ -125,7 +125,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 					heartbeatTarget,
 					scheduledExecutor,
 					heartbeatListener,
-					heartbeatTimeoutIntervalMs);
+					heartbeatTimeoutIntervalMs,
+					this);
 
 				heartbeatTargets.put(
 					resourceID,
@@ -182,7 +183,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {
 		if (!stopped) {
 			log.debug("Received heartbeat from {}.", heartbeatOrigin);
-			reportHeartbeat(heartbeatOrigin);
+			reportHeartbeat(heartbeatOrigin, heartbeatPayload);
 
 			if (heartbeatPayload != null) {
 				heartbeatListener.reportPayload(heartbeatOrigin, heartbeatPayload);
@@ -195,7 +196,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		if (!stopped) {
 			log.debug("Received heartbeat request from {}.", requestOrigin);
 
-			final HeartbeatTarget<O> heartbeatTarget = reportHeartbeat(requestOrigin);
+			final HeartbeatTarget<O> heartbeatTarget = reportHeartbeat(requestOrigin, heartbeatPayload);
 
 			if (heartbeatTarget != null) {
 				if (heartbeatPayload != null) {
@@ -221,11 +222,11 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		}
 	}
 
-	HeartbeatTarget<O> reportHeartbeat(ResourceID resourceID) {
+	HeartbeatTarget<O> reportHeartbeat(ResourceID resourceID, I heartbeatPayload) {
 		if (heartbeatTargets.containsKey(resourceID)) {
 			HeartbeatManagerImpl.HeartbeatMonitor<O> heartbeatMonitor = heartbeatTargets.get(resourceID);
 			heartbeatMonitor.reportHeartbeat();
-
+			heartbeatMonitor.setHeartBeatPayload(heartbeatPayload);
 			return heartbeatMonitor.getHeartbeatTarget();
 		} else {
 			return null;
@@ -259,6 +260,11 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		/** Maximum heartbeat timeout interval. */
 		private final long heartbeatTimeoutIntervalMs;
 
+		/** Associated heartbeat payload. */
+		private Object heartBeatPayload;
+
+		private final HeartbeatManagerImpl heartbeatManager;
+
 		private volatile ScheduledFuture<?> futureTimeout;
 
 		private final AtomicReference<State> state = new AtomicReference<>(State.RUNNING);
@@ -270,7 +276,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 			HeartbeatTarget<O> heartbeatTarget,
 			ScheduledExecutor scheduledExecutor,
 			HeartbeatListener<?, O> heartbeatListener,
-			long heartbeatTimeoutIntervalMs) {
+			long heartbeatTimeoutIntervalMs,
+			HeartbeatManagerImpl heartbeatManager) {
 
 			this.resourceID = Preconditions.checkNotNull(resourceID);
 			this.heartbeatTarget = Preconditions.checkNotNull(heartbeatTarget);
@@ -279,6 +286,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 			Preconditions.checkArgument(heartbeatTimeoutIntervalMs >= 0L, "The heartbeat timeout interval has to be larger than 0.");
 			this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
+			this.heartbeatManager = Preconditions.checkNotNull(heartbeatManager);
 
 			lastHeartbeat = 0L;
 
@@ -295,6 +303,14 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 		public long getLastHeartbeat() {
 			return lastHeartbeat;
+		}
+
+		public Object getHeartBeatPayload() {
+			return heartBeatPayload;
+		}
+
+		public void setHeartBeatPayload(Object heartBeatPayload) {
+			this.heartBeatPayload = heartBeatPayload;
 		}
 
 		void reportHeartbeat() {
@@ -336,6 +352,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		public void run() {
 			// The heartbeat has timed out if we're in state running
 			if (state.compareAndSet(State.RUNNING, State.TIMEOUT)) {
+				heartbeatManager.log.info("Heartbeat time out from resource ID {}. Retrying request heartbeat.", resourceID);
+				heartbeatManager.requestHeartbeat(resourceID, getHeartBeatPayload());
 				heartbeatListener.notifyHeartbeatTimeout(resourceID);
 			}
 		}
