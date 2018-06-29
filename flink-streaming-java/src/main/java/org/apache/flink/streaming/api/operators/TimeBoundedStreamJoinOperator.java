@@ -87,6 +87,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private static final String LEFT_BUFFER = "LEFT_BUFFER";
 	private static final String RIGHT_BUFFER = "RIGHT_BUFFER";
 	private static final String CLEANUP_TIMER_NAME = "CLEANUP_TIMER";
+	private static final String CLEANUP_NAMESPACE_LEFT = "CLEANUP_LEFT";
+	private static final String CLEANUP_NAMESPACE_RIGHT = "CLEANUP_RIGHT";
 
 	private final long lowerBound;
 	private final long upperBound;
@@ -286,9 +288,9 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	public void registerPerElementCleanup(boolean isLeft, long timestamp) {
 		if (isLeft) {
-			internalTimerService.registerEventTimeTimer("left", timestamp);
+			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, timestamp);
 		} else {
-			internalTimerService.registerEventTimeTimer("right", timestamp);
+			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, timestamp);
 		}
 	}
 
@@ -375,17 +377,21 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		} else {
 
 			String namespace = timer.getNamespace();
-			if (namespace.equals("left")) {
-
-				long timestamp = maxCleanupLeft(ts);
-				logger.trace("Removing from left buffer @ {}", timestamp);
-				removeFromBufferAt(leftBuffer, timestamp);
-			} else if (namespace.equals("right")) {
-				long timestamp = maxCleanupRight(ts);
-				logger.trace("Removing from right buffer @ {}", timestamp);
-				removeFromBufferAt(rightBuffer, timestamp);
-			} else {
-				throw new RuntimeException("Invalid namespace " + namespace);
+			switch (namespace) {
+				case CLEANUP_NAMESPACE_LEFT: {
+					long timestamp = maxCleanupLeft(ts);
+					logger.trace("Removing from left buffer @ {}", timestamp);
+					removeFromBufferAt(leftBuffer, timestamp);
+					break;
+				}
+				case CLEANUP_NAMESPACE_RIGHT: {
+					long timestamp = maxCleanupRight(ts);
+					logger.trace("Removing from right buffer @ {}", timestamp);
+					removeFromBufferAt(rightBuffer, timestamp);
+					break;
+				}
+				default:
+					throw new RuntimeException("Invalid namespace " + namespace);
 			}
 		}
 	}
