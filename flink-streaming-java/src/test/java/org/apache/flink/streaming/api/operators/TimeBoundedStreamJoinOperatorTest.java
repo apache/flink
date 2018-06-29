@@ -60,7 +60,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 
 	private final boolean lhsFasterThanRhs;
 
-	@Parameters(name = "lhs faster than rhs: {0}, bucketSize: {1}")
+	@Parameters(name = "lhs faster than rhs: {0}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
 			{true}, {false}
@@ -197,86 +197,149 @@ public class TimeBoundedStreamJoinOperatorTest {
 			.close();
 	}
 
-//	TODO: Refactor this test
 	@Test
-	public void testStateGetsCleanedWhenNotNeededBucketSize1() throws Exception {
+	public void testStateCleanupNegativeInclusiveNegativeInclusive() throws Exception {
 
-		long lowerBound = 1;
-		boolean lowerBoundInclusive = true;
+		setupHarness(-1, true, 0, true)
+			.processElement1(1)
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
 
-		long upperBound = 2;
-		boolean upperBoundInclusive = true;
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
 
-		int bucketGranularity = 1;
+			.processWatermark1(1)
+			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
 
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator = new TimeBoundedStreamJoinOperator<>(
-			lowerBound,
-			upperBound,
-			lowerBoundInclusive,
-			upperBoundInclusive,
-			TestElem.serializer(),
-			TestElem.serializer(),
-			new PassthroughFunction()
-		);
+			.assertLeftBufferContainsOnly(2, 3, 4, 5)
+			.assertRightBufferContainsOnly(1, 2, 3, 4, 5)
 
-		try (TestHarness testHarness = new TestHarness(
-			operator,
-			(elem) -> elem.key, // key
-			(elem) -> elem.key, // key
-			TypeInformation.of(String.class)
-		)) {
+			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
+			.processWatermark2(4)
 
-			testHarness.setup();
-			testHarness.open();
+			.assertLeftBufferContainsOnly(5)
+			.assertRightBufferContainsOnly(4, 5)
 
-			testHarness.processElement1(createStreamRecord(1, "lhs"));
-			testHarness.processWatermark1(new Watermark(1));
+			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
+			.processWatermark2(6)
 
-			assertContainsOnly(operator.getLeftBuffer(), 1);
-			assertEmpty(operator.getRightBuffer());
+			.assertLeftBufferEmpty()
+			.assertRightBufferEmpty()
 
-			testHarness.processElement2(createStreamRecord(1, "rhs"));
-			testHarness.processWatermark2(new Watermark(1));
+			.close();
+	}
 
-			assertContainsOnly(operator.getLeftBuffer(), 1);
-			assertContainsOnly(operator.getRightBuffer(), 1);
+	@Test
+	public void testStateCleanupNegativePositiveNegativeExlusive() throws Exception {
+		setupHarness(-2, false, 1, false)
+			.processElement1(1)
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
 
-			testHarness.processElement1(createStreamRecord(2, "lhs"));
-			testHarness.processWatermark1(new Watermark(2));
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
 
-			assertContainsOnly(operator.getLeftBuffer(), 1, 2);
-			assertContainsOnly(operator.getRightBuffer(), 1);
+			.processWatermark1(1)
+			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
 
-			testHarness.processElement2(createStreamRecord(2, "rhs"));
-			testHarness.processWatermark2(new Watermark(2));
+			.assertLeftBufferContainsOnly(2, 3, 4, 5)
+			.assertRightBufferContainsOnly(1, 2, 3, 4, 5)
 
-			assertContainsOnly(operator.getLeftBuffer(), 1, 2);
-			assertEmpty(operator.getRightBuffer());
+			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
+			.processWatermark2(4)
 
-			testHarness.processElement1(createStreamRecord(3, "lhs"));
-			testHarness.processWatermark1(new Watermark(3));
+			.assertLeftBufferContainsOnly(5)
+			.assertRightBufferContainsOnly(4, 5)
 
-			assertContainsOnly(operator.getLeftBuffer(), 1, 2, 3);
-			assertEmpty(operator.getRightBuffer());
+			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
+			.processWatermark2(6)
 
-			testHarness.processElement2(createStreamRecord(3, "rhs"));
-			testHarness.processWatermark2(new Watermark(3));
+			.assertLeftBufferEmpty()
+			.assertRightBufferEmpty()
 
-			assertContainsOnly(operator.getLeftBuffer(),  2, 3);
-			assertEmpty(operator.getRightBuffer());
+			.close();
+	}
 
-			testHarness.processElement1(createStreamRecord(4, "lhs"));
-			testHarness.processWatermark1(new Watermark(4));
+	@Test
+	public void testStateCleanupPositiveInclusivePositiveInclusive() throws Exception {
+		setupHarness(0, true, 1, true)
+			.processElement1(1)
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
 
-			assertContainsOnly(operator.getLeftBuffer(), 2, 3, 4);
-			assertEmpty(operator.getRightBuffer());
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
 
-			testHarness.processElement2(createStreamRecord(4, "rhs"));
-			testHarness.processWatermark2(new Watermark(4));
-		}
+			.processWatermark1(1)
+			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
 
-		assertContainsOnly(operator.getLeftBuffer(), 3, 4);
-		assertEmpty(operator.getRightBuffer());
+			.assertLeftBufferContainsOnly(1, 2, 3, 4, 5)
+			.assertRightBufferContainsOnly(2, 3, 4, 5)
+
+			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
+			.processWatermark2(4)
+
+			.assertLeftBufferContainsOnly(4, 5)
+			.assertRightBufferContainsOnly(5)
+
+			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
+			.processWatermark2(6)
+
+			.assertLeftBufferEmpty()
+			.assertRightBufferEmpty()
+
+			.close();
+	}
+
+	@Test
+	public void testStateCleanupPositiveExlusivePositiveExclusive() throws Exception {
+		setupHarness(-1, false, 2, false)
+			.processElement1(1)
+			.processElement1(2)
+			.processElement1(3)
+			.processElement1(4)
+			.processElement1(5)
+
+			.processElement2(1)
+			.processElement2(2)
+			.processElement2(3)
+			.processElement2(4)
+			.processElement2(5) // fill both buffers with values
+
+			.processWatermark1(1)
+			.processWatermark2(1) // set common watermark to 1 and check that data is cleaned
+
+			.assertLeftBufferContainsOnly(1, 2, 3, 4, 5)
+			.assertRightBufferContainsOnly(2, 3, 4, 5)
+
+			.processWatermark1(4) // set common watermark to 4 and check that data is cleaned
+			.processWatermark2(4)
+
+			.assertLeftBufferContainsOnly(4, 5)
+			.assertRightBufferContainsOnly(5)
+
+			.processWatermark1(6) // set common watermark to 6 and check that data all buffers are empty
+			.processWatermark2(6)
+
+			.assertLeftBufferEmpty()
+			.assertRightBufferEmpty()
+
+			.close();
 	}
 
 	@Test
@@ -555,10 +618,12 @@ public class TimeBoundedStreamJoinOperatorTest {
 
 	private void assertContainsOnly(MapState<Long, ?> state, long... ts) throws Exception {
 		for (long t : ts) {
-			Assert.assertTrue("key not found in state", state.contains(t));
+			String message = "Keys not found in state. \n Expected: " + Arrays.toString(ts) + "\n Actual:   " + state.keys();
+			Assert.assertTrue(message, state.contains(t));
 		}
 
-		Assert.assertEquals("too many objects in state", ts.length, Iterables.size(state.keys()));
+		String message = "Too many objects in state. \n Expected: " + Arrays.toString(ts) + "\n Actual:   " + state.keys();
+		Assert.assertEquals(message, ts.length, Iterables.size(state.keys()));
 	}
 
 	private void assertOutput(
@@ -630,15 +695,21 @@ public class TimeBoundedStreamJoinOperatorTest {
 			TypeInformation.of(String.class)
 		);
 
-		return new JoinTestBuilder(t);
+		return new JoinTestBuilder(t, operator);
 	}
 
 	private class JoinTestBuilder {
 
+		private TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator;
 		private TestHarness testHarness;
 
-		public JoinTestBuilder(TestHarness t) throws Exception {
+		public JoinTestBuilder(
+			TestHarness t,
+			TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator
+		) throws Exception {
+
 			this.testHarness = t;
+			this.operator = operator;
 			t.open();
 			t.setup();
 		}
@@ -700,6 +771,44 @@ public class TimeBoundedStreamJoinOperatorTest {
 		@SafeVarargs
 		public final JoinTestBuilder andExpect(StreamRecord<Tuple2<TestElem, TestElem>>... elems) {
 			assertOutput(Lists.newArrayList(elems), testHarness.getOutput());
+			return this;
+		}
+
+		public JoinTestBuilder assertLeftBufferContainsOnly(long... timestamps) {
+
+			try {
+				assertContainsOnly(operator.getLeftBuffer(), timestamps);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			return this;
+		}
+
+		public JoinTestBuilder assertRightBufferContainsOnly(long... timestamps) {
+
+			try {
+				assertContainsOnly(operator.getRightBuffer(), timestamps);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			return this;
+		}
+
+		public JoinTestBuilder assertLeftBufferEmpty() {
+			try {
+				assertEmpty(operator.getLeftBuffer());
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			return this;
+		}
+
+		public JoinTestBuilder assertRightBufferEmpty() {
+			try {
+				assertEmpty(operator.getRightBuffer());
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 			return this;
 		}
 

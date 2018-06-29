@@ -33,10 +33,13 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -87,9 +90,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private final long lowerBound;
 	private final long upperBound;
 
-	private final long inverseLowerBound;
-	private final long inverseUpperBound;
-
 	private final TypeSerializer<T1> leftTypeSerializer;
 	private final TypeSerializer<T2> rightTypeSerializer;
 
@@ -100,6 +100,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private transient ContextImpl context;
 
 	private transient InternalTimerService<VoidNamespace> internalTimerService;
+	private Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
 
 	/**
 	 * Creates a new TimeBoundedStreamJoinOperator.
@@ -127,11 +128,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
-		this.lowerBound = (lowerBoundInclusive) ? lowerBound - 1 : lowerBound;
-		this.upperBound = (upperBoundInclusive) ? upperBound + 1 : upperBound;
-
-		this.inverseLowerBound = -upperBound;
-		this.inverseUpperBound = -lowerBound;
+		this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1;
+		this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1;
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
@@ -214,7 +212,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	 */
 	@Override
 	public void processElement2(StreamRecord<T2> record) throws Exception {
-		processElement(record, rightBuffer, leftBuffer, inverseLowerBound, inverseUpperBound, false);
+		processElement(record, rightBuffer, leftBuffer, -upperBound, -lowerBound, false);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -266,19 +264,16 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 				}
 			}
 		}
-
-		registerCleanupTimer();
 	}
 
-	private void registerCleanupTimer() {
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
 
-		long currentWatermark = this.internalTimerService.currentWatermark();
-		if (currentWatermark == Long.MIN_VALUE) {
-			return;
-		}
+		logger.trace("Registering timer @ {}", mark.getTimestamp());
+		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, mark.getTimestamp());
 
-		long triggerTime = currentWatermark + 1;
-		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, triggerTime);
+		logger.trace("Processing watermark @ {}", mark.getTimestamp());
+		super.processWatermark(mark);
 	}
 
 	private boolean dataIsLate(long rightTs) {
@@ -294,6 +289,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		userFunction.processElement(left, right, context, this.collector);
 	}
 
+	// remove all buckets from buffer that have a timestamp <= maxCleanup
 	private <T> void removeFromBufferUntil(
 		MapState<Long, List<Tuple3<T, Long, Boolean>>> buffer,
 		long maxCleanup
@@ -312,7 +308,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		long elemLowerBound = leftTs + lowerBound;
 		long elemUpperBound = leftTs + upperBound;
 
-		return elemLowerBound < rightTs && rightTs < elemUpperBound;
+		return elemLowerBound <= rightTs && rightTs <= elemUpperBound;
 	}
 
 	private <T> void addToBuffer(
@@ -337,10 +333,24 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	@Override
 	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		// remove from both sides all those elements where the timestamp is less than the lower
-		// bound, because they are not considered for joining anymore
-		removeFromBufferUntil(leftBuffer, timer.getTimestamp() + inverseLowerBound);
-		removeFromBufferUntil(rightBuffer, timer.getTimestamp() + lowerBound);
+		logger.trace("onEventTime @ {}", timer.getTimestamp());
+
+		long ts = timer.getTimestamp();
+
+		logger.trace("Removing from left buffer until @ {}", maxCleanupLeft(ts));
+		removeFromBufferUntil(leftBuffer, maxCleanupLeft(ts));
+
+		logger.trace("Removing from right buffer until @ {}", maxCleanupRight(ts));
+		removeFromBufferUntil(rightBuffer, maxCleanupRight(ts));
+	}
+
+	// calculate the maximum bucket that is not needed for cleaning anymore
+	public long maxCleanupLeft(long watermark) {
+		return (upperBound <= 0) ? watermark : watermark - upperBound;
+	}
+
+	public long maxCleanupRight(long watermark) {
+		return (lowerBound <= 0) ? watermark + lowerBound : watermark;
 	}
 
 	@Override
