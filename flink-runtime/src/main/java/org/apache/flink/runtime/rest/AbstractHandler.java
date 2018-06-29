@@ -51,12 +51,9 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}.
@@ -139,7 +136,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 					untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
 					routedRequest.getRouteResult().pathParams(),
 					routedRequest.getRouteResult().queryParams(),
-					uploadedFiles.getUploadedFiles().stream().map(Path::toFile).collect(Collectors.toList()));
+					uploadedFiles.getUploadedFiles());
 			} catch (HandlerRequestException hre) {
 				log.error("Could not create the handler request.", hre);
 				throw new RestHandlerException(
