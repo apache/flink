@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
@@ -81,7 +82,7 @@ import java.util.Map;
 @Internal
 public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	extends AbstractUdfStreamOperator<OUT, TimeBoundedJoinFunction<T1, T2, OUT>>
-	implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, VoidNamespace> {
+	implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, String> {
 
 	private static final String LEFT_BUFFER = "LEFT_BUFFER";
 	private static final String RIGHT_BUFFER = "RIGHT_BUFFER";
@@ -99,8 +100,10 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private transient TimestampedCollector<OUT> collector;
 	private transient ContextImpl context;
 
-	private transient InternalTimerService<VoidNamespace> internalTimerService;
+	private transient InternalTimerService<String> internalTimerService;
 	private Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
+
+	private final boolean perElementCleanup = true;
 
 	/**
 	 * Creates a new TimeBoundedStreamJoinOperator.
@@ -141,7 +144,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		collector = new TimestampedCollector<>(output);
 		context = new ContextImpl(userFunction);
 		internalTimerService =
-			getInternalTimerService(CLEANUP_TIMER_NAME, VoidNamespaceSerializer.INSTANCE, this);
+			getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
 	}
 
 	@Override
@@ -264,13 +267,39 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 				}
 			}
 		}
+
+		if (perElementCleanup) {
+			long removalTime = calculateRemovalTime(isLeft, ourTimestamp);
+			registerPerElementCleanup(isLeft, removalTime);
+			String side = isLeft ? "left" : "right";
+			logger.trace("Marked {} element @ {} for removal at {}", side, ourTimestamp, removalTime);
+		}
+	}
+
+	private long calculateRemovalTime(boolean isLeft, long timestamp) {
+		if (isLeft) {
+			return (upperBound > 0) ? timestamp + upperBound : timestamp;
+		} else {
+			return (lowerBound < 0) ? timestamp - lowerBound : timestamp;
+		}
+	}
+
+	public void registerPerElementCleanup(boolean isLeft, long timestamp) {
+		if (isLeft) {
+			internalTimerService.registerEventTimeTimer("left", timestamp);
+		} else {
+			internalTimerService.registerEventTimeTimer("right", timestamp);
+		}
 	}
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 
-		logger.trace("Registering timer @ {}", mark.getTimestamp());
-		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, mark.getTimestamp());
+		if (!perElementCleanup) {
+			logger.trace("Registering timer @ {}", mark.getTimestamp());
+			internalTimerService.registerEventTimeTimer("onWatermarkCleanup", mark.getTimestamp());
+		}
+
 
 		logger.trace("Processing watermark @ {}", mark.getTimestamp());
 		super.processWatermark(mark);
@@ -332,16 +361,41 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	@Override
-	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+	public void onEventTime(InternalTimer<K, String> timer) throws Exception {
 		logger.trace("onEventTime @ {}", timer.getTimestamp());
 
 		long ts = timer.getTimestamp();
 
-		logger.trace("Removing from left buffer until @ {}", maxCleanupLeft(ts));
-		removeFromBufferUntil(leftBuffer, maxCleanupLeft(ts));
+		if (!perElementCleanup) {
+			logger.trace("Removing from left buffer until @ {}", maxCleanupLeft(ts));
+			removeFromBufferUntil(leftBuffer, maxCleanupLeft(ts));
 
-		logger.trace("Removing from right buffer until @ {}", maxCleanupRight(ts));
-		removeFromBufferUntil(rightBuffer, maxCleanupRight(ts));
+			logger.trace("Removing from right buffer until @ {}", maxCleanupRight(ts));
+			removeFromBufferUntil(rightBuffer, maxCleanupRight(ts));
+		} else {
+
+			String namespace = timer.getNamespace();
+			if (namespace.equals("left")) {
+
+				long timestamp = maxCleanupLeft(ts);
+				logger.trace("Removing from left buffer @ {}", timestamp);
+				removeFromBufferAt(leftBuffer, timestamp);
+			} else if (namespace.equals("right")) {
+				long timestamp = maxCleanupRight(ts);
+				logger.trace("Removing from right buffer @ {}", timestamp);
+				removeFromBufferAt(rightBuffer, timestamp);
+			} else {
+				throw new RuntimeException("Invalid namespace " + namespace);
+			}
+		}
+	}
+
+	private <T> void removeFromBufferAt(
+		MapState<Long, List<Tuple3<T, Long, Boolean>>> state,
+		long timestamp
+	) throws Exception {
+
+		state.remove(timestamp);
 	}
 
 	// calculate the maximum bucket that is not needed for cleaning anymore
@@ -354,7 +408,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	@Override
-	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+	public void onProcessingTime(InternalTimer<K, String> timer) throws Exception {
 		throw new RuntimeException("Processing time is not supported for time-bounded joins");
 	}
 
