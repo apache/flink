@@ -2517,7 +2517,8 @@ object JobManager {
 
     val jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
       metricRegistry,
-      configuration.getString(JobManagerOptions.ADDRESS))
+      configuration.getString(JobManagerOptions.ADDRESS),
+      ResourceID.generate.getResourceIdString)
 
     (instanceManager,
       scheduler,

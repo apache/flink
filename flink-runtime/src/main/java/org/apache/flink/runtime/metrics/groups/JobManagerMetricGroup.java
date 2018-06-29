@@ -39,10 +39,12 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 	private final Map<JobID, JobManagerJobMetricGroup> jobs = new HashMap<>();
 
 	private final String hostname;
+	private final String jobManagerId;
 
-	public JobManagerMetricGroup(MetricRegistry registry, String hostname) {
+	public JobManagerMetricGroup(MetricRegistry registry, String hostname, String jobManagerId) {
 		super(registry, registry.getScopeFormats().getJobManagerFormat().formatScope(hostname), null);
 		this.hostname = hostname;
+		this.jobManagerId = jobManagerId;
 	}
 
 	public String hostname() {
@@ -102,6 +104,7 @@ public class JobManagerMetricGroup extends ComponentMetricGroup<JobManagerMetric
 	@Override
 	protected void putVariables(Map<String, String> variables) {
 		variables.put(ScopeFormat.SCOPE_HOST, hostname);
+		variables.put(ScopeFormat.SCOPE_JOBMANAGER_ID, jobManagerId);
 	}
 
 	@Override
