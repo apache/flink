@@ -411,12 +411,12 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	@VisibleForTesting
-	protected MapState<Long, List<Tuple3<T1, Long, Boolean>>> getLeftBuffer() {
+	MapState<Long, List<Tuple3<T1, Long, Boolean>>> getLeftBuffer() {
 		return leftBuffer;
 	}
 
 	@VisibleForTesting
-	protected MapState<Long, List<Tuple3<T2, Long, Boolean>>> getRightBuffer() {
+	MapState<Long, List<Tuple3<T2, Long, Boolean>>> getRightBuffer() {
 		return rightBuffer;
 	}
 }
