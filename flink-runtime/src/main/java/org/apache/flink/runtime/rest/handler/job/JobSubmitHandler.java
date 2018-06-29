@@ -82,6 +82,16 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			entry -> entry
 		));
 
+		if (uploadedFiles.size() != nameToFile.size()) {
+			throw new RestHandlerException(
+				String.format("The number of uploaded files was %s than the expected count. Expected: %s Actual %s",
+					uploadedFiles.size() < nameToFile.size() ? "lower" : "higher",
+					nameToFile.size(),
+					uploadedFiles.size()),
+				HttpResponseStatus.BAD_REQUEST
+			);
+		}
+
 		JobSubmitRequestBody requestBody = request.getRequestBody();
 
 		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_GRAPH, nameToFile);
