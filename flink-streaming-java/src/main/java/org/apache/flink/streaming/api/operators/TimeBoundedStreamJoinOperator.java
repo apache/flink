@@ -97,8 +97,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private final TypeSerializer<T1> leftTypeSerializer;
 	private final TypeSerializer<T2> rightTypeSerializer;
 
-	private final long bucketGranularity;
-
 	private transient MapState<Long, List<Tuple3<T1, Long, Boolean>>> leftBuffer;
 	private transient MapState<Long, List<Tuple3<T2, Long, Boolean>>> rightBuffer;
 
@@ -124,7 +122,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 			long upperBound,
 			boolean lowerBoundInclusive,
 			boolean upperBoundInclusive,
-			long bucketGranularity,
 			TypeSerializer<T1> leftTypeSerializer,
 			TypeSerializer<T2> rightTypeSerializer,
 			TimeBoundedJoinFunction<T1, T2, OUT> udf) {
@@ -133,7 +130,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
-		Preconditions.checkArgument(bucketGranularity > 0, "bucket size must be greater than zero");
 
 		this.lowerBound = lowerBound;
 		this.upperBound = upperBound;
@@ -145,8 +141,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		this.upperBoundInclusive = upperBoundInclusive;
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
-
-		this.bucketGranularity = bucketGranularity;
 	}
 
 	@Override
@@ -258,7 +252,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		for (Map.Entry<Long, List<Tuple3<OTHER, Long, Boolean>>> entry : otherBuffer.entries()) {
 			long bucketStart = entry.getKey();
-			long bucketEnd = bucketStart + bucketGranularity;
+			long bucketEnd = bucketStart + 1;
 
 			if (!(bucketEnd >= joinLowerBound && bucketStart <= joinUpperBound)) {
 				// skip buckets that are out of bounds
@@ -316,7 +310,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		Iterator<Map.Entry<Long, List<Tuple3<T, Long, Boolean>>>> iterator = buffer.iterator();
 		while (iterator.hasNext()) {
 			Map.Entry<Long, List<Tuple3<T, Long, Boolean>>> next = iterator.next();
-			if (next.getKey() + bucketGranularity <= maxCleanup) {
+			if (next.getKey() + 1 <= maxCleanup) {
 				iterator.remove();
 			}
 		}
@@ -343,23 +337,18 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		long ts
 	) throws Exception {
 
-		long bucket = calculateBucket(ts);
 		Tuple3<T, Long, Boolean> elem = Tuple3.of(
 			value, // actual value
 			ts,    // actual timestamp
 			false  // has been joined
 		);
 
-		List<Tuple3<T, Long, Boolean>> elemsInBucket = buffer.get(bucket);
+		List<Tuple3<T, Long, Boolean>> elemsInBucket = buffer.get(ts);
 		if (elemsInBucket == null) {
 			elemsInBucket = new ArrayList<>();
 		}
 		elemsInBucket.add(elem);
-		buffer.put(bucket, elemsInBucket);
-	}
-
-	private long calculateBucket(long ts) {
-		return ts - (ts % bucketGranularity);
+		buffer.put(ts, elemsInBucket);
 	}
 
 	@Override
