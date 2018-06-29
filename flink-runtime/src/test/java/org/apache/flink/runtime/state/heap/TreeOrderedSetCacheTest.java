@@ -16,33 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
-
-import org.apache.flink.annotation.Internal;
-
-import java.util.Collection;
-import java.util.Map;
+package org.apache.flink.runtime.state.heap;
 
 /**
- * Simple utility to work with Java collections.
+ * Test for {@link TreeOrderedSetCache}.
  */
-@Internal
-public final class CollectionUtil {
+public class TreeOrderedSetCacheTest extends OrderedSetCacheTestBase {
 
-	/**
-	 * A safe maximum size for arrays in the JVM.
-	 */
-	public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-	private CollectionUtil() {
-		throw new AssertionError();
-	}
-
-	public static boolean isNullOrEmpty(Collection<?> collection) {
-		return collection == null || collection.isEmpty();
-	}
-
-	public static boolean isNullOrEmpty(Map<?, ?> map) {
-		return map == null || map.isEmpty();
+	@Override
+	protected CachingInternalPriorityQueueSet.OrderedSetCache<Integer> createInstance(int capacity) {
+		return new TreeOrderedSetCache<>(Integer::compareTo, capacity);
 	}
 }

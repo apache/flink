@@ -16,33 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.Internal;
-
-import java.util.Collection;
-import java.util.Map;
+import javax.annotation.Nonnull;
 
 /**
- * Simple utility to work with Java collections.
+ * Function to extract a key from a given object.
+ *
+ * @param <T> type of the element from which we extract the key.
  */
-@Internal
-public final class CollectionUtil {
+@FunctionalInterface
+public interface KeyExtractorFunction<T> {
 
 	/**
-	 * A safe maximum size for arrays in the JVM.
+	 * Returns the key for the given element by which the key-group can be computed.
 	 */
-	public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-	private CollectionUtil() {
-		throw new AssertionError();
-	}
-
-	public static boolean isNullOrEmpty(Collection<?> collection) {
-		return collection == null || collection.isEmpty();
-	}
-
-	public static boolean isNullOrEmpty(Map<?, ?> map) {
-		return map == null || map.isEmpty();
-	}
+	@Nonnull
+	Object extractKeyFromElement(@Nonnull T element);
 }

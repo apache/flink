@@ -15,34 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.flink.util;
-
-import org.apache.flink.annotation.Internal;
-
-import java.util.Collection;
-import java.util.Map;
+package org.apache.flink.runtime.state.heap;
 
 /**
- * Simple utility to work with Java collections.
+ * Test for {@link HeapPriorityQueueSet}.
  */
-@Internal
-public final class CollectionUtil {
+public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
 
-	/**
-	 * A safe maximum size for arrays in the JVM.
-	 */
-	public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-	private CollectionUtil() {
-		throw new AssertionError();
+	@Override
+	protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
+		return new HeapPriorityQueueSet<>(
+			TEST_ELEMENT_COMPARATOR,
+			KEY_EXTRACTOR_FUNCTION,
+			initialCapacity,
+			KEY_GROUP_RANGE,
+			KEY_GROUP_RANGE.getNumberOfKeyGroups());
 	}
 
-	public static boolean isNullOrEmpty(Collection<?> collection) {
-		return collection == null || collection.isEmpty();
-	}
-
-	public static boolean isNullOrEmpty(Map<?, ?> map) {
-		return map == null || map.isEmpty();
+	@Override
+	protected boolean testSetSemantics() {
+		return true;
 	}
 }

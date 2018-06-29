@@ -18,29 +18,37 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Array;
+
 /**
- * This class represents the snapshot of an {@link InternalTimerHeap}.
+ * This class represents the snapshot of an {@link HeapPriorityQueueSet}.
  *
- * @param <K> type of key.
- * @param <N> type of namespace.
+ * @param <T> type of the state elements.
  */
-public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
+public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 
-	/** Copy of the heap array containing all the (immutable timers). */
+	/** Function that extracts keys from elements. */
 	@Nonnull
-	private final TimerHeapInternalTimer<K, N>[] timerHeapArrayCopy;
+	private final KeyExtractorFunction<T> keyExtractor;
 
-	/** The timer serializer. */
+	/** Copy of the heap array containing all the (immutable or deeply copied) elements. */
 	@Nonnull
-	private final TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer;
+	private final T[] heapArrayCopy;
+
+	/** The element serializer. */
+	@Nonnull
+	private final TypeSerializer<T> elementSerializer;
 
 	/** The key-group range covered by this snapshot. */
 	@Nonnull
@@ -54,14 +62,19 @@ public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
 	@Nullable
 	private KeyGroupPartitionedSnapshot partitionedSnapshot;
 
-	InternalTimerHeapSnapshot(
-		@Nonnull TimerHeapInternalTimer<K, N>[] timerHeapArrayCopy,
-		@Nonnull TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer,
+	HeapPriorityQueueStateSnapshot(
+		@Nonnull T[] heapArrayCopy,
+		@Nonnull KeyExtractorFunction<T> keyExtractor,
+		@Nonnull TypeSerializer<T> elementSerializer,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int totalKeyGroups) {
 
-		this.timerHeapArrayCopy = timerHeapArrayCopy;
-		this.timerSerializer = timerSerializer;
+		// TODO ensure that the array contains a deep copy of elements if we are *not* dealing with immutable types.
+		assert elementSerializer.isImmutableType();
+
+		this.keyExtractor = keyExtractor;
+		this.heapArrayCopy = heapArrayCopy;
+		this.elementSerializer = elementSerializer;
 		this.keyGroupRange = keyGroupRange;
 		this.totalKeyGroups = totalKeyGroups;
 	}
@@ -73,19 +86,21 @@ public class InternalTimerHeapSnapshot<K, N> implements StateSnapshot {
 
 		if (partitionedSnapshot == null) {
 
-			TimerHeapInternalTimer<K, N>[] partitioningOutput = new TimerHeapInternalTimer[timerHeapArrayCopy.length];
+			T[] partitioningOutput = (T[]) Array.newInstance(
+				heapArrayCopy.getClass().getComponentType(),
+				heapArrayCopy.length);
 
-			KeyGroupPartitioner<TimerHeapInternalTimer<K, N>> timerPartitioner =
+			KeyGroupPartitioner<T> keyGroupPartitioner =
 				new KeyGroupPartitioner<>(
-					timerHeapArrayCopy,
-					timerHeapArrayCopy.length,
+					heapArrayCopy,
+					heapArrayCopy.length,
 					partitioningOutput,
 					keyGroupRange,
 					totalKeyGroups,
-					TimerHeapInternalTimer::getKey,
-					timerSerializer::serialize);
+					keyExtractor,
+					elementSerializer::serialize);
 
-			partitionedSnapshot = timerPartitioner.partitionByKeyGroup();
+			partitionedSnapshot = keyGroupPartitioner.partitionByKeyGroup();
 		}
 
 		return partitionedSnapshot;

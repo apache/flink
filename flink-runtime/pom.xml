@@ -116,6 +116,12 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>it.unimi.dsi</groupId>
+			<artifactId>fastutil</artifactId>
+			<version>8.2.1</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 		</dependency>
@@ -306,7 +312,6 @@ under the License.
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
 		</dependency>
-
 	</dependencies>
 
 	<!-- Dependency Management to converge transitive dependency versions -->
