@@ -134,7 +134,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
-		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Collections.singleton(jobGraphFile)), mockGateway)
+		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Collections.singleton(jobGraphFile.toFile())), mockGateway)
 			.get();
 	}
 
@@ -164,7 +164,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
 		try {
-			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Arrays.asList(jobGraphFile, countExceedingFile)), mockGateway)
+			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Arrays.asList(jobGraphFile.toFile(), countExceedingFile.toFile())), mockGateway)
 				.get();
 		} catch (Exception e) {
 			ExceptionUtils.findThrowable(e, candidate -> candidate instanceof RestHandlerException && candidate.getMessage().contains("count"));
@@ -216,7 +216,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 				EmptyMessageParameters.getInstance(),
 				Collections.emptyMap(),
 				Collections.emptyMap(),
-				Arrays.asList(jobGraphFile, jarFile, artifactFile)), dispatcherGateway)
+				Arrays.asList(jobGraphFile.toFile(), jarFile.toFile(), artifactFile.toFile())), dispatcherGateway)
 			.get();
 
 		Assert.assertTrue("No JobGraph was submitted.", submittedJobGraphFuture.isDone());
