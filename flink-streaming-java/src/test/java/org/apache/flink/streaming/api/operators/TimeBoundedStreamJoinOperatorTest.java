@@ -197,6 +197,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 			.close();
 	}
 
+//	TODO: Refactor this test
 	@Test
 	public void testStateGetsCleanedWhenNotNeededBucketSize1() throws Exception {
 
@@ -261,20 +262,20 @@ public class TimeBoundedStreamJoinOperatorTest {
 			testHarness.processElement2(createStreamRecord(3, "rhs"));
 			testHarness.processWatermark2(new Watermark(3));
 
-			assertContainsOnly(operator.getLeftBuffer(), 1, 2, 3);
+			assertContainsOnly(operator.getLeftBuffer(),  2, 3);
 			assertEmpty(operator.getRightBuffer());
 
 			testHarness.processElement1(createStreamRecord(4, "lhs"));
 			testHarness.processWatermark1(new Watermark(4));
 
-			assertContainsOnly(operator.getLeftBuffer(), 1, 2, 3, 4);
+			assertContainsOnly(operator.getLeftBuffer(), 2, 3, 4);
 			assertEmpty(operator.getRightBuffer());
 
 			testHarness.processElement2(createStreamRecord(4, "rhs"));
 			testHarness.processWatermark2(new Watermark(4));
 		}
 
-		assertContainsOnly(operator.getLeftBuffer(), 2, 3, 4);
+		assertContainsOnly(operator.getLeftBuffer(), 3, 4);
 		assertEmpty(operator.getRightBuffer());
 	}
 

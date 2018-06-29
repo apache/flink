@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
@@ -91,9 +90,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private final long inverseLowerBound;
 	private final long inverseUpperBound;
 
-	private final boolean lowerBoundInclusive;
-	private final boolean upperBoundInclusive;
-
 	private final TypeSerializer<T1> leftTypeSerializer;
 	private final TypeSerializer<T2> rightTypeSerializer;
 
@@ -131,14 +127,12 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
-		this.lowerBound = lowerBound;
-		this.upperBound = upperBound;
+		this.lowerBound = (lowerBoundInclusive) ? lowerBound - 1 : lowerBound;
+		this.upperBound = (upperBoundInclusive) ? upperBound + 1 : upperBound;
 
 		this.inverseLowerBound = -upperBound;
 		this.inverseUpperBound = -lowerBound;
 
-		this.lowerBoundInclusive = lowerBoundInclusive;
-		this.upperBoundInclusive = upperBoundInclusive;
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
 	}
@@ -251,11 +245,9 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
 		for (Map.Entry<Long, List<Tuple3<OTHER, Long, Boolean>>> entry : otherBuffer.entries()) {
-			long bucketStart = entry.getKey();
-			long bucketEnd = bucketStart + 1;
+			long bucket  = entry.getKey();
 
-			if (!(bucketEnd >= joinLowerBound && bucketStart <= joinUpperBound)) {
-				// skip buckets that are out of bounds
+			if (bucket < joinLowerBound || bucket > joinUpperBound) {
 				continue;
 			}
 
@@ -310,7 +302,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		Iterator<Map.Entry<Long, List<Tuple3<T, Long, Boolean>>>> iterator = buffer.iterator();
 		while (iterator.hasNext()) {
 			Map.Entry<Long, List<Tuple3<T, Long, Boolean>>> next = iterator.next();
-			if (next.getKey() + 1 <= maxCleanup) {
+			if (next.getKey() <= maxCleanup) {
 				iterator.remove();
 			}
 		}
@@ -320,15 +312,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		long elemLowerBound = leftTs + lowerBound;
 		long elemUpperBound = leftTs + upperBound;
 
-		boolean lowerBoundOk = (lowerBoundInclusive)
-			? (elemLowerBound <= rightTs)
-			: (elemLowerBound < rightTs);
-
-		boolean upperBoundOk = (upperBoundInclusive)
-			? (rightTs <= elemUpperBound)
-			: (rightTs < elemUpperBound);
-
-		return lowerBoundOk && upperBoundOk;
+		return elemLowerBound < rightTs && rightTs < elemUpperBound;
 	}
 
 	private <T> void addToBuffer(
