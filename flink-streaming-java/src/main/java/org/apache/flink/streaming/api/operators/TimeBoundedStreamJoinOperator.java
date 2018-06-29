@@ -31,8 +31,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -104,8 +102,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	private transient InternalTimerService<String> internalTimerService;
 	private Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
-
-	private final boolean perElementCleanup = true;
 
 	/**
 	 * Creates a new TimeBoundedStreamJoinOperator.
@@ -270,9 +266,11 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 			}
 		}
 
-		if (perElementCleanup) {
-			long removalTime = calculateRemovalTime(isLeft, ourTimestamp);
-			registerPerElementCleanup(isLeft, removalTime);
+
+		long removalTime = calculateRemovalTime(isLeft, ourTimestamp);
+		registerPerElementCleanup(isLeft, removalTime);
+
+		if (logger.isTraceEnabled()) {
 			String side = isLeft ? "left" : "right";
 			logger.trace("Marked {} element @ {} for removal at {}", side, ourTimestamp, removalTime);
 		}
@@ -286,25 +284,12 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		}
 	}
 
-	public void registerPerElementCleanup(boolean isLeft, long timestamp) {
+	private void registerPerElementCleanup(boolean isLeft, long timestamp) {
 		if (isLeft) {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, timestamp);
 		} else {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, timestamp);
 		}
-	}
-
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-
-		if (!perElementCleanup) {
-			logger.trace("Registering timer @ {}", mark.getTimestamp());
-			internalTimerService.registerEventTimeTimer("onWatermarkCleanup", mark.getTimestamp());
-		}
-
-
-		logger.trace("Processing watermark @ {}", mark.getTimestamp());
-		super.processWatermark(mark);
 	}
 
 	private boolean dataIsLate(long rightTs) {
@@ -318,21 +303,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		context.leftTs = leftTs;
 		context.rightTs = rightTs;
 		userFunction.processElement(left, right, context, this.collector);
-	}
-
-	// remove all buckets from buffer that have a timestamp <= maxCleanup
-	private <T> void removeFromBufferUntil(
-		MapState<Long, List<Tuple3<T, Long, Boolean>>> buffer,
-		long maxCleanup
-	) throws Exception {
-
-		Iterator<Map.Entry<Long, List<Tuple3<T, Long, Boolean>>>> iterator = buffer.iterator();
-		while (iterator.hasNext()) {
-			Map.Entry<Long, List<Tuple3<T, Long, Boolean>>> next = iterator.next();
-			if (next.getKey() <= maxCleanup) {
-				iterator.remove();
-			}
-		}
 	}
 
 	private boolean shouldBeJoined(long leftTs, long rightTs) {
@@ -367,32 +337,23 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		logger.trace("onEventTime @ {}", timer.getTimestamp());
 
 		long ts = timer.getTimestamp();
+		String namespace = timer.getNamespace();
 
-		if (!perElementCleanup) {
-			logger.trace("Removing from left buffer until @ {}", maxCleanupLeft(ts));
-			removeFromBufferUntil(leftBuffer, maxCleanupLeft(ts));
-
-			logger.trace("Removing from right buffer until @ {}", maxCleanupRight(ts));
-			removeFromBufferUntil(rightBuffer, maxCleanupRight(ts));
-		} else {
-
-			String namespace = timer.getNamespace();
-			switch (namespace) {
-				case CLEANUP_NAMESPACE_LEFT: {
-					long timestamp = maxCleanupLeft(ts);
-					logger.trace("Removing from left buffer @ {}", timestamp);
-					removeFromBufferAt(leftBuffer, timestamp);
-					break;
-				}
-				case CLEANUP_NAMESPACE_RIGHT: {
-					long timestamp = maxCleanupRight(ts);
-					logger.trace("Removing from right buffer @ {}", timestamp);
-					removeFromBufferAt(rightBuffer, timestamp);
-					break;
-				}
-				default:
-					throw new RuntimeException("Invalid namespace " + namespace);
+		switch (namespace) {
+			case CLEANUP_NAMESPACE_LEFT: {
+				long timestamp = maxCleanupLeft(ts);
+				logger.trace("Removing from left buffer @ {}", timestamp);
+				removeFromBufferAt(leftBuffer, timestamp);
+				break;
 			}
+			case CLEANUP_NAMESPACE_RIGHT: {
+				long timestamp = maxCleanupRight(ts);
+				logger.trace("Removing from right buffer @ {}", timestamp);
+				removeFromBufferAt(rightBuffer, timestamp);
+				break;
+			}
+			default:
+				throw new RuntimeException("Invalid namespace " + namespace);
 		}
 	}
 
