@@ -22,17 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.*;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
@@ -40,10 +41,11 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A TwoInputStreamOperator to execute time-bounded stream inner joins.
@@ -94,8 +96,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private final TypeSerializer<T1> leftTypeSerializer;
 	private final TypeSerializer<T2> rightTypeSerializer;
 
-	private transient MapState<Long, List<Tuple3<T1, Long, Boolean>>> leftBuffer;
-	private transient MapState<Long, List<Tuple3<T2, Long, Boolean>>> rightBuffer;
+	private transient MapState<Long, List<BufferEntry<T1>>> leftBuffer;
+	private transient MapState<Long, List<BufferEntry<T2>>> rightBuffer;
 
 	private transient TimestampedCollector<OUT> collector;
 	private transient ContextImpl context;
@@ -149,42 +151,16 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 
-		@SuppressWarnings("unchecked")
-		Class<Tuple3<T1, Long, Boolean>> leftTypedTuple =
-			(Class<Tuple3<T1, Long, Boolean>>) (Class<?>) Tuple3.class;
-
-		TupleSerializer<Tuple3<T1, Long, Boolean>> leftTupleSerializer = new TupleSerializer<>(
-			leftTypedTuple,
-			new TypeSerializer[]{
-				leftTypeSerializer,
-				LongSerializer.INSTANCE,
-				BooleanSerializer.INSTANCE
-			}
-		);
-
-		@SuppressWarnings("unchecked")
-		Class<Tuple3<T2, Long, Boolean>> rightTypedTuple =
-			(Class<Tuple3<T2, Long, Boolean>>) (Class<?>) Tuple3.class;
-
-		TupleSerializer<Tuple3<T2, Long, Boolean>> rightTupleSerializer = new TupleSerializer<>(
-			rightTypedTuple,
-			new TypeSerializer[]{
-				rightTypeSerializer,
-				LongSerializer.INSTANCE,
-				BooleanSerializer.INSTANCE
-			}
-		);
-
 		this.leftBuffer = context.getKeyedStateStore().getMapState(new MapStateDescriptor<>(
 			LEFT_BUFFER,
 			LongSerializer.INSTANCE,
-			new ListSerializer<>(leftTupleSerializer)
+			new ListSerializer<>(new BufferEntrySerializer<>(leftTypeSerializer))
 		));
 
 		this.rightBuffer = context.getKeyedStateStore().getMapState(new MapStateDescriptor<>(
 			RIGHT_BUFFER,
 			LongSerializer.INSTANCE,
-			new ListSerializer<>(rightTupleSerializer)
+			new ListSerializer<>(new BufferEntrySerializer<>(rightTypeSerializer))
 		));
 	}
 
@@ -219,8 +195,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	@SuppressWarnings("unchecked")
 	private <OUR, OTHER> void processElement(
 		StreamRecord<OUR> record,
-		MapState<Long, List<Tuple3<OUR, Long, Boolean>>> ourBuffer,
-		MapState<Long, List<Tuple3<OTHER, Long, Boolean>>> otherBuffer,
+		MapState<Long, List<BufferEntry<OUR>>> ourBuffer,
+		MapState<Long, List<BufferEntry<OTHER>>> otherBuffer,
 		long lowerBound,
 		long upperBound,
 		boolean isLeft
@@ -243,25 +219,25 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		for (Map.Entry<Long, List<Tuple3<OTHER, Long, Boolean>>> entry : otherBuffer.entries()) {
+		for (Map.Entry<Long, List<BufferEntry<OTHER>>> entry: otherBuffer.entries()) {
 			long bucket  = entry.getKey();
 
 			if (bucket < joinLowerBound || bucket > joinUpperBound) {
 				continue;
 			}
 
-			List<Tuple3<OTHER, Long, Boolean>> fromBucket = entry.getValue();
+			List<BufferEntry<OTHER>> fromBucket = entry.getValue();
 
 			// check for each element in current bucket if it should be joined
-			for (Tuple3<OTHER, Long, Boolean> tuple : fromBucket) {
+			for (BufferEntry<OTHER> tuple: fromBucket) {
 
 				// this is the one point where we have to cast our types OUR and OTHER
 				// to T1 and T2 again, which is why we need information about which side
 				// we are operating on. This is passed in via 'isLeft'
-				if (isLeft && shouldBeJoined(ourTimestamp, tuple.f1)) {
-					collect((T1) ourValue, (T2) tuple.f0, ourTimestamp, tuple.f1);
-				} else if (!isLeft && shouldBeJoined(tuple.f1, ourTimestamp)) {
-					collect((T1) tuple.f0, (T2) ourValue, tuple.f1, ourTimestamp);
+				if (isLeft && shouldBeJoined(ourTimestamp, tuple.timestamp)) {
+					collect((T1) ourValue, (T2) tuple.element, ourTimestamp, tuple.timestamp);
+				} else if (!isLeft && shouldBeJoined(tuple.timestamp, ourTimestamp)) {
+					collect((T1) tuple.element, (T2) ourValue, tuple.timestamp, ourTimestamp);
 				}
 			}
 		}
@@ -321,21 +297,18 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	private <T> void addToBuffer(
-		MapState<Long, List<Tuple3<T, Long, Boolean>>> buffer,
+		MapState<Long, List<BufferEntry<T>>> buffer,
 		T value,
 		long ts
 	) throws Exception {
 
-		Tuple3<T, Long, Boolean> elem = Tuple3.of(
-			value, // actual value
-			ts,    // actual timestamp
-			false  // has been joined
-		);
+		BufferEntry<T> elem = new BufferEntry<>(value, ts, false);
 
-		List<Tuple3<T, Long, Boolean>> elemsInBucket = buffer.get(ts);
+		List<BufferEntry<T>> elemsInBucket = buffer.get(ts);
 		if (elemsInBucket == null) {
 			elemsInBucket = new ArrayList<>();
 		}
+
 		elemsInBucket.add(elem);
 		buffer.put(ts, elemsInBucket);
 	}
@@ -366,7 +339,7 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	private <T> void removeFromBufferAt(
-		MapState<Long, List<Tuple3<T, Long, Boolean>>> state,
+		MapState<Long, List<BufferEntry<T>>> state,
 		long timestamp
 	) throws Exception {
 
@@ -409,13 +382,179 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		}
 	}
 
+	private static class BufferEntry<T> {
+		T element;
+		long timestamp;
+		boolean hasBeenJoined;
+
+		BufferEntry() {
+		}
+
+		BufferEntry(T element, long timestamp, boolean hasBeenJoined) {
+			this.element = element;
+			this.timestamp = timestamp;
+			this.hasBeenJoined = hasBeenJoined;
+		}
+	}
+
+	private static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
+
+		private final TypeSerializer<T> elementSerializer;
+
+		// TODO: Serial version UID
+
+		private BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
+			this.elementSerializer = elementSerializer;
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return true;
+		}
+
+		@Override
+		public TypeSerializer<BufferEntry<T>> duplicate() {
+			return new BufferEntrySerializer<>(elementSerializer.duplicate());
+		}
+
+		@Override
+		public BufferEntry<T> createInstance() {
+			return new BufferEntry<>();
+		}
+
+		@Override
+		public BufferEntry<T> copy(BufferEntry<T> from) {
+			return new BufferEntry<>(from.element, from.timestamp, from.hasBeenJoined);
+		}
+
+		@Override
+		public BufferEntry<T> copy(BufferEntry<T> from, BufferEntry<T> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return LongSerializer.INSTANCE.getLength()
+				+ BooleanSerializer.INSTANCE.getLength()
+				+ elementSerializer.getLength();
+		}
+
+		@Override
+		public void serialize(BufferEntry<T> record, DataOutputView target) throws IOException {
+			LongSerializer.INSTANCE.serialize(record.timestamp, target);
+			BooleanSerializer.INSTANCE.serialize(record.hasBeenJoined, target);
+			elementSerializer.serialize(record.element, target);
+		}
+
+		@Override
+		public BufferEntry<T> deserialize(DataInputView source) throws IOException {
+			long timestamp = LongSerializer.INSTANCE.deserialize(source);
+			boolean hasBeenJoined = BooleanSerializer.INSTANCE.deserialize(source);
+			T element = elementSerializer.deserialize(source);
+
+			return new BufferEntry<>(element, timestamp, hasBeenJoined);
+		}
+
+		@Override
+		public BufferEntry<T> deserialize(BufferEntry<T> reuse, DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			LongSerializer.INSTANCE.copy(source, target);
+			BooleanSerializer.INSTANCE.copy(source, target);
+			elementSerializer.copy(source, target);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			BufferEntrySerializer<?> that = (BufferEntrySerializer<?>) o;
+			return Objects.equals(elementSerializer, that.elementSerializer);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(elementSerializer);
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj.getClass().equals(BufferEntrySerializer.class);
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new BufferSerializerConfigSnapshot(
+				IntSerializer.INSTANCE.snapshotConfiguration(),
+				LongSerializer.INSTANCE.snapshotConfiguration(),
+				elementSerializer.snapshotConfiguration()
+			);
+		}
+
+		@Override
+		public CompatibilityResult<BufferEntry<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot.getVersion() == 1) {
+				return CompatibilityResult.compatible();
+			} else {
+				return CompatibilityResult.requiresMigration();
+			}
+		}
+	}
+
+	public static class BufferSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		private TypeSerializerConfigSnapshot longSnapshot;
+		private TypeSerializerConfigSnapshot booleanSnapshot;
+		private TypeSerializerConfigSnapshot userTypeSnapshot;
+
+		public BufferSerializerConfigSnapshot() {
+		}
+
+		public BufferSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshot longSnapshot,
+			TypeSerializerConfigSnapshot booleanSnapshot,
+			TypeSerializerConfigSnapshot userTypeSnapshot
+		) {
+
+			this.longSnapshot = longSnapshot;
+			this.booleanSnapshot = booleanSnapshot;
+			this.userTypeSnapshot = userTypeSnapshot;
+		}
+
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			BufferSerializerConfigSnapshot that = (BufferSerializerConfigSnapshot) o;
+			return Objects.equals(longSnapshot, that.longSnapshot) &&
+				Objects.equals(booleanSnapshot, that.booleanSnapshot) &&
+				Objects.equals(userTypeSnapshot, that.userTypeSnapshot);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(longSnapshot, booleanSnapshot, userTypeSnapshot);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
+		}
+	}
+
 	@VisibleForTesting
-	MapState<Long, List<Tuple3<T1, Long, Boolean>>> getLeftBuffer() {
+	MapState<Long, List<BufferEntry<T1>>> getLeftBuffer() {
 		return leftBuffer;
 	}
 
 	@VisibleForTesting
-	MapState<Long, List<Tuple3<T2, Long, Boolean>>> getRightBuffer() {
+	MapState<Long, List<BufferEntry<T2>>> getRightBuffer() {
 		return rightBuffer;
 	}
 }
