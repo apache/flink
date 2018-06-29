@@ -345,11 +345,11 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	}
 
 	// calculate the maximum bucket that is not needed for cleaning anymore
-	public long maxCleanupLeft(long watermark) {
+	private long maxCleanupLeft(long watermark) {
 		return (upperBound <= 0) ? watermark : watermark - upperBound;
 	}
 
-	public long maxCleanupRight(long watermark) {
+	private long maxCleanupRight(long watermark) {
 		return (lowerBound <= 0) ? watermark + lowerBound : watermark;
 	}
 

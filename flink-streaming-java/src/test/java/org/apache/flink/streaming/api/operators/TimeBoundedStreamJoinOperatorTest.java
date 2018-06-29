@@ -467,8 +467,6 @@ public class TimeBoundedStreamJoinOperatorTest {
 			testHarness.open();
 
 			processElementsAndWatermarks(testHarness);
-
-			testHarness.close();
 		}
 	}
 
@@ -505,8 +503,6 @@ public class TimeBoundedStreamJoinOperatorTest {
 			testHarness.open();
 
 			processElementsAndWatermarks(testHarness);
-
-			testHarness.close();
 		}
 	}
 
@@ -544,8 +540,6 @@ public class TimeBoundedStreamJoinOperatorTest {
 			testHarness.open();
 
 			processElementsAndWatermarks(testHarness);
-
-			testHarness.close();
 		}
 	}
 
