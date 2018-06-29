@@ -33,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -49,6 +50,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -132,5 +134,38 @@ public class JobSubmitHandlerTest extends TestLogger {
 
 		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Collections.singleton(jobGraphFile)), mockGateway)
 			.get();
+	}
+
+	@Test
+	public void testRejectionOnCountMismatch() throws Exception {
+		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
+		try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
+			try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
+				objectOut.writeObject(new JobGraph("testjob"));
+			}
+		}
+		final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
+
+		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
+		when(mockGateway.getHostname()).thenReturn("localhost");
+		when(mockGateway.getBlobServerPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(blobServer.getPort()));
+		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
+		GatewayRetriever<DispatcherGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
+
+		JobSubmitHandler handler = new JobSubmitHandler(
+			CompletableFuture.completedFuture("http://localhost:1234"),
+			mockGatewayRetriever,
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap(),
+			TestingUtils.defaultExecutor());
+
+		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
+
+		try {
+			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance(), Collections.emptyMap(), Collections.emptyMap(), Arrays.asList(jobGraphFile, countExceedingFile)), mockGateway)
+				.get();
+		} catch (Exception e) {
+			ExceptionUtils.findThrowable(e, candidate -> candidate instanceof RestHandlerException && candidate.getMessage().contains("count"));
+		}
 	}
 }
