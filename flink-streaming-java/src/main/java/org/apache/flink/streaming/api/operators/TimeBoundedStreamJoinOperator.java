@@ -276,14 +276,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		}
 	}
 
-	private long calculateRemovalTime(boolean isLeft, long timestamp) {
-		if (isLeft) {
-			return (upperBound > 0) ? timestamp + upperBound : timestamp;
-		} else {
-			return (lowerBound < 0) ? timestamp - lowerBound : timestamp;
-		}
-	}
-
 	private void registerPerElementCleanup(boolean isLeft, long timestamp) {
 		if (isLeft) {
 			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, timestamp);
@@ -310,6 +302,22 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		long elemUpperBound = leftTs + upperBound;
 
 		return elemLowerBound <= rightTs && rightTs <= elemUpperBound;
+	}
+
+	private long maxCleanup(boolean isLeft, long watermark) {
+		if (isLeft) {
+			return (upperBound <= 0) ? watermark : watermark - upperBound;
+		} else {
+			return (lowerBound <= 0) ? watermark + lowerBound : watermark;
+		}
+	}
+
+	private long calculateRemovalTime(boolean isLeft, long timestamp) {
+		if (isLeft) {
+			return (upperBound > 0) ? timestamp + upperBound : timestamp;
+		} else {
+			return (lowerBound < 0) ? timestamp - lowerBound : timestamp;
+		}
 	}
 
 	private <T> void addToBuffer(
@@ -341,13 +349,13 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		switch (namespace) {
 			case CLEANUP_NAMESPACE_LEFT: {
-				long timestamp = maxCleanupLeft(ts);
+				long timestamp = maxCleanup(true, ts);
 				logger.trace("Removing from left buffer @ {}", timestamp);
 				removeFromBufferAt(leftBuffer, timestamp);
 				break;
 			}
 			case CLEANUP_NAMESPACE_RIGHT: {
-				long timestamp = maxCleanupRight(ts);
+				long timestamp = maxCleanup(false, ts);
 				logger.trace("Removing from right buffer @ {}", timestamp);
 				removeFromBufferAt(rightBuffer, timestamp);
 				break;
@@ -363,15 +371,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	) throws Exception {
 
 		state.remove(timestamp);
-	}
-
-	// calculate the maximum bucket that is not needed for cleaning anymore
-	private long maxCleanupLeft(long watermark) {
-		return (upperBound <= 0) ? watermark : watermark - upperBound;
-	}
-
-	private long maxCleanupRight(long watermark) {
-		return (lowerBound <= 0) ? watermark + lowerBound : watermark;
 	}
 
 	@Override
