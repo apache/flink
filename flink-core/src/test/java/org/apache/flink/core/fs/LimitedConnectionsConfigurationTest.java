@@ -67,6 +67,8 @@ public class LimitedConnectionsConfigurationTest {
 		config.setInteger("fs." + fsScheme + ".limit.output", 40);
 		config.setInteger("fs." + fsScheme + ".limit.timeout", 12345);
 		config.setInteger("fs." + fsScheme + ".limit.stream-timeout", 98765);
+		config.setInteger("fs." + fsScheme + ".limit.input-rate", 123);
+		config.setInteger("fs." + fsScheme + ".limit.output-rate", 223);
 
 		try {
 			FileSystem.initialize(config);
@@ -83,6 +85,8 @@ public class LimitedConnectionsConfigurationTest {
 			assertEquals(40, limitedFs.getMaxNumOpenOutputStreams());
 			assertEquals(12345, limitedFs.getStreamOpenTimeout());
 			assertEquals(98765, limitedFs.getStreamInactivityTimeout());
+			assertEquals(123, limitedFs.getRateLimitingInput());
+			assertEquals(223, limitedFs.getRateLimitingOutput());
 		}
 		finally {
 			// clear all settings

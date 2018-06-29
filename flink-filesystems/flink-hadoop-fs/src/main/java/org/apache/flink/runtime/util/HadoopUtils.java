@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
+import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
@@ -31,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Utility class for working with Hadoop-related classes. This should only be used if Hadoop
@@ -121,5 +125,33 @@ public class HadoopUtils {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Parse configuration and load the limited FS wrapper.
+	 */
+	public static FileSystem limitIfConfigured(FileSystem fs, String scheme, Optional<org.apache.flink.configuration.Configuration> optional) {
+		if (!optional.isPresent()) {
+			return fs;
+		}
+
+		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(optional.get(), scheme);
+
+		// decorate only if any limit is configured
+		if (limitSettings == null) {
+			// no limit configured
+			return fs;
+		}
+		else {
+			return new LimitedConnectionsFileSystem(
+					fs,
+					limitSettings.limitTotal,
+					limitSettings.limitOutput,
+					limitSettings.limitInput,
+					limitSettings.streamOpenTimeout,
+					limitSettings.streamInactivityTimeout,
+					limitSettings.rateLimitingInputBytesPerSecond,
+					limitSettings.rateLimitingOutputBytesPerSecond);
+		}
 	}
 }

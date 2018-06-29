@@ -21,8 +21,6 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
-import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 import org.apache.flink.runtime.util.HadoopUtils;
 
@@ -32,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -168,12 +167,7 @@ public class HadoopFsFactory implements FileSystemFactory {
 			HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
 
 			// create the Flink file system, optionally limiting the open connections
-			if (flinkConfig != null) {
-				return limitIfConfigured(fs, scheme, flinkConfig);
-			}
-			else {
-				return fs;
-			}
+			return HadoopUtils.limitIfConfigured(fs, scheme, Optional.ofNullable(flinkConfig));
 		}
 		catch (ReflectiveOperationException | LinkageError e) {
 			throw new UnsupportedFileSystemSchemeException("Cannot support file system for '" + fsUri.getScheme() +
@@ -194,22 +188,4 @@ public class HadoopFsFactory implements FileSystemFactory {
 				"The attempt to use a configured default authority failed: ";
 	}
 
-	private static FileSystem limitIfConfigured(HadoopFileSystem fs, String scheme, Configuration config) {
-		final ConnectionLimitingSettings limitSettings = ConnectionLimitingSettings.fromConfig(config, scheme);
-
-		// decorate only if any limit is configured
-		if (limitSettings == null) {
-			// no limit configured
-			return fs;
-		}
-		else {
-			return new LimitedConnectionsFileSystem(
-					fs,
-					limitSettings.limitTotal,
-					limitSettings.limitOutput,
-					limitSettings.limitInput,
-					limitSettings.streamOpenTimeout,
-					limitSettings.streamInactivityTimeout);
-		}
-	}
 }

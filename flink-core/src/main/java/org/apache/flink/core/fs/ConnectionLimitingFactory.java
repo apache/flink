@@ -61,8 +61,13 @@ public class ConnectionLimitingFactory implements FileSystemFactory {
 	public FileSystem create(URI fsUri) throws IOException {
 		FileSystem original = factory.create(fsUri);
 		return new LimitedConnectionsFileSystem(original,
-				settings.limitTotal, settings.limitOutput, settings.limitInput,
-				settings.streamOpenTimeout, settings.streamInactivityTimeout);
+				settings.limitTotal,
+				settings.limitOutput,
+				settings.limitInput,
+				settings.streamOpenTimeout,
+				settings.streamInactivityTimeout,
+				settings.rateLimitingInputBytesPerSecond,
+				settings.rateLimitingOutputBytesPerSecond);
 	}
 
 	// ------------------------------------------------------------------------

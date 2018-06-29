@@ -123,6 +123,42 @@ public class LimitedConnectionsFileSystemTest {
 	}
 
 	@Test
+	public void testLimitingRateLimitingStream() throws Exception {
+		final LimitedConnectionsFileSystem limitedFs = new LimitedConnectionsFileSystem(
+				LocalFileSystem.getSharedInstance(),
+				Integer.MAX_VALUE,
+				Integer.MAX_VALUE,
+				Integer.MAX_VALUE,
+				0,
+				0,
+				10000, // Limit write to 10 kbytes/s
+				10000); // Limit read to 10 kbytes/s
+		File file = tempFolder.newFile();
+		Path path = new Path(file.toURI());
+		long durationWrite = System.currentTimeMillis();
+		try (FSDataOutputStream stream = limitedFs.create(path, WriteMode.OVERWRITE)) {
+			final Random rnd = new Random();
+			final byte[] data = new byte[100];
+			for (int i = 0; i < (1000 + 10); i++) {
+				rnd.nextBytes(data);
+				stream.write(data);
+			}
+		}
+		durationWrite = System.currentTimeMillis() - durationWrite;
+
+		long durationRead = System.currentTimeMillis();
+		final byte[] data = new byte[100];
+		try (FSDataInputStream stream = limitedFs.open(path)) {
+			//noinspection StatementWithEmptyBody
+			while (stream.read(data) != -1) {}
+		}
+		durationRead = System.currentTimeMillis() - durationRead;
+		file.delete();
+		assertTrue(durationWrite > 10000);
+		assertTrue(durationRead > 8000); // Less stability with read limiter than write
+	}
+
+	@Test
 	public void testLimitingMixedStreams() throws Exception {
 		final int maxConcurrentOpen = 2;
 		final int numThreads = 61;

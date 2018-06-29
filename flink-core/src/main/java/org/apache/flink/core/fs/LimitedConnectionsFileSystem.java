@@ -25,6 +25,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.RateLimiter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
@@ -87,6 +90,12 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 
 	/** The nanoseconds that a stream may spend not writing any bytes before it is closed as inactive. */
 	private final long streamInactivityTimeoutNanos;
+
+	/** Rate limiter of incoming bytes for this filesystem. */
+	private final Optional<RateLimiter> inputRateLimiter;
+
+	/** Rate limiter of outgoing bytes for this filesystem. */
+	private final Optional<RateLimiter> outputRateLimiter;
 
 	/** The set of currently open output streams. */
 	@GuardedBy("lock")
@@ -166,12 +175,46 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			int maxNumOpenInputStreams,
 			long streamOpenTimeout,
 			long streamInactivityTimeout) {
+		this(originalFs, maxNumOpenStreamsTotal, maxNumOpenOutputStreams, maxNumOpenInputStreams, streamOpenTimeout, streamInactivityTimeout, 0, 0);
+	}
+
+	/**
+	 * Creates a new output connection limiting file system, limiting input and output streams with
+	 * potentially different quotas.
+	 *
+	 * <p>If streams are inactive (meaning not writing bytes) for longer than the given timeout,
+	 * then they are terminated as "inactive", to prevent that the limited number of connections gets
+	 * stuck on only blocked threads.
+	 *
+	 * @param originalFs              The original file system to which connections are limited.
+	 * @param maxNumOpenStreamsTotal  The maximum number of concurrent open streams (0 means no limit).
+	 * @param maxNumOpenOutputStreams The maximum number of concurrent open output streams (0 means no limit).
+	 * @param maxNumOpenInputStreams  The maximum number of concurrent open input streams (0 means no limit).
+	 * @param streamOpenTimeout       The maximum number of milliseconds that the file system will wait when
+	 *                                no more connections are currently permitted.
+	 * @param streamInactivityTimeout The milliseconds that a stream may spend not writing any
+	 *                                bytes before it is closed as inactive.
+	 * @param limitInputRateBytesPerSecond The rate limiting of Bytes red per second on the FileSystem (0 means no limit)
+	 * @param limitOutputRateBytesPerSecond The rate limiting of Bytes written per second on the FileSystem (0 means no limit)
+	 */
+
+	public LimitedConnectionsFileSystem(
+			FileSystem originalFs,
+			int maxNumOpenStreamsTotal,
+			int maxNumOpenOutputStreams,
+			int maxNumOpenInputStreams,
+			long streamOpenTimeout,
+			long streamInactivityTimeout,
+			long limitInputRateBytesPerSecond,
+			long limitOutputRateBytesPerSecond) {
 
 		checkArgument(maxNumOpenStreamsTotal >= 0, "maxNumOpenStreamsTotal must be >= 0");
 		checkArgument(maxNumOpenOutputStreams >= 0, "maxNumOpenOutputStreams must be >= 0");
 		checkArgument(maxNumOpenInputStreams >= 0, "maxNumOpenInputStreams must be >= 0");
 		checkArgument(streamOpenTimeout >= 0, "stream opening timeout must be >= 0 (0 means infinite timeout)");
 		checkArgument(streamInactivityTimeout >= 0, "stream inactivity timeout must be >= 0 (0 means infinite timeout)");
+		checkArgument(limitInputRateBytesPerSecond >= 0, "limitInputRateBytesPerSecond must be >=0");
+		checkArgument(limitOutputRateBytesPerSecond >= 0, "limitOutputRateBytesPerSecond must be >=0");
 
 		this.originalFs = checkNotNull(originalFs, "originalFs");
 		this.lock = new ReentrantLock(true);
@@ -191,6 +234,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 
 		this.streamInactivityTimeoutNanos =
 				inactivityTimeoutNanos >= streamInactivityTimeout ? inactivityTimeoutNanos : Long.MAX_VALUE;
+
+		this.inputRateLimiter = Optional.ofNullable(limitInputRateBytesPerSecond > 0 ? RateLimiter.create(limitInputRateBytesPerSecond) : null);
+		this.outputRateLimiter = Optional.ofNullable(limitOutputRateBytesPerSecond > 0 ? RateLimiter.create(limitOutputRateBytesPerSecond) : null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -261,6 +307,20 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	 */
 	public int getNumberOfOpenInputStreams() {
 		return numReservedInputStreams;
+	}
+
+	/**
+	 * Get the rate limitation on Input (bytes/s).
+	 */
+	public long getRateLimitingInput(){
+		return inputRateLimiter.map(RateLimiter::getRate).orElse((double) 0).longValue();
+	}
+
+	/**
+	 * Get the rate limitation on Output (bytes/s).
+	 */
+	public long getRateLimitingOutput(){
+		return outputRateLimiter.map(RateLimiter::getRate).orElse((double) 0).longValue();
 	}
 
 	// ------------------------------------------------------------------------
@@ -731,6 +791,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public void write(int b) throws IOException {
 			try {
 				originalStream.write(b);
+				fs.outputRateLimiter.ifPresent(RateLimiter::acquire);
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -741,6 +802,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		public void write(byte[] b, int off, int len) throws IOException {
 			try {
 				originalStream.write(b, off, len);
+				fs.outputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -856,7 +918,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		@Override
 		public int read() throws IOException {
 			try {
-				return originalStream.read();
+				int b = originalStream.read();
+				fs.inputRateLimiter.ifPresent(RateLimiter::acquire);
+				return b;
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -867,7 +931,11 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		@Override
 		public int read(byte[] b) throws IOException {
 			try {
-				return originalStream.read(b);
+				int len = originalStream.read(b);
+				if (len >= 0) {
+					fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(len));
+				}
+				return len;
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -878,7 +946,11 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		@Override
 		public int read(byte[] b, int off, int len) throws IOException {
 			try {
-				return originalStream.read(b, off, len);
+				int realLen =  originalStream.read(b, off, len);
+				if (realLen >= 0) {
+					fs.inputRateLimiter.ifPresent(limiter -> limiter.acquire(realLen));
+				}
+				return realLen;
 			}
 			catch (IOException e) {
 				handleIOException(e);
@@ -1015,6 +1087,11 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		/** The inactivity timeout for a stream, in milliseconds. */
 		public final long streamInactivityTimeout;
 
+		/** Rate limiting limits (bytes/seconds) for input from FS. */
+		public final long rateLimitingInputBytesPerSecond;
+
+		/** Rate limiting limits (bytes/seconds) for output to FS. */
+		public final long rateLimitingOutputBytesPerSecond;
 		/**
 		 * Creates a new ConnectionLimitingSettings with the given parameters.
 		 *
@@ -1032,18 +1109,49 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 				int limitOutput,
 				long streamOpenTimeout,
 				long streamInactivityTimeout) {
+			this(limitTotal, limitInput, limitOutput, streamOpenTimeout, streamInactivityTimeout, 0, 0);
+		}
+
+
+		/**
+		 * Creates a new ConnectionLimitingSettings with the given parameters.
+		 *
+		 * @param limitTotal The limit for the total number of connections, or 0, if no limit.
+		 * @param limitInput The limit for the number of input stream connections, or 0, if no limit.
+		 * @param limitOutput The limit for the number of output stream connections, or 0, if no limit.
+		 * @param streamOpenTimeout       The maximum number of milliseconds that the file system will wait when
+		 *                                no more connections are currently permitted.
+		 * @param streamInactivityTimeout The milliseconds that a stream may spend not writing any
+		 *                                bytes before it is closed as inactive.
+		 * @param rateLimitingInputBytesPerSecond the allowed rate (bytes/s) that can be red from FileSystem
+		 * @param rateLimitingOutputBytesPerSecond the allowed rate (bytes/s) that can be written from FileSystem
+		 */
+		public ConnectionLimitingSettings(
+				int limitTotal,
+				int limitInput,
+				int limitOutput,
+				long streamOpenTimeout,
+				long streamInactivityTimeout,
+				long rateLimitingInputBytesPerSecond,
+				long rateLimitingOutputBytesPerSecond) {
 			checkArgument(limitTotal >= 0);
 			checkArgument(limitInput >= 0);
 			checkArgument(limitOutput >= 0);
 			checkArgument(streamOpenTimeout >= 0);
 			checkArgument(streamInactivityTimeout >= 0);
+			checkArgument(rateLimitingInputBytesPerSecond >= 0);
+			checkArgument(rateLimitingOutputBytesPerSecond >= 0);
 
 			this.limitTotal = limitTotal;
 			this.limitInput = limitInput;
 			this.limitOutput = limitOutput;
 			this.streamOpenTimeout = streamOpenTimeout;
 			this.streamInactivityTimeout = streamInactivityTimeout;
+			this.rateLimitingInputBytesPerSecond = rateLimitingInputBytesPerSecond;
+			this.rateLimitingOutputBytesPerSecond = rateLimitingOutputBytesPerSecond;
 		}
+
+
 
 		// --------------------------------------------------------------------
 
@@ -1064,17 +1172,22 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			final ConfigOption<Integer> totalLimitOption = CoreOptions.fileSystemConnectionLimit(fsScheme);
 			final ConfigOption<Integer> limitInOption = CoreOptions.fileSystemConnectionLimitIn(fsScheme);
 			final ConfigOption<Integer> limitOutOption = CoreOptions.fileSystemConnectionLimitOut(fsScheme);
+			final ConfigOption<Long> rateLimitingInputOption = CoreOptions.fileSystemConnectionLimitInputRate(fsScheme);
+
+			final ConfigOption<Long> rateLimitingOutputOption = CoreOptions.fileSystemConnectionLimitOutputRate(fsScheme);
 
 			final int totalLimit = config.getInteger(totalLimitOption);
 			final int limitIn = config.getInteger(limitInOption);
 			final int limitOut = config.getInteger(limitOutOption);
+			final long rateLimitingInput = config.getLong(rateLimitingInputOption);
+			final long rateLimitingOutput = config.getLong(rateLimitingOutputOption);
 
 			checkLimit(totalLimit, totalLimitOption);
 			checkLimit(limitIn, limitInOption);
 			checkLimit(limitOut, limitOutOption);
 
 			// create the settings only, if at least one limit is configured
-			if (totalLimit <= 0 && limitIn <= 0 && limitOut <= 0) {
+			if (totalLimit <= 0 && limitIn <= 0 && limitOut <= 0 && rateLimitingInput <= 0 && rateLimitingOutput <= 0) {
 				// no limit configured
 				return null;
 			}
@@ -1095,7 +1208,9 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 						limitIn == -1 ? 0 : limitIn,
 						limitOut == -1 ? 0 : limitOut,
 						openTimeout,
-						inactivityTimeout);
+						inactivityTimeout,
+						rateLimitingInput,
+						rateLimitingOutput);
 			}
 		}
 

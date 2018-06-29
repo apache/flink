@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 
 /**
  * Simple factory for the Swift file system.
@@ -123,7 +124,7 @@ public class SwiftFileSystemFactory implements FileSystemFactory {
 			final SwiftNativeFileSystem fs = new SwiftNativeFileSystem();
 			fs.initialize(fsUri, hadoopConfig);
 
-			return new HadoopFileSystem(fs);
+			return HadoopUtils.limitIfConfigured(new HadoopFileSystem(fs), scheme, Optional.ofNullable(flinkConfig));
 		}
 		catch (IOException e) {
 			throw e;
