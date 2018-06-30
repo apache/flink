@@ -130,7 +130,7 @@ Sample Result:
 
 **`/jobs/overview`**
 
-Jobs, grouped by status, each with a small summary of its status.
+An overview over all jobs.
 
 Sample Result:
 
