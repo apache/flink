@@ -90,6 +90,7 @@ public class TaskManagerSlot {
 		return allocationId;
 	}
 
+	@Nullable
 	public JobID getJobId() {
 		return jobId;
 	}

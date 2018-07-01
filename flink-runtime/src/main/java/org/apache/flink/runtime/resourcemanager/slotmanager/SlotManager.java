@@ -541,6 +541,7 @@ public class SlotManager implements AutoCloseable {
 	 *
 	 * @param slotId to update
 	 * @param allocationId specifying the current allocation of the slot
+	 * @param jobId specifying the job to which the slot is allocated
 	 * @return True if the slot could be updated; otherwise false
 	 */
 	private boolean updateSlot(SlotID slotId, AllocationID allocationId, JobID jobId) {
@@ -565,10 +566,10 @@ public class SlotManager implements AutoCloseable {
 	}
 
 	private void updateSlotState(
-		TaskManagerSlot slot,
-		TaskManagerRegistration taskManagerRegistration,
-		@Nullable AllocationID allocationId,
-		@Nullable JobID jobId) {
+			TaskManagerSlot slot,
+			TaskManagerRegistration taskManagerRegistration,
+			@Nullable AllocationID allocationId,
+			@Nullable JobID jobId) {
 		if (null != allocationId) {
 			switch (slot.getState()) {
 				case PENDING:
@@ -773,10 +774,14 @@ public class SlotManager implements AutoCloseable {
 			}
 
 			AllocationID oldAllocationId = slot.getAllocationId();
+
 			if (oldAllocationId != null) {
 				fulfilledSlotRequests.remove(oldAllocationId);
+
 				resourceActions.notifyAllocationFailure(
-					slot.getJobId(), oldAllocationId, new Exception("The assigned slot " + slot.getSlotId() + " was removed."));
+					slot.getJobId(),
+					oldAllocationId,
+					new FlinkException("The assigned slot " + slot.getSlotId() + " was removed."));
 			}
 		} else {
 			LOG.debug("There was no slot registered with slot id {}.", slotId);
