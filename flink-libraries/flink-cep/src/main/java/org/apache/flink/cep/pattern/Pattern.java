@@ -318,6 +318,18 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
+	 * Appends a new pattern to the existing one. This pattern describes a situation
+	 * that the match will reach the {@link org.apache.flink.cep.nfa.State.StateType#Final}
+	 * with the time (processing or event) fulfills the condition bounded.
+	 *
+	 * @param name Name of the new pattern
+	 * @return A new pattern which is appended to this one
+	 */
+	public Pattern<T, T> timeEnd(final String name) {
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_TIME_REACHED, afterMatchSkipStrategy);
+	}
+
+	/**
 	 * Specifies that this pattern is optional for a final match of the pattern
 	 * sequence to happen.
 	 *

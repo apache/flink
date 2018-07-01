@@ -40,6 +40,8 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -224,7 +226,7 @@ public class NFA<T> {
 
 	/**
 	 * Prunes states assuming there will be no events with timestamp <b>lower</b> than the given one.
-	 * It cleares the sharedBuffer and also emits all timed out partial matches.
+	 * It clears the sharedBuffer and also emits all timed out partial matches.
 	 *
 	 * @param sharedBuffer the SharedBuffer object that we need to work upon while processing
 	 * @param nfaState     The NFAState object that we need to affect while processing
@@ -232,15 +234,18 @@ public class NFA<T> {
 	 * @return all timed outed partial matches
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public Collection<Tuple2<Map<String, List<T>>, Long>> advanceTime(
+	public Tuple2<Collection<Tuple2<Map<String, List<T>>, Long>>, Collection<Map<String, List<T>>>> advanceTime(
 			final SharedBuffer<T> sharedBuffer,
 			final NFAState nfaState,
-			final long timestamp) throws Exception {
+			final long timestamp,
+			final AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 
 		Queue<ComputationState> computationStates = nfaState.getComputationStates();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
+		final Collection<Map<String, List<T>>> result = new ArrayList<>();
 
 		final int numberComputationStates = computationStates.size();
+
 		for (int i = 0; i < numberComputationStates; i++) {
 			ComputationState computationState = computationStates.poll();
 
@@ -256,13 +261,55 @@ public class NFA<T> {
 
 				nfaState.setStateChanged();
 			} else {
-				computationStates.add(computationState);
+				final Collection<ComputationState> newComputationStates = computeNextStates(
+					sharedBuffer,
+					computationState,
+					null,
+					timestamp);
+
+				//delay adding new computation states in case a stop state is reached and we discard the path.
+				final Collection<ComputationState> statesToRetain = new ArrayList<>();
+				boolean isFinaled = false;
+				for (final ComputationState newComputationState : newComputationStates) {
+
+					if (isFinalState(newComputationState)) {
+						isFinaled = true;
+						// we've reached a final state and can thus retrieve the matching event sequence
+						Map<String, List<T>> matchedPattern = extractCurrentMatches(sharedBuffer, newComputationState);
+						result.add(matchedPattern);
+
+						// remove found patterns because they are no longer needed
+						sharedBuffer.releaseNode(newComputationState.getPreviousBufferEntry());
+					} else {
+						// add new computation state; it will be processed once the next event arrives
+						statesToRetain.add(newComputationState);
+					}
+				}
+
+				if (!isFinaled && !isStartState(computationState)) {
+					statesToRetain.add(computationState);
+					newComputationStates.add(computationState);
+				} else if (computationState.getPreviousBufferEntry() != null) {
+					// release the shared entry referenced by the current computation state.
+					sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
+				}
+
+				if (newComputationStates.size() != 1) {
+					nfaState.setStateChanged();
+				} else if (!newComputationStates.iterator().next().equals(computationState)) {
+					nfaState.setStateChanged();
+				}
+
+				computationStates.addAll(statesToRetain);
 			}
-		}
+
+			discardComputationStatesAccordingToStrategy(
+				sharedBuffer, computationStates, result, afterMatchSkipStrategy);
+			}
 
 		sharedBuffer.advanceTime(timestamp);
 
-		return timeoutResult;
+		return Tuple2.of(timeoutResult, result);
 	}
 
 	private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
@@ -290,6 +337,11 @@ public class NFA<T> {
 				event,
 				event.getTimestamp());
 
+			if (computationState.getPreviousBufferEntry() != null) {
+				// release the shared entry referenced by the current computation state.
+				sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
+			}
+
 			if (newComputationStates.size() != 1) {
 				nfaState.setStateChanged();
 			} else if (!newComputationStates.iterator().next().equals(computationState)) {
@@ -300,6 +352,7 @@ public class NFA<T> {
 			final Collection<ComputationState> statesToRetain = new ArrayList<>();
 			//if stop state reached in this path
 			boolean shouldDiscardPath = false;
+
 			for (final ComputationState newComputationState : newComputationStates) {
 
 				if (isFinalState(newComputationState)) {
@@ -526,17 +579,22 @@ public class NFA<T> {
 	 * @param sharedBuffer The shared buffer that we need to change
 	 * @param computationState Current computation state
 	 * @param event Current event which is processed
-	 * @param timestamp Timestamp of the current event
+	 * @param timestamp Timestamp of the current watermark or current processing time
 	 * @return Collection of computation states which result from the current one
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	private Collection<ComputationState> computeNextStates(
 			final SharedBuffer<T> sharedBuffer,
 			final ComputationState computationState,
-			final EventWrapper event,
+			@Nullable final EventWrapper event,
 			final long timestamp) throws Exception {
 
-		final OutgoingEdges<T> outgoingEdges = createDecisionGraph(sharedBuffer, computationState, event.getEvent());
+		final OutgoingEdges<T> outgoingEdges;
+		if (event != null) {
+			outgoingEdges = createDecisionGraph(sharedBuffer, computationState, event.getEvent(), timestamp);
+		} else {
+			outgoingEdges = createDecisionGraph(sharedBuffer, computationState, null, timestamp);
+		}
 
 		// Create the computing version based on the previously computed edges
 		// We need to defer the creation of computation states until we know how many edges start
@@ -609,7 +667,7 @@ public class NFA<T> {
 							startTimestamp);
 
 					//check if newly created state is optional (have a PROCEED path to Final state)
-					final State<T> finalState = findFinalStateAfterProceed(sharedBuffer, nextState, event.getEvent(), computationState);
+					final State<T> finalState = findFinalStateAfterProceed(sharedBuffer, nextState, event.getEvent(), computationState, timestamp);
 					if (finalState != null) {
 						addComputationState(
 								sharedBuffer,
@@ -627,15 +685,9 @@ public class NFA<T> {
 			int totalBranches = calculateIncreasingSelfState(
 					outgoingEdges.getTotalIgnoreBranches(),
 					outgoingEdges.getTotalTakeBranches());
-
 			DeweyNumber startVersion = computationState.getVersion().increase(totalBranches);
 			ComputationState startState = ComputationState.createStartState(computationState.getCurrentStateName(), startVersion);
 			resultingComputationStates.add(startState);
-		}
-
-		if (computationState.getPreviousBufferEntry() != null) {
-			// release the shared entry referenced by the current computation state.
-			sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
 		}
 
 		return resultingComputationStates;
@@ -659,7 +711,8 @@ public class NFA<T> {
 			SharedBuffer<T> sharedBuffer,
 			State<T> state,
 			T event,
-			ComputationState computationState) {
+			ComputationState computationState,
+			long timestamp) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
 		statesToCheck.push(state);
 
@@ -668,7 +721,7 @@ public class NFA<T> {
 				final State<T> currentState = statesToCheck.pop();
 				for (StateTransition<T> transition : currentState.getStateTransitions()) {
 					if (transition.getAction() == StateTransitionAction.PROCEED &&
-							checkFilterCondition(sharedBuffer, computationState, transition.getCondition(), event)) {
+							checkFilterCondition(sharedBuffer, computationState, transition.getCondition(), event, timestamp)) {
 						if (transition.getTargetState().isFinal()) {
 							return transition.getTargetState();
 						} else {
@@ -691,7 +744,8 @@ public class NFA<T> {
 	private OutgoingEdges<T> createDecisionGraph(
 			SharedBuffer<T> sharedBuffer,
 			ComputationState computationState,
-			T event) {
+			@Nullable T event,
+			long timestamp) {
 		State<T> state = getState(computationState);
 		final OutgoingEdges<T> outgoingEdges = new OutgoingEdges<>(state);
 
@@ -706,7 +760,24 @@ public class NFA<T> {
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition : stateTransitions) {
 				try {
-					if (checkFilterCondition(sharedBuffer, computationState, stateTransition.getCondition(), event)) {
+					boolean result;
+					if (event == null) {
+						// pick the transition should evaluated by time condition
+						if (stateTransition.getCondition() != null && stateTransition.getSourceState().isTimeEnd() && stateTransition.getCondition().isTimeCondition()){
+							result = checkFilterCondition(sharedBuffer, computationState, stateTransition.getCondition(), null, timestamp);
+						} else {
+							// skip the time bounded condition branch.
+							continue;
+						}
+					} else {
+						if (stateTransition.getCondition() != null && stateTransition.getSourceState().isTimeEnd() && stateTransition.getCondition().isTimeCondition()){
+							// skip the time bounded condition branch.
+							continue;
+						} else {
+							result = checkFilterCondition(sharedBuffer, computationState, stateTransition.getCondition(), event, timestamp);
+						}
+					}
+					if (result) {
 						// filter condition is true
 						switch (stateTransition.getAction()) {
 							case PROCEED:
@@ -732,8 +803,15 @@ public class NFA<T> {
 			SharedBuffer<T> sharedBuffer,
 			ComputationState computationState,
 			IterativeCondition<T> condition,
-			T event) throws Exception {
-		return condition == null || condition.filter(event, new ConditionContext<>(this, sharedBuffer, computationState));
+			@Nullable T event,
+			long timestamp) throws Exception {
+		if (condition == null){
+			return true;
+		} else if (condition.isTimeCondition()){
+			return condition.filter(timestamp, new ConditionContext<>(this, sharedBuffer, computationState));
+		} else {
+			return condition.filter(event, new ConditionContext<>(this, sharedBuffer, computationState));
+		}
 	}
 
 	/**

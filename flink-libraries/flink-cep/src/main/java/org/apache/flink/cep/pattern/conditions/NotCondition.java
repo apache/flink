@@ -34,7 +34,17 @@ public class NotCondition<T> extends IterativeCondition<T> {
 	}
 
 	@Override
+	public boolean isTimeCondition() {
+		return original != null && this.original.isTimeCondition();
+	}
+
+	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
 		return original != null && !original.filter(value, ctx);
+	}
+
+	@Override
+	public boolean filter(long timestamp, Context<T> ctx) throws Exception {
+		return original != null && !original.filter(timestamp, ctx);
 	}
 }

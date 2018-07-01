@@ -402,13 +402,13 @@ public class NFAITCase extends TestLogger {
 
 		for (StreamRecord<Event> event: events) {
 
-			Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-				nfa.advanceTime(sharedBuffer, nfaState, event.getTimestamp());
+			Tuple2<Collection<Tuple2<Map<String, List<Event>>, Long>>, Collection<Map<String, List<Event>>>> result =
+				nfa.advanceTime(sharedBuffer, nfaState, event.getTimestamp(), AfterMatchSkipStrategy.noSkip());
 			Collection<Map<String, List<Event>>> matchedPatterns =
 				nfa.process(sharedBuffer, nfaState, event.getValue(), event.getTimestamp());
 
 			resultingPatterns.addAll(matchedPatterns);
-			resultingTimeoutPatterns.addAll(timeoutPatterns);
+			resultingTimeoutPatterns.addAll(result.f0);
 		}
 
 		assertEquals(1, resultingPatterns.size());
@@ -2340,7 +2340,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.advanceTime(sharedBuffer, nfaState, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2384,7 +2384,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.advanceTime(sharedBuffer, nfaState, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2430,7 +2430,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.advanceTime(sharedBuffer, nfaState, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2476,7 +2476,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(sharedBuffer, nfaState, end1, 6);
 
 		//pruning element
-		nfa.advanceTime(sharedBuffer, nfaState, 10);
+		nfa.advanceTime(sharedBuffer, nfaState, 10, AfterMatchSkipStrategy.noSkip());
 
 		assertEquals(1, nfaState.getComputationStates().size());
 		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
@@ -2842,7 +2842,7 @@ public class NFAITCase extends TestLogger {
 		nfa.process(spiedBuffer, nfa.createInitialNFAState(), a, 1);
 		nfa.process(spiedBuffer, nfa.createInitialNFAState(), b, 2);
 		Mockito.verify(spiedBuffer, Mockito.never()).advanceTime(anyLong());
-		nfa.advanceTime(spiedBuffer, nfa.createInitialNFAState(), 2);
+		nfa.advanceTime(spiedBuffer, nfa.createInitialNFAState(), 2, AfterMatchSkipStrategy.noSkip());
 		Mockito.verify(spiedBuffer, Mockito.times(1)).advanceTime(2);
 
 	}

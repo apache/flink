@@ -150,6 +150,7 @@ public class Quantifier {
 		STRICT,
 		SKIP_TILL_NEXT,
 		SKIP_TILL_ANY,
+		SKIP_TILL_TIME_REACHED,
 
 		NOT_FOLLOW,
 		NOT_NEXT

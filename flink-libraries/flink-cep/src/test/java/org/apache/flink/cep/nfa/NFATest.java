@@ -185,7 +185,7 @@ public class NFATest extends TestLogger {
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		for (StreamRecord<Event> streamEvent : inputs) {
-			nfa.advanceTime(sharedBuffer, nfaState, streamEvent.getTimestamp());
+			nfa.advanceTime(sharedBuffer, nfaState, streamEvent.getTimestamp(), AfterMatchSkipStrategy.noSkip());
 			Collection<Map<String, List<Event>>> matchedPatterns = nfa.process(
 				sharedBuffer,
 				nfaState,

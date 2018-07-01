@@ -112,6 +112,8 @@ public class NFACompiler {
 
 			checkPatternSkipStrategy();
 
+			checkHasTimeEndAtPatternEnd();
+
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
 			State<T> sinkState = createEndingState();
 			// add all the normal states
@@ -149,6 +151,28 @@ public class NFACompiler {
 						"can not be found in the given Pattern");
 				}
 			}
+		}
+
+		/**
+		 * Check if the pattern has the timeEnd, it should at the end of pattern.
+		 */
+		private void checkHasTimeEndAtPatternEnd() {
+
+			// skip the last pattern
+			Pattern<T, ?> pattern = currentPattern.getPrevious();
+
+			if (pattern == null) {
+				return;
+			}
+
+			while (pattern.getPrevious() != null && pattern.getQuantifier().getConsumingStrategy() != Quantifier.ConsumingStrategy.SKIP_TILL_TIME_REACHED) {
+				pattern = pattern.getPrevious();
+			}
+
+			if (pattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.SKIP_TILL_TIME_REACHED) {
+				throw new MalformedPatternException("The timeEnd pattern should only put at the end of the pattern to reach a Final state by time.");
+			}
+
 		}
 
 		/**
@@ -238,7 +262,23 @@ public class NFACompiler {
 
 				if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_FOLLOW) {
 					//skip notFollow patterns, they are converted into edge conditions
-				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
+				} else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.SKIP_TILL_TIME_REACHED) {
+					if (!sinkState.isFinal()) {
+						// only support timeEnd state sink to Final state (double check)
+						throw new MalformedPatternException("timeEnd pattern should at the end!");
+					}
+					if (currentPattern.getCondition() == null || !currentPattern.getCondition().isTimeCondition()) {
+						throw new MalformedPatternException("timeEnd pattern should works with timeCondition!");
+					}
+					final State<T> timeState = createState(currentPattern.getName(), State.StateType.TimeEnd);
+					final IterativeCondition<T> proceedCondition = getTakeCondition(currentPattern);
+					final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
+					// ignore the event, because the timeEnd state's event is time.
+					timeState.addIgnore(sinkState, proceedCondition);
+					timeState.addIgnore(timeState, ignoreCondition);
+					lastSink = timeState;
+					addStopStates(lastSink);
+				}  else if (currentPattern.getQuantifier().getConsumingStrategy() == Quantifier.ConsumingStrategy.NOT_NEXT) {
 					final State<T> notNext = createState(currentPattern.getName(), State.StateType.Normal);
 					final IterativeCondition<T> notCondition = getTakeCondition(currentPattern);
 					final State<T> stopState = createStopState(notCondition, currentPattern.getName());

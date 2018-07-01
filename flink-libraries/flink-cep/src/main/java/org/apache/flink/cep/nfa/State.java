@@ -56,6 +56,10 @@ public class State<T> implements Serializable {
 		return stateType == StateType.Final;
 	}
 
+	public boolean isTimeEnd() {
+		return stateType == StateType.TimeEnd;
+	}
+
 	public boolean isStart() {
 		return stateType == StateType.Start;
 	}
@@ -142,6 +146,7 @@ public class State<T> implements Serializable {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
 		Normal, // the state is neither a start nor a final state
-		Stop
+		TimeEnd, // the state is bounded with a time condition
+		Stop // the state will lead to the partial match to be discarded
 	}
 }

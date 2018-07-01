@@ -81,6 +81,20 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 	 */
 	public abstract boolean filter(T value, Context<T> ctx) throws Exception;
 
+	public boolean filter(long timestamp, Context<T> ctx) throws Exception {
+		return false;
+	}
+
+	/**
+	 * Flag indicates whether the condition only accepts the timestamp for evaluation.
+	 * If the result is true it means the condition will be evaluated with the null event,
+	 * It should works with timeEnd pattern.
+	 * @return {@code true} for the condition which is time bounded, and {@code false} for not.
+	 */
+	public boolean isTimeCondition() {
+		return false;
+	}
+
 	/**
 	 * The context used when evaluating the {@link IterativeCondition condition}.
 	 */

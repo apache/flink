@@ -66,7 +66,7 @@ public class NFATestUtilities {
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		for (StreamRecord<Event> inputEvent : inputEvents) {
-			nfa.advanceTime(sharedBuffer, nfaState, inputEvent.getTimestamp());
+			nfa.advanceTime(sharedBuffer, nfaState, inputEvent.getTimestamp(), AfterMatchSkipStrategy.noSkip());
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
 				sharedBuffer,
 				nfaState,

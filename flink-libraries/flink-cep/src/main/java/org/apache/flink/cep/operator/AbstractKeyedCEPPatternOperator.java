@@ -274,8 +274,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		// STEP 2
 		while (!sortedTimestamps.isEmpty() && sortedTimestamps.peek() <= timerService.currentWatermark()) {
 			long timestamp = sortedTimestamps.poll();
-			advanceTime(nfaState, timestamp);
 			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
+				advanceTime(nfaState, timestamp);
 				elements.forEachOrdered(
 					event -> {
 						try {
@@ -318,8 +318,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		// STEP 2
 		while (!sortedTimestamps.isEmpty()) {
 			long timestamp = sortedTimestamps.poll();
-			advanceTime(nfa, timestamp);
 			try (Stream<IN> elements = sort(elementQueueState.get(timestamp))) {
+				advanceTime(nfa, timestamp);
 				elements.forEachOrdered(
 					event -> {
 						try {
@@ -383,11 +383,13 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	/**
 	 * Advances the time for the given NFA to the given timestamp. This means that no more events with timestamp
 	 * <b>lower</b> than the given timestamp should be passed to the nfa, This can lead to pruning and timeouts.
-	 */
+	 * And also this will evaluate the timeBounded state condition.
+ 	 */
 	private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
-		Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-			nfa.advanceTime(partialMatches, nfaState, timestamp);
-		processTimedOutSequences(timedOut, timestamp);
+		Tuple2<Collection<Tuple2<Map<String, List<IN>>, Long>>, Collection<Map<String, List<IN>>>> result =
+			nfa.advanceTime(partialMatches, nfaState, timestamp, afterMatchSkipStrategy);
+		processTimedOutSequences(result.f0, timestamp);
+		processMatchedSequences(result.f1, timestamp);
 	}
 
 	protected abstract void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception;

@@ -36,11 +36,23 @@ public class AndCondition<T> extends IterativeCondition<T> {
 	public AndCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
 		this.left = Preconditions.checkNotNull(left, "The condition cannot be null.");
 		this.right = Preconditions.checkNotNull(right, "The condition cannot be null.");
+		Preconditions.checkArgument(!((this.left.isTimeCondition() && !this.right.isTimeCondition())
+			|| (!this.left.isTimeCondition() && this.right.isTimeCondition())), "timeCondition cannot combine with event driven condition.");
 	}
 
 	@Override
 	public boolean filter(T value, Context<T> ctx) throws Exception {
 		return left.filter(value, ctx) && right.filter(value, ctx);
+	}
+
+	@Override
+	public boolean filter(long timestamp, Context<T> ctx) throws Exception {
+		return  left.filter(timestamp, ctx) && right.filter(timestamp, ctx);
+	}
+
+	@Override
+	public boolean isTimeCondition() {
+		return this.left.isTimeCondition() && this.right.isTimeCondition();
 	}
 
 	/**
