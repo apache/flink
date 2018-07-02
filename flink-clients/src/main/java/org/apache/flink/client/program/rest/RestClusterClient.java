@@ -327,10 +327,8 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 				final java.nio.file.Path jobGraphFile;
 				try {
 					jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
-					try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
-						try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
-							objectOut.writeObject(jobGraph);
-						}
+					try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+						objectOut.writeObject(jobGraph);
 					}
 					filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 				} catch (IOException e) {
