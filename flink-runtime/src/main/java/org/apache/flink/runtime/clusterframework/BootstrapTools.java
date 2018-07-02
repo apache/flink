@@ -250,7 +250,11 @@ public class BootstrapTools {
 			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
 		}
 
-		return cfg; 
+		if (baseConfig.getBoolean(CoreOptions.USE_LOCAL_DEFAULT_TMP_DIRS)){
+			cfg.removeConfig(CoreOptions.TMP_DIRS);
+		}
+
+		return cfg;
 	}
 
 	/**
@@ -466,5 +470,23 @@ public class BootstrapTools {
 				.replace("%" + variable.getKey() + "%", variable.getValue());
 		}
 		return template;
+	}
+
+	/**
+	 * Set temporary configuration directories if necessary
+	 *
+	 * @param configuration flink config to patch
+	 * @param defaultDirs in case no tmp directories is set, next directories will be applied
+	 */
+	public static void updateTmpDirectoriesInConfiguration(Configuration configuration, String defaultDirs){
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding Fink's temporary file directories with those " +
+				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
+			configuration.setBoolean(CoreOptions.USE_LOCAL_DEFAULT_TMP_DIRS, false);
+		}
+		else {
+			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
+		}
 	}
 }
