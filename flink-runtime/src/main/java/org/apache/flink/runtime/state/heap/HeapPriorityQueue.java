@@ -98,6 +98,9 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 
 	/**
 	 * Adds the element to add to the heap. This element should not be managed by any other {@link HeapPriorityQueue}.
+	 *
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
 	public boolean add(@Nonnull T toAdd) {
@@ -106,6 +109,9 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 
 	/**
 	 * This remove is based on object identity, not the result of equals.
+	 *
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
 	public boolean remove(@Nonnull T toStop) {

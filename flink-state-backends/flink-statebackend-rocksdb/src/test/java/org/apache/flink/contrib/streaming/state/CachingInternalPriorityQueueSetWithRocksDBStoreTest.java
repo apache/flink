@@ -37,7 +37,7 @@ public class CachingInternalPriorityQueueSetWithRocksDBStoreTest extends Caching
 
 	@Override
 	protected CachingInternalPriorityQueueSet.OrderedSetStore<TestElement> createOrderedSetStore() {
-		return createRocksDBStore(0, rocksDBResource);
+		return createRocksDBStore(0, 1, rocksDBResource);
 	}
 
 	@Override
@@ -47,12 +47,14 @@ public class CachingInternalPriorityQueueSetWithRocksDBStoreTest extends Caching
 
 	public static CachingInternalPriorityQueueSet.OrderedSetStore<TestElement> createRocksDBStore(
 		int keyGroupId,
+		int totalKeyGroups,
 		RocksDBResource rocksDBResource) {
-
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(16);
 		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
-		return new RocksDBOrderedStore<>(
+		int prefixBytes = RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(totalKeyGroups);
+		return new RocksDBOrderedSetStore<>(
 			keyGroupId,
+			prefixBytes,
 			rocksDBResource.getRocksDB(),
 			rocksDBResource.getDefaultColumnFamily(),
 			rocksDBResource.getReadOptions(),

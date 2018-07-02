@@ -32,10 +32,10 @@ import java.util.Collection;
  * This class is an implementation of a {@link InternalPriorityQueue} with set semantics that internally consists of
  * two different storage types. The first storage is a (potentially slow) ordered set store manages the ground truth
  * about the elements in this queue. The second storage is a (fast) ordered set cache, typically with some limited
- * capacity. The cache is used to improve performance of accesses to the underlying store and contains contains an
- * ordered (partial) view on the top elements in the ordered store. We are currently applying simple write-trough
- * to keep cache and store in sync on updates and refill the cache from the store when it is empty and we expect more
- * elements contained in the store.
+ * capacity. The cache is used to improve performance of accesses to the underlying store and contains an ordered
+ * (partial) view on the top elements in the ordered store. We are currently applying simple write-through to keep cache
+ * and store in sync on updates and refill the cache from the store when it is empty and we expect more elements
+ * contained in the store.
  *
  * @param <E> the type if the managed elements.
  */
@@ -212,12 +212,12 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		void remove(@Nonnull E element);
 
 		/**
-		 * Returns <code>true</> if the cache is full and no more elements can be added.
+		 * Returns <code>true</code> if the cache is full and no more elements can be added.
 		 */
 		boolean isFull();
 
 		/**
-		 * Returns <code>true</> if the cache is empty, i.e. contains ne elements.
+		 * Returns <code>true</code> if the cache is empty, i.e. contains ne elements.
 		 */
 		boolean isEmpty();
 

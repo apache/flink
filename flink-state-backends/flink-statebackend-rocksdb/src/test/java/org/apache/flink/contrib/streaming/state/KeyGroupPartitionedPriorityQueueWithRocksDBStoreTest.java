@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.junit.Rule;
 
 /**
- * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link RocksDBOrderedStore}.
+ * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link RocksDBOrderedSetStore}.
  */
 public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends KeyGroupPartitionedPriorityQueueTest {
 
@@ -38,14 +38,15 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends KeyGro
 			TestElement, CachingInternalPriorityQueueSet<TestElement>> newFactory(
 		int initialCapacity) {
 
-		return (keyGroupId, elementComparator) -> {
+		return (keyGroupId, numKeyGroups, elementComparator) -> {
 			CachingInternalPriorityQueueSet.OrderedSetCache<TestElement> cache =
 				new TreeOrderedSetCache<>(TEST_ELEMENT_COMPARATOR, 4);
 			CachingInternalPriorityQueueSet.OrderedSetStore<TestElement> store =
 				RocksDBOrderedSetStoreTest.createRocksDBOrderedStore(
 					rocksDBResource,
 					TestElementSerializer.INSTANCE,
-					keyGroupId);
+					keyGroupId,
+					numKeyGroups);
 			return new CachingInternalPriorityQueueSet<>(cache, store);
 		};
 	}

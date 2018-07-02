@@ -80,7 +80,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 			keyGroupRange.getNumberOfKeyGroups());
 		for (int i = 0; i < keyGroupLists.length; i++) {
 			final PQ keyGroupCache =
-				orderedCacheFactory.create(firstKeyGroup + i, elementComparator);
+				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementComparator);
 			keyGroupLists[i] = keyGroupCache;
 			keyGroupHeap.add(keyGroupCache);
 		}
@@ -239,9 +239,10 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		implements Comparator<Q> {
 
 		/** Comparator for the queue elements, so we can compare their heads. */
+		@Nonnull
 		private final Comparator<T> elementComparator;
 
-		InternalPriorityQueueComparator(Comparator<T> elementComparator) {
+		InternalPriorityQueueComparator(@Nonnull Comparator<T> elementComparator) {
 			this.elementComparator = elementComparator;
 		}
 
@@ -269,9 +270,11 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		 * Creates a new queue for a given key-group partition.
 		 *
 		 * @param keyGroupId the key-group of the elements managed by the produced queue.
+		 * @param numKeyGroups the total number of key-groups in the job.
 		 * @param elementComparator the comparator that determines the order of the managed elements.
 		 * @return a new queue for the given key-group.
 		 */
-		PQS create(int keyGroupId, Comparator<T> elementComparator);
+		@Nonnull
+		PQS create(@Nonnegative int keyGroupId, @Nonnegative int numKeyGroups, @Nonnull Comparator<T> elementComparator);
 	}
 }

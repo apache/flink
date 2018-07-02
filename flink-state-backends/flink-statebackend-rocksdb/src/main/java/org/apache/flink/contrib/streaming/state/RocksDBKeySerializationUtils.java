@@ -149,4 +149,8 @@ class RocksDBKeySerializationUtils {
 	private static byte extractByteAtPosition(int value, int byteIdx) {
 		return (byte) ((value >>> (byteIdx << 3)));
 	}
+
+	public static int computeRequiredBytesInKeyGroupPrefix(int totalKeyGroupsInJob) {
+		return totalKeyGroupsInJob > (Byte.MAX_VALUE + 1) ? 2 : 1;
+	}
 }

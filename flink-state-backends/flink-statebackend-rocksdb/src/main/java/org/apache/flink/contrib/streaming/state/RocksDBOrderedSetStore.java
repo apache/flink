@@ -49,7 +49,7 @@ import java.util.NoSuchElementException;
  *
  * @param <T> the type of stored elements.
  */
-public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.OrderedSetStore<T> {
+public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSet.OrderedSetStore<T> {
 
 	/** Serialized empty value to insert into RocksDB. */
 	private static final byte[] DUMMY_BYTES = "0".getBytes(ConfigConstants.DEFAULT_CHARSET);
@@ -77,10 +77,6 @@ public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.O
 	@Nonnull
 	private final RocksDBWriteBatchWrapper batchWrapper;
 
-	/** The key-group id of all elements stored in this instance. */
-	@Nonnegative
-	private final int keyGroupId;
-
 	/** The key-group id in serialized form. */
 	@Nonnull
 	private final byte[] groupPrefixBytes;
@@ -93,8 +89,9 @@ public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.O
 	@Nonnull
 	private final DataOutputViewStreamWrapper outputView;
 
-	public RocksDBOrderedStore(
+	public RocksDBOrderedSetStore(
 		@Nonnegative int keyGroupId,
+		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull RocksDB db,
 		@Nonnull ColumnFamilyHandle columnFamilyHandle,
 		@Nonnull ReadOptions readOptions,
@@ -108,17 +105,16 @@ public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.O
 		this.byteOrderProducingSerializer = byteOrderProducingSerializer;
 		this.outputStream = outputStream;
 		this.outputView = outputView;
-		this.keyGroupId = keyGroupId;
 		this.batchWrapper = batchWrapper;
-		this.groupPrefixBytes = createKeyGroupBytes(keyGroupId);
+		this.groupPrefixBytes = createKeyGroupBytes(keyGroupId, keyGroupPrefixBytes);
 	}
 
-	private byte[] createKeyGroupBytes(int keyGroupId) {
+	private byte[] createKeyGroupBytes(int keyGroupId, int numPrefixBytes) {
 
 		outputStream.reset();
 
 		try {
-			outputView.writeShort(keyGroupId);
+			RocksDBKeySerializationUtils.writeKeyGroup(keyGroupId, numPrefixBytes, outputView);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Could not write key-group bytes.", e);
 		}
@@ -200,7 +196,7 @@ public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.O
 	private byte[] serializeElement(T element) {
 		try {
 			outputStream.reset();
-			outputView.writeShort(keyGroupId);
+			outputView.write(groupPrefixBytes);
 			byteOrderProducingSerializer.serialize(element, outputView);
 			return outputStream.toByteArray();
 		} catch (IOException e) {
@@ -213,7 +209,7 @@ public class RocksDBOrderedStore<T> implements CachingInternalPriorityQueueSet.O
 			// TODO introduce a stream in which we can change the internal byte[] to avoid creating instances per call
 			ByteArrayInputStreamWithPos inputStream = new ByteArrayInputStreamWithPos(bytes);
 			DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
-			inputView.readShort();
+			inputView.skipBytes(groupPrefixBytes.length);
 			return byteOrderProducingSerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while deserializing the element.", e);

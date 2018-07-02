@@ -110,15 +110,18 @@ public class RocksDBOrderedSetStoreTest {
 		Assert.assertEquals(4, store.size());
 	}
 
-	public static <E> RocksDBOrderedStore<E> createRocksDBOrderedStore(
+	public static <E> RocksDBOrderedSetStore<E> createRocksDBOrderedStore(
 		@Nonnull RocksDBResource rocksDBResource,
 		@Nonnull TypeSerializer<E> byteOrderSerializer,
-		@Nonnegative int keyGroupId) {
+		@Nonnegative int keyGroupId,
+		@Nonnegative int totalKeyGroups) {
 
-		final ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);
-		final DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStreamWithPos);
-		return new RocksDBOrderedStore<>(
+		ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);
+		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStreamWithPos);
+		int keyGroupPrefixBytes = RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(totalKeyGroups);
+		return new RocksDBOrderedSetStore<>(
 			keyGroupId,
+			keyGroupPrefixBytes,
 			rocksDBResource.getRocksDB(),
 			rocksDBResource.getDefaultColumnFamily(),
 			rocksDBResource.getReadOptions(),
@@ -128,7 +131,7 @@ public class RocksDBOrderedSetStoreTest {
 			rocksDBResource.getBatchWrapper());
 	}
 
-	protected RocksDBOrderedStore<Integer> createRocksDBOrderedStore() {
-		return createRocksDBOrderedStore(rocksDBResource, IntSerializer.INSTANCE, 0);
+	protected RocksDBOrderedSetStore<Integer> createRocksDBOrderedStore() {
+		return createRocksDBOrderedStore(rocksDBResource, IntSerializer.INSTANCE, 0, 1);
 	}
 }

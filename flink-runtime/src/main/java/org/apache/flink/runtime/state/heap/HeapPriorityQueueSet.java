@@ -115,7 +115,11 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
 	}
 
 	/**
-	 * Returns true iff the element was added.
+	 * Adds the element to the queue. In contrast to the superclass and to maintain set semantics, this happens only if
+	 * no such element is already contained (determined by {@link #equals(Object)}).
+	 *
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
 	public boolean add(@Nonnull T element) {
@@ -124,7 +128,10 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
 
 	/**
 	 * In contrast to the superclass and to maintain set semantics, removal here is based on comparing the given element
-	 * via {@link #equals(Object)}. Returns true iff an element was removed.
+	 * via {@link #equals(Object)}.
+	 *
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
 	public boolean remove(@Nonnull T elementToRemove) {

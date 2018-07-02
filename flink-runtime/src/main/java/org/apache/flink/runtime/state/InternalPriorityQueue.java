@@ -57,8 +57,8 @@ public interface InternalPriorityQueue<T> {
 	 * Adds the given element to the set, if it is not already contained.
 	 *
 	 * @param toAdd the element to add to the set.
-	 * @return <code>true</> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</> iff the head element was not changed by this operation.
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	boolean add(@Nonnull T toAdd);
 
@@ -66,8 +66,8 @@ public interface InternalPriorityQueue<T> {
 	 * Removes the given element from the set, if is contained in the set.
 	 *
 	 * @param toRemove the element to remove.
-	 * @return <code>true</> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</> iff the head element was not changed by this operation.
+	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
+	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	boolean remove(@Nonnull T toRemove);
 
