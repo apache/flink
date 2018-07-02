@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
  */
 public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
 
-	private static final String FILE_TYPE_GRAPH = "JobGraph";
+	private static final String FILE_TYPE_JOB_GRAPH = "JobGraph";
 	private static final String FILE_TYPE_JAR = "Jar";
 	private static final String FILE_TYPE_ARTIFACT = "Artifact";
 
@@ -95,7 +95,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		JobSubmitRequestBody requestBody = request.getRequestBody();
 
-		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_GRAPH, nameToFile);
+		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
 
 		CompletableFuture<JobGraph> jobGraphFuture = CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
