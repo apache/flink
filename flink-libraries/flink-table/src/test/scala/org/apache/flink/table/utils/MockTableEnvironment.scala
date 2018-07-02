@@ -40,20 +40,26 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def getBuiltInPhysicalOptRuleSet: RuleSet = ???
 
-  override def registerTableSink(
+  override def registerTableSinkInternal(
       name: String,
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = ???
+      tableSink: TableSink[_],
+      replace: Boolean): Unit = ???
 
-  override def registerTableSink(name: String, tableSink: TableSink[_]): Unit = ???
+  override def registerTableSinkInternal(name: String,
+                                         tableSink: TableSink[_],
+                                         replace: Boolean): Unit = ???
 
   override protected def createUniqueTableName(): String = ???
 
-  override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])
+  override protected def registerTableSourceInternal(name: String,
+                                                     tableSource: TableSource[_],
+                                                     replace: Boolean = false)
     : Unit = ???
 
   override def explain(table: Table): String = ???
 
   override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+
 }

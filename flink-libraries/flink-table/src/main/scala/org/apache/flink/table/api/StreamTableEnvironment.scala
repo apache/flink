@@ -110,7 +110,8 @@ abstract class StreamTableEnvironment(
     */
   override protected def registerTableSourceInternal(
       name: String,
-      tableSource: TableSource[_])
+      tableSource: TableSource[_],
+      replace: Boolean = false)
     : Unit = {
 
     tableSource match {
@@ -132,7 +133,7 @@ abstract class StreamTableEnvironment(
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
 
             // wrapper contains source
-            case Some(_: TableSourceTable[_]) =>
+            case Some(_: TableSourceTable[_]) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
@@ -222,12 +223,14 @@ abstract class StreamTableEnvironment(
     * @param fieldNames The field names to register with the [[TableSink]].
     * @param fieldTypes The field types to register with the [[TableSink]].
     * @param tableSink The [[TableSink]] to register.
+    * @param replace  Whether to replace the registered table.
     */
-  def registerTableSink(
+  protected def registerTableSinkInternal(
       name: String,
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = {
+      tableSink: TableSink[_],
+      replace: Boolean): Unit = {
 
     checkValidTableName(name)
     if (fieldNames == null) throw new TableException("fieldNames must not be null.")
@@ -238,22 +241,12 @@ abstract class StreamTableEnvironment(
     }
 
     val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
+    registerTableSinkInternal(name, configuredSink, replace)
   }
 
-  /**
-    * Registers an external [[TableSink]] with already configured field names and field types in
-    * this [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * @param name The name under which the [[TableSink]] is registered.
-    * @param configuredSink The configured [[TableSink]] to register.
-    */
-  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+  protected def registerTableSinkInternal(name: String,
+                                          configuredSink: TableSink[_],
+                                          replace: Boolean): Unit = {
     // validate
     checkValidTableName(name)
     if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
@@ -279,7 +272,7 @@ abstract class StreamTableEnvironment(
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
 
             // wrapper contains sink
-            case Some(_: TableSinkTable[_]) =>
+            case Some(_: TableSinkTable[_]) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
@@ -514,7 +507,8 @@ abstract class StreamTableEnvironment(
     */
   protected def registerDataStreamInternal[T](
     name: String,
-    dataStream: DataStream[T]): Unit = {
+    dataStream: DataStream[T],
+    replace: Boolean): Unit = {
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType)
     val dataStreamTable = new DataStreamTable[T](
@@ -522,7 +516,7 @@ abstract class StreamTableEnvironment(
       fieldIndexes,
       fieldNames
     )
-    registerTableInternal(name, dataStreamTable)
+    registerTableInternal(name, dataStreamTable, replace)
   }
 
   /**
@@ -537,7 +531,8 @@ abstract class StreamTableEnvironment(
   protected def registerDataStreamInternal[T](
       name: String,
       dataStream: DataStream[T],
-      fields: Array[Expression])
+      fields: Array[Expression],
+      replace: Boolean)
     : Unit = {
 
     val streamType = dataStream.getType
@@ -564,7 +559,7 @@ abstract class StreamTableEnvironment(
       indexesWithIndicatorFields,
       namesWithIndicatorFields
     )
-    registerTableInternal(name, dataStreamTable)
+    registerTableInternal(name, dataStreamTable, replace)
   }
 
   /**

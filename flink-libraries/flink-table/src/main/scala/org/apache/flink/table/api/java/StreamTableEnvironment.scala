@@ -60,7 +60,7 @@ class StreamTableEnvironment(
   def fromDataStream[T](dataStream: DataStream[T]): Table = {
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream)
+    registerDataStreamInternal(name, dataStream, false)
     scan(name)
   }
 
@@ -85,7 +85,7 @@ class StreamTableEnvironment(
       .toArray
 
     val name = createUniqueTableName()
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerDataStreamInternal(name, dataStream, exprs, false)
     scan(name)
   }
 
@@ -104,7 +104,25 @@ class StreamTableEnvironment(
   def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream)
+    registerDataStreamInternal(name, dataStream, false)
+  }
+
+  /**
+    * Registers or replace the given [[DataStream]] as table in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived
+    * from the type of the [[DataStream]].
+    *
+    * @param name The name under which the [[DataStream]] is registered in the catalog.
+    * @param dataStream The [[DataStream]] to register.
+    * @tparam T The type of the [[DataStream]] to register.
+    */
+  def registerOrReplaceDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
+
+    checkValidTableName(name)
+    registerDataStreamInternal(name, dataStream, true)
   }
 
   /**
@@ -130,7 +148,18 @@ class StreamTableEnvironment(
       .toArray
 
     checkValidTableName(name)
-    registerDataStreamInternal(name, dataStream, exprs)
+    registerDataStreamInternal(name, dataStream, exprs, false)
+  }
+
+  def registerOrReplaceDataStream[T](name: String,
+                                     dataStream: DataStream[T],
+                                     fields: String): Unit = {
+    val exprs = ExpressionParser
+      .parseExpressionList(fields)
+      .toArray
+
+    checkValidTableName(name)
+    registerDataStreamInternal(name, dataStream, exprs, true)
   }
 
   /**

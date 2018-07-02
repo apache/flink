@@ -71,6 +71,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 			// Calcite converts to decimals and strings with equal length
 			"1,Test ,true,1944-02-24,12.4444444444444445\n";
 		compareResultAsText(results, expected);
+
 	}
 
 	@Test
@@ -94,6 +95,17 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 			"14,Comment#8\n" + "15,Comment#9\n" + "16,Comment#10\n" +
 			"17,Comment#11\n" + "18,Comment#12\n" + "19,Comment#13\n" +
 			"20,Comment#14\n" + "21,Comment#15\n";
+		compareResultAsText(results, expected);
+
+		// replace table
+		ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		in = tableEnv.fromDataSet(ds, "a,b,c");
+		tableEnv.registerOrReplaceTable("T", in);
+
+		result = tableEnv.sqlQuery(sqlQuery);
+		resultSet = tableEnv.toDataSet(result, Row.class);
+		results = resultSet.collect();
+		expected = "1,Hi\n" + "2,Hello\n" + "3,Hello world\n";
 		compareResultAsText(results, expected);
 	}
 

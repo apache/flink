@@ -96,10 +96,12 @@ abstract class BatchTableEnvironment(
     *
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
+    * @param replace     Whether to replace the registered table.
     */
   override protected def registerTableSourceInternal(
       name: String,
-      tableSource: TableSource[_])
+      tableSource: TableSource[_],
+      replace: Boolean = false)
     : Unit = {
 
     tableSource match {
@@ -113,7 +115,7 @@ abstract class BatchTableEnvironment(
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
 
             // wrapper contains source
-            case Some(_: TableSourceTable[_]) =>
+            case Some(_: TableSourceTable[_]) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
@@ -197,13 +199,15 @@ abstract class BatchTableEnvironment(
     * @param fieldNames The field names to register with the [[TableSink]].
     * @param fieldTypes The field types to register with the [[TableSink]].
     * @param tableSink  The [[TableSink]] to register.
+    * @param replace    Whether to replace the registered table.
     */
-  def registerTableSink(
+  protected def registerTableSinkInternal(
       name: String,
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit = {
-    // validate
+      tableSink: TableSink[_],
+      replace: Boolean): Unit = {
+
     checkValidTableName(name)
     if (fieldNames == null) throw new TableException("fieldNames must not be null.")
     if (fieldTypes == null) throw new TableException("fieldTypes must not be null.")
@@ -214,22 +218,12 @@ abstract class BatchTableEnvironment(
 
     // configure and register
     val configuredSink = tableSink.configure(fieldNames, fieldTypes)
-    registerTableSinkInternal(name, configuredSink)
+    registerTableSinkInternal(name, configuredSink, replace)
   }
 
-  /**
-    * Registers an external [[TableSink]] with already configured field names and field types in
-    * this [[TableEnvironment]]'s catalog.
-    * Registered sink tables can be referenced in SQL DML statements.
-    *
-    * @param name The name under which the [[TableSink]] is registered.
-    * @param configuredSink The configured [[TableSink]] to register.
-    */
-  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    registerTableSinkInternal(name, configuredSink)
-  }
-
-  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+  protected def registerTableSinkInternal(name: String,
+                                          configuredSink: TableSink[_],
+                                          replace: Boolean): Unit = {
     // validate
     checkValidTableName(name)
     if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
@@ -255,7 +249,7 @@ abstract class BatchTableEnvironment(
           case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
 
             // wrapper contains sink
-            case Some(_: TableSinkTable[_]) =>
+            case Some(_: TableSinkTable[_]) if !replace =>
               throw new TableException(s"Table '$name' already exists. " +
                 s"Please choose a different name.")
 
@@ -387,21 +381,24 @@ abstract class BatchTableEnvironment(
   def explain(table: Table): String = explain(table: Table, extended = false)
 
   /**
-    * Registers a [[DataSet]] as a table under a given name in the [[TableEnvironment]]'s catalog.
+    * Registers or replace a [[DataSet]] as a table under a given name in the
+    * [[TableEnvironment]]'s catalog.
     *
     * @param name The name under which the table is registered in the catalog.
     * @param dataSet The [[DataSet]] to register as table in the catalog.
     * @tparam T the type of the [[DataSet]].
+    * @param replace Whether to replace the registered table.
     */
-  protected def registerDataSetInternal[T](name: String, dataSet: DataSet[T]): Unit = {
-
+  protected def registerDataSetInternal[T](name: String,
+                                           dataSet: DataSet[T],
+                                           replace: Boolean): Unit = {
     val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType)
     val dataSetTable = new DataSetTable[T](
       dataSet,
       fieldIndexes,
       fieldNames
     )
-    registerTableInternal(name, dataSetTable)
+    registerTableInternal(name, dataSetTable, replace)
   }
 
   /**
@@ -412,9 +409,10 @@ abstract class BatchTableEnvironment(
     * @param dataSet The [[DataSet]] to register as table in the catalog.
     * @param fields The field expressions to define the field names of the table.
     * @tparam T The type of the [[DataSet]].
+    * @param replace Whether to replace the registered table.
     */
   protected def registerDataSetInternal[T](
-      name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
+      name: String, dataSet: DataSet[T], fields: Array[Expression], replace: Boolean): Unit = {
 
     val inputType = dataSet.getType
 
@@ -428,7 +426,7 @@ abstract class BatchTableEnvironment(
     }
 
     val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
-    registerTableInternal(name, dataSetTable)
+    registerTableInternal(name, dataSetTable, replace)
   }
 
   /**

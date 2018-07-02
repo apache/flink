@@ -55,9 +55,22 @@ class BatchTableEnvironment(
     * @return The converted [[Table]].
     */
   def fromDataSet[T](dataSet: DataSet[T]): Table = {
+    fromDataSet(dataSet, false)
+  }
 
+  /**
+    * Converts the given [[DataSet]] into a [[Table]].
+    *
+    * The field names of the [[Table]] are automatically derived from the type of the [[DataSet]].
+    *
+    * @param dataSet The [[DataSet]] to be converted.
+    * @tparam T The type of the [[DataSet]].
+    * @param replace Whether to replace the registered table.
+    * @return The converted [[Table]].
+    */
+  def fromDataSet[T](dataSet: DataSet[T], replace: Boolean): Table = {
     val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet)
+    registerDataSetInternal(name, dataSet, replace)
     scan(name)
   }
 
@@ -77,14 +90,37 @@ class BatchTableEnvironment(
     * @return The converted [[Table]].
     */
   def fromDataSet[T](dataSet: DataSet[T], fields: String): Table = {
+
+    fromDataSet(dataSet, fields, false)
+  }
+
+  /**
+    * Converts the given [[DataSet]] into a [[Table]] with specified field names. And could
+    * also replace the existing table if it is already registered.
+    *
+    * Example:
+    *
+    * {{{
+    *   DataSet<Tuple2<String, Long>> set = ...
+    *   Table tab = tableEnv.fromDataSet(set, "a, b", true)
+    * }}}
+    *
+    * @param dataSet The [[DataSet]] to be converted.
+    * @param fields The field names of the resulting [[Table]].
+    * @tparam T The type of the [[DataSet]].
+    * @param replace Whether to replace the registered table.
+    * @return The converted [[Table]].
+    */
+  def fromDataSet[T](dataSet: DataSet[T], fields: String, replace: Boolean): Table = {
     val exprs = ExpressionParser
       .parseExpressionList(fields)
       .toArray
 
     val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet, exprs)
+    registerDataSetInternal(name, dataSet, exprs, replace)
     scan(name)
   }
+
 
   /**
     * Registers the given [[DataSet]] as table in the
@@ -98,9 +134,22 @@ class BatchTableEnvironment(
     * @tparam T The type of the [[DataSet]] to register.
     */
   def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
+    registerDataSetInternal(name, dataSet, false)
+  }
 
-    checkValidTableName(name)
-    registerDataSetInternal(name, dataSet)
+  /**
+    * Registers or replace the given [[DataSet]] as table in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived from the type of the [[DataSet]].
+    *
+    * @param name The name under which the [[DataSet]] is registered in the catalog.
+    * @param dataSet The [[DataSet]] to register.
+    * @tparam T The type of the [[DataSet]] to register.
+    */
+  def registerOrReplaceDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
+    registerDataSetInternal(name, dataSet, false)
   }
 
   /**
@@ -120,13 +169,44 @@ class BatchTableEnvironment(
     * @param fields The field names of the registered table.
     * @tparam T The type of the [[DataSet]] to register.
     */
-  def registerDataSet[T](name: String, dataSet: DataSet[T], fields: String): Unit = {
+  def registerDataSet[T](name: String,
+                         dataSet: DataSet[T],
+                         fields: String): Unit = {
     val exprs = ExpressionParser
       .parseExpressionList(fields)
       .toArray
 
     checkValidTableName(name)
-    registerDataSetInternal(name, dataSet, exprs)
+    registerDataSetInternal(name, dataSet, exprs, false)
+  }
+
+  /**
+    * Registers the given [[DataSet]] as table with specified field names in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * Example:
+    *
+    * {{{
+    *   DataSet<Tuple2<String, Long>> set = ...
+    *   tableEnv.registerOrReplaceDataSet("myTable", set, "a, b")
+    * }}}
+    *
+    * @param name The name under which the [[DataSet]] is registered in the catalog.
+    * @param dataSet The [[DataSet]] to register.
+    * @param fields The field names of the registered table.
+    * @param replace Whether to replace the registered table.
+    * @tparam T The type of the [[DataSet]] to register.
+    */
+  def registerOrReplaceDataSet[T](name: String,
+                         dataSet: DataSet[T],
+                         fields: String): Unit = {
+    val exprs = ExpressionParser
+      .parseExpressionList(fields)
+      .toArray
+
+    checkValidTableName(name)
+    registerDataSetInternal(name, dataSet, exprs, true)
   }
 
   /**

@@ -53,12 +53,13 @@ class BatchTableEnvironment(
     *
     * @param dataSet The [[DataSet]] to be converted.
     * @tparam T The type of the [[DataSet]].
+    * @param replace whether to replace the registered table
     * @return The converted [[Table]].
     */
   def fromDataSet[T](dataSet: DataSet[T]): Table = {
 
     val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet.javaSet)
+    registerDataSetInternal(name, dataSet.javaSet, false)
     scan(name)
   }
 
@@ -80,7 +81,7 @@ class BatchTableEnvironment(
   def fromDataSet[T](dataSet: DataSet[T], fields: Expression*): Table = {
 
     val name = createUniqueTableName()
-    registerDataSetInternal(name, dataSet.javaSet, fields.toArray)
+    registerDataSetInternal(name, dataSet.javaSet, fields.toArray, false)
     scan(name)
   }
 
@@ -94,11 +95,30 @@ class BatchTableEnvironment(
     * @param name The name under which the [[DataSet]] is registered in the catalog.
     * @param dataSet The [[DataSet]] to register.
     * @tparam T The type of the [[DataSet]] to register.
+    * @param replace whether to replace the registered table
     */
   def registerDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
 
     checkValidTableName(name)
-    registerDataSetInternal(name, dataSet.javaSet)
+    registerDataSetInternal(name, dataSet.javaSet, false)
+  }
+
+  /**
+    * Registers or replace the given [[DataSet]] as table in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * The field names of the [[Table]] are automatically derived from the type of the [[DataSet]].
+    *
+    * @param name The name under which the [[DataSet]] is registered in the catalog.
+    * @param dataSet The [[DataSet]] to register.
+    * @tparam T The type of the [[DataSet]] to register.
+    * @param replace whether to replace the registered table
+    */
+  def registerOrReplaceDataSet[T](name: String, dataSet: DataSet[T]): Unit = {
+
+    checkValidTableName(name)
+    registerDataSetInternal(name, dataSet.javaSet, true)
   }
 
   /**
@@ -121,7 +141,30 @@ class BatchTableEnvironment(
   def registerDataSet[T](name: String, dataSet: DataSet[T], fields: Expression*): Unit = {
 
     checkValidTableName(name)
-    registerDataSetInternal(name, dataSet.javaSet, fields.toArray)
+    registerDataSetInternal(name, dataSet.javaSet, fields.toArray, false)
+  }
+
+  /**
+    * Registers the given [[DataSet]] as table with specified field names in the
+    * [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * Example:
+    *
+    * {{{
+    *   val set: DataSet[(String, Long)] = ...
+    *   tableEnv.registerOrReplaceDataSet("myTable", set, 'a, 'b)
+    * }}}
+    *
+    * @param name The name under which the [[DataSet]] is registered in the catalog.
+    * @param dataSet The [[DataSet]] to register.
+    * @param fields The field names of the registered table.
+    * @tparam T The type of the [[DataSet]] to register.
+    */
+  def registerOrReplaceDataSet[T](name: String, dataSet: DataSet[T], fields: Expression*): Unit = {
+
+    checkValidTableName(name)
+    registerDataSetInternal(name, dataSet.javaSet, fields.toArray, true)
   }
 
   /**

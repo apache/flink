@@ -395,11 +395,12 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Creates a table from a table source.
     *
-    * @param source table source used as table
+    * @param source table source used as table.
+    * @param replace Whether to replace the registered table.
     */
-  def fromTableSource(source: TableSource[_]): Table = {
+  def fromTableSource(source: TableSource[_], replace: Boolean = false): Table = {
     val name = createUniqueTableName()
-    registerTableSourceInternal(name, source)
+    registerTableSourceInternal(name, source, replace)
     scan(name)
   }
 
@@ -517,7 +518,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param table The table to register.
     */
   def registerTable(name: String, table: Table): Unit = {
-
     // check that table belongs to this table environment
     if (table.tableEnv != this) {
       throw new TableException(
@@ -526,8 +526,28 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     checkValidTableName(name)
     val tableTable = new RelTable(table.getRelNode)
-    registerTableInternal(name, tableTable)
+    registerTableInternal(name, tableTable, false)
   }
+
+  /**
+    * Registers or replace a [[Table]] under a unique name in the TableEnvironment's catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name The name under which the table will be registered.
+    * @param table The table to register.
+    */
+  def registerOrReplaceTable(name: String, table: Table): Unit = {
+    // check that table belongs to this table environment
+    if (table.tableEnv != this) {
+      throw new TableException(
+        "Only tables that belong to this TableEnvironment can be registered.")
+    }
+
+    checkValidTableName(name)
+    val tableTable = new RelTable(table.getRelNode)
+    registerTableInternal(name, tableTable, true)
+  }
+
 
   /**
     * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
@@ -536,9 +556,23 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+  def registerTableSource(name: String,
+                          tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
-    registerTableSourceInternal(name, tableSource)
+    registerTableSourceInternal(name, tableSource, false)
+  }
+
+  /**
+    * Registers or replace an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  def registerOrReplaceTableSource(name: String,
+                          tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    registerTableSourceInternal(name, tableSource, true)
   }
 
   /**
@@ -547,8 +581,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
+    * @param replace     Whether to replace this [[TableSource]]
     */
-  protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
+  protected def registerTableSourceInternal(name: String,
+                                            tableSource: TableSource[_],
+                                            replace: Boolean): Unit
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this
@@ -564,7 +601,45 @@ abstract class TableEnvironment(val config: TableConfig) {
       name: String,
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
-      tableSink: TableSink[_]): Unit
+      tableSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, fieldNames, fieldTypes, tableSink, false)
+  }
+
+  /**
+    * Registers or replace an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param fieldNames The field names to register with the [[TableSink]].
+    * @param fieldTypes The field types to register with the [[TableSink]].
+    * @param tableSink The [[TableSink]] to register.
+    */
+  def registerOrReplaceTableSink(
+                         name: String,
+                         fieldNames: Array[String],
+                         fieldTypes: Array[TypeInformation[_]],
+                         tableSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, fieldNames, fieldTypes, tableSink, true)
+  }
+
+  /**
+    * Registers or replace an external [[TableSink]] with given field names and types in this
+    * [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param fieldNames The field names to register with the [[TableSink]].
+    * @param fieldTypes The field types to register with the [[TableSink]].
+    * @param tableSink The [[TableSink]] to register.
+    * @param replace Whether replace this [[TableSink]].
+    */
+  protected def registerTableSinkInternal(
+       name: String,
+       fieldNames: Array[String],
+       fieldTypes: Array[TypeInformation[_]],
+       tableSink: TableSink[_],
+       replace: Boolean): Unit
 
   /**
     * Registers an external [[TableSink]] with already configured field names and field types in
@@ -574,7 +649,35 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name The name under which the [[TableSink]] is registered.
     * @param configuredSink The configured [[TableSink]] to register.
     */
-  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, configuredSink, false)
+  }
+
+  /**
+    * Registers or replace an external [[TableSink]] with already configured field names and
+    * field types in this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  def registerOrReplaceTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    registerTableSinkInternal(name, configuredSink, true)
+  }
+
+
+  /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
+  protected def registerTableSinkInternal(name: String,
+                                          configuredSink: TableSink[_],
+                                          replace: Boolean): Unit
+
 
   /**
     * Replaces a registered Table with another Table under the same name.
@@ -888,13 +991,15 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Registers a Calcite [[AbstractTable]] in the TableEnvironment's catalog.
     *
     * @param name The name under which the table will be registered.
-    * @param table The table to register in the catalog
+    * @param table The table to register in the catalog.
+    * @param replace Whether to replace the registered table.
     * @throws TableException if another table is registered under the provided name.
     */
   @throws[TableException]
-  protected def registerTableInternal(name: String, table: AbstractTable): Unit = {
-
-    if (isRegistered(name)) {
+  protected def registerTableInternal(name: String,
+                                      table: AbstractTable,
+                                      replace: Boolean = false): Unit = {
+    if (!replace && isRegistered(name)) {
       throw new TableException(s"Table \'$name\' already exists. " +
         s"Please, choose a different name.")
     } else {
