@@ -309,6 +309,56 @@ public class NetworkBufferPoolTest {
 	}
 
 	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with an exception occurring during
+	 * the call to {@link NetworkBufferPool#redistributeBuffers()}.
+	 */
+	@Test
+	public void testRequestMemorySegmentsExceptionDuringBufferRedistribution() throws IOException {
+		final int numBuffers = 3;
+
+		NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		List<MemorySegment> memorySegments = Collections.emptyList();
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		// make releaseMemory calls always fail:
+		bufferPool.setBufferPoolOwner(numBuffersToRecycle -> {
+			throw new TestIOException();
+		});
+
+		try {
+			// take all but one buffer
+			for (int i = 0; i < numBuffers - 1; ++i) {
+				Buffer buffer = bufferPool.requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			// this will ask the buffer pool to release its excess buffers which should fail
+			memorySegments = networkBufferPool.requestMemorySegments(2);
+			fail("Requesting memory segments should have thrown during buffer pool redistribution.");
+		} catch (TestIOException e) {
+			// test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
+			// -> creating a new buffer pool should not fail with "insufficient number of network
+			//    buffers" and instead only with the TestIOException from redistributing buffers in
+			//    bufferPool
+			expectedException.expect(TestIOException.class);
+			networkBufferPool.createBufferPool(2, 2);
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			bufferPool.lazyDestroy();
+			networkBufferPool.recycleMemorySegments(memorySegments);
+			networkBufferPool.destroy();
+		}
+	}
+
+	private final class TestIOException extends IOException {
+		private static final long serialVersionUID = -814705441998024472L;
+	}
+
+	/**
 	 * Tests {@link NetworkBufferPool#requestMemorySegments(int)}, verifying it may be aborted in
 	 * case of a concurrent {@link NetworkBufferPool#destroy()} call.
 	 */
