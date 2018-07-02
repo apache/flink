@@ -75,8 +75,9 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+
 					<execution>
-						<id>flink-table-examples_${scala.binary.version}</id>
+						<id>fat-jar-wordcount-sql-example</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
@@ -85,8 +86,12 @@ under the License.
 							<shadeTestJar>false</shadeTestJar>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<finalName>TableExamples</finalName>
-							<outputFile>flink-examples-table-with-dependencies.jar</outputFile>
+							<finalName>WordCountSQL</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.table.examples.scala.WordCountSQL</mainClass>
+								</transformer>
+							</transformers>
 							<filters>
 								<filter>
 									<artifact>*:*</artifact>
@@ -102,6 +107,135 @@ under the License.
 							</filters>
 						</configuration>
 					</execution>
+
+					<execution>
+						<id>fat-jar-wordcount-table-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<finalName>WordCountTable</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.table.examples.scala.WordCountTable</mainClass>
+								</transformer>
+							</transformers>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<includes>
+										<include>org/apache/calcite/**</include>
+										<include>org/apache/flink/calcite/shaded/**</include>
+										<include>org/apache/flink/table/**</include>
+										<include>org.codehaus.commons.compiler.properties</include>
+										<include>org/codehaus/janino/**</include>
+										<include>org/codehaus/commons/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-stream-sql-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<finalName>StreamSQL</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.table.examples.scala.StreamSQLExample</mainClass>
+								</transformer>
+							</transformers>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<includes>
+										<include>org/apache/calcite/**</include>
+										<include>org/apache/flink/calcite/shaded/**</include>
+										<include>org/apache/flink/table/**</include>
+										<include>org.codehaus.commons.compiler.properties</include>
+										<include>org/codehaus/janino/**</include>
+										<include>org/codehaus/commons/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-stream-table-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<finalName>StreamTable</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.table.examples.scala.StreamTableExample</mainClass>
+								</transformer>
+							</transformers>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<includes>
+										<include>org/apache/calcite/**</include>
+										<include>org/apache/flink/calcite/shaded/**</include>
+										<include>org/apache/flink/table/**</include>
+										<include>org.codehaus.commons.compiler.properties</include>
+										<include>org/codehaus/janino/**</include>
+										<include>org/codehaus/commons/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>fat-jar-TPCHQuery3-table-example</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<finalName>TPCHQuery3Table</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.table.examples.scala.TPCHQuery3Table</mainClass>
+								</transformer>
+							</transformers>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<includes>
+										<include>org/apache/calcite/**</include>
+										<include>org/apache/flink/calcite/shaded/**</include>
+										<include>org/apache/flink/table/**</include>
+										<include>org.codehaus.commons.compiler.properties</include>
+										<include>org/codehaus/janino/**</include>
+										<include>org/codehaus/commons/**</include>
+									</includes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+
 				</executions>
 			</plugin>
 		</plugins>
