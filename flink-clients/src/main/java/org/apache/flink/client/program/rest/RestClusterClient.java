@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -106,7 +107,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -315,56 +315,61 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		// we have to enable queued scheduling because slot will be allocated lazily
 		jobGraph.setAllowQueuedScheduling(true);
 
-		CompletableFuture<JobSubmitResponseBody> submissionFuture = CompletableFuture.supplyAsync(
-			() -> {
-				log.info("Submitting job graph.");
-
-				List<String> jarFileNames = new ArrayList<>(8);
-				List<JobSubmitRequestBody.DistributedCacheFile> artifactFileNames = new ArrayList<>(8);
-				Collection<FileUpload> filesToUpload = new ArrayList<>(8);
-
-				// TODO: need configurable location
-				final java.nio.file.Path jobGraphFile;
-				try {
-					jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
-					try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
-						objectOut.writeObject(jobGraph);
-					}
-					filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
-				} catch (IOException e) {
-					throw new CompletionException(new FlinkException("Failed to serialize JobGraph.", e));
+		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
+			try {
+				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
+				try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+					objectOut.writeObject(jobGraph);
 				}
+				return jobGraphFile;
+			} catch (IOException e) {
+				throw new CompletionException(new FlinkException("Failed to serialize JobGraph.", e));
+			}
+		}, executorService);
 
-				for (Path jar : jobGraph.getUserJars()) {
-					jarFileNames.add(jar.getName());
-					filesToUpload.add(new FileUpload(Paths.get(jar.toUri()), RestConstants.CONTENT_TYPE_JAR));
-				}
+		CompletableFuture<Tuple2<JobSubmitRequestBody, Collection<FileUpload>>> requestFuture = jobGraphFileFuture.thenApply(jobGraphFile -> {
+			List<String> jarFileNames = new ArrayList<>(8);
+			List<JobSubmitRequestBody.DistributedCacheFile> artifactFileNames = new ArrayList<>(8);
+			Collection<FileUpload> filesToUpload = new ArrayList<>(8);
 
-				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-					artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-					filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
-				}
+			filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 
-				final CompletableFuture<JobSubmitResponseBody> submitFuture = sendRetriableRequest(
-					JobSubmitHeaders.getInstance(),
-					EmptyMessageParameters.getInstance(),
-					new JobSubmitRequestBody(
-						jobGraphFile.getFileName().toString(),
-						jarFileNames,
-						artifactFileNames),
-					filesToUpload,
-					isConnectionProblemOrServiceUnavailable());
+			for (Path jar : jobGraph.getUserJars()) {
+				jarFileNames.add(jar.getName());
+				filesToUpload.add(new FileUpload(Paths.get(jar.toUri()), RestConstants.CONTENT_TYPE_JAR));
+			}
 
-				submitFuture
-					.whenComplete((ignored, ignore) -> {
-						try {
-							Files.delete(jobGraphFile);
-						} catch (IOException e) {
-							log.warn("Could not delete temporary file {}.", jobGraphFile, e);
-						}
-					});
-				return submitFuture;
-			}, executorService).thenCompose(future -> future);
+			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
+				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
+				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+			}
+
+			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
+				jobGraphFile.getFileName().toString(),
+				jarFileNames,
+				artifactFileNames);
+
+			return Tuple2.of(requestBody, Collections.unmodifiableCollection(filesToUpload));
+		});
+
+		final CompletableFuture<JobSubmitResponseBody> submissionFuture = requestFuture.thenCompose(
+			requestAndFileUploads -> sendRetriableRequest(
+				JobSubmitHeaders.getInstance(),
+				EmptyMessageParameters.getInstance(),
+				requestAndFileUploads.f0,
+				requestAndFileUploads.f1,
+				isConnectionProblemOrServiceUnavailable())
+		);
+
+		submissionFuture
+			.thenCombine(jobGraphFileFuture, (ignored, jobGraphFile) -> jobGraphFile)
+			.thenAccept(jobGraphFile -> {
+			try {
+				Files.delete(jobGraphFile);
+			} catch (IOException e) {
+				log.warn("Could not delete temporary file {}.", jobGraphFile, e);
+			}
+		});
 
 		return submissionFuture
 			.thenApply(
