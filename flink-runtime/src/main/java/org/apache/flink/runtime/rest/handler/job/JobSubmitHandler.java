@@ -96,9 +96,9 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
-		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(nameToFile, requestBody.jarFileNames);
+		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
-		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = getArtifactFilesToUpload(nameToFile, requestBody.artifactFileNames);
+		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
 		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts);
 
@@ -125,7 +125,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		}, executor);
 	}
 
-	private static Collection<org.apache.flink.core.fs.Path> getJarFilesToUpload(Map<String, Path> nameToFileMap, Collection<String> jarFileNames) throws MissingFileException {
+	private static Collection<org.apache.flink.core.fs.Path> getJarFilesToUpload(Collection<String> jarFileNames, Map<String, Path> nameToFileMap) throws MissingFileException {
 		Collection<org.apache.flink.core.fs.Path> jarFiles = new ArrayList<>(jarFileNames.size());
 		for (String jarFileName : jarFileNames) {
 			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFileMap);
@@ -135,8 +135,8 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	}
 
 	private static Collection<Tuple2<String, org.apache.flink.core.fs.Path>> getArtifactFilesToUpload(
-			Map<String, Path> nameToFileMap,
-			Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries) throws MissingFileException {
+			Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries,
+			Map<String, Path> nameToFileMap) throws MissingFileException {
 		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(artifactEntries.size());
 		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : artifactEntries) {
 			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
