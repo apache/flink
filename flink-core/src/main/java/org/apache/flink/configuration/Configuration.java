@@ -729,6 +729,32 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 		}
 	}
 
+	/**
+	 * Removes given config option from the configuration.
+	 *
+	 * @param configOption config option to remove
+	 * @param <T> Type of the config option
+	 * @return true is config has been removed, false otherwise
+	 */
+	public <T> boolean removeConfig(ConfigOption<T> configOption){
+		synchronized (this.confData){
+			// try the current key
+			Object oldValue = this.confData.remove(configOption.key());
+			if (oldValue == null){
+				for (String deprecatedKey : configOption.deprecatedKeys()){
+					oldValue = this.confData.remove(deprecatedKey);
+					if (oldValue != null){
+						LOG.warn("Config uses deprecated configuration key '{}' instead of proper key '{}'",
+							deprecatedKey, configOption.key());
+						return true;
+					}
+				}
+				return false;
+			}
+			return true;
+		}
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 
