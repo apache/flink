@@ -122,6 +122,27 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 	}
 
 	@Test
+	public void testUriParameters() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(MesosTaskManagerParameters.MESOS_TM_URIS,
+				"file:///dev/null,http://localhost/test,  test_url ");
+
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+		assertEquals(params.uris().size(), 3);
+		assertEquals(params.uris().get(0), "file:///dev/null");
+		assertEquals(params.uris().get(1), "http://localhost/test");
+		assertEquals(params.uris().get(2), "test_url");
+	}
+
+	@Test
+	public void testUriParametersDefault() throws Exception {
+		Configuration config = new Configuration();
+
+		MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+		assertEquals(params.uris().size(), 0);
+	}
+
+	@Test
 	public void givenTwoConstraintsInConfigShouldBeParsed() throws Exception {
 
 		MesosTaskManagerParameters mesosTaskManagerParameters = MesosTaskManagerParameters.create(withHardHostAttrConstraintConfiguration("cluster:foo,az:eu-west-1"));

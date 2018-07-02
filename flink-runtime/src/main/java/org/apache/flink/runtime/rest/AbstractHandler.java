@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
@@ -26,7 +27,6 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
-import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -103,76 +102,77 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				return;
 			}
 
-			ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
+			final ByteBuf msgContent = ((FullHttpRequest) httpRequest).content();
 
-			R request;
-			if (isFileUpload()) {
-				final Path path = ctx.channel().attr(FileUploadHandler.UPLOADED_FILE).get();
-				if (path == null) {
+			try (FileUploads uploadedFiles = FileUploadHandler.getMultipartFileUploads(ctx)) {
+
+				if (!untypedResponseMessageHeaders.acceptsFileUploads() && !uploadedFiles.getUploadedFiles().isEmpty()) {
 					HandlerUtils.sendErrorResponse(
 						ctx,
 						httpRequest,
-						new ErrorResponseBody("Client did not upload a file."),
+						new ErrorResponseBody("File uploads not allowed."),
 						HttpResponseStatus.BAD_REQUEST,
 						responseHeaders);
 					return;
 				}
-				//noinspection unchecked
-				request = (R) new FileUpload(path);
-			} else if (msgContent.capacity() == 0) {
+
+				R request;
+				if (msgContent.capacity() == 0) {
+					try {
+						request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
+					} catch (JsonParseException | JsonMappingException je) {
+						log.error("Request did not conform to expected format.", je);
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							httpRequest,
+							new ErrorResponseBody("Bad request received."),
+							HttpResponseStatus.BAD_REQUEST,
+							responseHeaders);
+						return;
+					}
+				} else {
+					try {
+						ByteBufInputStream in = new ByteBufInputStream(msgContent);
+						request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
+					} catch (JsonParseException | JsonMappingException je) {
+						log.error("Failed to read request.", je);
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							httpRequest,
+							new ErrorResponseBody(String.format("Request did not match expected format %s.", untypedResponseMessageHeaders.getRequestClass().getSimpleName())),
+							HttpResponseStatus.BAD_REQUEST,
+							responseHeaders);
+						return;
+					}
+				}
+
+				final HandlerRequest<R, M> handlerRequest;
+
 				try {
-					request = MAPPER.readValue("{}", untypedResponseMessageHeaders.getRequestClass());
-				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Request did not conform to expected format.", je);
+					handlerRequest = new HandlerRequest<R, M>(
+						request,
+						untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
+						routedRequest.getRouteResult().pathParams(),
+						routedRequest.getRouteResult().queryParams(),
+						uploadedFiles.getUploadedFiles());
+				} catch (HandlerRequestException hre) {
+					log.error("Could not create the handler request.", hre);
+
 					HandlerUtils.sendErrorResponse(
 						ctx,
 						httpRequest,
-						new ErrorResponseBody("Bad request received."),
+						new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
 						HttpResponseStatus.BAD_REQUEST,
 						responseHeaders);
 					return;
 				}
-			} else {
-				try {
-					ByteBufInputStream in = new ByteBufInputStream(msgContent);
-					request = MAPPER.readValue(in, untypedResponseMessageHeaders.getRequestClass());
-				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Failed to read request.", je);
-					HandlerUtils.sendErrorResponse(
-						ctx,
-						httpRequest,
-						new ErrorResponseBody(String.format("Request did not match expected format %s.", untypedResponseMessageHeaders.getRequestClass().getSimpleName())),
-						HttpResponseStatus.BAD_REQUEST,
-						responseHeaders);
-					return;
-				}
-			}
 
-			final HandlerRequest<R, M> handlerRequest;
-
-			try {
-				handlerRequest = new HandlerRequest<>(
-					request,
-					untypedResponseMessageHeaders.getUnresolvedMessageParameters(),
-					routedRequest.getRouteResult().pathParams(),
-					routedRequest.getRouteResult().queryParams());
-			} catch (HandlerRequestException hre) {
-				log.error("Could not create the handler request.", hre);
-
-				HandlerUtils.sendErrorResponse(
+				respondToRequest(
 					ctx,
 					httpRequest,
-					new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
-					HttpResponseStatus.BAD_REQUEST,
-					responseHeaders);
-				return;
+					handlerRequest,
+					gateway);
 			}
-
-			respondToRequest(
-				ctx,
-				httpRequest,
-				handlerRequest,
-				gateway);
 
 		} catch (Throwable e) {
 			log.error("Request processing failed.", e);
@@ -183,10 +183,6 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 				HttpResponseStatus.INTERNAL_SERVER_ERROR,
 				responseHeaders);
 		}
-	}
-
-	private boolean isFileUpload() {
-		return untypedResponseMessageHeaders.getRequestClass() == FileUpload.class;
 	}
 
 	/**

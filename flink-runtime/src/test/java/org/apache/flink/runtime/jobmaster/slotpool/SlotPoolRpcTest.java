@@ -107,6 +107,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		final SlotPool pool = new SlotPool(
 			rpcService,
 			jid,
+			LocationPreferenceSchedulingStrategy.getInstance(),
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime()
@@ -355,6 +356,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			super(
 				rpcService,
 				jobId,
+				LocationPreferenceSchedulingStrategy.getInstance(),
 				clock,
 				rpcTimeout,
 				idleSlotTimeout);

@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -109,11 +110,11 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
 		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				NUM_TMS,
-				NUM_SLOTS_PER_TM),
-			true);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(NUM_TMS)
+				.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+				.build());
 
 		miniClusterResource.before();
 	}

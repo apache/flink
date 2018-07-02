@@ -333,34 +333,34 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testUnparsableLongForDescribeStreamBackoffBaseMillisInConfig() {
+	public void testUnparsableLongForListShardsBackoffBaseMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
+		exception.expectMessage("Invalid value given for list shards operation base backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableLongForDescribeStreamBackoffMaxMillisInConfig() {
+	public void testUnparsableLongForListShardsBackoffMaxMillisInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
+		exception.expectMessage("Invalid value given for list shards operation max backoff milliseconds");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
+		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}
 
 	@Test
-	public void testUnparsableDoubleForDescribeStreamBackoffExponentialConstantInConfig() {
+	public void testUnparsableDoubleForListShardsBackoffExponentialConstantInConfig() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
+		exception.expectMessage("Invalid value given for list shards operation backoff exponential constant");
 
 		Properties testConfig = TestUtils.getStandardProperties();
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
+		testConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 	}

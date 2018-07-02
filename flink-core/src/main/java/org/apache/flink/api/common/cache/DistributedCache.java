@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.Path;
 import java.io.File;
 import java.io.Serializable;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,6 +43,10 @@ public class DistributedCache {
 
 	/**
 	 * Meta info about an entry in {@link DistributedCache}.
+	 *
+	 * <p>Entries have different semantics for local directories depending on where we are in the job-submission process.
+	 * After registration through the API {@code filePath} denotes the original directory.
+	 * After the upload to the cluster (which includes zipping the directory), {@code filePath} denotes the (server-side) copy of the zip.
 	 */
 	public static class DistributedCacheEntry implements Serializable {
 
@@ -51,6 +56,17 @@ public class DistributedCache {
 
 		public byte[] blobKey;
 
+		/** Client-side constructor used by the API for initial registration. */
+		public DistributedCacheEntry(String filePath, Boolean isExecutable) {
+			this(filePath, isExecutable, null);
+		}
+
+		/** Client-side constructor used during job-submission for zipped directory. */
+		public DistributedCacheEntry(String filePath, boolean isExecutable, boolean isZipped) {
+			this(filePath, isExecutable, null, isZipped);
+		}
+
+		/** Server-side constructor used during job-submission for zipped directories. */
 		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey, boolean isZipped) {
 			this.filePath = filePath;
 			this.isExecutable = isExecutable;
@@ -58,12 +74,19 @@ public class DistributedCache {
 			this.isZipped = isZipped;
 		}
 
-		public DistributedCacheEntry(String filePath, Boolean isExecutable){
-			this(filePath, isExecutable, null);
-		}
-
+		/** Server-side constructor used during job-submission for files. */
 		public DistributedCacheEntry(String filePath, Boolean isExecutable, byte[] blobKey){
 			this(filePath, isExecutable, blobKey, false);
+		}
+
+		@Override
+		public String toString() {
+			return "DistributedCacheEntry{" +
+				"filePath='" + filePath + '\'' +
+				", isExecutable=" + isExecutable +
+				", isZipped=" + isZipped +
+				", blobKey=" + Arrays.toString(blobKey) +
+				'}';
 		}
 	}
 

@@ -669,7 +669,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			taskManagerParameters.constraints(),
 			taskManagerParameters.command(),
 			taskManagerParameters.bootstrapCommand(),
-			taskManagerParameters.getTaskManagerHostname()
+			taskManagerParameters.getTaskManagerHostname(),
+			taskManagerParameters.uris()
 		);
 
 		LOG.debug("LaunchableMesosWorker parameters: {}", params);

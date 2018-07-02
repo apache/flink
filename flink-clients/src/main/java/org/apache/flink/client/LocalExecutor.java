@@ -40,6 +40,7 @@ import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 import java.util.List;
 
@@ -137,7 +138,7 @@ public class LocalExecutor extends PlanExecutor {
 					configuration.getInteger(
 						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
 						ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
-				.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+				.setRpcServiceSharing(RpcServiceSharing.SHARED)
 				.setNumSlotsPerTaskManager(
 					configuration.getInteger(
 						TaskManagerOptions.NUM_TASK_SLOTS, 1))

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -50,10 +51,10 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			3));
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(2)
+			.setNumberSlotsPerTaskManager(3)
+			.build());
 
 	public static Configuration getConfiguration() {
 		Configuration config = new Configuration();

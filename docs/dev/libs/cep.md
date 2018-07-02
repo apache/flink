@@ -84,7 +84,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
             }
         }
     ).next("middle").subtype(SubEvent.class).where(
-        new SimpleCondition<Event>() {
+        new SimpleCondition<SubEvent>() {
             @Override
             public boolean filter(SubEvent subEvent) {
                 return subEvent.getVolume() >= 10.0;
@@ -102,7 +102,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 DataStream<Alert> result = patternStream.select(
-    new PatternSelectFunction<Event, Alert> {
+    new PatternSelectFunction<Event, Alert>() {
         @Override
         public Alert select(Map<String, List<Event>> pattern) throws Exception {
             return createAlertFrom(pattern);
@@ -115,7 +115,7 @@ DataStream<Alert> result = patternStream.select(
 {% highlight scala %}
 val input: DataStream[Event] = ...
 
-val pattern = Pattern.begin("start").where(_.getId == 42)
+val pattern = Pattern.begin[Event]("start").where(_.getId == 42)
   .next("middle").subtype(classOf[SubEvent]).where(_.getVolume >= 10.0)
   .followedBy("end").where(_.getName == "end")
 
@@ -131,7 +131,7 @@ val result: DataStream[Alert] = patternStream.select(createAlert(_))
 The pattern API allows you to define complex pattern sequences that you want to extract from your input stream.
 
 Each complex pattern sequence consists of multiple simple patterns, i.e. patterns looking for individual events with the same properties. From now on, we will call these simple patterns **patterns**, and the final complex pattern sequence we are searching for in the stream, the **pattern sequence**. You can see a pattern sequence as a graph of such patterns, where transitions from one pattern to the next occur based on user-specified
-*conditions*, e.g. `event.getName().equals("start")`. A **match** is a sequence of input events which visits all
+*conditions*, e.g. `event.getName().equals("end")`. A **match** is a sequence of input events which visits all
 patterns of the complex pattern graph, through a sequence of valid pattern transitions.
 
 {% warn Attention %} Each pattern must have a unique name, which you use later to identify the matched events.
@@ -275,36 +275,40 @@ with "foo", and if the sum of the prices of the previously accepted events for t
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-middle.oneOrMore().where(new IterativeCondition<SubEvent>() {
-    @Override
-    public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
-        if (!value.getName().startsWith("foo")) {
-            return false;
+middle.oneOrMore()
+    .subtype(SubEvent.class)
+    .where(new IterativeCondition<SubEvent>() {
+        @Override
+        public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
+            if (!value.getName().startsWith("foo")) {
+                return false;
+            }
+    
+            double sum = value.getPrice();
+            for (Event event : ctx.getEventsForPattern("middle")) {
+                sum += event.getPrice();
+            }
+            return Double.compare(sum, 5.0) < 0;
         }
-
-        double sum = value.getPrice();
-        for (Event event : ctx.getEventsForPattern("middle")) {
-            sum += event.getPrice();
-        }
-        return Double.compare(sum, 5.0) < 0;
-    }
-});
+    });
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-middle.oneOrMore().where(
-    (value, ctx) => {
-        lazy val sum = ctx.getEventsForPattern("middle").asScala.map(_.getPrice).sum
-        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
-    }
-)
+middle.oneOrMore()
+    .subtype(classOf[SubEvent])
+    .where(
+        (value, ctx) => {
+            lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
+            value.getName.startsWith("foo") && sum + value.getPrice < 5.0
+        }
+    )
 {% endhighlight %}
 </div>
 </div>
 
-{% warn Attention %} The call to `context.getEventsForPattern(...)` finds all the
+{% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
 your condition, try to minimize its use.
 
@@ -950,22 +954,22 @@ Pattern<Event, ?> nonDetermin = start.followedByAny(
 {% highlight scala %}
 
 val start: Pattern[Event, _] = Pattern.begin(
-    Pattern.begin[Event, _]("start").where(...).followedBy("start_middle").where(...)
+    Pattern.begin[Event]("start").where(...).followedBy("start_middle").where(...)
 )
 
 // strict contiguity
 val strict: Pattern[Event, _] = start.next(
-    Pattern.begin[Event, _]("next_start").where(...).followedBy("next_middle").where(...)
+    Pattern.begin[Event]("next_start").where(...).followedBy("next_middle").where(...)
 ).times(3)
 
 // relaxed contiguity
 val relaxed: Pattern[Event, _] = start.followedBy(
-    Pattern.begin[Event, _]("followedby_start").where(...).followedBy("followedby_middle").where(...)
+    Pattern.begin[Event]("followedby_start").where(...).followedBy("followedby_middle").where(...)
 ).oneOrMore()
 
 // non-deterministic relaxed contiguity
 val nonDetermin: Pattern[Event, _] = start.followedByAny(
-    Pattern.begin[Event, _]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
+    Pattern.begin[Event]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
 ).optional()
 
 {% endhighlight %}
@@ -1633,7 +1637,7 @@ val input : DataStream[Event] = ...
 
 val partitionedInput = input.keyBy(event => event.getId)
 
-val pattern = Pattern.begin("start")
+val pattern = Pattern.begin[Event]("start")
   .next("middle").where(_.getName == "error")
   .followedBy("end").where(_.getName == "critical")
   .within(Time.seconds(10))

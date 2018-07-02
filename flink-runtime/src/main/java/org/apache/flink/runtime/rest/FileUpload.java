@@ -16,29 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest;
 
 import java.nio.file.Path;
 
 /**
  * Client uploading a file.
  */
-public class FileUpload implements RequestBody {
+public final class FileUpload {
+	private final Path file;
+	private final String contentType;
 
-	private final Path path;
-
-	public FileUpload(final Path path) {
-		this.path = path;
+	public FileUpload(Path file, String contentType) {
+		this.file = file;
+		this.contentType = contentType;
 	}
 
-	public Path getPath() {
-		return path;
+	public Path getFile() {
+		return file;
 	}
 
-	@Override
-	public String toString() {
-		return "FileUpload{" +
-			"path=" + path +
-			'}';
+	public String getContentType() {
+		return contentType;
 	}
 }

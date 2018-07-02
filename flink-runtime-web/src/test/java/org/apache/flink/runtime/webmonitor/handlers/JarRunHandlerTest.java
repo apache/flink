@@ -28,6 +28,8 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.ClassRule;
@@ -62,13 +64,12 @@ public class JarRunHandlerTest {
 		config.setString(WebOptions.UPLOAD_DIR, uploadDir.toString());
 
 		MiniClusterResource clusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				1,
-				1
-			),
-			MiniClusterResource.MiniClusterType.NEW
-		);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(1)
+				.setCodebaseType(TestBaseUtils.CodebaseType.NEW)
+				.build());
 		clusterResource.before();
 
 		try {
