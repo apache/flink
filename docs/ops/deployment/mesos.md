@@ -270,6 +270,8 @@ May be set to -1 to disable this feature.
 
 `mesos.resourcemanager.tasks.uris`: A comma separated list of URIs of custom artifacts to be downloaded into the sandbox of Mesos workers. (**NO DEFAULT**)
 
+`mesos.resourcemanager.tasks.container.docker.force-pull-image`: Instruct the docker containerizer to forcefully pull the image rather than reuse a cached version. (**DEFAULT**: false)
+
 `mesos.resourcemanager.tasks.hostname`: Optional value to define the TaskManager's hostname. The pattern `_TASK_` is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. `_TASK_.flink-service.mesos`) for name lookups. (**NO DEFAULT**)
 
 `mesos.resourcemanager.tasks.bootstrap-cmd`: A command which is executed before the TaskManager is started (**NO DEFAULT**).
