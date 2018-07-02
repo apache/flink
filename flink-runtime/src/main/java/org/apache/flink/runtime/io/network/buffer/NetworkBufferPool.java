@@ -151,7 +151,12 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
 
-			redistributeBuffers();
+			try {
+				redistributeBuffers();
+			} catch (Throwable t) {
+				this.numTotalRequiredBuffers -= numRequiredBuffers;
+				ExceptionUtils.rethrowIOException(t);
+			}
 		}
 
 		final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
@@ -180,6 +185,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			availableMemorySegments.addAll(segments);
 
+			// note: if this fails, we're fine for the buffer pool since we already recycled the segments
 			redistributeBuffers();
 		}
 	}
