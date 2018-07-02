@@ -364,7 +364,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 						}
 					});
 				return submitFuture;
-			}).thenCompose(future -> future);
+			}, executorService).thenCompose(future -> future);
 
 		return submissionFuture
 			.thenApply(
