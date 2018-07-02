@@ -2,13 +2,10 @@
 *.iml
 *.jar
 *.retry
-*.tfstate
-*.tfstate.*
 .DS_Store
 .hg/
 .hgignore
 .idea/
-.terraform/
 /.lein-*
 /.nrepl-port
 /checkouts
