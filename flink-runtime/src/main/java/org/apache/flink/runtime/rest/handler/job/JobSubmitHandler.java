@@ -147,7 +147,9 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		return jarFiles;
 	}
 
-	private static Collection<Tuple2<String, org.apache.flink.core.fs.Path>> getArtifactFilesToUpload(Map<String, Path> nameToFileMap, Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries) throws MissingFileException {
+	private static Collection<Tuple2<String, org.apache.flink.core.fs.Path>> getArtifactFilesToUpload(
+			Map<String, Path> nameToFileMap,
+			Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries) throws MissingFileException {
 		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(artifactEntries.size());
 		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : artifactEntries) {
 			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
