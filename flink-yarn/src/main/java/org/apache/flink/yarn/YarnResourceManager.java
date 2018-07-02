@@ -334,7 +334,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					if (yarnWorkerNode != null) {
 						// Container completed unexpectedly ~> start a new one
 						final Container container = yarnWorkerNode.getContainer();
-						requestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
+						internalRequestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
 						closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
 					}
 				}
@@ -510,4 +510,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		}
 	}
 
+	/**
+	 * Request new container if pending containers cannot satisfies pending slot requests.
+	 */
+	private void internalRequestYarnContainer(Resource resource, Priority priority) {
+		int pendingSlotRequests = getNumberPendingSlotRequests();
+		int pendingSlotAllocation = numPendingContainerRequests * defaultNumSlots;
+		if (pendingSlotRequests > pendingSlotAllocation) {
+			requestYarnContainer(resource, priority);
+		}
+	}
 }
