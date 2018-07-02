@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.ResumableWriter;
 
 import java.io.IOException;
 import java.net.URI;
@@ -193,11 +194,19 @@ public class HadoopFileSystem extends FileSystem {
 		return fsKind;
 	}
 
+	@Override
+	public ResumableWriter createRecoverableWriter() throws IOException {
+		// This writer is only supported on a subset of file systems, and on
+		// specific versions. We check these schemes and versions eagerly for better error
+		// messages in the constructor of the writer.
+		return new HadoopRecoverableWriter(fs);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
+	static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
 		return new org.apache.hadoop.fs.Path(path.toUri());
 	}
 
