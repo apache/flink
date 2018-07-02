@@ -78,7 +78,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	protected CompletableFuture<JobSubmitResponseBody> handleRequest(@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
 		final Collection<File> uploadedFiles = request.getUploadedFiles();
 		final Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
-			path -> path.toPath().getFileName().toString(),
+			File::getName,
 			File::toPath
 		));
 
