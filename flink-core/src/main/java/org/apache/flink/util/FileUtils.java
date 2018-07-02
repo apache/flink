@@ -333,26 +333,33 @@ public final class FileUtils {
 		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
 		if (!tFS.exists(targetPath)) {
 			if (sFS.getFileStatus(sourcePath).isDir()) {
-				tFS.mkdirs(targetPath);
-				FileStatus[] contents = sFS.listStatus(sourcePath);
-				for (FileStatus content : contents) {
-					String distPath = content.getPath().toString();
-					if (content.isDir()) {
-						if (distPath.endsWith("/")) {
-							distPath = distPath.substring(0, distPath.length() - 1);
-						}
-					}
-					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
-					copy(content.getPath(), new Path(localPath), executable);
-				}
+				internalCopyDirectory(sourcePath, targetPath, executable, sFS, tFS);
 			} else {
-				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
-					IOUtils.copyBytes(fsInput, lfsOutput);
-					//noinspection ResultOfMethodCallIgnored
-					new File(targetPath.toString()).setExecutable(executable);
-				} catch (IOException ignored) {
+				internalCopyFile(sourcePath, targetPath, executable, sFS, tFS);
+			}
+		}
+	}
+
+	private static void internalCopyDirectory(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		tFS.mkdirs(targetPath);
+		FileStatus[] contents = sFS.listStatus(sourcePath);
+		for (FileStatus content : contents) {
+			String distPath = content.getPath().toString();
+			if (content.isDir()) {
+				if (distPath.endsWith("/")) {
+					distPath = distPath.substring(0, distPath.length() - 1);
 				}
 			}
+			String localPath = targetPath + distPath.substring(distPath.lastIndexOf("/"));
+			copy(content.getPath(), new Path(localPath), executable);
+		}
+	}
+
+	private static void internalCopyFile(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+			IOUtils.copyBytes(fsInput, lfsOutput);
+			//noinspection ResultOfMethodCallIgnored
+			new File(targetPath.toString()).setExecutable(executable);
 		}
 	}
 
