@@ -467,4 +467,21 @@ public class BootstrapTools {
 		}
 		return template;
 	}
+
+	/**
+	 * Set temporary configuration directories if necesary
+	 *
+	 * @param configuration flink config to patch
+	 * @param defaultDirs in case no tmp directories is set, next directories will be applied
+	 */
+	public static void updateTmpDirectoriesInConfiguration(Configuration configuration, String defaultDirs){
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding Fink's temporary file directories with those " +
+				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else {
+			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
+		}
+	}
 }
