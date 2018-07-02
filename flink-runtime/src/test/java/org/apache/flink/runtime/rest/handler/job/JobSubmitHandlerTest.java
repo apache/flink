@@ -107,10 +107,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 	@Test
 	public void testSuccessfulJobSubmission() throws Exception {
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
-		try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
-			try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
-				objectOut.writeObject(new JobGraph("testjob"));
-			}
+		try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+			objectOut.writeObject(new JobGraph("testjob"));
 		}
 
 		TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
@@ -137,10 +135,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 	@Test
 	public void testRejectionOnCountMismatch() throws Exception {
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
-		try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
-			try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
-				objectOut.writeObject(new JobGraph("testjob"));
-			}
+		try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+			objectOut.writeObject(new JobGraph("testjob"));
 		}
 		final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
@@ -196,10 +192,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 		final JobGraph jobGraph = new JobGraph();
 		// the entry that should be updated
 		jobGraph.addUserArtifact(dcEntryName, new DistributedCache.DistributedCacheEntry("random", false));
-		try (OutputStream fileOut = Files.newOutputStream(jobGraphFile)) {
-			try (ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
-				objectOut.writeObject(jobGraph);
-			}
+		try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
+			objectOut.writeObject(jobGraph);
 		}
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(
