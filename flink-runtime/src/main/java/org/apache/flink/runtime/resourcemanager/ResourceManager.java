@@ -1120,5 +1120,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			return CompletableFuture.completedFuture(null);
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Resource Management
+	// ------------------------------------------------------------------------
+
+	protected int getNumberPendingSlotRequests() {
+		return slotManager.getNumberPendingSlotRequests();
+	}
 }
 
