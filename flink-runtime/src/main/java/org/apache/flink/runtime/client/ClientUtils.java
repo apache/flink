@@ -86,7 +86,7 @@ public enum ClientUtils {
 	 * Uploads the given user jars using the given {@link BlobClient}, and sets the appropriate blobkeys on the given {@link JobGraph}.
 	 *
 	 * @param jobGraph jobgraph requiring user jars
-	 * @param userJars jars to upload   
+	 * @param userJars jars to upload
 	 * @param blobClient client to upload jars with
 	 * @throws IOException if the upload fails
 	 */
@@ -112,7 +112,7 @@ public enum ClientUtils {
 	 * Uploads the given user artifacts using the given {@link BlobClient}, and sets the appropriate blobkeys on the given {@link JobGraph}.
 	 *
 	 * @param jobGraph jobgraph requiring user artifacts
-	 * @param artifactPaths artifacts to upload   
+	 * @param artifactPaths artifacts to upload
 	 * @param blobClient client to upload artifacts with
 	 * @throws IOException if the upload fails
 	 */
