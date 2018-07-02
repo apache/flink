@@ -114,8 +114,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 		builder
 			.setBlobServerPort(blobServer.getPort())
 			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-			.setHostname("localhost")
-			.build();
+			.setHostname("localhost");
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
@@ -143,8 +142,7 @@ public class JobSubmitHandlerTest extends TestLogger {
 		builder
 			.setBlobServerPort(blobServer.getPort())
 			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
-			.setHostname("localhost")
-			.build();
+			.setHostname("localhost");
 		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
