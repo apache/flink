@@ -70,6 +70,22 @@ public class AWSConfigConstants {
 	/** Optional configuration for profile name if credential provider type is set to be PROFILE. */
 	public static final String AWS_PROFILE_NAME = profileName(AWS_CREDENTIALS_PROVIDER);
 
+	/** The role ARN to use when credential provider type is set to ASSUME_ROLE. */
+	public static final String AWS_ROLE_ARN = roleArn(AWS_CREDENTIALS_PROVIDER);
+
+	/** The role session name to use when credential provider type is set to ASSUME_ROLE. */
+	public static final String AWS_ROLE_SESSION_NAME = roleSessionName(AWS_CREDENTIALS_PROVIDER);
+
+	/** The external ID to use when credential provider type is set to ASSUME_ROLE. */
+	public static final String AWS_ROLE_EXTERNAL_ID = externalId(AWS_CREDENTIALS_PROVIDER);
+
+	/**
+	 * The credentials provider that provides credentials for assuming the role when credential
+	 * provider type is set to ASSUME_ROLE.
+	 * Roles can be nested, so AWS_ROLE_CREDENTIALS_PROVIDER can again be set to "ASSUME_ROLE"
+	 */
+	public static final String AWS_ROLE_CREDENTIALS_PROVIDER = roleCredentialsProvider(AWS_CREDENTIALS_PROVIDER);
+
 	/** The AWS endpoint for Kinesis (derived from the AWS region setting if not set). */
 	public static final String AWS_ENDPOINT = "aws.endpoint";
 
