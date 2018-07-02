@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -34,7 +33,6 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -55,10 +53,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link JobSubmitHandler}.
@@ -89,13 +83,13 @@ public class JobSubmitHandlerTest extends TestLogger {
 	@Test
 	public void testSerializationFailureHandling() throws Exception {
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
-		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
-		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-		GatewayRetriever<DispatcherGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
+		DispatcherGateway mockGateway = new TestingDispatcherGateway.Builder()
+			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+			.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
-			mockGatewayRetriever,
+			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
 			TestingUtils.defaultExecutor());
@@ -119,15 +113,17 @@ public class JobSubmitHandlerTest extends TestLogger {
 			}
 		}
 
-		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
-		when(mockGateway.getHostname()).thenReturn("localhost");
-		when(mockGateway.getBlobServerPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(blobServer.getPort()));
-		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-		GatewayRetriever<DispatcherGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
+		TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+		builder
+			.setBlobServerPort(blobServer.getPort())
+			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+			.setHostname("localhost")
+			.build();
+		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
-			mockGatewayRetriever,
+			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
 			TestingUtils.defaultExecutor());
@@ -148,15 +144,17 @@ public class JobSubmitHandlerTest extends TestLogger {
 		}
 		final Path countExceedingFile = TEMPORARY_FOLDER.newFile().toPath();
 
-		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
-		when(mockGateway.getHostname()).thenReturn("localhost");
-		when(mockGateway.getBlobServerPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(blobServer.getPort()));
-		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-		GatewayRetriever<DispatcherGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
+		TestingDispatcherGateway.Builder builder = new TestingDispatcherGateway.Builder();
+		builder
+			.setBlobServerPort(blobServer.getPort())
+			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+			.setHostname("localhost")
+			.build();
+		DispatcherGateway mockGateway = builder.build();
 
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
-			mockGatewayRetriever,
+			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
 			TestingUtils.defaultExecutor());
@@ -184,11 +182,9 @@ public class JobSubmitHandlerTest extends TestLogger {
 			})
 			.build();
 
-		GatewayRetriever<DispatcherGateway> gatewayRetriever = new TestGatewayRetriever(dispatcherGateway);
-
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
-			gatewayRetriever,
+			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
 			TestingUtils.defaultExecutor());
@@ -224,19 +220,5 @@ public class JobSubmitHandlerTest extends TestLogger {
 		Assert.assertEquals(1, submittedJobGraph.getUserJarBlobKeys().size());
 		Assert.assertEquals(1, submittedJobGraph.getUserArtifacts().size());
 		Assert.assertNotNull(submittedJobGraph.getUserArtifacts().get(dcEntryName).blobKey);
-	}
-
-	private static class TestGatewayRetriever implements GatewayRetriever<DispatcherGateway> {
-
-		private final DispatcherGateway dispatcherGateway;
-
-		TestGatewayRetriever(DispatcherGateway dispatcherGateway) {
-			this.dispatcherGateway = dispatcherGateway;
-		}
-
-		@Override
-		public CompletableFuture<DispatcherGateway> getFuture() {
-			return CompletableFuture.completedFuture(dispatcherGateway);
-		}
 	}
 }
