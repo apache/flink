@@ -95,9 +95,24 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		JobSubmitRequestBody requestBody = request.getRequestBody();
 
+		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
+
+		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(nameToFile, requestBody.jarFileNames);
+
+		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = getArtifactFilesToUpload(nameToFile, requestBody.artifactFileNames);
+
+		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts);
+
+		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
+
+		return jobSubmissionFuture.thenCombine(jobGraphFuture,
+			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+	}
+
+	private CompletableFuture<JobGraph> loadJobGraph(JobSubmitRequestBody requestBody, Map<String, Path> nameToFile) throws MissingFileException {
 		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
 
-		CompletableFuture<JobGraph> jobGraphFuture = CompletableFuture.supplyAsync(() -> {
+		return CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
 			try (ObjectInputStream objectIn = new ObjectInputStream(Files.newInputStream(jobGraphFile))) {
 				jobGraph = (JobGraph) objectIn.readObject();
@@ -109,33 +124,6 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			}
 			return jobGraph;
 		}, executor);
-
-		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(nameToFile, requestBody.jarFileNames);
-
-		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = getArtifactFilesToUpload(nameToFile, requestBody.artifactFileNames);
-
-		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
-
-		CompletableFuture<JobGraph> finalizedJobGraphFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
-			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
-			try (BlobClient blobClient = new BlobClient(address, new Configuration())){
-				Collection<PermanentBlobKey> jarBlobKeys = ClientUtils.uploadUserJars(jobGraph.getJobID(), jarFiles, blobClient);
-				ClientUtils.setUserJarBlobKeys(jarBlobKeys, jobGraph);
-				Collection<Tuple2<String, PermanentBlobKey>> artifactBlobKeys = ClientUtils.uploadUserArtifacts(jobGraph.getJobID(), artifacts, blobClient);
-				ClientUtils.setUserArtifactBlobKeys(jobGraph, artifactBlobKeys);
-			} catch (IOException e) {
-				throw new CompletionException(new RestHandlerException(
-					"Could not upload job files.",
-					HttpResponseStatus.INTERNAL_SERVER_ERROR,
-					e));
-			}
-			return jobGraph;
-		});
-
-		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
-
-		return jobSubmissionFuture.thenCombine(jobGraphFuture,
-			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
 	}
 
 	private static Collection<org.apache.flink.core.fs.Path> getJarFilesToUpload(Map<String, Path> nameToFileMap, Collection<String> jarFileNames) throws MissingFileException {
@@ -157,6 +145,30 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		}
 
 		return artifacts;
+	}
+
+	private CompletableFuture<JobGraph> uploadJobGraphFiles(
+			DispatcherGateway gateway,
+			CompletableFuture<JobGraph> jobGraphFuture,
+			Collection<org.apache.flink.core.fs.Path> jarFiles,
+			Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts) {
+		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
+
+		return jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
+			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
+			try (BlobClient blobClient = new BlobClient(address, new Configuration())){
+				Collection<PermanentBlobKey> jarBlobKeys = ClientUtils.uploadUserJars(jobGraph.getJobID(), jarFiles, blobClient);
+				ClientUtils.setUserJarBlobKeys(jarBlobKeys, jobGraph);
+				Collection<Tuple2<String, PermanentBlobKey>> artifactBlobKeys = ClientUtils.uploadUserArtifacts(jobGraph.getJobID(), artifacts, blobClient);
+				ClientUtils.setUserArtifactBlobKeys(jobGraph, artifactBlobKeys);
+			} catch (IOException e) {
+				throw new CompletionException(new RestHandlerException(
+					"Could not upload job files.",
+					HttpResponseStatus.INTERNAL_SERVER_ERROR,
+					e));
+			}
+			return jobGraph;
+		});
 	}
 
 	private static Path getPathAndAssertUpload(String fileName, String type, Map<String, Path> uploadedFiles) throws MissingFileException {
