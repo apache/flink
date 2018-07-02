@@ -153,7 +153,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts) {
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
-		return jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
+		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			try {
 				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, new Configuration()));
