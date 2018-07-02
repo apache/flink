@@ -155,7 +155,7 @@ public class JobSubmissionClientActor extends JobClientActor {
 		final CompletableFuture<Void> jarUploadFuture = blobServerAddressFuture.thenAcceptAsync(
 			(InetSocketAddress blobServerAddress) -> {
 				try {
-					ClientUtils.uploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, clientConfig));
+					ClientUtils.extractAndUploadJobGraphFiles(jobGraph, () -> new BlobClient(blobServerAddress, clientConfig));
 				} catch (FlinkException e) {
 					throw new CompletionException(e);
 				}
