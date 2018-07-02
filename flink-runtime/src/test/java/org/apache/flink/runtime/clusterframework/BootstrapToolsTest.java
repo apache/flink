@@ -276,4 +276,23 @@ public class BootstrapToolsTest {
 					true, true, true, this.getClass()));
 
 	}
+
+	@Test
+	public void testUpdateTmpDirectoriesInConfiguration(){
+		Configuration config = new Configuration();
+
+		// test that default value is taken
+		BootstrapTools.updateTmpDirectoriesInConfiguration(config, "default/directory/path");
+		assertEquals(config.getString(CoreOptions.TMP_DIRS), "default/directory/path");
+
+		// test that we ignore default value is value is set before
+		BootstrapTools.updateTmpDirectoriesInConfiguration(config, "not/default/directory/path");
+		assertEquals(config.getString(CoreOptions.TMP_DIRS), "default/directory/path");
+
+		//test that empty value is not a magic string
+		config.setString(CoreOptions.TMP_DIRS, "");
+		BootstrapTools.updateTmpDirectoriesInConfiguration(config, "some/new/path");
+		assertEquals(config.getString(CoreOptions.TMP_DIRS), "");
+	}
+
 }

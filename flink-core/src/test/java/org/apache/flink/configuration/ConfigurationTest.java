@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -302,5 +303,33 @@ public class ConfigurationTest extends TestLogger {
 		assertEquals(12, cfg.getInteger(matchesSecond));
 		assertEquals(13, cfg.getInteger(matchesThird));
 		assertEquals(-1, cfg.getInteger(notContained));
+	}
+
+	@Test
+	public void testRemove(){
+		Configuration cfg = new Configuration();
+		cfg.setInteger("a", 1);
+		cfg.setInteger("b", 2);
+
+		ConfigOption<Integer> validOption = ConfigOptions
+			.key("a")
+			.defaultValue(-1);
+
+		ConfigOption<Integer> deprecatedOption = ConfigOptions
+			.key("c")
+			.defaultValue(-1)
+			.withDeprecatedKeys("d", "b");
+
+		ConfigOption<Integer> unexistedOption = ConfigOptions
+			.key("e")
+			.defaultValue(-1)
+			.withDeprecatedKeys("f", "g", "j");
+
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
+		assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
+		assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
+		assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
+		assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
 	}
 }
