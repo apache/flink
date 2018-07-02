@@ -152,8 +152,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 			},
 			ctx.executor());
 
-		CompletableFuture<Void> processingFinishedFuture = new CompletableFuture<>();
-		resultFuture.whenComplete(
+		return resultFuture.whenComplete(
 			(Void ignored, Throwable throwable) -> {
 				if (throwable != null) {
 					log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
@@ -178,9 +177,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 						httpResponseStatus,
 						responseHeaders);
 				}
-			})
-			.whenComplete((Void ignored, Throwable throwable) -> processingFinishedFuture.complete(null));
-		return processingFinishedFuture;
+			});
 	}
 
 	protected abstract CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, ResourceID taskManagerResourceId);
