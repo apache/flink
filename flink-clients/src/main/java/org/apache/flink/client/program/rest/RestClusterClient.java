@@ -332,7 +332,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 					}
 					filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 				} catch (IOException e) {
-					throw new CompletionException("Failed to serialize JobGraph.", e);
+					throw new CompletionException(new FlinkException("Failed to serialize JobGraph.", e));
 				}
 
 				for (Path jar : jobGraph.getUserJars()) {
