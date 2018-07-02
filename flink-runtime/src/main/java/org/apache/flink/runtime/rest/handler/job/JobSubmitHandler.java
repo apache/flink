@@ -76,8 +76,8 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 	@Override
 	protected CompletableFuture<JobSubmitResponseBody> handleRequest(@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-		Collection<File> uploadedFiles = request.getUploadedFiles();
-		Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
+		final Collection<File> uploadedFiles = request.getUploadedFiles();
+		final Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
 			path -> path.toPath().getFileName().toString(),
 			File::toPath
 		));
@@ -92,7 +92,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			);
 		}
 
-		JobSubmitRequestBody requestBody = request.getRequestBody();
+		final JobSubmitRequestBody requestBody = request.getRequestBody();
 
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
@@ -109,7 +109,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	}
 
 	private CompletableFuture<JobGraph> loadJobGraph(JobSubmitRequestBody requestBody, Map<String, Path> nameToFile) throws MissingFileException {
-		Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
+		final Path jobGraphFile = getPathAndAssertUpload(requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
 
 		return CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
@@ -168,7 +168,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	}
 
 	private static Path getPathAndAssertUpload(String fileName, String type, Map<String, Path> uploadedFiles) throws MissingFileException {
-		Path file = uploadedFiles.get(fileName);
+		final Path file = uploadedFiles.get(fileName);
 		if (file == null) {
 			throw new MissingFileException(type, fileName);
 		}
