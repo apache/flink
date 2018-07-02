@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -43,8 +44,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -79,7 +78,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		final Collection<File> uploadedFiles = request.getUploadedFiles();
 		final Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
 			File::getName,
-			File::toPath
+			Path::fromLocalFile
 		));
 
 		if (uploadedFiles.size() != nameToFile.size()) {
@@ -96,9 +95,9 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
-		Collection<org.apache.flink.core.fs.Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
+		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
-		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
+		Collection<Tuple2<String, Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
 		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts);
 
@@ -113,7 +112,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		return CompletableFuture.supplyAsync(() -> {
 			JobGraph jobGraph;
-			try (ObjectInputStream objectIn = new ObjectInputStream(Files.newInputStream(jobGraphFile))) {
+			try (ObjectInputStream objectIn = new ObjectInputStream(jobGraphFile.getFileSystem().open(jobGraphFile))) {
 				jobGraph = (JobGraph) objectIn.readObject();
 			} catch (Exception e) {
 				throw new CompletionException(new RestHandlerException(
@@ -125,22 +124,22 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		}, executor);
 	}
 
-	private static Collection<org.apache.flink.core.fs.Path> getJarFilesToUpload(Collection<String> jarFileNames, Map<String, Path> nameToFileMap) throws MissingFileException {
-		Collection<org.apache.flink.core.fs.Path> jarFiles = new ArrayList<>(jarFileNames.size());
+	private static Collection<Path> getJarFilesToUpload(Collection<String> jarFileNames, Map<String, Path> nameToFileMap) throws MissingFileException {
+		Collection<Path> jarFiles = new ArrayList<>(jarFileNames.size());
 		for (String jarFileName : jarFileNames) {
 			Path jarFile = getPathAndAssertUpload(jarFileName, FILE_TYPE_JAR, nameToFileMap);
-			jarFiles.add(new org.apache.flink.core.fs.Path(jarFile.toString()));
+			jarFiles.add(new Path(jarFile.toString()));
 		}
 		return jarFiles;
 	}
 
-	private static Collection<Tuple2<String, org.apache.flink.core.fs.Path>> getArtifactFilesToUpload(
+	private static Collection<Tuple2<String, Path>> getArtifactFilesToUpload(
 			Collection<JobSubmitRequestBody.DistributedCacheFile> artifactEntries,
 			Map<String, Path> nameToFileMap) throws MissingFileException {
-		Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts = new ArrayList<>(artifactEntries.size());
+		Collection<Tuple2<String, Path>> artifacts = new ArrayList<>(artifactEntries.size());
 		for (JobSubmitRequestBody.DistributedCacheFile artifactFileName : artifactEntries) {
 			Path artifactFile = getPathAndAssertUpload(artifactFileName.fileName, FILE_TYPE_ARTIFACT, nameToFileMap);
-			artifacts.add(Tuple2.of(artifactFileName.entryName, new org.apache.flink.core.fs.Path(artifactFile.toString())));
+			artifacts.add(Tuple2.of(artifactFileName.entryName, new Path(artifactFile.toString())));
 		}
 
 		return artifacts;
@@ -149,8 +148,8 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private CompletableFuture<JobGraph> uploadJobGraphFiles(
 			DispatcherGateway gateway,
 			CompletableFuture<JobGraph> jobGraphFuture,
-			Collection<org.apache.flink.core.fs.Path> jarFiles,
-			Collection<Tuple2<String, org.apache.flink.core.fs.Path>> artifacts) {
+			Collection<Path> jarFiles,
+			Collection<Tuple2<String, Path>> artifacts) {
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
 		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
