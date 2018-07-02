@@ -318,8 +318,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								new RegisteredKeyedBackendStateMetaInfo<>(
 									restoredMetaInfo.getStateType(),
 									restoredMetaInfo.getName(),
-									restoredMetaInfo.getNamespaceSerializer(),
-									restoredMetaInfo.getStateSerializer());
+									restoredMetaInfo.getNamespaceSerializerConfigSnapshot().restoreSerializer(),
+									restoredMetaInfo.getStateSerializerConfigSnapshot().restoreSerializer());
 
 						stateTable = snapshotStrategy.newStateTable(registeredKeyedBackendStateMetaInfo);
 						stateTables.put(restoredMetaInfo.getName(), stateTable);

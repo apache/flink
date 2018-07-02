@@ -140,8 +140,6 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 
 		private String name;
 		private OperatorStateHandle.Mode assignmentMode;
-		private TypeSerializer<K> keySerializer;
-		private TypeSerializer<V> valueSerializer;
 		private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
 		private TypeSerializerConfigSnapshot valueSerializerConfigSnapshot;
 
@@ -158,8 +156,8 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 
 			this.name = Preconditions.checkNotNull(name);
 			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
-			this.keySerializer = Preconditions.checkNotNull(keySerializer);
-			this.valueSerializer = Preconditions.checkNotNull(valueSerializer);
+			Preconditions.checkNotNull(keySerializer);
+			Preconditions.checkNotNull(valueSerializer);
 			this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
 			this.valueSerializerConfigSnapshot = Preconditions.checkNotNull(valueSerializerConfigSnapshot);
 		}
@@ -178,22 +176,6 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 
 		void setAssignmentMode(OperatorStateHandle.Mode mode) {
 			this.assignmentMode = mode;
-		}
-
-		public TypeSerializer<K> getKeySerializer() {
-			return keySerializer;
-		}
-
-		void setKeySerializer(TypeSerializer<K> serializer) {
-			this.keySerializer = serializer;
-		}
-
-		public TypeSerializer<V> getValueSerializer() {
-			return valueSerializer;
-		}
-
-		void setValueSerializer(TypeSerializer<V> serializer) {
-			this.valueSerializer = serializer;
 		}
 
 		public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
@@ -227,8 +209,6 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 
 			return name.equals(snapshot.getName())
 					&& assignmentMode.ordinal() == snapshot.getAssignmentMode().ordinal()
-					&& Objects.equals(keySerializer, snapshot.getKeySerializer())
-					&& Objects.equals(valueSerializer, snapshot.getValueSerializer())
 					&& keySerializerConfigSnapshot.equals(snapshot.getKeySerializerConfigSnapshot())
 					&& valueSerializerConfigSnapshot.equals(snapshot.getValueSerializerConfigSnapshot());
 		}
@@ -237,8 +217,6 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 		public int hashCode() {
 			int result = name.hashCode();
 			result = 31 * result + assignmentMode.hashCode();
-			result = 31 * result + ((keySerializer != null) ? keySerializer.hashCode() : 0);
-			result = 31 * result + ((valueSerializer != null) ? valueSerializer.hashCode() : 0);
 			result = 31 * result + keySerializerConfigSnapshot.hashCode();
 			result = 31 * result + valueSerializerConfigSnapshot.hashCode();
 			return result;

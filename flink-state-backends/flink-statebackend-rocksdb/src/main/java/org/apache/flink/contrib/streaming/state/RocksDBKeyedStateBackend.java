@@ -643,8 +643,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						new RegisteredKeyedBackendStateMetaInfo<>(
 							restoredMetaInfo.getStateType(),
 							restoredMetaInfo.getName(),
-							restoredMetaInfo.getNamespaceSerializer(),
-							restoredMetaInfo.getStateSerializer());
+							restoredMetaInfo.getNamespaceSerializerConfigSnapshot().restoreSerializer(),
+							restoredMetaInfo.getStateSerializerConfigSnapshot().restoreSerializer());
 
 					rocksDBKeyedStateBackend.restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
@@ -949,8 +949,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					new RegisteredKeyedBackendStateMetaInfo<>(
 						stateMetaInfoSnapshot.getStateType(),
 						stateMetaInfoSnapshot.getName(),
-						stateMetaInfoSnapshot.getNamespaceSerializer(),
-						stateMetaInfoSnapshot.getStateSerializer());
+						stateMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot().restoreSerializer(),
+						stateMetaInfoSnapshot.getStateSerializerConfigSnapshot().restoreSerializer());
 
 				registeredStateMetaInfoEntry =
 					new Tuple2<>(
@@ -1082,8 +1082,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					new RegisteredKeyedBackendStateMetaInfo<>(
 						stateMetaInfoSnapshot.getStateType(),
 						stateMetaInfoSnapshot.getName(),
-						stateMetaInfoSnapshot.getNamespaceSerializer(),
-						stateMetaInfoSnapshot.getStateSerializer());
+						stateMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot().restoreSerializer(),
+						stateMetaInfoSnapshot.getStateSerializerConfigSnapshot().restoreSerializer());
 
 				stateBackend.kvStateInformation.put(
 					stateMetaInfoSnapshot.getName(),

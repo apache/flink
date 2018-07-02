@@ -253,9 +253,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
 		return new InternalTimersSnapshot<>(
 				keySerializer,
-				keySerializer.snapshotConfiguration(),
 				namespaceSerializer,
-				namespaceSerializer.snapshotConfiguration(),
 				eventTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx),
 				processingTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx));
 	}
@@ -271,13 +269,18 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	public void restoreTimersForKeyGroup(InternalTimersSnapshot<?, ?> restoredSnapshot, int keyGroupIdx) {
 		this.restoredTimersSnapshot = (InternalTimersSnapshot<K, N>) restoredSnapshot;
 
-		if (areSnapshotSerializersIncompatible(restoredSnapshot)) {
+		TypeSerializer<K> restoredKeyDeserializer =
+			restoredTimersSnapshot.getKeySerializerConfigSnapshot().restoreSerializer();
+		TypeSerializer<N> restoredNamespaceDeserializer =
+			restoredTimersSnapshot.getNamespaceSerializerConfigSnapshot().restoreSerializer();
+
+		if (areSnapshotSerializersIncompatible(restoredKeyDeserializer, restoredNamespaceDeserializer)) {
 			throw new IllegalArgumentException("Tried to restore timers " +
 				"for the same service with different serializers.");
 		}
 
-		this.keyDeserializer = restoredTimersSnapshot.getKeySerializer();
-		this.namespaceDeserializer = restoredTimersSnapshot.getNamespaceSerializer();
+		this.keyDeserializer = restoredKeyDeserializer;
+		this.namespaceDeserializer = restoredNamespaceDeserializer;
 
 		checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
@@ -332,8 +335,11 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		return processingTimeTimersQueue.getTimersByKeyGroup();
 	}
 
-	private boolean areSnapshotSerializersIncompatible(InternalTimersSnapshot<?, ?> restoredSnapshot) {
-		return (this.keyDeserializer != null && !this.keyDeserializer.equals(restoredSnapshot.getKeySerializer())) ||
-			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredSnapshot.getNamespaceSerializer()));
+	private boolean areSnapshotSerializersIncompatible(
+			TypeSerializer<K> restoredKeySerializer,
+			TypeSerializer<N> restoredNamespaceSerializer) {
+
+		return (this.keyDeserializer != null && !this.keyDeserializer.equals(restoredKeySerializer)) ||
+			(this.namespaceDeserializer != null && !this.namespaceDeserializer.equals(restoredNamespaceSerializer));
 	}
 }

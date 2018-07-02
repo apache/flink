@@ -499,8 +499,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// Recreate all PartitionableListStates from the meta info
 				for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> restoredMetaInfo : restoredOperatorMetaInfoSnapshots) {
 
-					if (restoredMetaInfo.getPartitionStateSerializer() == null ||
-							restoredMetaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer) {
+					TypeSerializer<?> restoredPartitionStateSerializer =
+						restoredMetaInfo.getPartitionStateSerializerConfigSnapshot().restoreSerializer();
+
+					if (restoredPartitionStateSerializer instanceof UnloadableDummyTypeSerializer) {
 
 						// must fail now if the previous serializer cannot be restored because there is no serializer
 						// capable of reading previous state
@@ -521,7 +523,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						listState = new PartitionableListState<>(
 								new RegisteredOperatorBackendStateMetaInfo<>(
 										restoredMetaInfo.getName(),
-										restoredMetaInfo.getPartitionStateSerializer(),
+										restoredPartitionStateSerializer,
 										restoredMetaInfo.getAssignmentMode()));
 
 						registeredOperatorStates.put(listState.getStateMetaInfo().getName(), listState);
@@ -536,9 +538,14 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				for (RegisteredBroadcastBackendStateMetaInfo.Snapshot<? ,?> restoredMetaInfo : restoredBroadcastMetaInfoSnapshots) {
 
-					if (restoredMetaInfo.getKeySerializer() == null || restoredMetaInfo.getValueSerializer() == null ||
-							restoredMetaInfo.getKeySerializer() instanceof UnloadableDummyTypeSerializer ||
-							restoredMetaInfo.getValueSerializer() instanceof UnloadableDummyTypeSerializer) {
+					TypeSerializer<?> restoredKeySerializer =
+						restoredMetaInfo.getKeySerializerConfigSnapshot().restoreSerializer();
+
+					TypeSerializer<?> restoredValueSerializer =
+						restoredMetaInfo.getValueSerializerConfigSnapshot().restoreSerializer();
+
+					if (restoredKeySerializer instanceof UnloadableDummyTypeSerializer ||
+							restoredValueSerializer instanceof UnloadableDummyTypeSerializer) {
 
 						// must fail now if the previous serializer cannot be restored because there is no serializer
 						// capable of reading previous state
@@ -560,8 +567,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 								new RegisteredBroadcastBackendStateMetaInfo<>(
 										restoredMetaInfo.getName(),
 										restoredMetaInfo.getAssignmentMode(),
-										restoredMetaInfo.getKeySerializer(),
-										restoredMetaInfo.getValueSerializer()));
+										restoredKeySerializer,
+										restoredValueSerializer));
 
 						registeredBroadcastStates.put(broadcastState.getStateMetaInfo().getName(), broadcastState);
 					} else {

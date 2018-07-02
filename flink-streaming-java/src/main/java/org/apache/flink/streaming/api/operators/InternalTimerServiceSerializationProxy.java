@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIOReadableWritable {
 
-	public static final int VERSION = 1;
+	public static final int VERSION = 2;
 
 	/** The key-group timer services to write / read. */
 	private Map<String, HeapInternalTimerService<K, ?>> timerServices;
@@ -86,6 +86,11 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public int[] getCompatibleVersions() {
+		return new int[]{VERSION, 1};
 	}
 
 	@Override
