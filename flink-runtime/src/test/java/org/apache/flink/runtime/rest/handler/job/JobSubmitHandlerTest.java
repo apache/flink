@@ -95,11 +95,10 @@ public class JobSubmitHandlerTest extends TestLogger {
 		final String errorMessage = "test";
 		DispatcherGateway mockGateway = mock(DispatcherGateway.class);
 		when(mockGateway.submitJob(any(JobGraph.class), any(Time.class))).thenReturn(FutureUtils.completedExceptionally(new Exception(errorMessage)));
-		GatewayRetriever<DispatcherGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
 
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
-			mockGatewayRetriever,
+			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap());
 
