@@ -79,8 +79,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			response = FutureUtils.completedExceptionally(e);
 		}
 
-		CompletableFuture<Void> processingFinishedFuture = new CompletableFuture<>();
-		response.whenComplete((P resp, Throwable throwable) -> {
+		return response.whenComplete((P resp, Throwable throwable) -> {
 			if (throwable != null) {
 
 				Throwable error = ExceptionUtils.stripCompletionException(throwable);
@@ -106,8 +105,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					messageHeaders.getResponseStatusCode(),
 					responseHeaders);
 			}
-		}).whenComplete((P resp, Throwable throwable) -> processingFinishedFuture.complete(null));
-		return processingFinishedFuture;
+		}).thenApply(ignored -> null);
 	}
 
 	private void processRestHandlerException(ChannelHandlerContext ctx, HttpRequest httpRequest, RestHandlerException rhe) {
