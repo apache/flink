@@ -85,11 +85,11 @@ public class AWSUtil {
 				.withClientConfiguration(awsClientConfig);
 
 		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
-			// Set signingRegion as null, to facilitate mocking Kinesis for local tests
+			// Try and set signing region, but allow to be null for local testing
 			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
 													configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
-													null));
-		} else {
+													configProps.getProperty(AWSConfigConstants.AWS_REGION)));
+		} else if (configProps.containsKey(AWSConfigConstants.AWS_REGION)) {
 			builder.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 		}
 		return builder.build();

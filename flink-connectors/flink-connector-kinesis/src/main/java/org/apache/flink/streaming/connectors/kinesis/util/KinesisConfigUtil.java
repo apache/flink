@@ -1,12 +1,12 @@
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
+ * contributor license agreements.	See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *		http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,15 +26,19 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 
+import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -238,8 +242,23 @@ public class KinesisConfigUtil {
 		}
 
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
-		kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
 
+		if (config.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
+			try {
+				URI kinesisEndpoint = new URI(config.getProperty(AWSConfigConstants.AWS_ENDPOINT));
+				// fallback value, this shouldn't matter when we have an endpoint set, but we need it for KPL
+				// to be happy
+				String curRegion = Optional.ofNullable(Regions.getCurrentRegion()).map(Region::toString).orElse("us-east-1");
+				String region = Optional.ofNullable(config.getProperty(AWSConfigConstants.AWS_REGION)).orElse(curRegion);
+				kpc.setRegion(region);
+				kpc.setKinesisEndpoint(kinesisEndpoint.getHost());
+				kpc.setKinesisPort(kinesisEndpoint.getPort());
+			} catch (URISyntaxException e) {
+				throw new IllegalArgumentException("invalid AWS_ENDPOINT value, must be a valid URI", e);
+			}
+		} else if (config.containsKey(AWSConfigConstants.AWS_REGION)) {
+			kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
+		}
 		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
 
 		// we explicitly lower the credential refresh delay (default is 5 seconds)
