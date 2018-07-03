@@ -36,7 +36,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<pubsub.version>0.42.1-beta</pubsub.version>
+		<pubsub.version>1.31.0</pubsub.version>
 	</properties>
 
 	<dependencies>

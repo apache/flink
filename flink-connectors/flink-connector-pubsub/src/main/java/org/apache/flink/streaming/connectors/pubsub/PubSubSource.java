@@ -17,9 +17,13 @@
 
 package org.apache.flink.streaming.connectors.pubsub;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
@@ -28,6 +32,7 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables;
 
@@ -35,15 +40,17 @@ import static org.apache.flink.streaming.connectors.pubsub.common.SerializableCr
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
  */
-public class PubSubSource<OUT> extends RichParallelSourceFunction<OUT> implements MessageReceiver {
+public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer> implements MessageReceiver, ResultTypeQueryable<OUT> {
 	private final DeserializationSchema<OUT> deserializationSchema;
-	private final SubscriberFactory subscriberFactory;
+	private final SubscriberWrapper subscriberWrapper;
+	private boolean autoAcknowledge = true;
 
 	private transient SourceContext<OUT> sourceContext = null;
 
-	PubSubSource(SubscriberFactory subscriberFactory, DeserializationSchema<OUT> deserializationSchema) {
+	PubSubSource(SubscriberWrapper subscriberWrapper, DeserializationSchema<OUT> deserializationSchema) {
+		super(String.class);
 		this.deserializationSchema = deserializationSchema;
-		this.subscriberFactory = subscriberFactory;
+		this.subscriberWrapper = subscriberWrapper;
 	}
 
 	/**
@@ -67,19 +74,31 @@ public class PubSubSource<OUT> extends RichParallelSourceFunction<OUT> implement
 	 * @return Returns a RichParallelSourceFunction which reads from a PubSub subscription
 	 */
 	public static <OUT> PubSubSource<OUT> withCustomApplicationCredentials(ProjectSubscriptionName projectSubscriptionName, DeserializationSchema<OUT> deserializationSchema, SerializableCredentialsProvider serializableCredentialsProvider) {
-		return new PubSubSource<>(new SubscriberFactory(serializableCredentialsProvider, projectSubscriptionName), deserializationSchema);
+		return new PubSubSource<>(new SubscriberWrapper(serializableCredentialsProvider, projectSubscriptionName), deserializationSchema);
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
-		subscriberFactory.initialize(this);
+		subscriberWrapper.initialize(this);
+		if (hasCheckpointingEnabled(getRuntimeContext())) {
+			autoAcknowledge = false;
+		}
+	}
+
+	private boolean hasCheckpointingEnabled(RuntimeContext runtimeContext) {
+		return runtimeContext instanceof StreamingRuntimeContext && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled();
+	}
+
+	@Override
+	protected void acknowledgeSessionIDs(List<AckReplyConsumer> ackReplyConsumers) {
+		ackReplyConsumers.forEach(AckReplyConsumer::ack);
 	}
 
 	@Override
 	public void run(SourceContext<OUT> sourceContext) {
 		this.sourceContext = sourceContext;
-		subscriberFactory.startBlocking();
+		subscriberWrapper.startBlocking();
 	}
 
 	@Override
@@ -89,21 +108,42 @@ public class PubSubSource<OUT> extends RichParallelSourceFunction<OUT> implement
 			return;
 		}
 
-		sourceContext.collect(uncheckedExceptionDeserialize(message.getData().toByteArray()));
-		consumer.ack();
+		if (autoAcknowledge) {
+			sourceContext.collect(deserializeMessage(message));
+			consumer.ack();
+			return;
+		}
+
+		processMessage(message, consumer);
+	}
+
+	private void processMessage(PubsubMessage message, AckReplyConsumer ackReplyConsumer) {
+		synchronized (sourceContext.getCheckpointLock()) {
+			boolean alreadyProcessed = !addId(message.getMessageId());
+			if (alreadyProcessed) {
+				return;
+			}
+
+			sessionIds.add(ackReplyConsumer);
+			sourceContext.collect(deserializeMessage(message));
+		}
 	}
 
 	@Override
 	public void cancel() {
-		subscriberFactory.stop();
+		subscriberWrapper.stop();
 	}
 
-	private OUT uncheckedExceptionDeserialize(byte[] bytes) {
+	private OUT deserializeMessage(PubsubMessage message) {
 		try {
-			return deserializationSchema.deserialize(bytes);
+			return deserializationSchema.deserialize(message.getData().toByteArray());
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
+	@Override
+	public TypeInformation<OUT> getProducedType() {
+		return deserializationSchema.getProducedType();
+	}
 }

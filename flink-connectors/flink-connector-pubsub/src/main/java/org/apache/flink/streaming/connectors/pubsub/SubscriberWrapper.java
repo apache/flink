@@ -26,14 +26,14 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 
 import java.io.Serializable;
 
-class SubscriberFactory implements Serializable {
+class SubscriberWrapper implements Serializable {
 	private final SerializableCredentialsProvider serializableCredentialsProvider;
 	private final String projectId;
 	private final String subscriptionId;
 
 	private transient Subscriber subscriber;
 
-	SubscriberFactory(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName) {
+	SubscriberWrapper(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName) {
 		this.serializableCredentialsProvider = serializableCredentialsProvider;
 		this.projectId = projectSubscriptionName.getProject();
 		this.subscriptionId = projectSubscriptionName.getSubscription();
@@ -62,5 +62,4 @@ class SubscriberFactory implements Serializable {
 	Subscriber getSubscriber() {
 		return subscriber;
 	}
-
 }

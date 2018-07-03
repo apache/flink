@@ -32,10 +32,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 /**
- * Tests for {@link SubscriberFactory}.
+ * Tests for {@link SubscriberWrapper}.
  */
 @RunWith(MockitoJUnitRunner.class)
-public class SubscriberFactoryTest {
+public class SubscriberWrapperTest {
 	@Mock
 	private SerializableCredentialsProvider credentialsProvider;
 
@@ -44,13 +44,13 @@ public class SubscriberFactoryTest {
 
 	@Test
 	public void testSerializedSubscriberBuilder() throws Exception {
-		SubscriberFactory factory = new SubscriberFactory(credentialsProviderFromEnvironmentVariables(), ProjectSubscriptionName.of("projectId", "subscriptionId"));
+		SubscriberWrapper factory = new SubscriberWrapper(credentialsProviderFromEnvironmentVariables(), ProjectSubscriptionName.of("projectId", "subscriptionId"));
 		ensureSerializable(factory);
 	}
 
 	@Test
 	public void testInitialisation() {
-		SubscriberFactory factory = new SubscriberFactory(credentialsProvider, ProjectSubscriptionName.of("projectId", "subscriptionId"));
+		SubscriberWrapper factory = new SubscriberWrapper(credentialsProvider, ProjectSubscriptionName.of("projectId", "subscriptionId"));
 		factory.initialize(messageReceiver);
 
 		assertThat(factory.getSubscriber().getSubscriptionNameString(), is(ProjectSubscriptionName.format("projectId", "subscriptionId")));
