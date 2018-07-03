@@ -155,6 +155,12 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				redistributeBuffers();
 			} catch (Throwable t) {
 				this.numTotalRequiredBuffers -= numRequiredBuffers;
+
+				try {
+					redistributeBuffers();
+				} catch (IOException inner) {
+					t.addSuppressed(inner);
+				}
 				ExceptionUtils.rethrowIOException(t);
 			}
 		}
@@ -172,7 +178,11 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				}
 			}
 		} catch (Throwable e) {
-			recycleMemorySegments(segments, numRequiredBuffers);
+			try {
+				recycleMemorySegments(segments, numRequiredBuffers);
+			} catch (IOException inner) {
+				e.addSuppressed(inner);
+			}
 			ExceptionUtils.rethrowIOException(e);
 		}
 
@@ -277,14 +287,23 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			allBufferPools.add(localBufferPool);
 
-			redistributeBuffers();
+			try {
+				redistributeBuffers();
+			} catch (IOException e) {
+				try {
+					destroyBufferPool(localBufferPool);
+				} catch (IOException inner) {
+					e.addSuppressed(inner);
+				}
+				ExceptionUtils.rethrowIOException(e);
+			}
 
 			return localBufferPool;
 		}
 	}
 
 	@Override
-	public void destroyBufferPool(BufferPool bufferPool) {
+	public void destroyBufferPool(BufferPool bufferPool) throws IOException {
 		if (!(bufferPool instanceof LocalBufferPool)) {
 			throw new IllegalArgumentException("bufferPool is no LocalBufferPool");
 		}
@@ -293,11 +312,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			if (allBufferPools.remove(bufferPool)) {
 				numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 
-				try {
-					redistributeBuffers();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
+				redistributeBuffers();
 			}
 		}
 	}
