@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +48,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link NetworkBufferPool}.
  */
-public class NetworkBufferPoolTest {
+public class NetworkBufferPoolTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
@@ -400,7 +401,7 @@ public class NetworkBufferPoolTest {
 		}
 	}
 
-	private final class TestIOException extends IOException {
+	private static final class TestIOException extends IOException {
 		private static final long serialVersionUID = -814705441998024472L;
 	}
 
@@ -483,7 +484,6 @@ public class NetworkBufferPoolTest {
 			globalPool.createBufferPool(10, 10);
 		} finally {
 			globalPool.destroy();
-
 		}
 	}
 }
