@@ -179,7 +179,7 @@ public class AsyncIOExample {
 
 		@Override
 		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) throws Exception {
-			this.executorService.submit(new Runnable() {
+			executorService.submit(new Runnable() {
 				@Override
 				public void run() {
 					// wait for while to simulate async operation here
