@@ -17,6 +17,9 @@
 # limitations under the License.
 ################################################################################
 
+# Uncomment the following line to enable remote debug
+# export FLINK_CLI_JAVA_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
+
 target="$0"
 # For the case, the executable has been directly symlinked, figure out
 # the correct bin path by following its symlink up to an upper bound.
@@ -52,4 +55,4 @@ export FLINK_ROOT_DIR
 export FLINK_CONF_DIR
 
 # Add HADOOP_CLASSPATH to allow the usage of Hadoop file systems
-exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.cli.CliFrontend "$@"
+exec $JAVA_RUN $JVM_ARGS $FLINK_CLI_JAVA_OPTS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.client.cli.CliFrontend "$@"
