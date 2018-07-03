@@ -356,6 +356,50 @@ public class NetworkBufferPoolTest {
 		}
 	}
 
+	@Test
+	public void testCreateBufferPoolExceptionDuringBufferRedistribution() throws IOException {
+		final int numBuffers = 3;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 128);
+
+		final List<Buffer> buffers = new ArrayList<>(numBuffers);
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, numBuffers);
+		bufferPool.setBufferPoolOwner(
+			numBuffersToRecycle -> {
+				throw new TestIOException();
+			});
+
+		try {
+
+			for (int i = 0; i < numBuffers; i++) {
+				Buffer buffer = bufferPool.requestBuffer();
+				buffers.add(buffer);
+				assertNotNull(buffer);
+			}
+
+			try {
+				networkBufferPool.createBufferPool(1, numBuffers);
+				fail("Should have failed because the other buffer pool does not support memory release.");
+			} catch (TestIOException expected) {
+			}
+
+			// destroy the faulty buffer pool
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			buffers.clear();
+			bufferPool.lazyDestroy();
+
+			// now we should be able to create a new buffer pool
+			bufferPool = networkBufferPool.createBufferPool(numBuffers, numBuffers);
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycleBuffer();
+			}
+			bufferPool.lazyDestroy();
+			networkBufferPool.destroy();
+		}
+	}
+
 	private final class TestIOException extends IOException {
 		private static final long serialVersionUID = -814705441998024472L;
 	}

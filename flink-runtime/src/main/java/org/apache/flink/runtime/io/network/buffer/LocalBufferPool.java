@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -298,7 +299,11 @@ class LocalBufferPool implements BufferPool {
 			}
 		}
 
-		networkBufferPool.destroyBufferPool(this);
+		try {
+			networkBufferPool.destroyBufferPool(this);
+		} catch (IOException e) {
+			ExceptionUtils.rethrow(e);
+		}
 	}
 
 	@Override
