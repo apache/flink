@@ -20,6 +20,12 @@
 dockerdir=$(dirname $0)
 dockerdir=$(cd ${dockerdir}; pwd)
 
+cat <<EOF > ${dockerdir}/nodes
+n1
+n2
+n3
+EOF
+
 common_jepsen_args+=(--nodes-file ${dockerdir}/nodes)
 
 . ${dockerdir}/../scripts/run-tests.sh ${1} ${2} 1
