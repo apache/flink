@@ -336,7 +336,7 @@ class LocalBufferPool implements BufferPool {
 			// If there is a registered owner and we have still requested more buffers than our
 			// size, trigger a recycle via the owner.
 			if (owner != null && numberOfRequestedMemorySegments > currentPoolSize) {
-				owner.releaseMemory(numberOfRequestedMemorySegments - numBuffers);
+				owner.releaseMemory(numberOfRequestedMemorySegments - currentPoolSize);
 			}
 		}
 	}
