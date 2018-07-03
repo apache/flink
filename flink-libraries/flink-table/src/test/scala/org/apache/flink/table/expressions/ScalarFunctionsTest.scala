@@ -1915,55 +1915,55 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SQL_TSI_SECOND" -> SECOND
     )
 
-    for ((interval, result) <- intervalMapResults) {
-      testAllApis(
-        timestampAdd(interval, data.head._1, data.head._3),
-        s"timestampAdd('$interval', ${data.head._1}, ${data.head._4})",
-        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})",
-        result.head)
-      testAllApis(
-        timestampAdd(interval, data(1)._1, data(1)._3),
-        s"timestampAdd('$interval', ${data(1)._1}, ${data(1)._4})",
-        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})",
-        result(1))
-      testAllApis(
-        timestampAdd(interval, data(2)._1, data(2)._3),
-        s"timestampAdd('$interval', ${data(2)._1}, ${data(2)._4})",
-        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})",
-        result(2))
-      testAllApis(
-        timestampAdd(interval, data(3)._1, data(3)._3),
-        s"timestampAdd('$interval', ${data(3)._1}, ${data(3)._4})",
-        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})",
-        result(3))
-      testAllApis(
-        timestampAdd(interval, data(4)._1, data(4)._3),
-        s"timestampAdd('$interval', ${data(4)._1}, ${data(4)._4})",
-        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})",
-        result(4))
+    def intervalCount(interval: String, count: Int): (Expression, String) = interval match {
+      case "YEAR" => (count.years, s"${count}.years")
+      case "SQL_TSI_YEAR" => (count.years, s"${count}.years")
+      case "MONTH" => (count.months, s"${count}.months")
+      case "SQL_TSI_MONTH" => (count.months, s"${count}.months")
+      case "WEEK" => (count.weeks, s"${count}.weeks")
+      case "SQL_TSI_WEEK" => (count.weeks, s"${count}.weeks")
+      case "DAY" => (count.days, s"${count}.days")
+      case "SQL_TSI_DAY" => (count.days, s"${count}.days")
+      case "HOUR" => (count.hours, s"${count}.hours")
+      case "SQL_TSI_HOUR" => (count.hours, s"${count}.hours")
+      case "MINUTE" => (count.minutes, s"${count}.minutes")
+      case "SQL_TSI_MINUTE" => (count.minutes, s"${count}.minutes")
+      case "SECOND" => (count.seconds, s"${count}.seconds")
+      case "SQL_TSI_SECOND" => (count.seconds, s"${count}.seconds")
     }
 
-    testAllApis(
-        timestampAdd("HOUR", Null(Types.INT), "2016-02-24 12:42:25".toTimestamp),
-        "timestampAdd('HOUR', Null(INT), '2016-02-24 12:42:25'.toTimestamp)",
+    for ((interval, result) <- intervalMapResults) {
+      if (!interval.contains("QUARTER")) {
+        for (i <- 0 to 4) {
+          val timeInterval = intervalCount(interval, data(i)._1)
+          testAllApis(
+            timestampAdd(timeInterval._1, data(i)._3),
+            s"timestampAdd(${timeInterval._2}, ${data(i)._4})",
+            s"TIMESTAMPADD($interval, ${data(i)._1}, ${data(i)._2})",
+            result(i))
+        }
+      }
+    }
+
+    testSqlApi(
         "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
         "null")
 
     testAllApis(
-        timestampAdd("HOUR", -200, Null(Types.SQL_TIMESTAMP)),
-        "timestampAdd('HOUR', -200, Null(SQL_TIMESTAMP))",
+        timestampAdd(-200.hour, Null(Types.SQL_TIMESTAMP)),
+        "timestampAdd(-200.hour, Null(SQL_TIMESTAMP))",
         "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
         "null")
 
     testAllApis(
-        timestampAdd("DAY", 1, "2016-06-15".toDate),
-        "timestampAdd('DAY', 1, '2016-06-15'.toDate)",
+        timestampAdd(1.day, "2016-06-15".toDate),
+        "timestampAdd(1.day, '2016-06-15'.toDate)",
         "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
         "2016-06-16")
 
     testAllApis(
-        timestampAdd("MONTH", 3, Null(Types.SQL_TIMESTAMP)),
-        "timestampAdd('MONTH', 3, Null(SQL_TIMESTAMP))",
+        timestampAdd(3.month, Null(Types.SQL_TIMESTAMP)),
+        "timestampAdd(3.month, Null(SQL_TIMESTAMP))",
         "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
         "null")
   }

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
+import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_WEEK,MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
@@ -62,6 +62,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val YEAR: Keyword = Keyword("year")
   lazy val MONTHS: Keyword = Keyword("months")
   lazy val MONTH: Keyword = Keyword("month")
+  lazy val WEEKS: Keyword = Keyword("weeks")
+  lazy val WEEK: Keyword = Keyword("week")
   lazy val DAYS: Keyword = Keyword("days")
   lazy val DAY: Keyword = Keyword("day")
   lazy val HOURS: Keyword = Keyword("hours")
@@ -273,12 +275,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
   lazy val suffixTimeInterval : PackratParser[Expression] =
-    composite ~ "." ~ (YEARS | MONTHS | DAYS | HOURS | MINUTES | SECONDS | MILLIS |
-      YEAR | MONTH | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
+    composite ~ "." ~ (YEARS | MONTHS | WEEKS | DAYS |  HOURS | MINUTES | SECONDS | MILLIS |
+      YEAR | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
 
     case expr ~ _ ~ (YEARS.key | YEAR.key) => toMonthInterval(expr, 12)
 
     case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
+
+    case expr ~ _ ~ (WEEKS.key | WEEKS.key) => toMilliInterval(expr, MILLIS_PER_WEEK)
 
     case expr ~ _ ~ (DAYS.key | DAY.key) => toMilliInterval(expr, MILLIS_PER_DAY)
 

@@ -615,6 +615,20 @@ trait ImplicitExpressionOperations {
   def months = month
 
   /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def week = toMilliInterval(expr, MILLIS_PER_WEEK)
+
+  /**
+    * Creates an interval of the given number of days.
+    *
+    * @return interval of milliseconds
+    */
+  def weeks = week
+
+  /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
@@ -1043,13 +1057,12 @@ object timestampAdd {
     * by the unit argument, which should be one of the following values: "SECOND", "MINUTE",
     * "HOUR", "DAY", "WEEK", "MONTH", "QUARTER" or "YEAR".
     *
-    * e.g. timestampAdd("WEEK", 1, '2003-01-02'.toDate) leads to "2003-01-09".
+    * e.g. timestampAdd(1.week, '2003-01-02'.toDate) leads to "2003-01-09".
   */
   def apply(
-      unit: Expression,
-      count: Expression,
+      interval: Expression,
       timestamp: Expression): Expression = {
-    TimestampAdd(unit, count, timestamp)
+    TimestampAdd(interval, timestamp)
   }
 }
 
