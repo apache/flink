@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -58,7 +59,7 @@ public final class FileUploads implements AutoCloseable {
 		this.uploadDirectory = uploadDirectory;
 	}
 
-	public Collection<Path> getUploadedFiles() throws IOException {
+	public Collection<File> getUploadedFiles() throws IOException {
 		if (uploadDirectory == null) {
 			return Collections.emptyList();
 		}
@@ -78,9 +79,9 @@ public final class FileUploads implements AutoCloseable {
 
 	private static final class FileAdderVisitor extends SimpleFileVisitor<Path> {
 
-		private final Collection<Path> files = new ArrayList<>(4);
+		private final Collection<File> files = new ArrayList<>(4);
 
-		Collection<Path> getContainedFiles() {
+		Collection<File> getContainedFiles() {
 			return files;
 		}
 
@@ -90,7 +91,7 @@ public final class FileUploads implements AutoCloseable {
 		@Override
 		public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 			FileVisitResult result = super.visitFile(file, attrs);
-			files.add(file);
+			files.add(file.toFile());
 			return result;
 		}
 	}

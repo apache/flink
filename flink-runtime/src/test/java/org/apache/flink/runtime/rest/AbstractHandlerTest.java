@@ -80,7 +80,8 @@ public class AbstractHandlerTest extends TestLogger {
 		final GatewayRetriever<RestfulGateway> mockGatewayRetriever = () ->
 			CompletableFuture.completedFuture(mockRestfulGateway);
 
-		TestHandler handler = new TestHandler(CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
+		CompletableFuture<Void> requestProcessingCompleteFuture = new CompletableFuture<>();
+		TestHandler handler = new TestHandler(requestProcessingCompleteFuture, CompletableFuture.completedFuture(restAddress), mockGatewayRetriever);
 
 		HttpRequest request = new DefaultFullHttpRequest(
 			HttpVersion.HTTP_1_1,
@@ -99,6 +100,9 @@ public class AbstractHandlerTest extends TestLogger {
 
 		handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
 
+		// the (asynchronous) request processing is not yet complete so the files should still exist
+		Assert.assertTrue(Files.exists(file));
+		requestProcessingCompleteFuture.complete(null);
 		Assert.assertFalse(Files.exists(file));
 	}
 
@@ -154,14 +158,16 @@ public class AbstractHandlerTest extends TestLogger {
 	}
 
 	private static class TestHandler extends AbstractHandler<RestfulGateway, EmptyRequestBody, EmptyMessageParameters> {
+		private final CompletableFuture<Void> completionFuture;
 
-		protected TestHandler(@Nonnull CompletableFuture<String> localAddressFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
+		protected TestHandler(CompletableFuture<Void> completionFuture, @Nonnull CompletableFuture<String> localAddressFuture, @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever) {
 			super(localAddressFuture, leaderRetriever, RpcUtils.INF_TIMEOUT, Collections.emptyMap(), TestHeaders.INSTANCE);
+			this.completionFuture = completionFuture;
 		}
 
 		@Override
-		protected void respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
-
+		protected CompletableFuture<Void> respondToRequest(ChannelHandlerContext ctx, HttpRequest httpRequest, HandlerRequest<EmptyRequestBody, EmptyMessageParameters> handlerRequest, RestfulGateway gateway) throws RestHandlerException {
+			return completionFuture;
 		}
 
 		private enum TestHeaders implements UntypedResponseMessageHeaders<EmptyRequestBody, EmptyMessageParameters> {
@@ -185,6 +191,11 @@ public class AbstractHandlerTest extends TestLogger {
 			@Override
 			public String getTargetRestEndpointURL() {
 				return "/test";
+			}
+
+			@Override
+			public boolean acceptsFileUploads() {
+				return true;
 			}
 		}
 	}
