@@ -45,11 +45,11 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
-	private final HeapPriorityQueue<PQ> keyGroupHeap;
+	private final HeapPriorityQueue<PQ> heapOfkeyGroupedHeaps;
 
 	/** All elements from keyGroupHeap, indexed by their key-group id, relative to firstKeyGroup. */
 	@Nonnull
-	private final PQ[] keyGroupLists;
+	private final PQ[] keyGroupedHeaps;
 
 	/** Function to extract the key from contained elements. */
 	@Nonnull
@@ -74,40 +74,40 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		this.keyExtractor = keyExtractor;
 		this.totalKeyGroups = totalKeyGroups;
 		this.firstKeyGroup = keyGroupRange.getStartKeyGroup();
-		this.keyGroupLists = (PQ[]) new InternalPriorityQueue[keyGroupRange.getNumberOfKeyGroups()];
-		this.keyGroupHeap = new HeapPriorityQueue<>(
+		this.keyGroupedHeaps = (PQ[]) new InternalPriorityQueue[keyGroupRange.getNumberOfKeyGroups()];
+		this.heapOfkeyGroupedHeaps = new HeapPriorityQueue<>(
 			new InternalPriorityQueueComparator<>(elementComparator),
 			keyGroupRange.getNumberOfKeyGroups());
-		for (int i = 0; i < keyGroupLists.length; i++) {
-			final PQ keyGroupCache =
+		for (int i = 0; i < keyGroupedHeaps.length; i++) {
+			final PQ keyGroupSubHeap =
 				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementComparator);
-			keyGroupLists[i] = keyGroupCache;
-			keyGroupHeap.add(keyGroupCache);
+			keyGroupedHeaps[i] = keyGroupSubHeap;
+			heapOfkeyGroupedHeaps.add(keyGroupSubHeap);
 		}
 	}
 
 	@Nullable
 	@Override
 	public T poll() {
-		final PQ headList = keyGroupHeap.peek();
+		final PQ headList = heapOfkeyGroupedHeaps.peek();
 		final T head = headList.poll();
-		keyGroupHeap.adjustModifiedElement(headList);
+		heapOfkeyGroupedHeaps.adjustModifiedElement(headList);
 		return head;
 	}
 
 	@Nullable
 	@Override
 	public T peek() {
-		return keyGroupHeap.peek().peek();
+		return heapOfkeyGroupedHeaps.peek().peek();
 	}
 
 	@Override
 	public boolean add(@Nonnull T toAdd) {
-		final PQ list = getListForElementKeyGroup(toAdd);
+		final PQ list = getKeyGroupSubHeapForElement(toAdd);
 
 		// the branch checks if the head element has (potentially) changed.
 		if (list.add(toAdd)) {
-			keyGroupHeap.adjustModifiedElement(list);
+			heapOfkeyGroupedHeaps.adjustModifiedElement(list);
 			// could we have a new head?
 			return toAdd.equals(peek());
 		} else {
@@ -118,13 +118,13 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 	@Override
 	public boolean remove(@Nonnull T toRemove) {
-		final PQ list = getListForElementKeyGroup(toRemove);
+		final PQ list = getKeyGroupSubHeapForElement(toRemove);
 
 		final T oldHead = peek();
 
 		// the branch checks if the head element has (potentially) changed.
 		if (list.remove(toRemove)) {
-			keyGroupHeap.adjustModifiedElement(list);
+			heapOfkeyGroupedHeaps.adjustModifiedElement(list);
 			// could we have a new head?
 			return toRemove.equals(oldHead);
 		} else {
@@ -141,7 +141,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	@Override
 	public int size() {
 		int sizeSum = 0;
-		for (PQ list : keyGroupLists) {
+		for (PQ list : keyGroupedHeaps) {
 			sizeSum += list.size();
 		}
 		return sizeSum;
@@ -163,11 +163,11 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	@Nonnull
 	@Override
 	public CloseableIterator<T> iterator() {
-		return new KeyGroupConcatenationIterator<>(keyGroupLists);
+		return new KeyGroupConcatenationIterator<>(keyGroupedHeaps);
 	}
 
-	private PQ getListForElementKeyGroup(T element) {
-		return keyGroupLists[computeKeyGroupIndex(element)];
+	private PQ getKeyGroupSubHeapForElement(T element) {
+		return keyGroupedHeaps[computeKeyGroupIndex(element)];
 	}
 
 	private int computeKeyGroupIndex(T element) {
@@ -248,12 +248,12 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 		@Override
 		public int compare(Q o1, Q o2) {
-			final T leftTimer = o1.peek();
-			final T rightTimer = o2.peek();
-			if (leftTimer == null) {
-				return (rightTimer == null ? 0 : 1);
+			final T left = o1.peek();
+			final T right = o2.peek();
+			if (left == null) {
+				return (right == null ? 0 : 1);
 			} else {
-				return (rightTimer == null ? -1 : elementComparator.compare(leftTimer, rightTimer));
+				return (right == null ? -1 : elementComparator.compare(left, right));
 			}
 		}
 	}

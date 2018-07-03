@@ -40,7 +40,7 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends KeyGro
 
 		return (keyGroupId, numKeyGroups, elementComparator) -> {
 			CachingInternalPriorityQueueSet.OrderedSetCache<TestElement> cache =
-				new TreeOrderedSetCache<>(TEST_ELEMENT_COMPARATOR, 4);
+				new TreeOrderedSetCache<>(TEST_ELEMENT_COMPARATOR, 32);
 			CachingInternalPriorityQueueSet.OrderedSetStore<TestElement> store =
 				RocksDBOrderedSetStoreTest.createRocksDBOrderedStore(
 					rocksDBResource,

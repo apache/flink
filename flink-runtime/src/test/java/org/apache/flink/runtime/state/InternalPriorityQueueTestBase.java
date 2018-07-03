@@ -54,7 +54,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 	protected static final Comparator<TestElement> TEST_ELEMENT_COMPARATOR =
 		Comparator.comparingLong(TestElement::getPriority).thenComparingLong(TestElement::getKey);
 
-	protected static void insertRandomTimers(
+	protected static void insertRandomElements(
 		@Nonnull InternalPriorityQueue<TestElement> priorityQueue,
 		@Nonnull Set<TestElement> checkSet,
 		int count) {
@@ -64,6 +64,8 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		final int numUniqueKeys = Math.max(count / 4, 64);
 
 		long duplicatePriority = Long.MIN_VALUE;
+
+		final boolean checkEndSizes = priorityQueue.isEmpty();
 
 		for (int i = 0; i < count; ++i) {
 			TestElement element;
@@ -87,7 +89,10 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 				Assert.assertTrue(headChangedIndicated);
 			}
 		}
-		Assert.assertEquals(count, priorityQueue.size());
+
+		if (checkEndSizes) {
+			Assert.assertEquals(count, priorityQueue.size());
+		}
 	}
 
 	@Test
@@ -98,7 +103,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 			newPriorityQueue(initialCapacity);
 		HashSet<TestElement> checkSet = new HashSet<>(testSize);
 
-		insertRandomTimers(priorityQueue, checkSet, testSize);
+		insertRandomElements(priorityQueue, checkSet, testSize);
 
 		long lastPriorityValue = Long.MIN_VALUE;
 		int lastSize = priorityQueue.size();
@@ -120,14 +125,17 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 	}
 
 	@Test
-	public void testStopInsertMixKeepsOrder() {
+	public void testRemoveInsertMixKeepsOrder() {
 
 		InternalPriorityQueue<TestElement> priorityQueue = newPriorityQueue(3);
 
-		final int testSize = 128;
+		final ThreadLocalRandom random = ThreadLocalRandom.current();
+		final int testSize = 300;
+		final int addCounterMax = testSize / 4;
+		int iterationsTillNextAdds = random.nextInt(addCounterMax);
 		HashSet<TestElement> checkSet = new HashSet<>(testSize);
 
-		insertRandomTimers(priorityQueue, checkSet, testSize);
+		insertRandomElements(priorityQueue, checkSet, testSize);
 
 		// check that the whole set is still in order
 		while (!checkSet.isEmpty()) {
@@ -136,19 +144,25 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 			TestElement element = iterator.next();
 			iterator.remove();
 
-			boolean removesHead = element.equals(priorityQueue.peek());
+			final boolean removesHead = element.equals(priorityQueue.peek());
+
 			if (removesHead) {
 				Assert.assertTrue(priorityQueue.remove(element));
 			} else {
 				priorityQueue.remove(element);
 			}
-			Assert.assertEquals(checkSet.size(), priorityQueue.size());
 
-			long lastPriorityValue = Long.MIN_VALUE;
+			long lastPriorityValue = removesHead ? element.getPriority() : Long.MIN_VALUE;
 
 			while ((element = priorityQueue.poll()) != null) {
 				Assert.assertTrue(element.getPriority() >= lastPriorityValue);
 				lastPriorityValue = element.getPriority();
+				if (--iterationsTillNextAdds == 0) {
+					// some random adds
+					iterationsTillNextAdds = random.nextInt(addCounterMax);
+					insertRandomElements(priorityQueue, new HashSet<>(checkSet), 1 + random.nextInt(3));
+					lastPriorityValue = priorityQueue.peek().getPriority();
+				}
 			}
 
 			Assert.assertTrue(priorityQueue.isEmpty());
@@ -165,7 +179,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 
 		final int testSize = 345;
 		HashSet<TestElement> checkSet = new HashSet<>(testSize);
-		insertRandomTimers(priorityQueue, checkSet, testSize);
+		insertRandomElements(priorityQueue, checkSet, testSize);
 
 		long lastPriorityValue = Long.MIN_VALUE;
 		while (!priorityQueue.isEmpty()) {
@@ -195,7 +209,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 	}
 
 	@Test
-	public void testBulkAddRestoredTimers() throws Exception {
+	public void testBulkAddRestoredElements() throws Exception {
 		final int testSize = 10;
 		HashSet<TestElement> elementSet = new HashSet<>(testSize);
 		for (int i = 0; i < testSize; ++i) {
@@ -215,19 +229,19 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		priorityQueue.addAll(twoTimesElementSet);
 		priorityQueue.addAll(elementSet);
 
-		final int expectedSize = testSetSemantics() ? elementSet.size() : 3 * elementSet.size();
+		final int expectedSize = testSetSemanticsAgainstDuplicateElements() ? elementSet.size() : 3 * elementSet.size();
 
 		Assert.assertEquals(expectedSize, priorityQueue.size());
 		try (final CloseableIterator<TestElement> iterator = priorityQueue.iterator()) {
 			while (iterator.hasNext()) {
-				if (testSetSemantics()) {
+				if (testSetSemanticsAgainstDuplicateElements()) {
 					Assert.assertTrue(elementSet.remove(iterator.next()));
 				} else {
 					Assert.assertTrue(elementSet.contains(iterator.next()));
 				}
 			}
 		}
-		if (testSetSemantics()) {
+		if (testSetSemanticsAgainstDuplicateElements()) {
 			Assert.assertTrue(elementSet.isEmpty());
 		}
 	}
@@ -250,7 +264,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		// iterate some data
 		final int testSize = 10;
 		HashSet<TestElement> checkSet = new HashSet<>(testSize);
-		insertRandomTimers(priorityQueue, checkSet, testSize);
+		insertRandomElements(priorityQueue, checkSet, testSize);
 		try (CloseableIterator<TestElement> iterator = priorityQueue.iterator()) {
 			while (iterator.hasNext()) {
 				Assert.assertTrue(checkSet.remove(iterator.next()));
@@ -267,7 +281,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		TestElement lowPrioElement = new TestElement(4711L, 42L);
 		TestElement highPrioElement = new TestElement(815L, 23L);
 		Assert.assertTrue(priorityQueue.add(lowPrioElement));
-		if (testSetSemantics()) {
+		if (testSetSemanticsAgainstDuplicateElements()) {
 			priorityQueue.add(lowPrioElement.deepCopy());
 		}
 		Assert.assertEquals(1, priorityQueue.size());
@@ -287,12 +301,12 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 		final long key = 4711L;
 		final long priorityValue = 42L;
 		final TestElement testElement = new TestElement(key, priorityValue);
-		if (testSetSemantics()) {
+		if (testSetSemanticsAgainstDuplicateElements()) {
 			Assert.assertFalse(priorityQueue.remove(testElement));
 		}
 		Assert.assertTrue(priorityQueue.add(testElement));
 		Assert.assertTrue(priorityQueue.remove(testElement));
-		if (testSetSemantics()) {
+		if (testSetSemanticsAgainstDuplicateElements()) {
 			Assert.assertFalse(priorityQueue.remove(testElement));
 		}
 		Assert.assertTrue(priorityQueue.isEmpty());
@@ -300,7 +314,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 
 	protected abstract InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity);
 
-	protected abstract boolean testSetSemantics();
+	protected abstract boolean testSetSemanticsAgainstDuplicateElements();
 
 	/**
 	 * Payload for usage in the test.

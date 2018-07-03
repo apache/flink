@@ -33,7 +33,7 @@ public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
 	}
 
 	@Override
-	protected boolean testSetSemantics() {
+	protected boolean testSetSemanticsAgainstDuplicateElements() {
 		return true;
 	}
 }

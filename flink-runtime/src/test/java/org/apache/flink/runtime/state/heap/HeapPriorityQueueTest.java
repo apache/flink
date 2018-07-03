@@ -39,7 +39,7 @@ public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
 		int count = 10;
 		HashSet<TestElement> checkSet = new HashSet<>(count);
-		insertRandomTimers(priorityQueueSet, checkSet, count);
+		insertRandomElements(priorityQueueSet, checkSet, count);
 		Assert.assertEquals(count, priorityQueueSet.size());
 		priorityQueueSet.clear();
 		Assert.assertEquals(0, priorityQueueSet.size());
@@ -67,7 +67,7 @@ public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
 			Assert.assertEquals(testArray.length, timerPriorityQueue.toArray(testArray).length);
 
-			insertRandomTimers(timerPriorityQueue, checkSet, testSize);
+			insertRandomElements(timerPriorityQueue, checkSet, testSize);
 
 			TestElement[] toArray = timerPriorityQueue.toArray(testArray);
 
@@ -93,7 +93,7 @@ public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 	}
 
 	@Override
-	protected boolean testSetSemantics() {
+	protected boolean testSetSemanticsAgainstDuplicateElements() {
 		return false;
 	}
 }

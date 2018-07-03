@@ -66,8 +66,8 @@ public interface InternalPriorityQueue<T> {
 	 * Removes the given element from the set, if is contained in the set.
 	 *
 	 * @param toRemove the element to remove.
-	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</code> iff the head element was not changed by this operation.
+	 * @return <code>true</code> if the operation changed the head element or if it is unclear if the head element changed.
+	 * Only returns <code>false</code> if the head element was not changed by this operation.
 	 */
 	boolean remove(@Nonnull T toRemove);
 

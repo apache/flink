@@ -134,16 +134,15 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
 	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
-	public boolean remove(@Nonnull T elementToRemove) {
-		T storedElement = getDedupMapForElement(elementToRemove).remove(elementToRemove);
+	public boolean remove(@Nonnull T toRemove) {
+		T storedElement = getDedupMapForElement(toRemove).remove(toRemove);
 		return storedElement != null && super.remove(storedElement);
 	}
 
 	@Override
 	public void clear() {
 		super.clear();
-		for (HashMap<?, ?> elementHashMap :
-			deduplicationMapsByKeyGroup) {
+		for (HashMap<?, ?> elementHashMap : deduplicationMapsByKeyGroup) {
 			elementHashMap.clear();
 		}
 	}

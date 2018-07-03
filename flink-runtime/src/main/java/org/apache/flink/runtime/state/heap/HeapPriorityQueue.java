@@ -38,7 +38,8 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
  * because it manages position indexes of the contained {@link HeapPriorityQueueElement}s. The heap implementation is
  * a simple binary tree stored inside an array. Element indexes in the heap array start at 1 instead of 0 to make array
  * index computations a bit simpler in the hot methods. Object identification of remove is based on object identity and
- * not on equals.
+ * not on equals. We use the managed index from {@link HeapPriorityQueueElement} to find an element in the queue
+ * array to support fast deletes.
  *
  * <p>Possible future improvements:
  * <ul>
@@ -108,14 +109,15 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 	}
 
 	/**
-	 * This remove is based on object identity, not the result of equals.
+	 * This remove is based on object identity, not the result of equals. We use the objects managed index to find
+	 * the instance in the queue array.
 	 *
 	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
 	 * Only returns <code>false</code> iff the head element was not changed by this operation.
 	 */
 	@Override
-	public boolean remove(@Nonnull T toStop) {
-		return removeInternal(toStop);
+	public boolean remove(@Nonnull T toRemove) {
+		return removeInternal(toRemove);
 	}
 
 	@Override

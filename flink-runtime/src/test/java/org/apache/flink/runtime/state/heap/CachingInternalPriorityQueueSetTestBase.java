@@ -33,7 +33,7 @@ public abstract class CachingInternalPriorityQueueSetTestBase extends InternalPr
 	}
 
 	@Override
-	protected boolean testSetSemantics() {
+	protected boolean testSetSemanticsAgainstDuplicateElements() {
 		return true;
 	}
 
