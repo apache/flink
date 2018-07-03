@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
-import java.nio.file.Path;
+import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,7 +43,7 @@ import java.util.StringJoiner;
 public class HandlerRequest<R extends RequestBody, M extends MessageParameters> {
 
 	private final R requestBody;
-	private final Collection<Path> uploadedFiles;
+	private final Collection<File> uploadedFiles;
 	private final Map<Class<? extends MessagePathParameter<?>>, MessagePathParameter<?>> pathParameters = new HashMap<>(2);
 	private final Map<Class<? extends MessageQueryParameter<?>>, MessageQueryParameter<?>> queryParameters = new HashMap<>(2);
 
@@ -55,7 +55,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 		this(requestBody, messageParameters, receivedPathParameters, receivedQueryParameters, Collections.emptyList());
 	}
 
-	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<Path> uploadedFiles) throws HandlerRequestException {
+	public HandlerRequest(R requestBody, M messageParameters, Map<String, String> receivedPathParameters, Map<String, List<String>> receivedQueryParameters, Collection<File> uploadedFiles) throws HandlerRequestException {
 		this.requestBody = Preconditions.checkNotNull(requestBody);
 		this.uploadedFiles = Collections.unmodifiableCollection(Preconditions.checkNotNull(uploadedFiles));
 		Preconditions.checkNotNull(messageParameters);
@@ -141,7 +141,7 @@ public class HandlerRequest<R extends RequestBody, M extends MessageParameters> 
 	}
 
 	@Nonnull
-	public Collection<Path> getUploadedFiles() {
+	public Collection<File> getUploadedFiles() {
 		return uploadedFiles;
 	}
 }
