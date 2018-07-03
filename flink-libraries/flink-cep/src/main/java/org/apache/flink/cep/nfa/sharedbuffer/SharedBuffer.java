@@ -35,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -287,15 +288,19 @@ public class SharedBuffer<V> {
 	}
 
 	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match) {
+		return materializeMatch(match, new HashMap<>());
+	}
+
+	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match, Map<EventId, V> cache) {
 		return match.entrySet().stream().sequential().collect(Collectors.toMap(
 			Map.Entry::getKey,
-			e -> e.getValue().stream().sequential().map(id -> {
+			e -> e.getValue().stream().sequential().map(id -> cache.computeIfAbsent(id, eventId -> {
 					try {
-						return eventsBuffer.get(id).getElement();
+						return eventsBuffer.get(eventId).getElement();
 					} catch (Exception ex) {
 						throw new RuntimeException(ex);
 					}
-				}
+				})
 			).collect(toList()),
 			(m1, m2) -> m1,
 			LinkedHashMap::new)

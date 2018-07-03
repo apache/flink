@@ -32,7 +32,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Queue;
 
 /**
@@ -98,10 +98,13 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	@Override
 	public void serialize(NFAState record, DataOutputView target) throws IOException {
+		serializeComputationStates(record.getPartialMatches(), target);
+		serializeComputationStates(record.getCompletedMatches(), target);
+	}
 
-		target.writeInt(record.getPartialMatches().size());
-
-		for (ComputationState computationState : record.getPartialMatches()) {
+	private void serializeComputationStates(Queue<ComputationState> states, DataOutputView target) throws IOException {
+		target.writeInt(states.size());
+		for (ComputationState computationState : states) {
 			STATE_NAME_SERIALIZER.serialize(computationState.getCurrentStateName(), target);
 			NODE_ID_SERIALIZER.serialize(computationState.getPreviousBufferEntry(), target);
 
@@ -118,7 +121,13 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	@Override
 	public NFAState deserialize(DataInputView source) throws IOException {
-		Queue<ComputationState> computationStates = new LinkedList<>();
+		PriorityQueue<ComputationState> partialMatches = deserializeComputationStates(source);
+		PriorityQueue<ComputationState> completedMatches = deserializeComputationStates(source);
+		return new NFAState(partialMatches, completedMatches);
+	}
+
+	private PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source) throws IOException {
+		PriorityQueue<ComputationState> computationStates = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
 		int computationStateNo = source.readInt();
 		for (int i = 0; i < computationStateNo; i++) {
@@ -135,7 +144,7 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 			computationStates.add(ComputationState.createState(state, prevState, version, startTimestamp, startEventId));
 		}
-		return new NFAState(computationStates);
+		return computationStates;
 	}
 
 	@Override
@@ -145,7 +154,32 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
+		copyStates(source, target);
+		copyStates(source, target);
+	}
+
+	private void copyStates(DataInputView source, DataOutputView target) throws IOException {
+		int computationStateNo = source.readInt();
+		target.writeInt(computationStateNo);
+
+		for (int i = 0; i < computationStateNo; i++) {
+			String state = STATE_NAME_SERIALIZER.deserialize(source);
+			STATE_NAME_SERIALIZER.serialize(state, target);
+			NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
+			NODE_ID_SERIALIZER.serialize(prevState, target);
+			DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
+			VERSION_SERIALIZER.serialize(version, target);
+			long startTimestamp = TIMESTAMP_SERIALIZER.deserialize(source);
+			TIMESTAMP_SERIALIZER.serialize(startTimestamp, target);
+
+			byte isNull = source.readByte();
+			target.writeByte(isNull);
+
+			if (isNull == 1) {
+				EventId startEventId = EVENT_ID_SERIALIZER.deserialize(source);
+				EVENT_ID_SERIALIZER.serialize(startEventId, target);
+			}
+		}
 	}
 
 	@Override

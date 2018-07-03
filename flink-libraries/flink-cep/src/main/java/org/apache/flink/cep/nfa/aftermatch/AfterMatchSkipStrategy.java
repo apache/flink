@@ -85,27 +85,27 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
 	/**
 	 * Prunes matches/partial matches based on the chosen strategy.
 	 *
-	 * @param partialMatches current partial matches
+	 * @param matchesToPrune current partial matches
 	 * @param matchedResult  already completed matches
 	 * @param sharedBuffer   corresponding shared buffer
 	 * @throws Exception thrown if could not access the state
 	 */
 	public void prune(
-			Collection<ComputationState> partialMatches,
+			Collection<ComputationState> matchesToPrune,
 			Collection<Map<String, List<EventId>>> matchedResult,
 			SharedBuffer<?> sharedBuffer) throws Exception {
 
 		EventId pruningId = getPruningId(matchedResult);
 		if (pruningId != null) {
 			List<ComputationState> discardStates = new ArrayList<>();
-			for (ComputationState computationState : partialMatches) {
+			for (ComputationState computationState : matchesToPrune) {
 				if (computationState.getStartEventID() != null &&
 					shouldPrune(computationState.getStartEventID(), pruningId)) {
 					sharedBuffer.releaseNode(computationState.getPreviousBufferEntry());
 					discardStates.add(computationState);
 				}
 			}
-			partialMatches.removeAll(discardStates);
+			matchesToPrune.removeAll(discardStates);
 		}
 	}
 

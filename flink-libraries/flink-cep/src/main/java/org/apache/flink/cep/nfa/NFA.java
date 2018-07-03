@@ -53,9 +53,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Stack;
-import java.util.stream.Collectors;
 
-import static java.util.Objects.nonNull;
 import static org.apache.flink.cep.nfa.MigrationUtils.deserializeComputationStates;
 
 /**
@@ -238,20 +236,18 @@ public class NFA<T> {
 			final NFAState nfaState,
 			final long timestamp) throws Exception {
 
-		Queue<ComputationState> computationStates = nfaState.getPartialMatches();
 		final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
+		final PriorityQueue<ComputationState> newPartialMatches = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
-		final int numberComputationStates = computationStates.size();
-		for (int i = 0; i < numberComputationStates; i++) {
-			ComputationState computationState = computationStates.poll();
-
+		Map<EventId, T> eventsCache = new HashMap<>();
+		for (ComputationState computationState : nfaState.getPartialMatches()) {
 			if (isStateTimedOut(computationState, timestamp)) {
 
 				if (handleTimeout) {
 					// extract the timed out event pattern
 					Map<String, List<T>> timedOutPattern = sharedBuffer.materializeMatch(extractCurrentMatches(
 						sharedBuffer,
-						computationState));
+						computationState), eventsCache);
 					timeoutResult.add(Tuple2.of(timedOutPattern, timestamp));
 				}
 
@@ -259,9 +255,11 @@ public class NFA<T> {
 
 				nfaState.setStateChanged();
 			} else {
-				computationStates.add(computationState);
+				newPartialMatches.add(computationState);
 			}
 		}
+
+		nfaState.setNewPartialMatches(newPartialMatches);
 
 		sharedBuffer.advanceTime(timestamp);
 
@@ -278,15 +276,11 @@ public class NFA<T> {
 			final EventWrapper event,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 
-		Queue<ComputationState> computationStates = nfaState.getPartialMatches();
-
-		final int numberComputationStates = computationStates.size();
+		final PriorityQueue<ComputationState> newPartialMatches = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 		final PriorityQueue<ComputationState> potentialMatches = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
 		// iterate over all current computations
-		for (int i = 0; i < numberComputationStates; i++) {
-			ComputationState computationState = computationStates.poll();
-
+		for (ComputationState computationState : nfaState.getPartialMatches()) {
 			final Collection<ComputationState> newComputationStates = computeNextStates(
 				sharedBuffer,
 				computationState,
@@ -324,7 +318,7 @@ public class NFA<T> {
 					sharedBuffer.releaseNode(state.getPreviousBufferEntry());
 				}
 			} else {
-				computationStates.addAll(statesToRetain);
+				newPartialMatches.addAll(statesToRetain);
 			}
 		}
 
@@ -338,14 +332,25 @@ public class NFA<T> {
 				nfaState,
 				afterMatchSkipStrategy,
 				potentialMatches,
+				newPartialMatches,
 				result);
 		} else {
 			for (ComputationState match : potentialMatches) {
-				result.add(sharedBuffer.materializeMatch(sharedBuffer.extractPatterns(match.getPreviousBufferEntry(),
-					match.getVersion()).get(0)));
+				Map<EventId, T> eventsCache = new HashMap<>();
+				Map<String, List<T>> materializedMatch =
+					sharedBuffer.materializeMatch(
+						sharedBuffer.extractPatterns(
+							match.getPreviousBufferEntry(),
+							match.getVersion()).get(0),
+						eventsCache
+					);
+
+				result.add(materializedMatch);
 				sharedBuffer.releaseNode(match.getPreviousBufferEntry());
 			}
 		}
+
+		nfaState.setNewPartialMatches(newPartialMatches);
 
 		return result;
 	}
@@ -355,6 +360,7 @@ public class NFA<T> {
 			NFAState nfaState,
 			AfterMatchSkipStrategy afterMatchSkipStrategy,
 			PriorityQueue<ComputationState> potentialMatches,
+			PriorityQueue<ComputationState> partialMatches,
 			List<Map<String, List<T>>> result) throws Exception {
 
 		nfaState.getCompletedMatches().addAll(potentialMatches);
@@ -362,13 +368,11 @@ public class NFA<T> {
 		ComputationState earliestMatch = nfaState.getCompletedMatches().peek();
 
 		if (earliestMatch != null) {
-			Queue<ComputationState> sortedPartialMatches = sortByStartTime(nfaState.getPartialMatches());
 
+			Map<EventId, T> eventsCache = new HashMap<>();
 			ComputationState earliestPartialMatch;
-			while (
-				earliestMatch != null && (
-					(earliestPartialMatch = sortedPartialMatches.peek()) == null ||
-						isEarlier(earliestMatch, earliestPartialMatch))) {
+			while (earliestMatch != null && ((earliestPartialMatch = partialMatches.peek()) == null ||
+				isEarlier(earliestMatch, earliestPartialMatch))) {
 
 				nfaState.setStateChanged();
 				nfaState.getCompletedMatches().poll();
@@ -376,7 +380,7 @@ public class NFA<T> {
 					sharedBuffer.extractPatterns(earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
 
 				afterMatchSkipStrategy.prune(
-					sortedPartialMatches,
+					partialMatches,
 					matchedResult,
 					sharedBuffer);
 
@@ -385,26 +389,16 @@ public class NFA<T> {
 					matchedResult,
 					sharedBuffer);
 
-				result.add(sharedBuffer.materializeMatch(matchedResult.get(0)));
+				result.add(sharedBuffer.materializeMatch(matchedResult.get(0), eventsCache));
 				earliestMatch = nfaState.getCompletedMatches().peek();
 			}
 
-			nfaState.getPartialMatches().removeIf(
-				pm -> pm.getStartEventID() != null &&
-					!sortedPartialMatches.contains(pm)
-			);
+			nfaState.getPartialMatches().removeIf(pm -> pm.getStartEventID() != null && !partialMatches.contains(pm));
 		}
 	}
 
 	private boolean isEarlier(ComputationState earliestMatch, ComputationState earliestPartialMatch) {
 		return NFAState.COMPUTATION_STATE_COMPARATOR.compare(earliestMatch, earliestPartialMatch) <= 0;
-	}
-
-	private static Queue<ComputationState> sortByStartTime(Queue<ComputationState> computationStates) {
-		return computationStates.stream()
-			.filter(c -> nonNull(c.getStartEventID()))
-			.sorted(NFAState.COMPUTATION_STATE_COMPARATOR)
-			.collect(Collectors.toCollection(LinkedList::new));
 	}
 
 	private static <T> boolean isEquivalentState(final State<T> s1, final State<T> s2) {
