@@ -170,7 +170,7 @@ public class CompositeSerializerTest {
 
 		@Override
 		protected void setField(@Nonnull List<Object> value, int index, Object fieldValue) {
-			if (isImmutableTargetType) {
+			if (immutableTargetType) {
 				throw new UnsupportedOperationException("Type is immutable");
 			} else {
 				value.set(index, fieldValue);
@@ -184,7 +184,7 @@ public class CompositeSerializerTest {
 
 		@Override
 		protected CompositeSerializer<List<Object>> createSerializerInstance(TypeSerializer<?>... originalSerializers) {
-			return new TestListCompositeSerializer(isImmutableTargetType, originalSerializers);
+			return new TestListCompositeSerializer(immutableTargetType, originalSerializers);
 		}
 	}
 

@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.internal.InternalListState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,11 +33,6 @@ import java.util.stream.StreamSupport;
 /** Test suite for {@link TtlListState}. */
 public class TtlListStateTest
 	extends TtlMergingStateBase<TtlListState<?, String, Integer>, List<Integer>, Iterable<Integer>> {
-	@Override
-	TtlListState<?, String, Integer> createState() {
-		return new TtlListState<>(new MockInternalListState<>(), ttlConfig, timeProvider, null);
-	}
-
 	@Override
 	void initTestValues() {
 		updater = v -> ttlState.addAll(v);
@@ -55,6 +51,13 @@ public class TtlListStateTest
 	}
 
 	@Override
+	TtlListState<?, String, Integer> createState() {
+		ListStateDescriptor<Integer> listStateDesc =
+			new ListStateDescriptor<>("TtlTestListState", IntSerializer.INSTANCE);
+		return (TtlListState<?, String, Integer>) wrapMockState(listStateDesc);
+	}
+
+	@Override
 	List<Integer> generateRandomUpdate() {
 		int size = RANDOM.nextInt(5);
 		return IntStream.range(0, size).mapToObj(i -> RANDOM.nextInt(100)).collect(Collectors.toList());
@@ -69,44 +72,4 @@ public class TtlListStateTest
 		return result;
 	}
 
-	private static class MockInternalListState<K, N, T>
-		extends MockInternalMergingState<K, N, T, List<T>, Iterable<T>>
-		implements InternalListState<K, N, T> {
-
-		MockInternalListState() {
-			super(ArrayList::new);
-		}
-
-		@Override
-		public void update(List<T> elements) {
-			updateInternal(elements);
-		}
-
-		@Override
-		public void addAll(List<T> elements) {
-			getInternal().addAll(elements);
-		}
-
-		@Override
-		List<T> mergeState(List<T> acc, List<T> nAcc) {
-			acc = new ArrayList<>(acc);
-			acc.addAll(nAcc);
-			return acc;
-		}
-
-		@Override
-		public Iterable<T> get() {
-			return getInternal();
-		}
-
-		@Override
-		public void add(T element) {
-			getInternal().add(element);
-		}
-
-		@Override
-		public void clear() {
-			getInternal().clear();
-		}
-	}
 }

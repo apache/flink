@@ -18,18 +18,14 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlValueState}. */
 public class TtlValueStateTest extends TtlStateTestBase<TtlValueState<?, String, String>, String, String> {
 	private static final String TEST_VAL1 = "test value1";
 	private static final String TEST_VAL2 = "test value2";
 	private static final String TEST_VAL3 = "test value3";
-
-	@Override
-	TtlValueState<?, String, String> createState() {
-		return new TtlValueState<>(new MockInternalValueState<>(), ttlConfig, timeProvider, null);
-	}
 
 	@Override
 	void initTestValues() {
@@ -46,17 +42,10 @@ public class TtlValueStateTest extends TtlStateTestBase<TtlValueState<?, String,
 		getUpdateExpired = TEST_VAL3;
 	}
 
-	private static class MockInternalValueState<K, N, T>
-		extends MockInternalKvState<K, N, T> implements InternalValueState<K, N, T> {
-
-		@Override
-		public T value() {
-			return getInternal();
-		}
-
-		@Override
-		public void update(T value) {
-			updateInternal(value);
-		}
+	@Override
+	TtlValueState<?, String, String> createState() {
+		ValueStateDescriptor<String> valueStateDesc =
+			new ValueStateDescriptor<>("TtlValueTestState", StringSerializer.INSTANCE);
+		return (TtlValueState<?, String, String>) wrapMockState(valueStateDesc);
 	}
 }

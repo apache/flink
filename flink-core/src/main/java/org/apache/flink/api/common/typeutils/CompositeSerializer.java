@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 /**
  * Base class for composite serializers.
@@ -41,17 +42,36 @@ import java.util.Objects;
 public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	private static final long serialVersionUID = 1L;
 
+	/** Serializers for fields which constitute T. */
 	protected final TypeSerializer<Object>[] fieldSerializers;
-	final boolean isImmutableTargetType;
+
+	/** Whether T is an immutable type. */
+	final boolean immutableTargetType;
+
+	/** Byte length of target object in serialized form. */
 	private final int length;
 
+	/** Whether any field serializer is stateful. */
+	private final boolean stateful;
+
+	private final int hashCode;
+
 	@SuppressWarnings("unchecked")
-	protected CompositeSerializer(boolean isImmutableTargetType, TypeSerializer<?> ... fieldSerializers) {
+	protected CompositeSerializer(boolean immutableTargetType, TypeSerializer<?> ... fieldSerializers) {
 		Preconditions.checkNotNull(fieldSerializers);
 		Preconditions.checkArgument(Arrays.stream(fieldSerializers).allMatch(Objects::nonNull));
-		this.isImmutableTargetType = isImmutableTargetType;
+		this.immutableTargetType = immutableTargetType &&
+			Arrays.stream(fieldSerializers).allMatch(TypeSerializer::isImmutableType);
 		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
 		this.length = calcLength();
+		this.stateful = isStateful();
+		this.hashCode = Arrays.hashCode(fieldSerializers);
+	}
+
+	private boolean isStateful() {
+		TypeSerializer[] duplicatedSerializers = duplicateFieldSerializers();
+		return IntStream.range(0, fieldSerializers.length)
+			.anyMatch(i -> fieldSerializers[i] != duplicatedSerializers[i]);
 	}
 
 	/** Create new instance from its fields.  */
@@ -68,25 +88,20 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public CompositeSerializer<T> duplicate() {
+		return stateful ? createSerializerInstance(duplicateFieldSerializers()) : this;
+	}
+
+	private TypeSerializer[] duplicateFieldSerializers() {
 		TypeSerializer[] duplicatedSerializers = new TypeSerializer[fieldSerializers.length];
-		boolean stateful = false;
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			duplicatedSerializers[index] = fieldSerializers[index].duplicate();
-			if (fieldSerializers[index] != duplicatedSerializers[index]) {
-				stateful = true;
-			}
 		}
-		return stateful ? createSerializerInstance(duplicatedSerializers) : this;
+		return duplicatedSerializers;
 	}
 
 	@Override
 	public boolean isImmutableType() {
-		for (TypeSerializer<Object> fieldSerializer : fieldSerializers) {
-			if (!fieldSerializer.isImmutableType()) {
-				return false;
-			}
-		}
-		return isImmutableTargetType;
+		return immutableTargetType;
 	}
 
 	@Override
@@ -101,6 +116,9 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	@Override
 	public T copy(T from) {
 		Preconditions.checkNotNull(from);
+		if (isImmutableType()) {
+			return from;
+		}
 		Object[] fields = new Object[fieldSerializers.length];
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			fields[index] = fieldSerializers[index].copy(getField(from, index));
@@ -112,11 +130,14 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	public T copy(T from, T reuse) {
 		Preconditions.checkNotNull(from);
 		Preconditions.checkNotNull(reuse);
+		if (isImmutableType()) {
+			return from;
+		}
 		Object[] fields = new Object[fieldSerializers.length];
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			fields[index] = fieldSerializers[index].copy(getField(from, index), getField(reuse, index));
 		}
-		return fromFields(fields, reuse);
+		return createInstanceWithReuse(fields, reuse);
 	}
 
 	@Override
@@ -162,18 +183,14 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			fields[index] = fieldSerializers[index].deserialize(getField(reuse, index), source);
 		}
-		return fromFields(fields, reuse);
+		return immutableTargetType ? createInstance(fields) : createInstanceWithReuse(fields, reuse);
 	}
 
-	private T fromFields(Object[] fields, T reuse) {
-		if (isImmutableTargetType) {
-			return createInstance(fields);
-		} else {
-			for (int index = 0; index < fields.length; index++) {
-				setField(reuse, index, fields[index]);
-			}
-			return reuse;
+	private T createInstanceWithReuse(Object[] fields, T reuse) {
+		for (int index = 0; index < fields.length; index++) {
+			setField(reuse, index, fields[index]);
 		}
+		return reuse;
 	}
 
 	@Override
@@ -187,7 +204,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fieldSerializers);
+		return hashCode;
 	}
 
 	@Override

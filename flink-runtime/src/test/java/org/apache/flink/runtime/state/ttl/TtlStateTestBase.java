@@ -18,8 +18,14 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.runtime.state.KeyedStateFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateFactory;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -29,6 +35,7 @@ import static org.junit.Assert.assertEquals;
 
 abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV> {
 	private static final long TTL = 100;
+	private static final KeyedStateFactory MOCK_ORIGINAL_STATE_FACTORY = new MockKeyedStateFactory();
 
 	S ttlState;
 	MockTimeProvider timeProvider;
@@ -68,6 +75,16 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 	}
 
 	abstract S createState();
+
+	<SV, US extends State, IS extends US> IS wrapMockState(StateDescriptor<IS, SV> stateDesc) {
+		try {
+			return TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+				StringSerializer.INSTANCE, stateDesc,
+				MOCK_ORIGINAL_STATE_FACTORY, ttlConfig, timeProvider);
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Unexpected exception wrapping mock state", e);
+		}
+	}
 
 	abstract void initTestValues();
 

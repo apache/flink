@@ -43,7 +43,6 @@ import java.util.stream.Stream;
 /**
  * This state factory wraps state objects, produced by backends, with TTL logic.
  */
-@SuppressWarnings("unchecked")
 public class TtlStateFactory {
 	public static <N, SV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
 		TypeSerializer<N> namespaceSerializer,
@@ -99,6 +98,7 @@ public class TtlStateFactory {
 		return stateFactory.createState(namespaceSerializer, stateDesc);
 	}
 
+	@SuppressWarnings("unchecked")
 	private <N, SV, S extends State, IS extends S> IS createValueState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -109,6 +109,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T, N, SV, S extends State, IS extends S> IS createListState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -120,6 +121,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, listStateDesc.getSerializer());
 	}
 
+	@SuppressWarnings("unchecked")
 	private <UK, UV, N, SV, S extends State, IS extends S> IS createMapState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -133,6 +135,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, mapStateDesc.getSerializer());
 	}
 
+	@SuppressWarnings("unchecked")
 	private <N, SV, S extends State, IS extends S> IS createReducingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -146,6 +149,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
+	@SuppressWarnings("unchecked")
 	private <IN, OUT, N, SV, S extends State, IS extends S> IS createAggregatingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -160,7 +164,7 @@ public class TtlStateFactory {
 			ttlConfig, timeProvider, stateDesc.getSerializer(), ttlAggregateFunction);
 	}
 
-	@SuppressWarnings("deprecation")
+	@SuppressWarnings({"deprecation", "unchecked"})
 	private <T, N, SV, S extends State, IS extends S> IS createFoldingState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
@@ -184,6 +188,7 @@ public class TtlStateFactory {
 			super(true, userValueSerializer, LongSerializer.INSTANCE);
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public TtlValue<T> createInstance(@Nonnull Object ... values) {
 			Preconditions.checkArgument(values.length == 2);
@@ -200,6 +205,7 @@ public class TtlStateFactory {
 			return index == 0 ? v.getUserValue() : v.getLastAccessTimestamp();
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		protected CompositeSerializer<TtlValue<T>> createSerializerInstance(TypeSerializer<?> ... originalSerializers) {
 			Preconditions.checkNotNull(originalSerializers);
