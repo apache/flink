@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
@@ -26,7 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.functions.co.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;

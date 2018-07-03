@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.api.operators.co;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -31,7 +31,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.functions.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.functions.co.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
