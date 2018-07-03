@@ -399,9 +399,9 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	private static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
 
-		private final TypeSerializer<T> elementSerializer;
+		private static final long serialVersionUID = -20197698803836236L;
 
-		// TODO: Serial version UID
+		private final TypeSerializer<T> elementSerializer;
 
 		private BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
 			this.elementSerializer = elementSerializer;
