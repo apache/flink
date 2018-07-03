@@ -44,6 +44,7 @@ SLEEP_TIME=20
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 MODULES_CORE="\
+
 flink-test-utils-parent/flink-test-utils,\
 flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
@@ -537,11 +538,11 @@ esac
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
 
-    # Start watching $MVN_OUT
-    watchdog &
-    echo "STARTED watchdog (${WD_PID})."
-    
-    WD_PID=$!
+	# Start watching $MVN_OUT
+	watchdog &
+	echo "STARTED watchdog (${WD_PID})."
+
+	WD_PID=$!
 
 	echo "RUNNING '${MVN_TEST}'."
 
@@ -554,9 +555,9 @@ if [ $EXIT_CODE == 0 ]; then
 
 	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
-    # Make sure to kill the watchdog in any case after $MVN_TEST has completed
-    echo "Trying to KILL watchdog (${WD_PID})."
-    ( kill $WD_PID 2>&1 ) > /dev/null
+	# Make sure to kill the watchdog in any case after $MVN_TEST has completed
+	echo "Trying to KILL watchdog (${WD_PID})."
+	( kill $WD_PID 2>&1 ) > /dev/null
 
 	rm $MVN_PID
 	rm $MVN_EXIT
