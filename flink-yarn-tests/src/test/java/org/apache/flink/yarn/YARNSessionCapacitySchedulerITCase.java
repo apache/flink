@@ -331,7 +331,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		runner.sendStop();
 		// wait for the thread to stop
 		try {
-			runner.join(1000);
+			runner.join();
 		} catch (InterruptedException e) {
 			LOG.warn("Interrupted while stopping runner", e);
 		}

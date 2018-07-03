@@ -123,6 +123,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.type", "streaming");
 		expectedProperties.put("execution.time-characteristic", "event-time");
+		expectedProperties.put("execution.periodic-watermarks-interval", "99");
 		expectedProperties.put("execution.parallelism", "1");
 		expectedProperties.put("execution.max-parallelism", "16");
 		expectedProperties.put("execution.max-idle-state-retention", "0");
@@ -266,7 +267,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE),
+			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, Collections.singletonMap("$VAR_2", "batch")),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));

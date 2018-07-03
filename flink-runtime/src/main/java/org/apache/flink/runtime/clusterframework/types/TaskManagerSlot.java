@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.resourcemanager.slotmanager.PendingSlotRequest;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -44,6 +47,10 @@ public class TaskManagerSlot {
 
 	/** Allocation id for which this slot has been allocated. */
 	private AllocationID allocationId;
+
+	/** Allocation id for which this slot has been allocated. */
+	@Nullable
+	private JobID jobId;
 
 	/** Assigned slot request if there is currently an ongoing request. */
 	private PendingSlotRequest assignedSlotRequest;
@@ -83,6 +90,11 @@ public class TaskManagerSlot {
 		return allocationId;
 	}
 
+	@Nullable
+	public JobID getJobId() {
+		return jobId;
+	}
+
 	public PendingSlotRequest getAssignedSlotRequest() {
 		return assignedSlotRequest;
 	}
@@ -96,6 +108,7 @@ public class TaskManagerSlot {
 
 		state = State.FREE;
 		allocationId = null;
+		jobId = null;
 	}
 
 	public void clearPendingSlotRequest() {
@@ -112,21 +125,24 @@ public class TaskManagerSlot {
 		assignedSlotRequest = Preconditions.checkNotNull(pendingSlotRequest);
 	}
 
-	public void completeAllocation(AllocationID allocationId) {
+	public void completeAllocation(AllocationID allocationId, JobID jobId) {
 		Preconditions.checkNotNull(allocationId, "Allocation id must not be null.");
+		Preconditions.checkNotNull(jobId, "Job id must not be null.");
 		Preconditions.checkState(state == State.PENDING, "In order to complete an allocation, the slot has to be allocated.");
 		Preconditions.checkState(Objects.equals(allocationId, assignedSlotRequest.getAllocationId()), "Mismatch between allocation id of the pending slot request.");
 
 		state = State.ALLOCATED;
 		this.allocationId = allocationId;
+		this.jobId = jobId;
 		assignedSlotRequest = null;
 	}
 
-	public void updateAllocation(AllocationID allocationId) {
+	public void updateAllocation(AllocationID allocationId, JobID jobId) {
 		Preconditions.checkState(state == State.FREE, "The slot has to be free in order to set an allocation id.");
 
 		state = State.ALLOCATED;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.jobId = Preconditions.checkNotNull(jobId);
 	}
 
 	/**

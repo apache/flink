@@ -260,9 +260,27 @@ function stop_cluster {
   fi
 }
 
+function wait_for_job_state_transition {
+  local job=$1
+  local initial_state=$2
+  local next_state=$3
+    
+  echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
+
+  while : ; do
+    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+
+    if [[ -z $N ]]; then
+      sleep 1
+    else
+      break
+    fi
+  done
+}
+
 function wait_job_running {
   for i in {1..10}; do
-    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list | grep "$1")
+    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
