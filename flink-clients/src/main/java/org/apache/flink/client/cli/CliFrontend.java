@@ -442,7 +442,7 @@ public class CliFrontend {
 		jobDetails.forEach(details -> {
 			if (details.getJobState() == JobStatus.CREATED) {
 				scheduledJobs.add(details);
-			} else if (!details.getJobState().isGloballyTerminalState()) {
+			} else if (details.getJobState() == JobStatus.RUNNING) {
 				runningJobs.add(details);
 			} else {
 				terminatedJobs.add(details);
@@ -450,7 +450,7 @@ public class CliFrontend {
 		});
 
 		if (showRunning || showAll) {
-			if (runningJobs.size() == 0) {
+			if (runningJobs.isEmpty()) {
 				System.out.println("No running jobs.");
 			}
 			else {
@@ -460,7 +460,7 @@ public class CliFrontend {
 			}
 		}
 		if (showScheduled || showAll) {
-			if (scheduledJobs.size() == 0) {
+			if (scheduledJobs.isEmpty()) {
 				System.out.println("No scheduled jobs.");
 			}
 			else {
