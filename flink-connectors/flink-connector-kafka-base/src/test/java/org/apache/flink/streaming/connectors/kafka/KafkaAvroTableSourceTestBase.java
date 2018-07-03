@@ -190,5 +190,4 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		@Override
 		public void put(int field, Object value) { }
 	}
-
 }

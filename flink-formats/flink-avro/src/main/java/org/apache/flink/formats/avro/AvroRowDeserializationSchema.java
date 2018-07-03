@@ -25,6 +25,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
@@ -38,7 +39,10 @@ import org.apache.avro.util.Utf8;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Array;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Deserialization schema from Avro bytes over {@link SpecificRecord} to {@link Row}.
@@ -137,6 +141,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	/**
 	 * Converts a (nested) Avro {@link SpecificRecord} into Flink's Row type.
 	 * Avro's {@link Utf8} fields are converted into regular Java strings.
+	 * Avro's {@link GenericData.Array} fields are converted into regular Java arrays.
 	 */
 	private static Object convertToRow(Schema schema, Object recordObj) {
 		if (recordObj instanceof GenericRecord) {
@@ -145,8 +150,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				final List<Schema> types = schema.getTypes();
 				if (types.size() == 2 && types.get(0).getType() == Schema.Type.NULL && types.get(1).getType() == Schema.Type.RECORD) {
 					schema = types.get(1);
-				}
-				else {
+				} else {
 					throw new RuntimeException("Currently we only support schemas of the following form: UNION[null, RECORD]. Given: " + schema);
 				}
 			} else if (schema.getType() != Schema.Type.RECORD) {
@@ -160,6 +164,21 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 				row.setField(i, convertToRow(field.schema(), record.get(field.pos())));
 			}
 			return row;
+		} else if (schema.getType() == Schema.Type.MAP) {
+			final Map mapObj = (Map) recordObj;
+			Map<String, Object> retMap = new HashMap<>();
+			for (Object key : mapObj.keySet()) {
+				retMap.put(key.toString(), convertToRow(schema.getValueType(), mapObj.get(key)));
+			}
+			return retMap;
+		} else if (schema.getType() == Schema.Type.ARRAY) {
+			final GenericData.Array arrayObj = (GenericData.Array) recordObj;
+			Class elementClass = getClassForType(schema.getElementType().getType());
+			Object[] retArray = (Object[]) Array.newInstance(elementClass, arrayObj.size());
+			for (int i = 0; i < retArray.length; i++) {
+				retArray[i] = convertToRow(schema.getElementType(), arrayObj.get(i));
+			}
+			return retArray;
 		} else if (recordObj instanceof Utf8) {
 			return recordObj.toString();
 		} else {
@@ -167,4 +186,26 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		}
 	}
 
+	private static Class<?> getClassForType(Schema.Type type) {
+		switch (type) {
+			case STRING:
+				return String.class;
+			case INT:
+				return Integer.class;
+			case LONG:
+				return Long.class;
+			case FLOAT:
+				return Float.class;
+			case DOUBLE:
+				return Double.class;
+			case BOOLEAN:
+				return Boolean.class;
+			case MAP:
+				return HashMap.class;
+			case RECORD:
+				return Row.class;
+			default:
+				throw new UnsupportedOperationException("Unsupported type " + type);
+		}
+	}
 }
