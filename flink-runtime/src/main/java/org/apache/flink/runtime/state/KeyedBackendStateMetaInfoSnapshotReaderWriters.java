@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -41,6 +43,9 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	//  Writers
 	//   - v1: Flink 1.2.x
 	//   - v2: Flink 1.3.x
+	//   - v3: Flink 1.4.x
+	//   - v4: Flink 1.5.x
+	//   - v5: Flink 1.6.x
 	// -------------------------------------------------------------------------------
 
 	public static <N, S> KeyedBackendStateMetaInfoWriter getWriterForVersion(
@@ -52,9 +57,12 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 				return new KeyedBackendStateMetaInfoWriterV1V2<>(stateMetaInfo);
 
 			case 3:
+			case 4:
+				return new KeyedBackendStateMetaInfoWriterV3V4<>(stateMetaInfo);
+
 			// current version
 			case KeyedBackendSerializationProxy.VERSION:
-				return new KeyedBackendStateMetaInfoWriterV3<>(stateMetaInfo);
+				return new KeyedBackendStateMetaInfoWriterV5<>(stateMetaInfo);
 
 			default:
 				// guard for future
@@ -88,14 +96,16 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			out.writeInt(stateMetaInfo.getStateType().ordinal());
 			out.writeUTF(stateMetaInfo.getName());
 
-			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getNamespaceSerializer());
-			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getStateSerializer());
+			// state meta info snapshots no longer contain serializers, so we use null just as a placeholder;
+			// this is maintained here to keep track of previous versions' serialization formats
+			TypeSerializerSerializationUtil.writeSerializer(out, null);
+			TypeSerializerSerializationUtil.writeSerializer(out, null);
 		}
 	}
 
-	static class KeyedBackendStateMetaInfoWriterV3<N, S> extends AbstractKeyedBackendStateMetaInfoWriter<N, S> {
+	static class KeyedBackendStateMetaInfoWriterV3V4<N, S> extends AbstractKeyedBackendStateMetaInfoWriter<N, S> {
 
-		public KeyedBackendStateMetaInfoWriterV3(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> stateMetaInfo) {
+		public KeyedBackendStateMetaInfoWriterV3V4(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> stateMetaInfo) {
 			super(stateMetaInfo);
 		}
 
@@ -107,11 +117,31 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			// write in a way that allows us to be fault-tolerant and skip blocks in the case of java serialization failures
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
+				// state meta info snapshots no longer contain serializers, so we use null just as a placeholder;
+				// this is maintained here to keep track of previous versions' serialization formats
 				Arrays.asList(
-					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						stateMetaInfo.getNamespaceSerializer(), stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
-					new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-						stateMetaInfo.getStateSerializer(), stateMetaInfo.getStateSerializerConfigSnapshot())));
+					new Tuple2<>(
+						null, stateMetaInfo.getNamespaceSerializerConfigSnapshot()),
+					new Tuple2<>(
+						null, stateMetaInfo.getStateSerializerConfigSnapshot())));
+		}
+	}
+
+	static class KeyedBackendStateMetaInfoWriterV5<N, S> extends AbstractKeyedBackendStateMetaInfoWriter<N, S> {
+
+		public KeyedBackendStateMetaInfoWriterV5(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> stateMetaInfo) {
+			super(stateMetaInfo);
+		}
+
+		@Override
+		public void writeStateMetaInfo(DataOutputView out) throws IOException {
+			out.writeInt(stateMetaInfo.getStateType().ordinal());
+			out.writeUTF(stateMetaInfo.getName());
+
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				out, stateMetaInfo.getNamespaceSerializerConfigSnapshot());
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				out, stateMetaInfo.getStateSerializerConfigSnapshot());
 		}
 	}
 
@@ -120,6 +150,9 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 	//  Readers
 	//   - v1: Flink 1.2.x
 	//   - v2: Flink 1.3.x
+	//   - v3: Flink 1.4.x
+	//   - v4: Flink 1.5.x
+	//   - v5: Flink 1.6.x
 	// -------------------------------------------------------------------------------
 
 	public static KeyedBackendStateMetaInfoReader getReaderForVersion(
@@ -130,10 +163,13 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			case 2:
 				return new KeyedBackendStateMetaInfoReaderV1V2<>(userCodeClassLoader);
 
-			// current version
 			case 3:
+			case 4:
+				return new KeyedBackendStateMetaInfoReaderV3V4<>(userCodeClassLoader);
+
+			// current version
 			case KeyedBackendSerializationProxy.VERSION:
-				return new KeyedBackendStateMetaInfoReaderV3<>(userCodeClassLoader);
+				return new KeyedBackendStateMetaInfoReaderV5<>(userCodeClassLoader);
 
 			default:
 				// guard for future
@@ -170,21 +206,27 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
 			metaInfo.setName(in.readUTF());
 
-			metaInfo.setNamespaceSerializer(TypeSerializerSerializationUtil.<N>tryReadSerializer(in, userCodeClassLoader, true));
-			metaInfo.setStateSerializer(TypeSerializerSerializationUtil.<S>tryReadSerializer(in, userCodeClassLoader, true));
+			final TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<N> namespaceSerializerProxy =
+				new TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<>(userCodeClassLoader);
+			namespaceSerializerProxy.read(in);
 
-			// older versions do not contain the configuration snapshot
-			metaInfo.setNamespaceSerializerConfigSnapshot(null);
-			metaInfo.setStateSerializerConfigSnapshot(null);
+			final TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<S> stateSerializerProxy =
+				new TypeSerializerSerializationUtil.TypeSerializerSerializationProxy<>(userCodeClassLoader);
+			stateSerializerProxy.read(in);
+
+			// older versions do not contain the configuration snapshot;
+			// we deserialize the written serializers, and then simply take a snapshot of them now
+			metaInfo.setNamespaceSerializerConfigSnapshot(namespaceSerializerProxy.getTypeSerializer().snapshotConfiguration());
+			metaInfo.setStateSerializerConfigSnapshot(stateSerializerProxy.getTypeSerializer().snapshotConfiguration());
 
 			return metaInfo;
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	static class KeyedBackendStateMetaInfoReaderV3<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
+	static class KeyedBackendStateMetaInfoReaderV3V4<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
 
-		public KeyedBackendStateMetaInfoReaderV3(ClassLoader userCodeClassLoader) {
+		public KeyedBackendStateMetaInfoReaderV3V4(ClassLoader userCodeClassLoader) {
 			super(userCodeClassLoader);
 		}
 
@@ -199,11 +241,34 @@ public class KeyedBackendStateMetaInfoSnapshotReaderWriters {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
-			metaInfo.setNamespaceSerializer((TypeSerializer<N>) serializersAndConfigs.get(0).f0);
-			metaInfo.setNamespaceSerializerConfigSnapshot(serializersAndConfigs.get(0).f1);
+			metaInfo.setNamespaceSerializerConfigSnapshot(
+				new BackwardsCompatibleConfigSnapshot(serializersAndConfigs.get(0).f1, serializersAndConfigs.get(0).f0));
+			metaInfo.setStateSerializerConfigSnapshot(
+				new BackwardsCompatibleConfigSnapshot(serializersAndConfigs.get(1).f1, serializersAndConfigs.get(1).f0));
 
-			metaInfo.setStateSerializer((TypeSerializer<S>) serializersAndConfigs.get(1).f0);
-			metaInfo.setStateSerializerConfigSnapshot(serializersAndConfigs.get(1).f1);
+			return metaInfo;
+		}
+	}
+
+	static class KeyedBackendStateMetaInfoReaderV5<N, S> extends AbstractKeyedBackendStateMetaInfoReader {
+
+		public KeyedBackendStateMetaInfoReaderV5(ClassLoader userCodeClassLoader) {
+			super(userCodeClassLoader);
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public RegisteredKeyedBackendStateMetaInfo.Snapshot readStateMetaInfo(DataInputView in) throws IOException {
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> metaInfo =
+				new RegisteredKeyedBackendStateMetaInfo.Snapshot<>();
+
+			metaInfo.setStateType(StateDescriptor.Type.values()[in.readInt()]);
+			metaInfo.setName(in.readUTF());
+
+			metaInfo.setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshotSerializationUtil
+				.readSerializerConfigSnapshot(in, userCodeClassLoader));
+			metaInfo.setStateSerializerConfigSnapshot(TypeSerializerConfigSnapshotSerializationUtil
+				.readSerializerConfigSnapshot(in, userCodeClassLoader));
 
 			return metaInfo;
 		}

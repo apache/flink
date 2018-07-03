@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 3;
+	public static final int VERSION = 4;
 
 	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> operatorStateMetaInfoSnapshots;
 	private List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> broadcastStateMetaInfoSnapshots;
@@ -62,8 +62,8 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 	@Override
 	public int[] getCompatibleVersions() {
-		// we are compatible with version 3 (Flink 1.5.x), 2 (Flink 1.4.x, Flink 1.3.x) and version 1 (Flink 1.2.x)
-		return new int[] {VERSION, 2, 1};
+		// we are compatible with version 4 (Flink 1.6.x), 3 (Flink 1.5.x), 2 (Flink 1.4.x, Flink 1.3.x) and version 1 (Flink 1.2.x)
+		return new int[] {VERSION, 3, 2, 1};
 	}
 
 	@Override

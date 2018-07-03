@@ -133,7 +133,6 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 
 		private String name;
 		private OperatorStateHandle.Mode assignmentMode;
-		private TypeSerializer<S> partitionStateSerializer;
 		private TypeSerializerConfigSnapshot partitionStateSerializerConfigSnapshot;
 
 		/** Empty constructor used when restoring the state meta info snapshot. */
@@ -147,7 +146,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 
 			this.name = Preconditions.checkNotNull(name);
 			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
-			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
+			Preconditions.checkNotNull(partitionStateSerializer);
 			this.partitionStateSerializerConfigSnapshot = Preconditions.checkNotNull(partitionStateSerializerConfigSnapshot);
 		}
 
@@ -165,14 +164,6 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 
 		void setAssignmentMode(OperatorStateHandle.Mode assignmentMode) {
 			this.assignmentMode = assignmentMode;
-		}
-
-		public TypeSerializer<S> getPartitionStateSerializer() {
-			return partitionStateSerializer;
-		}
-
-		void setPartitionStateSerializer(TypeSerializer<S> partitionStateSerializer) {
-			this.partitionStateSerializer = partitionStateSerializer;
 		}
 
 		public TypeSerializerConfigSnapshot getPartitionStateSerializerConfigSnapshot() {
@@ -202,7 +193,6 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 			// need to check for nulls because serializer and config snapshots may be null on restore
 			return name.equals(snapshot.getName())
 				&& assignmentMode.equals(snapshot.getAssignmentMode())
-				&& Objects.equals(partitionStateSerializer, snapshot.getPartitionStateSerializer())
 				&& Objects.equals(partitionStateSerializerConfigSnapshot, snapshot.getPartitionStateSerializerConfigSnapshot());
 		}
 
@@ -211,7 +201,6 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 			// need to check for nulls because serializer and config snapshots may be null on restore
 			int result = getName().hashCode();
 			result = 31 * result + getAssignmentMode().hashCode();
-			result = 31 * result + (getPartitionStateSerializer() != null ? getPartitionStateSerializer().hashCode() : 0);
 			result = 31 * result + (getPartitionStateSerializerConfigSnapshot() != null ? getPartitionStateSerializerConfigSnapshot().hashCode() : 0);
 			return result;
 		}

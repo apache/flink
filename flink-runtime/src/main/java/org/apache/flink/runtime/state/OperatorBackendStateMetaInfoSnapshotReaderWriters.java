@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.typeutils.BackwardsCompatibleConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
@@ -27,8 +29,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -41,13 +41,12 @@ import java.util.List;
  */
 public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
-	private static final Logger LOG = LoggerFactory.getLogger(OperatorBackendStateMetaInfoSnapshotReaderWriters.class);
-
 	// -------------------------------------------------------------------------------
 	//  Writers
 	//   - v1: Flink 1.2.x
 	//   - v2: Flink 1.3.x
 	//   - v3: Flink 1.5.x
+	//   - v4: Flink 1.6.x
 	// -------------------------------------------------------------------------------
 
 	public static <S> OperatorBackendStateMetaInfoWriter getOperatorStateWriterForVersion(
@@ -59,9 +58,12 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 			// current version
 			case 2:
-			case OperatorBackendSerializationProxy.VERSION:
-				return new OperatorBackendStateMetaInfoWriterV2<>(stateMetaInfo);
+			case 3:
+				return new OperatorBackendStateMetaInfoWriterV2V3<>(stateMetaInfo);
 
+			// current version
+			case OperatorBackendSerializationProxy.VERSION:
+				return new OperatorBackendStateMetaInfoWriterV4<>(stateMetaInfo);
 			default:
 				// guard for future
 				throw new IllegalStateException(
@@ -74,9 +76,12 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			final RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> broadcastStateMetaInfo) {
 
 		switch (version) {
+			case 3:
+				return new BroadcastStateMetaInfoWriterV3<>(broadcastStateMetaInfo);
+
 			// current version
 			case OperatorBackendSerializationProxy.VERSION:
-				return new BroadcastStateMetaInfoWriterV3<>(broadcastStateMetaInfo);
+				return new BroadcastStateMetaInfoWriterV4<>(broadcastStateMetaInfo);
 
 			default:
 				// guard for future
@@ -123,13 +128,16 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 		public void writeOperatorStateMetaInfo(DataOutputView out) throws IOException {
 			out.writeUTF(stateMetaInfo.getName());
 			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
-			TypeSerializerSerializationUtil.writeSerializer(out, stateMetaInfo.getPartitionStateSerializer());
+
+			// state meta info snapshots no longer contain serializers, so we use null just as a placeholder;
+			// this is maintained here to keep track of previous versions' serialization formats
+			TypeSerializerSerializationUtil.writeSerializer(out, null);
 		}
 	}
 
-	public static class OperatorBackendStateMetaInfoWriterV2<S> extends AbstractOperatorBackendStateMetaInfoWriter<S> {
+	public static class OperatorBackendStateMetaInfoWriterV2V3<S> extends AbstractOperatorBackendStateMetaInfoWriter<S> {
 
-		public OperatorBackendStateMetaInfoWriterV2(RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo) {
+		public OperatorBackendStateMetaInfoWriterV2V3(RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo) {
 			super(stateMetaInfo);
 		}
 
@@ -141,9 +149,28 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			// write in a way that allows us to be fault-tolerant and skip blocks in the case of java serialization failures
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 				out,
-				Collections.singletonList(new Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>(
-					stateMetaInfo.getPartitionStateSerializer(),
+				Collections.singletonList(new Tuple2<>(
+					// state meta info snapshots no longer contain serializers, so we use null just as a placeholder;
+					// this is maintained here to keep track of previous versions' serialization formats
+					null,
 					stateMetaInfo.getPartitionStateSerializerConfigSnapshot())));
+		}
+	}
+
+	public static class OperatorBackendStateMetaInfoWriterV4<S> extends AbstractOperatorBackendStateMetaInfoWriter<S> {
+
+		public OperatorBackendStateMetaInfoWriterV4(RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo) {
+			super(stateMetaInfo);
+		}
+
+		@Override
+		public void writeOperatorStateMetaInfo(DataOutputView out) throws IOException {
+			out.writeUTF(stateMetaInfo.getName());
+			out.writeByte(stateMetaInfo.getAssignmentMode().ordinal());
+
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				out,
+				stateMetaInfo.getPartitionStateSerializerConfigSnapshot());
 		}
 	}
 
@@ -162,17 +189,41 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			// write in a way that allows us to be fault-tolerant and skip blocks in the case of java serialization failures
 			TypeSerializerSerializationUtil.writeSerializersAndConfigsWithResilience(
 					out,
+					// state meta info snapshots no longer contain serializers, so we use null just as a placeholder;
+					// this is maintained here to keep track of previous versions' serialization formats
 					Arrays.asList(
 							Tuple2.of(
-									broadcastStateMetaInfo.getKeySerializer(),
+									null,
 									broadcastStateMetaInfo.getKeySerializerConfigSnapshot()
 							),
 							Tuple2.of(
-									broadcastStateMetaInfo.getValueSerializer(),
+									null,
 									broadcastStateMetaInfo.getValueSerializerConfigSnapshot()
 							)
 					)
 			);
+		}
+	}
+
+	public static class BroadcastStateMetaInfoWriterV4<K, V> extends AbstractBroadcastStateMetaInfoWriter<K, V> {
+
+		public BroadcastStateMetaInfoWriterV4(
+				final RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> broadcastStateMetaInfo) {
+			super(broadcastStateMetaInfo);
+		}
+
+		@Override
+		public void writeBroadcastStateMetaInfo(final DataOutputView out) throws IOException {
+			out.writeUTF(broadcastStateMetaInfo.getName());
+			out.writeByte(broadcastStateMetaInfo.getAssignmentMode().ordinal());
+
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				out,
+				broadcastStateMetaInfo.getKeySerializerConfigSnapshot());
+
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
+				out,
+				broadcastStateMetaInfo.getValueSerializerConfigSnapshot());
 		}
 	}
 
@@ -181,6 +232,7 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 	//   - v1: Flink 1.2.x
 	//   - v2: Flink 1.3.x
 	//   - v3: Flink 1.5.x
+	//   - v4: Flink 1.6.x
 	// -------------------------------------------------------------------------------
 
 	public static <S> OperatorBackendStateMetaInfoReader<S> getOperatorStateReaderForVersion(
@@ -190,10 +242,13 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			case 1:
 				return new OperatorBackendStateMetaInfoReaderV1<>(userCodeClassLoader);
 
-			// version 2 and version 3 (current)
 			case 2:
+			case 3:
+				return new OperatorBackendStateMetaInfoReaderV2V3<>(userCodeClassLoader);
+
+			// current version
 			case OperatorBackendSerializationProxy.VERSION:
-				return new OperatorBackendStateMetaInfoReaderV2<>(userCodeClassLoader);
+				return new OperatorBackendStateMetaInfoReaderV4<>(userCodeClassLoader);
 
 			default:
 				// guard for future
@@ -206,9 +261,12 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			int version, ClassLoader userCodeClassLoader) {
 
 		switch (version) {
+			case 3:
+				return new BroadcastStateMetaInfoReaderV3<>(userCodeClassLoader);
+
 			// current version
 			case OperatorBackendSerializationProxy.VERSION:
-				return new BroadcastStateMetaInfoReaderV3<>(userCodeClassLoader);
+				return new BroadcastStateMetaInfoReaderV4<>(userCodeClassLoader);
 
 			default:
 				// guard for future
@@ -262,30 +320,31 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 
 			DataInputViewStream dis = new DataInputViewStream(in);
 			ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
+			TypeSerializer<S> stateSerializer;
 			try (
 				InstantiationUtil.FailureTolerantObjectInputStream ois =
 					new InstantiationUtil.FailureTolerantObjectInputStream(dis, userCodeClassLoader)) {
 
 				Thread.currentThread().setContextClassLoader(userCodeClassLoader);
-				TypeSerializer<S> stateSerializer = (TypeSerializer<S>) ois.readObject();
-				stateMetaInfo.setPartitionStateSerializer(stateSerializer);
+				stateSerializer = (TypeSerializer<S>) ois.readObject();
 			} catch (ClassNotFoundException exception) {
 				throw new IOException(exception);
 			} finally {
 				Thread.currentThread().setContextClassLoader(previousClassLoader);
 			}
 
-			// old versions do not contain the partition state serializer's configuration snapshot
-			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(null);
+			// old versions do not contain the partition state serializer's configuration snapshot;
+			// we deserialize the written serializers, and then simply take a snapshot of them now
+			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializer.snapshotConfiguration());
 
 			return stateMetaInfo;
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	public static class OperatorBackendStateMetaInfoReaderV2<S> extends AbstractOperatorBackendStateMetaInfoReader<S> {
+	public static class OperatorBackendStateMetaInfoReaderV2V3<S> extends AbstractOperatorBackendStateMetaInfoReader<S> {
 
-		public OperatorBackendStateMetaInfoReaderV2(ClassLoader userCodeClassLoader) {
+		public OperatorBackendStateMetaInfoReaderV2V3(ClassLoader userCodeClassLoader) {
 			super(userCodeClassLoader);
 		}
 
@@ -300,13 +359,35 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> stateSerializerAndConfig =
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader).get(0);
 
-			stateMetaInfo.setPartitionStateSerializer((TypeSerializer<S>) stateSerializerAndConfig.f0);
-			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(stateSerializerAndConfig.f1);
+			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(
+				new BackwardsCompatibleConfigSnapshot(stateSerializerAndConfig.f1, stateSerializerAndConfig.f0));
 
 			return stateMetaInfo;
 		}
 	}
 
+	public static class OperatorBackendStateMetaInfoReaderV4<S> extends AbstractOperatorBackendStateMetaInfoReader<S> {
+
+		public OperatorBackendStateMetaInfoReaderV4(ClassLoader userCodeClassLoader) {
+			super(userCodeClassLoader);
+		}
+
+		@Override
+		public RegisteredOperatorBackendStateMetaInfo.Snapshot<S> readOperatorStateMetaInfo(DataInputView in) throws IOException {
+			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> stateMetaInfo =
+				new RegisteredOperatorBackendStateMetaInfo.Snapshot<>();
+
+			stateMetaInfo.setName(in.readUTF());
+			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
+
+			stateMetaInfo.setPartitionStateSerializerConfigSnapshot(
+				TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(in, userCodeClassLoader));
+
+			return stateMetaInfo;
+		}
+	}
+
+	@SuppressWarnings("unchecked")
 	public static class BroadcastStateMetaInfoReaderV3<K, V> extends AbstractBroadcastStateMetaInfoReader<K, V> {
 
 		public BroadcastStateMetaInfoReaderV3(final ClassLoader userCodeClassLoader) {
@@ -327,11 +408,35 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndConfig = serializers.get(0);
 			Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> valueSerializerAndConfig = serializers.get(1);
 
-			stateMetaInfo.setKeySerializer((TypeSerializer<K>) keySerializerAndConfig.f0);
-			stateMetaInfo.setKeySerializerConfigSnapshot(keySerializerAndConfig.f1);
-			
-			stateMetaInfo.setValueSerializer((TypeSerializer<V>) valueSerializerAndConfig.f0);
-			stateMetaInfo.setValueSerializerConfigSnapshot(valueSerializerAndConfig.f1);
+			stateMetaInfo.setKeySerializerConfigSnapshot(
+				new BackwardsCompatibleConfigSnapshot(keySerializerAndConfig.f1, keySerializerAndConfig.f0));
+
+			stateMetaInfo.setValueSerializerConfigSnapshot(
+				new BackwardsCompatibleConfigSnapshot(valueSerializerAndConfig.f1, valueSerializerAndConfig.f0));
+
+			return stateMetaInfo;
+		}
+	}
+
+	public static class BroadcastStateMetaInfoReaderV4<K, V> extends AbstractBroadcastStateMetaInfoReader<K, V> {
+
+		public BroadcastStateMetaInfoReaderV4(final ClassLoader userCodeClassLoader) {
+			super(userCodeClassLoader);
+		}
+
+		@Override
+		public RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> readBroadcastStateMetaInfo(DataInputView in) throws IOException {
+			RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> stateMetaInfo =
+					new RegisteredBroadcastBackendStateMetaInfo.Snapshot<>();
+
+			stateMetaInfo.setName(in.readUTF());
+			stateMetaInfo.setAssignmentMode(OperatorStateHandle.Mode.values()[in.readByte()]);
+
+			stateMetaInfo.setKeySerializerConfigSnapshot(
+				TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(in, userCodeClassLoader));
+
+			stateMetaInfo.setValueSerializerConfigSnapshot(
+				TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(in, userCodeClassLoader));
 
 			return stateMetaInfo;
 		}

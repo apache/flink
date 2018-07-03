@@ -28,7 +28,7 @@ import org.apache.flink.types.Either;
  * containing configuration snapshots of the Left and Right serializers.
  */
 @Internal
-public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot {
+public final class EitherSerializerConfigSnapshot<L, R> extends CompositeTypeSerializerConfigSnapshot<Either<L, R>> {
 
 	private static final int VERSION = 1;
 

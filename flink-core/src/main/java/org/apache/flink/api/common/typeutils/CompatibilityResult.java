@@ -19,9 +19,6 @@
 package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
 
 /**
  * A {@code CompatibilityResult} contains information about whether or not data migration
@@ -36,78 +33,25 @@ public final class CompatibilityResult<T> {
 	private final boolean requiresMigration;
 
 	/**
-	 * The convert deserializer to use for reading previous data during migration,
-	 * in the case that the preceding serializer cannot be found.
-	 *
-	 * <p>This is only relevant if migration is required.
-	 */
-	private final TypeDeserializer<T> convertDeserializer;
-
-	/**
 	 * Returns a result that signals that the new serializer is compatible and no migration is required.
 	 *
-	 * @return a result that signals migration is not required for the new serializer
+	 * @return a result that signals migration is not required for the new serializer.
 	 */
 	public static <T> CompatibilityResult<T> compatible() {
-		return new CompatibilityResult<>(false, null);
+		return new CompatibilityResult<>(false);
 	}
 
 	/**
-	 * Returns a result that signals migration to be performed, and in the case that the preceding serializer
-	 * cannot be found or restored to read the previous data during migration, a provided convert deserializer
-	 * can be used.
+	 * Returns a result that signals migration to be performed.
 	 *
-	 * @param convertDeserializer the convert deserializer to use, in the case that the preceding serializer
-	 *                            cannot be found.
-	 *
-	 * @param <T> the type of the data being migrated.
-	 *
-	 * @return a result that signals migration is necessary, also providing a convert deserializer.
-	 */
-	public static <T> CompatibilityResult<T> requiresMigration(@Nonnull TypeDeserializer<T> convertDeserializer) {
-		Preconditions.checkNotNull(convertDeserializer, "Convert deserializer cannot be null.");
-
-		return new CompatibilityResult<>(true, convertDeserializer);
-	}
-
-	/**
-	 * Returns a result that signals migration to be performed, and in the case that the preceding serializer
-	 * cannot be found or restored to read the previous data during migration, a provided convert serializer
-	 * can be used. The provided serializer will only be used for deserialization.
-	 *
-	 * @param convertSerializer the convert serializer to use, in the case that the preceding serializer
-	 *                          cannot be found. The provided serializer will only be used for deserialization.
-	 *
-	 * @param <T> the type of the data being migrated.
-	 *
-	 * @return a result that signals migration is necessary, also providing a convert serializer.
-	 */
-	public static <T> CompatibilityResult<T> requiresMigration(@Nonnull TypeSerializer<T> convertSerializer) {
-		Preconditions.checkNotNull(convertSerializer, "Convert serializer cannot be null.");
-
-		return new CompatibilityResult<>(true, new TypeDeserializerAdapter<>(convertSerializer));
-	}
-
-	/**
-	 * Returns a result that signals migration to be performed. The migration will fail if the preceding
-	 * serializer for the previous data cannot be found.
-	 *
-	 * <p>You can also provide a convert deserializer using {@link #requiresMigration(TypeDeserializer)}
-	 * or {@link #requiresMigration(TypeSerializer)}, which will be used as a fallback resort in such cases.
-	 *
-	 * @return a result that signals migration is necessary, without providing a convert deserializer.
+	 * @return a result that signals migration is necessary.
 	 */
 	public static <T> CompatibilityResult<T> requiresMigration() {
-		return new CompatibilityResult<>(true, null);
+		return new CompatibilityResult<>(true);
 	}
 
-	private CompatibilityResult(boolean requiresMigration, TypeDeserializer<T> convertDeserializer) {
+	private CompatibilityResult(boolean requiresMigration) {
 		this.requiresMigration = requiresMigration;
-		this.convertDeserializer = convertDeserializer;
-	}
-
-	public TypeDeserializer<T> getConvertDeserializer() {
-		return convertDeserializer;
 	}
 
 	public boolean isRequiresMigration() {

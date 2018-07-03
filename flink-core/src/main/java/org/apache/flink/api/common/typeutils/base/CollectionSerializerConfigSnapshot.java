@@ -22,13 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Collection;
+
 /**
  * Configuration snapshot of a serializer for collection types.
  *
  * @param <T> Type of the element.
  */
 @Internal
-public final class CollectionSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
+public final class CollectionSerializerConfigSnapshot<C extends Collection<T>, T>
+		extends CompositeTypeSerializerConfigSnapshot<C> {
 
 	private static final int VERSION = 1;
 

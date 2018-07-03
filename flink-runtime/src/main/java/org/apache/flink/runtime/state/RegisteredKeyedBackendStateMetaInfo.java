@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
@@ -78,9 +77,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 			stateType,
 			name,
 			namespaceSerializer.duplicate(),
-			stateSerializer.duplicate(),
-			namespaceSerializer.snapshotConfiguration(),
-			stateSerializer.snapshotConfiguration());
+			stateSerializer.duplicate());
 	}
 
 	@Override
@@ -133,10 +130,8 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 
 		private StateDescriptor.Type stateType;
 		private String name;
-		private TypeSerializer<N> namespaceSerializer;
-		private TypeSerializer<S> stateSerializer;
-		private TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot;
-		private TypeSerializerConfigSnapshot stateSerializerConfigSnapshot;
+		private TypeSerializerConfigSnapshot<N> namespaceSerializerConfigSnapshot;
+		private TypeSerializerConfigSnapshot<S> stateSerializerConfigSnapshot;
 
 		/** Empty constructor used when restoring the state meta info snapshot. */
 		Snapshot() {}
@@ -145,16 +140,15 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 				StateDescriptor.Type stateType,
 				String name,
 				TypeSerializer<N> namespaceSerializer,
-				TypeSerializer<S> stateSerializer,
-				TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot,
-				TypeSerializerConfigSnapshot stateSerializerConfigSnapshot) {
+				TypeSerializer<S> stateSerializer) {
 
 			this.stateType = Preconditions.checkNotNull(stateType);
 			this.name = Preconditions.checkNotNull(name);
-			this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
-			this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
-			this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializerConfigSnapshot);
-			this.stateSerializerConfigSnapshot = Preconditions.checkNotNull(stateSerializerConfigSnapshot);
+
+			Preconditions.checkNotNull(namespaceSerializer);
+			Preconditions.checkNotNull(stateSerializer);
+			this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializer.snapshotConfiguration());
+			this.stateSerializerConfigSnapshot = Preconditions.checkNotNull(stateSerializer.snapshotConfiguration());
 		}
 
 		public StateDescriptor.Type getStateType() {
@@ -173,35 +167,19 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 			this.name = name;
 		}
 
-		public TypeSerializer<N> getNamespaceSerializer() {
-			return namespaceSerializer;
-		}
-
-		void setNamespaceSerializer(TypeSerializer<N> namespaceSerializer) {
-			this.namespaceSerializer = namespaceSerializer;
-		}
-
-		public TypeSerializer<S> getStateSerializer() {
-			return stateSerializer;
-		}
-
-		void setStateSerializer(TypeSerializer<S> stateSerializer) {
-			this.stateSerializer = stateSerializer;
-		}
-
-		public TypeSerializerConfigSnapshot getNamespaceSerializerConfigSnapshot() {
+		public TypeSerializerConfigSnapshot<N> getNamespaceSerializerConfigSnapshot() {
 			return namespaceSerializerConfigSnapshot;
 		}
 
-		void setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot) {
+		void setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshot<N> namespaceSerializerConfigSnapshot) {
 			this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
 		}
 
-		public TypeSerializerConfigSnapshot getStateSerializerConfigSnapshot() {
+		public TypeSerializerConfigSnapshot<S> getStateSerializerConfigSnapshot() {
 			return stateSerializerConfigSnapshot;
 		}
 
-		void setStateSerializerConfigSnapshot(TypeSerializerConfigSnapshot stateSerializerConfigSnapshot) {
+		void setStateSerializerConfigSnapshot(TypeSerializerConfigSnapshot<S> stateSerializerConfigSnapshot) {
 			this.stateSerializerConfigSnapshot = stateSerializerConfigSnapshot;
 		}
 
@@ -226,9 +204,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 			}
 
 			// need to check for nulls because serializer and config snapshots may be null on restore
-			return Objects.equals(getStateSerializer(), that.getStateSerializer())
-				&& Objects.equals(getNamespaceSerializer(), that.getNamespaceSerializer())
-				&& Objects.equals(getNamespaceSerializerConfigSnapshot(), that.getNamespaceSerializerConfigSnapshot())
+			return Objects.equals(getNamespaceSerializerConfigSnapshot(), that.getNamespaceSerializerConfigSnapshot())
 				&& Objects.equals(getStateSerializerConfigSnapshot(), that.getStateSerializerConfigSnapshot());
 		}
 
@@ -237,8 +213,6 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 			// need to check for nulls because serializer and config snapshots may be null on restore
 			int result = getName().hashCode();
 			result = 31 * result + getStateType().hashCode();
-			result = 31 * result + (getNamespaceSerializer() != null ? getNamespaceSerializer().hashCode() : 0);
-			result = 31 * result + (getStateSerializer() != null ? getStateSerializer().hashCode() : 0);
 			result = 31 * result + (getNamespaceSerializerConfigSnapshot() != null ? getNamespaceSerializerConfigSnapshot().hashCode() : 0);
 			result = 31 * result + (getStateSerializerConfigSnapshot() != null ? getStateSerializerConfigSnapshot().hashCode() : 0);
 			return result;
@@ -273,15 +247,11 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 
 		// check compatibility results to determine if state migration is required
 		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getNamespaceSerializer(),
-			null,
 			restoredStateMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
 			newNamespaceSerializer);
 
 		TypeSerializer<S> newStateSerializer = newStateDescriptor.getSerializer();
 		CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-			restoredStateMetaInfoSnapshot.getStateSerializer(),
-			UnloadableDummyTypeSerializer.class,
 			restoredStateMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
 			newStateSerializer);
 

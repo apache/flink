@@ -32,10 +32,8 @@ import java.util.Set;
  */
 public class InternalTimersSnapshot<K, N> {
 
-	private TypeSerializer<K> keySerializer;
-	private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
-	private TypeSerializer<N> namespaceSerializer;
-	private TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot;
+	private TypeSerializerConfigSnapshot<K> keySerializerConfigSnapshot;
+	private TypeSerializerConfigSnapshot<N> namespaceSerializerConfigSnapshot;
 
 	private Set<InternalTimer<K, N>> eventTimeTimers;
 	private Set<InternalTimer<K, N>> processingTimeTimers;
@@ -46,49 +44,31 @@ public class InternalTimersSnapshot<K, N> {
 	/** Constructor to use when snapshotting the timers. */
 	public InternalTimersSnapshot(
 			TypeSerializer<K> keySerializer,
-			TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
 			TypeSerializer<N> namespaceSerializer,
-			TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot,
 			@Nullable Set<InternalTimer<K, N>> eventTimeTimers,
 			@Nullable Set<InternalTimer<K, N>> processingTimeTimers) {
 
-		this.keySerializer = Preconditions.checkNotNull(keySerializer);
-		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
-		this.namespaceSerializer = Preconditions.checkNotNull(namespaceSerializer);
-		this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializerConfigSnapshot);
+		Preconditions.checkNotNull(keySerializer);
+		this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
+		Preconditions.checkNotNull(namespaceSerializer);
+		this.namespaceSerializerConfigSnapshot = Preconditions.checkNotNull(namespaceSerializer.snapshotConfiguration());
 		this.eventTimeTimers = eventTimeTimers;
 		this.processingTimeTimers = processingTimeTimers;
-	}
-
-	public TypeSerializer<K> getKeySerializer() {
-		return keySerializer;
-	}
-
-	public void setKeySerializer(TypeSerializer<K> keySerializer) {
-		this.keySerializer = keySerializer;
 	}
 
 	public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
 		return keySerializerConfigSnapshot;
 	}
 
-	public void setKeySerializerConfigSnapshot(TypeSerializerConfigSnapshot keySerializerConfigSnapshot) {
+	public void setKeySerializerConfigSnapshot(TypeSerializerConfigSnapshot<K> keySerializerConfigSnapshot) {
 		this.keySerializerConfigSnapshot = keySerializerConfigSnapshot;
-	}
-
-	public TypeSerializer<N> getNamespaceSerializer() {
-		return namespaceSerializer;
-	}
-
-	public void setNamespaceSerializer(TypeSerializer<N> namespaceSerializer) {
-		this.namespaceSerializer = namespaceSerializer;
 	}
 
 	public TypeSerializerConfigSnapshot getNamespaceSerializerConfigSnapshot() {
 		return namespaceSerializerConfigSnapshot;
 	}
 
-	public void setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshot namespaceSerializerConfigSnapshot) {
+	public void setNamespaceSerializerConfigSnapshot(TypeSerializerConfigSnapshot<N> namespaceSerializerConfigSnapshot) {
 		this.namespaceSerializerConfigSnapshot = namespaceSerializerConfigSnapshot;
 	}
 
@@ -106,6 +86,17 @@ public class InternalTimersSnapshot<K, N> {
 
 	public void setProcessingTimeTimers(Set<InternalTimer<K, N>> processingTimeTimers) {
 		this.processingTimeTimers = processingTimeTimers;
+	}
+
+	public TimerHeapInternalTimer.TimerSerializer<K, N> createTimerSerializer() {
+		Preconditions.checkState(keySerializerConfigSnapshot != null && namespaceSerializerConfigSnapshot != null,
+			"Key / namespace serializer config snapshots are null; if the timer snapshot" +
+				" was restored from a checkpoint, the serializer config snapshots must be restored first before" +
+				" attempting to create the timer serializer.");
+
+		return new TimerHeapInternalTimer.TimerSerializer<>(
+			keySerializerConfigSnapshot.restoreSerializer(),
+			namespaceSerializerConfigSnapshot.restoreSerializer());
 	}
 
 	@Override

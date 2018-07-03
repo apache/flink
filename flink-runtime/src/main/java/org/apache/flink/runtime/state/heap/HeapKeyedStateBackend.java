@@ -30,7 +30,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -292,8 +291,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					// check for key serializer compatibility; this also reconfigures the
 					// key serializer to be compatible, if it is required and is possible
 					if (CompatibilityUtil.resolveCompatibilityResult(
-							serializationProxy.getKeySerializer(),
-							UnloadableDummyTypeSerializer.class,
 							serializationProxy.getKeySerializerConfigSnapshot(),
 							keySerializer)
 						.isRequiresMigration()) {
@@ -321,8 +318,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 								new RegisteredKeyedBackendStateMetaInfo<>(
 									restoredMetaInfo.getStateType(),
 									restoredMetaInfo.getName(),
-									restoredMetaInfo.getNamespaceSerializer(),
-									restoredMetaInfo.getStateSerializer());
+									restoredMetaInfo.getNamespaceSerializerConfigSnapshot().restoreSerializer(),
+									restoredMetaInfo.getStateSerializerConfigSnapshot().restoreSerializer());
 
 						stateTable = snapshotStrategy.newStateTable(registeredKeyedBackendStateMetaInfo);
 						stateTables.put(restoredMetaInfo.getName(), stateTable);

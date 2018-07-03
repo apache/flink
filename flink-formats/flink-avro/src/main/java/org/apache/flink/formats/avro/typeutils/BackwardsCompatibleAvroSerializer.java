@@ -172,13 +172,13 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
 		// we return the configuration of the actually used serializer here
 		return serializer.snapshotConfiguration();
 	}
 
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof AvroSchemaSerializerConfigSnapshot ||
 				configSnapshot instanceof AvroSerializerConfigSnapshot) {
 
@@ -186,7 +186,7 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 			checkState(serializer instanceof AvroSerializer,
 					"Serializer was changed backwards to PojoSerializer and now encounters AvroSerializer snapshot.");
 
-			return serializer.ensureCompatibility(configSnapshot);
+			return serializer.internalEnsureCompatibility(configSnapshot);
 		}
 		else if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			// common previous case
@@ -201,14 +201,14 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 			final TypeSerializer<T> pojoSerializer =
 					(TypeSerializer<T>) typeInfo.createPojoSerializer(new ExecutionConfig());
 			this.serializer = pojoSerializer;
-			return serializer.ensureCompatibility(configSnapshot);
+			return serializer.internalEnsureCompatibility(configSnapshot);
 		}
 		else if (configSnapshot instanceof KryoRegistrationSerializerConfigSnapshot) {
 			// force-kryo old case common previous case
 			// we create a new Kryo Serializer with a blank execution config.
 			// registrations are anyways picked up from the snapshot.
 			serializer = new KryoSerializer<>(type, new ExecutionConfig());
-			return serializer.ensureCompatibility(configSnapshot);
+			return serializer.internalEnsureCompatibility(configSnapshot);
 		}
 		else {
 			// completely incompatible type, needs migration

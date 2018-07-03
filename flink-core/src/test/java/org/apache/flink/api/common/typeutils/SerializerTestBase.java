@@ -109,22 +109,22 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-			TypeSerializerSerializationUtil.writeSerializerConfigSnapshot(
+			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(
 				new DataOutputViewStreamWrapper(out), configSnapshot);
 			serializedConfig = out.toByteArray();
 		}
 
 		TypeSerializerConfigSnapshot restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-			restoredConfig = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(
+			restoredConfig = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		CompatibilityResult strategy = getSerializer().ensureCompatibility(restoredConfig);
+		CompatibilityResult strategy = getSerializer().internalEnsureCompatibility(restoredConfig);
 		assertFalse(strategy.isRequiresMigration());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().ensureCompatibility(new TestIncompatibleSerializerConfigSnapshot());
+		strategy = getSerializer().internalEnsureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
 		assertTrue(strategy.isRequiresMigration());
 	}
 	
@@ -526,7 +526,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 		}
 	}
 
-	public static final class TestIncompatibleSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+	public static final class TestIncompatibleSerializerConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {
 		@Override
 		public int getVersion() {
 			return 0;

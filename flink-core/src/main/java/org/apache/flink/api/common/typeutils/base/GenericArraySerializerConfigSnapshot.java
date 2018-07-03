@@ -36,7 +36,7 @@ import java.io.IOException;
  * @param <C> The component type.
  */
 @Internal
-public final class GenericArraySerializerConfigSnapshot<C> extends CompositeTypeSerializerConfigSnapshot {
+public final class GenericArraySerializerConfigSnapshot<C> extends CompositeTypeSerializerConfigSnapshot<C[]> {
 
 	private static final int VERSION = 1;
 

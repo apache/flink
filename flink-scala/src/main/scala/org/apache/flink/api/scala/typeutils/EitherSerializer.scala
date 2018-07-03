@@ -111,51 +111,47 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): EitherSerializerConfigSnapshot[A, B] = {
-    new EitherSerializerConfigSnapshot[A, B](leftSerializer, rightSerializer)
+  override def snapshotConfiguration(): ScalaEitherSerializerConfigSnapshot[T, A, B] = {
+    new ScalaEitherSerializerConfigSnapshot[T, A, B](leftSerializer, rightSerializer)
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
 
     configSnapshot match {
-      case eitherSerializerConfig: EitherSerializerConfigSnapshot[A, B] =>
-        val previousLeftRightSerWithConfigs =
-          eitherSerializerConfig.getNestedSerializersAndConfigs
+      case eitherSerializerConfig: ScalaEitherSerializerConfigSnapshot[T, A, B] =>
+        checkCompatibility(eitherSerializerConfig)
 
-        val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousLeftRightSerWithConfigs.get(0).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousLeftRightSerWithConfigs.get(0).f1,
-          leftSerializer)
-
-        val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
-          previousLeftRightSerWithConfigs.get(1).f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
-          previousLeftRightSerWithConfigs.get(1).f1,
-          rightSerializer)
-
-        if (leftCompatResult.isRequiresMigration
-            || rightCompatResult.isRequiresMigration) {
-
-          if (leftCompatResult.getConvertDeserializer != null
-              && rightCompatResult.getConvertDeserializer != null) {
-
-            CompatibilityResult.requiresMigration(
-              new EitherSerializer[A, B, T](
-                new TypeDeserializerAdapter(leftCompatResult.getConvertDeserializer),
-                new TypeDeserializerAdapter(rightCompatResult.getConvertDeserializer)
-              )
-            )
-
-          } else {
-            CompatibilityResult.requiresMigration()
-          }
-        } else {
-          CompatibilityResult.compatible()
-        }
+      // backwards compatibility path;
+      // Flink versions older or equal to 1.5.x uses a
+      // EitherSerializerConfigSnapshot as the snapshot
+      case legacyConfig: EitherSerializerConfigSnapshot[A, B] =>
+        checkCompatibility(legacyConfig)
 
       case _ => CompatibilityResult.requiresMigration()
+    }
+  }
+
+  private def checkCompatibility(
+      configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
+    ): CompatibilityResult[T] = {
+
+    val previousLeftRightSerWithConfigs =
+      configSnapshot.getNestedSerializersAndConfigs
+
+    val leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+      previousLeftRightSerWithConfigs.get(0).f1,
+      leftSerializer)
+
+    val rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+      previousLeftRightSerWithConfigs.get(1).f1,
+      rightSerializer)
+
+    if (leftCompatResult.isRequiresMigration
+      || rightCompatResult.isRequiresMigration) {
+      CompatibilityResult.requiresMigration()
+    } else {
+      CompatibilityResult.compatible()
     }
   }
 }

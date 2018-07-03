@@ -25,12 +25,33 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * A {@code TypeSerializerConfigSnapshot} is a point-in-time view of a {@link TypeSerializer's} configuration.
- * The configuration snapshot of a serializer is persisted along with checkpoints of the managed state that the
- * serializer is registered to.
+ * The configuration snapshot of a serializer is persisted within checkpoints
+ * as a single source of meta information about the schema of serialized data in the checkpoint.
+ * This serves three purposes:
  *
- * <p>The persisted configuration may later on be used by new serializers to ensure serialization compatibility
- * for the same managed state. In order for new serializers to be able to ensure this, the configuration snapshot
- * should encode sufficient information about:
+ * <ul>
+ *   <li><strong>Capturing serializer parameters and schema:</strong> a serializer's configuration snapshot
+ *   represents information about the parameters, state, and schema of a serializer.
+ *   This is explained in more detail below.</li>
+ *
+ *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are available,
+ *   they need to be checked whether or not they are compatible to read the data written by the previous serializer.
+ *   This is performed by providing the serializer configuration snapshots in checkpoints to the corresponding
+ *   new serializers.</li>
+ *
+ *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
+ *   serializers are not compatible to read previous data, a schema conversion process executed across all data
+ *   is required before the new serializer can be continued to be used. This conversion process requires a compatible
+ *   read serializer to restore serialized bytes as objects, and then written back again using the new serializer.
+ *   In this scenario, the serializer configuration snapshots in checkpoints doubles as a factory for the read
+ *   serializer of the conversion process.</li>
+ * </ul>
+ *
+ * <h2>Serializer Configuration and Schema</h2>
+ *
+ * <p>Since serializer configuration snapshots needs to be used to ensure serialization compatibility
+ * for the same managed state as well as serving as a factory for compatible read serializers, the configuration
+ * snapshot should encode sufficient information about:
  *
  * <ul>
  *   <li><strong>Parameter settings of the serializer:</strong> parameters of the serializer include settings
@@ -38,17 +59,33 @@ import org.apache.flink.util.Preconditions;
  *   has nested serializers, then the configuration snapshot should also contain the parameters of the nested
  *   serializers.</li>
  *
- *   <li><strong>Serialization schema of the serializer:</strong> the data format used by the serializer.</li>
+ *   <li><strong>Serialization schema of the serializer:</strong> the binary format used by the serializer, or
+ *   in other words, the schema of data written by the serializer.</li>
  * </ul>
  *
  * <p>NOTE: Implementations must contain the default empty nullary constructor. This is required to be able to
  * deserialize the configuration snapshot from its binary form.
+ *
+ * @param <T> The data type that the originating serializer of this configuration serializes.
  */
 @PublicEvolving
-public abstract class TypeSerializerConfigSnapshot extends VersionedIOReadableWritable {
+public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadableWritable {
 
 	/** The user code class loader; only relevant if this configuration instance was deserialized from binary form. */
 	private ClassLoader userCodeClassLoader;
+
+	/**
+	 * Creates a serializer using this configuration, that is capable of reading data
+	 * written by the serializer described by this configuration.
+	 *
+	 * @return the restored serializer.
+	 */
+	public TypeSerializer<T> restoreSerializer() {
+		// TODO this method actually should not have a default implementation;
+		// TODO this placeholder should be removed as soon as all subclasses have a proper implementation in place, and
+		// TODO the method is properly integrated in state backends' restore procedures
+		throw new UnsupportedOperationException();
+	}
 
 	/**
 	 * Set the user code class loader.

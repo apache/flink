@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -179,14 +180,14 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return snapshot of the serializer's current configuration (cannot be {@code null}).
 	 */
-	public abstract TypeSerializerConfigSnapshot snapshotConfiguration();
+	public abstract TypeSerializerConfigSnapshot<T> snapshotConfiguration();
 
 	/**
 	 * Ensure compatibility of this serializer with a preceding serializer that was registered for serialization of
 	 * the same managed state (if any - this method is only relevant if this serializer is registered for
 	 * serialization of managed state).
 	 *
-	 * The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
+	 * <p>The compatibility check in this method should be performed by inspecting the preceding serializer's configuration
 	 * snapshot. The method may reconfigure the serializer (if required and possible) so that it may be compatible,
 	 * or provide a signaling result that informs Flink that state migration is necessary before continuing to use
 	 * this serializer.
@@ -215,5 +216,28 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
 	 */
-	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot);
+	protected abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
+
+	/**
+	 * Public-facing method for serializer compatibility checks. Restored configuration snapshots should
+	 * be provided via this method.
+	 *
+	 * <p>Before passing the configuration snapshot to the actual
+	 * {@link #ensureCompatibility(TypeSerializerConfigSnapshot)} method, the configuration snapshot is checked
+	 * to see if it is a dummy {@link BackwardsCompatibleConfigSnapshot}. If so, then the actual wrapped
+	 * configuration snapshot is extracted and used instead.
+	 *
+	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
+	 *
+	 * @return the determined compatibility result (cannot be {@code null}).
+	 */
+	@Internal
+	public final CompatibilityResult<T> internalEnsureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		if (configSnapshot instanceof BackwardsCompatibleConfigSnapshot) {
+			return ensureCompatibility(
+				((BackwardsCompatibleConfigSnapshot<?>) configSnapshot).getWrappedConfigSnapshot());
+		} else {
+			return ensureCompatibility(configSnapshot);
+		}
+	}
 }

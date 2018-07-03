@@ -53,16 +53,16 @@ public abstract class TypeSerializerSingleton<T> extends TypeSerializer<T>{
 	}
 
 	@Override
-	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+	public TypeSerializerConfigSnapshot<T> snapshotConfiguration() {
 		// type serializer singletons should always be parameter-less
-		return new ParameterlessTypeSerializerConfig(getSerializationFormatIdentifier());
+		return new ParameterlessTypeSerializerConfig<>(getSerializationFormatIdentifier());
 	}
 
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof ParameterlessTypeSerializerConfig
 				&& isCompatibleSerializationFormatIdentifier(
-						((ParameterlessTypeSerializerConfig) configSnapshot).getSerializationFormatIdentifier())) {
+						((ParameterlessTypeSerializerConfig<?>) configSnapshot).getSerializationFormatIdentifier())) {
 
 			return CompatibilityResult.compatible();
 		} else {

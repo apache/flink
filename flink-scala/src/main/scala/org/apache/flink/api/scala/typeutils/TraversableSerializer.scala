@@ -152,20 +152,18 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
     obj.isInstanceOf[TraversableSerializer[_, _]]
   }
 
-  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[E] = {
-    new TraversableSerializerConfigSnapshot[E](elementSerializer)
+  override def snapshotConfiguration(): TraversableSerializerConfigSnapshot[T, E] = {
+    new TraversableSerializerConfigSnapshot[T, E](elementSerializer)
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[T] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
 
     configSnapshot match {
       case traversableSerializerConfigSnapshot
-          : TraversableSerializerConfigSnapshot[E] =>
+          : TraversableSerializerConfigSnapshot[T, E] =>
 
         val elemCompatRes = CompatibilityUtil.resolveCompatibilityResult(
-          traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           elementSerializer)
 

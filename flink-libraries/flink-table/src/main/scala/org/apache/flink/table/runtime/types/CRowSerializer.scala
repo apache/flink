@@ -80,30 +80,21 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
   // Serializer configuration snapshotting & compatibility
   // --------------------------------------------------------------------------------------------
 
-  override def snapshotConfiguration(): TypeSerializerConfigSnapshot = {
+  override def snapshotConfiguration(): TypeSerializerConfigSnapshot[CRow] = {
     new CRowSerializer.CRowSerializerConfigSnapshot(rowSerializer)
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot): CompatibilityResult[CRow] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[CRow] = {
 
     configSnapshot match {
       case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
         val compatResult = CompatibilityUtil.resolveCompatibilityResult(
-          crowSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f0,
-          classOf[UnloadableDummyTypeSerializer[_]],
           crowSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           rowSerializer)
 
         if (compatResult.isRequiresMigration) {
-          if (compatResult.getConvertDeserializer != null) {
-            CompatibilityResult.requiresMigration(
-              new CRowSerializer(
-                new TypeDeserializerAdapter(compatResult.getConvertDeserializer))
-            )
-          } else {
-            CompatibilityResult.requiresMigration()
-          }
+          CompatibilityResult.requiresMigration()
         } else {
           CompatibilityResult.compatible()
         }
@@ -117,7 +108,7 @@ object CRowSerializer {
 
   class CRowSerializerConfigSnapshot(
       private val rowSerializer: TypeSerializer[Row])
-    extends CompositeTypeSerializerConfigSnapshot(rowSerializer) {
+    extends CompositeTypeSerializerConfigSnapshot[CRow](rowSerializer) {
 
     /** This empty nullary constructor is required for deserializing the configuration. */
     def this() = this(null)
