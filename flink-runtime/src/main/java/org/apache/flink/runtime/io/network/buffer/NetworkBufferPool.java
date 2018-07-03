@@ -27,6 +27,8 @@ import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,12 +39,13 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The NetworkBufferPool is a fixed size pool of {@link MemorySegment} instances
  * for the network stack.
  *
- * The NetworkBufferPool creates {@link LocalBufferPool}s from which the individual tasks draw
+ * <p>The NetworkBufferPool creates {@link LocalBufferPool}s from which the individual tasks draw
  * the buffers for the network data transfer. When new local buffer pools are created, the
  * NetworkBufferPool dynamically redistributes the buffers between the pools.
  */
@@ -70,7 +73,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
 	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
-		
+
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
@@ -112,6 +115,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				allocatedMb, availableMemorySegments.size(), segmentSize);
 	}
 
+	@Nullable
 	public MemorySegment requestMemorySegment() {
 		return availableMemorySegments.poll();
 	}
@@ -120,7 +124,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		// Adds the segment back to the queue, which does not immediately free the memory
 		// however, since this happens when references to the global pool are also released,
 		// making the availableMemorySegments queue and its contained object reclaimable
-		availableMemorySegments.add(segment);
+		availableMemorySegments.add(checkNotNull(segment));
 	}
 
 	public List<MemorySegment> requestMemorySegments(int numRequiredBuffers) throws IOException {
@@ -147,7 +151,12 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
 
-			redistributeBuffers();
+			try {
+				redistributeBuffers();
+			} catch (Throwable t) {
+				this.numTotalRequiredBuffers -= numRequiredBuffers;
+				ExceptionUtils.rethrowIOException(t);
+			}
 		}
 
 		final List<MemorySegment> segments = new ArrayList<>(numRequiredBuffers);
@@ -163,7 +172,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				}
 			}
 		} catch (Throwable e) {
-			recycleMemorySegments(segments);
+			recycleMemorySegments(segments, numRequiredBuffers);
 			ExceptionUtils.rethrowIOException(e);
 		}
 
@@ -171,11 +180,16 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	}
 
 	public void recycleMemorySegments(List<MemorySegment> segments) throws IOException {
+		recycleMemorySegments(segments, segments.size());
+	}
+
+	private void recycleMemorySegments(List<MemorySegment> segments, int size) throws IOException {
 		synchronized (factoryLock) {
-			numTotalRequiredBuffers -= segments.size();
+			numTotalRequiredBuffers -= size;
 
 			availableMemorySegments.addAll(segments);
 
+			// note: if this fails, we're fine for the buffer pool since we already recycled the segments
 			redistributeBuffers();
 		}
 	}
