@@ -20,8 +20,8 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/queryable_state_base.sh
 
-QUERYABLE_STATE_SERVER_JAR=${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-queryable-state-test/target/QsStateProducer.jar
-QUERYABLE_STATE_CLIENT_JAR=${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-queryable-state-test/target/QsStateClient.jar
+QUERYABLE_STATE_SERVER_JAR=${END_TO_END_DIR}/flink-queryable-state-test/target/QsStateProducer.jar
+QUERYABLE_STATE_CLIENT_JAR=${END_TO_END_DIR}/flink-queryable-state-test/target/QsStateClient.jar
 
 #####################
 # Test that queryable state works as expected with HA mode when restarting a taskmanager
@@ -55,6 +55,11 @@ function run_test() {
     clean_log_files
     clean_stdout_files
 
+    backup_config
+    # speeds up TM loss detection
+    set_conf "heartbeat.interval" "2000"
+    set_conf "heartbeat.timeout" "10000"
+
     link_queryable_state_lib
     start_cluster
 
@@ -85,20 +90,23 @@ function run_test() {
         exit 1
     fi
 
-    local current_num_checkpoints=current_num_checkpoints$(get_completed_number_of_checkpoints ${JOB_ID})
-
     kill_random_taskmanager
 
     latest_snapshot_count=$(cat $FLINK_DIR/log/*out* | grep "on snapshot" | tail -n 1 | awk '{print $4}')
     echo "Latest snapshot count was ${latest_snapshot_count}"
 
-    sleep 65 # this is a little longer than the heartbeat timeout so that the TM is gone
+    # wait until the TM loss was detected
+    wait_for_job_state_transition ${JOB_ID} "RESTARTING" "CREATED"
 
     start_and_wait_for_tm
 
+    wait_job_running ${JOB_ID}
+
+    local current_num_checkpoints="$(get_completed_number_of_checkpoints ${JOB_ID})"
     # wait for some more checkpoint to have happened
-    ((current_num_checkpoints+=2))
-    wait_for_number_of_checkpoints ${JOB_ID} ${current_num_checkpoints} 60
+    local expected_num_checkpoints=$((current_num_checkpoints + 5))
+
+    wait_for_number_of_checkpoints ${JOB_ID} ${expected_num_checkpoints} 60
 
     local num_entries_in_map_state_after=$(java -jar ${QUERYABLE_STATE_CLIENT_JAR} \
         --host ${SERVER} \
@@ -135,7 +143,7 @@ function wait_for_number_of_checkpoints {
     local timeout=$3
     local count=0
 
-    echo "Starting to wait for checkpoints"
+    echo "Starting to wait for completion of ${expected_num_checkpoints} checkpoints"
     while (($(get_completed_number_of_checkpoints ${job_id}) < ${expected_num_checkpoints})); do
 
         if [[ ${count} -gt ${timeout} ]]; then
