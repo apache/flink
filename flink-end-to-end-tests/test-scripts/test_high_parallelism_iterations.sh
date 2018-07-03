@@ -27,18 +27,17 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
 backup_config
 
+set_conf "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
 
-echo "taskmanager.heap.mb: 52" >> $FLINK_DIR/conf/flink-conf.yaml # 52Mb x 100 TMs = 5Gb total heap
+set_conf "taskmanager.memory.size" "8" # 8Mb
+set_conf "taskmanager.network.memory.min" "8388608" # 8Mb
+set_conf "taskmanager.network.memory.max" "8388608" # 8Mb
+set_conf "taskmanager.memory.segment-size" "8192" # 8Kb
 
-echo "taskmanager.memory.size: 8" >> $FLINK_DIR/conf/flink-conf.yaml # 8Mb
-echo "taskmanager.network.memory.min: 8388608" >> $FLINK_DIR/conf/flink-conf.yaml # 8Mb
-echo "taskmanager.network.memory.max: 8388608" >> $FLINK_DIR/conf/flink-conf.yaml # 8Mb
-echo "taskmanager.memory.segment-size: 8192" >> $FLINK_DIR/conf/flink-conf.yaml # 8Kb
+set_conf "taskmanager.network.netty.server.numThreads" "1"
+set_conf "taskmanager.network.netty.client.numThreads" "1"
 
-echo "taskmanager.network.netty.server.numThreads: 1" >> $FLINK_DIR/conf/flink-conf.yaml
-echo "taskmanager.network.netty.client.numThreads: 1" >> $FLINK_DIR/conf/flink-conf.yaml
-
-echo "taskmanager.numberOfTaskSlots: 1" >> $FLINK_DIR/conf/flink-conf.yaml
+set_conf "taskmanager.numberOfTaskSlots" "1"
 
 print_mem_use
 start_cluster
