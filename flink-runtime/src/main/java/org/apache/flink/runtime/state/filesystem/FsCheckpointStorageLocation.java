@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
@@ -126,5 +127,10 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 				", reference=" + reference +
 				", fileStateSizeThreshold=" + fileStateSizeThreshold +
 				'}';
+	}
+
+	@VisibleForTesting
+	public FileSystem getFileSystem() {
+		return fileSystem;
 	}
 }
