@@ -465,7 +465,7 @@ format:
       type: VARCHAR
     - name: field2
       type: TIMESTAMP
-  field-deleimiter: ","      # optional: string delimiter "," by default 
+  field-delimiter: ","      # optional: string delimiter "," by default 
   line-delimiter: "\n"       # optional: string delimiter "\n" by default 
   quote-character: '"'       # optional: single character for string values, empty by default
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
