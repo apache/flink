@@ -172,7 +172,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 				}
 			}
 		} catch (Throwable e) {
-			recycleMemorySegments(segments);
+			recycleMemorySegments(segments, numRequiredBuffers);
 			ExceptionUtils.rethrowIOException(e);
 		}
 
@@ -180,8 +180,12 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	}
 
 	public void recycleMemorySegments(List<MemorySegment> segments) throws IOException {
+		recycleMemorySegments(segments, segments.size());
+	}
+
+	private void recycleMemorySegments(List<MemorySegment> segments, int size) throws IOException {
 		synchronized (factoryLock) {
-			numTotalRequiredBuffers -= segments.size();
+			numTotalRequiredBuffers -= size;
 
 			availableMemorySegments.addAll(segments);
 
