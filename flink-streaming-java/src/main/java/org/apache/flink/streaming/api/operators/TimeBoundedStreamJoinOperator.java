@@ -63,17 +63,12 @@ import java.util.Objects;
  * there are, they are joined and passed to a user-defined {@link TimeBoundedJoinFunction}.
  * The same happens the other way around when receiving an element on the right side.
  *
- * <p>In some cases the watermark needs to be delayed. This for example can happen if
- * if t2.ts ∈ [t1.ts + 1, t1.ts + 2] and elements from t1 arrive earlier than elements from t2 and
- * therefore get added to the left buffer. When an element now arrives on the right side, the
- * watermark might have already progressed. The right element now gets joined with an
- * older element from the left side, where the timestamp of the left element is lower than the
- * current watermark, which would make this element late. This can be avoided by holding back the
- * watermarks.
+ * <p>Whenever a pair of elements is emitted it will be assigned the max timestamp of either of
+ * the elements.
  *
- * <p>The left and right buffers are cleared from unused values periodically
- * (triggered by watermarks) in order not to grow infinitely.
- *
+ * <p>In order to avoid the element buffers not to grow indefinitely a cleanup timer is registered
+ * per element. This timer indicates when an element is not considered for joining anymore and can
+ * be removed from the state
  *
  * @param <T1> The type of the elements in the left stream
  * @param <T2> The type of the elements in the right stream
@@ -103,7 +98,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private transient ContextImpl context;
 
 	private transient InternalTimerService<String> internalTimerService;
-	private Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
+
+	private transient Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
 
 	/**
 	 * Creates a new TimeBoundedStreamJoinOperator.
@@ -131,6 +127,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		Preconditions.checkArgument(lowerBound <= upperBound,
 			"lowerBound <= upperBound must be fulfilled");
 
+		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
+		// to check for inclusiveness later on
 		this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1;
 		this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1;
 
@@ -315,10 +313,11 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	@Override
 	public void onEventTime(InternalTimer<K, String> timer) throws Exception {
-		logger.trace("onEventTime @ {}", timer.getTimestamp());
 
 		long ts = timer.getTimestamp();
 		String namespace = timer.getNamespace();
+
+		logger.trace("onEventTime @ {}", ts);
 
 		switch (namespace) {
 			case CLEANUP_NAMESPACE_LEFT: {
