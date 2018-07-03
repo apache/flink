@@ -36,7 +36,7 @@ public interface KeyedStateFactory {
 	 * @param <S> The type of the public API state.
 	 * @param <IS> The type of internal state.
 	 */
-	<N, SV, S extends State, IS extends S> IS createState(
+	<N, SV, S extends State, IS extends S> IS createInternalState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception;
 }

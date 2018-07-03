@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -31,14 +33,10 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 /** Test suite for {@link TtlListState}. */
-public class TtlListStateTest
-	extends TtlMergingStateBase<TtlListState<?, String, Integer>, List<Integer>, Iterable<Integer>> {
+class TtlListStateTestContext
+	extends TtlMergingStateTestContext<TtlListState<?, String, Integer>, List<Integer>, Iterable<Integer>> {
 	@Override
 	void initTestValues() {
-		updater = v -> ttlState.addAll(v);
-		getter = () -> StreamSupport.stream(ttlState.get().spliterator(), false).collect(Collectors.toList());
-		originalGetter = () -> ttlState.original.get();
-
 		emptyValue = Collections.emptyList();
 
 		updateEmpty = Arrays.asList(5, 7, 10);
@@ -51,10 +49,24 @@ public class TtlListStateTest
 	}
 
 	@Override
-	TtlListState<?, String, Integer> createState() {
-		ListStateDescriptor<Integer> listStateDesc =
-			new ListStateDescriptor<>("TtlTestListState", IntSerializer.INSTANCE);
-		return (TtlListState<?, String, Integer>) wrapMockState(listStateDesc);
+	void update(List<Integer> value) throws Exception {
+		ttlState.addAll(value);
+	}
+
+	@Override
+	Iterable<Integer> get() throws Exception {
+		return StreamSupport.stream(ttlState.get().spliterator(), false).collect(Collectors.toList());
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.get() == null ? emptyValue : ttlState.original.get();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new ListStateDescriptor<>("TtlTestListState", IntSerializer.INSTANCE);
 	}
 
 	@Override

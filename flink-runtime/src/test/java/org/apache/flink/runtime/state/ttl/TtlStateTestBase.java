@@ -22,105 +22,153 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.state.KeyedStateFactory;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateFactory;
-import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.function.SupplierWithException;
-import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.StateMigrationException;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Consumer;
+
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeThat;
 
-abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV> {
+/** State TTL base test suite. */
+@RunWith(Parameterized.class)
+public abstract class TtlStateTestBase {
 	private static final long TTL = 100;
-	private static final KeyedStateFactory MOCK_ORIGINAL_STATE_FACTORY = new MockKeyedStateFactory();
 
-	S ttlState;
-	MockTimeProvider timeProvider;
-	StateTtlConfiguration ttlConfig;
+	private MockTtlTimeProvider timeProvider;
+	private StateBackendTestContext sbetc;
+	private StateTtlConfiguration ttlConfig;
 
-	ThrowingConsumer<UV, Exception> updater;
-	SupplierWithException<GV, Exception> getter;
-	SupplierWithException<?, Exception> originalGetter;
+	@Before
+	public void setup() {
+		timeProvider = new MockTtlTimeProvider();
+		sbetc = createStateBackendTestContext(timeProvider);
+	}
 
-	UV updateEmpty;
-	UV updateUnexpired;
-	UV updateExpired;
+	protected abstract StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider);
 
-	GV getUpdateEmpty;
-	GV getUnexpired;
-	GV getUpdateExpired;
+	@Parameterized.Parameter
+	public TtlStateTestContextBase<?, ?, ?> ctx;
 
-	GV emptyValue = null;
+	@Parameterized.Parameters(name = "{0}")
+	public static List<TtlStateTestContextBase<?, ?, ?>> testContexts() {
+		return Arrays.asList(
+			new TtlValueStateTestContext(),
+			new TtlListStateTestContext(),
+			new TtlMapStateAllEntriesTestContext(),
+			new TtlMapStatePerElementTestContext(),
+			new TtlAggregatingStateTestContext(),
+			new TtlReducingStateTestContext(),
+			new TtlFoldingStateTestContext());
+	}
 
-	void initTest() {
+	@SuppressWarnings("unchecked")
+	private <S extends InternalKvState<?, String, ?>, UV> TtlStateTestContextBase<S, UV, ?> ctx() {
+		return (TtlStateTestContextBase<S, UV, ?>) ctx;
+	}
+
+	@SuppressWarnings("unchecked")
+	private <UV> TtlMergingStateTestContext<?, UV, ?> mctx() {
+		return (TtlMergingStateTestContext<?, UV, ?>) ctx;
+	}
+
+	private void initTest() throws Exception {
 		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 	}
 
-	private void initTest(StateTtlConfiguration.TtlUpdateType updateType, StateTtlConfiguration.TtlStateVisibility visibility) {
+	private void initTest(
+				StateTtlConfiguration.TtlUpdateType updateType,
+				StateTtlConfiguration.TtlStateVisibility visibility) throws Exception {
 		initTest(updateType, visibility, TTL);
 	}
 
-	private void initTest(StateTtlConfiguration.TtlUpdateType updateType, StateTtlConfiguration.TtlStateVisibility visibility, long ttl) {
-		timeProvider = new MockTimeProvider();
-		StateTtlConfiguration.Builder ttlConfigBuilder = StateTtlConfiguration.newBuilder(Time.seconds(5));
-		ttlConfigBuilder.setTtlUpdateType(updateType)
-						.setStateVisibility(visibility)
-						.setTimeCharacteristic(StateTtlConfiguration.TtlTimeCharacteristic.ProcessingTime)
-						.setTtl(Time.milliseconds(ttl));
-		ttlConfig = ttlConfigBuilder.build();
-		ttlState = createState();
-		initTestValues();
+	private void initTest(
+		StateTtlConfiguration.TtlUpdateType updateType,
+		StateTtlConfiguration.TtlStateVisibility visibility,
+		long ttl) throws Exception {
+		ttlConfig = StateTtlConfiguration
+			.newBuilder(Time.milliseconds(ttl))
+			.setTtlUpdateType(updateType)
+			.setStateVisibility(visibility)
+			.build();
+		sbetc.createAndRestoreKeyedStateBackend();
+		sbetc.restoreSnapshot(null);
+		createState();
+		ctx().initTestValues();
 	}
 
-	abstract S createState();
-
-	<SV, US extends State, IS extends US> IS wrapMockState(StateDescriptor<IS, SV> stateDesc) {
-		try {
-			return TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
-				StringSerializer.INSTANCE, stateDesc,
-				MOCK_ORIGINAL_STATE_FACTORY, ttlConfig, timeProvider);
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Unexpected exception wrapping mock state", e);
-		}
+	@SuppressWarnings("unchecked")
+	private <S extends State> void createState() throws Exception {
+		StateDescriptor<S, Object> stateDescriptor = ctx().createStateDescriptor();
+		stateDescriptor.enableTimeToLive(ttlConfig);
+		ctx().ttlState =
+			(InternalKvState<?, String, ?>) sbetc.createState(stateDescriptor, "defaultNamespace");
 	}
 
-	abstract void initTestValues();
+	private void takeAndRestoreSnapshot() throws Exception {
+		KeyedStateHandle snapshot = sbetc.takeSnapshot();
+		sbetc.createAndRestoreKeyedStateBackend();
+		sbetc.restoreSnapshot(snapshot);
+		createState();
+	}
 
 	@Test
 	public void testNonExistentValue() throws Exception {
 		initTest();
-		assertEquals("Non-existing state should be empty", emptyValue, getter.get());
+		assertEquals("Non-existing state should be empty", ctx().emptyValue, ctx().get());
 	}
 
 	@Test
 	public void testExactExpirationOnWrite() throws Exception {
 		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 
+		takeAndRestoreSnapshot();
+
 		timeProvider.time = 0;
-		updater.accept(updateEmpty);
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 20;
-		assertEquals("Unexpired state should be available", getUpdateEmpty, getter.get());
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 50;
-		updater.accept(updateUnexpired);
+		ctx().update(ctx().updateUnexpired);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 120;
-		assertEquals("Unexpired state should be available after update", getUnexpired, getter.get());
+		assertEquals("Unexpired state should be available after update", ctx().getUnexpired, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 170;
-		updater.accept(updateExpired);
+		ctx().update(ctx().updateExpired);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 220;
-		assertEquals("Unexpired state should be available after update", getUpdateExpired, getter.get());
+		assertEquals("Unexpired state should be available after update", ctx().getUpdateExpired, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 300;
-		assertEquals("Expired state should be unavailable", emptyValue, getter.get());
-		assertEquals("Original state should be cleared on access", emptyValue, originalGetter.get());
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
 	}
 
 	@Test
@@ -128,11 +176,14 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
-		updater.accept(updateEmpty);
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 120;
-		assertEquals("Expired state should be available", getUpdateEmpty, getter.get());
-		assertEquals("Expired state should be cleared on access", emptyValue, getter.get());
+		assertEquals("Expired state should be available", ctx().getUpdateEmpty, ctx().get());
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+		assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
 	}
 
 	@Test
@@ -140,17 +191,23 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 
 		timeProvider.time = 0;
-		updater.accept(updateEmpty);
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 50;
-		assertEquals("Unexpired state should be available", getUpdateEmpty, getter.get());
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 120;
-		assertEquals("Unexpired state should be available after read", getUpdateEmpty, getter.get());
+		assertEquals("Unexpired state should be available after read", ctx().getUpdateEmpty, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 250;
-		assertEquals("Expired state should be unavailable", emptyValue, getter.get());
-		assertEquals("Original state should be cleared on access", emptyValue, originalGetter.get());
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
 	}
 
 	@Test
@@ -158,14 +215,18 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
-		updater.accept(updateEmpty);
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 50;
-		assertEquals("Unexpired state should be available", getUpdateEmpty, getter.get());
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 170;
-		assertEquals("Expired state should be available", getUpdateEmpty, getter.get());
-		assertEquals("Expired state should be cleared on access", emptyValue, getter.get());
+		assertEquals("Expired state should be available", ctx().getUpdateEmpty, ctx().get());
+		assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
 	}
 
 	@Test
@@ -173,9 +234,154 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired, Long.MAX_VALUE);
 
 		timeProvider.time = 10;
-		updater.accept(updateEmpty);
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 50;
-		assertEquals("Unexpired state should be available", getUpdateEmpty, getter.get());
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+	}
+
+	@Test
+	public void testMergeNamespaces() throws Exception {
+		assumeThat(ctx, instanceOf(TtlMergingStateTestContext.class));
+
+		initTest();
+
+		timeProvider.time = 0;
+		List<Tuple2<String, Object>> expiredUpdatesToMerge = mctx().generateExpiredUpdatesToMerge();
+		mctx().applyStateUpdates(expiredUpdatesToMerge);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 120;
+		List<Tuple2<String, Object>> unexpiredUpdatesToMerge = mctx().generateUnexpiredUpdatesToMerge();
+		mctx().applyStateUpdates(unexpiredUpdatesToMerge);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 150;
+		List<Tuple2<String, Object>> finalUpdatesToMerge = mctx().generateFinalUpdatesToMerge();
+		mctx().applyStateUpdates(finalUpdatesToMerge);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 230;
+		mctx().ttlState.mergeNamespaces("targetNamespace", TtlMergingStateTestContext.NAMESPACES);
+		mctx().ttlState.setCurrentNamespace("targetNamespace");
+		assertEquals("Unexpected result of merge operation",
+			mctx().getMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge), mctx().get());
+	}
+
+	@Test
+	public void testMultipleKeys() throws Exception {
+		testMultipleStateIds(id -> sbetc.setCurrentKey(id));
+	}
+
+	@Test
+	public void testMultipleNamespaces() throws Exception {
+		testMultipleStateIds(id -> ctx().ttlState.setCurrentNamespace(id));
+	}
+
+	private void testMultipleStateIds(Consumer<String> idChanger) throws Exception {
+		initTest();
+
+		timeProvider.time = 0;
+		idChanger.accept("id2");
+		ctx().update(ctx().updateEmpty);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 50;
+		idChanger.accept("id1");
+		ctx().update(ctx().updateEmpty);
+		idChanger.accept("id2");
+		ctx().update(ctx().updateUnexpired);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 120;
+		idChanger.accept("id1");
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+		idChanger.accept("id2");
+		assertEquals("Unexpired state should be available after update", ctx().getUnexpired, ctx().get());
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 170;
+		idChanger.accept("id2");
+		ctx().update(ctx().updateExpired);
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 230;
+		idChanger.accept("id1");
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		idChanger.accept("id2");
+		assertEquals("Unexpired state should be available after update", ctx().getUpdateExpired, ctx().get());
+
+		takeAndRestoreSnapshot();
+
+		timeProvider.time = 300;
+		idChanger.accept("id1");
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		idChanger.accept("id2");
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+	}
+
+	@Test
+	public void testSnapshotChangeRestore() throws Exception {
+		initTest();
+
+		timeProvider.time = 0;
+		sbetc.setCurrentKey("k1");
+		ctx().update(ctx().updateEmpty);
+
+		timeProvider.time = 50;
+		sbetc.setCurrentKey("k1");
+		ctx().update(ctx().updateUnexpired);
+
+		timeProvider.time = 100;
+		sbetc.setCurrentKey("k2");
+		ctx().update(ctx().updateEmpty);
+
+		KeyedStateHandle snapshot = sbetc.takeSnapshot();
+
+		timeProvider.time = 170;
+		sbetc.setCurrentKey("k1");
+		ctx().update(ctx().updateExpired);
+		sbetc.setCurrentKey("k2");
+		ctx().update(ctx().updateUnexpired);
+
+		sbetc.createAndRestoreKeyedStateBackend();
+		sbetc.restoreSnapshot(snapshot);
+		createState();
+
+		timeProvider.time = 180;
+		sbetc.setCurrentKey("k1");
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		sbetc.setCurrentKey("k2");
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+	}
+
+	@Test(expected = StateMigrationException.class)
+	public void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
+		assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
+
+		initTest();
+
+		timeProvider.time = 0;
+		ctx().update(ctx().updateEmpty);
+
+		KeyedStateHandle snapshot = sbetc.takeSnapshot();
+		sbetc.createAndRestoreKeyedStateBackend();
+
+		sbetc.restoreSnapshot(snapshot);
+		sbetc.createState(ctx().createStateDescriptor(), "");
+	}
+
+	@After
+	public void tearDown() {
+		sbetc.disposeKeyedStateBackend();
 	}
 }

@@ -28,15 +28,11 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /** Test suite for collection methods of {@link TtlMapState}. */
-public class TtlMapStateTest extends
-	TtlMapStateTestBase<Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
+class TtlMapStateAllEntriesTestContext extends
+	TtlMapStateTestContext<Map<Integer, String>, Set<Map.Entry<Integer, String>>> {
 
 	@Override
 	void initTestValues() {
-		updater = map -> ttlState.putAll(map);
-		getter = () -> StreamSupport.stream(ttlState.entries().spliterator(), false).collect(Collectors.toSet());
-		originalGetter = () -> ttlState.original.entries();
-
 		emptyValue = Collections.emptySet();
 
 		updateEmpty = mapOf(Tuple2.of(3, "3"), Tuple2.of(5, "5"), Tuple2.of(10, "10"));
@@ -51,5 +47,20 @@ public class TtlMapStateTest extends
 	@SafeVarargs
 	private static <UK, UV> Map<UK, UV> mapOf(Tuple2<UK, UV> ... entries) {
 		return Arrays.stream(entries).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
+	}
+
+	@Override
+	void update(Map<Integer, String> map) throws Exception {
+		ttlState.putAll(map);
+	}
+
+	@Override
+	Set<Map.Entry<Integer, String>> get() throws Exception {
+		return StreamSupport.stream(ttlState.entries().spliterator(), false).collect(Collectors.toSet());
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.entries() == null ? Collections.emptySet() : ttlState.original.entries();
 	}
 }

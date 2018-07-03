@@ -50,7 +50,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	@SuppressWarnings("unchecked")
 	protected CompositeSerializer(boolean immutableTargetType, TypeSerializer<?> ... fieldSerializers) {
 		this(
-			new PrecomputedParameters(immutableTargetType, (TypeSerializer<Object>[]) fieldSerializers),
+			PrecomputedParameters.precompute(immutableTargetType, (TypeSerializer<Object>[]) fieldSerializers),
 			fieldSerializers);
 	}
 
@@ -187,6 +187,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		return 31 * Boolean.hashCode(precomputed.immutableTargetType) + Arrays.hashCode(fieldSerializers);
 	}
 
+	@SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
 	@Override
 	public boolean equals(Object obj) {
 		if (canEqual(obj)) {
@@ -205,17 +206,12 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		return new CompositeTypeSerializerConfigSnapshot(fieldSerializers) {
-			@Override
-			public int getVersion() {
-				return 0;
-			}
-		};
+		return new ConfigSnapshot(fieldSerializers);
 	}
 
 	@Override
 	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof CompositeTypeSerializerConfigSnapshot) {
+		if (configSnapshot instanceof ConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
 				((CompositeTypeSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 			if (previousSerializersAndConfigs.size() == fieldSerializers.length) {
@@ -242,11 +238,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 				}
 			}
 		}
-		PrecomputedParameters precomputed =
-			new PrecomputedParameters(this.precomputed.immutableTargetType, convertSerializers);
-		return requiresMigration ?
-			CompatibilityResult.requiresMigration(createSerializerInstance(precomputed, convertSerializers)) :
-			CompatibilityResult.compatible();
+		return requiresMigration ? createMigrationCompatResult(convertSerializers) : CompatibilityResult.compatible();
 	}
 
 	private CompatibilityResult<Object> resolveFieldCompatibility(
@@ -254,6 +246,12 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		return CompatibilityUtil.resolveCompatibilityResult(
 			previousSerializersAndConfigs.get(index).f0, UnloadableDummyTypeSerializer.class,
 			previousSerializersAndConfigs.get(index).f1, fieldSerializers[index]);
+	}
+
+	private CompatibilityResult<T> createMigrationCompatResult(TypeSerializer<Object>[] convertSerializers) {
+		PrecomputedParameters precomputed =
+			PrecomputedParameters.precompute(this.precomputed.immutableTargetType, convertSerializers);
+		return CompatibilityResult.requiresMigration(createSerializerInstance(precomputed, convertSerializers));
 	}
 
 	/** This class holds composite serializer parameters which can be precomputed in advanced for better performance. */
@@ -272,7 +270,14 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		/** Whether any field serializer is stateful. */
 		final boolean stateful;
 
-		PrecomputedParameters(
+		private PrecomputedParameters(boolean immutableTargetType, boolean immutable, int length, boolean stateful) {
+			this.immutableTargetType = immutableTargetType;
+			this.immutable = immutable;
+			this.length = length;
+			this.stateful = stateful;
+		}
+
+		static PrecomputedParameters precompute(
 			boolean immutableTargetType,
 			TypeSerializer<Object>[] fieldSerializers) {
 			Preconditions.checkNotNull(fieldSerializers);
@@ -292,11 +297,26 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 				}
 				totalLength = totalLength >= 0 ? totalLength + fieldSerializer.getLength() : totalLength;
 			}
+			return new PrecomputedParameters(immutableTargetType, fieldsImmutable, totalLength, stateful);
+		}
+	}
 
-			this.immutableTargetType = immutableTargetType;
-			this.immutable = immutableTargetType && fieldsImmutable;
-			this.length = totalLength;
-			this.stateful = stateful;
+	/** Snapshot field serializers of composite type. */
+	public static class ConfigSnapshot extends CompositeTypeSerializerConfigSnapshot {
+		private static final int VERSION = 0;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		@SuppressWarnings("unused")
+		public ConfigSnapshot() {
+		}
+
+		ConfigSnapshot(@Nonnull TypeSerializer<?>... nestedSerializers) {
+			super(nestedSerializers);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
 		}
 	}
 }

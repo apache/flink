@@ -21,14 +21,12 @@ package org.apache.flink.runtime.state.ttl.mock;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
 /** In memory mock internal state base class. */
-class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
-	private Map<N, T> namespacedValues = new HashMap<>();
-	private T defaultNamespaceValue;
+abstract class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
+	Supplier<Map<Object, Object>> values;
 	private N currentNamespace;
 	private final Supplier<T> emptyValue;
 
@@ -38,7 +36,6 @@ class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
 
 	MockInternalKvState(Supplier<T> emptyValue) {
 		this.emptyValue = emptyValue;
-		defaultNamespaceValue = emptyValue.get();
 	}
 
 	@Override
@@ -72,26 +69,20 @@ class MockInternalKvState<K, N, T> implements InternalKvState<K, N, T> {
 
 	@Override
 	public void clear() {
-		if (currentNamespace == null) {
-			defaultNamespaceValue = emptyValue.get();
-		} else {
-			namespacedValues.remove(currentNamespace);
-		}
+		getCurrentKeyValues().remove(currentNamespace);
 	}
 
+	@SuppressWarnings("unchecked")
 	public T getInternal() {
-		T value = currentNamespace == null ? defaultNamespaceValue :
-			namespacedValues.getOrDefault(currentNamespace, emptyValue.get());
-		updateInternal(value);
-		return value;
+		return (T) getCurrentKeyValues().computeIfAbsent(currentNamespace, n -> emptyValue.get());
 	}
 
 	@SuppressWarnings("WeakerAccess")
 	public void updateInternal(T valueToStore) {
-		if (currentNamespace == null) {
-			defaultNamespaceValue = valueToStore;
-		} else {
-			namespacedValues.put(currentNamespace, valueToStore);
-		}
+		getCurrentKeyValues().put(currentNamespace, valueToStore);
+	}
+
+	private Map<Object, Object> getCurrentKeyValues() {
+		return values.get();
 	}
 }

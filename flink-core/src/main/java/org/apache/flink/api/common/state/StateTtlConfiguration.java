@@ -27,15 +27,12 @@ import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateT
 
 /**
  * Configuration of state TTL logic.
- * TODO: builder
  */
 public class StateTtlConfiguration {
 	/**
 	 * This option value configures when to update last access timestamp which prolongs state TTL.
 	 */
 	public enum TtlUpdateType {
-		/** TTL is disabled. State does not expire. */
-		Disabled,
 		/** Last access timestamp is initialised when state is created and updated on every write operation. */
 		OnCreateAndWrite,
 		/** The same as <code>OnCreateAndWrite</code> but also updated on read. */

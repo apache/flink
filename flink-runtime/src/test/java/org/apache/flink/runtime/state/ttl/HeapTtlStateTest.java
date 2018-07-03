@@ -18,25 +18,18 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-/** Test suite for per element methods of {@link TtlMapState}. */
-public class TtlMapStatePerElementTest extends TtlMapStateTestBase<String, String> {
-	private static final int TEST_KEY = 1;
-	private static final String TEST_VAL1 = "test value1";
-	private static final String TEST_VAL2 = "test value2";
-	private static final String TEST_VAL3 = "test value3";
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
+/** Test suite for heap state TTL. */
+public class HeapTtlStateTest extends TtlStateTestBase {
 	@Override
-	void initTestValues() {
-		updater = v -> ttlState.put(TEST_KEY, v);
-		getter = () -> ttlState.get(TEST_KEY);
-		originalGetter = () -> ttlState.original.get(TEST_KEY);
-
-		updateEmpty = TEST_VAL1;
-		updateUnexpired = TEST_VAL2;
-		updateExpired = TEST_VAL3;
-
-		getUpdateEmpty = TEST_VAL1;
-		getUnexpired = TEST_VAL2;
-		getUpdateExpired = TEST_VAL3;
+	protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
+		return new StateBackendTestContext(timeProvider) {
+			@Override
+			protected StateBackend createStateBackend() {
+				return new MemoryStateBackend(false);
+			}
+		};
 	}
 }

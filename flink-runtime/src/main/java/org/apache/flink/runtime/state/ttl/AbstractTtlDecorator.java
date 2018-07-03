@@ -55,8 +55,6 @@ abstract class AbstractTtlDecorator<T> {
 		Preconditions.checkNotNull(original);
 		Preconditions.checkNotNull(config);
 		Preconditions.checkNotNull(timeProvider);
-		Preconditions.checkArgument(config.getTtlUpdateType() != StateTtlConfiguration.TtlUpdateType.Disabled,
-			"State does not need to be wrapped with TTL if it is configured as disabled.");
 		this.original = original;
 		this.config = config;
 		this.timeProvider = timeProvider;
