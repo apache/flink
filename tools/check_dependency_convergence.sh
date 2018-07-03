@@ -39,7 +39,7 @@ echo ${FLINK_DIR}
 # searches for directories containing a pom.xml file
 # sorts the list alphabetically
 # only accepts directories starting with "flink" to filter force-shading
-modules=$(find -maxdepth 3 -name 'pom.xml' -printf '%h\n' | sort -u | grep "flink")
+modules=$(find . -maxdepth 3 -name 'pom.xml' -printf '%h\n' | sort -u | grep "flink")
 
 for module in ${modules}
 do
