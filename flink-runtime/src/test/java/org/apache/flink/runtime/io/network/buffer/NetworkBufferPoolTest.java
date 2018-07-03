@@ -390,6 +390,10 @@ public class NetworkBufferPoolTest {
 
 		expectedException.expect(IllegalStateException.class);
 		expectedException.expectMessage("destroyed");
-		asyncRequest.sync();
+		try {
+			asyncRequest.sync();
+		} finally {
+			globalPool.destroy();
+		}
 	}
 }
