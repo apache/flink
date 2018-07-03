@@ -77,7 +77,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	protected final MetricRegistry registry;
 
 	/** All metrics that are directly contained in this group. */
-	private final Map<String, Metric> metrics = new HashMap<>();
+	protected final Map<String, Metric> metrics = new HashMap<>();
 
 	/** All metric subgroups of this group. */
 	private final Map<String, AbstractMetricGroup> groups = new HashMap<>();
