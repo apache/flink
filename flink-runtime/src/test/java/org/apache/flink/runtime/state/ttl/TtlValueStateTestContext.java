@@ -18,21 +18,19 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlValueState}. */
-public class TtlValueStateTest extends TtlStateTestBase<TtlValueState<?, String, String>, String, String> {
+class TtlValueStateTestContext extends TtlStateTestContextBase<TtlValueState<?, String, String>, String, String> {
 	private static final String TEST_VAL1 = "test value1";
 	private static final String TEST_VAL2 = "test value2";
 	private static final String TEST_VAL3 = "test value3";
 
 	@Override
 	void initTestValues() {
-		updater = v -> ttlState.update(v);
-		getter = () -> ttlState.value();
-		originalGetter = () -> ttlState.original.value();
-
 		updateEmpty = TEST_VAL1;
 		updateUnexpired = TEST_VAL2;
 		updateExpired = TEST_VAL3;
@@ -42,10 +40,25 @@ public class TtlValueStateTest extends TtlStateTestBase<TtlValueState<?, String,
 		getUpdateExpired = TEST_VAL3;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	TtlValueState<?, String, String> createState() {
-		ValueStateDescriptor<String> valueStateDesc =
-			new ValueStateDescriptor<>("TtlValueTestState", StringSerializer.INSTANCE);
-		return (TtlValueState<?, String, String>) wrapMockState(valueStateDesc);
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new ValueStateDescriptor<>(
+			"TtlValueTestState", StringSerializer.INSTANCE);
+	}
+
+	@Override
+	void update(String value) throws Exception {
+		ttlState.update(value);
+	}
+
+	@Override
+	String get() throws Exception {
+		return ttlState.value();
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.value();
 	}
 }

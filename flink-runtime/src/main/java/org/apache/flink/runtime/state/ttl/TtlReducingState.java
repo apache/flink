@@ -49,7 +49,7 @@ class TtlReducingState<K, N, T>
 
 	@Override
 	public void add(T value) throws Exception {
-		original.add(wrapWithTs(value, Long.MAX_VALUE));
+		original.add(wrapWithTs(value));
 	}
 
 	@Override

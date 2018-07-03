@@ -20,17 +20,15 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlFoldingState}. */
 @SuppressWarnings("deprecation")
-public class TtlFoldingStateTest extends TtlStateTestBase<TtlFoldingState<?, String, Long, String>, Long, String> {
+class TtlFoldingStateTestContext extends TtlStateTestContextBase<TtlFoldingState<?, String, Long, String>, Long, String> {
 	@Override
 	void initTestValues() {
-		updater = v -> ttlState.add(v);
-		getter = () -> ttlState.get();
-		originalGetter = () -> ttlState.original.get();
-
 		updateEmpty = 5L;
 		updateUnexpired = 7L;
 		updateExpired = 6L;
@@ -41,10 +39,25 @@ public class TtlFoldingStateTest extends TtlStateTestBase<TtlFoldingState<?, Str
 	}
 
 	@Override
-	TtlFoldingState<?, String, Long, String> createState() {
-		FoldingStateDescriptor<Long, String> foldingStateDesc =
-			new FoldingStateDescriptor<>("TtlTestFoldingState", "1",  FOLD, StringSerializer.INSTANCE);
-		return (TtlFoldingState<?, String, Long, String>) wrapMockState(foldingStateDesc);
+	void update(Long value) throws Exception {
+		ttlState.add(value);
+	}
+
+	@Override
+	String get() throws Exception {
+		return ttlState.get();
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.get();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new FoldingStateDescriptor<>(
+			"TtlTestFoldingState", "1",  FOLD, StringSerializer.INSTANCE);
 	}
 
 	private static final FoldFunction<Long, String> FOLD = (acc, val) -> {

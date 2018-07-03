@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -198,11 +199,12 @@ public class KvStateRequestSerializerTest {
 				async,
 				new ExecutionConfig(),
 				TestLocalRecoveryConfig.disabled(),
-				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128)
+				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
+				TtlTimeProvider.DEFAULT
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createState(
+		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(
 			VoidNamespaceSerializer.INSTANCE,
 			new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
@@ -306,7 +308,8 @@ public class KvStateRequestSerializerTest {
 				async,
 				new ExecutionConfig(),
 				TestLocalRecoveryConfig.disabled(),
-				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128)
+				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
+				TtlTimeProvider.DEFAULT
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

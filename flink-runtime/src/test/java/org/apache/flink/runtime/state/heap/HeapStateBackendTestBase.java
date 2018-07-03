@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,6 +62,7 @@ public abstract class HeapStateBackendTestBase {
 			async,
 			new ExecutionConfig(),
 			TestLocalRecoveryConfig.disabled(),
-			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128));
+			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128),
+			TtlTimeProvider.DEFAULT);
 	}
 }

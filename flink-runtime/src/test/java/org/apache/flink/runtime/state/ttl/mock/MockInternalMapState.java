@@ -68,21 +68,17 @@ public class MockInternalMapState<K, N, UK, UV>
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
-		return copy().entrySet();
-	}
-
-	private Map<UK, UV> copy() {
-		return new HashMap<>(getInternal());
+		return getInternal().entrySet();
 	}
 
 	@Override
 	public Iterable<UK> keys() {
-		return copy().keySet();
+		return getInternal().keySet();
 	}
 
 	@Override
 	public Iterable<UV> values() {
-		return copy().values();
+		return getInternal().values();
 	}
 
 	@Override

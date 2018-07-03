@@ -18,11 +18,35 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-/**
- * Provides time to TTL logic to judge about state expiration.
- */
-public interface TtlTimeProvider {
-	TtlTimeProvider DEFAULT = System::currentTimeMillis;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 
-	long currentTimestamp();
+abstract class TtlStateTestContextBase<S extends InternalKvState<?, String, ?>, UV, GV> {
+	S ttlState;
+
+	UV updateEmpty;
+	UV updateUnexpired;
+	UV updateExpired;
+
+	GV getUpdateEmpty;
+	GV getUnexpired;
+	GV getUpdateExpired;
+
+	GV emptyValue = null;
+
+	abstract void initTestValues();
+
+	abstract <US extends State, SV> StateDescriptor<US, SV> createStateDescriptor();
+
+	abstract void update(UV value) throws Exception;
+
+	abstract GV get() throws Exception;
+
+	abstract Object getOriginal() throws Exception;
+
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName();
+	}
 }
