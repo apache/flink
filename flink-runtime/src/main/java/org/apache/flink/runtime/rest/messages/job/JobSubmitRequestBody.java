@@ -47,6 +47,7 @@ public final class JobSubmitRequestBody implements RequestBody {
 	@JsonProperty(FIELD_NAME_JOB_ARTIFACTS)
 	public final Collection<DistributedCacheFile> artifactFileNames;
 
+	@JsonCreator
 	public JobSubmitRequestBody(
 			@JsonProperty(FIELD_NAME_JOB_GRAPH) String jobGraphFileName,
 			@JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
