@@ -166,14 +166,14 @@ public class PrometheusReporterTest extends TestLogger {
 	public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER);
 
-		String metricName = "numRecordsOut";
+		String metricName = "metric";
 
 		Counter metric1 = new SimpleCounter();
-		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(1, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup1 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_1"));
 		reporter.notifyOfAddedMetric(metric1, metricName, metricGroup1);
 
 		Counter metric2 = new SimpleCounter();
-		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(2, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
+		FrontMetricGroup<TaskManagerJobMetricGroup> metricGroup2 = new FrontMetricGroup<>(0, new TaskManagerJobMetricGroup(registry, tmMetricGroup, JobID.generate(), "job_2"));
 		reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
 
 		reporter.notifyOfRemovedMetric(metric1, metricName, metricGroup1);
