@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
-// TODO: Parameterize to use different state backends --> This would require circular dependency on flink rocksdb
 
 /**
  * Tests for {@link TimeBoundedStreamJoinOperator}.

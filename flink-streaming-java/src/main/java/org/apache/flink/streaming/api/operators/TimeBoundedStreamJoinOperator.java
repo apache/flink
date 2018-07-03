@@ -23,13 +23,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.*;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -76,8 +74,10 @@ import java.util.Objects;
  */
 @Internal
 public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
-	extends AbstractUdfStreamOperator<OUT, TimeBoundedJoinFunction<T1, T2, OUT>>
-	implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, String> {
+		extends AbstractUdfStreamOperator<OUT, TimeBoundedJoinFunction<T1, T2, OUT>>
+		implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, String> {
+
+	private static final Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
 
 	private static final String LEFT_BUFFER = "LEFT_BUFFER";
 	private static final String RIGHT_BUFFER = "RIGHT_BUFFER";
@@ -98,8 +98,6 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 	private transient ContextImpl context;
 
 	private transient InternalTimerService<String> internalTimerService;
-
-	private transient Logger logger = LoggerFactory.getLogger(TimeBoundedStreamJoinOperator.class);
 
 	/**
 	 * Creates a new TimeBoundedStreamJoinOperator.
@@ -129,8 +127,8 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
 		// to check for inclusiveness later on
-		this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1;
-		this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1;
+		this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1L;
+		this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1L;
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
@@ -195,79 +193,72 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		StreamRecord<OUR> record,
 		MapState<Long, List<BufferEntry<OUR>>> ourBuffer,
 		MapState<Long, List<BufferEntry<OTHER>>> otherBuffer,
-		long lowerBound,
-		long upperBound,
+		long relativeLowerBound,
+		long relativeUpperBound,
 		boolean isLeft
 	) throws Exception {
 
-		OUR ourValue = record.getValue();
-		long ourTimestamp = record.getTimestamp();
-
-		long joinLowerBound = ourTimestamp + lowerBound;
-		long joinUpperBound = ourTimestamp + upperBound;
+		final OUR ourValue = record.getValue();
+		final long ourTimestamp = record.getTimestamp();
 
 		if (ourTimestamp == Long.MIN_VALUE) {
 			throw new FlinkException("Time-bounded stream joins need to have timestamps " +
 				"assigned to elements, but current element has timestamp Long.MIN_VALUE");
 		}
 
-		if (dataIsLate(ourTimestamp)) {
+		if (isLate(ourTimestamp)) {
 			return;
 		}
 
 		addToBuffer(ourBuffer, ourValue, ourTimestamp);
 
-		for (Map.Entry<Long, List<BufferEntry<OTHER>>> entry: otherBuffer.entries()) {
-			long bucket  = entry.getKey();
+		long joinLowerBound = ourTimestamp + relativeLowerBound;
+		long joinUpperBound = ourTimestamp + relativeUpperBound;
 
-			if (bucket < joinLowerBound || bucket > joinUpperBound) {
+		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+			long timestamp  = bucket.getKey();
+
+			if (timestamp < joinLowerBound || timestamp > joinUpperBound) {
 				continue;
 			}
 
-			List<BufferEntry<OTHER>> fromBucket = entry.getValue();
+			List<BufferEntry<OTHER>> fromBucket = bucket.getValue();
 
 			// check for each element in current bucket if it should be joined
-			for (BufferEntry<OTHER> tuple: fromBucket) {
+			for (BufferEntry<OTHER> entry: fromBucket) {
 
 				// this is the one point where we have to cast our types OUR and OTHER
 				// to T1 and T2 again, which is why we need information about which side
 				// we are operating on. This is passed in via 'isLeft'
-				if (isLeft && shouldBeJoined(ourTimestamp, tuple.timestamp)) {
-					collect((T1) ourValue, (T2) tuple.element, ourTimestamp, tuple.timestamp);
-				} else if (!isLeft && shouldBeJoined(tuple.timestamp, ourTimestamp)) {
-					collect((T1) tuple.element, (T2) ourValue, tuple.timestamp, ourTimestamp);
+				if (isLeft && shouldBeJoined(ourTimestamp, timestamp)) {
+					collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
+				} else if (!isLeft && shouldBeJoined(timestamp, ourTimestamp)) {
+					collect((T1) entry.element, (T2) ourValue, timestamp, ourTimestamp);
 				}
 			}
 		}
 
 
-		long removalTime = calculateRemovalTime(isLeft, ourTimestamp);
-		registerPerElementCleanup(isLeft, removalTime);
 
-		if (logger.isTraceEnabled()) {
-			String side = isLeft ? "left" : "right";
-			logger.trace("Marked {} element @ {} for removal at {}", side, ourTimestamp, removalTime);
-		}
-	}
+		long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
 
-	private void registerPerElementCleanup(boolean isLeft, long timestamp) {
 		if (isLeft) {
-			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, timestamp);
+			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
 		} else {
-			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, timestamp);
+			internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
 		}
 	}
 
-	private boolean dataIsLate(long rightTs) {
+	private boolean isLate(long timestamp) {
 		long currentWatermark = internalTimerService.currentWatermark();
-		return currentWatermark != Long.MIN_VALUE && rightTs < currentWatermark;
+		return currentWatermark != Long.MIN_VALUE && timestamp < currentWatermark;
 	}
 
 	private void collect(T1 left, T2 right, long leftTs, long rightTs) throws Exception {
 		long ts = Math.max(leftTs, rightTs);
 		collector.setAbsoluteTimestamp(ts);
-		context.leftTs = leftTs;
-		context.rightTs = rightTs;
+		context.leftTimestamp = leftTs;
+		context.rightTimestamp = rightTs;
 		userFunction.processElement(left, right, context, this.collector);
 	}
 
@@ -278,29 +269,13 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		return elemLowerBound <= rightTs && rightTs <= elemUpperBound;
 	}
 
-	private long maxCleanup(boolean isLeft, long watermark) {
-		if (isLeft) {
-			return (upperBound <= 0) ? watermark : watermark - upperBound;
-		} else {
-			return (lowerBound <= 0) ? watermark + lowerBound : watermark;
-		}
-	}
-
-	private long calculateRemovalTime(boolean isLeft, long timestamp) {
-		if (isLeft) {
-			return (upperBound > 0) ? timestamp + upperBound : timestamp;
-		} else {
-			return (lowerBound < 0) ? timestamp - lowerBound : timestamp;
-		}
-	}
-
 	private <T> void addToBuffer(
 		MapState<Long, List<BufferEntry<T>>> buffer,
 		T value,
 		long ts
 	) throws Exception {
 
-		BufferEntry<T> elem = new BufferEntry<>(value, ts, false);
+		BufferEntry<T> elem = new BufferEntry<>(value, false);
 
 		List<BufferEntry<T>> elemsInBucket = buffer.get(ts);
 		if (elemsInBucket == null) {
@@ -321,15 +296,15 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		switch (namespace) {
 			case CLEANUP_NAMESPACE_LEFT: {
-				long timestamp = maxCleanup(true, ts);
+				long timestamp = (upperBound <= 0) ? ts : ts - upperBound;
 				logger.trace("Removing from left buffer @ {}", timestamp);
-				removeFromBufferAt(leftBuffer, timestamp);
+				leftBuffer.remove(timestamp);
 				break;
 			}
 			case CLEANUP_NAMESPACE_RIGHT: {
-				long timestamp = maxCleanup(false, ts);
+				long timestamp = (lowerBound <= 0) ? ts + lowerBound : ts;
 				logger.trace("Removing from right buffer @ {}", timestamp);
-				removeFromBufferAt(rightBuffer, timestamp);
+				rightBuffer.remove(timestamp);
 				break;
 			}
 			default:
@@ -337,23 +312,15 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		}
 	}
 
-	private <T> void removeFromBufferAt(
-		MapState<Long, List<BufferEntry<T>>> state,
-		long timestamp
-	) throws Exception {
-
-		state.remove(timestamp);
-	}
-
 	@Override
 	public void onProcessingTime(InternalTimer<K, String> timer) throws Exception {
-		throw new RuntimeException("Processing time is not supported for time-bounded joins");
+
 	}
 
-	private class ContextImpl extends TimeBoundedJoinFunction<T1, T2, OUT>.Context {
+	private final class ContextImpl extends TimeBoundedJoinFunction<T1, T2, OUT>.Context {
 
-		private long leftTs;
-		private long rightTs;
+		private long leftTimestamp;
+		private long rightTimestamp;
 
 		private ContextImpl(TimeBoundedJoinFunction<T1, T2, OUT> func) {
 			func.super();
@@ -361,17 +328,17 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		@Override
 		public long getLeftTimestamp() {
-			return leftTs;
+			return leftTimestamp;
 		}
 
 		@Override
 		public long getRightTimestamp() {
-			return rightTs;
+			return rightTimestamp;
 		}
 
 		@Override
 		public long getTimestamp() {
-			return leftTs;
+			return leftTimestamp;
 		}
 
 		@Override
@@ -383,15 +350,10 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 	private static class BufferEntry<T> {
 		T element;
-		long timestamp;
 		boolean hasBeenJoined;
 
-		BufferEntry() {
-		}
-
-		BufferEntry(T element, long timestamp, boolean hasBeenJoined) {
+		BufferEntry(T element, boolean hasBeenJoined) {
 			this.element = element;
-			this.timestamp = timestamp;
 			this.hasBeenJoined = hasBeenJoined;
 		}
 	}
@@ -418,12 +380,12 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		@Override
 		public BufferEntry<T> createInstance() {
-			return new BufferEntry<>();
+			return null;
 		}
 
 		@Override
 		public BufferEntry<T> copy(BufferEntry<T> from) {
-			return new BufferEntry<>(from.element, from.timestamp, from.hasBeenJoined);
+			return new BufferEntry<>(from.element, from.hasBeenJoined);
 		}
 
 		@Override
@@ -433,25 +395,21 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		@Override
 		public int getLength() {
-			return LongSerializer.INSTANCE.getLength()
-				+ BooleanSerializer.INSTANCE.getLength()
-				+ elementSerializer.getLength();
+			return -1;
 		}
 
 		@Override
 		public void serialize(BufferEntry<T> record, DataOutputView target) throws IOException {
-			LongSerializer.INSTANCE.serialize(record.timestamp, target);
 			BooleanSerializer.INSTANCE.serialize(record.hasBeenJoined, target);
 			elementSerializer.serialize(record.element, target);
 		}
 
 		@Override
 		public BufferEntry<T> deserialize(DataInputView source) throws IOException {
-			long timestamp = LongSerializer.INSTANCE.deserialize(source);
 			boolean hasBeenJoined = BooleanSerializer.INSTANCE.deserialize(source);
 			T element = elementSerializer.deserialize(source);
 
-			return new BufferEntry<>(element, timestamp, hasBeenJoined);
+			return new BufferEntry<>(element, hasBeenJoined);
 		}
 
 		@Override
@@ -486,10 +444,9 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			return new BufferSerializerConfigSnapshot(
-				IntSerializer.INSTANCE.snapshotConfiguration(),
-				LongSerializer.INSTANCE.snapshotConfiguration(),
-				elementSerializer.snapshotConfiguration()
+			return new BufferSerializerConfigSnapshot<>(
+				BooleanSerializer.INSTANCE,
+				elementSerializer
 			);
 		}
 
@@ -503,42 +460,18 @@ public class TimeBoundedStreamJoinOperator<K, T1, T2, OUT>
 		}
 	}
 
-	public static class BufferSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+	public static class BufferSerializerConfigSnapshot<T> extends CompositeTypeSerializerConfigSnapshot {
 
 		private static final int VERSION = 1;
-
-		private TypeSerializerConfigSnapshot longSnapshot;
-		private TypeSerializerConfigSnapshot booleanSnapshot;
-		private TypeSerializerConfigSnapshot userTypeSnapshot;
 
 		public BufferSerializerConfigSnapshot() {
 		}
 
 		public BufferSerializerConfigSnapshot(
-			TypeSerializerConfigSnapshot longSnapshot,
-			TypeSerializerConfigSnapshot booleanSnapshot,
-			TypeSerializerConfigSnapshot userTypeSnapshot
+			BooleanSerializer booleanSerializer,
+			TypeSerializer<T> userTypeSerializer
 		) {
-
-			this.longSnapshot = longSnapshot;
-			this.booleanSnapshot = booleanSnapshot;
-			this.userTypeSnapshot = userTypeSnapshot;
-		}
-
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (o == null || getClass() != o.getClass()) return false;
-			BufferSerializerConfigSnapshot that = (BufferSerializerConfigSnapshot) o;
-			return Objects.equals(longSnapshot, that.longSnapshot) &&
-				Objects.equals(booleanSnapshot, that.booleanSnapshot) &&
-				Objects.equals(userTypeSnapshot, that.userTypeSnapshot);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(longSnapshot, booleanSnapshot, userTypeSnapshot);
+			super(booleanSerializer, userTypeSerializer);
 		}
 
 		@Override
