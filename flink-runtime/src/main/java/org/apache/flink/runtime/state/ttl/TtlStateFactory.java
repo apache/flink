@@ -188,6 +188,10 @@ public class TtlStateFactory {
 			super(true, userValueSerializer, LongSerializer.INSTANCE);
 		}
 
+		TtlSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
+			super(precomputed, fieldSerializers);
+		}
+
 		@SuppressWarnings("unchecked")
 		@Override
 		public TtlValue<T> createInstance(@Nonnull Object ... values) {
@@ -207,10 +211,12 @@ public class TtlStateFactory {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected CompositeSerializer<TtlValue<T>> createSerializerInstance(TypeSerializer<?> ... originalSerializers) {
+		protected CompositeSerializer<TtlValue<T>> createSerializerInstance(
+			PrecomputedParameters precomputed,
+			TypeSerializer<?> ... originalSerializers) {
 			Preconditions.checkNotNull(originalSerializers);
 			Preconditions.checkArgument(originalSerializers.length == 2);
-			return new TtlSerializer<>((TypeSerializer<T>) originalSerializers[0]);
+			return new TtlSerializer<>(precomputed, (TypeSerializer<T>) originalSerializers[0]);
 		}
 	}
 }

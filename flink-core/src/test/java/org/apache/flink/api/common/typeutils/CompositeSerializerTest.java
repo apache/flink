@@ -163,6 +163,10 @@ public class CompositeSerializerTest {
 			super(isImmutableTargetType, fieldSerializers);
 		}
 
+		TestListCompositeSerializer(PrecomputedParameters precomputed, TypeSerializer<?>... fieldSerializers) {
+			super(precomputed, fieldSerializers);
+		}
+
 		@Override
 		public List<Object> createInstance(@Nonnull Object... values) {
 			return Arrays.asList(values);
@@ -170,7 +174,7 @@ public class CompositeSerializerTest {
 
 		@Override
 		protected void setField(@Nonnull List<Object> value, int index, Object fieldValue) {
-			if (immutableTargetType) {
+			if (precomputed.immutable) {
 				throw new UnsupportedOperationException("Type is immutable");
 			} else {
 				value.set(index, fieldValue);
@@ -183,8 +187,9 @@ public class CompositeSerializerTest {
 		}
 
 		@Override
-		protected CompositeSerializer<List<Object>> createSerializerInstance(TypeSerializer<?>... originalSerializers) {
-			return new TestListCompositeSerializer(immutableTargetType, originalSerializers);
+		protected CompositeSerializer<List<Object>> createSerializerInstance(
+			PrecomputedParameters precomputed, TypeSerializer<?>... originalSerializers) {
+			return new TestListCompositeSerializer(precomputed, originalSerializers);
 		}
 	}
 

@@ -26,10 +26,9 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.IntStream;
 
 /**
  * Base class for composite serializers.
@@ -45,33 +44,21 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	/** Serializers for fields which constitute T. */
 	protected final TypeSerializer<Object>[] fieldSerializers;
 
-	/** Whether T is an immutable type. */
-	final boolean immutableTargetType;
+	final PrecomputedParameters precomputed;
 
-	/** Byte length of target object in serialized form. */
-	private final int length;
-
-	/** Whether any field serializer is stateful. */
-	private final boolean stateful;
-
-	private final int hashCode;
-
+	/** Can be used for user facing constructor. */
 	@SuppressWarnings("unchecked")
 	protected CompositeSerializer(boolean immutableTargetType, TypeSerializer<?> ... fieldSerializers) {
-		Preconditions.checkNotNull(fieldSerializers);
-		Preconditions.checkArgument(Arrays.stream(fieldSerializers).allMatch(Objects::nonNull));
-		this.immutableTargetType = immutableTargetType &&
-			Arrays.stream(fieldSerializers).allMatch(TypeSerializer::isImmutableType);
-		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
-		this.length = calcLength();
-		this.stateful = isStateful();
-		this.hashCode = Arrays.hashCode(fieldSerializers);
+		this(
+			new PrecomputedParameters(immutableTargetType, (TypeSerializer<Object>[]) fieldSerializers),
+			fieldSerializers);
 	}
 
-	private boolean isStateful() {
-		TypeSerializer[] duplicatedSerializers = duplicateFieldSerializers();
-		return IntStream.range(0, fieldSerializers.length)
-			.anyMatch(i -> fieldSerializers[i] != duplicatedSerializers[i]);
+	/** Can be used in createSerializerInstance for internal operations. */
+	@SuppressWarnings("unchecked")
+	protected CompositeSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
+		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
+		this.precomputed = new PrecomputedParameters(precomputed, this.fieldSerializers);
 	}
 
 	/** Create new instance from its fields.  */
@@ -84,24 +71,28 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	protected abstract Object getField(@Nonnull T value, int index);
 
 	/** Factory for concrete serializer. */
-	protected abstract CompositeSerializer<T> createSerializerInstance(TypeSerializer<?> ... originalSerializers);
+	protected abstract CompositeSerializer<T> createSerializerInstance(
+		PrecomputedParameters precomputed,
+		TypeSerializer<?> ... originalSerializers);
 
 	@Override
 	public CompositeSerializer<T> duplicate() {
-		return stateful ? createSerializerInstance(duplicateFieldSerializers()) : this;
+		return precomputed.stateful ?
+			createSerializerInstance(precomputed, duplicateFieldSerializers(fieldSerializers)) : this;
 	}
 
-	private TypeSerializer[] duplicateFieldSerializers() {
+	private static TypeSerializer[] duplicateFieldSerializers(TypeSerializer<Object>[] fieldSerializers) {
 		TypeSerializer[] duplicatedSerializers = new TypeSerializer[fieldSerializers.length];
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			duplicatedSerializers[index] = fieldSerializers[index].duplicate();
+			assert duplicatedSerializers[index] != null;
 		}
 		return duplicatedSerializers;
 	}
 
 	@Override
 	public boolean isImmutableType() {
-		return immutableTargetType;
+		return precomputed.immutable;
 	}
 
 	@Override
@@ -142,18 +133,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int getLength() {
-		return length;
-	}
-
-	private int calcLength() {
-		int totalLength = 0;
-		for (TypeSerializer<Object> fieldSerializer : fieldSerializers) {
-			if (fieldSerializer.getLength() < 0) {
-				return -1;
-			}
-			totalLength += fieldSerializer.getLength();
-		}
-		return totalLength;
+		return precomputed.length;
 	}
 
 	@Override
@@ -183,7 +163,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		for (int index = 0; index < fieldSerializers.length; index++) {
 			fields[index] = fieldSerializers[index].deserialize(getField(reuse, index), source);
 		}
-		return immutableTargetType ? createInstance(fields) : createInstanceWithReuse(fields, reuse);
+		return precomputed.immutable ? createInstance(fields) : createInstanceWithReuse(fields, reuse);
 	}
 
 	private T createInstanceWithReuse(Object[] fields, T reuse) {
@@ -204,7 +184,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int hashCode() {
-		return hashCode;
+		return precomputed.hashCode;
 	}
 
 	@Override
@@ -261,8 +241,10 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 				}
 			}
 		}
+		PrecomputedParameters precomputed =
+			new PrecomputedParameters(this.precomputed.immutableTargetType, convertSerializers);
 		return requiresMigration ?
-			CompatibilityResult.requiresMigration(createSerializerInstance(convertSerializers)) :
+			CompatibilityResult.requiresMigration(createSerializerInstance(precomputed, convertSerializers)) :
 			CompatibilityResult.compatible();
 	}
 
@@ -271,5 +253,61 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		return CompatibilityUtil.resolveCompatibilityResult(
 			previousSerializersAndConfigs.get(index).f0, UnloadableDummyTypeSerializer.class,
 			previousSerializersAndConfigs.get(index).f1, fieldSerializers[index]);
+	}
+
+	/** This class holds composite serializer parameters which can be precomputed in advanced for better performance. */
+	protected static class PrecomputedParameters implements Serializable {
+		/** Whether target type is immutable. */
+		final boolean immutableTargetType;
+
+		/** Whether target type and its fields are immutable. */
+		final boolean immutable;
+
+		/** Byte length of target object in serialized form. */
+		private final int length;
+
+		/** Whether any field serializer is stateful. */
+		final boolean stateful;
+
+		final int hashCode;
+
+		PrecomputedParameters(
+			boolean immutableTargetType,
+			TypeSerializer<Object>[] fieldSerializers) {
+			Preconditions.checkNotNull(fieldSerializers);
+			int totalLength = 0;
+			boolean fieldsImmutable = true;
+			boolean stateful = false;
+			int hashCode = 1;
+			for (TypeSerializer<Object> fieldSerializer : fieldSerializers) {
+				Preconditions.checkNotNull(fieldSerializer);
+				if (fieldSerializer != fieldSerializer.duplicate()) {
+					stateful = true;
+				}
+				if (!fieldSerializer.isImmutableType()) {
+					fieldsImmutable = false;
+				}
+				if (fieldSerializer.getLength() < 0) {
+					totalLength = -1;
+				}
+				totalLength = totalLength >= 0 ? totalLength + fieldSerializer.getLength() : totalLength;
+				hashCode = 31 * hashCode + (fieldSerializer.hashCode());
+			}
+
+			this.immutableTargetType = immutableTargetType;
+			this.immutable = immutableTargetType && fieldsImmutable;
+			this.length = totalLength;
+			this.stateful = stateful;
+			this.hashCode = hashCode;
+		}
+
+		/** This constructor recomputes only hash code. */
+		PrecomputedParameters(PrecomputedParameters other, TypeSerializer<Object>[] fieldSerializers) {
+			this.immutableTargetType = other.immutableTargetType;
+			this.immutable = other.immutable;
+			this.length = other.length;
+			this.stateful = other.stateful;
+			this.hashCode = Arrays.hashCode(fieldSerializers);
+		}
 	}
 }
