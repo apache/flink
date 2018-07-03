@@ -38,6 +38,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * This handler can be used to submit jobs to a Flink cluster.
@@ -66,6 +67,9 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		}
 
 		return gateway.submitJob(jobGraph, timeout)
-			.thenApply(ack -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+			.thenApply(ack -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()))
+			.exceptionally(exception -> {
+				throw new CompletionException(new RestHandlerException("Job submission failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, exception));
+			});
 	}
 }
