@@ -57,8 +57,8 @@ public interface InternalPriorityQueue<T> {
 	 * Adds the given element to the set, if it is not already contained.
 	 *
 	 * @param toAdd the element to add to the set.
-	 * @return <code>true</code> if the operation changed the head element or if is it unclear if the head element changed.
-	 * Only returns <code>false</code> iff the head element was not changed by this operation.
+	 * @return <code>true</code> if the operation changed the head element or if it is unclear if the head element changed.
+	 * Only returns <code>false</code> if the head element was not changed by this operation.
 	 */
 	boolean add(@Nonnull T toAdd);
 
