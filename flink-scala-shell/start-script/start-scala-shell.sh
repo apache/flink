@@ -19,9 +19,6 @@
 
 # from scala-lang 2.10.4
 
-# Uncomment the following line to enable remote debug
-# export FLINK_SCALA_SHELL_JAVA_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
-
 # restore stty settings (echo in particular)
 function restoreSttySettings() {
   if [[ -n $SCALA_RUNNER_DEBUG ]]; then
@@ -89,9 +86,9 @@ fi
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    java -Dscala.color $FLINK_SCALA_SHELL_JAVA_OPTS -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
+    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
 else
-    java -Dscala.color $FLINK_SCALA_SHELL_JAVA_OPTS -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
+    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
 fi
 
 #restore echo

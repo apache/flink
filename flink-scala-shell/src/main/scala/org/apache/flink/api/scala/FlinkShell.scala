@@ -275,25 +275,14 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val customCommandLines = CliFrontend.loadCustomCommandLines(
-      configuration,configurationDirectory)
+    val frontend = new CliFrontend(configuration,
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
+
     val commandOptions = CliFrontendParser.getRunCommandOptions
-    val customCommandLineOptions = new Options()
-    customCommandLines.asScala.foreach(cmd => {
-      cmd.addGeneralOptions(customCommandLineOptions)
-      cmd.addRunOptions(customCommandLineOptions)
-    })
-    val commandLineOptions = CliFrontendParser.mergeOptions(
-      commandOptions, customCommandLineOptions)
+    val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,
+      frontend.getCustomCommandLineOptions());
+    val commandLine = CliFrontendParser.parse(commandLineOptions, args.toArray, true)
 
-    val commandLine = CliFrontendParser.parse(
-      commandLineOptions,
-      args.toArray,
-      true)
-
-    val frontend = new CliFrontend(
-      configuration,
-      customCommandLines)
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
     val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
