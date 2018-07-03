@@ -2626,9 +2626,6 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
   <tr><td>{% highlight text %}%W{% endhighlight %}</td>
   <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
   </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
-  </tr>
   <tr><td>{% highlight text %}%w{% endhighlight %}</td>
   <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
   </tr>
