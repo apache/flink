@@ -34,7 +34,7 @@ import org.junit.Test
 class NonWindowHarnessTest extends HarnessTestBase {
 
   protected var queryConfig =
-    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testNonWindow(): Unit = {
