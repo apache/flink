@@ -91,7 +91,7 @@ public class DateTimeUtils {
 	public static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 
 	/**
-	 * The number of milliseconds in an hour.
+	 * The number of milliseconds in a week.
 	 */
 	public static final long MILLIS_PER_WEEK = 604800000L; // = 7 * 24 * 60 * 60 * 1000
 
