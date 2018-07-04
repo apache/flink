@@ -1759,11 +1759,22 @@ class JobManager(
       case None => None
     }
 
-    // remove all job-related BLOBs from local and HA store
-    libraryCacheManager.unregisterJob(jobID)
-    blobServer.cleanupJob(jobID, removeJobFromStateBackend)
+    // remove all job-related BLOBs from local and HA store, only if the job was removed correctly
+    futureOption match {
+      case Some(future) => future.onComplete{
+        case scala.util.Success(_) => {
+          libraryCacheManager.unregisterJob(jobID)
+          blobServer.cleanupJob(jobID, removeJobFromStateBackend)
+          jobManagerMetricGroup.removeJob(jobID)
+        }
 
-    jobManagerMetricGroup.removeJob(jobID)
+        case scala.util.Failure(_) =>
+
+      }(context.dispatcher)
+
+      case None => None
+    }
+
 
     futureOption
   }
