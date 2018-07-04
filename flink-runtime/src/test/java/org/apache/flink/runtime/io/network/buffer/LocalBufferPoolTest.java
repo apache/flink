@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -405,13 +406,13 @@ public class LocalBufferPoolTest {
 
 	private BufferListener createBufferListener(int notificationTimes) {
 		return spy(new BufferListener() {
-			int times = 0;
+			AtomicInteger times = new AtomicInteger(0);
 
 			@Override
 			public boolean notifyBufferAvailable(Buffer buffer) {
-				times++;
+				int newCount = times.incrementAndGet();
 				buffer.recycleBuffer();
-				return times < notificationTimes;
+				return newCount < notificationTimes;
 			}
 
 			@Override
