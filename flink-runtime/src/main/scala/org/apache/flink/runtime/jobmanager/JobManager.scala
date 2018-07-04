@@ -1734,6 +1734,8 @@ class JobManager(
               // and the ZooKeeper client is closed. Not removing the job immediately allow the
               // shutdown to release all resources.
               submittedJobGraphs.removeJobGraph(jobID)
+              val result  = blobServer.cleanupJob(jobID, removeJobFromStateBackend)
+
             } catch {
               case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
             }
@@ -1759,10 +1761,7 @@ class JobManager(
       case None => None
     }
 
-    // remove all job-related BLOBs from local and HA store
     libraryCacheManager.unregisterJob(jobID)
-    blobServer.cleanupJob(jobID, removeJobFromStateBackend)
-
     jobManagerMetricGroup.removeJob(jobID)
 
     futureOption
