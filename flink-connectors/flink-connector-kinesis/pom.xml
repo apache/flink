@@ -23,6 +23,19 @@ under the License.
 
 	<modelVersion>4.0.0</modelVersion>
 
+  <distributionManagement>
+    <repository>
+        <id>central</id>
+        <name>instructure-releases</name>
+        <url>https://instructure.jfrog.io/instructure/oss-maven</url>
+    </repository>
+    <snapshotRepository>
+        <id>snapshots</id>
+        <name>instructure-snapshots</name>
+        <url>https://instructure.jfrog.io/instructure/oss-maven</url>
+    </snapshotRepository>
+	</distributionManagement>
+
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
