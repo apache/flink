@@ -596,7 +596,7 @@ but not activated.
 Parameters:
 
 - `port` - (optional) the port on which JMX listens for connections.
-In order to be able to run several instancesof the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
+In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
 When a range is specified the actual port is shown in the relevant job or task manager log.
 If this setting is set Flink will start an extra JMX connector for the given port/range.
 Metrics are always available on the default local JMX interface.
