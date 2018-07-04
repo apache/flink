@@ -19,6 +19,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
+
+import javax.annotation.Nonnull;
+
+import java.util.Comparator;
 
 /**
  * Internal interface for in-flight timers.
@@ -29,6 +34,26 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface InternalTimer<K, N> {
 
+	/** Function to extract the key from a {@link InternalTimer}. */
+	KeyExtractorFunction<InternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION = InternalTimer::getKey;
+
+	/** Function to compare instances of {@link InternalTimer}. */
+	Comparator<InternalTimer<?, ?>> TIMER_COMPARATOR = new Comparator<InternalTimer<?, ?>>() {
+		@Override
+		public int compare(InternalTimer<?, ?> o1, InternalTimer<?, ?> o2) {
+			int cmp = Long.compare(o1.getTimestamp(), o2.getTimestamp());
+			if(cmp != 0) {
+				return cmp;
+			}
+
+			if(o1.getKey().equals(o2.getKey()) && o1.getNamespace().equals(o2.getNamespace())) {
+				return 0;
+			}
+
+			return Integer.compare(System.identityHashCode(o1), System.identityHashCode(o2));
+		}
+	};
+
 	/**
 	 * Returns the timestamp of the timer. This value determines the point in time when the timer will fire.
 	 */
@@ -37,10 +62,22 @@ public interface InternalTimer<K, N> {
 	/**
 	 * Returns the key that is bound to this timer.
 	 */
+	@Nonnull
 	K getKey();
 
 	/**
 	 * Returns the namespace that is bound to this timer.
 	 */
+	@Nonnull
 	N getNamespace();
+
+	@SuppressWarnings("unchecked")
+	static <T extends InternalTimer> Comparator<T> getTimerComparator() {
+		return (Comparator<T>) TIMER_COMPARATOR;
+	}
+
+	@SuppressWarnings("unchecked")
+	static <T extends InternalTimer> KeyExtractorFunction<T> getKeyExtractorFunction() {
+		return (KeyExtractorFunction<T>) KEY_EXTRACTOR_FUNCTION;
+	}
 }

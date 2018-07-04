@@ -207,6 +207,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			keyedStatedBackend.getNumberOfKeyGroups(),
 			keyGroupRange,
 			keyContext,
+			keyedStatedBackend,
 			processingTimeService);
 
 		// and then initialize the timer services

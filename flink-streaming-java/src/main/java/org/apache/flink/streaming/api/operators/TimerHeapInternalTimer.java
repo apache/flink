@@ -19,21 +19,18 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.Comparator;
 
 /**
  * Implementation of {@link InternalTimer} to use with a {@link HeapPriorityQueueSet}.
@@ -43,14 +40,6 @@ import java.util.Comparator;
  */
 @Internal
 public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N>, HeapPriorityQueueElement {
-
-	/** Function to extract the key from a {@link TimerHeapInternalTimer}. */
-	private static final KeyExtractorFunction<TimerHeapInternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION =
-		TimerHeapInternalTimer::getKey;
-
-	/** Function to compare instances of {@link TimerHeapInternalTimer}. */
-	private static final Comparator<TimerHeapInternalTimer<?, ?>> TIMER_COMPARATOR =
-		(o1, o2) -> Long.compare(o1.getTimestamp(), o2.getTimestamp());
 
 	/** The key for which the timer is scoped. */
 	@Nonnull
@@ -142,18 +131,6 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N>, 
 				", key=" + key +
 				", namespace=" + namespace +
 				'}';
-	}
-
-	@VisibleForTesting
-	@SuppressWarnings("unchecked")
-	static <T extends TimerHeapInternalTimer> Comparator<T> getTimerComparator() {
-		return (Comparator<T>) TIMER_COMPARATOR;
-	}
-
-	@SuppressWarnings("unchecked")
-	@VisibleForTesting
-	static <T extends TimerHeapInternalTimer> KeyExtractorFunction<T> getKeyExtractorFunction() {
-		return (KeyExtractorFunction<T>) KEY_EXTRACTOR_FUNCTION;
 	}
 
 	/**

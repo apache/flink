@@ -184,7 +184,7 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 				}
 				storeOnlyElements = iterator.hasNext();
 			} catch (Exception e) {
-				throw new FlinkRuntimeException("Exception while closing RocksDB iterator.", e);
+				throw new FlinkRuntimeException("Exception while refilling store from iterator.", e);
 			}
 		}
 	}
