@@ -1050,28 +1050,6 @@ object temporalOverlaps {
     TemporalOverlaps(leftTimePoint, leftTemporal, rightTimePoint, rightTemporal)
   }
 }
-/**
-  * Adds a (signed) integer interval to a timestamp. The unit for the interval is given
-  * by the unit argument, which should be one of the following values: "SECOND", "MINUTE",
-  * "HOUR", "DAY", "WEEK", "MONTH", "QUARTER" or "YEAR".
-  *
-  * e.g. timestampAdd("WEEK", 1, '2003-01-02'.toDate) leads to "2003-01-09".
-  */
-object timestampAdd {
-
-  /**
-    * Adds a (signed) integer interval to a timestamp. The unit for the interval is given
-    * by the unit argument, which should be one of the following values: "SECOND", "MINUTE",
-    * "HOUR", "DAY", "WEEK", "MONTH", "QUARTER" or "YEAR".
-    *
-    * e.g. timestampAdd(1.week, '2003-01-02'.toDate) leads to "2003-01-09".
-  */
-  def apply(
-      interval: Expression,
-      timestamp: Expression): Expression = {
-    TimestampAdd(interval, timestamp)
-  }
-}
 
 /**
   * Formats a timestamp as a string using a specified format.

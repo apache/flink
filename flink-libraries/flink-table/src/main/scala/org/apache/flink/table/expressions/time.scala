@@ -332,37 +332,6 @@ case class TemporalOverlaps(
   }
 }
 
-  /**
-    * Standard conversion of the TIMESTAMPADD operator.
-    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#TimestampAddConvertlet]]
-    */
-case class TimestampAdd(
-    interval: Expression,
-    timestamp: Expression)
-  extends Expression {
-
-  override private[flink] def children: Seq[Expression] = interval :: timestamp :: Nil
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (!isTimeInterval(interval.resultType)) {
-      return ValidationFailure(s"TimestampAdd operator requires interval to be of type " +
-        s"TimeInterval, but get ${interval.resultType}.")
-    }
-    if (!TypeCheckUtils.isTimePoint(timestamp.resultType)) {
-      return ValidationFailure(s"TimestampAdd operator requires timestamp to be of type " +
-        s"SqlTimeTypeInfo, but get ${timestamp.resultType}.")
-    }
-    ValidationSuccess
-  }
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
-    relBuilder.call(SqlStdOperatorTable.DATETIME_PLUS, timestamp.toRexNode, interval.toRexNode)
-
-  override def toString: String = s"timestampAdd(${children.mkString(", ")})"
-
-  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
-}
-
 case class DateFormat(timestamp: Expression, format: Expression) extends Expression {
   override private[flink] def children = timestamp :: format :: Nil
 

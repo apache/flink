@@ -95,19 +95,9 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testTimestampAddWithWrongQuantity(): Unit = {
-    testAllApis(
-      timestampAdd(1.0.year, "2016-02-24 12:42:25'".toTimestamp),
-      "timestampAdd(1.0.year, '2016-02-24 12:42:25'.toTimestamp)",
+    testSqlApi(
       "TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')",
       "2016-06-16")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithWrongTime(): Unit = {
-    testTableApi(
-      timestampAdd(1.day, "20160224"),
-      "timestampAdd(1.day, '20160224)",
-      "20160225")
   }
 
   @Test(expected = classOf[ValidationException])
