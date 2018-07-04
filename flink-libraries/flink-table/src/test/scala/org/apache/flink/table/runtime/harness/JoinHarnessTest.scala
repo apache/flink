@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks, TupleRowKeySelector}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks, StreamQueryConfigTest, TupleRowKeySelector}
 import org.apache.flink.table.runtime.join._
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -44,7 +44,7 @@ import org.junit.Test
 class JoinHarnessTest extends HarnessTestBase {
 
   private val queryConfig =
-    new StreamQueryConfig().withIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(4))
+    new StreamQueryConfigTest(Time.milliseconds(2), Time.milliseconds(4))
 
   private val rowType = Types.ROW(
     Types.LONG,

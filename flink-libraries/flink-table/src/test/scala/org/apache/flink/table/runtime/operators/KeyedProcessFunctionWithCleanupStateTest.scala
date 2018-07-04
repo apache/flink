@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.aggregate.KeyedProcessFunctionWithCleanupState
 import org.apache.flink.table.runtime.harness.HarnessTestBase
+import org.apache.flink.table.runtime.harness.HarnessTestBase.StreamQueryConfigTest
 import org.apache.flink.util.Collector
 
 import org.junit.Test
@@ -36,8 +37,7 @@ class KeyedProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 
   @Test
   def testStateCleaning(): Unit = {
-    val queryConfig = new StreamQueryConfig()
-      .withIdleStateRetentionTime(Time.milliseconds(5), Time.milliseconds(10))
+    val queryConfig = new StreamQueryConfigTest(Time.milliseconds(5), Time.milliseconds(10))
 
     val func = new MockedKeyedProcessFunction(queryConfig)
     val operator = new KeyedProcessOperator(func)
