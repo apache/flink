@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -31,6 +32,8 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
@@ -50,12 +53,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/**
 	 * Processing time timers that are currently in-flight.
 	 */
-	private final HeapPriorityQueueSet<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue;
+	private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue;
 
 	/**
 	 * Event time timers that are currently in-flight.
 	 */
-	private final HeapPriorityQueueSet<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue;
+	private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
 	 * Information concerning the local key-group range.
@@ -264,8 +267,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			keySerializer.snapshotConfiguration(),
 			namespaceSerializer,
 			namespaceSerializer.snapshotConfiguration(),
-			eventTimeTimersQueue.getElementsForKeyGroup(keyGroupIdx),
-			processingTimeTimersQueue.getElementsForKeyGroup(keyGroupIdx));
+			eventTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx),
+			processingTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx));
 	}
 
 	/**
@@ -339,12 +342,20 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	@VisibleForTesting
 	List<Set<TimerHeapInternalTimer<K, N>>> getEventTimeTimersPerKeyGroup() {
-		return eventTimeTimersQueue.getElementsByKeyGroup();
+		return partitionElementsByKeyGroup(eventTimeTimersQueue);
 	}
 
 	@VisibleForTesting
 	List<Set<TimerHeapInternalTimer<K, N>>> getProcessingTimeTimersPerKeyGroup() {
-		return processingTimeTimersQueue.getElementsByKeyGroup();
+		return partitionElementsByKeyGroup(processingTimeTimersQueue);
+	}
+
+	private <T> List<Set<T>> partitionElementsByKeyGroup(KeyGroupedInternalPriorityQueue<T> keyGroupedQueue) {
+		List<Set<T>> result = new ArrayList<>(localKeyGroupRange.getNumberOfKeyGroups());
+		for (int keyGroup : localKeyGroupRange) {
+			result.add(Collections.unmodifiableSet(keyGroupedQueue.getSubsetForKeyGroup(keyGroup)));
+		}
+		return result;
 	}
 
 	private boolean areSnapshotSerializersIncompatible(InternalTimersSnapshot<?, ?> restoredSnapshot) {

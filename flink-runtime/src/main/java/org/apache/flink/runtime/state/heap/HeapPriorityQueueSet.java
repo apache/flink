@@ -18,20 +18,17 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -49,7 +46,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * @param <T> type of the contained elements.
  */
-public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends HeapPriorityQueue<T> {
+public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
+	extends HeapPriorityQueue<T>
+	implements KeyGroupedInternalPriorityQueue<T> {
 
 	/**
 	 * Function to extract the key from contained elements.
@@ -147,28 +146,9 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
 		}
 	}
 
-	/**
-	 * Returns an unmodifiable set of all elements in the given key-group.
-	 */
-	@Nonnull
-	public Set<T> getElementsForKeyGroup(@Nonnegative int keyGroupIdx) {
-		return Collections.unmodifiableSet(getDedupMapForKeyGroup(keyGroupIdx).keySet());
-	}
-
-	@VisibleForTesting
-	@SuppressWarnings("unchecked")
-	@Nonnull
-	public List<Set<T>> getElementsByKeyGroup() {
-		List<Set<T>> result = new ArrayList<>(deduplicationMapsByKeyGroup.length);
-		for (int i = 0; i < deduplicationMapsByKeyGroup.length; ++i) {
-			result.add(i, Collections.unmodifiableSet(deduplicationMapsByKeyGroup[i].keySet()));
-		}
-		return result;
-	}
-
 	private HashMap<T, T> getDedupMapForKeyGroup(
-		@Nonnegative int keyGroupIdx) {
-		return deduplicationMapsByKeyGroup[globalKeyGroupToLocalIndex(keyGroupIdx)];
+		@Nonnegative int keyGroupId) {
+		return deduplicationMapsByKeyGroup[globalKeyGroupToLocalIndex(keyGroupId)];
 	}
 
 	private HashMap<T, T> getDedupMapForElement(T element) {
@@ -181,5 +161,10 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
 	private int globalKeyGroupToLocalIndex(int keyGroup) {
 		checkArgument(keyGroupRange.contains(keyGroup));
 		return keyGroup - keyGroupRange.getStartKeyGroup();
+	}
+
+	@Override
+	public Set<T> getSubsetForKeyGroup(int keyGroupId) {
+		return getDedupMapForKeyGroup(keyGroupId).keySet();
 	}
 }

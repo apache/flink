@@ -22,7 +22,9 @@ import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnegative;
@@ -31,6 +33,8 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This implementation of {@link InternalPriorityQueue} is internally partitioned into sub-queues per key-group and
@@ -41,7 +45,7 @@ import java.util.Comparator;
  * @param <PQ> type type of sub-queue used for each key-group partition.
  */
 public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
-	implements InternalPriorityQueue<T> {
+	implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
 
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
@@ -173,7 +177,25 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	private int computeKeyGroupIndex(T element) {
 		final Object extractKeyFromElement = keyExtractor.extractKeyFromElement(element);
 		final int keyGroupId = KeyGroupRangeAssignment.assignToKeyGroup(extractKeyFromElement, totalKeyGroups);
+		return globalKeyGroupToLocalIndex(keyGroupId);
+	}
+
+	private int globalKeyGroupToLocalIndex(int keyGroupId) {
 		return keyGroupId - firstKeyGroup;
+	}
+
+	@Override
+	public Set<T> getSubsetForKeyGroup(int keyGroupId) {
+		HashSet<T> result = new HashSet<>();
+		PQ partitionQueue = keyGroupedHeaps[globalKeyGroupToLocalIndex(keyGroupId)];
+		try (CloseableIterator<T> iterator = partitionQueue.iterator()) {
+			while (iterator.hasNext()) {
+				result.add(iterator.next());
+			}
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Exception while iterating key group.", e);
+		}
+		return result;
 	}
 
 	/**
