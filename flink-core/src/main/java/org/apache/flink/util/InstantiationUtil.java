@@ -208,10 +208,7 @@ public final class InstantiationUtil {
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || localClass.isAnonymousClass()
-				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
-				|| name.contains("$anon$") || name.contains("$anonfun")) {
-
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)) {
 				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
@@ -223,6 +220,23 @@ public final class InstantiationUtil {
 			}
 
 			return streamClassDescriptor;
+		}
+	}
+
+	private static boolean isAnonymousClass(Class clazz) {
+		final String name = clazz.getName();
+
+		// isAnonymousClass does not work for anonymous Scala classes; additionally check by class name
+		if (name.contains("$anon$") || name.contains("$anonfun") || name.contains("$macro$")) {
+			return true;
+		}
+
+		// calling isAnonymousClass or getSimpleName can throw InternalError for certain Scala types, see https://issues.scala-lang.org/browse/SI-2034
+		// until we move to JDK 9, this try-catch is necessary
+		try {
+			return clazz.isAnonymousClass();
+		} catch (InternalError e) {
+			return false;
 		}
 	}
 
