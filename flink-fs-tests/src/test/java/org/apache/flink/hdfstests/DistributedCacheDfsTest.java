@@ -23,9 +23,11 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -48,7 +50,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for distributing files with {@link org.apache.flink.api.common.cache.DistributedCache} via HDFS.
  */
-public class DistributedCacheDfsTest {
+public class DistributedCacheDfsTest extends TestLogger {
 
 	private static final String testFileContent = "Goethe - Faust: Der Tragoedie erster Teil\n" + "Prolog im Himmel.\n"
 		+ "Der Herr. Die himmlischen Heerscharen. Nachher Mephistopheles. Die drei\n" + "Erzengel treten vor.\n"
@@ -128,7 +130,7 @@ public class DistributedCacheDfsTest {
 
 		env.fromElements(1)
 			.map(new TestMapFunction())
-			.print();
+			.addSink(new DiscardingSink<>());
 
 		env.execute("Distributed Cache Via Blob Test Program");
 	}
