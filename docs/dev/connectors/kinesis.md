@@ -56,7 +56,7 @@ mvn clean install -Pinclude-kinesis -DskipTests
 used by default in the Kinesis connectors, KPL 0.12.5, is no longer supported by AWS Kinesis Streams
 (see [here](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-upgrades.html)).
 This means that when building the Kinesis connector, you will need to specify a higher version KPL client (above 0.12.6)
-in order for the Flink Kinesis Producer to work. You can do this by speciyfing the preferred version via the
+in order for the Flink Kinesis Producer to work. You can do this by specifying the preferred version via the
 `aws.kinesis-kpl.version` property, like so:
 {% highlight bash %}
 mvn clean install -Pinclude-kinesis -Daws.kinesis-kpl.version=0.12.6 -DskipTests

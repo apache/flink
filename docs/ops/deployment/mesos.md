@@ -64,7 +64,7 @@ depends on the configuration overlay used.
 The Mesos scheduler currently resides with the JobManager but will be started
 independently of the JobManager in future versions (see
 [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)). The
-proposed changes will also add a Dipsatcher component which will be the central
+proposed changes will also add a Dispatcher component which will be the central
 point for job submission and monitoring.
 
 ### Startup script and configuration overlays

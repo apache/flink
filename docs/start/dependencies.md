@@ -32,7 +32,7 @@ runtime library must be available as well.
 
 As with most systems that run user-defined applications, there are two broad categories of dependencies and libraries in Flink:
 
-  - **Flink Core Dependenies**: Flink itself consists of a set of classes and dependencies that are needed to run the system, for example
+  - **Flink Core Dependencies**: Flink itself consists of a set of classes and dependencies that are needed to run the system, for example
     coordination, networking, checkpoints, failover, APIs, operations (such as windowing), resource management, etc.
     The set of all these classes and dependencies forms the core of Flink's runtime and must be present when a Flink
     application is started.
@@ -189,7 +189,7 @@ If you need Hadoop dependencies during testing or development inside the IDE (fo
 these dependencies similar to the scope of the dependencies to *test* or to *provided*.
 
 
-## Appendix: Template for bulding a Jar with Dependencies
+## Appendix: Template for building a Jar with Dependencies
 
 To build an application JAR that contains all dependencies required for declared connectors and libraries,
 you can use the following shade plugin definition:
@@ -229,7 +229,7 @@ you can use the following shade plugin definition:
 						</filters>
 						<transformers>
 							<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-								<mainClass>my.prorgams.main.clazz</mainClass>
+								<mainClass>my.programs.main.clazz</mainClass>
 							</transformer>
 						</transformers>
 					</configuration>
