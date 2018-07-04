@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.mock;
 
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 
 import java.util.Collection;
 import java.util.function.Supplier;
 
+/** In memory mock internal merging state base class. */
 abstract class MockInternalMergingState<K, N, IN, ACC, OUT>
 	extends MockInternalKvState<K, N, ACC> implements InternalMergingState<K, N, IN, ACC, OUT> {
 

@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import java.util.HashSet;
 import java.util.List;
@@ -30,15 +31,6 @@ import java.util.Set;
 public class TtlAggregatingStateTest
 	extends TtlMergingStateBase.TtlIntegerMergingStateBase<TtlAggregatingState<?, String, Integer, Long, String>, Integer, String> {
 	private static final long DEFAULT_ACCUMULATOR = 3L;
-
-	@Override
-	TtlAggregatingState<?, String, Integer, Long, String> createState() {
-		TtlAggregateFunction<Integer, Long, String> ttlAggregateFunction =
-			new TtlAggregateFunction<>(AGGREGATE, ttlConfig, timeProvider);
-		return new TtlAggregatingState<>(
-			new MockInternalTtlAggregatingState<>(ttlAggregateFunction),
-			ttlConfig, timeProvider, null, ttlAggregateFunction);
-	}
 
 	@Override
 	void initTestValues() {
@@ -56,6 +48,13 @@ public class TtlAggregatingStateTest
 	}
 
 	@Override
+	TtlAggregatingState<?, String, Integer, Long, String> createState() {
+		AggregatingStateDescriptor<Integer, Long, String> aggregatingStateDes =
+			new AggregatingStateDescriptor<>("TtlTestAggregatingState", AGGREGATE, LongSerializer.INSTANCE);
+		return (TtlAggregatingState<?, String, Integer, Long, String>) wrapMockState(aggregatingStateDes);
+	}
+
+	@Override
 	String getMergeResult(
 		List<Tuple2<String, Integer>> unexpiredUpdatesToMerge,
 		List<Tuple2<String, Integer>> finalUpdatesToMerge) {
@@ -64,30 +63,6 @@ public class TtlAggregatingStateTest
 		finalUpdatesToMerge.forEach(t -> namespaces.add(t.f0));
 		return Integer.toString(getIntegerMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge) +
 			namespaces.size() * (int) DEFAULT_ACCUMULATOR);
-	}
-
-	private static class MockInternalTtlAggregatingState<K, N, IN, ACC, OUT>
-		extends MockInternalMergingState<K, N, IN, ACC, OUT> implements InternalAggregatingState<K, N, IN, ACC, OUT> {
-		private final AggregateFunction<IN, ACC, OUT> aggregateFunction;
-
-		private MockInternalTtlAggregatingState(AggregateFunction<IN, ACC, OUT> aggregateFunction) {
-			this.aggregateFunction = aggregateFunction;
-		}
-
-		@Override
-		public OUT get() {
-			return aggregateFunction.getResult(getInternal());
-		}
-
-		@Override
-		public void add(IN value) {
-			updateInternal(aggregateFunction.add(value,  getInternal()));
-		}
-
-		@Override
-		ACC mergeState(ACC acc, ACC nAcc) {
-			return aggregateFunction.merge(acc, nAcc);
-		}
 	}
 
 	private static final AggregateFunction<Integer, Long, String> AGGREGATE =

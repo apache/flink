@@ -19,17 +19,12 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.FoldFunction;
-import org.apache.flink.runtime.state.internal.InternalFoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 
 /** Test suite for {@link TtlFoldingState}. */
+@SuppressWarnings("deprecation")
 public class TtlFoldingStateTest extends TtlStateTestBase<TtlFoldingState<?, String, Long, String>, Long, String> {
-	@Override
-	TtlFoldingState<?, String, Long, String> createState() {
-		FoldFunction<Long, TtlValue<String>> ttlFoldFunction = new TtlFoldFunction<>(FOLD, ttlConfig, timeProvider, "1");
-		return new TtlFoldingState<>(
-			new MockInternalFoldingState<>(ttlFoldFunction), ttlConfig, timeProvider, null);
-	}
-
 	@Override
 	void initTestValues() {
 		updater = v -> ttlState.add(v);
@@ -45,23 +40,11 @@ public class TtlFoldingStateTest extends TtlStateTestBase<TtlFoldingState<?, Str
 		getUpdateExpired = "7";
 	}
 
-	private static class MockInternalFoldingState<K, N, T, ACC>
-		extends MockInternalKvState<K, N, ACC> implements InternalFoldingState<K, N, T, ACC> {
-		private final FoldFunction<T, ACC> foldFunction;
-
-		private MockInternalFoldingState(FoldFunction<T, ACC> foldFunction) {
-			this.foldFunction = foldFunction;
-		}
-
-		@Override
-		public ACC get() {
-			return getInternal();
-		}
-
-		@Override
-		public void add(T value) throws Exception {
-			updateInternal(foldFunction.fold(get(), value));
-		}
+	@Override
+	TtlFoldingState<?, String, Long, String> createState() {
+		FoldingStateDescriptor<Long, String> foldingStateDesc =
+			new FoldingStateDescriptor<>("TtlTestFoldingState", "1",  FOLD, StringSerializer.INSTANCE);
+		return (TtlFoldingState<?, String, Long, String>) wrapMockState(foldingStateDesc);
 	}
 
 	private static final FoldFunction<Long, String> FOLD = (acc, val) -> {
