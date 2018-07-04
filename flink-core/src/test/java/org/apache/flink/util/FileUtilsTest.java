@@ -49,7 +49,7 @@ import static org.junit.Assume.assumeTrue;
 /**
  * Tests for the {@link FileUtils}.
  */
-public class FileUtilsTest {
+public class FileUtilsTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
