@@ -583,6 +583,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				taskRestore,
 				attemptNumber);
 
+			// null taskRestore to let it be GC'ed
+			taskRestore = null;
+
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
 			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);
