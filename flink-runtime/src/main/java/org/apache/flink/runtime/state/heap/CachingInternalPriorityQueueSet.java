@@ -27,6 +27,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * This class is an implementation of a {@link InternalPriorityQueue} with set semantics that internally consists of
@@ -74,6 +76,15 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		checkRefillCacheFromStore();
 
 		return orderedCache.peekFirst();
+	}
+
+	@Override
+	public void bulkPoll(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
+		E element;
+		while ((element = peek()) != null && canConsume.test(element)) {
+			poll();
+			consumer.accept(element);
+		}
 	}
 
 	@Nullable
@@ -158,7 +169,11 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 	@Nonnull
 	@Override
 	public CloseableIterator<E> iterator() {
-		return orderedStore.orderedIterator();
+		if (storeOnlyElements) {
+			return orderedStore.orderedIterator();
+		} else {
+			return orderedCache.orderedIterator();
+		}
 	}
 
 	@Override
@@ -184,7 +199,7 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 				}
 				storeOnlyElements = iterator.hasNext();
 			} catch (Exception e) {
-				throw new FlinkRuntimeException("Exception while closing RocksDB iterator.", e);
+				throw new FlinkRuntimeException("Exception while refilling store from iterator.", e);
 			}
 		}
 	}
@@ -249,6 +264,13 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		 */
 		@Nullable
 		E peekLast();
+
+		/**
+		 * Returns an iterator over the store that returns element in order. The iterator must be closed by the client
+		 * after usage.
+		 */
+		@Nonnull
+		CloseableIterator<E> orderedIterator();
 	}
 
 	/**

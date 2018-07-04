@@ -89,7 +89,7 @@ public class HeapPriorityQueueTest extends InternalPriorityQueueTestBase {
 
 	@Override
 	protected HeapPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
-		return new HeapPriorityQueue<>(TEST_ELEMENT_COMPARATOR, initialCapacity);
+		return new HeapPriorityQueue<>(TEST_ELEMENT_PRIORITY_COMPARATOR, initialCapacity);
 	}
 
 	@Override

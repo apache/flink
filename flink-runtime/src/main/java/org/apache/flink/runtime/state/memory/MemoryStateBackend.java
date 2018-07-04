@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.util.TernaryBoolean;
 
 import javax.annotation.Nullable;
@@ -309,7 +310,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 			TaskKvStateRegistry kvStateRegistry) {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
-
+		HeapPriorityQueueSetFactory priorityQueueSetFactory =
+			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
@@ -318,7 +320,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 				keyGroupRange,
 				isUsingAsynchronousSnapshots(),
 				env.getExecutionConfig(),
-				taskStateManager.createLocalRecoveryConfig());
+				taskStateManager.createLocalRecoveryConfig(),
+				priorityQueueSetFactory);
 	}
 
 	// ------------------------------------------------------------------------

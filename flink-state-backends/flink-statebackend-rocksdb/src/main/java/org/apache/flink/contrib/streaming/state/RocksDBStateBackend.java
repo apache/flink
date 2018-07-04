@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RockDBBackendOptions.PRIORITY_QUEUE_STATE_TYPE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -75,6 +76,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link #setOptions(OptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
+
+	/**
+	 * The options to chose for the type of priority queue state.
+	 */
+	public enum PriorityQueueStateType {
+		HEAP,
+		ROCKS
+	}
 
 	private static final long serialVersionUID = 1L;
 
@@ -108,6 +117,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
+
+	/** This determines the type of priority queue state. */
+	private final PriorityQueueStateType priorityQueueStateType;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -221,6 +233,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		// for now, we use still the heap-based implementation as default
+		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 	}
 
 	/**
@@ -255,6 +269,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// configure incremental checkpoints
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
+
+		final String priorityQueueTypeString = config.getString(PRIORITY_QUEUE_STATE_TYPE.key(), "");
+
+		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
+			PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase()) : original.priorityQueueStateType;
 
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
@@ -422,7 +441,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				keyGroupRange,
 				env.getExecutionConfig(),
 				isIncrementalCheckpointsEnabled(),
-				localRecoveryConfig);
+				localRecoveryConfig,
+				priorityQueueStateType);
 	}
 
 	@Override

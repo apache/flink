@@ -22,7 +22,10 @@ import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnegative;
@@ -30,7 +33,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * This implementation of {@link InternalPriorityQueue} is internally partitioned into sub-queues per key-group and
@@ -41,7 +47,7 @@ import java.util.Comparator;
  * @param <PQ> type type of sub-queue used for each key-group partition.
  */
 public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
-	implements InternalPriorityQueue<T> {
+	implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
 
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
@@ -66,7 +72,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	@SuppressWarnings("unchecked")
 	public KeyGroupPartitionedPriorityQueue(
 		@Nonnull KeyExtractorFunction<T> keyExtractor,
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnull PartitionQueueSetFactory<T, PQ> orderedCacheFactory,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int totalKeyGroups) {
@@ -76,13 +82,22 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		this.firstKeyGroup = keyGroupRange.getStartKeyGroup();
 		this.keyGroupedHeaps = (PQ[]) new InternalPriorityQueue[keyGroupRange.getNumberOfKeyGroups()];
 		this.heapOfkeyGroupedHeaps = new HeapPriorityQueue<>(
-			new InternalPriorityQueueComparator<>(elementComparator),
+			new InternalPriorityQueueComparator<>(elementPriorityComparator),
 			keyGroupRange.getNumberOfKeyGroups());
 		for (int i = 0; i < keyGroupedHeaps.length; i++) {
 			final PQ keyGroupSubHeap =
-				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementComparator);
+				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementPriorityComparator);
 			keyGroupedHeaps[i] = keyGroupSubHeap;
 			heapOfkeyGroupedHeaps.add(keyGroupSubHeap);
+		}
+	}
+
+	@Override
+	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
+		T element;
+		while ((element = peek()) != null && canConsume.test(element)) {
+			poll();
+			consumer.accept(element);
 		}
 	}
 
@@ -173,7 +188,26 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	private int computeKeyGroupIndex(T element) {
 		final Object extractKeyFromElement = keyExtractor.extractKeyFromElement(element);
 		final int keyGroupId = KeyGroupRangeAssignment.assignToKeyGroup(extractKeyFromElement, totalKeyGroups);
+		return globalKeyGroupToLocalIndex(keyGroupId);
+	}
+
+	private int globalKeyGroupToLocalIndex(int keyGroupId) {
 		return keyGroupId - firstKeyGroup;
+	}
+
+	@Nonnull
+	@Override
+	public Set<T> getSubsetForKeyGroup(int keyGroupId) {
+		HashSet<T> result = new HashSet<>();
+		PQ partitionQueue = keyGroupedHeaps[globalKeyGroupToLocalIndex(keyGroupId)];
+		try (CloseableIterator<T> iterator = partitionQueue.iterator()) {
+			while (iterator.hasNext()) {
+				result.add(iterator.next());
+			}
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Exception while iterating key group.", e);
+		}
+		return result;
 	}
 
 	/**
@@ -236,24 +270,24 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 	 * @param <Q> type of queue.
 	 */
 	private static final class InternalPriorityQueueComparator<T, Q extends InternalPriorityQueue<T>>
-		implements Comparator<Q> {
+		implements PriorityComparator<Q> {
 
 		/** Comparator for the queue elements, so we can compare their heads. */
 		@Nonnull
-		private final Comparator<T> elementComparator;
+		private final PriorityComparator<T> elementPriorityComparator;
 
-		InternalPriorityQueueComparator(@Nonnull Comparator<T> elementComparator) {
-			this.elementComparator = elementComparator;
+		InternalPriorityQueueComparator(@Nonnull PriorityComparator<T> elementPriorityComparator) {
+			this.elementPriorityComparator = elementPriorityComparator;
 		}
 
 		@Override
-		public int compare(Q o1, Q o2) {
+		public int comparePriority(Q o1, Q o2) {
 			final T left = o1.peek();
 			final T right = o2.peek();
 			if (left == null) {
 				return (right == null ? 0 : 1);
 			} else {
-				return (right == null ? -1 : elementComparator.compare(left, right));
+				return (right == null ? -1 : elementPriorityComparator.comparePriority(left, right));
 			}
 		}
 	}
@@ -271,10 +305,13 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		 *
 		 * @param keyGroupId the key-group of the elements managed by the produced queue.
 		 * @param numKeyGroups the total number of key-groups in the job.
-		 * @param elementComparator the comparator that determines the order of the managed elements.
+		 * @param elementPriorityComparator the comparator that determines the order of managed elements by priority.
 		 * @return a new queue for the given key-group.
 		 */
 		@Nonnull
-		PQS create(@Nonnegative int keyGroupId, @Nonnegative int numKeyGroups, @Nonnull Comparator<T> elementComparator);
+		PQS create(
+			@Nonnegative int keyGroupId,
+			@Nonnegative int numKeyGroups,
+			@Nonnull PriorityComparator<T> elementPriorityComparator);
 	}
 }

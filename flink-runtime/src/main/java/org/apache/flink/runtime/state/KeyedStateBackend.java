@@ -31,7 +31,8 @@ import java.util.stream.Stream;
  *
  * @param <K> The key by which state is keyed.
  */
-public interface KeyedStateBackend<K> extends InternalKeyContext<K>, KeyedStateFactory, Disposable {
+public interface KeyedStateBackend<K>
+	extends InternalKeyContext<K>, KeyedStateFactory, PriorityQueueSetFactory, Disposable {
 
 	/**
 	 * Sets the current key that is used for partitioned state.
