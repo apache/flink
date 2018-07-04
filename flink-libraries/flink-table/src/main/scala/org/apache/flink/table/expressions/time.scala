@@ -20,9 +20,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
