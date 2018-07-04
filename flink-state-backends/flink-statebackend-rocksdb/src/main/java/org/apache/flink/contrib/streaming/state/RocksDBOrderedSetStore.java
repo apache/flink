@@ -28,7 +28,6 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
@@ -61,10 +60,6 @@ public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSe
 	@Nonnull
 	private final ColumnFamilyHandle columnFamilyHandle;
 
-	/** Read options for RocksDB. */
-	@Nonnull
-	private final ReadOptions readOptions;
-
 	/**
 	 * Serializer for the contained elements. The lexicographical order of the bytes of serialized objects must be
 	 * aligned with their logical order.
@@ -93,14 +88,12 @@ public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSe
 		@Nonnegative int keyGroupPrefixBytes,
 		@Nonnull RocksDB db,
 		@Nonnull ColumnFamilyHandle columnFamilyHandle,
-		@Nonnull ReadOptions readOptions,
 		@Nonnull TypeSerializer<T> byteOrderProducingSerializer,
 		@Nonnull ByteArrayOutputStreamWithPos outputStream,
 		@Nonnull DataOutputViewStreamWrapper outputView,
 		@Nonnull RocksDBWriteBatchWrapper batchWrapper) {
 		this.db = db;
 		this.columnFamilyHandle = columnFamilyHandle;
-		this.readOptions = readOptions;
 		this.byteOrderProducingSerializer = byteOrderProducingSerializer;
 		this.outputStream = outputStream;
 		this.outputView = outputView;
@@ -169,7 +162,7 @@ public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSe
 
 		return new RocksToJavaIteratorAdapter(
 			new RocksIteratorWrapper(
-				db.newIterator(columnFamilyHandle, readOptions)));
+				db.newIterator(columnFamilyHandle)));
 	}
 
 	/**

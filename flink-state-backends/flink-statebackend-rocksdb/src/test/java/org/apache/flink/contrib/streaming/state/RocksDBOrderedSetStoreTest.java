@@ -124,7 +124,6 @@ public class RocksDBOrderedSetStoreTest {
 			keyGroupPrefixBytes,
 			rocksDBResource.getRocksDB(),
 			rocksDBResource.getDefaultColumnFamily(),
-			rocksDBResource.getReadOptions(),
 			byteOrderSerializer,
 			outputStreamWithPos,
 			outputView,
