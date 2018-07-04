@@ -184,14 +184,16 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fieldSerializers);
+		return 31 * Boolean.hashCode(precomputed.immutableTargetType) + Arrays.hashCode(fieldSerializers);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof CompositeSerializer) {
 			CompositeSerializer<?> other = (CompositeSerializer<?>) obj;
-			return other.canEqual(this) && Arrays.equals(fieldSerializers, other.fieldSerializers);
+			return other.canEqual(this) &&
+				Arrays.equals(fieldSerializers, other.fieldSerializers) &&
+				precomputed.immutableTargetType == other.precomputed.immutableTargetType;
 		} else {
 			return false;
 		}
