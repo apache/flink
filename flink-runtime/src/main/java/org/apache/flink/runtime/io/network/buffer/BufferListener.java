@@ -27,6 +27,11 @@ public interface BufferListener {
 	/**
 	 * Notification callback if a buffer is recycled and becomes available in buffer pool.
 	 *
+	 * <p><strong>BEWARE:</strong> This happens under synchronization in {@link LocalBufferPool}.
+	 * Therefore, if the implementation requires another lock (for whatever reason), make sure that
+	 * no other use of this lock recycles buffers (to the same buffer pool) or you may deadlock
+	 * because of the locks being acquired in different order (for an example, see FLINK-9676).
+	 *
 	 * @param buffer buffer that becomes available in buffer pool.
 	 * @return true if the listener wants to be notified next time.
 	 */

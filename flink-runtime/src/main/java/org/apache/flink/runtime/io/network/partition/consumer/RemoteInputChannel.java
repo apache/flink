@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -88,7 +89,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/** The initial number of exclusive buffers assigned to this channel. */
 	private int initialCredit;
 
-	/** The available buffer queue wraps both exclusive and requested floating buffers. */
+	/**
+	 * The available buffer queue wraps both exclusive and requested floating buffers.
+	 *
+	 * <p><strong>BEWARE:</strong> Since this is used as a synchronization lock in
+	 * {@link #notifyBufferAvailable(Buffer)}, we must make sure to never recycle buffers while
+	 * under this lock in other methods!
+	 **/
 	private final AvailableBufferQueue bufferQueue = new AvailableBufferQueue();
 
 	/** The number of available buffers that have not been announced to the producer yet. */
@@ -143,11 +150,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();
 
+		ArrayList<Buffer> floatingBuffersToRecycle = new ArrayList<>(segments.size());
 		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
-				bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
+				Optional<Buffer> buffer =
+					bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers).f1;
+				buffer.ifPresent(floatingBuffersToRecycle::add);
 			}
 		}
+		// must recycle outside synchronized(bufferQueue)!
+		floatingBuffersToRecycle.forEach(Buffer::recycleBuffer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -244,6 +256,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			synchronized (receivedBuffers) {
 				Buffer buffer;
 				while ((buffer = receivedBuffers.poll()) != null) {
+					//noinspection ObjectEquality
 					if (buffer.getRecycler() == this) {
 						exclusiveRecyclingSegments.add(buffer.getMemorySegment());
 					} else {
@@ -251,9 +264,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 					}
 				}
 			}
+			final List<Buffer> floatingBuffersToRecycle;
 			synchronized (bufferQueue) {
-				bufferQueue.releaseAll(exclusiveRecyclingSegments);
+				floatingBuffersToRecycle = bufferQueue.clearAll(exclusiveRecyclingSegments);
 			}
+			// must recycle outside synchronized(bufferQueue)!
+			floatingBuffersToRecycle.forEach(Buffer::recycleBuffer);
 
 			if (exclusiveRecyclingSegments.size() > 0) {
 				inputGate.returnExclusiveSegments(exclusiveRecyclingSegments);
@@ -302,24 +318,32 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 */
 	@Override
 	public void recycle(MemorySegment segment) {
-		int numAddedBuffers;
-
+		Tuple2<Integer, Optional<Buffer>> numAddedBuffers = null;
+		boolean earlyExit = false;
 		synchronized (bufferQueue) {
 			// Important: check the isReleased state inside synchronized block, so there is no
 			// race condition when recycle and releaseAllResources running in parallel.
 			if (isReleased.get()) {
-				try {
-					inputGate.returnExclusiveSegments(Collections.singletonList(segment));
-					return;
-				} catch (Throwable t) {
-					ExceptionUtils.rethrow(t);
-				}
+				earlyExit = true;
+			} else {
+				numAddedBuffers = bufferQueue
+					.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 			}
-			numAddedBuffers = bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 		}
+		if (earlyExit) {
+			// just in case, also put this outside the synchronization
+			try {
+				inputGate.returnExclusiveSegments(Collections.singletonList(segment));
+			} catch (Throwable t) {
+				ExceptionUtils.rethrow(t);
+			}
+		} else {
+			// must recycle outside synchronized(bufferQueue)!
+			numAddedBuffers.f1.ifPresent(Buffer::recycleBuffer);
 
-		if (numAddedBuffers > 0 && unannouncedCredit.getAndAdd(numAddedBuffers) == 0) {
-			notifyCreditAvailable();
+			if (numAddedBuffers.f0 > 0 && unannouncedCredit.getAndAdd(numAddedBuffers.f0) == 0) {
+				notifyCreditAvailable();
+			}
 		}
 	}
 
@@ -360,6 +384,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			return false;
 		}
 
+		boolean earlyExit = false;
 		boolean needMoreBuffers = false;
 		synchronized (bufferQueue) {
 			checkState(isWaitingForFloatingBuffers, "This channel should be waiting for floating buffers.");
@@ -368,17 +393,21 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
 			if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
 				isWaitingForFloatingBuffers = false;
-				buffer.recycleBuffer();
-				return false;
-			}
-
-			bufferQueue.addFloatingBuffer(buffer);
-
-			if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
-				isWaitingForFloatingBuffers = false;
+				earlyExit = true;
 			} else {
-				needMoreBuffers =  true;
+				bufferQueue.addFloatingBuffer(buffer);
+
+				if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
+					isWaitingForFloatingBuffers = false;
+				} else {
+					needMoreBuffers = true;
+				}
 			}
+		}
+		if (earlyExit) {
+			// must be outside synchronized(bufferQueue)!
+			buffer.recycleBuffer();
+			return false;
 		}
 
 		if (unannouncedCredit.getAndAdd(1) == 0) {
@@ -479,6 +508,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 			numRequiredBuffers = backlog + initialCredit;
 			while (bufferQueue.getAvailableBufferSize() < numRequiredBuffers && !isWaitingForFloatingBuffers) {
+				// TODO: this will take a lock in the LocalBufferPool as well and needs to be done
+				// outside the synchronized block (which is a bit difficult trying to acquire the
+				// lock only once!
 				Buffer buffer = inputGate.getBufferPool().requestBuffer();
 				if (buffer != null) {
 					bufferQueue.addFloatingBuffer(buffer);
@@ -594,22 +626,22 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 
 		/**
-		 * Adds an exclusive buffer (back) into the queue and recycles one floating buffer if the
+		 * Adds an exclusive buffer (back) into the queue and removes one floating buffer if the
 		 * number of available buffers in queue is more than the required amount.
 		 *
 		 * @param buffer The exclusive buffer to add
 		 * @param numRequiredBuffers The number of required buffers
 		 *
-		 * @return How many buffers were added to the queue
+		 * @return How many buffers were added to the queue (<tt>0</tt> or <tt>1</tt>) and the
+		 *         floating buffer which was removed and should be released (outside!)
 		 */
-		int addExclusiveBuffer(Buffer buffer, int numRequiredBuffers) {
+		Tuple2<Integer, Optional<Buffer>> addExclusiveBuffer(Buffer buffer, int numRequiredBuffers) {
 			exclusiveBuffers.add(buffer);
 			if (getAvailableBufferSize() > numRequiredBuffers) {
 				Buffer floatingBuffer = floatingBuffers.poll();
-				floatingBuffer.recycleBuffer();
-				return 0;
+				return Tuple2.of(0, Optional.ofNullable(floatingBuffer));
 			} else {
-				return 1;
+				return Tuple2.of(1, Optional.empty());
 			}
 		}
 
@@ -634,19 +666,19 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 
 		/**
-		 * The floating buffer is recycled to local buffer pool directly, and the
-		 * exclusive buffer will be gathered to return to global buffer pool later.
+		 * Cleans this buffer queue; adds all exclusive buffers' segments to the provided list and
+		 * returns the floating buffers to be recycled (outside!).
 		 *
 		 * @param exclusiveSegments The list that we will add exclusive segments into.
 		 */
-		void releaseAll(List<MemorySegment> exclusiveSegments) {
+		List<Buffer> clearAll(List<MemorySegment> exclusiveSegments) {
 			Buffer buffer;
-			while ((buffer = floatingBuffers.poll()) != null) {
-				buffer.recycleBuffer();
-			}
 			while ((buffer = exclusiveBuffers.poll()) != null) {
 				exclusiveSegments.add(buffer.getMemorySegment());
 			}
+			List<Buffer> result = new ArrayList<>(floatingBuffers);
+			floatingBuffers.clear();
+			return result;
 		}
 
 		int getAvailableBufferSize() {
