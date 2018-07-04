@@ -44,7 +44,6 @@ SLEEP_TIME=20
 LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 MODULES_CORE="\
-
 flink-test-utils-parent/flink-test-utils,\
 flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
