@@ -58,7 +58,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 	@SuppressWarnings("unchecked")
 	protected CompositeSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
 		this.fieldSerializers = (TypeSerializer<Object>[]) fieldSerializers;
-		this.precomputed = new PrecomputedParameters(precomputed, this.fieldSerializers);
+		this.precomputed = precomputed;
 	}
 
 	/** Create new instance from its fields.  */
@@ -184,7 +184,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public int hashCode() {
-		return precomputed.hashCode;
+		return Arrays.hashCode(fieldSerializers);
 	}
 
 	@Override
@@ -257,6 +257,8 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 
 	/** This class holds composite serializer parameters which can be precomputed in advanced for better performance. */
 	protected static class PrecomputedParameters implements Serializable {
+		private static final long serialVersionUID = 1L;
+
 		/** Whether target type is immutable. */
 		final boolean immutableTargetType;
 
@@ -269,8 +271,6 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 		/** Whether any field serializer is stateful. */
 		final boolean stateful;
 
-		final int hashCode;
-
 		PrecomputedParameters(
 			boolean immutableTargetType,
 			TypeSerializer<Object>[] fieldSerializers) {
@@ -278,7 +278,6 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 			int totalLength = 0;
 			boolean fieldsImmutable = true;
 			boolean stateful = false;
-			int hashCode = 1;
 			for (TypeSerializer<Object> fieldSerializer : fieldSerializers) {
 				Preconditions.checkNotNull(fieldSerializer);
 				if (fieldSerializer != fieldSerializer.duplicate()) {
@@ -291,23 +290,12 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
 					totalLength = -1;
 				}
 				totalLength = totalLength >= 0 ? totalLength + fieldSerializer.getLength() : totalLength;
-				hashCode = 31 * hashCode + (fieldSerializer.hashCode());
 			}
 
 			this.immutableTargetType = immutableTargetType;
 			this.immutable = immutableTargetType && fieldsImmutable;
 			this.length = totalLength;
 			this.stateful = stateful;
-			this.hashCode = hashCode;
-		}
-
-		/** This constructor recomputes only hash code. */
-		PrecomputedParameters(PrecomputedParameters other, TypeSerializer<Object>[] fieldSerializers) {
-			this.immutableTargetType = other.immutableTargetType;
-			this.immutable = other.immutable;
-			this.length = other.length;
-			this.stateful = other.stateful;
-			this.hashCode = Arrays.hashCode(fieldSerializers);
 		}
 	}
 }
