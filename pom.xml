@@ -1129,6 +1129,8 @@ under the License.
 						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
+						<!-- Generated code via Avro -->
+						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
