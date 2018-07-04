@@ -60,6 +60,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val LOG: Keyword = Keyword("log")
   lazy val YEARS: Keyword = Keyword("years")
   lazy val YEAR: Keyword = Keyword("year")
+  lazy val QUARTERS: Keyword = Keyword("quarters")
+  lazy val QUARTER: Keyword = Keyword("quarter")
   lazy val MONTHS: Keyword = Keyword("months")
   lazy val MONTH: Keyword = Keyword("month")
   lazy val WEEKS: Keyword = Keyword("weeks")
@@ -275,10 +277,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
   lazy val suffixTimeInterval : PackratParser[Expression] =
-    composite ~ "." ~ (YEARS | MONTHS | WEEKS | DAYS |  HOURS | MINUTES | SECONDS | MILLIS |
-      YEAR | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
+    composite ~ "." ~ (YEARS | QUARTERS | MONTHS | WEEKS | DAYS |  HOURS | MINUTES |
+      SECONDS | MILLIS | YEAR | QUARTER | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
 
     case expr ~ _ ~ (YEARS.key | YEAR.key) => toMonthInterval(expr, 12)
+
+    case expr ~ _ ~ (QUARTERS.key | QUARTER.key) => toMonthInterval(expr, 3)
 
     case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
 

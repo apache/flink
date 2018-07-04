@@ -564,13 +564,6 @@ trait ImplicitExpressionOperations {
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
 
   /**
-    * Returns the quarter of a year from a SQL date.
-    *
-    * e.g. "1994-09-27".toDate.quarter() leads to 3
-    */
-  def quarter() = Quarter(expr)
-
-  /**
     * Rounds down a time point to the given unit.
     *
     * e.g. "12:44:31".toDate.floor(MINUTE) leads to 12:44:00
@@ -601,6 +594,20 @@ trait ImplicitExpressionOperations {
   def years = year
 
   /**
+  * Creates an interval of the given number of quarters.
+  *
+  * @return interval of months
+  */
+  def quarter = toMonthInterval(expr, 3)
+
+  /**
+  * Creates an interval of the given number of quarters.
+  *
+  * @return interval of months
+  */
+  def quarters = quarter
+
+  /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
@@ -622,7 +629,7 @@ trait ImplicitExpressionOperations {
   def week = toMilliInterval(expr, MILLIS_PER_WEEK)
 
   /**
-    * Creates an interval of the given number of days.
+    * Creates an interval of the given number of weeks.
     *
     * @return interval of milliseconds
     */

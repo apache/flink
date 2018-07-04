@@ -1348,11 +1348,23 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "EXTRACT(YEAR FROM f16)",
       "1996")
 
+     testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
     testAllApis(
       'f16.extract(TimeIntervalUnit.MONTH),
       "extract(f16, MONTH)",
       "EXTRACT(MONTH FROM f16)",
       "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.WEEK),
+      "extract(f16, WEEK)",
+      "EXTRACT(WEEK FROM f16)",
+      "45")
 
     testAllApis(
       'f16.extract(TimeIntervalUnit.DAY),
@@ -1367,10 +1379,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996")
 
     testAllApis(
+      'f18.extract(TimeIntervalUnit.QUARTER),
+      "f18.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testAllApis(
       'f18.extract(TimeIntervalUnit.MONTH),
       "f18.extract(MONTH)",
       "EXTRACT(MONTH FROM f18)",
       "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.WEEK),
+      "f18.extract(WEEK)",
+      "EXTRACT(WEEK FROM f18)",
+      "45")
 
     testAllApis(
       'f18.extract(TimeIntervalUnit.DAY),
@@ -1442,6 +1466,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f20.extract(TimeIntervalUnit.MONTH),
       "f20.extract(MONTH)",
       "EXTRACT(MONTH FROM f20)",
+      "1")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.QUARTER),
+      "f20.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f20)",
       "1")
 
     testAllApis(
@@ -1796,20 +1826,20 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testQuarter(): Unit = {
     testAllApis(
-      "1997-01-27".toDate.quarter(),
-      "'1997-01-27'.toDate.quarter()",
+      "1997-01-27".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-01-27'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-01-27')",
       "1")
 
     testAllApis(
-      "1997-04-27".toDate.quarter(),
-      "'1997-04-27'.toDate.quarter()",
+      "1997-04-27".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-04-27'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-04-27')",
       "2")
 
     testAllApis(
-      "1997-12-31".toDate.quarter(),
-      "'1997-12-31'.toDate.quarter()",
+      "1997-12-31".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-12-31'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-12-31')",
       "4")
   }
@@ -1937,8 +1967,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         for (i <- 0 to 4) {
           val timeInterval = intervalCount(interval, data(i)._1)
           testAllApis(
-            timestampAdd(timeInterval._1, data(i)._3),
-            s"timestampAdd(${timeInterval._2}, ${data(i)._4})",
+              data(i)._3 + timeInterval._1,
+              s"${timeInterval._2} + ${data(i)._4}",
             s"TIMESTAMPADD($interval, ${data(i)._1}, ${data(i)._2})",
             result(i))
         }
@@ -1949,21 +1979,17 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
         "null")
 
-    testAllApis(
-        timestampAdd(-200.hour, Null(Types.SQL_TIMESTAMP)),
-        "timestampAdd(-200.hour, Null(SQL_TIMESTAMP))",
+    testSqlApi(
         "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
         "null")
 
     testAllApis(
-        timestampAdd(1.day, "2016-06-15".toDate),
-        "timestampAdd(1.day, '2016-06-15'.toDate)",
+        "2016-06-15".toDate + 1.day,
+        "'2016-06-15'.toDate + 1.day",
         "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
         "2016-06-16")
 
-    testAllApis(
-        timestampAdd(3.month, Null(Types.SQL_TIMESTAMP)),
-        "timestampAdd(3.month, Null(SQL_TIMESTAMP))",
+    testSqlApi(
         "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
         "null")
   }
