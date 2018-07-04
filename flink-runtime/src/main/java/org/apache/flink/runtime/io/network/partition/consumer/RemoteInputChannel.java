@@ -360,32 +360,44 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			return false;
 		}
 
-		boolean needMoreBuffers = false;
-		synchronized (bufferQueue) {
-			checkState(isWaitingForFloatingBuffers, "This channel should be waiting for floating buffers.");
+		boolean recycleBuffer = true;
+		try {
+			boolean needMoreBuffers = false;
+			synchronized (bufferQueue) {
+				checkState(isWaitingForFloatingBuffers,
+					"This channel should be waiting for floating buffers.");
 
-			// Important: double check the isReleased state inside synchronized block, so there is no
-			// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
-			if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
-				isWaitingForFloatingBuffers = false;
+				// Important: double check the isReleased state inside synchronized block, so there is no
+				// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
+				if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
+					isWaitingForFloatingBuffers = false;
+					recycleBuffer = false; // just in case
+					buffer.recycleBuffer();
+					return false;
+				}
+
+				recycleBuffer = false;
+				bufferQueue.addFloatingBuffer(buffer);
+
+				if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
+					isWaitingForFloatingBuffers = false;
+				} else {
+					needMoreBuffers = true;
+				}
+
+				if (unannouncedCredit.getAndAdd(1) == 0) {
+					notifyCreditAvailable();
+				}
+			}
+
+			return needMoreBuffers;
+		} catch (Throwable t) {
+			if (recycleBuffer) {
 				buffer.recycleBuffer();
-				return false;
 			}
-
-			bufferQueue.addFloatingBuffer(buffer);
-
-			if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
-				isWaitingForFloatingBuffers = false;
-			} else {
-				needMoreBuffers =  true;
-			}
+			setError(t);
+			return false;
 		}
-
-		if (unannouncedCredit.getAndAdd(1) == 0) {
-			notifyCreditAvailable();
-		}
-
-		return needMoreBuffers;
 	}
 
 	@Override
