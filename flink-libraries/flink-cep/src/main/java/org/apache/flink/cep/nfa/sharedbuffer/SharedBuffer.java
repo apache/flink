@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -43,7 +44,6 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -292,19 +292,25 @@ public class SharedBuffer<V> {
 	}
 
 	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match, Map<EventId, V> cache) {
-		return match.entrySet().stream().sequential().collect(Collectors.toMap(
-			Map.Entry::getKey,
-			e -> e.getValue().stream().sequential().map(id -> cache.computeIfAbsent(id, eventId -> {
+
+		Map<String, List<V>> materializedMatch = new LinkedHashMap<>(match.size());
+
+		for (Map.Entry<String, List<EventId>> pattern : match.entrySet()) {
+			List<V> events = new ArrayList<>(pattern.getValue().size());
+			for (EventId eventId : pattern.getValue()) {
+				V event = cache.computeIfAbsent(eventId, id -> {
 					try {
-						return eventsBuffer.get(eventId).getElement();
+						return eventsBuffer.get(id).getElement();
 					} catch (Exception ex) {
-						throw new RuntimeException(ex);
+						throw new WrappingRuntimeException(ex);
 					}
-				})
-			).collect(toList()),
-			(m1, m2) -> m1,
-			LinkedHashMap::new)
-		);
+				});
+				events.add(event);
+			}
+			materializedMatch.put(pattern.getKey(), events);
+		}
+
+		return materializedMatch;
 	}
 
 	/**

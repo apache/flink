@@ -154,8 +154,8 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		copyStates(source, target);
-		copyStates(source, target);
+		copyStates(source, target); // copy partial matches
+		copyStates(source, target); // copy completed matches
 	}
 
 	private void copyStates(DataInputView source, DataOutputView target) throws IOException {
