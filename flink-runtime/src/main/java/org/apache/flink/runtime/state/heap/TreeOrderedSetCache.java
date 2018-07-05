@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
@@ -124,5 +125,11 @@ public class TreeOrderedSetCache<E> implements CachingInternalPriorityQueueSet.O
 	@Override
 	public E peekLast() {
 		return !avlTree.isEmpty() ? avlTree.last() : null;
+	}
+
+	@Nonnull
+	@Override
+	public CloseableIterator<E> orderedIterator() {
+		return CloseableIterator.adapterForIterator(avlTree.iterator());
 	}
 }

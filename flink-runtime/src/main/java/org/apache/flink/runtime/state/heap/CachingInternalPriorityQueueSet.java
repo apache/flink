@@ -158,7 +158,11 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 	@Nonnull
 	@Override
 	public CloseableIterator<E> iterator() {
-		return orderedStore.orderedIterator();
+		if (storeOnlyElements) {
+			return orderedStore.orderedIterator();
+		} else {
+			return orderedCache.orderedIterator();
+		}
 	}
 
 	@Override
@@ -249,6 +253,13 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		 */
 		@Nullable
 		E peekLast();
+
+		/**
+		 * Returns an iterator over the store that returns element in order. The iterator must be closed by the client
+		 * after usage.
+		 */
+		@Nonnull
+		CloseableIterator<E> orderedIterator();
 	}
 
 	/**
