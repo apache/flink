@@ -2327,8 +2327,8 @@ VAR_SAMP(value)
     <tr>
       <td>
           {% highlight text %}
-          COLLECT(value)
-          {% endhighlight %}
+COLLECT(value)
+{% endhighlight %}
       </td>
       <td>
           <p>Returns a multiset of the <i>value</i>s. null input <i>value</i> will be ignored. Return an empty multiset if only null values are added. </p>
