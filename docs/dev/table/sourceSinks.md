@@ -460,7 +460,8 @@ val source: KafkaTableSource = Kafka010JsonTableSource.builder()
 Flink provides `TimestampExtractor` implementations for common use cases.
 The following `TimestampExtractor` implementations are currently available:
 
-* `ExistingField(fieldName)`: Extracts the value of a rowtime attribute from an existing `LONG` or `SQL_TIMESTAMP` field.
+* `ExistingField(fieldName)`: Extracts the value of a rowtime attribute from an existing `LONG` or `SQL_TIMESTAMP`, or ISO date formatted `STRING` field.
+  * One example of ISO date format would be '2018-05-28 12:34:56.000'.
 * `StreamRecordTimestamp()`: Extracts the value of a rowtime attribute from the timestamp of the `DataStream` `StreamRecord`. Note, this `TimestampExtractor` is not available for batch table sources.
 
 A custom `TimestampExtractor` can be defined by implementing the corresponding interface.
