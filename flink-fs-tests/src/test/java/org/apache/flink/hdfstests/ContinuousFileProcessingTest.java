@@ -19,6 +19,7 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -55,6 +56,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -581,6 +583,7 @@ public class ContinuousFileProcessingTest {
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		final FileVerifyingSourceContext context =
 			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
@@ -634,6 +637,7 @@ public class ContinuousFileProcessingTest {
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		final FileVerifyingSourceContext context =
 			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
@@ -676,6 +680,7 @@ public class ContinuousFileProcessingTest {
 		ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
 
@@ -710,6 +715,7 @@ public class ContinuousFileProcessingTest {
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch, monitoringFunction);
 
@@ -773,6 +779,7 @@ public class ContinuousFileProcessingTest {
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
 			new StreamSource<>(monitoringFunction);
@@ -824,6 +831,7 @@ public class ContinuousFileProcessingTest {
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunctionCopy =
 			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> srcCopy =
 			new StreamSource<>(monitoringFunctionCopy);
@@ -859,6 +867,7 @@ public class ContinuousFileProcessingTest {
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
 			new ContinuousFileMonitoringFunction<>(format,
 				FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 
 		final int totalNoOfFilesToBeRead = NO_OF_FILES + 1; // 1 for the bootstrap + NO_OF_FILES
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch,
