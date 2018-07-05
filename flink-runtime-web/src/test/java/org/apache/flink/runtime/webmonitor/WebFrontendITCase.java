@@ -313,7 +313,7 @@ public class WebFrontendITCase extends TestLogger {
 			assertEquals(HttpResponseStatus.OK, response.getStatus());
 			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
-				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
+				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"Cluster level default restart strategy\"," +
 				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
 		}
 

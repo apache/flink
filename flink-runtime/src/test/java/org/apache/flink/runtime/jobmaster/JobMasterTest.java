@@ -46,6 +46,9 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -110,6 +113,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link JobMaster}.
@@ -355,6 +360,42 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	/**
+	 * Tests that in a streaming use case where checkpointing is enabled, a
+	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
+	 * strategy has been specified.
+	 */
+	@Test
+	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
+		// create savepoint data
+		final long savepointId = 42L;
+		final File savepointFile = createSavepoint(savepointId);
+
+		// set savepoint settings
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
+			savepointFile.getAbsolutePath(),
+			true);
+		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
+		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
+			completedCheckpointStore,
+			new StandaloneCheckpointIDCounter());
+		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+		final JobMaster jobMaster = createJobMaster(
+			new Configuration(),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder()
+				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
+				.build());
+
+		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
+
+		assertNotNull(restartStrategy);
+		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 	}
 
 	/**

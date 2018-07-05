@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 
 import java.io.Serializable;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -106,6 +107,19 @@ public class RestartStrategies {
 		public String getDescription() {
 			return "Restart deactivated.";
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			return o instanceof NoRestartStrategyConfiguration;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash();
+		}
 	}
 
 	/**
@@ -188,6 +202,25 @@ public class RestartStrategies {
 			return "Failure rate restart with maximum of " + maxFailureRate + " failures within interval " + failureInterval.toString()
 					+ " and fixed delay " + delayBetweenAttemptsInterval.toString();
 		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			FailureRateRestartStrategyConfiguration that = (FailureRateRestartStrategyConfiguration) o;
+			return maxFailureRate == that.maxFailureRate &&
+				Objects.equals(failureInterval, that.failureInterval) &&
+				Objects.equals(delayBetweenAttemptsInterval, that.delayBetweenAttemptsInterval);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(maxFailureRate, failureInterval, delayBetweenAttemptsInterval);
+		}
 	}
 
 	/**
@@ -195,12 +228,25 @@ public class RestartStrategies {
 	 * strategy. Useful especially when one has a custom implementation of restart strategy set via
 	 * flink-conf.yaml.
 	 */
-	public static final class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
+	public static final class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration {
 		private static final long serialVersionUID = -4441787204284085544L;
 
 		@Override
 		public String getDescription() {
 			return "Cluster level default restart strategy";
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			return o instanceof FallbackRestartStrategyConfiguration;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash();
 		}
 	}
 }
