@@ -390,7 +390,7 @@ object HarnessTestBase {
   /**
     * Test class used to test min and max retention time.
     */
-  class StreamQueryConfigTest(min: Time, max: Time) extends StreamQueryConfig {
+  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
     override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
     override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
   }

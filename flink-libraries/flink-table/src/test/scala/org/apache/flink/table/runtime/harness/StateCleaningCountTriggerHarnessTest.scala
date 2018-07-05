@@ -22,14 +22,14 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.operators.windowing.TriggerTestHarness
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.runtime.harness.HarnessTestBase.StreamQueryConfigTest
+import org.apache.flink.table.runtime.harness.HarnessTestBase.TestStreamQueryConfig
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class StateCleaningCountTriggerHarnessTest {
   protected var queryConfig =
-    new StreamQueryConfigTest(Time.seconds(2), Time.seconds(3))
+    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testFiringAndFiringWithPurging(): Unit = {

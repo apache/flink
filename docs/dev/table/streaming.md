@@ -579,7 +579,7 @@ The parameters are specified as follows:
 
 StreamQueryConfig qConfig = ...
 
-// set idle state retention time: min = 12 hour, max = 24 hours
+// set idle state retention time: min = 12 hours, max = 24 hours
 qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 {% endhighlight %}
@@ -589,14 +589,14 @@ qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 val qConfig: StreamQueryConfig = ???
 
-// set idle state retention time: min = 12 hour, max = 24 hours
+// set idle state retention time: min = 12 hours, max = 24 hours
 qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 {% endhighlight %}
 </div>
 </div>
 
-Configuring different minimum and maximum idle state retention times is more efficient because it reduces the internal book-keeping of a query for when to remove state. Difference between minTime and maxTime shoud be at least 5 minutes.
+Cleaning up state requires additional bookkeeping which becomes less expensive for larger differences of `minTime` and `maxTime`. The difference between `minTime` and `maxTime` must be at least 5 minutes.
 
 {% top %}
 
