@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, _}
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
-import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.table.plan.logical.rel.{LogicalTemporalTableJoin, LogicalWindowAggregate}
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.validate.BasicOperatorTable
 
@@ -117,10 +117,12 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getNamedProperties,
         convAggregate)
 
+    case temporalTableJoin: LogicalTemporalTableJoin =>
+      visit(temporalTableJoin)
+
     case _ =>
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
   }
-
 
   override def visit(exchange: LogicalExchange): RelNode =
     throw new TableException("Logical exchange in a stream environment is not supported yet.")
@@ -163,9 +165,18 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
     val right = join.getRight.accept(this)
 
     LogicalJoin.create(left, right, join.getCondition, join.getVariablesSet, join.getJoinType)
-
   }
 
+  def visit(temporalJoin: LogicalTemporalTableJoin): RelNode = {
+    val left = temporalJoin.getLeft.accept(this)
+    val right = temporalJoin.getRight.accept(this)
+
+    val rewrittenTemporalJoin = temporalJoin.copy(temporalJoin.getTraitSet, List(left, right))
+
+    val indicesToMaterialize = gatherIndicesToMaterialize(rewrittenTemporalJoin, left, right)
+
+    materializerUtils.projectAndMaterializeFields(rewrittenTemporalJoin, indicesToMaterialize)
+  }
 
   override def visit(correlate: LogicalCorrelate): RelNode = {
     // visit children and update inputs
@@ -204,13 +215,43 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       correlate.getJoinType)
   }
 
+  private def gatherIndicesToMaterialize(
+    temporalJoin: Join,
+    left: RelNode,
+    right: RelNode)
+  : Set[Int] = {
+
+    // Materialize all of the time attributes from the right side of temporal join
+    var indicesToMaterialize =
+      (left.getRowType.getFieldCount until temporalJoin.getRowType.getFieldCount).toSet
+
+    if (!hasRowtimeAttribute(right.getRowType)) {
+      // No rowtime on the right side means that this must be a processing time temporal join
+      // and that we can not provide watermarks even if there is a rowtime time attribute
+      // on the left side (besides processing time attribute used for temporal join).
+      for (fieldIndex <- 0 until left.getRowType.getFieldCount) {
+        val fieldName = left.getRowType.getFieldNames.get(fieldIndex)
+        val fieldType = left.getRowType.getFieldList.get(fieldIndex).getType
+        if (isRowtimeIndicatorType(fieldType)) {
+          indicesToMaterialize += fieldIndex
+        }
+      }
+    }
+
+    indicesToMaterialize
+  }
+
+  private def hasRowtimeAttribute(rowType: RelDataType): Boolean = {
+    rowType.getFieldList.exists(field => isRowtimeIndicatorType(field.getType))
+  }
+
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {
     // visit children and update inputs
     val input = aggregate.getInput.accept(this)
 
     // add a project to materialize aggregation arguments/grouping keys
 
-    val indicesToMaterialize = gatherIndicesToMaterialize(aggregate)
+    val indicesToMaterialize = gatherIndicesToMaterialize(aggregate, input)
 
     val needsMaterialization = indicesToMaterialize.exists(idx =>
       isTimeIndicatorType(input.getRowType.getFieldList.get(idx).getType))
@@ -266,13 +307,13 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       updatedAggCalls)
   }
 
-  private def gatherIndicesToMaterialize(aggregate: Aggregate): Set[Int] = {
+  private def gatherIndicesToMaterialize(aggregate: Aggregate, input: RelNode): Set[Int] = {
     val indicesToMaterialize = mutable.Set[Int]()
 
     // check arguments of agg calls
     aggregate.getAggCallList.foreach(call => if (call.getArgList.size() == 0) {
       // count(*) has an empty argument list
-      (0 until aggregate.getRowType.getFieldCount).foreach(indicesToMaterialize.add)
+      (0 until input.getRowType.getFieldCount).foreach(indicesToMaterialize.add)
     } else {
       // for other aggregations
       call.getArgList.map(_.asInstanceOf[Int]).foreach(indicesToMaterialize.add)

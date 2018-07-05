@@ -33,9 +33,11 @@ import org.apache.flink.table.api.{Table, TableEnvironment, TableSchema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
-import org.junit.Rule
+import org.junit.{ComparisonFailure, Rule}
 import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
+
+import util.control.Breaks._
 
 /**
   * Test base for testing Table API / SQL plans.
@@ -99,16 +101,47 @@ abstract class TableTestUtil {
     // we remove the charset for testing because it
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actualNoCharset.split("\n").map(_.trim).mkString("\n"))
+
+    val expectedLines = expected.split("\n").map(_.trim)
+    val actualLines = actualNoCharset.split("\n").map(_.trim)
+
+    val expectedMessage = expectedLines.mkString("\n")
+    val actualMessage = actualLines.mkString("\n")
+
+    breakable {
+      for ((expectedLine, actualLine) <- expectedLines.zip(actualLines)) {
+        if (expectedLine == TableTestUtil.ANY_NODE) {
+        }
+        else if (expectedLine == TableTestUtil.ANY_SUBTREE) {
+          break
+        }
+        else if (expectedLine != actualLine) {
+          throw new ComparisonFailure(null, expectedMessage, actualMessage)
+        }
+      }
+    }
   }
+
+  def explain(resultTable: Table): String
 }
 
 object TableTestUtil {
+  val ANY_NODE = "%ANY_NODE%"
+
+  val ANY_SUBTREE = "%ANY_SUBTREE%"
 
   // this methods are currently just for simplifying string construction,
   // we could replace it with logic later
+
+  def unaryAnyNode(input: String): String = {
+    s"""$ANY_NODE
+       |$input
+       |""".stripMargin.stripLineEnd
+  }
+
+  def anySubtree(): String = {
+    ANY_SUBTREE
+  }
 
   def unaryNode(node: String, input: String, term: String*): String = {
     s"""$node(${term.mkString(", ")})
@@ -230,6 +263,10 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
   }
+
+  def explain(resultTable: Table): String = {
+    tableEnv.explain(resultTable)
+  }
 }
 
 case class StreamTableTestUtil() extends TableTestUtil {
@@ -317,6 +354,10 @@ case class StreamTableTestUtil() extends TableTestUtil {
 
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
+  }
+
+  def explain(resultTable: Table): String = {
+    tableEnv.explain(resultTable)
   }
 }
 
