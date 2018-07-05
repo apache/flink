@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -82,7 +83,7 @@ public class JarUploadHandler extends
 					"Only Jar files are allowed.",
 					HttpResponseStatus.BAD_REQUEST));
 			} else {
-				final Path destination = jarDir.resolve(fileUpload.getFileName());
+				final Path destination = jarDir.resolve(UUID.randomUUID() + "_" + fileUpload.getFileName());
 				try {
 					Files.move(fileUpload, destination);
 				} catch (IOException e) {
@@ -93,7 +94,7 @@ public class JarUploadHandler extends
 						HttpResponseStatus.INTERNAL_SERVER_ERROR,
 						e));
 				}
-				return new JarUploadResponseBody(fileUpload
+				return new JarUploadResponseBody(destination
 					.normalize()
 					.toString());
 			}
