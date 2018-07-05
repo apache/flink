@@ -160,7 +160,7 @@ public class JvmExitOnFatalErrorTest {
 
 				final JobInformation jobInformation = new JobInformation(
 						jid, "Test Job", execConfig, new Configuration(),
-						Collections.emptyList(), Collections.emptyList());
+						Collections.emptyList(), Collections.emptyList(), "Test Job Description");
 
 				final TaskInformation taskInformation = new TaskInformation(
 						jobVertexId, "Test Task", 1, 1, OomInvokable.class.getName(), new Configuration());

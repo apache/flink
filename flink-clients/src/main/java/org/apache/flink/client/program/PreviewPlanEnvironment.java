@@ -39,8 +39,8 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 	Plan plan;
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		this.plan = createProgramPlan(jobName);
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
+		this.plan = createProgramPlan(jobName, jobDescription);
 		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
 
 		// do not go on with anything now!

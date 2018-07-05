@@ -86,7 +86,7 @@ class RecoveryITCase(_system: ActorSystem)
       val executionConfig = new ExecutionConfig()
       executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", "", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
       val cluster = createTestClusterWithHeartbeatTimeout(2 * NUM_TASKS, 1, "100 ms")
@@ -135,7 +135,7 @@ class RecoveryITCase(_system: ActorSystem)
       val executionConfig = new ExecutionConfig()
       executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", "", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 1, "100 ms")
@@ -184,7 +184,7 @@ class RecoveryITCase(_system: ActorSystem)
       val executionConfig = new ExecutionConfig()
       executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", "", sender, receiver)
       jobGraph.setExecutionConfig(executionConfig)
 
       val cluster = createTestClusterWithHeartbeatTimeout(NUM_TASKS, 2, "100 ms")

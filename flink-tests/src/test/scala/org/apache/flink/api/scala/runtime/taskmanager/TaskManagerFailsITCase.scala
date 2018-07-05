@@ -97,7 +97,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
         ResultPartitionType.PIPELINED)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", "", sender, receiver)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
@@ -150,7 +150,7 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
         ResultPartitionType.PIPELINED)
 
-      val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise Job", "", sender, receiver)
       val jobID = jobGraph.getJobID
 
       val cluster = TestingUtils.startTestingCluster(num_tasks, 2)
@@ -189,12 +189,12 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
-      val jobGraph = new JobGraph("Blocking Testjob", sender)
+      val jobGraph = new JobGraph("Blocking Testjob", "", sender)
 
       val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
-      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+      val jobGraph2 = new JobGraph("NoOp Testjob", "", noOp)
 
       val cluster = createDeathwatchCluster(num_slots/2, 2)
 

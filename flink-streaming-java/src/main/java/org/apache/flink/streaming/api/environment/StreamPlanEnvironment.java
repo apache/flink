@@ -50,14 +50,15 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute() throws Exception {
-		return execute("");
+		return execute("", "");
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
+		streamGraph.setJobDescription(jobDescription);
 
 		transformations.clear();
 

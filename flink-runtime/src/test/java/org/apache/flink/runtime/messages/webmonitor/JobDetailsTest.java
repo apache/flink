@@ -50,7 +50,8 @@ public class JobDetailsTest extends TestLogger {
 			JobStatus.RUNNING,
 			8L,
 			new int[]{1, 3, 3, 7, 4, 2, 7, 3, 3},
-			42);
+			42,
+			"foobar description");
 
 		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 

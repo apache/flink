@@ -328,7 +328,8 @@ public final class WebMonitorUtils {
 			status,
 			lastChanged,
 			countsPerStatus,
-			numTotalTasks);
+			numTotalTasks,
+			job.getJobDescription());
 	}
 
 	/**

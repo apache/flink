@@ -338,8 +338,8 @@ public class JsonJobGraphGenerationTest {
 		}
 
 		@Override
-		public JobExecutionResult execute(String jobName) throws Exception {
-			Plan plan = createProgramPlan(jobName);
+		public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
+			Plan plan = createProgramPlan(jobName, jobDescription);
 
 			Optimizer pc = new Optimizer(new Configuration());
 			OptimizedPlan op = pc.compile(plan);

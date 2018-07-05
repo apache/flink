@@ -76,7 +76,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		source2.setInvokableClass(NoOpInvokable.class);
 		source2.setParallelism(2);
 
-		final JobGraph jobGraph = new JobGraph("test job", source1, source2);
+		final JobGraph jobGraph = new JobGraph("test job", "", source1, source2);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -121,7 +121,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex2.connectNewDataSetAsInput(vertex1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -175,7 +175,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex2.connectNewDataSetAsInput(vertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -242,7 +242,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex7.connectNewDataSetAsInput(vertex5, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex7.connectNewDataSetAsInput(vertex6, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3, vertex4, vertex5, vertex6, vertex7);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3, vertex4, vertex5, vertex6, vertex7);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -312,7 +312,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex5.connectNewDataSetAsInput(vertex7, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex6.connectNewDataSetAsInput(vertex7, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex7, vertex5, vertex6, vertex1, vertex2, vertex3, vertex4);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex7, vertex5, vertex6, vertex1, vertex2, vertex3, vertex4);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -358,7 +358,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex2.connectNewDataSetAsInput(vertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -402,7 +402,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex2.connectNewDataSetAsInput(vertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -474,7 +474,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex7.connectNewDataSetAsInput(vertex5, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 		vertex7.connectNewDataSetAsInput(vertex6, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3, vertex4, vertex5, vertex6, vertex7);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3, vertex4, vertex5, vertex6, vertex7);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -527,7 +527,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		vertex4.connectNewDataSetAsInput(vertex2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		vertex4.connectNewDataSetAsInput(vertex3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("test job", vertex1, vertex2, vertex3, vertex4);
+		final JobGraph jobGraph = new JobGraph("test job", "", vertex1, vertex2, vertex3, vertex4);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -565,7 +565,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 
 		source.setStrictlyCoLocatedWith(target);
 
-		final JobGraph jobGraph = new JobGraph("test job", source, target);
+		final JobGraph jobGraph = new JobGraph("test job", "", source, target);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();
@@ -600,7 +600,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 
 		source.setStrictlyCoLocatedWith(target);
 
-		final JobGraph jobGraph = new JobGraph("test job", source, target);
+		final JobGraph jobGraph = new JobGraph("test job", "", source, target);
 		final ExecutionGraph eg = createExecutionGraph(jobGraph);
 
 		RestartPipelinedRegionStrategy failoverStrategy = (RestartPipelinedRegionStrategy) eg.getFailoverStrategy();

@@ -77,12 +77,12 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		if (executor == null) {
 			startNewSession();
 		}
 
-		Plan p = createProgramPlan(jobName);
+		Plan p = createProgramPlan(jobName, jobDescription);
 
 		// Session management is disabled, revert this commit to enable
 		//p.setJobId(jobID);
@@ -96,7 +96,7 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan(null, false);
+		Plan p = createProgramPlan(null, null, false);
 
 		// make sure that we do not start an executor in any case here.
 		// if one runs, fine, of not, we only create the class but disregard immediately afterwards

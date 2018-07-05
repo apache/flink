@@ -179,7 +179,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 						}
 						source.setParallelism(num_tasks);
 
-						JobGraph jobGraph = new JobGraph("BlobCleanupTest", source);
+						JobGraph jobGraph = new JobGraph("BlobCleanupTest", "", source);
 						final JobID jid = jobGraph.getJobID();
 
 						// request the blob port from the job manager

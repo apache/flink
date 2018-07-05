@@ -65,9 +65,10 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		final StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
+		streamGraph.setJobDescription(jobDescription);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
 
 		for (Path jarFile : jarFiles) {

@@ -701,7 +701,8 @@ public class TaskExecutorTest extends TestLogger {
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptyList(),
+				"");
 
 		TaskInformation taskInformation = new TaskInformation(
 				jobVertexId,
@@ -1132,7 +1133,8 @@ public class TaskExecutorTest extends TestLogger {
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptyList(),
+				"");
 
 			TaskInformation taskInformation = new TaskInformation(
 				jobVertexId,

@@ -131,7 +131,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		targetVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		final JobGraph jobGraph = new JobGraph(jobId, "test", "", sourceVertex, targetVertex);
 
 		final CompletableFuture<LogicalSlot> sourceFuture = new CompletableFuture<>();
 		final CompletableFuture<LogicalSlot> targetFuture = new CompletableFuture<>();
@@ -198,7 +198,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		targetVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		final JobGraph jobGraph = new JobGraph(jobId, "test", "", sourceVertex, targetVertex);
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
@@ -295,7 +295,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		targetVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		final JobGraph jobGraph = new JobGraph(jobId, "test", "", sourceVertex, targetVertex);
 
 		//
 		//  Create the slots, futures, and the slot provider
@@ -380,7 +380,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		vertex.setInvokableClass(NoOpInvokable.class);
 
 		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
+		final JobGraph jobGraph = new JobGraph(jobId, "test", "", vertex);
 
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(2);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();

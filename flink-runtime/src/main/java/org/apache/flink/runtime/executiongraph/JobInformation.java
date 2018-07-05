@@ -42,6 +42,9 @@ public class JobInformation implements Serializable {
 	/** Job name */
 	private final String jobName;
 
+	/** Job description */
+	private final String jobDescription;
+
 	/** Serialized execution config because it can contain user code classes */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
@@ -61,13 +64,15 @@ public class JobInformation implements Serializable {
 			SerializedValue<ExecutionConfig> serializedExecutionConfig,
 			Configuration jobConfiguration,
 			Collection<PermanentBlobKey> requiredJarFileBlobKeys,
-			Collection<URL> requiredClasspathURLs) {
+			Collection<URL> requiredClasspathURLs,
+			String jobDescription) {
 		this.jobId = Preconditions.checkNotNull(jobId);
 		this.jobName = Preconditions.checkNotNull(jobName);
 		this.serializedExecutionConfig = Preconditions.checkNotNull(serializedExecutionConfig);
 		this.jobConfiguration = Preconditions.checkNotNull(jobConfiguration);
 		this.requiredJarFileBlobKeys = Preconditions.checkNotNull(requiredJarFileBlobKeys);
 		this.requiredClasspathURLs = Preconditions.checkNotNull(requiredClasspathURLs);
+		this.jobDescription = Preconditions.checkNotNull(jobDescription);
 	}
 
 	public JobID getJobId() {
@@ -92,6 +97,10 @@ public class JobInformation implements Serializable {
 
 	public Collection<URL> getRequiredClasspathURLs() {
 		return requiredClasspathURLs;
+	}
+
+	public String getJobDescription() {
+		return jobDescription;
 	}
 
 	// ------------------------------------------------------------------------

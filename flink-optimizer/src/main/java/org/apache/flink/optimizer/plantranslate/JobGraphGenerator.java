@@ -232,7 +232,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		// ----------- finalize the job graph -----------
 
 		// create the job graph object
-		JobGraph graph = new JobGraph(jobId, program.getJobName());
+		JobGraph graph = new JobGraph(jobId, program.getJobName(), program.getJobDescription());
 		try {
 			graph.setExecutionConfig(program.getOriginalPlan().getExecutionConfig());
 		}

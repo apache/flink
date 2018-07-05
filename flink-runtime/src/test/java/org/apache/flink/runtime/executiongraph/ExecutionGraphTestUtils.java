@@ -445,7 +445,7 @@ public class ExecutionGraphTestUtils {
 
 		return ExecutionGraphBuilder.buildGraph(
 			null,
-			new JobGraph(jid, "test job", vertices),
+			new JobGraph(jid, "test job", "", vertices),
 			new Configuration(),
 			executor,
 			executor,
@@ -583,7 +583,8 @@ public class ExecutionGraphTestUtils {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor)));
+			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor)),
+			"test job description");
 
 		return spy(new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout()));
 	}

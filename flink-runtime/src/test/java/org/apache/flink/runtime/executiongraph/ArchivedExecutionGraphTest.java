@@ -108,7 +108,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new SerializedValue<>(config),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			mock(SlotProvider.class));
+			mock(SlotProvider.class),
+			"test job description");
 
 		runtimeGraph.attachJobGraph(vertices);
 

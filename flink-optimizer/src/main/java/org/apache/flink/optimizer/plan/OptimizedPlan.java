@@ -46,25 +46,20 @@ public class OptimizedPlan implements FlinkPlan, Visitable<PlanNode>  {
 	/** The original program (as a dataflow plan). */
 	private final Plan originalProgram;
 
-	/** Name of the job */
-	private final String jobName;
-
 	/**
 	 * Creates a new instance of this optimizer plan container. The plan is given and fully
 	 * described by the data sources, sinks and the collection of all nodes.
-	 * 
+	 *
 	 * @param sources The data sources.
 	 * @param sinks The data sinks.
 	 * @param allNodes A collection containing all nodes in the plan.
-	 * @param jobName The name of the program
 	 */
 	public OptimizedPlan(Collection<SourcePlanNode> sources, Collection<SinkPlanNode> sinks,
-			Collection<PlanNode> allNodes, String jobName, Plan programPlan)
+						 Collection<PlanNode> allNodes, Plan programPlan)
 	{
 		this.dataSources = sources;
 		this.dataSinks = sinks;
 		this.allNodes = allNodes;
-		this.jobName = jobName;
 		this.originalProgram = programPlan;
 	}
 
@@ -101,9 +96,18 @@ public class OptimizedPlan implements FlinkPlan, Visitable<PlanNode>  {
 	 * @return The name of the program.
 	 */
 	public String getJobName() {
-		return this.jobName;
+		return getOriginalPlan().getJobName();
 	}
-	
+
+	/**
+	 * Returns the description of the program.
+	 *
+	 * @return The description of the program.
+	 */
+	public String getJobDescription() {
+		return getOriginalPlan().getJobDescription();
+	}
+
 	/**
 	 * Gets the original program's dataflow plan from which this optimized plan was created.
 	 * 

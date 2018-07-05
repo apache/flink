@@ -73,6 +73,9 @@ public class JobGraph implements Serializable {
 	/** Name of this job. */
 	private final String jobName;
 
+	/** Description of this job */
+	private String jobDescription;
+
 	/** The number of seconds after which the corresponding ExecutionGraph is removed at the
 	 * job manager after it has been executed. */
 	private long sessionTimeout = 0;
@@ -117,7 +120,18 @@ public class JobGraph implements Serializable {
 	 * @param jobName The name of the job.
 	 */
 	public JobGraph(String jobName) {
-		this(null, jobName);
+		this(null, jobName, "");
+	}
+
+	/**
+	 * Constructs a new job graph with the given name, the given {@link ExecutionConfig},
+	 * and a random job ID. The ExecutionConfig will be serialized and can't be modified afterwards.
+	 *
+	 * @param jobName The name of the job.
+	 * @param jobDescription The name of the job.
+	 */
+	public JobGraph(String jobName, String jobDescription) {
+		this(null, jobName, jobDescription);
 	}
 
 	/**
@@ -127,10 +141,12 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
+	 * @param jobDescription The description of the job.
 	 */
-	public JobGraph(JobID jobId, String jobName) {
+	public JobGraph(JobID jobId, String jobName, String jobDescription) {
 		this.jobID = jobId == null ? new JobID() : jobId;
 		this.jobName = jobName == null ? "(unnamed job)" : jobName;
+		this.jobDescription = jobDescription == null ? "" : jobDescription;
 
 		try {
 			setExecutionConfig(new ExecutionConfig());
@@ -147,7 +163,7 @@ public class JobGraph implements Serializable {
 	 * @param vertices The vertices to add to the graph.
 	 */
 	public JobGraph(JobVertex... vertices) {
-		this(null, vertices);
+		this(null, null, vertices);
 	}
 
 	/**
@@ -155,10 +171,11 @@ public class JobGraph implements Serializable {
 	 * and the given job vertices. The ExecutionConfig will be serialized and can't be modified afterwards.
 	 *
 	 * @param jobName The name of the job.
+	 * @param jobDescription The description of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(String jobName, JobVertex... vertices) {
-		this(null, jobName, vertices);
+	public JobGraph(String jobName, String jobDescription, JobVertex... vertices) {
+		this(null, jobName, jobDescription, vertices);
 	}
 
 	/**
@@ -168,10 +185,11 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
 	 * @param jobName The name of the job.
+	 * @param jobDescription the description of the job.
 	 * @param vertices The vertices to add to the graph.
 	 */
-	public JobGraph(JobID jobId, String jobName, JobVertex... vertices) {
-		this(jobId, jobName);
+	public JobGraph(JobID jobId, String jobName, String jobDescription, JobVertex... vertices) {
+		this(jobId, jobName, jobDescription);
 
 		for (JobVertex vertex : vertices) {
 			addVertex(vertex);
@@ -196,6 +214,15 @@ public class JobGraph implements Serializable {
 	 */
 	public String getName() {
 		return this.jobName;
+	}
+
+	/**
+	 * Returns the description assigned to the job graph.
+	 *
+	 * @return the description assigned to the job graph
+	 */
+	public String getDescription() {
+		return jobDescription;
 	}
 
 	/**

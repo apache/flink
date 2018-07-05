@@ -53,8 +53,8 @@ public class DetachedEnvironment extends ContextEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
+		Plan p = createProgramPlan(jobName, jobDescription);
 		setDetachedPlan(ClusterClient.getOptimizedPlan(client.compiler, p, getParallelism()));
 		LOG.warn("Job was executed in detached mode, the results will be available on completion.");
 		this.lastJobExecutionResult = DetachedJobExecutionResult.INSTANCE;

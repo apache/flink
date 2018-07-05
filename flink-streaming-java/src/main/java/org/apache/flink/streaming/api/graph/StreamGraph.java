@@ -79,6 +79,7 @@ public class StreamGraph extends StreamingPlan {
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
+	private String jobDescription = StreamExecutionEnvironment.DEFAULT_JOB_DESCRIPTION;
 
 	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
@@ -140,6 +141,14 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setJobName(String jobName) {
 		this.jobName = jobName;
+	}
+
+	public String getJobDescription() {
+		return jobDescription;
+	}
+
+	public void setJobDescription(String jobDescription) {
+		this.jobDescription = jobDescription;
 	}
 
 	public void setChaining(boolean chaining) {

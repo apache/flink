@@ -207,7 +207,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		DistributionPattern connectionPattern = allToAll ? DistributionPattern.ALL_TO_ALL : DistributionPattern.POINTWISE;
 		target.connectNewDataSetAsInput(source, connectionPattern, ResultPartitionType.PIPELINED);
 
-		JobGraph testJob = new JobGraph(jobId, "test job", source, target);
+		JobGraph testJob = new JobGraph(jobId, "test job", "", source, target);
 
 		final Time timeout = Time.seconds(10L);
 		return ExecutionGraphBuilder.buildGraph(

@@ -208,7 +208,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				new SerializedValue<>(executionConfig),
 				new Configuration(),
 				Collections.emptyList(),
-				Collections.emptyList());
+				Collections.emptyList(),
+				"test job description");
 
 		TaskInformation taskInformation = new TaskInformation(
 				new JobVertexID(),

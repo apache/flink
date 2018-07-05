@@ -55,8 +55,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
+		Plan p = createProgramPlan(jobName, jobDescription);
 		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
 				this.userCodeClassLoader);
 		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();

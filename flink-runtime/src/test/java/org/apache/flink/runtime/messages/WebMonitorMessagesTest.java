@@ -89,11 +89,12 @@ public class WebMonitorMessagesTest {
 			long lastModified = endTime == -1 ? time + rnd.nextInt() : endTime;
 
 			String name = GenericMessageTester.randomString(rnd);
+			String description = GenericMessageTester.randomString(rnd);
 			JobID jid = GenericMessageTester.randomJobId(rnd);
 			JobStatus status = GenericMessageTester.randomJobStatus(rnd);
 			
-			JobDetails msg1 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
-			JobDetails msg2 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
+			JobDetails msg1 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal, description);
+			JobDetails msg2 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal, description);
 			
 			GenericMessageTester.testMessageInstances(msg1, msg2);
 		}
@@ -144,10 +145,11 @@ public class WebMonitorMessagesTest {
 			long lastModified = endTime == -1 ? time + rnd.nextInt() : endTime;
 
 			String name = new GenericMessageTester.StringInstantiator().instantiate(rnd);
+			String description = new GenericMessageTester.StringInstantiator().instantiate(rnd);
 			JobID jid = new JobID();
 			JobStatus status = JobStatus.values()[rnd.nextInt(JobStatus.values().length)];
 
-			details[k] = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
+			details[k] = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal, description);
 		}
 		return Arrays.asList(details);
 	}

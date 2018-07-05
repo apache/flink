@@ -88,12 +88,12 @@ class JobManagerFailsITCase(_system: ActorSystem)
       val sender = new JobVertex("BlockingSender")
       sender.setParallelism(num_slots)
       sender.setInvokableClass(classOf[BlockingNoOpInvokable])
-      val jobGraph = new JobGraph("Blocking Testjob", sender)
+      val jobGraph = new JobGraph("Blocking Testjob", "", sender)
 
       val noOp = new JobVertex("NoOpInvokable")
       noOp.setParallelism(num_slots)
       noOp.setInvokableClass(classOf[NoOpInvokable])
-      val jobGraph2 = new JobGraph("NoOp Testjob", noOp)
+      val jobGraph2 = new JobGraph("NoOp Testjob", "", noOp)
 
       val cluster = startDeathwatchCluster(num_slots / 2, 2)
 

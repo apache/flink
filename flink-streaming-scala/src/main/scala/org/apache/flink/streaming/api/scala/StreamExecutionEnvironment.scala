@@ -640,7 +640,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * for example printing results or forwarding them to a message queue.
    * 
    * The program execution will be logged and displayed with a generated
-   * default name.
+   * default name and description.
    */
   def execute() = javaEnv.execute()
 
@@ -649,9 +649,20 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * the program that have resulted in a "sink" operation. Sink operations are
    * for example printing results or forwarding them to a message queue.
    * 
-   * The program execution will be logged and displayed with the provided name.
+   * The program execution will be logged and displayed with the provided name
+    * and a generated description.
    */
   def execute(jobName: String) = javaEnv.execute(jobName)
+
+  /**
+    * Triggers the program execution. The environment will execute all parts of
+    * the program that have resulted in a "sink" operation. Sink operations are
+    * for example printing results or forwarding them to a message queue.
+    *
+    * The program execution will be logged and displayed with the provided name
+    * and description.
+    */
+  def execute(jobName: String, jobDescription: String) = javaEnv.execute(jobName, jobDescription)
 
   /**
    * Creates the plan with which the system will execute the program, and

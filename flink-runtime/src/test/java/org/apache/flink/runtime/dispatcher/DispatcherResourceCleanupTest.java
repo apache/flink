@@ -131,7 +131,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
 		jobId = new JobID();
-		jobGraph = new JobGraph(jobId, "testJob", testVertex);
+		jobGraph = new JobGraph(jobId, "testJob", "", testVertex);
 		jobGraph.setAllowQueuedScheduling(true);
 
 		configuration = new Configuration();

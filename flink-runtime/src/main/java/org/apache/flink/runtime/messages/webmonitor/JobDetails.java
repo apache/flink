@@ -50,6 +50,7 @@ public class JobDetails implements Serializable {
 
 	private static final String FIELD_NAME_JOB_ID = "jid";
 	private static final String FIELD_NAME_JOB_NAME = "name";
+	private static final String FIELD_NAME_JOB_DESCRIPTION = "description";
 	private static final String FIELD_NAME_START_TIME = "start-time";
 	private static final String FIELD_NAME_END_TIME = "end-time";
 	private static final String FIELD_NAME_DURATION = "duration";
@@ -60,6 +61,8 @@ public class JobDetails implements Serializable {
 	private final JobID jobId;
 
 	private final String jobName;
+
+	private final String jobDescription;
 
 	private final long startTime;
 
@@ -84,7 +87,8 @@ public class JobDetails implements Serializable {
 			JobStatus status,
 			long lastUpdateTime,
 			int[] tasksPerState,
-			int numTasks) {
+			int numTasks,
+			String jobDescription) {
 
 		this.jobId = checkNotNull(jobId);
 		this.jobName = checkNotNull(jobName);
@@ -97,6 +101,7 @@ public class JobDetails implements Serializable {
 			"tasksPerState argument must be of size {}.", ExecutionState.values().length);
 		this.tasksPerState = checkNotNull(tasksPerState);
 		this.numTasks = numTasks;
+		this.jobDescription = checkNotNull(jobDescription);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -135,6 +140,10 @@ public class JobDetails implements Serializable {
 
 	public int[] getTasksPerState() {
 		return tasksPerState;
+	}
+
+	public String getJobDescription() {
+		return jobDescription;
 	}
 
 	// ------------------------------------------------------------------------
@@ -185,6 +194,7 @@ public class JobDetails implements Serializable {
 				", lastUpdateTime=" + lastUpdateTime +
 				", numVerticesPerExecutionState=" + Arrays.toString(tasksPerState) +
 				", numTasks=" + numTasks +
+				", jobDescription=" + jobDescription +
 				'}';
 	}
 
@@ -204,6 +214,7 @@ public class JobDetails implements Serializable {
 
 			jsonGenerator.writeStringField(FIELD_NAME_JOB_ID, jobDetails.getJobId().toString());
 			jsonGenerator.writeStringField(FIELD_NAME_JOB_NAME, jobDetails.getJobName());
+			jsonGenerator.writeStringField(FIELD_NAME_JOB_DESCRIPTION, jobDetails.getJobDescription());
 			jsonGenerator.writeStringField(FIELD_NAME_STATUS, jobDetails.getStatus().name());
 
 			jsonGenerator.writeNumberField(FIELD_NAME_START_TIME, jobDetails.getStartTime());
@@ -241,6 +252,7 @@ public class JobDetails implements Serializable {
 
 			JobID jobId = JobID.fromHexString(rootNode.get(FIELD_NAME_JOB_ID).textValue());
 			String jobName = rootNode.get(FIELD_NAME_JOB_NAME).textValue();
+			String jobDescription = rootNode.get(FIELD_NAME_JOB_DESCRIPTION).textValue();
 			long startTime = rootNode.get(FIELD_NAME_START_TIME).longValue();
 			long endTime = rootNode.get(FIELD_NAME_END_TIME).longValue();
 			long duration = rootNode.get(FIELD_NAME_DURATION).longValue();
@@ -265,7 +277,8 @@ public class JobDetails implements Serializable {
 				jobStatus,
 				lastUpdateTime,
 				numVerticesPerExecutionState,
-				numTasks);
+				numTasks,
+				jobDescription);
 		}
 	}
 }

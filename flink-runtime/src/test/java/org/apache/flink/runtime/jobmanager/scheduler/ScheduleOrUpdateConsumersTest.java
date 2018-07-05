@@ -133,6 +133,7 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 		final JobGraph jobGraph = new JobGraph(
 				"Mixed pipelined and blocking result",
+				"",
 				sender,
 				pipelinedReceiver,
 				blockingReceiver);

@@ -56,6 +56,7 @@ public class TaskDeploymentDescriptorTest {
 			final ExecutionAttemptID execId = new ExecutionAttemptID();
 			final AllocationID allocationId = new AllocationID();
 			final String jobName = "job name";
+			final String jobDescription = "job description";
 			final String taskName = "task name";
 			final int numberOfKeyGroups = 1;
 			final int indexInSubtaskGroup = 0;
@@ -70,7 +71,7 @@ public class TaskDeploymentDescriptorTest {
 			final List<URL> requiredClasspaths = new ArrayList<>(0);
 			final SerializedValue<ExecutionConfig> executionConfig = new SerializedValue<>(new ExecutionConfig());
 			final SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(new JobInformation(
-				jobID, jobName, executionConfig, jobConfiguration, requiredJars, requiredClasspaths));
+				jobID, jobName, executionConfig, jobConfiguration, requiredJars, requiredClasspaths, jobDescription));
 			final SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(new TaskInformation(
 				vertexID, taskName, currentNumberOfSubtasks, numberOfKeyGroups, invokableClass.getName(), taskConfiguration));
 			final int targetSlotNumber = 47;

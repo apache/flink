@@ -517,7 +517,7 @@ public class Optimizer {
 		}
 
 		// finalize the plan
-		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program);
+		OptimizedPlan plan = new PlanFinalizer().createFinalPlan(bestPlanSinks, program.getJobName(), program, program.getJobDescription());
 		
 		plan.accept(new BinaryUnionReplacer());
 

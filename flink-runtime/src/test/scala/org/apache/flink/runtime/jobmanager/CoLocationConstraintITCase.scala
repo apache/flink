@@ -69,7 +69,7 @@ class CoLocationConstraintITCase(_system: ActorSystem)
 
       receiver.setStrictlyCoLocatedWith(sender)
 
-      val jobGraph = new JobGraph("Pointwise job", sender, receiver)
+      val jobGraph = new JobGraph("Pointwise job", "", sender, receiver)
 
       val cluster = TestingUtils.startTestingCluster(num_tasks)
       val jmGateway = cluster.getLeaderGateway(1 seconds)

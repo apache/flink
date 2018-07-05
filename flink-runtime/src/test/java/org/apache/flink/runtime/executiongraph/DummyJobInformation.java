@@ -41,7 +41,8 @@ public class DummyJobInformation extends JobInformation {
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
 			Collections.emptyList(),
-			Collections.emptyList());
+			Collections.emptyList(),
+			"");
 	}
 
 	public DummyJobInformation() throws IOException {

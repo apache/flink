@@ -58,6 +58,13 @@ public interface AccessExecutionGraph {
 	String getJobName();
 
 	/**
+	 * Returns the job description for the execution graph.
+	 *
+	 * @return job description for the execution graph
+	 */
+	String getJobDescription();
+
+	/**
 	 * Returns the current {@link JobStatus} for this execution graph.
 	 *
 	 * @return job status for this execution graph

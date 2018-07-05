@@ -54,6 +54,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	/** The name of the original job graph. */
 	private final String jobName;
 
+	/** The description of the original job graph */
+	@Nullable
+	private final String jobDescription;
+
 	/** All job vertices that are part of this graph. */
 	private final Map<JobVertexID, ArchivedExecutionJobVertex> tasks;
 
@@ -109,7 +113,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
 			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
-			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot) {
+			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot,
+			@Nullable String jobDescription) {
 
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.jobName = Preconditions.checkNotNull(jobName);
@@ -125,6 +130,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.isStoppable = isStoppable;
 		this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
 		this.checkpointStatsSnapshot = checkpointStatsSnapshot;
+		this.jobDescription = jobDescription;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -142,6 +148,12 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Override
 	public String getJobName() {
 		return jobName;
+	}
+
+	@Override
+	@Nullable
+	public String getJobDescription() {
+		return jobDescription;
 	}
 
 	@Override
@@ -337,6 +349,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			executionGraph.getArchivedExecutionConfig(),
 			executionGraph.isStoppable(),
 			executionGraph.getCheckpointCoordinatorConfiguration(),
-			executionGraph.getCheckpointStatsSnapshot());
+			executionGraph.getCheckpointStatsSnapshot(),
+			executionGraph.getJobDescription());
 	}
 }

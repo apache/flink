@@ -60,7 +60,7 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
         sender.setInvokableClass(classOf[NoOpInvokable])
         sender.setParallelism(20)
 
-        val jobGraph = new JobGraph("Pointwise job", sender)
+        val jobGraph = new JobGraph("Pointwise job", "", sender)
 
         val eg = new ExecutionGraph(
           executor,
@@ -71,7 +71,8 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
           new SerializedValue(new ExecutionConfig()),
           AkkaUtils.getDefaultTimeout,
           new NoRestartStrategy(),
-          scheduler)
+          scheduler,
+          "test job description")
 
         eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources)
 

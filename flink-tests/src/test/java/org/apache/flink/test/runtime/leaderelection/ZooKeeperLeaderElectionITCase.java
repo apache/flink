@@ -182,7 +182,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		final JobGraph graph = new JobGraph("Blocking test job", sender, receiver);
+		final JobGraph graph = new JobGraph("Blocking test job", "", sender, receiver);
 
 		final TestingCluster cluster = new TestingCluster(configuration);
 

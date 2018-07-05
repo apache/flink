@@ -220,7 +220,7 @@ public class DataGenerators {
 		private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
 			@Override
-			public JobExecutionResult execute(String jobName) throws Exception {
+			public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 				return null;
 			}
 		}

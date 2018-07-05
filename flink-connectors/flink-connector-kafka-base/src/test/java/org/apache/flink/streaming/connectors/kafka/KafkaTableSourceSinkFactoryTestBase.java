@@ -239,7 +239,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		}
 
 		@Override
-		public JobExecutionResult execute(String jobName) {
+		public JobExecutionResult execute(String jobName, String jobDescription) {
 			throw new UnsupportedOperationException();
 		}
 	}

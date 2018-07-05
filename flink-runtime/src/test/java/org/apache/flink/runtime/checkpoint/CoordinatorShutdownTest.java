@@ -74,7 +74,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 			final ExecutionConfig executionConfig = new ExecutionConfig();
 			executionConfig.setRestartStrategy(RestartStrategies.noRestart());
 
-			JobGraph testGraph = new JobGraph("test job", vertex);
+			JobGraph testGraph = new JobGraph("test job", "", vertex);
 			testGraph.setSnapshotSettings(
 				new JobCheckpointingSettings(
 					vertexIdList,
@@ -145,7 +145,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 			vertex.setInvokableClass(BlockingInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
-			JobGraph testGraph = new JobGraph("test job", vertex);
+			JobGraph testGraph = new JobGraph("test job", "", vertex);
 			testGraph.setSnapshotSettings(
 				new JobCheckpointingSettings(
 					vertexIdList,

@@ -46,7 +46,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		Plan plan = createProgramPlan(jobName);
 		this.optimizerPlan = compiler.compile(plan);
 
@@ -56,7 +56,7 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan(null, false);
+		Plan plan = createProgramPlan(null, null, false);
 		this.optimizerPlan = compiler.compile(plan);
 
 		// do not go on with anything now!

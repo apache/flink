@@ -82,6 +82,7 @@ public class ExecutionGraphConstructionTest {
 		
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+		final String jobDescription = "Test Job Sample Description";
 		final Configuration cfg = new Configuration();
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -119,7 +120,8 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -135,6 +137,7 @@ public class ExecutionGraphConstructionTest {
 	public void testAttachViaDataSets() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+		final String jobDescription = "Test Job Sample description";
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
@@ -170,7 +173,8 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -212,6 +216,7 @@ public class ExecutionGraphConstructionTest {
 	public void testAttachViaIds() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+		final String jobDescription = "Test Job Sample Description";
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
@@ -246,7 +251,8 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -299,6 +305,7 @@ public class ExecutionGraphConstructionTest {
 	public void testCannotConnectMissingId() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+		final String jobDescription = "Test Job Sample Description";
 		final Configuration cfg = new Configuration();
 		
 		// construct part one of the execution graph
@@ -317,7 +324,8 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -346,6 +354,7 @@ public class ExecutionGraphConstructionTest {
 	public void testCannotConnectWrongOrder() throws Exception {
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
+		final String jobDescription = "Test Job Sample Description";
 		final Configuration cfg = new Configuration();
 		
 		JobVertex v1 = new JobVertex("vertex1");
@@ -383,7 +392,8 @@ public class ExecutionGraphConstructionTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -413,6 +423,7 @@ public class ExecutionGraphConstructionTest {
 			
 			final JobID jobId = new JobID();
 			final String jobName = "Test Job Sample Name";
+			final String jobDescription = "Test Job Sample Description";
 			final Configuration cfg = new Configuration();
 			
 			JobVertex v1 = new JobVertex("vertex1");
@@ -453,7 +464,8 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new Scheduler(TestingUtils.defaultExecutionContext()),
+				jobDescription);
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -476,6 +488,7 @@ public class ExecutionGraphConstructionTest {
 		try {
 			final JobID jobId = new JobID();
 			final String jobName = "Test Job Sample Name";
+			final String jobDescription = "Test Job Sample Description";
 			final Configuration cfg = new Configuration();
 			
 			JobVertex v1 = new JobVertex("vertex1");
@@ -501,7 +514,8 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new Scheduler(TestingUtils.defaultExecutionContext()),
+				jobDescription);
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -522,6 +536,7 @@ public class ExecutionGraphConstructionTest {
 		try {
 			final JobID jobId = new JobID();
 			final String jobName = "Co-Location Constraint Sample Job";
+			final String jobDescrption = "Co-Location Constraint Sample Job";
 			final Configuration cfg = new Configuration();
 			
 			// simple group of two, cyclic
@@ -573,7 +588,7 @@ public class ExecutionGraphConstructionTest {
 			v8.setParallelism(2);
 			v8.setInvokableClass(AbstractInvokable.class);
 
-			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
+			JobGraph jg = new JobGraph(jobId, jobName, "", v1, v2, v3, v4, v5, v6, v7, v8);
 			
 			ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutor(),
@@ -584,7 +599,8 @@ public class ExecutionGraphConstructionTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new Scheduler(TestingUtils.defaultExecutionContext()),
+				jobDescrption);
 			
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			

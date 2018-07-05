@@ -143,6 +143,7 @@ public class ExecutionGraphBuilder {
 
 		final String jobName = jobGraph.getName();
 		final JobID jobId = jobGraph.getJobID();
+		final String jobDescription = jobGraph.getDescription();
 
 		final FailoverStrategy.Factory failoverStrategy =
 				FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
@@ -153,7 +154,8 @@ public class ExecutionGraphBuilder {
 			jobGraph.getSerializedExecutionConfig(),
 			jobGraph.getJobConfiguration(),
 			jobGraph.getUserJarBlobKeys(),
-			jobGraph.getClasspaths());
+			jobGraph.getClasspaths(),
+			jobDescription);
 
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph;

@@ -90,7 +90,8 @@ public class VertexSlotSharingTest {
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
-				new Scheduler(TestingUtils.defaultExecutionContext()));
+				new Scheduler(TestingUtils.defaultExecutionContext()),
+				"test job description");
 			eg.attachJobGraph(vertices);
 			
 			// verify that the vertices are all in the same slot sharing group

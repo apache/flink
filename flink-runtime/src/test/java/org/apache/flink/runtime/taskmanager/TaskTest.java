@@ -1024,7 +1024,8 @@ public class TaskTest extends TestLogger {
 				serializedExecutionConfig,
 				new Configuration(),
 				requiredJarFileBlobKeys,
-				Collections.emptyList());
+				Collections.emptyList(),
+				"");
 
 			final TaskInformation taskInformation = new TaskInformation(
 				jobVertexId,

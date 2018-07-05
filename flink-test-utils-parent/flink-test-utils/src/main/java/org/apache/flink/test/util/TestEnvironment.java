@@ -105,8 +105,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		OptimizedPlan op = compileProgram(jobName);
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
+		OptimizedPlan op = compileProgram(jobName, jobDescription);
 
 		JobGraphGenerator jgg = new JobGraphGenerator();
 		JobGraph jobGraph = jgg.compileJobGraph(op);
@@ -123,14 +123,14 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		OptimizedPlan op = compileProgram("unused");
+		OptimizedPlan op = compileProgram("unused", "");
 
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
 		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 
-	private OptimizedPlan compileProgram(String jobName) {
-		Plan p = createProgramPlan(jobName);
+	private OptimizedPlan compileProgram(String jobName, String jobDescription) {
+		Plan p = createProgramPlan(jobName, jobDescription);
 
 		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
 		return pc.compile(p);

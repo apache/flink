@@ -48,6 +48,7 @@ public class PointwisePatternTest {
 
 	private final JobID jobId = new JobID();
 	private final String jobName = "Test Job Sample Name";
+	private final String jobDescription = "Test Job Sample Description";
 	private final Configuration cfg = new Configuration();
 	
 	@Test
@@ -76,7 +77,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -123,7 +125,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -171,7 +174,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -220,7 +224,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -267,7 +272,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -334,7 +340,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -392,7 +399,8 @@ public class PointwisePatternTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
-			new Scheduler(TestingUtils.defaultExecutionContext()));
+			new Scheduler(TestingUtils.defaultExecutionContext()),
+			jobDescription);
 		try {
 			eg.attachJobGraph(ordered);
 		}

@@ -100,7 +100,7 @@ public class MiniClusterITCase extends TestLogger {
 		task.setMaxParallelism(1);
 		task.setInvokableClass(NoOpInvokable.class);
 
-		JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
+		JobGraph jg = new JobGraph(new JobID(), "Test Job", "", task);
 		jg.setAllowQueuedScheduling(true);
 		jg.setScheduleMode(ScheduleMode.EAGER);
 

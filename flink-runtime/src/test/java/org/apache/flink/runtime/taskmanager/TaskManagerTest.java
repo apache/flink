@@ -216,7 +216,7 @@ public class TaskManagerTest extends TestLogger {
 					TestInvokableCorrect.class.getName(),
 					Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 					Collections.<InputGateDeploymentDescriptor>emptyList(),
-					new ArrayList<PermanentBlobKey>(), Collections.emptyList(), 0);
+					new ArrayList<PermanentBlobKey>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(d) {
 
@@ -316,7 +316,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.<URL>emptyList(), 0);
+						new ArrayList<>(), Collections.<URL>emptyList(), 0, "TestJobDescription");
 
 				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid2, "TestJob2", vid2, eid2,
@@ -325,7 +325,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				final ActorGateway tm = taskManager;
 
@@ -456,13 +456,13 @@ public class TaskManagerTest extends TestLogger {
 						"TestTask1", 5, 1, 5, 0, new Configuration(), new Configuration(), StoppableInvokable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(jid2, "TestJob", vid2, eid2, executionConfig,
 						"TestTask2", 7, 2, 7, 0, new Configuration(), new Configuration(), TestInvokableBlockingCancelable.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				final ActorGateway tm = taskManager;
 
@@ -588,7 +588,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
@@ -597,7 +597,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(d){
 
@@ -696,7 +696,7 @@ public class TaskManagerTest extends TestLogger {
 						"Sender", 1, 0, 1, 0,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(), new ArrayList<>(),
-						Collections.emptyList(), 0);
+						Collections.emptyList(), 0, "TestJobDescription");
 
 				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
@@ -705,7 +705,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), Tasks.Receiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(d) {
 
@@ -845,7 +845,7 @@ public class TaskManagerTest extends TestLogger {
 						"Sender", 1, 0, 1, 0,
 						new Configuration(), new Configuration(), Tasks.Sender.class.getName(),
 						irpdd, Collections.<InputGateDeploymentDescriptor>emptyList(),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				final TaskDeploymentDescriptor tdd2 = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid2, eid2,
@@ -854,7 +854,7 @@ public class TaskManagerTest extends TestLogger {
 						new Configuration(), new Configuration(), Tasks.BlockingReceiver.class.getName(),
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(ircdd),
-						new ArrayList<>(), Collections.emptyList(), 0);
+						new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(d){
 
@@ -1002,7 +1002,7 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(igdd),
 						Collections.emptyList(),
-						Collections.emptyList(), 0);
+						Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(d) {
 					@Override
@@ -1120,7 +1120,7 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 						Collections.singletonList(igdd),
 						Collections.emptyList(),
-						Collections.emptyList(), 0);
+						Collections.emptyList(), 0, "TestJobDescription");
 
 				new Within(new FiniteDuration(120, TimeUnit.SECONDS)) {
 					@Override
@@ -1272,7 +1272,8 @@ public class TaskManagerTest extends TestLogger {
 						Collections.<InputGateDeploymentDescriptor>emptyList(),
 						Collections.emptyList(),
 						Collections.emptyList(),
-						0);
+						0,
+						"Task Description");
 
 				// Submit the task
 				new Within(d) {
@@ -1591,7 +1592,7 @@ public class TaskManagerTest extends TestLogger {
 				TestInvokableRecordCancel.class.getName(),
 				Collections.singletonList(resultPartitionDeploymentDescriptor),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
-				new ArrayList<>(), Collections.emptyList(), 0);
+				new ArrayList<>(), Collections.emptyList(), 0, "TestJobDescription");
 
 			ActorRef jmActorRef = system.actorOf(Props.create(FailingScheduleOrUpdateConsumersJobManager.class, LEADER_SESSION_ID), "jobmanager");
 			ActorGateway jobManager = new AkkaActorGateway(jmActorRef, LEADER_SESSION_ID);
@@ -1667,7 +1668,8 @@ public class TaskManagerTest extends TestLogger {
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
-				0);
+				0,
+				"test task description");
 
 			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
 
@@ -1728,7 +1730,8 @@ public class TaskManagerTest extends TestLogger {
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
-				0);
+				0,
+				"test Job Description");
 
 			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
 
@@ -1845,7 +1848,8 @@ public class TaskManagerTest extends TestLogger {
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
-				0);
+				0,
+				"test job description");
 
 			Future<Object> submitResponse = taskManager.ask(new SubmitTask(tdd), timeout);
 
@@ -2146,7 +2150,8 @@ public class TaskManagerTest extends TestLogger {
 		Collection<InputGateDeploymentDescriptor> inputGates,
 		Collection<PermanentBlobKey> requiredJarFiles,
 		Collection<URL> requiredClasspaths,
-		int targetSlotNumber) throws IOException {
+		int targetSlotNumber,
+		String jobDescription) throws IOException {
 
 		JobInformation jobInformation = new JobInformation(
 			jobId,
@@ -2154,7 +2159,8 @@ public class TaskManagerTest extends TestLogger {
 			serializedExecutionConfig,
 			jobConfiguration,
 			requiredJarFiles,
-			requiredClasspaths);
+			requiredClasspaths,
+			jobDescription);
 
 		TaskInformation taskInformation = new TaskInformation(
 			jobVertexId,

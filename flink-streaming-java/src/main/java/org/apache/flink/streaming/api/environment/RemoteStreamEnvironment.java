@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -170,9 +171,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+	@PublicEvolving
+	public JobExecutionResult execute(String jobName, String jobDescription) throws ProgramInvocationException {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
+		streamGraph.setJobDescription(jobDescription);
 		transformations.clear();
 		return executeRemotely(streamGraph, jarFiles);
 	}

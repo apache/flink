@@ -132,7 +132,7 @@ public class StreamingJobGraphGenerator {
 		this.chainedPreferredResources = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
 
-		jobGraph = new JobGraph(jobID, streamGraph.getJobName());
+		jobGraph = new JobGraph(jobID, streamGraph.getJobName(), streamGraph.getJobDescription());
 	}
 
 	private JobGraph createJobGraph() {

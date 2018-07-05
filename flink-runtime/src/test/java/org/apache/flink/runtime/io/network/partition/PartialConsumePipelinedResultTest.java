@@ -103,7 +103,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 		receiver.connectNewDataSetAsInput(
 			sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", sender, receiver);
+		final JobGraph jobGraph = new JobGraph("Partial Consume of Pipelined Result", "", sender, receiver);
 
 		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup(
 			sender.getID(), receiver.getID());

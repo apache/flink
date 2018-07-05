@@ -161,10 +161,10 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		PlanExecutor executor = getExecutor();
 
-		Plan p = createProgramPlan(jobName);
+		Plan p = createProgramPlan(jobName, jobDescription);
 
 		// Session management is disabled, revert this commit to enable
 		//p.setJobId(jobID);
@@ -178,7 +178,7 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan("plan", false);
+		Plan p = createProgramPlan("plan", "", false);
 
 		// make sure that we do not start an new executor here
 		// if one runs, fine, of not, we create a local executor (lightweight) and let it

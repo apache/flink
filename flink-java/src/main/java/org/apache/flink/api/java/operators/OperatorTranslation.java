@@ -45,7 +45,7 @@ public class OperatorTranslation {
 	/** The already translated operations. */
 	private Map<DataSet<?>, Operator<?>> translated = new HashMap<>();
 
-	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {
+	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName, String jobDescription) {
 		List<GenericDataSinkBase<?>> planSinks = new ArrayList<>();
 
 		for (DataSink<?> sink : sinks) {
@@ -54,6 +54,7 @@ public class OperatorTranslation {
 
 		Plan p = new Plan(planSinks);
 		p.setJobName(jobName);
+		p.setJobDescription(jobDescription);
 		return p;
 	}
 

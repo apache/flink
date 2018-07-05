@@ -76,7 +76,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 		this.stackOfIterationNodes = new ArrayDeque<IterationPlanNode>();
 	}
 
-	public OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan) {
+	public OptimizedPlan createFinalPlan(List<SinkPlanNode> sinks, String jobName, Plan originalPlan, String jobDescription) {
 		this.memoryConsumerWeights = 0;
 
 		// traverse the graph
@@ -119,7 +119,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 				}
 			}
 		}
-		return new OptimizedPlan(this.sources, this.sinks, this.allNodes, jobName, originalPlan);
+		return new OptimizedPlan(this.sources, this.sinks, this.allNodes, originalPlan);
 	}
 
 	@Override

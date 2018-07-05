@@ -54,9 +54,9 @@ public class JobManagerGroupTest extends TestLogger {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 
-		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1));
-		JobManagerJobMetricGroup jmJobGroup12 = group.addJob(new JobGraph(jid1, jobName1));
-		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2));
+		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1, ""));
+		JobManagerJobMetricGroup jmJobGroup12 = group.addJob(new JobGraph(jid1, jobName1, ""));
+		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2, ""));
 
 		assertEquals(jmJobGroup11, jmJobGroup12);
 
@@ -86,8 +86,8 @@ public class JobManagerGroupTest extends TestLogger {
 		final String jobName1 = "testjob";
 		final String jobName2 = "anotherJob";
 
-		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1));
-		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2));
+		JobManagerJobMetricGroup jmJobGroup11 = group.addJob(new JobGraph(jid1, jobName1, ""));
+		JobManagerJobMetricGroup jmJobGroup21 = group.addJob(new JobGraph(jid2, jobName2, ""));
 
 		group.close();
 

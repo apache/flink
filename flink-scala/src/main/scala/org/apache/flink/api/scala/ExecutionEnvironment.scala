@@ -517,7 +517,8 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
    * generic data sinks created with [[DataSet.output]].
    *
-   * The program execution will be logged and displayed with a generated default name.
+   * The program execution will be logged and displayed with a generated default name
+   * and description.
    *
    * @return The result of the job execution, containing elapsed time and accumulators.
    */
@@ -531,12 +532,27 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
    * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
    * generic data sinks created with [[DataSet.output]].
    *
-   * The program execution will be logged and displayed with the given name.
+   * The program execution will be logged and displayed with the given name and a generated
+   * description.
    *
    * @return The result of the job execution, containing elapsed time and accumulators.
    */
   def execute(jobName: String): JobExecutionResult = {
     javaEnv.execute(jobName)
+  }
+
+  /**
+    * Triggers the program execution. The environment will execute all parts of the program that
+    * have resulted in a "sink" operation. Sink operations are for example printing results
+    * [[DataSet.print]], writing results (e.g. [[DataSet.writeAsText]], [[DataSet.write]], or other
+    * generic data sinks created with [[DataSet.output]].
+    *
+    * The program execution will be logged and displayed with the given name and description.
+    *
+    * @return The result of the job execution, containing elapsed time and accumulators.
+    */
+  def execute(jobName: String, jobDescription: String): JobExecutionResult = {
+    javaEnv.execute(jobName, jobDescription)
   }
 
   /**

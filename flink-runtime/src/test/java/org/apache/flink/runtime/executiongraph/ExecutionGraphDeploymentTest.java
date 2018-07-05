@@ -682,7 +682,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		final ScheduledExecutorService executor = TestingUtils.defaultExecutor();
 
 		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test");
+		final JobGraph jobGraph = new JobGraph(jobId, "test", "");
 		jobGraph.setSnapshotSettings(
 			new JobCheckpointingSettings(
 				Collections.<JobVertexID>emptyList(),

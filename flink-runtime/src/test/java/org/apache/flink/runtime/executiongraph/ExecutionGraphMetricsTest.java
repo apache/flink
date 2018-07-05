@@ -72,7 +72,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			JobVertex jobVertex = new JobVertex("TestVertex");
 			jobVertex.setParallelism(parallelism);
 			jobVertex.setInvokableClass(NoOpInvokable.class);
-			JobGraph jobGraph = new JobGraph("Test Job", jobVertex);
+			JobGraph jobGraph = new JobGraph("Test Job", "", jobVertex);
 
 			Configuration jobConfig = new Configuration();
 			Time timeout = Time.seconds(10L);
@@ -93,7 +93,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				new SerializedValue<>(null),
 				timeout,
 				testingRestartStrategy,
-				scheduler);
+				scheduler,
+				jobGraph.getDescription());
 
 			RestartTimeGauge restartingTime = new RestartTimeGauge(executionGraph);
 

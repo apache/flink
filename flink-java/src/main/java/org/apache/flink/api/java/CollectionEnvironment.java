@@ -30,7 +30,7 @@ import org.apache.flink.api.common.operators.CollectionExecutor;
 public class CollectionEnvironment extends ExecutionEnvironment {
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		Plan p = createProgramPlan(jobName);
 
 		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.

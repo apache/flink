@@ -71,7 +71,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 	private static JobGraph getWorkingJobGraph() {
 		final JobVertex jobVertex = new JobVertex("Working job vertex.");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
-		return new JobGraph("Working testing job", jobVertex);
+		return new JobGraph("Working testing job", "", jobVertex);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 		final JobVertex failingJobVertex = new FailingJobVertex("Failing job vertex");
 		failingJobVertex.setInvokableClass(NoOpInvokable.class);
 
-		final JobGraph failingJobGraph = new JobGraph("Failing testing job", failingJobVertex);
+		final JobGraph failingJobGraph = new JobGraph("Failing testing job", "", failingJobVertex);
 		runJobSubmissionTest(failingJobGraph, e ->
 			ExceptionUtils.findThrowable(
 				e,

@@ -310,7 +310,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
 			RestartStrategy restartStrategy,
-			SlotProvider slotProvider) throws IOException {
+			SlotProvider slotProvider,
+			String jobDescription) throws IOException {
 
 		this(
 			new JobInformation(
@@ -319,7 +320,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				serializedConfig,
 				jobConfig,
 				Collections.emptyList(),
-				Collections.emptyList()),
+				Collections.emptyList(),
+				jobDescription),
 			futureExecutor,
 			ioExecutor,
 			timeout,
@@ -625,6 +627,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	@Override
 	public String getJobName() {
 		return jobInformation.getJobName();
+	}
+
+	@Override
+	public String getJobDescription() {
+		return jobInformation.getJobDescription();
 	}
 
 	@Override

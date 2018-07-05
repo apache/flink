@@ -45,6 +45,7 @@ public class ArchivedExecutionGraphBuilder {
 
 	private JobID jobID;
 	private String jobName;
+	private String jobDescription;
 	private Map<JobVertexID, ArchivedExecutionJobVertex> tasks;
 	private List<ArchivedExecutionJobVertex> verticesInCreationOrder;
 	private long[] stateTimestamps;
@@ -117,9 +118,14 @@ public class ArchivedExecutionGraphBuilder {
 		return this;
 	}
 
+	public void setJobDescription(String jobDescription) {
+		this.jobDescription = jobDescription;
+	}
+
 	public ArchivedExecutionGraph build() {
 		JobID jobID = this.jobID != null ? this.jobID : new JobID();
 		String jobName = this.jobName != null ? this.jobName : "job_" + RANDOM.nextInt();
+		String jobDescription = this.jobDescription != null ? this.jobDescription : jobName + "'s description";
 
 		if (tasks == null) {
 			tasks = Collections.emptyMap();
@@ -139,7 +145,8 @@ public class ArchivedExecutionGraphBuilder {
 			archivedExecutionConfig != null ? archivedExecutionConfig : new ArchivedExecutionConfigBuilder().build(),
 			isStoppable,
 			null,
-			null
+			null,
+			jobDescription
 		);
 	}
 }

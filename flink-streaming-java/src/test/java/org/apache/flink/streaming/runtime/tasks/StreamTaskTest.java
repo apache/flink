@@ -910,7 +910,8 @@ public class StreamTaskTest extends TestLogger {
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
 			Collections.emptyList(),
-			Collections.emptyList());
+			Collections.emptyList(),
+			"Job Description");
 
 		TaskInformation taskInformation = new TaskInformation(
 			new JobVertexID(),

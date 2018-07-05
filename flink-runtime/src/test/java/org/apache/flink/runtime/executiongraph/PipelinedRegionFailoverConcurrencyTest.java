@@ -327,7 +327,7 @@ public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 		jv.setInvokableClass(NoOpInvokable.class);
 		jv.setParallelism(parallelism);
 
-		JobGraph jg = new JobGraph(jid, "testjob", jv);
+		JobGraph jg = new JobGraph(jid, "testjob", "", jv);
 		graph.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 
 		return graph;

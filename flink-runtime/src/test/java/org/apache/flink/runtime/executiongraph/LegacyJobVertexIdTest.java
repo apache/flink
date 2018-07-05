@@ -60,7 +60,8 @@ public class LegacyJobVertexIdTest {
 			mock(SerializedValue.class),
 			Time.seconds(1),
 			mock(RestartStrategy.class),
-			mock(SlotProvider.class));
+			mock(SlotProvider.class),
+			"test description");
 
 		ExecutionJobVertex executionJobVertex =
 				new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(1));

@@ -170,7 +170,7 @@ public class DispatcherTest extends TestLogger {
 	public void setUp() throws Exception {
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
-		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
+		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", "", testVertex);
 		jobGraph.setAllowQueuedScheduling(true);
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
@@ -691,7 +691,7 @@ public class DispatcherTest extends TestLogger {
 	private JobGraph createFailingJobGraph(Exception failureCause) {
 		final FailingJobVertex jobVertex = new FailingJobVertex("Failing JobVertex", failureCause);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
-		return new JobGraph(jobGraph.getJobID(), "Failing JobGraph", jobVertex);
+		return new JobGraph(jobGraph.getJobID(), "Failing JobGraph", "", jobVertex);
 	}
 
 	private static class FailingJobVertex extends JobVertex {

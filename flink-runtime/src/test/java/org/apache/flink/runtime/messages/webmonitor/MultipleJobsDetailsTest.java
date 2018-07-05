@@ -59,7 +59,8 @@ public class MultipleJobsDetailsTest extends TestLogger {
 			JobStatus.RUNNING,
 			9L,
 			verticesPerState,
-			9);
+			9,
+			"test description");
 
 		final JobDetails finished = new JobDetails(
 			new JobID(),
@@ -70,7 +71,8 @@ public class MultipleJobsDetailsTest extends TestLogger {
 			JobStatus.FINISHED,
 			8L,
 			verticesPerState,
-			4);
+			4,
+			"test description");
 
 		final MultipleJobsDetails expected = new MultipleJobsDetails(
 			Arrays.asList(running, finished));

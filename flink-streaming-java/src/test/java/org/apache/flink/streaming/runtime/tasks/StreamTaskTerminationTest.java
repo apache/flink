@@ -128,7 +128,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
 			Collections.emptyList(),
-			Collections.emptyList());
+			Collections.emptyList(),
+			"Test Job Description");
 
 		final TaskInformation taskInformation = new TaskInformation(
 			new JobVertexID(),

@@ -807,7 +807,7 @@ public abstract class ExecutionEnvironment {
 	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
-	 * <p>The program execution will be logged and displayed with a generated default name.
+	 * <p>The program execution will be logged and displayed with a generated default name and description.
 	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
@@ -823,12 +823,29 @@ public abstract class ExecutionEnvironment {
 	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
 	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
 	 *
-	 * <p>The program execution will be logged and displayed with the given job name.
+	 * <p>The program execution will be logged and displayed with the given job name and a generated
+	 * default description.
 	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception Thrown, if the program executions fails.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return execute(jobName, "");
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of the program that have
+	 * resulted in a "sink" operation. Sink operations are for example printing results ({@link DataSet#print()},
+	 * writing results (e.g. {@link DataSet#writeAsText(String)},
+	 * {@link DataSet#write(org.apache.flink.api.common.io.FileOutputFormat, String)}, or other generic
+	 * data sinks created with {@link DataSet#output(org.apache.flink.api.common.io.OutputFormat)}.
+	 *
+	 * <p>The program execution will be logged and displayed with the given job name and description.
+	 *
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception Thrown, if the program executions fails.
+	 */
+	public abstract JobExecutionResult execute(String jobName, String jobDescription) throws Exception;
 
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
@@ -919,7 +936,23 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName) {
-		return createProgramPlan(jobName, true);
+		return createProgramPlan(jobName, null, true);
+	}
+
+	/**
+	 * Creates the program's {@link Plan}. The plan is a description of all data sources, data sinks,
+	 * and operations and how they interact, as an isolated unit that can be executed with a
+	 * {@link org.apache.flink.api.common.PlanExecutor}. Obtaining a plan and starting it with an
+	 * executor is an alternative way to run a program and is only possible if the program consists
+	 * only of distributed operations.
+	 * This automatically starts a new stage of execution.
+	 *
+	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
+	 * @return The program's plan.
+	 */
+	@Internal
+	public Plan createProgramPlan(String jobName, String jobDescription) {
+		return createProgramPlan(jobName, jobDescription, true);
 	}
 
 	/**
@@ -930,11 +963,12 @@ public abstract class ExecutionEnvironment {
 	 * only of distributed operations.
 	 *
 	 * @param jobName The name attached to the plan (displayed in logs and monitoring).
+	 * @param jobDescription The description of the plan.
 	 * @param clearSinks Whether or not to start a new stage of execution.
 	 * @return The program's plan.
 	 */
 	@Internal
-	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+	public Plan createProgramPlan(String jobName, String jobDescription, boolean clearSinks) {
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -951,8 +985,12 @@ public abstract class ExecutionEnvironment {
 			jobName = getDefaultName();
 		}
 
+		if (jobDescription == null) {
+			jobDescription = "";
+		}
+
 		OperatorTranslation translator = new OperatorTranslation();
-		Plan plan = translator.translateToPlan(this.sinks, jobName);
+		Plan plan = translator.translateToPlan(this.sinks, jobName, jobDescription);
 
 		if (getParallelism() > 0) {
 			plan.setDefaultParallelism(getParallelism());
@@ -1025,7 +1063,8 @@ public abstract class ExecutionEnvironment {
 
 	/**
 	 * Adds the given sink to this environment. Only sinks that have been added will be executed once
-	 * the {@link #execute()} or {@link #execute(String)} method is called.
+	 * the {@link #execute()} or {@link #execute(String)} or {@link #execute(String, String)}
+	 * method is called.
 	 *
 	 * @param sink The sink to add for execution.
 	 */

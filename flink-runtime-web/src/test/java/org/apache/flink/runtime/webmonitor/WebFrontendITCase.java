@@ -257,7 +257,7 @@ public class WebFrontendITCase extends TestLogger {
 		sender.setParallelism(2);
 		sender.setInvokableClass(BlockingInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", "", sender);
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();
@@ -316,7 +316,7 @@ public class WebFrontendITCase extends TestLogger {
 		sender.setParallelism(2);
 		sender.setInvokableClass(BlockingInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", sender);
+		final JobGraph jobGraph = new JobGraph("Stoppable streaming test job", "", sender);
 		final JobID jid = jobGraph.getJobID();
 
 		ClusterClient<?> clusterClient = CLUSTER.getClusterClient();

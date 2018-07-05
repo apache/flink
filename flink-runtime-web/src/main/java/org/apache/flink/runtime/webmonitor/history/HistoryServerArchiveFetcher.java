@@ -240,6 +240,10 @@ class HistoryServerArchiveFetcher {
 
 		JobID jobId = JobID.fromHexString(job.get("jid").asText());
 		String name = job.get("name").asText();
+		String description = "";
+		if (job.get("description") != null) {
+			description = job.get("description").asText();
+		}
 		JobStatus state = JobStatus.valueOf(job.get("state").asText());
 
 		long startTime = job.get("start-time").asLong();
@@ -266,7 +270,7 @@ class HistoryServerArchiveFetcher {
 		tasksPerState[ExecutionState.CANCELED.ordinal()] = canceled;
 		tasksPerState[ExecutionState.FAILED.ordinal()] = failed;
 
-		JobDetails jobDetails = new JobDetails(jobId, name, startTime, endTime, duration, state, lastMod, tasksPerState, numTasks);
+		JobDetails jobDetails = new JobDetails(jobId, name, startTime, endTime, duration, state, lastMod, tasksPerState, numTasks, description);
 		MultipleJobsDetails multipleJobsDetails = new MultipleJobsDetails(Collections.singleton(jobDetails));
 
 		StringWriter sw = new StringWriter();

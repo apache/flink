@@ -89,7 +89,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 			JobVertex sourceJobVertex = new JobVertex("Source");
 			sourceJobVertex.setInvokableClass(BlockingInvokable.class);
 
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			JobGraph jobGraph = new JobGraph("TestingJob", "", sourceJobVertex);
 			jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),

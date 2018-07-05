@@ -1633,6 +1633,9 @@ under the License.
 								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat</exclude>
 								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat</exclude>
 								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.java.ExecutionEnvironment</exclude>
+								<exclude>org.apache.flink.api.java.LocalEnvironment</exclude>
+								<exclude>org.apache.flink.api.java.RemoteEnvironment</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>

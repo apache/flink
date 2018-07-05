@@ -107,6 +107,9 @@ public abstract class StreamExecutionEnvironment {
 	/** The default name to use for a streaming job if no other name has been specified. */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
 
+	/** The default descrption to use for a streaming job if no other description name has been specified. */
+	public static final String DEFAULT_JOB_DESCRIPTION = "";
+
 	/** The time characteristic that is used if none other is set. */
 	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
 
@@ -142,7 +145,6 @@ public abstract class StreamExecutionEnvironment {
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
 	protected final List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cacheFile = new ArrayList<>();
-
 
 	// --------------------------------------------------------------------------------------------
 	// Constructor and Properties
@@ -1515,14 +1517,31 @@ public abstract class StreamExecutionEnvironment {
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
 	 *
-	 * <p>The program execution will be logged and displayed with the provided name
+	 * <p>The program execution will be logged and displayed with a generated
+	 * default description.
 	 *
-	 * @param jobName
-	 * 		Desired name of the job
+	 * @param jobName Desired name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return execute(jobName, DEFAULT_JOB_DESCRIPTION);
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * @param jobName Desired name of the job
+	 * @param jobDescription Desired description of the job
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@PublicEvolving
+	public abstract JobExecutionResult execute(String jobName, String jobDescription) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.

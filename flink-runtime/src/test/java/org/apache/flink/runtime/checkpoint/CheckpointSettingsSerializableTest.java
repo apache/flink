@@ -88,7 +88,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
 				serHooks);
 
-		final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
+		final JobGraph jobGraph = new JobGraph(new JobID(), "test job", "");
 		jobGraph.setSnapshotSettings(checkpointingSettings);
 
 		// to serialize/deserialize the job graph to see if the behavior is correct under

@@ -241,7 +241,8 @@ public class InterruptSensitiveRestoreTest {
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
 			Collections.emptyList(),
-			Collections.emptyList());
+			Collections.emptyList(),
+			"test job description");
 
 		TaskInformation taskInformation = new TaskInformation(
 			jobVertexID,

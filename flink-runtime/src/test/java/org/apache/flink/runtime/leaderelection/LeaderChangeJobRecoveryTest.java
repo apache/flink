@@ -154,6 +154,6 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		return new JobGraph("Blocking test job", sender, receiver);
+		return new JobGraph("Blocking test job", "", sender, receiver);
 	}
 }

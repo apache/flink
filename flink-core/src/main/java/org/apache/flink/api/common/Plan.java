@@ -55,6 +55,9 @@ public class Plan implements Visitable<Operator<?>> {
 	/** The name of the job. */
 	protected String jobName;
 
+	/** The description of the job. */
+	protected String jobDescription;
+
 	/** The default parallelism to use for nodes that have no explicitly specified parallelism. */
 	protected int defaultParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 	
@@ -77,12 +80,13 @@ public class Plan implements Visitable<Operator<?>> {
 	 * 
 	 * <p>If not all of the sinks of a data flow are given to the plan, the flow might
 	 * not be translated entirely.</p>
-	 *  
+	 *
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
+	 * @param jobDescription The description to display for the job.
 	 */
-	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName) {
-		this(sinks, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, String jobDescription) {
+		this(sinks, jobName, ExecutionConfig.PARALLELISM_DEFAULT, jobDescription);
 	}
 
 	/**
@@ -95,10 +99,12 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sinks The collection will the sinks of the job's data flow.
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default parallelism for the job.
+	 * @param jobDescription The description to display for the job.
 	 */
-	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, int defaultParallelism) {
+	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, String jobName, int defaultParallelism, String jobDescription) {
 		this.sinks.addAll(sinks);
 		this.jobName = jobName;
+		this.jobDescription = jobDescription;
 		this.defaultParallelism = defaultParallelism;
 	}
 
@@ -108,12 +114,13 @@ public class Plan implements Visitable<Operator<?>> {
 	 * If not all of the sinks of a data flow are given, the flow might
 	 * not be translated entirely, but only the parts of the flow reachable by traversing backwards
 	 * from the given data sinks.
-	 * 
+	 *
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
+	 * @param jobDescription The description to display for the job.
 	 */
-	public Plan(GenericDataSinkBase<?> sink, String jobName) {
-		this(sink, jobName, ExecutionConfig.PARALLELISM_DEFAULT);
+	public Plan(GenericDataSinkBase<?> sink, String jobName, String jobDescription) {
+		this(sink, jobName, ExecutionConfig.PARALLELISM_DEFAULT, jobDescription);
 	}
 
 	/**
@@ -127,9 +134,10 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param sink The data sink of the data flow.
 	 * @param jobName The name to display for the job.
 	 * @param defaultParallelism The default parallelism for the job.
+	 * @param jobDescription The description for the job.
 	 */
-	public Plan(GenericDataSinkBase<?> sink, String jobName, int defaultParallelism) {
-		this(Collections.<GenericDataSinkBase<?>>singletonList(sink), jobName, defaultParallelism);
+	public Plan(GenericDataSinkBase<?> sink, String jobName, int defaultParallelism, String jobDescription) {
+		this(Collections.<GenericDataSinkBase<?>>singletonList(sink), jobName, defaultParallelism, jobDescription);
 	}
 
 	/**
@@ -158,7 +166,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(Collection<? extends GenericDataSinkBase<?>> sinks, int defaultParallelism) {
-		this(sinks, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism);
+		this(sinks, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism, "");
 	}
 
 	/**
@@ -185,7 +193,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param defaultParallelism The default parallelism for the job.
 	 */
 	public Plan(GenericDataSinkBase<?> sink, int defaultParallelism) {
-		this(sink, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism);
+		this(sink, "Flink Job at " + Calendar.getInstance().getTime(), defaultParallelism, "");
 	}
 
 	// ------------------------------------------------------------------------
@@ -229,6 +237,24 @@ public class Plan implements Visitable<Operator<?>> {
 	public void setJobName(String jobName) {
 		checkNotNull(jobName, "The job name must not be null.");
 		this.jobName = jobName;
+	}
+
+	/**
+	 * Gets the description of this plan.
+	 *
+	 * @return The description of the plan.
+	 */
+	public String getJobDescription() {
+		return jobDescription;
+	}
+
+	/**
+	 * Sets the jobDescription for this Plan.
+	 *
+	 * @param jobDescription The jobDescription to set.
+	 */
+	public void setJobDescription(String jobDescription) {
+		this.jobDescription = jobDescription;
 	}
 
 	/**

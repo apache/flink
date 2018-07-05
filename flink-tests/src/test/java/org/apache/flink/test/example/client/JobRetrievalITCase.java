@@ -88,7 +88,7 @@ public class JobRetrievalITCase extends TestLogger {
 		final JobVertex imalock = new JobVertex("imalock");
 		imalock.setInvokableClass(SemaphoreInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph(jobID, "testjob", imalock);
+		final JobGraph jobGraph = new JobGraph(jobID, "testjob", "", imalock);
 
 		// acquire the lock to make sure that the job cannot complete until the job client
 		// has been attached in resumingThread

@@ -245,7 +245,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			sourceJobVertex.setInvokableClass(BlockingStatefulInvokable.class);
 			sourceJobVertex.setParallelism(slots);
 
-			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
+			JobGraph jobGraph = new JobGraph("TestingJob", "", sourceJobVertex);
 
 			List<JobVertexID> vertexId = Collections.singletonList(sourceJobVertex.getID());
 			jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
