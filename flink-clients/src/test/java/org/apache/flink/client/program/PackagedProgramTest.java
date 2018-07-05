@@ -21,15 +21,23 @@ package org.apache.flink.client.program;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Tests for the {@link PackagedProgramTest}.
  */
 public class PackagedProgramTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testGetPreviewPlan() {
@@ -54,6 +62,26 @@ public class PackagedProgramTest {
 			e.printStackTrace();
 			Assert.fail("Test is erroneous: " + e.getMessage());
 		}
+	}
+
+	/**
+	 * The test for {@link PackagedProgram#extractContainedLibraries}.
+	 * As a prerequisite the test generates a jar file with the following structure
+	 * test.jar
+	 * |- lib
+	 * |--|- internalTest.jar
+	 */
+	@Test
+	public void testExtractContainedLibraries() throws Exception {
+		String s = "testExtractContainedLibraries";
+		File fakeJar = temporaryFolder.newFile("test.jar");
+		try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(fakeJar))) {
+			ZipEntry entry = new ZipEntry("lib/internalTest.jar");
+			zos.putNextEntry(entry);
+			zos.write(s.getBytes());
+			zos.closeEntry();
+		}
+		PackagedProgram.extractContainedLibraries(fakeJar.toURI().toURL());
 	}
 
 	private static final class NullOutputStream extends java.io.OutputStream {
