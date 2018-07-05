@@ -254,7 +254,7 @@ public class Plan implements Visitable<Operator<?>> {
 	 * @param jobDescription The jobDescription to set.
 	 */
 	public void setJobDescription(String jobDescription) {
-		this.jobDescription = jobDescription;
+		this.jobDescription = checkNotNull(jobDescription);
 	}
 
 	/**

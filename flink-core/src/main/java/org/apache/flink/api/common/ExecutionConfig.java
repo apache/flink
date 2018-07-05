@@ -105,8 +105,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	private int maxParallelism = -1;
 
-	private String description;
-
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
 	 */

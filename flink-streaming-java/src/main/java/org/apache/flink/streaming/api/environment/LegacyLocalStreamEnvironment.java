@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -69,7 +68,6 @@ public class LegacyLocalStreamEnvironment extends LocalStreamEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	@PublicEvolving
 	public JobExecutionResult execute(String jobName, String jobDescription) throws Exception {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();

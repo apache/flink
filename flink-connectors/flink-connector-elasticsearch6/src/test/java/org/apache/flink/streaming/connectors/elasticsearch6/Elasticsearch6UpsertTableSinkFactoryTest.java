@@ -184,7 +184,7 @@ public class Elasticsearch6UpsertTableSinkFactoryTest extends ElasticsearchUpser
 	private static class StreamExecutionEnvironmentMock extends StreamExecutionEnvironment {
 
 		@Override
-		public JobExecutionResult execute(String jobName) {
+		public JobExecutionResult execute(String jobName, String jobDescription) {
 			throw new UnsupportedOperationException();
 		}
 	}

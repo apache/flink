@@ -1636,6 +1636,7 @@ under the License.
 								<exclude>org.apache.flink.api.java.ExecutionEnvironment</exclude>
 								<exclude>org.apache.flink.api.java.LocalEnvironment</exclude>
 								<exclude>org.apache.flink.api.java.RemoteEnvironment</exclude>
+								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
