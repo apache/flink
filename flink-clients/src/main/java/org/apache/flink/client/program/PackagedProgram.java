@@ -692,7 +692,9 @@ public class PackagedProgram {
 					for (int i = 0; i < containedJarFileEntries.size(); i++) {
 						final JarEntry entry = containedJarFileEntries.get(i);
 						String name = entry.getName();
-						name = name.replace(File.separatorChar, '_');
+						// '/' as in case of zip, jar
+						// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
+						name = name.replace('/', '_');
 
 						File tempFile;
 						try {
