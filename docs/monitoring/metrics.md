@@ -426,7 +426,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 Every metric is assigned an identifier and a set of key-value pairs under which the metric will be reported.
 
-THe identifier is based on 3 components: the user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
+The identifier is based on 3 components: a user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
 You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
@@ -1253,7 +1253,7 @@ Thus, in order to infer the metric identifier:
       <td>Meter</td>
     </tr>
     <tr>
-      <th rowspan="5"><strong>Task/Operator</strong></th>
+      <th rowspan="6"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
       <td>Counter</td>
@@ -1279,15 +1279,15 @@ Thus, in order to infer the metric identifier:
       <td>Counter</td>
     </tr>
     <tr>
-      <th rowspan="5"><strong>Operator</strong></th>
       <td>currentInputWatermark</td>
       <td>
-        The last watermark this operator has received (in milliseconds).
-        <p><strong>Note:</strong> For operators with 2 inputs this is the minimum of the last received watermarks.</p>
+        The last watermark this operator/tasks has received (in milliseconds).
+        <p><strong>Note:</strong> For operators/tasks with 2 inputs this is the minimum of the last received watermarks.</p>
       </td>
       <td>Gauge</td>
     </tr>
     <tr>
+      <th rowspan="4"><strong>Operator</strong></th>
       <td>currentInput1Watermark</td>
       <td>
         The last watermark this operator has received in its first input (in milliseconds).

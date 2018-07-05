@@ -24,6 +24,14 @@ if [[ -z $FLINK_DIR ]]; then
     exit 1
 fi
 
+case "$(uname -s)" in
+    Linux*)     OS_TYPE=linux;;
+    Darwin*)    OS_TYPE=mac;;
+    CYGWIN*)    OS_TYPE=cygwin;;
+    MINGW*)     OS_TYPE=mingw;;
+    *)          OS_TYPE="UNKNOWN:${unameOut}"
+esac
+
 export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
@@ -38,6 +46,27 @@ cd $TEST_ROOT
 # used to randomize created directories
 export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
 echo "TEST_DATA_DIR: $TEST_DATA_DIR"
+
+function print_mem_use_osx {
+    declare -a mem_types=("active" "inactive" "wired down")
+    used=""
+    for mem_type in "${mem_types[@]}"
+    do
+       used_type=$(vm_stat | grep "Pages ${mem_type}:" | awk '{print $NF}' | rev | cut -c 2- | rev)
+       let used_type="(${used_type}*4096)/1024/1024"
+       used="$used $mem_type=${used_type}MB"
+    done
+    let mem=$(sysctl -n hw.memsize)/1024/1024
+    echo "Memory Usage: ${used} total=${mem}MB"
+}
+
+function print_mem_use {
+    if [[ "$OS_TYPE" == "mac" ]]; then
+        print_mem_use_osx
+    else
+        free -m | awk 'NR==2{printf "Memory Usage: used=%sMB total=%sMB %.2f%%\n", $3,$2,$3*100/$2 }'
+    fi
+}
 
 function backup_config() {
     # back up the masters and flink-conf.yaml
@@ -113,6 +142,9 @@ function create_ha_config() {
     #==============================================================================
 
     rest.port: 8081
+
+    query.server.ports: 9000-9009
+    query.proxy.ports: 9010-9019
 EOL
 }
 
@@ -137,7 +169,7 @@ function start_local_zk {
             address=${BASH_REMATCH[2]}
 
             if [ "${address}" != "localhost" ]; then
-                echo "[ERROR] Parse error. Only available for localhost."
+                echo "[ERROR] Parse error. Only available for localhost. Expected address 'localhost' but got '${address}'"
                 exit 1
             fi
             ${FLINK_DIR}/bin/zookeeper.sh start $id
@@ -164,6 +196,32 @@ function start_cluster {
 
     echo "Waiting for dispatcher REST endpoint to come up..."
     sleep 1
+  done
+}
+
+function start_and_wait_for_tm {
+
+  tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")
+
+  # we assume that the cluster is running
+  if ! [[ ${tm_query_result} =~ \{\"taskmanagers\":\[.*\]\} ]]; then
+    echo "Your cluster seems to be unresponsive at the moment: ${tm_query_result}" 1>&2
+    exit 1
+  fi
+
+  running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
+
+  ${FLINK_DIR}/bin/taskmanager.sh start
+
+  for i in {1..10}; do
+    local new_running_tms=`curl -s "http://localhost:8081/taskmanagers" | grep -o "id" | wc -l`
+    if [ $((new_running_tms-running_tms)) -eq 0 ]; then
+      echo "TaskManager is not yet up."
+    else
+      echo "TaskManager is up."
+      break
+    fi
+    sleep 4
   done
 }
 
@@ -231,9 +289,27 @@ function stop_cluster {
   fi
 }
 
+function wait_for_job_state_transition {
+  local job=$1
+  local initial_state=$2
+  local next_state=$3
+    
+  echo "Waiting for job ($job) to switch from state ${initial_state} to state ${next_state} ..."
+
+  while : ; do
+    N=$(grep -o "($job) switched from state ${initial_state} to ${next_state}" $FLINK_DIR/log/*standalonesession*.log | tail -1)
+
+    if [[ -z $N ]]; then
+      sleep 1
+    else
+      break
+    fi
+  done
+}
+
 function wait_job_running {
   for i in {1..10}; do
-    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list | grep "$1")
+    JOB_LIST_RESULT=$("$FLINK_DIR"/bin/flink list -r | grep "$1")
 
     if [[ "$JOB_LIST_RESULT" == "" ]]; then
       echo "Job ($1) is not yet running."
@@ -456,4 +532,32 @@ function start_timer {
 function end_timer {
     duration=$SECONDS
     echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds"
+}
+
+function clean_stdout_files {
+    rm ${FLINK_DIR}/log/*.out
+}
+
+function clean_log_files {
+    rm ${FLINK_DIR}/log/*
+}
+
+# Expect a string to appear in the log files of the task manager before a given timeout
+# $1: expected string
+# $2: timeout in seconds
+function expect_in_taskmanager_logs {
+    local expected="$1"
+    local timeout=$2
+    local i=0
+    local logfile="${FLINK_DIR}/log/flink*taskexecutor*log"
+
+
+    while ! grep "${expected}" ${logfile} > /dev/null; do
+        sleep 1s
+        ((i++))
+        if ((i > timeout)); then
+            echo "A timeout occurred waiting for '${expected}' to appear in the taskmanager logs"
+            exit 1
+        fi
+    done
 }

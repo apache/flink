@@ -36,6 +36,7 @@ import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
 import org.apache.mesos.Protos;
+import org.apache.mesos.Protos.CommandInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -247,6 +248,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			cmd.addUris(Utils.uri(resolver, artifact));
 		}
 
+		// add user-specified URIs
+		for (String uri : params.uris()) {
+			cmd.addUris(CommandInfo.URI.newBuilder().setValue(uri));
+		}
+
 		// propagate environment variables
 		for (Map.Entry<String, String> entry : params.containeredParameters().taskManagerEnv().entrySet()) {
 			env.addVariables(variable(entry.getKey(), entry.getValue()));
@@ -311,7 +317,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 					.setDocker(Protos.ContainerInfo.DockerInfo.newBuilder()
 						.addAllParameters(params.dockerParameters())
 						.setNetwork(Protos.ContainerInfo.DockerInfo.Network.HOST)
-						.setImage(params.containerImageName().get()));
+						.setImage(params.containerImageName().get())
+						.setForcePullImage(params.dockerForcePullImage()));
 				break;
 
 			default:

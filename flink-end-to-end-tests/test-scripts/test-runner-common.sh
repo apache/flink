@@ -70,7 +70,8 @@ function cleanup {
   jm_kill_all
   rm -rf $TEST_DATA_DIR 2> /dev/null
   revert_default_config
-  rm -rf $FLINK_DIR/log/* 2> /dev/null
+  clean_log_files
+  clean_stdout_files
 }
 
 trap cleanup EXIT

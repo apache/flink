@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
-import org.apache.flink.formats.avro.typeutils.AvroRecordClassConverter;
+import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -64,7 +64,7 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 			topic,
 			properties,
 			schema,
-			AvroRecordClassConverter.convert(avroRecordClass));
+			AvroSchemaConverter.convertToTypeInfo(avroRecordClass));
 
 		this.avroRecordClass = avroRecordClass;
 	}

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -298,7 +299,11 @@ class LocalBufferPool implements BufferPool {
 			}
 		}
 
-		networkBufferPool.destroyBufferPool(this);
+		try {
+			networkBufferPool.destroyBufferPool(this);
+		} catch (IOException e) {
+			ExceptionUtils.rethrow(e);
+		}
 	}
 
 	@Override
@@ -331,7 +336,7 @@ class LocalBufferPool implements BufferPool {
 			// If there is a registered owner and we have still requested more buffers than our
 			// size, trigger a recycle via the owner.
 			if (owner != null && numberOfRequestedMemorySegments > currentPoolSize) {
-				owner.releaseMemory(numberOfRequestedMemorySegments - numBuffers);
+				owner.releaseMemory(numberOfRequestedMemorySegments - currentPoolSize);
 			}
 		}
 	}

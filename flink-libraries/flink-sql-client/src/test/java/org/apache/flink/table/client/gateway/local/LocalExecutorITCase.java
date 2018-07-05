@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -71,11 +72,11 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfig(),
-			NUM_TMS,
-			NUM_SLOTS_PER_TM),
-		true);
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfig())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+			.build());
 
 	private static ClusterClient<?> clusterClient;
 
@@ -122,6 +123,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.type", "streaming");
 		expectedProperties.put("execution.time-characteristic", "event-time");
+		expectedProperties.put("execution.periodic-watermarks-interval", "99");
 		expectedProperties.put("execution.parallelism", "1");
 		expectedProperties.put("execution.max-parallelism", "16");
 		expectedProperties.put("execution.max-idle-state-retention", "0");
@@ -265,7 +267,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE),
+			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, Collections.singletonMap("$VAR_2", "batch")),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));

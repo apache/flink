@@ -44,6 +44,8 @@ import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -102,6 +104,9 @@ public class TestBaseUtils extends TestLogger {
 	public static final FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
 
 	public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
+
+	static final String NEW_CODEBASE = "new";
+	static final String CODEBASE_KEY = "codebase";
 
 	// ------------------------------------------------------------------------
 
@@ -671,6 +676,26 @@ public class TestBaseUtils extends TestLogger {
 		}
 
 		throw new TimeoutException("Could not get HTTP response in time since the service is still unavailable.");
+	}
+
+	@Nonnull
+	public static CodebaseType getCodebaseType() {
+		return Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY)) ? CodebaseType.NEW : CodebaseType.LEGACY;
+	}
+
+	public static boolean isNewCodebase() {
+		return CodebaseType.NEW == getCodebaseType();
+	}
+
+	/**
+	 * Type of the mini cluster to start.
+	 *
+	 * @deprecated Will be irrelevant once the legacy mode has been removed.
+	 */
+	@Deprecated
+	public enum CodebaseType {
+		LEGACY,
+		NEW
 	}
 
 	/**

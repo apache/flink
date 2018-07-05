@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -79,12 +78,12 @@ public class JsonRowDeserializationSchemaTest {
 
 	@Test
 	public void testSchemaDeserialization() throws Exception {
-		final BigInteger id = BigInteger.valueOf(1238123899121L);
+		final BigDecimal id = BigDecimal.valueOf(1238123899121L);
 		final String name = "asdlkjasjkdla998y1122";
 		final byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
-		final BigInteger[] numbers = new BigInteger[] {
-			BigInteger.valueOf(1), BigInteger.valueOf(2), BigInteger.valueOf(3)};
+		final BigDecimal[] numbers = new BigDecimal[] {
+			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
 		final String[] strings = new String[] {"one", "two", "three"};
 
 		final ObjectMapper objectMapper = new ObjectMapper();

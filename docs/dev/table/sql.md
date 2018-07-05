@@ -115,6 +115,10 @@ The following BNF-grammar describes the superset of supported SQL features in ba
 
 {% highlight sql %}
 
+insert:
+  INSERT INTO tableReference
+  query
+  
 query:
   values
   | {
@@ -139,7 +143,8 @@ select:
   [ WHERE booleanExpression ]
   [ GROUP BY { groupItem [, groupItem ]* } ]
   [ HAVING booleanExpression ]
-
+  [ WINDOW windowName AS windowSpec [, windowName AS windowSpec ]* ]
+  
 selectWithoutFrom:
   SELECT [ ALL | DISTINCT ]
   { * | projectItem [, projectItem ]* }
@@ -176,9 +181,20 @@ groupItem:
   | ROLLUP '(' expression [, expression ]* ')'
   | GROUPING SETS '(' groupItem [, groupItem ]* ')'
 
-insert:
-  INSERT INTO tableReference
-  query
+windowRef:
+    windowName
+  | windowSpec
+
+windowSpec:
+    [ windowName ]
+    '('
+    [ ORDER BY orderItem [, orderItem ]* ]
+    [ PARTITION BY expression [, expression ]* ]
+    [
+        RANGE numericOrIntervalExpression {PRECEDING}
+      | ROWS numericExpression {PRECEDING}
+    ]
+    ')'
 
 {% endhighlight %}
 
@@ -302,6 +318,13 @@ SELECT COUNT(amount) OVER (
   ORDER BY proctime
   ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
 FROM Orders
+
+SELECT COUNT(amount) OVER w, SUM(amount) OVER w
+FROM Orders 
+WINDOW w AS (
+  PARTITION BY user
+  ORDER BY proctime
+  ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)  
 {% endhighlight %}
       </td>
     </tr>
@@ -2721,9 +2744,6 @@ A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, A
   </tr>
   <tr><td>{% highlight text %}%v{% endhighlight %}</td>
   <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
   </tr>
   <tr><td>{% highlight text %}%W{% endhighlight %}</td>
   <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
