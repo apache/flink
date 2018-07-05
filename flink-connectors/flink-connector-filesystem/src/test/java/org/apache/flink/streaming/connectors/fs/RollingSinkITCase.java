@@ -930,7 +930,7 @@ public class RollingSinkITCase extends TestLogger {
 		}
 
 		@Override
-		public Writer<T> duplicate() {
+		public StreamWriterWithConfigCheck<T> duplicate() {
 			return new StreamWriterWithConfigCheck<>(key, expect);
 		}
 	}
