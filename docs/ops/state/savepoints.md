@@ -201,9 +201,7 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 
 ### What happens if I add or delete or reorder operators that have no state in my job?
 
-If you assigned IDs to your stateful operators, the stateless operators will not influence the savepoint restore.
-
-If you did not assign IDs, the auto generated IDs of the stateful operators will most likely change after the reordering. This would result in you not being able to restore from a previous savepoint.
+The stateless operators will not influence the savepoint restore.
 
 ### What happens when I change the parallelism of my program when restoring?
 
