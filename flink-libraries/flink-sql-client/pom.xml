@@ -177,16 +177,16 @@ under the License.
 				<version>2.4</version>
 				<executions>
 					<execution>
-						<id>create-table-source-factory-jar</id>
+						<id>create-table-factories-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
 						<configuration>
-							<finalName>table-source-factory</finalName>
+							<finalName>table-factories</finalName>
 							<attach>false</attach>
 							<descriptors>
-								<descriptor>src/test/assembly/test-table-source-factory.xml</descriptor>
+								<descriptor>src/test/assembly/test-table-factories.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>

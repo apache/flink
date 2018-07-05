@@ -103,6 +103,20 @@ public class CliOptionsParser {
 				"functions, table sources, or sinks. Can be used multiple times.")
 			.build();
 
+	public static final Option OPTION_UPDATE = Option
+			.builder("u")
+			.required(false)
+			.longOpt("update")
+			.numberOfArgs(1)
+			.argName("SQL update statement")
+			.desc(
+				"Experimental (for testing only!): Instructs the SQL Client to immediately execute " +
+				"the given update statement after starting up. The process is shut down after the " +
+				"statement has been submitted to the cluster and returns an appropriate return code. " +
+				"Currently, this feature is only supported for INSERT INTO statements that declare " +
+				"the target sink table.")
+			.build();
+
 	private static final Options EMBEDDED_MODE_CLIENT_OPTIONS = getEmbeddedModeClientOptions(new Options());
 	private static final Options GATEWAY_MODE_CLIENT_OPTIONS = getGatewayModeClientOptions(new Options());
 	private static final Options GATEWAY_MODE_GATEWAY_OPTIONS = getGatewayModeGatewayOptions(new Options());
@@ -118,6 +132,7 @@ public class CliOptionsParser {
 		options.addOption(OPTION_DEFAULTS);
 		options.addOption(OPTION_JAR);
 		options.addOption(OPTION_LIBRARY);
+		options.addOption(OPTION_UPDATE);
 		return options;
 	}
 
@@ -125,6 +140,7 @@ public class CliOptionsParser {
 		buildGeneralOptions(options);
 		options.addOption(OPTION_SESSION);
 		options.addOption(OPTION_ENVIRONMENT);
+		options.addOption(OPTION_UPDATE);
 		return options;
 	}
 
@@ -218,7 +234,8 @@ public class CliOptionsParser {
 				checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
-				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt())
 			);
 		}
 		catch (ParseException e) {
@@ -236,7 +253,8 @@ public class CliOptionsParser {
 				checkUrl(line, CliOptionsParser.OPTION_ENVIRONMENT),
 				null,
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
-				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+				line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt())
 			);
 		}
 		catch (ParseException e) {
@@ -254,7 +272,8 @@ public class CliOptionsParser {
 				null,
 				checkUrl(line, CliOptionsParser.OPTION_DEFAULTS),
 				checkUrls(line, CliOptionsParser.OPTION_JAR),
-				checkUrls(line, CliOptionsParser.OPTION_LIBRARY)
+				checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
+				null
 			);
 		}
 		catch (ParseException e) {

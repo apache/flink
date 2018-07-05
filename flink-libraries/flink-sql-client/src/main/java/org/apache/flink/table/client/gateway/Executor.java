@@ -88,6 +88,15 @@ public interface Executor {
 	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
 
 	/**
+	 * Submits a Flink SQL update statement such as INSERT INTO.
+	 *
+	 * @param session context in with the statement is executed
+	 * @param statement SQL update statement (currently only INSERT INTO is supported)
+	 * @return information about the target of the submitted Flink job
+	 */
+	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
+
+	/**
 	 * Stops the executor.
 	 */
 	void stop(SessionContext session);

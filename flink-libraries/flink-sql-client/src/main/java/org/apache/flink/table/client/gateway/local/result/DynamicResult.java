@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
@@ -29,12 +30,7 @@ import org.apache.flink.types.Row;
  *
  * @param <C> type of the cluster id to which this result belongs to
  */
-public interface DynamicResult<C> {
-
-	/**
-	 * Sets the cluster id of the cluster this result comes from. This method should only be called once.
-	 */
-	void setClusterId(C clusterId);
+public interface DynamicResult<C> extends Result<C> {
 
 	/**
 	 * Returns whether this result is materialized such that snapshots can be taken or results

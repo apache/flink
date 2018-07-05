@@ -51,6 +51,7 @@ public class EnvironmentTest {
 		tables.add("TableNumber1");
 		tables.add("TableNumber2");
 		tables.add("NewTable");
+		tables.add("TableSourceSink");
 
 		assertEquals(tables, merged.getTables().keySet());
 		assertTrue(merged.getExecution().isStreamingExecution());

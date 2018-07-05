@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.cli;
 
+import java.util.Optional;
+
 /**
  * Simple parser for determining the type of command and its parameters.
  */
@@ -27,7 +29,7 @@ public final class SqlCommandParser {
 		// private
 	}
 
-	public static SqlCommandCall parse(String stmt) {
+	public static Optional<SqlCommandCall> parse(String stmt) {
 		String trimmed = stmt.trim();
 		// remove ';' at the end because many people type it intuitively
 		if (trimmed.endsWith(";")) {
@@ -43,10 +45,11 @@ public final class SqlCommandParser {
 					// match
 					if (tokenCount < cmd.tokens.length && token.equalsIgnoreCase(cmd.tokens[tokenCount])) {
 						if (tokenCount == cmd.tokens.length - 1) {
-							return new SqlCommandCall(
+							final SqlCommandCall call = new SqlCommandCall(
 								cmd,
 								splitOperands(cmd, trimmed, trimmed.substring(Math.min(pos, trimmed.length())))
 							);
+							return Optional.of(call);
 						}
 					} else {
 						// next sql command
@@ -56,7 +59,7 @@ public final class SqlCommandParser {
 				}
 			}
 		}
-		return null;
+		return Optional.empty();
 	}
 
 	private static String[] splitOperands(SqlCommand cmd, String originalCall, String operands) {
@@ -69,6 +72,7 @@ public final class SqlCommandParser {
 					return new String[] {operands.substring(0, delimiter), operands.substring(delimiter + 1)};
 				}
 			case SELECT:
+			case INSERT_INTO:
 				return new String[] {originalCall};
 			default:
 				return new String[] {operands};
@@ -90,6 +94,7 @@ public final class SqlCommandParser {
 		DESCRIBE("describe"),
 		EXPLAIN("explain"),
 		SELECT("select"),
+		INSERT_INTO("insert into"),
 		SET("set"),
 		RESET("reset"),
 		SOURCE("source");
