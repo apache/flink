@@ -23,8 +23,6 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 
 import javax.annotation.Nonnull;
 
-import java.util.Comparator;
-
 /**
  * Test implementation of a {@link PriorityQueueSetFactory}.
  */
@@ -38,12 +36,18 @@ public class TestPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		this.totalkeyGroups = totalKeyGroups;
 	}
 
+	@Nonnull
 	@Override
 	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnull KeyExtractorFunction<T> keyExtractor) {
-		return new HeapPriorityQueueSet<>(elementComparator, keyExtractor, 128,keyGroupRange, totalkeyGroups);
+		return new HeapPriorityQueueSet<>(
+			elementPriorityComparator,
+			keyExtractor,
+			128,
+			keyGroupRange,
+			totalkeyGroups);
 	}
 }

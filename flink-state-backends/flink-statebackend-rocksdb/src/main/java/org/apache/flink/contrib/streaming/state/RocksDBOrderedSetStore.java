@@ -225,6 +225,10 @@ public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSe
 		private RocksToJavaIteratorAdapter(@Nonnull RocksIteratorWrapper iterator) {
 			this.iterator = iterator;
 			try {
+				// TODO we could check if it is more efficient to make the seek more specific, e.g. with a provided hint
+				// that is lexicographically closer the first expected element in the key-group. I wonder if this could
+				// help to improve the seek if there are many tombstones for elements at the beginning of the key-group
+				// (like for elements that have been removed in previous polling, before they are compacted away).
 				iterator.seek(groupPrefixBytes);
 				deserializeNextElementIfAvailable();
 			} catch (Exception ex) {

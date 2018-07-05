@@ -25,7 +25,7 @@ public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
 	@Override
 	protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
 		return new HeapPriorityQueueSet<>(
-			TEST_ELEMENT_COMPARATOR,
+			TEST_ELEMENT_PRIORITY_COMPARATOR,
 			KEY_EXTRACTOR_FUNCTION,
 			initialCapacity,
 			KEY_GROUP_RANGE,

@@ -68,6 +68,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
+import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
@@ -79,6 +80,7 @@ import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TieBreakingPriorityComparator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.CachingInternalPriorityQueueSet;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -407,11 +409,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@Nonnull
 	@Override
 	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementComparator,
 		@Nonnull KeyExtractorFunction<T> keyExtractor) {
 
 		return priorityQueueFactory.create(stateName, byteOrderedElementSerializer, elementComparator, keyExtractor);
@@ -2636,29 +2639,38 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.priorityQueueColumnFamilies = new HashMap<>();
 		}
 
+		@Nonnull
 		@Override
 		public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
 			@Nonnull String stateName,
 			@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-			@Nonnull Comparator<T> elementComparator,
+			@Nonnull PriorityComparator<T> elementPriorityComparator,
 			@Nonnull KeyExtractorFunction<T> keyExtractor) {
 
 			final ColumnFamilyHandle columnFamilyHandle =
 				priorityQueueColumnFamilies.computeIfAbsent(stateName, RocksDBKeyedStateBackend.this::createColumnFamily);
 
+			@Nonnull
+			TieBreakingPriorityComparator<T> tieBreakingComparator =
+				new TieBreakingPriorityComparator<>(
+					elementPriorityComparator,
+					byteOrderedElementSerializer,
+					elementSerializationOutStream,
+					elementSerializationOutView);
+
 			return new KeyGroupPartitionedPriorityQueue<>(
 				keyExtractor,
-				elementComparator,
+				elementPriorityComparator,
 				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, CachingInternalPriorityQueueSet<T>>() {
 					@Nonnull
 					@Override
 					public CachingInternalPriorityQueueSet<T> create(
 						int keyGroupId,
 						int numKeyGroups,
-						@Nonnull Comparator<T> elementComparator) {
+						@Nonnull PriorityComparator<T> elementPriorityComparator) {
 
 						CachingInternalPriorityQueueSet.OrderedSetCache<T> cache =
-							new TreeOrderedSetCache<>(elementComparator, DEFAULT_CACHES_SIZE);
+							new TreeOrderedSetCache<>(tieBreakingComparator, DEFAULT_CACHES_SIZE);
 						CachingInternalPriorityQueueSet.OrderedSetStore<T> store =
 							new RocksDBOrderedSetStore<>(
 								keyGroupId,

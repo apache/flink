@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.runtime.state.InternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nonnegative;
@@ -27,7 +28,6 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -56,9 +56,9 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 	private static final int QUEUE_HEAD_INDEX = 1;
 
 	/**
-	 * Comparator for the contained elements.
+	 * Comparator for the priority of contained elements.
 	 */
-	private final Comparator<T> elementComparator;
+	private final PriorityComparator<T> elementPriorityComparator;
 
 	/**
 	 * The array that represents the heap-organized priority queue.
@@ -73,15 +73,15 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 	/**
 	 * Creates an empty {@link HeapPriorityQueue} with the requested initial capacity.
 	 *
-	 * @param elementComparator comparator for the contained elements.
+	 * @param elementPriorityComparator comparator for the priority of contained elements.
 	 * @param minimumCapacity the minimum and initial capacity of this priority queue.
 	 */
 	@SuppressWarnings("unchecked")
 	public HeapPriorityQueue(
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnegative int minimumCapacity) {
 
-		this.elementComparator = elementComparator;
+		this.elementPriorityComparator = elementPriorityComparator;
 		this.queue = (T[]) new HeapPriorityQueueElement[QUEUE_HEAD_INDEX + minimumCapacity];
 	}
 
@@ -227,7 +227,7 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 		final T currentElement = heap[idx];
 		int parentIdx = idx >>> 1;
 
-		while (parentIdx > 0 && isElementLessThen(currentElement, heap[parentIdx])) {
+		while (parentIdx > 0 && isElementPriorityLessThen(currentElement, heap[parentIdx])) {
 			moveElementToIdx(heap[parentIdx], idx);
 			idx = parentIdx;
 			parentIdx >>>= 1;
@@ -245,19 +245,19 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 		int secondChildIdx = firstChildIdx + 1;
 
 		if (isElementIndexValid(secondChildIdx, heapSize) &&
-			isElementLessThen(heap[secondChildIdx], heap[firstChildIdx])) {
+			isElementPriorityLessThen(heap[secondChildIdx], heap[firstChildIdx])) {
 			firstChildIdx = secondChildIdx;
 		}
 
 		while (isElementIndexValid(firstChildIdx, heapSize) &&
-			isElementLessThen(heap[firstChildIdx], currentElement)) {
+			isElementPriorityLessThen(heap[firstChildIdx], currentElement)) {
 			moveElementToIdx(heap[firstChildIdx], idx);
 			idx = firstChildIdx;
 			firstChildIdx = idx << 1;
 			secondChildIdx = firstChildIdx + 1;
 
 			if (isElementIndexValid(secondChildIdx, heapSize) &&
-				isElementLessThen(heap[secondChildIdx], heap[firstChildIdx])) {
+				isElementPriorityLessThen(heap[secondChildIdx], heap[firstChildIdx])) {
 				firstChildIdx = secondChildIdx;
 			}
 		}
@@ -269,8 +269,8 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 		return elementIndex <= heapSize;
 	}
 
-	private boolean isElementLessThen(T a, T b) {
-		return elementComparator.compare(a, b) < 0;
+	private boolean isElementPriorityLessThen(T a, T b) {
+		return elementPriorityComparator.comparePriority(a, b) < 0;
 	}
 
 	private void moveElementToIdx(T element, int idx) {

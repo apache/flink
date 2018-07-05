@@ -53,6 +53,7 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -76,7 +77,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,15 +105,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) HeapFoldingState::create)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
+	@Nonnull
 	@Override
 	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnull KeyExtractorFunction<T> keyExtractor) {
 
 		return new HeapPriorityQueueSet<>(
-			elementComparator,
+			elementPriorityComparator,
 			keyExtractor,
 			128,
 			keyGroupRange,

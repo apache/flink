@@ -22,12 +22,12 @@ import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityComparator;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -73,7 +73,7 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
 	/**
 	 * Creates an empty {@link HeapPriorityQueueSet} with the requested initial capacity.
 	 *
-	 * @param elementComparator comparator for the contained elements.
+	 * @param elementPriorityComparator comparator for the priority of contained elements.
 	 * @param keyExtractor function to extract a key from the contained elements.
 	 * @param minimumCapacity the minimum and initial capacity of this priority queue.
 	 * @param keyGroupRange the key-group range of the elements in this set.
@@ -81,13 +81,13 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
 	 */
 	@SuppressWarnings("unchecked")
 	public HeapPriorityQueueSet(
-		@Nonnull Comparator<T> elementComparator,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnull KeyExtractorFunction<T> keyExtractor,
 		@Nonnegative int minimumCapacity,
 		@Nonnull KeyGroupRange keyGroupRange,
 		@Nonnegative int totalNumberOfKeyGroups) {
 
-		super(elementComparator, minimumCapacity);
+		super(elementPriorityComparator, minimumCapacity);
 
 		this.keyExtractor = keyExtractor;
 
@@ -163,6 +163,7 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
 		return keyGroup - keyGroupRange.getStartKeyGroup();
 	}
 
+	@Nonnull
 	@Override
 	public Set<T> getSubsetForKeyGroup(int keyGroupId) {
 		return getDedupMapForKeyGroup(keyGroupId).keySet();

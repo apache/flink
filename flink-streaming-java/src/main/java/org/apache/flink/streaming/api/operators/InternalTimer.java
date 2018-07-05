@@ -20,10 +20,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.PriorityComparator;
 
 import javax.annotation.Nonnull;
-
-import java.util.Comparator;
 
 /**
  * Internal interface for in-flight timers.
@@ -38,22 +37,8 @@ public interface InternalTimer<K, N> {
 	KeyExtractorFunction<InternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION = InternalTimer::getKey;
 
 	/** Function to compare instances of {@link InternalTimer}. */
-	Comparator<InternalTimer<?, ?>> TIMER_COMPARATOR = new Comparator<InternalTimer<?, ?>>() {
-		@Override
-		public int compare(InternalTimer<?, ?> o1, InternalTimer<?, ?> o2) {
-			int cmp = Long.compare(o1.getTimestamp(), o2.getTimestamp());
-			if(cmp != 0) {
-				return cmp;
-			}
-
-			if(o1.getKey().equals(o2.getKey()) && o1.getNamespace().equals(o2.getNamespace())) {
-				return 0;
-			}
-
-			return Integer.compare(System.identityHashCode(o1), System.identityHashCode(o2));
-		}
-	};
-
+	PriorityComparator<InternalTimer<?, ?>> TIMER_COMPARATOR =
+		(left, right) -> Long.compare(left.getTimestamp(), right.getTimestamp());
 	/**
 	 * Returns the timestamp of the timer. This value determines the point in time when the timer will fire.
 	 */
@@ -72,8 +57,8 @@ public interface InternalTimer<K, N> {
 	N getNamespace();
 
 	@SuppressWarnings("unchecked")
-	static <T extends InternalTimer> Comparator<T> getTimerComparator() {
-		return (Comparator<T>) TIMER_COMPARATOR;
+	static <T extends InternalTimer> PriorityComparator<T> getTimerComparator() {
+		return (PriorityComparator<T>) TIMER_COMPARATOR;
 	}
 
 	@SuppressWarnings("unchecked")

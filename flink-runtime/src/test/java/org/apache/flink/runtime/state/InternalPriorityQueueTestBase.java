@@ -51,8 +51,16 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 
 	protected static final KeyGroupRange KEY_GROUP_RANGE = new KeyGroupRange(0, 2);
 	protected static final KeyExtractorFunction<TestElement> KEY_EXTRACTOR_FUNCTION = TestElement::getKey;
-	protected static final Comparator<TestElement> TEST_ELEMENT_COMPARATOR =
-		Comparator.comparingLong(TestElement::getPriority).thenComparingLong(TestElement::getKey);
+	protected static final PriorityComparator<TestElement> TEST_ELEMENT_PRIORITY_COMPARATOR =
+		(left, right) -> Long.compare(left.getPriority(), right.getPriority());
+	protected static final Comparator<TestElement> TEST_ELEMENT_COMPARATOR = (o1, o2) -> {
+		int priorityCmp = TEST_ELEMENT_PRIORITY_COMPARATOR.comparePriority(o1, o2);
+		if (priorityCmp != 0) {
+			return priorityCmp;
+		}
+		// to fully comply with compareTo/equals contract.
+		return Long.compare(o1.getKey(), o2.getKey());
+	};
 
 	protected static void insertRandomElements(
 		@Nonnull InternalPriorityQueue<TestElement> priorityQueue,
