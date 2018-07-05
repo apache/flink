@@ -31,8 +31,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraPojoInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraRowOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -468,6 +470,34 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			Assert.assertTrue("Row " + cmp + " was written to Cassandra but not in input.", input.remove(cmp));
 		}
 		Assert.assertTrue("The input data was not completely written to Cassandra", input.isEmpty());
+	}
+
+	@Test
+	public void testCassandraBatchPojoFormat() throws Exception {
+
+		OutputFormat<Tuple3<String, Integer, Integer>> sink = new CassandraTupleOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builder);
+		sink.configure(new Configuration());
+		sink.open(0, 1);
+
+		for (Tuple3<String, Integer, Integer> value : collection) {
+			sink.writeRecord(value);
+		}
+
+		sink.close();
+
+		InputFormat<CustomCassandraAnnotatedPojo, InputSplit> source = new CassandraPojoInputFormat<>(injectTableName(SELECT_DATA_QUERY), builder, CustomCassandraAnnotatedPojo.class);
+		source.configure(new Configuration());
+		source.open(null);
+
+		List<CustomCassandraAnnotatedPojo> result = new ArrayList<>();
+
+		while (!source.reachedEnd()) {
+			CustomCassandraAnnotatedPojo temp = source.nextRecord(new CustomCassandraAnnotatedPojo());
+			result.add(temp);
+		}
+
+		source.close();
+		Assert.assertEquals(20, result.size());
 	}
 
 	@Test
