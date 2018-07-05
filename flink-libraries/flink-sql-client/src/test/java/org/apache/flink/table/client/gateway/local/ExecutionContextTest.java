@@ -19,18 +19,24 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.sources.TableSource;
 
 import org.apache.commons.cli.Options;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -58,6 +64,51 @@ public class ExecutionContextTest {
 		Arrays.sort(expected);
 		Arrays.sort(actual);
 		assertArrayEquals(expected, actual);
+	}
+
+	@Test
+	public void testSourceSinks() throws Exception {
+		final ExecutionContext<?> context = createExecutionContext();
+		final Map<String, TableSource<?>> sources = context.getTableSources();
+		final Map<String, TableSink<?>> sinks = context.getTableSinks();
+
+		assertEquals(
+			new HashSet<>(Arrays.asList("TableSourceSink", "TableNumber1", "TableNumber2")),
+			sources.keySet());
+
+		assertEquals(
+			new HashSet<>(Collections.singletonList("TableSourceSink")),
+			sinks.keySet());
+
+		assertArrayEquals(
+			new String[]{"IntegerField1", "StringField1"},
+			sources.get("TableNumber1").getTableSchema().getColumnNames());
+
+		assertArrayEquals(
+			new TypeInformation[]{Types.INT(), Types.STRING()},
+			sources.get("TableNumber1").getTableSchema().getTypes());
+
+		assertArrayEquals(
+			new String[]{"IntegerField2", "StringField2"},
+			sources.get("TableNumber2").getTableSchema().getColumnNames());
+
+		assertArrayEquals(
+			new TypeInformation[]{Types.INT(), Types.STRING()},
+			sources.get("TableNumber2").getTableSchema().getTypes());
+
+		assertArrayEquals(
+			new String[]{"BooleanField", "StringField"},
+			sinks.get("TableSourceSink").getFieldNames());
+
+		assertArrayEquals(
+			new TypeInformation[]{Types.BOOLEAN(), Types.STRING()},
+			sinks.get("TableSourceSink").getFieldTypes());
+
+		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+
+		assertArrayEquals(
+			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink"},
+			tableEnv.listTables());
 	}
 
 	private <T> ExecutionContext<T> createExecutionContext() throws Exception {

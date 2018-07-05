@@ -24,6 +24,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.local.result.Result;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,18 +41,30 @@ public class ProgramDeployer<C> implements Runnable {
 	private final ExecutionContext<C> context;
 	private final JobGraph jobGraph;
 	private final String jobName;
-	private final DynamicResult<C> result;
+	private final Result<C> result;
+	private final boolean awaitJobResult;
 	private final BlockingQueue<JobExecutionResult> executionResultBucket;
 
+	/**
+	 * Deploys a table program on the cluster.
+	 *
+	 * @param context        context with deployment information
+	 * @param jobName        job name of the Flink job to be submitted
+	 * @param jobGraph       Flink job graph
+	 * @param result         result that receives information about the target cluster
+	 * @param awaitJobResult block for a job execution result from the cluster
+	 */
 	public ProgramDeployer(
 			ExecutionContext<C> context,
 			String jobName,
 			JobGraph jobGraph,
-			DynamicResult<C> result) {
+			Result<C> result,
+			boolean awaitJobResult) {
 		this.context = context;
 		this.jobGraph = jobGraph;
 		this.jobName = jobName;
 		this.result = result;
+		this.awaitJobResult = awaitJobResult;
 		executionResultBucket = new LinkedBlockingDeque<>(1);
 	}
 
@@ -62,7 +75,7 @@ public class ProgramDeployer<C> implements Runnable {
 			LOG.debug("Submitting job {} with the following environment: \n{}",
 					jobGraph.getJobID(), context.getMergedEnvironment());
 		}
-		executionResultBucket.add(deployJob(context, jobGraph, result));
+		deployJob(context, jobGraph, result);
 	}
 
 	public JobExecutionResult fetchExecutionResult() {
@@ -73,50 +86,89 @@ public class ProgramDeployer<C> implements Runnable {
 	 * Deploys a job. Depending on the deployment creates a new job cluster. It saves the cluster id in
 	 * the result and blocks until job completion.
 	 */
-	private <T> JobExecutionResult deployJob(ExecutionContext<T> context, JobGraph jobGraph, DynamicResult<T> result) {
+	private <T> void deployJob(ExecutionContext<T> context, JobGraph jobGraph, Result<T> result) {
 		// create or retrieve cluster and deploy job
 		try (final ClusterDescriptor<T> clusterDescriptor = context.createClusterDescriptor()) {
-			ClusterClient<T> clusterClient = null;
 			try {
 				// new cluster
 				if (context.getClusterId() == null) {
-					// deploy job cluster with job attached
-					clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
-					// save the new cluster id
-					result.setClusterId(clusterClient.getClusterId());
-					// we need to hard cast for now
-					return ((RestClusterClient<T>) clusterClient)
-							.requestJobResult(jobGraph.getJobID())
-							.get()
-							.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
+					deployJobOnNewCluster(clusterDescriptor, jobGraph, result, context.getClassLoader());
 				}
 				// reuse existing cluster
 				else {
-					// retrieve existing cluster
-					clusterClient = clusterDescriptor.retrieve(context.getClusterId());
-					// save the cluster id
-					result.setClusterId(clusterClient.getClusterId());
-					// submit the job
-					clusterClient.setDetached(false);
-					return clusterClient
-						.submitJob(jobGraph, context.getClassLoader())
-						.getJobExecutionResult(); // throws exception if job fails
+					deployJobOnExistingCluster(context.getClusterId(), clusterDescriptor, jobGraph, result);
 				}
 			} catch (Exception e) {
 				throw new SqlExecutionException("Could not retrieve or create a cluster.", e);
-			} finally {
-				try {
-					if (clusterClient != null) {
-						clusterClient.shutdown();
-					}
-				} catch (Exception e) {
-					// ignore
-				}
 			}
 		} catch (SqlExecutionException e) {
 			throw e;
 		} catch (Exception e) {
 			throw new SqlExecutionException("Could not locate a cluster.", e);
+		}
+	}
+
+	private <T> void deployJobOnNewCluster(
+			ClusterDescriptor<T> clusterDescriptor,
+			JobGraph jobGraph,
+			Result<T> result,
+			ClassLoader classLoader) throws Exception {
+		ClusterClient<T> clusterClient = null;
+		try {
+			// deploy job cluster with job attached
+			clusterClient = clusterDescriptor.deployJobCluster(context.getClusterSpec(), jobGraph, false);
+			// save information about the new cluster
+			result.setClusterInformation(clusterClient.getClusterId(), clusterClient.getWebInterfaceURL());
+			// get result
+			if (awaitJobResult) {
+				// we need to hard cast for now
+				final JobExecutionResult jobResult = ((RestClusterClient<T>) clusterClient)
+						.requestJobResult(jobGraph.getJobID())
+						.get()
+						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
+				executionResultBucket.add(jobResult);
+			}
+		} finally {
+			try {
+				if (clusterClient != null) {
+					clusterClient.shutdown();
+				}
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+	}
+
+	private <T> void deployJobOnExistingCluster(
+			T clusterId,
+			ClusterDescriptor<T> clusterDescriptor,
+			JobGraph jobGraph,
+			Result<T> result) throws Exception {
+		ClusterClient<T> clusterClient = null;
+		try {
+			// retrieve existing cluster
+			clusterClient = clusterDescriptor.retrieve(clusterId);
+			// save the cluster information
+			result.setClusterInformation(clusterClient.getClusterId(), clusterClient.getWebInterfaceURL());
+			// submit job (and get result)
+			if (awaitJobResult) {
+				clusterClient.setDetached(false);
+				final JobExecutionResult jobResult = clusterClient
+					.submitJob(jobGraph, context.getClassLoader())
+					.getJobExecutionResult(); // throws exception if job fails
+				executionResultBucket.add(jobResult);
+			} else {
+				clusterClient.setDetached(true);
+				clusterClient.submitJob(jobGraph, context.getClassLoader());
+			}
+		} finally {
+			try {
+				if (clusterClient != null) {
+					clusterClient.shutdown();
+				}
+			} catch (Exception e) {
+				// ignore
+			}
 		}
 	}
 }

@@ -31,16 +31,22 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.local.result.BasicResult;
+import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
+import org.apache.flink.table.client.gateway.local.result.DynamicResult;
+import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
@@ -277,6 +283,12 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		return executeUpdateInternal(context, statement);
+	}
+
+	@Override
 	public void stop(SessionContext session) {
 		resultStore.getResults().forEach((resultId) -> {
 			try {
@@ -329,14 +341,43 @@ public class LocalExecutor implements Executor {
 		}
 	}
 
-	private <T> ResultDescriptor executeQueryInternal(ExecutionContext<T> context, String query) {
+	private <C> ProgramTargetDescriptor executeUpdateInternal(ExecutionContext<C> context, String statement) {
+		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
+
+		applyUpdate(envInst.getTableEnvironment(), envInst.getQueryConfig(), statement);
+
+		// create job graph with dependencies
+		final String jobName = context.getSessionContext().getName() + ": " + statement;
+		final JobGraph jobGraph;
+		try {
+			jobGraph = envInst.createJobGraph(jobName);
+		} catch (Throwable t) {
+			// catch everything such that the statement does not crash the executor
+			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+
+		// create execution
+		final BasicResult<C> result = new BasicResult<>();
+		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
+			context, jobName, jobGraph, result, false);
+
+		// blocking deployment
+		deployer.run();
+
+		return ProgramTargetDescriptor.of(
+			result.getClusterId(),
+			jobGraph.getJobID(),
+			result.getWebInterfaceUrl());
+	}
+
+	private <C> ResultDescriptor executeQueryInternal(ExecutionContext<C> context, String query) {
 		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
 
 		// create table
 		final Table table = createTable(envInst.getTableEnvironment(), query);
 
 		// initialize result
-		final DynamicResult<T> result = resultStore.createResult(
+		final DynamicResult<C> result = resultStore.createResult(
 			context.getMergedEnvironment(),
 			table.getSchema().withoutTimeAttributes(),
 			envInst.getExecutionConfig());
@@ -352,7 +393,7 @@ public class LocalExecutor implements Executor {
 			// it not stored in the result store
 			result.close();
 			// catch everything such that the query does not crash the executor
-			throw new SqlExecutionException("Invalid SQL statement.", t);
+			throw new SqlExecutionException("Invalid SQL query.", t);
 		}
 
 		// store the result with a unique id (the job id for now)
@@ -360,7 +401,8 @@ public class LocalExecutor implements Executor {
 		resultStore.storeResult(resultId, result);
 
 		// create execution
-		final ProgramDeployer<T> deployer = new ProgramDeployer<>(context, jobName, jobGraph, result);
+		final ProgramDeployer<C> deployer = new ProgramDeployer<>(
+			context, jobName, jobGraph, result, true);
 
 		// start result retrieval
 		result.startRetrieval(deployer);
@@ -371,13 +413,29 @@ public class LocalExecutor implements Executor {
 			result.isMaterialized());
 	}
 
-	private Table createTable(TableEnvironment tableEnv, String query) {
+	/**
+	 * Creates a table using the given query in the given table environment.
+	 */
+	private Table createTable(TableEnvironment tableEnv, String selectQuery) {
 		// parse and validate query
 		try {
-			return tableEnv.sqlQuery(query);
+			return tableEnv.sqlQuery(selectQuery);
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			throw new SqlExecutionException("Invalid SQL statement.", t);
+		}
+	}
+
+	/**
+	 * Applies the given update statement to the given table environment with query configuration.
+	 */
+	private void applyUpdate(TableEnvironment tableEnv, QueryConfig queryConfig, String updateStatement) {
+		// parse and validate statement
+		try {
+			tableEnv.sqlUpdate(updateStatement, queryConfig);
+		} catch (Throwable t) {
+			// catch everything such that the statement does not crash the executor
+			throw new SqlExecutionException("Invalid SQL update statement.", t);
 		}
 	}
 

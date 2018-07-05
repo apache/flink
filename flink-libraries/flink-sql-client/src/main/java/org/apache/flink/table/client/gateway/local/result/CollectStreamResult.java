@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,6 +29,8 @@ import org.apache.flink.streaming.experimental.SocketStreamIterator;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.local.CollectStreamTableSink;
+import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 
@@ -40,7 +42,7 @@ import java.net.InetAddress;
  *
  * @param <C> cluster id to which this result belongs to
  */
-public abstract class CollectStreamResult<C> implements DynamicResult<C> {
+public abstract class CollectStreamResult<C> extends BasicResult<C> implements DynamicResult<C> {
 
 	private final TypeInformation<Row> outputType;
 	private final SocketStreamIterator<Tuple2<Boolean, Row>> iterator;
@@ -48,7 +50,6 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 	private final ResultRetrievalThread retrievalThread;
 	private final JobMonitoringThread monitoringThread;
 	private ProgramDeployer<C> deployer;
-	private C clusterId;
 
 	protected final Object resultLock;
 	protected SqlExecutionException executionException;
@@ -74,14 +75,6 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 		collectTableSink = new CollectStreamTableSink(iterator.getBindAddress(), iterator.getPort(), serializer);
 		retrievalThread = new ResultRetrievalThread();
 		monitoringThread = new JobMonitoringThread();
-	}
-
-	@Override
-	public void setClusterId(C clusterId) {
-		if (this.clusterId != null) {
-			throw new IllegalStateException("Cluster id is already present.");
-		}
-		this.clusterId = clusterId;
 	}
 
 	@Override

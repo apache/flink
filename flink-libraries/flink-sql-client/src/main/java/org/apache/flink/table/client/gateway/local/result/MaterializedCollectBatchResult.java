@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
+package org.apache.flink.table.client.gateway.local.result;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
@@ -24,6 +24,8 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.client.gateway.local.CollectBatchTableSink;
+import org.apache.flink.table.client.gateway.local.ProgramDeployer;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.AbstractID;
@@ -35,7 +37,7 @@ import java.util.List;
 /**
  * Collects results using accumulators and returns them as table snapshots.
  */
-public class MaterializedCollectBatchResult<C> implements MaterializedResult<C> {
+public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements MaterializedResult<C> {
 
 	private final TypeInformation<Row> outputType;
 	private final String accumulatorName;
@@ -44,7 +46,6 @@ public class MaterializedCollectBatchResult<C> implements MaterializedResult<C> 
 	private final Thread retrievalThread;
 
 	private ProgramDeployer<C> deployer;
-	private C clusterId;
 	private int pageSize;
 	private int pageCount;
 	private SqlExecutionException executionException;
@@ -61,14 +62,6 @@ public class MaterializedCollectBatchResult<C> implements MaterializedResult<C> 
 		retrievalThread = new ResultRetrievalThread();
 
 		pageCount = 0;
-	}
-
-	@Override
-	public void setClusterId(C clusterId) {
-		if (this.clusterId != null) {
-			throw new IllegalStateException("Cluster id is already present.");
-		}
-		this.clusterId = clusterId;
 	}
 
 	@Override
