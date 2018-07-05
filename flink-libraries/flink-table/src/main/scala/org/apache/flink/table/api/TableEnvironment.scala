@@ -242,6 +242,14 @@ abstract class TableEnvironment(val config: TableConfig) {
       relNode.getTraitSet)
   }
 
+  protected def optimizeConvertToTemporalJoin(relNode: RelNode): RelNode = {
+    runHepPlanner(
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TEMPORAL_JOIN_RULES,
+      relNode,
+      relNode.getTraitSet)
+  }
+
   protected def optimizeConvertTableReferences(relNode: RelNode): RelNode = {
     runHepPlanner(
       HepMatchOrder.BOTTOM_UP,

@@ -52,5 +52,3 @@ class TemporalTableJoinValidationTest extends TableTestBase {
     ratesHistory.createTemporalTableFunction("rowtime", "foobar")
   }
 }
-
-
