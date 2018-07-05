@@ -90,6 +90,10 @@ public class DeweyNumber implements Serializable {
 		}
 	}
 
+	public int getRun() {
+		return deweyNumber[0];
+	}
+
 	public int length() {
 		return deweyNumber.length;
 	}

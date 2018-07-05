@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
@@ -35,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -213,11 +215,11 @@ public class SharedBuffer<V> {
 	 * @return Collection of previous relations starting with the given value
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
-	public List<Map<String, List<V>>> extractPatterns(
+	public List<Map<String, List<EventId>>> extractPatterns(
 			final NodeId nodeId,
 			final DeweyNumber version) throws Exception {
 
-		List<Map<String, List<V>>> result = new ArrayList<>();
+		List<Map<String, List<EventId>>> result = new ArrayList<>();
 
 		// stack to remember the current extraction states
 		Stack<ExtractionState> extractionStates = new Stack<>();
@@ -238,15 +240,15 @@ public class SharedBuffer<V> {
 
 				// termination criterion
 				if (currentEntry == null) {
-					final Map<String, List<V>> completePath = new LinkedHashMap<>();
+					final Map<String, List<EventId>> completePath = new LinkedHashMap<>();
 
 					while (!currentPath.isEmpty()) {
 						final NodeId currentPathEntry = currentPath.pop().f0;
 
 						String page = currentPathEntry.getPageName();
-						List<V> values = completePath
+						List<EventId> values = completePath
 							.computeIfAbsent(page, k -> new ArrayList<>());
-						values.add(eventsBuffer.get(currentPathEntry.getEventId()).getElement());
+						values.add(currentPathEntry.getEventId());
 					}
 					result.add(completePath);
 				} else {
@@ -283,6 +285,32 @@ public class SharedBuffer<V> {
 			}
 		}
 		return result;
+	}
+
+	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match) {
+		return materializeMatch(match, new HashMap<>());
+	}
+
+	public Map<String, List<V>> materializeMatch(Map<String, List<EventId>> match, Map<EventId, V> cache) {
+
+		Map<String, List<V>> materializedMatch = new LinkedHashMap<>(match.size());
+
+		for (Map.Entry<String, List<EventId>> pattern : match.entrySet()) {
+			List<V> events = new ArrayList<>(pattern.getValue().size());
+			for (EventId eventId : pattern.getValue()) {
+				V event = cache.computeIfAbsent(eventId, id -> {
+					try {
+						return eventsBuffer.get(id).getElement();
+					} catch (Exception ex) {
+						throw new WrappingRuntimeException(ex);
+					}
+				});
+				events.add(event);
+			}
+			materializedMatch.put(pattern.getKey(), events);
+		}
+
+		return materializedMatch;
 	}
 
 	/**

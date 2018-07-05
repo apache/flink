@@ -1252,13 +1252,13 @@ pattern.within(Time.seconds(10))
 For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are four types of skip strategies, listed as follows:
 
 * <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
-* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that contains event of the match.
-* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that contains event of the match preceding the first of *PatternName*.
-* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that contains event of the match preceding the last of *PatternName*.
+* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
+* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
+* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
 
 Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid *PatternName* should also be specified.
 
-For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4, ab5, ab6`, the differences between these four skip strategies are as follows:
+For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the differences between these four skip strategies are as follows:
 
 <table class="table table-bordered">
     <tr>
@@ -1269,38 +1269,65 @@ For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4,
     <tr>
         <td><strong>NO_SKIP</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will not discard any result.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
         <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all started partial matches.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will discard all started partial matches.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code>, which is the only event that comes before the first <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b1</code>, but there are no such matches. Therefore nothing will be discarded.</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_LAST</strong>[<code>b</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab3 ab4 ab5</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code> and <code>ab2</code>, which are events that comes before the last <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b3</code>. There is one such match <code>b2 b3 c</code></td>
+    </tr>
+</table>
+
+Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
+Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+
+
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" style="width: 25%">Skip Strategy</th>
+        <th class="text-center" style="width: 25%">Result</th>
+        <th class="text-center"> Description</th>
+    </tr>
+    <tr>
+        <td><strong>NO_SKIP</strong></td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+            <code>c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will try to discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
     </tr>
 </table>
 
