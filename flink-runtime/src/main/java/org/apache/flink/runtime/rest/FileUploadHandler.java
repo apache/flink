@@ -199,7 +199,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	}
 
 	public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
-		return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).get())
+		return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
 			.orElse(FileUploads.EMPTY);
 	}
 }
