@@ -58,8 +58,8 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 
 		// fully defined:
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 2048);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "2048");
 
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
@@ -67,19 +67,19 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 		config = new Configuration();
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 
 		config = new Configuration();
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config));
 	}
 
@@ -102,11 +102,11 @@ public class TaskManagerServicesConfigurationTest extends TestLogger {
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, 1024);
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 
 		config1 = config.clone();
-		config1.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1024);
+		config1.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, "1024");
 		assertTrue(TaskManagerServicesConfiguration.hasNewNetworkBufConf(config1));
 	}
 

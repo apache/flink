@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 
 /**
@@ -67,8 +68,8 @@ public final class ClusterSpecification {
 	public static ClusterSpecification fromConfiguration(Configuration configuration) {
 		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
-		int jobManagerMemoryMb = configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
-		int taskManagerMemoryMb = configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+		int jobManagerMemoryMb = (int) MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY)).getMebiBytes();
+		int taskManagerMemoryMb = (int) MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY)).getMebiBytes();
 
 		return new ClusterSpecificationBuilder()
 			.setMasterMemoryMB(jobManagerMemoryMb)

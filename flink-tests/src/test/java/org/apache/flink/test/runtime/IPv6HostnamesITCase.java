@@ -78,7 +78,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, addressString);
 		config.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, addressString);
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "16m");
 		return config;
 	}
 
