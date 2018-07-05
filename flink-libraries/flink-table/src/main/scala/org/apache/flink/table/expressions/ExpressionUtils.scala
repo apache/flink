@@ -29,7 +29,13 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
 object ExpressionUtils {
-  def getReturnType(expr: Expression): TypeInformation[_] = {
+  /**
+    * Retrieve result type of given Expression.
+    *
+    * @param expr The expression which caller is interested about result type
+    * @return     The result type of Expression
+    */
+  def getResultType(expr: Expression): TypeInformation[_] = {
     expr.resultType
   }
 
