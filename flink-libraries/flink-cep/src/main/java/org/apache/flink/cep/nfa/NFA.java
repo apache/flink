@@ -536,7 +536,9 @@ public class NFA<T> {
 			final EventWrapper event,
 			final long timestamp) throws Exception {
 
-		final OutgoingEdges<T> outgoingEdges = createDecisionGraph(sharedBuffer, computationState, event.getEvent());
+		final ConditionContext<T> context = new ConditionContext<>(this, sharedBuffer, computationState);
+
+		final OutgoingEdges<T> outgoingEdges = createDecisionGraph(context, computationState, event.getEvent());
 
 		// Create the computing version based on the previously computed edges
 		// We need to defer the creation of computation states until we know how many edges start
@@ -609,7 +611,7 @@ public class NFA<T> {
 							startTimestamp);
 
 					//check if newly created state is optional (have a PROCEED path to Final state)
-					final State<T> finalState = findFinalStateAfterProceed(sharedBuffer, nextState, event.getEvent(), computationState);
+					final State<T> finalState = findFinalStateAfterProceed(context, nextState, event.getEvent());
 					if (finalState != null) {
 						addComputationState(
 								sharedBuffer,
@@ -656,19 +658,17 @@ public class NFA<T> {
 	}
 
 	private State<T> findFinalStateAfterProceed(
-			SharedBuffer<T> sharedBuffer,
+			ConditionContext<T> context,
 			State<T> state,
-			T event,
-			ComputationState computationState) {
+			T event) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
 		statesToCheck.push(state);
-
 		try {
 			while (!statesToCheck.isEmpty()) {
 				final State<T> currentState = statesToCheck.pop();
 				for (StateTransition<T> transition : currentState.getStateTransitions()) {
 					if (transition.getAction() == StateTransitionAction.PROCEED &&
-							checkFilterCondition(sharedBuffer, computationState, transition.getCondition(), event)) {
+							checkFilterCondition(context, transition.getCondition(), event)) {
 						if (transition.getTargetState().isFinal()) {
 							return transition.getTargetState();
 						} else {
@@ -689,7 +689,7 @@ public class NFA<T> {
 	}
 
 	private OutgoingEdges<T> createDecisionGraph(
-			SharedBuffer<T> sharedBuffer,
+			ConditionContext<T> context,
 			ComputationState computationState,
 			T event) {
 		State<T> state = getState(computationState);
@@ -706,7 +706,7 @@ public class NFA<T> {
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition : stateTransitions) {
 				try {
-					if (checkFilterCondition(sharedBuffer, computationState, stateTransition.getCondition(), event)) {
+					if (checkFilterCondition(context, stateTransition.getCondition(), event)) {
 						// filter condition is true
 						switch (stateTransition.getAction()) {
 							case PROCEED:
@@ -729,11 +729,10 @@ public class NFA<T> {
 	}
 
 	private boolean checkFilterCondition(
-			SharedBuffer<T> sharedBuffer,
-			ComputationState computationState,
+			ConditionContext<T> context,
 			IterativeCondition<T> condition,
 			T event) throws Exception {
-		return condition == null || condition.filter(event, new ConditionContext<>(this, sharedBuffer, computationState));
+		return condition == null || condition.filter(event, context);
 	}
 
 	/**
@@ -779,12 +778,6 @@ public class NFA<T> {
 	 */
 	private static class ConditionContext<T> implements IterativeCondition.Context<T> {
 
-		/**
-		 * A flag indicating if we should recompute the matching pattern, so that
-		 * the {@link IterativeCondition iterative condition} can be evaluated.
-		 */
-		private boolean shouldUpdate;
-
 		/** The current computation state. */
 		private ComputationState computationState;
 
@@ -806,7 +799,6 @@ public class NFA<T> {
 			this.computationState = computationState;
 			this.nfa = nfa;
 			this.sharedBuffer = sharedBuffer;
-			this.shouldUpdate = true;
 		}
 
 		@Override
@@ -816,9 +808,8 @@ public class NFA<T> {
 			// the (partially) matched pattern is computed lazily when this method is called.
 			// this is to avoid any overheads when using a simple, non-iterative condition.
 
-			if (shouldUpdate) {
+			if (matchedEvents == null) {
 				this.matchedEvents = nfa.extractCurrentMatches(sharedBuffer, computationState);
-				shouldUpdate = false;
 			}
 
 			return new Iterable<T>() {
