@@ -35,6 +35,8 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * This implementation of {@link InternalPriorityQueue} is internally partitioned into sub-queues per key-group and
@@ -87,6 +89,15 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementPriorityComparator);
 			keyGroupedHeaps[i] = keyGroupSubHeap;
 			heapOfkeyGroupedHeaps.add(keyGroupSubHeap);
+		}
+	}
+
+	@Override
+	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
+		T element;
+		while ((element = peek()) != null && canConsume.test(element)) {
+			poll();
+			consumer.accept(element);
 		}
 	}
 

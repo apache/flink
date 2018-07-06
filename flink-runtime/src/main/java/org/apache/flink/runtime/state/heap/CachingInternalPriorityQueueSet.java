@@ -27,6 +27,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * This class is an implementation of a {@link InternalPriorityQueue} with set semantics that internally consists of
@@ -74,6 +76,15 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		checkRefillCacheFromStore();
 
 		return orderedCache.peekFirst();
+	}
+
+	@Override
+	public void bulkPoll(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
+		E element;
+		while ((element = peek()) != null && canConsume.test(element)) {
+			poll();
+			consumer.accept(element);
+		}
 	}
 
 	@Nullable

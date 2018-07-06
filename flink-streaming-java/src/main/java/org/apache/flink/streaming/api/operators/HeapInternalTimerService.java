@@ -227,16 +227,20 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		// inside the callback.
 		nextTimer = null;
 
-		InternalTimer<K, N> timer;
+		processingTimeTimersQueue.bulkPoll(
+			(timer) -> (timer.getTimestamp() <= time),
+			(timer) -> {
+				keyContext.setCurrentKey(timer.getKey());
+				try {
+					triggerTarget.onProcessingTime(timer);
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Problem in trigger target.", e);
+				}
+			});
 
-		while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-			processingTimeTimersQueue.poll();
-			keyContext.setCurrentKey(timer.getKey());
-			triggerTarget.onProcessingTime(timer);
-		}
-
-		if (timer != null) {
-			if (nextTimer == null) {
+		if (nextTimer == null) {
+			final TimerHeapInternalTimer<K, N> timer = processingTimeTimersQueue.peek();
+			if (timer != null) {
 				nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
 			}
 		}
@@ -244,14 +248,16 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
-
-		InternalTimer<K, N> timer;
-
-		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-			eventTimeTimersQueue.poll();
-			keyContext.setCurrentKey(timer.getKey());
-			triggerTarget.onEventTime(timer);
-		}
+		eventTimeTimersQueue.bulkPoll(
+			(timer) -> (timer.getTimestamp() <= time),
+			(timer) -> {
+				keyContext.setCurrentKey(timer.getKey());
+				try {
+					triggerTarget.onEventTime(timer);
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Problem in trigger target.", e);
+				}
+			});
 	}
 
 	/**

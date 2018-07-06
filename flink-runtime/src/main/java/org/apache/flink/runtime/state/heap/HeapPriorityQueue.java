@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 
@@ -83,6 +85,15 @@ public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements In
 
 		this.elementPriorityComparator = elementPriorityComparator;
 		this.queue = (T[]) new HeapPriorityQueueElement[QUEUE_HEAD_INDEX + minimumCapacity];
+	}
+
+	@Override
+	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
+		T element;
+		while ((element = peek()) != null && canConsume.test(element)) {
+			poll();
+			consumer.accept(element);
+		}
 	}
 
 	@Override
