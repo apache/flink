@@ -226,12 +226,6 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
-	public void executeUpdate(SessionContext session, String query) throws SqlExecutionException {
-		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
-		executeUpdateInternal(context, query);
-	}
-
-	@Override
 	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session,
 			String resultId) throws SqlExecutionException {
 		final DynamicResult result = resultStore.getResult(resultId);

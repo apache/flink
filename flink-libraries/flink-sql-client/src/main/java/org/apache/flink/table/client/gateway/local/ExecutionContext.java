@@ -49,8 +49,10 @@ import org.apache.flink.table.client.config.Source;
 import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.connectors.TableSinkFactoryService;
-import org.apache.flink.table.connectors.TableSourceFactoryService;
+import org.apache.flink.table.connectors.TableFactoryService;
+import org.apache.flink.table.connectors.TableSinkFactory;
+import org.apache.flink.table.connectors.TableSourceFactory;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.FlinkException;
@@ -102,20 +104,30 @@ public class ExecutionContext<T> {
 		tableSinks = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
 			if (descriptor instanceof Source) {
+				DescriptorProperties properties = new DescriptorProperties(true);
+				descriptor.addProperties(properties);
 				tableSources.put(name,
-						(TableSource<?>) TableSourceFactoryService.findAndCreateTableConnector(
-								descriptor, classLoader));
+						((TableSourceFactory) TableFactoryService.find(
+								TableSourceFactory.class, descriptor, classLoader))
+								.createTableSource(properties.asMap()));
 			} else if (descriptor instanceof Sink) {
+				DescriptorProperties properties = new DescriptorProperties(true);
+				descriptor.addProperties(properties);
 				tableSinks.put(name,
-						(TableSink<?>) TableSinkFactoryService.findAndCreateTableConnector(
-								descriptor, classLoader));
+						((TableSinkFactory) TableFactoryService.find(
+								TableSinkFactory.class, descriptor, classLoader))
+								.createTableSink(properties.asMap()));
 			} else if (descriptor instanceof SourceSink) {
+				DescriptorProperties properties = new DescriptorProperties(true);
+				descriptor.addProperties(properties);
 				tableSources.put(name,
-						(TableSource<?>) TableSourceFactoryService.findAndCreateTableConnector(
-								((SourceSink) descriptor).toSource(), classLoader));
+						((TableSourceFactory) TableFactoryService.find(
+								TableSourceFactory.class, descriptor, classLoader))
+								.createTableSource(properties.asMap()));
 				tableSinks.put(name,
-						(TableSink<?>) TableSinkFactoryService.findAndCreateTableConnector(
-								((SourceSink) descriptor).toSink(), classLoader));
+						((TableSinkFactory) TableFactoryService.find(
+								TableSinkFactory.class, descriptor, classLoader))
+								.createTableSink(properties.asMap()));
 			}
 		});
 

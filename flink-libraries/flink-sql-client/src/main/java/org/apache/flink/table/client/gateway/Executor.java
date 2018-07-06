@@ -62,11 +62,6 @@ public interface Executor {
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink SQL update job (detached).
-	 */
-	void executeUpdate(SessionContext session, String query) throws SqlExecutionException;
-
-	/**
 	 * Asks for the next changelog results (non-blocking).
 	 */
 	TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(SessionContext session, String resultId) throws SqlExecutionException;

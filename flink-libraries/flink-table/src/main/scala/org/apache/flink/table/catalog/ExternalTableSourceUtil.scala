@@ -19,11 +19,14 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.connectors.TableSourceFactoryService
+import org.apache.flink.table.connectors.{TableFactoryService, TableSourceFactory}
+import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 import org.apache.flink.table.util.Logging
+
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The utility class is used to convert ExternalCatalogTable to TableSourceTable.
@@ -40,7 +43,11 @@ object ExternalTableSourceUtil extends Logging {
       tableEnv: TableEnvironment,
       externalCatalogTable: ExternalCatalogTable)
     : TableSourceSinkTable[_, _] = {
-    val source = TableSourceFactoryService.findAndCreateTableConnector(externalCatalogTable)
+    val properties = new DescriptorProperties()
+    externalCatalogTable.addProperties(properties)
+    val source = TableFactoryService.find(classOf[TableSourceFactory[_]], externalCatalogTable)
+      .asInstanceOf[TableSourceFactory[_]]
+      .createTableSource(properties.asMap)
     tableEnv match {
       // check for a batch table source in this batch environment
       case _: BatchTableEnvironment =>

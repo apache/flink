@@ -46,7 +46,7 @@ public class DependencyTest {
 			"table-connector-factory-test-jar.jar";
 
 	@Test
-	public void testTableConnectorFactoryDiscovery() throws Exception {
+	public void testTableFactoryDiscovery() throws Exception {
 		// create environment
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", "test-connector");

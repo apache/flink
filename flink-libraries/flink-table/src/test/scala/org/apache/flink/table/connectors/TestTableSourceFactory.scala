@@ -24,14 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.descriptors.TableDescriptorValidator
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
 /**
   * Table source factory for testing.
   */
-class TestTableSourceFactory extends TableConnectorFactory[TableSource[Row]] {
+class TestTableSourceFactory extends TableSourceFactory[Row] with TableFactoryDiscoverable {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -52,7 +51,7 @@ class TestTableSourceFactory extends TableConnectorFactory[TableSource[Row]] {
     properties
   }
 
-  override def create(properties: util.Map[String, String]): TableSource[Row] = {
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
     if (properties.get("failing") == "true") {
       throw new IllegalArgumentException("Error in this factory.")
     }
@@ -62,6 +61,4 @@ class TestTableSourceFactory extends TableConnectorFactory[TableSource[Row]] {
       override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
     }
   }
-
-  override def getType(): String = TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE
 }

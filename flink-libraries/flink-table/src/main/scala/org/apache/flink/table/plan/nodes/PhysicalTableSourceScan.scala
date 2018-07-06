@@ -41,8 +41,8 @@ abstract class PhysicalTableSourceScan(
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val streamingTable = table.unwrap(classOf[TableSourceSinkTable[_, _]]) match {
       case t: TableSourceSinkTable[_, _] => t.tableSourceTableOpt match {
-        case _: StreamTableSourceTable[_] => true
-        case _: BatchTableSourceTable[_] => false
+        case Some(_: StreamTableSourceTable[_]) => true
+        case Some(_: BatchTableSourceTable[_]) => false
         case _ => throw TableException(s"Unknown Table type ${t.getClass}.")
       }
       case t => throw TableException(s"Unknown Table type ${t.getClass}.")

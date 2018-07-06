@@ -50,7 +50,6 @@ public class EnvironmentTest {
 		final Set<String> tables = new HashSet<>();
 		tables.add("TableNumber1");
 		tables.add("TableNumber2");
-		tables.add("TableNumber3");
 		tables.add("NewTable");
 
 		assertEquals(tables, merged.getTables().keySet());

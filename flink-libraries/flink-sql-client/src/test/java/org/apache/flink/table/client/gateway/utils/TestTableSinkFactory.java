@@ -23,9 +23,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
-import org.apache.flink.table.connectors.TableConnectorFactory;
+import org.apache.flink.table.connectors.TableFactoryDiscoverable;
+import org.apache.flink.table.connectors.TableSinkFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptorValidator;
+import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
@@ -45,12 +47,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Table sink factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSinkFactory implements TableConnectorFactory<TableSink<Row>> {
-
-	@Override
-	public String getType() {
-		return TableDescriptorValidator.TABLE_TYPE_VALUE_SINK();
-	}
+public class TestTableSinkFactory implements TableSinkFactory<Row>, TableFactoryDiscoverable {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -66,17 +63,18 @@ public class TestTableSinkFactory implements TableConnectorFactory<TableSink<Row
 		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
 		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
 		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
 		return properties;
 	}
 
 	@Override
-	public TableSink<Row> create(Map<String, String> properties) {
+	public TableSink<Row> createTableSink(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 		return new TestTableSink(
-			params.getTableSchema(SCHEMA()),
-			properties.get("connector.test-property"));
+				SchemaValidator.deriveTableSinkSchema(params),
+				properties.get("connector.test-property"));
 	}
 
 	// --------------------------------------------------------------------------------------------

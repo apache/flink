@@ -26,95 +26,91 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.MetadataValidator._
 import org.apache.flink.table.descriptors.StatisticsValidator._
 import org.apache.flink.table.descriptors.{DescriptorProperties, TableDescriptor, TableDescriptorValidator}
-import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.util.Logging
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 
 /**
-  * Unified interface to create TableConnectors, e.g. [[org.apache.flink.table.sources.TableSource]]
-  * and [[org.apache.flink.table.sinks.TableSink]].
+  * Unified interface to search for TableFactoryDiscoverable of provided type and properties.
   */
-class TableConnectorFactoryService[T] extends Logging {
+object TableFactoryService extends Logging {
 
-  private lazy val defaultLoader = ServiceLoader.load(classOf[TableConnectorFactory[_]])
+  private lazy val defaultLoader = ServiceLoader.load(classOf[TableFactoryDiscoverable])
 
-  def findAndCreateTableConnector(descriptor: TableDescriptor): T = {
-    findAndCreateTableConnector(descriptor, null)
+  def find(clz: Class[_], descriptor: TableDescriptor): TableFactoryDiscoverable = {
+    find(clz, descriptor, null)
   }
 
-  def findAndCreateTableConnector(descriptor: TableDescriptor, classLoader: ClassLoader)
-  : T = {
+  def find(clz: Class[_], descriptor: TableDescriptor, classLoader: ClassLoader)
+  : TableFactoryDiscoverable = {
 
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
-    findAndCreateTableConnector(properties.asMap.asScala.toMap, classLoader)
+    find(clz, properties.asMap.asScala.toMap, classLoader)
   }
 
-  def findAndCreateTableConnector(properties: Map[String, String]): T = {
-    findAndCreateTableConnector(properties, null)
+  def find(clz: Class[_], properties: Map[String, String]): TableFactoryDiscoverable = {
+    find(clz: Class[_], properties, null)
   }
 
-  def findAndCreateTableConnector(properties: Map[String, String],
-                                  classLoader: ClassLoader)
-  : T = {
+  def find(clz: Class[_], properties: Map[String, String],
+           classLoader: ClassLoader): TableFactoryDiscoverable = {
 
-    var matchingFactory: Option[(TableConnectorFactory[T], Seq[String])] = None
+    var matchingFactory: Option[(TableFactoryDiscoverable, Seq[String])] = None
     try {
       val iter = if (classLoader == null) {
         defaultLoader.iterator()
       } else {
-        val customLoader = ServiceLoader.load(classOf[TableConnectorFactory[_]], classLoader)
+        val customLoader = ServiceLoader.load(classOf[TableFactoryDiscoverable], classLoader)
         customLoader.iterator()
       }
       while (iter.hasNext) {
         val factory = iter.next()
 
-        val requiredContextJava = try {
-          factory.requiredContext()
-        } catch {
-          case t: Throwable =>
-            throw new TableException(
-              s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
-              t)
-        }
+        if (clz.isAssignableFrom(factory.getClass)) {
+          val requiredContextJava = try {
+            factory.requiredContext()
+          } catch {
+            case t: Throwable =>
+              throw new TableException(
+                s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
+                t)
+          }
 
-        val requiredContext = if (requiredContextJava != null) {
-          // normalize properties
-          requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2))
-        } else {
-          Map[String, String]()
-        }
+          val requiredContext = if (requiredContextJava != null) {
+            // normalize properties
+            requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2))
+          } else {
+            Map[String, String]()
+          }
 
-        val plainContext = mutable.Map[String, String]()
-        plainContext ++= requiredContext
-        // we remove the versions for now until we have the first backwards compatibility case
-        // with the version we can provide mappings in case the format changes
-        plainContext.remove(CONNECTOR_PROPERTY_VERSION)
-        plainContext.remove(FORMAT_PROPERTY_VERSION)
-        plainContext.remove(METADATA_PROPERTY_VERSION)
-        plainContext.remove(STATISTICS_PROPERTY_VERSION)
+          val plainContext = mutable.Map[String, String]()
+          plainContext ++= requiredContext
+          // we remove the versions for now until we have the first backwards compatibility case
+          // with the version we can provide mappings in case the format changes
+          plainContext.remove(CONNECTOR_PROPERTY_VERSION)
+          plainContext.remove(FORMAT_PROPERTY_VERSION)
+          plainContext.remove(METADATA_PROPERTY_VERSION)
+          plainContext.remove(STATISTICS_PROPERTY_VERSION)
 
-        // check if required context is met
-        if (properties.get(TableDescriptorValidator.TABLE_TYPE).get.equals(factory.getType()) &&
-          plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
-          matchingFactory match {
-            case Some(_) => throw new AmbiguousTableConnectorException(properties)
-            case None => matchingFactory =
-              Some((factory.asInstanceOf[TableConnectorFactory[T]], requiredContext.keys.toSeq))
+          if (plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
+            matchingFactory match {
+              case Some(_) => throw new AmbiguousTableFactoryException(properties)
+              case None => matchingFactory =
+                Some((factory.asInstanceOf[TableFactoryDiscoverable], requiredContext.keys.toSeq))
+            }
           }
         }
       }
     } catch {
       case e: ServiceConfigurationError =>
-        LOG.error("Could not load service provider for table source factories.", e)
-        throw new TableException("Could not load service provider for table source factories.", e)
+        LOG.error("Could not load service provider for table factories.", e)
+        throw new TableException("Could not load service provider for table factories.", e)
     }
 
     val (factory, context) = matchingFactory
-      .getOrElse(throw new NoMatchingTableConnectorException(properties))
+      .getOrElse(throw new NoMatchingTableFactoryException(properties))
 
     val plainProperties = mutable.ArrayBuffer[String]()
     properties.keys.foreach { k =>
@@ -153,7 +149,7 @@ class TableConnectorFactoryService[T] extends Logging {
 
     // create the table connector
     try {
-      factory.create(properties.asJava)
+      factory
     } catch {
       case t: Throwable =>
         throw new TableException(
@@ -162,7 +158,3 @@ class TableConnectorFactoryService[T] extends Logging {
     }
   }
 }
-
-object TableSourceFactoryService extends TableConnectorFactoryService[TableSource[_]]
-
-object TableSinkFactoryService extends TableConnectorFactoryService[TableSink[_]]

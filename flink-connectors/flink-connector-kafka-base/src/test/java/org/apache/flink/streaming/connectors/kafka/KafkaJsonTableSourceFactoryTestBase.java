@@ -22,7 +22,9 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.formats.json.JsonSchemaConverter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connectors.TableSourceFactoryService;
+import org.apache.flink.table.connectors.TableFactoryService;
+import org.apache.flink.table.connectors.TableSourceFactory;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
@@ -146,8 +148,11 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 							new Rowtime().timestampsFromField("time").watermarksFromSource())
 						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
 
+		DescriptorProperties properties = new DescriptorProperties(true);
+		testDesc.addProperties(properties);
 		final TableSource<?> factorySource =
-				(TableSource<?>) TableSourceFactoryService.findAndCreateTableConnector(testDesc);
+				((TableSourceFactory) TableFactoryService.find(TableSourceFactory.class, testDesc))
+						.createTableSource(properties.asMap());
 
 		assertEquals(builderSource, factorySource);
 	}

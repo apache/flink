@@ -20,19 +20,12 @@ package org.apache.flink.table.connectors
 
 import java.util
 
-trait TableConnectorFactory[T] {
+/**
+  * Common trait for all properties-based discoverable table factories.
+  */
+trait TableFactoryDiscoverable {
   /**
-    * Specify the type of the table connector, check
-    * [[org.apache.flink.table.descriptors.TableDescriptorValidator]] for all values.
-    *
-    * @return the table connector type.
-    */
-  def getType() : String
-
-  /**
-    * Specifies the context that this factory has been implemented for. The framework guarantees
-    * to only call the [[create()]] method of the factory if the specified set of properties and
-    * values are met.
+    * Specifies the context that this factory has been implemented for. T
     *
     * Typical properties might be:
     *   - connector.type
@@ -62,13 +55,4 @@ trait TableConnectorFactory[T] {
     * versions like "format.property-version" must not be part of the supported properties.
     */
   def supportedProperties(): util.List[String]
-
-  /**
-    * Creates and configures a [[org.apache.flink.table.sources.TableSource]] or
-    * [[org.apache.flink.table.sinks.TableSink]] using the given properties.
-    *
-    * @param properties normalized properties describing a table connector.
-    * @return the configured table connector
-    */
-  def create(properties: util.Map[String, String]): T
 }

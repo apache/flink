@@ -25,15 +25,16 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
+import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.descriptors.{DescriptorProperties, Rowtime, Schema}
 import org.apache.flink.table.expressions.utils.SplitUDF
 import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
 import org.junit.Assert._
 import org.junit._
 
@@ -722,37 +723,35 @@ class SqlITCase extends StreamingWithStateTestBase {
     var tEnv = TableEnvironment.getTableEnvironment(env)
     MemoryTableSourceSinkUtil.clear
 
+    val desc = Schema()
+      .field("a", Types.INT)
+      .field("e", Types.LONG)
+      .field("f", Types.STRING)
+      .field("t", Types.SQL_TIMESTAMP)
+        .rowtime(Rowtime().timestampsFromField("t").watermarksPeriodicAscending())
+      .field("proctime", Types.SQL_TIMESTAMP).proctime()
+    val props = new DescriptorProperties()
+    desc.addProperties(props)
+
     val t = StreamTestData.getSmall3TupleDataStream(env)
       .assignAscendingTimestamps(x => x._2)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("sourceTable", t)
 
-    val fieldNames = Array("a", "e", "f", "t")
-    val fieldTypes = Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
-      .asInstanceOf[Array[TypeInformation[_]]]
-
-    val tableSchema = new TableSchema(
-      Array("a", "e", "f", "t", "rowtime", "proctime"),
-      Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP,
-        Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP))
-    val returnType = new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
-        .asInstanceOf[Array[TypeInformation[_]]],
-      Array("a", "e", "f", "t"))
-    tEnv.registerTableSource("targetTable", new MemoryTableSourceSinkUtil.UnsafeMemoryTableSource(
-      tableSchema, returnType, "rowtime", 3))
+    tEnv.registerTableSource("targetTable",
+      new InMemoryTableFactory().createTableSource(props.asMap))
     tEnv.registerTableSink("targetTable",
-      new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
+      new InMemoryTableFactory().createTableSink(props.asMap))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
-    tEnv.sqlQuery("SELECT a, e, f, t, rowtime from targetTable")
+    tEnv.sqlQuery("SELECT a, e, f, t from targetTable")
       .addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = List(
-      "1,1,Hi,1970-01-01 00:00:00.001,1970-01-01 00:00:00.001",
-      "2,2,Hello,1970-01-01 00:00:00.002,1970-01-01 00:00:00.002",
-      "3,2,Hello world,1970-01-01 00:00:00.002,1970-01-01 00:00:00.002")
+      "1,1,Hi,1970-01-01 00:00:00.001",
+      "2,2,Hello,1970-01-01 00:00:00.002",
+      "3,2,Hello world,1970-01-01 00:00:00.002")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

@@ -50,10 +50,12 @@ object MemoryTableSourceSinkUtil {
     MemoryTableSourceSinkUtil.tableData.clear()
   }
 
-  class UnsafeMemoryTableSource(tableSchema: TableSchema,
-                                returnType: TypeInformation[Row],
-                                rowtime: String,
-                                val rowCount: Integer)
+  class UnsafeMemoryTableSource(
+      tableSchema: TableSchema,
+      returnType: TypeInformation[Row],
+      rowtimeAttributeDescriptor: util.List[RowtimeAttributeDescriptor],
+      proctime: String,
+      val rowCount: Integer)
     extends BatchTableSource[Row]
       with StreamTableSource[Row] with DefinedProctimeAttribute with DefinedRowtimeAttributes {
 
@@ -73,7 +75,7 @@ object MemoryTableSourceSinkUtil {
           tableData.synchronized {
             if (tableData.size > 0) {
               val r = tableData.remove(0)
-              ctx.collectWithTimestamp(r, r.getField(3).asInstanceOf[Timestamp].getTime)
+              ctx.collect(r)
               count -= 1
             }
           }
@@ -85,18 +87,10 @@ object MemoryTableSourceSinkUtil {
       execEnv.addSource(new InMemorySourceFunction, returnType)
     }
 
-    override def getProctimeAttribute: String = "proctime"
+    override def getProctimeAttribute: String = proctime
 
     override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
-      // return a RowtimeAttributeDescriptor if rowtime attribute is defined
-      if (rowtime != null) {
-        Collections.singletonList(new RowtimeAttributeDescriptor(
-          rowtime,
-          new StreamRecordTimestamp,
-          new AscendingTimestamps))
-      } else {
-        Collections.EMPTY_LIST.asInstanceOf[util.List[RowtimeAttributeDescriptor]]
-      }
+      rowtimeAttributeDescriptor
     }
   }
 

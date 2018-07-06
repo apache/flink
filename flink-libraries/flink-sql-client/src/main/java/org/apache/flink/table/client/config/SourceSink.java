@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptorValidator;
 
@@ -42,6 +43,11 @@ public class SourceSink extends TableDescriptor {
 
 	public Map<String, String> getProperties() {
 		return properties;
+	}
+
+	@Override
+	public void addProperties(DescriptorProperties properties) {
+		this.properties.forEach(properties::putString);
 	}
 
 	public Source toSource() {

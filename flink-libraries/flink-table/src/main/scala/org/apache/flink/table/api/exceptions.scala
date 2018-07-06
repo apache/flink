@@ -142,15 +142,15 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.connectors.TableConnectorFactory]] for the
-  * given properties.
+  * Exception for not finding a [[org.apache.flink.table.connectors.TableFactoryDiscoverable]] for
+  * the given properties.
   *
   * @param properties properties that describe the table connector
   * @param cause the cause
   */
-case class NoMatchingTableConnectorException(properties: Map[String, String], cause: Throwable)
+case class NoMatchingTableFactoryException(properties: Map[String, String], cause: Throwable)
   extends RuntimeException(
-    s"Could not find a table connector factory in the classpath satisfying the " +
+    s"Could not find a table factory in the classpath satisfying the " +
       s"following properties: \n" +
       s"${DescriptorProperties.toString(properties)}",
     cause) {
@@ -159,15 +159,15 @@ case class NoMatchingTableConnectorException(properties: Map[String, String], ca
 }
 
 /**
-  * Exception for finding more than one [[org.apache.flink.table.connectors.TableConnectorFactory]]
-  * for the given properties.
+  * Exception for finding more than one
+  * [[org.apache.flink.table.connectors.TableFactoryDiscoverable]] for the given properties.
   *
-  * @param properties properties that describe the table connector
+  * @param properties properties that describe the table factory
   * @param cause the cause
   */
-case class AmbiguousTableConnectorException(properties: Map[String, String], cause: Throwable)
+case class AmbiguousTableFactoryException(properties: Map[String, String], cause: Throwable)
   extends RuntimeException(
-    s"More than one table connector factory in the classpath satisfying the " +
+    s"More than one table factory in the classpath satisfying the " +
       s"following properties: \n" +
       s"${DescriptorProperties.toString(properties)}",
     cause) {

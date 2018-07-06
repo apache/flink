@@ -90,7 +90,7 @@ public class Environment {
 			TableDescriptor tableDescriptor = create(tableName, properties);
 			if (null == tableDescriptor) {
 				throw new SqlClientException(
-						"Invalid table 'type' attribute value, only 'source' or 'sink' is supported");
+						"Invalid table 'type' attribute value, only 'source', 'sink' and 'both' is supported");
 			}
 			if (this.tables.containsKey(tableName)) {
 				throw new SqlClientException("Duplicate table name '" + tableName + "'.");

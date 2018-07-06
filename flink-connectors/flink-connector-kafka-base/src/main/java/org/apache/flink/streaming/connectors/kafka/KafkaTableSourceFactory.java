@@ -21,12 +21,12 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connectors.TableConnectorFactory;
+import org.apache.flink.table.connectors.TableFactoryDiscoverable;
+import org.apache.flink.table.connectors.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
-import org.apache.flink.table.descriptors.TableDescriptorValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
@@ -69,12 +69,8 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link KafkaJsonTableSource}.
  */
-abstract class KafkaTableSourceFactory implements TableConnectorFactory<TableSource<Row>> {
-
-	@Override
-	public String getType() {
-		return TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE();
-	}
+abstract class KafkaTableSourceFactory
+		implements TableSourceFactory<Row>, TableFactoryDiscoverable {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -125,7 +121,7 @@ abstract class KafkaTableSourceFactory implements TableConnectorFactory<TableSou
 	}
 
 	@Override
-	public TableSource<Row> create(Map<String, String> properties) {
+	public TableSource<Row> createTableSource(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 
@@ -188,7 +184,7 @@ abstract class KafkaTableSourceFactory implements TableConnectorFactory<TableSou
 			});
 
 		// schema
-		final TableSchema schema = params.getTableSchema(SCHEMA());
+		final TableSchema schema = SchemaValidator.deriveTableSourceSchema(params);
 		builder.withSchema(schema);
 
 		// proctime

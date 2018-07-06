@@ -27,7 +27,7 @@ import org.apache.flink.table.descriptors.TableDescriptorValidator
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 
-class TestTableSinkFactory extends TableConnectorFactory[TableSink[Row]] {
+class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactoryDiscoverable {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -48,7 +48,7 @@ class TestTableSinkFactory extends TableConnectorFactory[TableSink[Row]] {
     properties
   }
 
-  override def create(properties: util.Map[String, String]): TableSink[Row] = {
+  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
     if (properties.get("failing") == "true") {
       throw new IllegalArgumentException("Error in this factory.")
     }
@@ -65,7 +65,5 @@ class TestTableSinkFactory extends TableConnectorFactory[TableSink[Row]] {
         throw new UnsupportedOperationException()
     }
   }
-
-  override def getType(): String = TableDescriptorValidator.TABLE_TYPE_VALUE_SINK
 }
 
