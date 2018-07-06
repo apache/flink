@@ -47,7 +47,7 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 	private final CollectStreamTableSink collectTableSink;
 	private final ResultRetrievalThread retrievalThread;
 	private final JobMonitoringThread monitoringThread;
-	private Runnable program;
+	private ProgramDeployer<C> deployer;
 	private C clusterId;
 
 	protected final Object resultLock;
@@ -90,12 +90,12 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 	}
 
 	@Override
-	public void startRetrieval(Runnable program) {
+	public void startRetrieval(ProgramDeployer<C> deployer) {
 		// start listener thread
 		retrievalThread.start();
 
-		// start program
-		this.program = program;
+		// start deployer
+		this.deployer = deployer;
 		monitoringThread.start();
 	}
 
@@ -143,7 +143,7 @@ public abstract class CollectStreamResult<C> implements DynamicResult<C> {
 		@Override
 		public void run() {
 			try {
-				program.run();
+				deployer.run();
 			} catch (SqlExecutionException e) {
 				executionException = e;
 			}

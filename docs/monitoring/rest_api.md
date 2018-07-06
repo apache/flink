@@ -25,7 +25,7 @@ under the License.
 Flink has a monitoring API that can be used to query status and statistics of running jobs, as well as recent completed jobs.
 This monitoring API is used by Flink's own dashboard, but is designed to be used also by custom monitoring tools.
 
-The monitoring API is a REST-ful API that accepts HTTP GET requests and responds with JSON data.
+The monitoring API is a REST-ful API that accepts HTTP requests and responds with JSON data.
 
 * This will be replaced by the TOC
 {:toc}
@@ -33,21 +33,34 @@ The monitoring API is a REST-ful API that accepts HTTP GET requests and responds
 
 ## Overview
 
-The monitoring API is backed by a web server that runs as part of the *JobManager*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `rest.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
+The monitoring API is backed by a web server that runs as part of the *Dispatcher*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `rest.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
 
-In the case of multiple JobManagers (for high availability), each JobManager will run its own instance of the monitoring API, which offers information about completed and running job while that JobManager was elected the cluster leader.
+In the case of multiple Dispatchers (for high availability), each Dispatcher will run its own instance of the monitoring API, which offers information about completed and running job while that Dispatcher was elected the cluster leader.
 
 
 ## Developing
 
-The REST API backend is in the `flink-runtime-web` project. The core class is `org.apache.flink.runtime.webmonitor.WebRuntimeMonitor`, which sets up the server and the request routing.
+The REST API backend is in the `flink-runtime` project. The core class is `org.apache.flink.runtime.webmonitor.WebMonitorEndpoint`, which sets up the server and the request routing.
 
 We use *Netty* and the *Netty Router* library to handle REST requests and translate URLs. This choice was made because this combination has lightweight dependencies, and the performance of Netty HTTP is very good.
 
-To add new requests, one needs to add a new *request handler* class. A good example to look at is the `org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler`. After creating the handler, the handler needs to be registered with the request router in `org.apache.flink.runtime.webmonitor.WebRuntimeMonitor`.
+To add new requests, one needs to
+* add a new `MessageHeaders` class which serves as an interface for the new request,
+* add a new `AbstractRestHandler` class which handles the request according to the added `MessageHeaders` class,
+* add the handler to `org.apache.flink.runtime.webmonitor.WebMonitorEndpoint#initializeHandlers()`.
+
+A good example is the `org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler` that uses the `org.apache.flink.runtime.rest.messages.JobExceptionsHeaders`.
 
 
 ## Available Requests
+
+### Dispatcher
+
+{% include generated/rest_dispatcher.html %}
+
+## Legacy
+
+This section is only relevant if the cluster runs in [legacy mode](../ops/config.html#mode).
 
 Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8081/jobs`, below we list only the *path* part of the URLs.
 
@@ -117,7 +130,7 @@ Sample Result:
 
 **`/jobs/overview`**
 
-Jobs, grouped by status, each with a small summary of its status.
+An overview over all jobs with a small summary.
 
 Sample Result:
 
@@ -673,9 +686,5 @@ Response:
 {% highlight json %}
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 {% endhighlight %}
-
-### Dispatcher
-
-{% include generated/rest_dispatcher.html %}
 
 {% top %}

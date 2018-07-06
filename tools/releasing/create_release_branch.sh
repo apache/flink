@@ -59,6 +59,7 @@ perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
 VERSION_TITLE=$(echo $NEW_VERSION | sed 's/\.[^.]*$//')
 perl -pi -e "s#^version_title: .*#version_title: ${VERSION_TITLE}#" _config.yml
 perl -pi -e "s#^version_javadocs: .*#version_javadocs: ${VERSION_TITLE}#" _config.yml
+perl -pi -e "s#^version_scaladocs: .*#version_scaladocs: ${VERSION_TITLE}#" _config.yml
 cd ..
 
 git commit -am "Commit for release $NEW_VERSION"

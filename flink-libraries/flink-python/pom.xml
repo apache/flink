@@ -88,6 +88,11 @@ under the License.
 	<profiles>
 		<profile>
 			<id>generate-config-docs</id>
+			<activation>
+				<property>
+					<name>generate-config-docs</name>
+				</property>
+			</activation>
 
 			<build>
 				<plugins>

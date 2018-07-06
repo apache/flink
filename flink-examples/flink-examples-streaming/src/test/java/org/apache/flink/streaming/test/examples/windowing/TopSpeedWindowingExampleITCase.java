@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.test.examples.windowing;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -42,10 +42,10 @@ public class TopSpeedWindowingExampleITCase extends TestLogger {
 
 	@ClassRule
 	public static MiniClusterResource miniClusterResource = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			new Configuration(),
-			1,
-			1));
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(1)
+			.setNumberSlotsPerTaskManager(1)
+			.build());
 
 	@Test
 	public void testTopSpeedWindowingExampleITCase() throws Exception {

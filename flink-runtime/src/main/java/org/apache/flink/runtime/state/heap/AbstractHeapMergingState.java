@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MergingState;
-import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
@@ -34,11 +33,10 @@ import java.util.Collection;
  * @param <IN> The type of the input elements.
  * @param <SV> The type of the values in the state.
  * @param <OUT> The type of the output elements.
- * @param <S> The type of State
  */
-public abstract class AbstractHeapMergingState<K, N, IN, SV, OUT, S extends State>
-		extends AbstractHeapState<K, N, SV, S>
-		implements InternalMergingState<K, N, IN, SV, OUT> {
+abstract class AbstractHeapMergingState<K, N, IN, SV, OUT>
+	extends AbstractHeapAppendingState<K, N, IN, SV, OUT>
+	implements InternalMergingState<K, N, IN, SV, OUT> {
 
 	/**
 	 * The merge transformation function that implements the merge logic.

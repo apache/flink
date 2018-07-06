@@ -409,7 +409,7 @@ trait TestingJobManagerLike extends FlinkActor {
       }
 
     case NotifyWhenLeader =>
-      if (leaderElectionService.hasLeadership) {
+      if (leaderSessionID.isDefined && leaderElectionService.hasLeadership(leaderSessionID.get)) {
         sender() ! true
       } else {
         waitForLeader += sender()

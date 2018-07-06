@@ -668,6 +668,11 @@ under the License.
 		<profile>
 			<!-- MapR build profile -->
 			<id>mapr</id>
+			<activation>
+				<property>
+					<name>mapr</name>
+				</property>
+			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>

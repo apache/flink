@@ -151,7 +151,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- time handler ------------------
 
-	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
+	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -344,6 +344,12 @@ public abstract class AbstractStreamOperator<OUT>
 		if (exception != null) {
 			throw exception;
 		}
+	}
+
+	@Override
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		// the default implementation does nothing and accepts the checkpoint
+		// this is purely for subclasses to override
 	}
 
 	@Override
@@ -654,7 +660,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
 	 */
-	public class CountingOutput implements Output<StreamRecord<OUT>> {
+	public static class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
 
@@ -725,7 +731,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 		// the following casting is to overcome type restrictions.
 		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
-		InternalTimeServiceManager<K, N> keyedTimeServiceHandler = (InternalTimeServiceManager<K, N>) timeServiceManager;
+		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
 		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
 	}
 

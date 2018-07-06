@@ -27,19 +27,16 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
-@Category(New.class)
 public class MiniClusterITCase extends TestLogger {
 
 	private static Configuration configuration;
@@ -57,7 +54,7 @@ public class MiniClusterITCase extends TestLogger {
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(configuration)
 			.build();
 
@@ -74,7 +71,7 @@ public class MiniClusterITCase extends TestLogger {
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.DEDICATED)
+			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(configuration)
 			.build();
 

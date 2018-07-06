@@ -120,9 +120,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		try {
 
 			InternalValueState<String, VoidNamespace, String> state =
-				stateBackend.createValueState(
-					new VoidNamespaceSerializer(),
-					stateDescriptor);
+				stateBackend.createState(new VoidNamespaceSerializer(), stateDescriptor);
 
 			stateBackend.setCurrentKey("A");
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
@@ -163,7 +161,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 
 			stateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
-			InternalValueState<String, VoidNamespace, String> state = stateBackend.createValueState(
+			InternalValueState<String, VoidNamespace, String> state = stateBackend.createState(
 				new VoidNamespaceSerializer(),
 				stateDescriptor);
 

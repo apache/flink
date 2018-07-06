@@ -31,7 +31,10 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsChe
 
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
@@ -41,6 +44,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the {@link FsCheckpointStorage}, which implements the checkpoint storage
@@ -204,6 +208,28 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 		assertFalse(checkpointDir.exists());
 	}
 
+	@Test
+	public void testResolveCheckpointStorageLocation() throws Exception {
+		final FileSystem checkpointFileSystem = mock(FileSystem.class);
+		final FsCheckpointStorage storage = new FsCheckpointStorage(
+			new TestingPath("hdfs:///checkpoint/", checkpointFileSystem),
+			null,
+			new JobID(),
+			FILE_SIZE_THRESHOLD);
+
+		final FsCheckpointStorageLocation checkpointStreamFactory =
+			(FsCheckpointStorageLocation) storage.resolveCheckpointStorageLocation(1L, CheckpointStorageLocationReference.getDefault());
+		assertEquals(checkpointFileSystem, checkpointStreamFactory.getFileSystem());
+
+		final CheckpointStorageLocationReference savepointLocationReference =
+			AbstractFsCheckpointStorage.encodePathAsReference(new Path("file:///savepoint/"));
+
+		final FsCheckpointStorageLocation savepointStreamFactory =
+			(FsCheckpointStorageLocation) storage.resolveCheckpointStorageLocation(2L, savepointLocationReference);
+		final FileSystem fileSystem = savepointStreamFactory.getFileSystem();
+		assertTrue(fileSystem instanceof LocalFileSystem);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -211,5 +237,24 @@ public class FsCheckpointStorageTest extends AbstractFileCheckpointStorageTestBa
 	private void assertParent(Path parent, Path child) {
 		Path path = new Path(parent, child.getName());
 		assertEquals(path, child);
+	}
+
+	private static final class TestingPath extends Path {
+
+		private static final long serialVersionUID = 2560119808844230488L;
+
+		@SuppressWarnings("TransientFieldNotInitialized")
+		@Nonnull
+		private final transient FileSystem fileSystem;
+
+		TestingPath(String pathString, @Nonnull FileSystem fileSystem) {
+			super(pathString);
+			this.fileSystem = fileSystem;
+		}
+
+		@Override
+		public FileSystem getFileSystem() throws IOException {
+			return fileSystem;
+		}
 	}
 }

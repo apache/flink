@@ -204,8 +204,9 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_IPC_PORT_KEY = "taskmanager.rpc.port";
 
 	/**
-	 * The config parameter defining the task manager's data port from the configuration.
+	 * @deprecated use {@link TaskManagerOptions#DATA_PORT} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_DATA_PORT_KEY = "taskmanager.data.port";
 
 	/**
@@ -356,21 +357,21 @@ public final class ConfigConstants {
 	// --------------------------- Runtime Algorithms -------------------------------
 
 	/**
-	 * Parameter for the maximum fan for out-of-core algorithms.
-	 * Corresponds to the maximum fan-in for merge-sorts and the maximum fan-out
-	 * for hybrid hash joins.
+	 * @deprecated use {@link AlgorithmOptions#SPILLING_MAX_FAN} instead
 	 */
+	@Deprecated
 	public static final String DEFAULT_SPILLING_MAX_FAN_KEY = "taskmanager.runtime.max-fan";
 
 	/**
-	 * Key for the default spilling threshold. When more than the threshold memory of the sort buffers is full, the
-	 * sorter will start spilling to disk.
+	 * @deprecated use {@link AlgorithmOptions#SORT_SPILLING_THRESHOLD instead}
 	 */
+	@Deprecated
 	public static final String DEFAULT_SORT_SPILLING_THRESHOLD_KEY = "taskmanager.runtime.sort-spilling-threshold";
 
 	/**
-	 * Parameter to switch hash join bloom filters for spilled partitions on and off.
+	 * @deprecated use {@link AlgorithmOptions#HASH_JOIN_BLOOM_FILTERS} instead
 	 */
+	@Deprecated
 	public static final String RUNTIME_HASH_JOIN_BLOOM_FILTERS_KEY = "taskmanager.runtime.hashjoin-bloom-filters";
 
 	/**
@@ -1336,8 +1337,9 @@ public final class ConfigConstants {
 		BlobServerOptions.CLEANUP_INTERVAL.defaultValue();
 
 	/**
-	 * The default network port to connect to for communication with the job manager.
+	 * @deprecated use {@link JobManagerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_IPC_PORT = 6123;
 
 	/**
@@ -1501,18 +1503,21 @@ public final class ConfigConstants {
 	// ------------------------ Runtime Algorithms ------------------------
 
 	/**
-	 * Default setting for the switch for hash join bloom filters for spilled partitions.
+	 * @deprecated use {@link AlgorithmOptions#HASH_JOIN_BLOOM_FILTERS} instead
 	 */
+	@Deprecated
 	public static final boolean DEFAULT_RUNTIME_HASH_JOIN_BLOOM_FILTERS = false;
 
 	/**
-	 * The default value for the maximum spilling fan in/out.
+	 * @deprecated use {@link AlgorithmOptions#SPILLING_MAX_FAN} insstead
 	 */
+	@Deprecated
 	public static final int DEFAULT_SPILLING_MAX_FAN = 128;
 
 	/**
-	 * The default percentage of the sort memory to be full before data is spilled.
+	 * @deprecated use {@link AlgorithmOptions#SORT_SPILLING_THRESHOLD} instead
 	 */
+	@Deprecated
 	public static final float DEFAULT_SORT_SPILLING_THRESHOLD = 0.8f;
 
 	/**

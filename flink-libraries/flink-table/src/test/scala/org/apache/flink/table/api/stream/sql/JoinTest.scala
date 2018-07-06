@@ -813,6 +813,196 @@ class JoinTest extends TableTestBase {
     assertEquals(expTimeType, timeTypeStr)
   }
 
+  @Test
+  def testLeftOuterJoinEquiPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "=(a, z)"),
+        term("join", "a", "b", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinEquiAndLocalPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < 2"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b", "<(b, 2) AS $f3")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "AND(=(a, z), $f3)"),
+        term("join", "a", "b", "$f3", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinEquiAndNonEquiPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, y FROM t LEFT OUTER JOIN s ON a = z AND b < x"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        streamTableNode(1),
+        term("where", "AND(=(a, z), <(b, x))"),
+        term("join", "a", "b", "x", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "=(a, z)"),
+        term("join", "a", "b", "y", "z"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiAndLocalPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, x FROM t RIGHT OUTER JOIN s ON a = z AND x < 2"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "x", "z", "<(x, 2) AS $f3")
+        ),
+        term("where", "AND(=(a, z), $f3)"),
+        term("join", "a", "b", "x", "z", "$f3"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "x")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiAndNonEquiPred(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addTable[(Long, String, Int)]("s", 'x, 'y, 'z)
+
+    val query = "SELECT b, y FROM t RIGHT OUTER JOIN s ON a = z AND b < x"
+    val result = util.tableEnv.sqlQuery(query)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        streamTableNode(1),
+        term("where", "AND(=(a, z), <(b, x))"),
+        term("join", "a", "b", "x", "y", "z"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
   private def verifyRemainConditionConvert(
       query: String,
       expectCondStr: String): Unit = {

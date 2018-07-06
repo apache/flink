@@ -77,7 +77,7 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 		// add sink
 		stream
 			.addSink(new CollectSink<>(targetAddress, targetPort, serializer))
-			.name("SQL Client Collect Sink")
+			.name("SQL Client Stream Collect Sink")
 			.setParallelism(1);
 	}
 

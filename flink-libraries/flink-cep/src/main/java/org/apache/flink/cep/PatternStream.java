@@ -54,6 +54,12 @@ public class PatternStream<T> {
 	// comparator to sort events
 	private final EventComparator<T> comparator;
 
+	/**
+	 * Side output {@code OutputTag} for late data. If no tag is set late data will be simply
+	 * dropped.
+	 */
+	private OutputTag<T> lateDataOutputTag;
+
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
@@ -130,7 +136,7 @@ public class PatternStream<T> {
 	 *         function.
 	 */
 	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, clean(patternSelectFunction), outTypeInfo);
+		return CEPOperatorUtils.createPatternStream(inputStream, pattern, comparator, clean(patternSelectFunction), outTypeInfo, lateDataOutputTag);
 	}
 
 	/**
@@ -217,7 +223,8 @@ public class PatternStream<T> {
 			clean(patternSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
-			clean(patternTimeoutFunction));
+			clean(patternTimeoutFunction),
+			lateDataOutputTag);
 	}
 
 	/**
@@ -278,7 +285,8 @@ public class PatternStream<T> {
 			clean(patternSelectFunction),
 			rightTypeInfo,
 			outputTag,
-			clean(patternTimeoutFunction));
+			clean(patternTimeoutFunction),
+			lateDataOutputTag);
 
 		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
@@ -335,7 +343,8 @@ public class PatternStream<T> {
 			pattern,
 			comparator,
 			clean(patternFlatSelectFunction),
-			outTypeInfo);
+			outTypeInfo,
+			lateDataOutputTag);
 	}
 
 	/**
@@ -419,7 +428,8 @@ public class PatternStream<T> {
 			clean(patternFlatSelectFunction),
 			outTypeInfo,
 			timeoutOutputTag,
-			clean(patternFlatTimeoutFunction));
+			clean(patternFlatTimeoutFunction),
+			lateDataOutputTag);
 	}
 
 	/**
@@ -481,13 +491,19 @@ public class PatternStream<T> {
 			clean(patternFlatSelectFunction),
 			rightTypeInfo,
 			outputTag,
-			clean(patternFlatTimeoutFunction));
+			clean(patternFlatTimeoutFunction),
+			lateDataOutputTag);
 
 		final DataStream<L> timedOutStream = mainStream.getSideOutput(outputTag);
 
 		TypeInformation<Either<L, R>> outTypeInfo = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
 
 		return mainStream.connect(timedOutStream).map(new CoMapTimeout<>()).returns(outTypeInfo);
+	}
+
+	public PatternStream<T> sideOutputLateData(OutputTag<T> outputTag) {
+		this.lateDataOutputTag = clean(outputTag);
+		return this;
 	}
 
 	/**

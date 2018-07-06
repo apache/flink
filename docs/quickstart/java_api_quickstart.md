@@ -55,16 +55,16 @@ Use one of the following commands to __create a project__:
     <div class="tab-pane" id="quickstart-script">
     {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash
+    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
     {% endhighlight %}
 
     </div>
     {% unless site.is_stable %}
     <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the command line. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
     </p>
     {% endunless %}
 </div>
@@ -101,17 +101,19 @@ allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/refer
 Some Eclipse bundles include that plugin by default, others require you
 to install it manually. 
 
-*A note to Mac OS X users*: The default JVM heapsize for Java mey be too
-small for Flink. You have to manually increase it. In Eclipse, choose
+*A note to Mac OS X users*: The default JVM heapsize for Java may be too
+small for Flink. You have to manually increase it.
+In Eclipse, choose
 `Run Configurations -> Arguments` and write into the `VM Arguments`
 box: `-Xmx800m`.
+In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu. See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details. 
 
 ## Build Project
 
 If you want to __build/package your project__, go to your project directory and
 run the '`mvn clean package`' command.
 You will __find a JAR file__ that contains your application, plus connectors and libraries
-that you may have added as dependencoes to the application: `target/<artifact-id>-<version>.jar`.
+that you may have added as dependencies to the application: `target/<artifact-id>-<version>.jar`.
 
 __Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
 we recommend you change the `mainClass` setting in the `pom.xml` file accordingly. That way, the Flink
@@ -122,14 +124,16 @@ can run time application from the JAR file without additionally specifying the m
 Write your application!
 
 If you are writing a streaming application and you are looking for inspiration what to write,
-take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/quickstart/run_example_quickstart.html#writing-a-flink-program)
+take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/quickstart/run_example_quickstart.html#writing-a-flink-program).
 
 If you are writing a batch processing application and you are looking for inspiration what to write,
-take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html)
+take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html).
 
-For a complete overview over the APIa, have a look at the
+For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
+
+[Here]({{ site.baseurl }}/quickstart/setup_quickstart.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).

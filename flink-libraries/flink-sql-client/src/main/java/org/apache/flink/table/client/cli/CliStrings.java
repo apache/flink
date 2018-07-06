@@ -35,6 +35,7 @@ public final class CliStrings {
 
 	public static final String CLI_NAME = "Flink SQL CLI Client";
 	public static final String DEFAULT_MARGIN = " ";
+	public static final String NULL_COLUMN = "(NULL)";
 
 	// --------------------------------------------------------------------------------------------
 

@@ -40,23 +40,11 @@ under the License.
 				<artifactId>guava</artifactId>
 				<version>19.0</version>
 			</dependency>
-			<!-- Common dependency among commons-configuration -->
-			<dependency>
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<version>1.8.3</version>
-			</dependency>
 			<!-- Common dependency of calcite-core and janino -->
 			<dependency>
 				<groupId>org.codehaus.janino</groupId>
 				<artifactId>commons-compiler</artifactId>
 				<version>3.0.7</version>
-			</dependency>
-			<!-- Common dependency of aggdesigner-algorithm and commons-configuration -->
-			<dependency>
-				<groupId>commons-lang</groupId>
-				<artifactId>commons-lang</artifactId>
-				<version>2.6</version>
 			</dependency>
 			<!-- Common dependency of calcite-core and flink-table -->
 			<dependency>
@@ -82,17 +70,6 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
 			<scope>provided</scope>
-		</dependency>
-
-		<!-- Used for TableType configuration -->
-		<dependency>
-			<groupId>commons-configuration</groupId>
-			<artifactId>commons-configuration</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>jcl-over-slf4j</artifactId>
-			<version>${slf4j.version}</version>
 		</dependency>
 
 		<!-- Used for base64 encoding of UDFs -->
@@ -154,24 +131,6 @@ under the License.
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-
-		<!-- Used for TableType classpath discovery -->
-		<dependency>
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-			<scope>compile</scope>
 		</dependency>
 
 		<!-- Used for date/time formatting -->
@@ -299,16 +258,12 @@ under the License.
 									<include>com.google.guava:guava</include>
 									<include>net.hydromatic:*</include>
 									<include>com.esri.geometry:*</include>
+									<include>commons-lang:*</include>
 
 									<!-- flink-table dependencies -->
-									<include>commons-configuration:*</include>
-									<include>org.slf4j:jcl-over-slf4j</include>
-									<include>commons-lang:*</include>
 									<include>commons-codec:*</include>
-									<include>commons-collections:*</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>org.codehaus.janino:*</include>
-									<include>org.reflections:*</include>
 									<include>joda-time:*</include>
 								</includes>
 							</artifactSet>
@@ -335,14 +290,6 @@ under the License.
 
 								<!-- flink-table dependencies -->
 								<relocation>
-									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.reflections</pattern>
-									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>org.joda.time</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
 								</relocation>
@@ -351,6 +298,12 @@ under the License.
 									<pattern>org.codehaus</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
 								</relocation>-->
+
+								<!-- commons-codec, commons-lang3, and commons-lang (from Calcite) -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>

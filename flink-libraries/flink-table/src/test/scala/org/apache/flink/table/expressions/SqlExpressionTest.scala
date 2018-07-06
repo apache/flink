@@ -50,6 +50,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "false")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
     testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
+    testSqlApi("12 BETWEEN NULL AND 13", "null")
     testSqlApi("12 BETWEEN 11 AND 13", "true")
     testSqlApi("12 BETWEEN ASYMMETRIC 13 AND 11", "false")
     testSqlApi("12 BETWEEN SYMMETRIC 13 AND 11", "true")

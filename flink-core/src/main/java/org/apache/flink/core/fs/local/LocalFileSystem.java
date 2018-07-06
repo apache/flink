@@ -254,7 +254,7 @@ public class LocalFileSystem extends FileSystem {
 		}
 		else {
 			File parent = file.getParentFile();
-			return (parent == null || mkdirsInternal(parent)) && file.mkdir();
+			return (parent == null || mkdirsInternal(parent)) && (file.mkdir() || file.isDirectory());
 		}
 	}
 

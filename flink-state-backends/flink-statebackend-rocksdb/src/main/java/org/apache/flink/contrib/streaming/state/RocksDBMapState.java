@@ -19,6 +19,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,16 +30,19 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
+import org.rocksdb.WriteBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -57,9 +62,9 @@ import java.util.Map;
  * @param <UK> The type of the keys in the map state.
  * @param <UV> The type of the values in the map state.
  */
-public class RocksDBMapState<K, N, UK, UV>
-		extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>>
-		implements InternalMapState<K, N, UK, UV> {
+class RocksDBMapState<K, N, UK, UV>
+	extends AbstractRocksDBState<K, N, Map<UK, UV>, MapState<UK, UV>>
+	implements InternalMapState<K, N, UK, UV> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
 
@@ -76,7 +81,7 @@ public class RocksDBMapState<K, N, UK, UV>
 	 * @param defaultValue The default value for the state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBMapState(
+	private RocksDBMapState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<Map<UK, UV>> valueSerializer,
@@ -134,8 +139,12 @@ public class RocksDBMapState<K, N, UK, UV>
 			return;
 		}
 
-		for (Map.Entry<UK, UV> entry : map.entrySet()) {
-			put(entry.getKey(), entry.getValue());
+		try (RocksDBWriteBatchWrapper writeBatchWrapper = new RocksDBWriteBatchWrapper(backend.db, writeOptions)) {
+			for (Map.Entry<UK, UV> entry : map.entrySet()) {
+				byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(entry.getKey());
+				byte[] rawValueBytes = serializeUserValue(entry.getValue());
+				writeBatchWrapper.put(columnFamily, rawKeyBytes, rawValueBytes);
+			}
 		}
 	}
 
@@ -155,60 +164,45 @@ public class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public Iterable<Map.Entry<UK, UV>> entries() throws IOException, RocksDBException {
+	public Iterable<Map.Entry<UK, UV>> entries() throws IOException {
 		final Iterator<Map.Entry<UK, UV>> iterator = iterator();
 
 		// Return null to make the behavior consistent with other states.
 		if (!iterator.hasNext()) {
 			return null;
 		} else {
-			return new Iterable<Map.Entry<UK, UV>>() {
-				@Override
-				public Iterator<Map.Entry<UK, UV>> iterator() {
-					return iterator;
-				}
-			};
+			return () -> iterator;
 		}
 	}
 
 	@Override
-	public Iterable<UK> keys() throws IOException, RocksDBException {
+	public Iterable<UK> keys() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return new Iterable<UK>() {
+		return () -> new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
 			@Override
-			public Iterator<UK> iterator() {
-				return new RocksDBMapIterator<UK>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
-					@Override
-					public UK next() {
-						RocksDBMapEntry entry = nextEntry();
-						return (entry == null ? null : entry.getKey());
-					}
-				};
+			public UK next() {
+				RocksDBMapEntry entry = nextEntry();
+				return (entry == null ? null : entry.getKey());
 			}
 		};
 	}
 
 	@Override
-	public Iterable<UV> values() throws IOException, RocksDBException {
+	public Iterable<UV> values() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
-		return new Iterable<UV>() {
+		return () -> new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
 			@Override
-			public Iterator<UV> iterator() {
-				return new RocksDBMapIterator<UV>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
-					@Override
-					public UV next() {
-						RocksDBMapEntry entry = nextEntry();
-						return (entry == null ? null : entry.getValue());
-					}
-				};
+			public UV next() {
+				RocksDBMapEntry entry = nextEntry();
+				return (entry == null ? null : entry.getValue());
 			}
 		};
 	}
 
 	@Override
-	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException, RocksDBException {
+	public Iterator<Map.Entry<UK, UV>> iterator() throws IOException {
 		final byte[] prefixBytes = serializeCurrentKeyAndNamespace();
 
 		return new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, prefixBytes, userKeySerializer, userValueSerializer) {
@@ -222,11 +216,23 @@ public class RocksDBMapState<K, N, UK, UV>
 	@Override
 	public void clear() {
 		try {
-			Iterator<Map.Entry<UK, UV>> iterator = iterator();
+			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(backend.db, columnFamily);
+				WriteBatch writeBatch = new WriteBatch(128)) {
 
-			while (iterator.hasNext()) {
-				iterator.next();
-				iterator.remove();
+				final byte[] keyPrefixBytes = serializeCurrentKeyAndNamespace();
+				iterator.seek(keyPrefixBytes);
+
+				while (iterator.isValid()) {
+					byte[] keyBytes = iterator.key();
+					if (startWithKeyPrefix(keyPrefixBytes, keyBytes)) {
+						writeBatch.remove(columnFamily, keyBytes);
+					} else {
+						break;
+					}
+					iterator.next();
+				}
+
+				backend.db.write(writeOptions, writeBatch);
 			}
 		} catch (Exception e) {
 			LOG.warn("Error while cleaning the state.", e);
@@ -288,12 +294,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			return null;
 		}
 
-		return KvStateSerializer.serializeMap(new Iterable<Map.Entry<UK, UV>>() {
-			@Override
-			public Iterator<Map.Entry<UK, UV>> iterator() {
-				return iterator;
-			}
-		}, dupUserKeySerializer, dupUserValueSerializer);
+		return KvStateSerializer.serializeMap(() -> iterator, dupUserKeySerializer, dupUserValueSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -352,6 +353,20 @@ public class RocksDBMapState<K, N, UK, UV>
 		return isNull ? null : valueSerializer.deserialize(in);
 	}
 
+	private boolean startWithKeyPrefix(byte[] keyPrefixBytes, byte[] rawKeyBytes) {
+		if (rawKeyBytes.length < keyPrefixBytes.length) {
+			return false;
+		}
+
+		for (int i = keyPrefixBytes.length; --i >= backend.getKeyGroupPrefixBytes(); ) {
+			if (rawKeyBytes[i] != keyPrefixBytes[i]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal Classes
 	// ------------------------------------------------------------------------
@@ -385,7 +400,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		RocksDBMapEntry(
 				@Nonnull final RocksDB db,
-				@Nonnull final int userKeyOffset,
+				@Nonnegative final int userKeyOffset,
 				@Nonnull final byte[] rawKeyBytes,
 				@Nonnull final byte[] rawValueBytes,
 				@Nonnull final TypeSerializer<UK> keySerializer,
@@ -408,7 +423,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			try {
 				db.delete(columnFamily, writeOptions, rawKeyBytes);
 			} catch (RocksDBException e) {
-				throw new RuntimeException("Error while removing data from RocksDB.", e);
+				throw new FlinkRuntimeException("Error while removing data from RocksDB.", e);
 			}
 		}
 
@@ -418,7 +433,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				try {
 					userKey = deserializeUserKey(userKeyOffset, rawKeyBytes, keySerializer);
 				} catch (IOException e) {
-					throw new RuntimeException("Error while deserializing the user key.", e);
+					throw new FlinkRuntimeException("Error while deserializing the user key.", e);
 				}
 			}
 
@@ -434,7 +449,7 @@ public class RocksDBMapState<K, N, UK, UV>
 					try {
 						userValue = deserializeUserValue(rawValueBytes, valueSerializer);
 					} catch (IOException e) {
-						throw new RuntimeException("Error while deserializing the user value.", e);
+						throw new FlinkRuntimeException("Error while deserializing the user value.", e);
 					}
 				}
 
@@ -456,7 +471,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 				db.put(columnFamily, writeOptions, rawKeyBytes, rawValueBytes);
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while putting data into RocksDB.", e);
+				throw new FlinkRuntimeException("Error while putting data into RocksDB.", e);
 			}
 
 			return oldValue;
@@ -549,7 +564,7 @@ public class RocksDBMapState<K, N, UK, UV>
 
 			// use try-with-resources to ensure RocksIterator can be release even some runtime exception
 			// occurred in the below code block.
-			try (RocksIterator iterator = db.newIterator(columnFamily)) {
+			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(db, columnFamily)) {
 
 				/*
 				 * The iteration starts from the prefix bytes at the first loading. The cache then is
@@ -573,7 +588,7 @@ public class RocksDBMapState<K, N, UK, UV>
 				}
 
 				while (true) {
-					if (!iterator.isValid() || !underSameKey(iterator.key())) {
+					if (!iterator.isValid() || !startWithKeyPrefix(keyPrefixBytes, iterator.key())) {
 						expired = true;
 						break;
 					}
@@ -596,19 +611,18 @@ public class RocksDBMapState<K, N, UK, UV>
 				}
 			}
 		}
+	}
 
-		private boolean underSameKey(byte[] rawKeyBytes) {
-			if (rawKeyBytes.length < keyPrefixBytes.length) {
-				return false;
-			}
-
-			for (int i = keyPrefixBytes.length; --i >= backend.getKeyGroupPrefixBytes(); ) {
-				if (rawKeyBytes[i] != keyPrefixBytes[i]) {
-					return false;
-				}
-			}
-
-			return true;
-		}
+	@SuppressWarnings("unchecked")
+	static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+		RocksDBKeyedStateBackend<K> backend) {
+		return (IS) new RocksDBMapState<>(
+			registerResult.f0,
+			registerResult.f1.getNamespaceSerializer(),
+			(TypeSerializer<Map<UK, UV>>) registerResult.f1.getStateSerializer(),
+			(Map<UK, UV>) stateDesc.getDefaultValue(),
+			backend);
 	}
 }

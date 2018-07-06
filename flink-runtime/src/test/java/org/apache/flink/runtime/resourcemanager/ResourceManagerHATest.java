@@ -31,11 +31,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +43,6 @@ import static org.mockito.Mockito.mock;
 /**
  * resourceManager HA test, including grant leadership and revoke leadership
  */
-@Category(New.class)
 public class ResourceManagerHATest extends TestLogger {
 
 	@Test

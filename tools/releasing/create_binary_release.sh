@@ -40,10 +40,8 @@ fi
 
 if [ "$(uname)" == "Darwin" ]; then
     SHASUM="shasum -a 512"
-    MD5SUM="md5 -r"
 else
     SHASUM="sha512sum"
-    MD5SUM="md5sum"
 fi
 
 ###########################
@@ -70,12 +68,11 @@ make_binary_release() {
   cp flink-*.tgz ../../../
   cd ../../../
 
-  # Sign md5 and sha the tgz
+  # Sign sha the tgz
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${dir_name}.tgz"
   fi
-  $MD5SUM "${dir_name}.tgz" > "${dir_name}.tgz.md5"
-  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha"
+  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha512"
 }
 
 cd ..

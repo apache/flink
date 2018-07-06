@@ -1476,6 +1476,14 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "315")
 
     testSqlApi(
+      "EXTRACT(DOW FROM f18)",
+      "1")
+
+    testSqlApi(
+      "EXTRACT(DOW FROM f16)",
+      "1")
+
+    testSqlApi(
       "EXTRACT(QUARTER FROM f18)",
       "4")
 
@@ -1490,6 +1498,86 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "EXTRACT(WEEK FROM f16)",
       "45")
+
+    testSqlApi(
+      "YEAR(f18)",
+      "1996")
+
+    testSqlApi(
+      "YEAR(f16)",
+      "1996")
+
+    testSqlApi(
+      "QUARTER(f18)",
+      "4")
+
+    testSqlApi(
+      "QUARTER(f16)",
+      "4")
+
+    testSqlApi(
+      "MONTH(f18)",
+      "11")
+
+    testSqlApi(
+      "MONTH(f16)",
+      "11")
+
+    testSqlApi(
+      "WEEK(f18)",
+      "45")
+
+    testSqlApi(
+      "WEEK(f16)",
+      "45")
+
+    testSqlApi(
+      "DAYOFYEAR(f18)",
+      "315")
+
+    testSqlApi(
+      "DAYOFYEAR(f16)",
+      "315")
+
+    testSqlApi(
+      "DAYOFMONTH(f18)",
+      "10")
+
+    testSqlApi(
+      "DAYOFMONTH(f16)",
+      "10")
+
+    testSqlApi(
+      "DAYOFWEEK(f18)",
+      "1")
+
+    testSqlApi(
+      "DAYOFWEEK(f16)",
+      "1")
+
+    testSqlApi(
+      "HOUR(f17)",
+      "6")
+
+    testSqlApi(
+      "HOUR(f19)",
+      "7")
+
+    testSqlApi(
+      "MINUTE(f17)",
+      "55")
+
+    testSqlApi(
+      "MINUTE(f19)",
+      "23")
+
+    testSqlApi(
+      "SECOND(f17)",
+      "44")
+
+    testSqlApi(
+      "SECOND(f19)",
+      "33")
   }
 
   @Test

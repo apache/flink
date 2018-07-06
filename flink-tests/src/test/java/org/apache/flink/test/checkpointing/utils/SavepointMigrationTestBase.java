@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.OptionalFailure;
 
@@ -88,11 +89,11 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 	protected SavepointMigrationTestBase() throws Exception {
 		miniClusterResource = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				getConfiguration(),
-				1,
-				DEFAULT_PARALLELISM),
-			true);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(getConfiguration())
+				.setNumberTaskManagers(1)
+				.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+				.build());
 	}
 
 	private Configuration getConfiguration() throws Exception {
@@ -144,7 +145,13 @@ public abstract class SavepointMigrationTestBase extends TestBaseUtils {
 
 			boolean allDone = true;
 			for (Tuple2<String, Integer> acc : expectedAccumulators) {
-				Integer numFinished = (Integer) accumulators.get(acc.f0).get();
+				OptionalFailure<Object> accumOpt = accumulators.get(acc.f0);
+				if (accumOpt == null) {
+					allDone = false;
+					break;
+				}
+
+				Integer numFinished = (Integer) accumOpt.get();
 				if (numFinished == null) {
 					allDone = false;
 					break;

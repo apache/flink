@@ -395,9 +395,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					getJobId(),
 					blobWriter);
 			}
-		}
 
-		return taskInformationOrBlobKey;
+			return taskInformationOrBlobKey;
+		}
 	}
 
 	@Override

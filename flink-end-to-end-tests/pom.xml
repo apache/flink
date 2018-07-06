@@ -43,6 +43,13 @@ under the License.
 		<module>flink-distributed-cache-via-blob-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
+		<module>flink-local-recovery-and-allocation-test</module>
+		<module>flink-elasticsearch1-test</module>
+		<module>flink-elasticsearch2-test</module>
+		<module>flink-elasticsearch5-test</module>
+		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
 	</modules>
 
 	<build>

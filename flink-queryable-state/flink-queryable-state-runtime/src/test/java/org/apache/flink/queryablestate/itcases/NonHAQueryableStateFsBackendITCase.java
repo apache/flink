@@ -27,6 +27,7 @@ import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -52,11 +53,11 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfig(),
-			NUM_TMS,
-			NUM_SLOTS_PER_TM),
-		true);
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfig())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+			.build());
 
 	@Override
 	protected AbstractStateBackend createStateBackend() throws Exception {
@@ -77,7 +78,7 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);

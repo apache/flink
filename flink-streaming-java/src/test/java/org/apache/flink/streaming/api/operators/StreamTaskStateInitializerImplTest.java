@@ -94,7 +94,7 @@ public class StreamTaskStateInitializerImplTest {
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
+		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -194,7 +194,7 @@ public class StreamTaskStateInitializerImplTest {
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
+		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -271,7 +271,7 @@ public class StreamTaskStateInitializerImplTest {
 				stateBackend,
 				processingTimeService) {
 				@Override
-				protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+				protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 					AbstractKeyedStateBackend<K> keyedStatedBackend,
 					KeyContext keyContext,
 					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {

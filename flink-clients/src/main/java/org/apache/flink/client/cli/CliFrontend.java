@@ -81,6 +81,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import scala.concurrent.duration.FiniteDuration;
 
@@ -163,6 +164,10 @@ public class CliFrontend {
 		copiedConfiguration.addAll(configuration);
 
 		return copiedConfiguration;
+	}
+
+	public Options getCustomCommandLineOptions() {
+		return customCommandLineOptions;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -392,16 +397,19 @@ public class CliFrontend {
 			return;
 		}
 
-		final boolean running;
-		final boolean scheduled;
+		final boolean showRunning;
+		final boolean showScheduled;
+		final boolean showAll;
 
 		// print running and scheduled jobs if not option supplied
-		if (!listOptions.getRunning() && !listOptions.getScheduled()) {
-			running = true;
-			scheduled = true;
+		if (!listOptions.showRunning() && !listOptions.showScheduled() && !listOptions.showAll()) {
+			showRunning = true;
+			showScheduled = true;
+			showAll = false;
 		} else {
-			running = listOptions.getRunning();
-			scheduled = listOptions.getScheduled();
+			showRunning = listOptions.showRunning();
+			showScheduled = listOptions.showScheduled();
+			showAll = listOptions.showAll();
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
@@ -409,14 +417,15 @@ public class CliFrontend {
 		runClusterAction(
 			activeCommandLine,
 			commandLine,
-			clusterClient -> listJobs(clusterClient, running, scheduled));
+			clusterClient -> listJobs(clusterClient, showRunning, showScheduled, showAll));
 
 	}
 
 	private <T> void listJobs(
 			ClusterClient<T> clusterClient,
-			boolean running,
-			boolean scheduled) throws FlinkException {
+			boolean showRunning,
+			boolean showScheduled,
+			boolean showAll) throws FlinkException {
 		Collection<JobStatusMessage> jobDetails;
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
@@ -431,49 +440,63 @@ public class CliFrontend {
 
 		LOG.info("Successfully retrieved list of jobs");
 
-		SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-		Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
-
 		final List<JobStatusMessage> runningJobs = new ArrayList<>();
 		final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
+		final List<JobStatusMessage> terminatedJobs = new ArrayList<>();
 		jobDetails.forEach(details -> {
 			if (details.getJobState() == JobStatus.CREATED) {
 				scheduledJobs.add(details);
-			} else {
+			} else if (!details.getJobState().isGloballyTerminalState()) {
 				runningJobs.add(details);
+			} else {
+				terminatedJobs.add(details);
 			}
 		});
 
-		if (running) {
+		if (showRunning || showAll) {
 			if (runningJobs.size() == 0) {
 				System.out.println("No running jobs.");
 			}
 			else {
-				runningJobs.sort(startTimeComparator);
-
 				System.out.println("------------------ Running/Restarting Jobs -------------------");
-				for (JobStatusMessage runningJob : runningJobs) {
-					System.out.println(dateFormat.format(new Date(runningJob.getStartTime()))
-						+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getJobState() + ")");
-				}
+				printJobStatusMessages(runningJobs);
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
-		if (scheduled) {
+		if (showScheduled || showAll) {
 			if (scheduledJobs.size() == 0) {
 				System.out.println("No scheduled jobs.");
 			}
 			else {
-				scheduledJobs.sort(startTimeComparator);
-
 				System.out.println("----------------------- Scheduled Jobs -----------------------");
-				for (JobStatusMessage scheduledJob : scheduledJobs) {
-					System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
-						+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
-				}
+				printJobStatusMessages(scheduledJobs);
 				System.out.println("--------------------------------------------------------------");
 			}
 		}
+		if (showAll) {
+			if (terminatedJobs.size() != 0) {
+				System.out.println("---------------------- Terminated Jobs -----------------------");
+				printJobStatusMessages(terminatedJobs);
+				System.out.println("--------------------------------------------------------------");
+			}
+		}
+	}
+
+	private static void printJobStatusMessages(List<JobStatusMessage> jobs) {
+		SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+		Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
+		Comparator<Map.Entry<JobStatus, List<JobStatusMessage>>> statusComparator =
+			(o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getKey().toString(), o2.getKey().toString());
+
+		Map<JobStatus, List<JobStatusMessage>> jobsByState = jobs.stream().collect(Collectors.groupingBy(JobStatusMessage::getJobState));
+		jobsByState.entrySet().stream()
+			.sorted(statusComparator)
+			.map(Map.Entry::getValue).flatMap(List::stream).sorted(startTimeComparator)
+			.forEachOrdered(job -> {
+			System.out.println(dateFormat.format(new Date(job.getStartTime()))
+				+ " : " + job.getJobId() + " : " + job.getJobName()
+				+ " (" + job.getJobState() + ")");
+		});
 	}
 
 	/**
@@ -850,7 +873,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleArgException(CliArgsException e) {
-		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
+		LOG.error("Invalid command line arguments.", e);
 
 		System.out.println(e.getMessage());
 		System.out.println();
@@ -865,6 +888,7 @@ public class CliFrontend {
 	 * @return The return code for the process.
 	 */
 	private static int handleParametrizationException(ProgramParametrizationException e) {
+		LOG.error("Program has not been parametrized properly.", e);
 		System.err.println(e.getMessage());
 		return 1;
 	}

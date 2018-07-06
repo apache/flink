@@ -20,14 +20,16 @@ package org.apache.flink.api.scala
 
 import java.io._
 
+import org.apache.commons.cli.{CommandLine, Options}
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
-import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
+import org.apache.flink.configuration.{Configuration, CoreOptions, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -50,11 +52,11 @@ object FlinkShell {
   /** YARN configuration object */
   case class YarnConfig(
     containers: Option[Int] = None,
-    jobManagerMemory: Option[Int] = None,
+    jobManagerMemory: Option[String] = None,
     name: Option[String] = None,
     queue: Option[String] = None,
     slots: Option[Int] = None,
-    taskManagerMemory: Option[Int] = None
+    taskManagerMemory: Option[String] = None
   )
 
   /** Buffered reader to substitute input in test */
@@ -97,10 +99,10 @@ object FlinkShell {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
         } text "Number of YARN container to allocate (= Number of TaskManagers)",
-        opt[Int]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
+        opt[String]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
-        } text "Memory for JobManager container [in MB]",
+        } text "Memory for JobManager container",
         opt[String]("name") abbr ("nm") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(name = Some(x))))
         } text "Set a custom name for the application on YARN",
@@ -110,10 +112,10 @@ object FlinkShell {
         opt[Int]("slots") abbr ("s") valueName ("<arg>") action {
           (x, c) => c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(slots = Some(x))))
         } text "Number of slots per TaskManager",
-        opt[Int]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
+        opt[String]("taskManagerMemory") abbr ("tm") valueName ("<arg>") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(taskManagerMemory = Some(x))))
-        } text "Memory per TaskManager container [in MB]",
+        } text "Memory per TaskManager container",
         opt[(String)] ("addclasspath") abbr("a") valueName("<path/to/jar>") action {
           case (x, c) =>
             val xArray = x.split(":")
@@ -137,20 +139,36 @@ object FlinkShell {
     }
   }
 
+  private type LocalCluster = Either[StandaloneMiniCluster, MiniCluster]
+
   def fetchConnectionInfo(
     configuration: Configuration,
     config: Config
-  ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient[_]]]) = {
+  ): (String, Int, Option[Either[LocalCluster , ClusterClient[_]]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = configuration
         config.setInteger(JobManagerOptions.PORT, 0)
 
-        val miniCluster = new StandaloneMiniCluster(config)
+        val (miniCluster, port) = config.getString(CoreOptions.MODE) match {
+          case CoreOptions.LEGACY_MODE => {
+            val cluster = new StandaloneMiniCluster(config)
 
-        println("\nStarting local Flink cluster (host: localhost, " +
-          s"port: ${miniCluster.getPort}).\n")
-        ("localhost", miniCluster.getPort, Some(Left(miniCluster)))
+            (Left(cluster), cluster.getPort)
+          }
+          case CoreOptions.NEW_MODE => {
+            val miniClusterConfig = new MiniClusterConfiguration.Builder()
+              .setConfiguration(config)
+              .build()
+            val cluster = new MiniCluster(miniClusterConfig)
+            cluster.start()
+
+            (Right(cluster), cluster.getRestAddress.getPort)
+          }
+        }
+
+        println(s"\nStarting local Flink cluster (host: localhost, port: $port).\n")
+        ("localhost", port, Some(Left(miniCluster)))
 
       case ExecutionMode.REMOTE => // Remote mode
         if (config.host.isEmpty || config.port.isEmpty) {
@@ -193,7 +211,8 @@ object FlinkShell {
     val (repl, cluster) = try {
       val (host, port, cluster) = fetchConnectionInfo(configuration, config)
       val conf = cluster match {
-        case Some(Left(miniCluster)) => miniCluster.getConfiguration
+        case Some(Left(Left(miniCluster))) => miniCluster.getConfiguration
+        case Some(Left(Right(_))) => configuration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
         case None => configuration
       }
@@ -223,7 +242,8 @@ object FlinkShell {
     } finally {
       repl.closeInterpreter()
       cluster match {
-        case Some(Left(miniCluster)) => miniCluster.close()
+        case Some(Left(Left(legacyMiniCluster))) => legacyMiniCluster.close()
+        case Some(Left(Right(newMiniCluster))) => newMiniCluster.close()
         case Some(Right(yarnCluster)) => yarnCluster.shutdown()
         case _ =>
       }
@@ -255,14 +275,14 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val commandLine = CliFrontendParser.parse(
-      CliFrontendParser.getRunCommandOptions,
-      args.toArray,
-      true)
-
-    val frontend = new CliFrontend(
-      configuration,
+    val frontend = new CliFrontend(configuration,
       CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
+
+    val commandOptions = CliFrontendParser.getRunCommandOptions
+    val commandLineOptions = CliFrontendParser.mergeOptions(commandOptions,
+      frontend.getCustomCommandLineOptions());
+    val commandLine = CliFrontendParser.parse(commandLineOptions, args.toArray, true)
+
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
     val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
 
@@ -52,7 +53,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.Future;
@@ -148,7 +148,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 	 * Response when running with leading JobManager.
 	 */
 	@Override
-	protected void respondAsLeader(final ChannelHandlerContext ctx, final Routed routed, final JobManagerGateway jobManagerGateway) {
+	protected void respondAsLeader(final ChannelHandlerContext ctx, final RoutedRequest routedRequest, final JobManagerGateway jobManagerGateway) {
 		if (cache == null) {
 			CompletableFuture<Integer> blobPortFuture = jobManagerGateway.requestBlobServerPort(timeout);
 			cache = blobPortFuture.thenApplyAsync(
@@ -162,8 +162,8 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 				executor);
 		}
 
-		final String taskManagerId = routed.pathParams().get(TaskManagersHandler.TASK_MANAGER_ID_KEY);
-		final HttpRequest request = routed.request();
+		final String taskManagerId = routedRequest.getRouteResult().param(TaskManagersHandler.TASK_MANAGER_ID_KEY);
+		final HttpRequest request = routedRequest.getRequest();
 
 		//fetch TaskManager logs if no other process is currently doing it
 		if (lastRequestPending.putIfAbsent(taskManagerId, true) == null) {

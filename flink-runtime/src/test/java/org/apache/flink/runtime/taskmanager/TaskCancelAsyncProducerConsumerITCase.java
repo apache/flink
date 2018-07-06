@@ -37,12 +37,10 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -53,7 +51,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-@Category(New.class)
 public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 	// The Exceptions thrown by the producer/consumer Threads
@@ -78,7 +75,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
 		// Cluster
 		Configuration config = new Configuration();
-		config.setInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE, 4096);
+		config.setString(TaskManagerOptions.MEMORY_SEGMENT_SIZE, "4096");
 		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 9);
 
 		MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()

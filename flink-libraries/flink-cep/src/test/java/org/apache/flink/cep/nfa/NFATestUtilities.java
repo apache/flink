@@ -19,6 +19,9 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
+import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
@@ -35,19 +38,42 @@ import java.util.Map;
  */
 public class NFATestUtilities {
 
-	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa) {
-		return feedNFA(inputEvents, nfa, AfterMatchSkipStrategy.noSkip());
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa) throws Exception {
+		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), AfterMatchSkipStrategy.noSkip());
 	}
 
-	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa,
-											AfterMatchSkipStrategy afterMatchSkipStrategy) {
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState nfaState) throws Exception {
+		return feedNFA(inputEvents, nfa, nfaState, AfterMatchSkipStrategy.noSkip());
+	}
+
+	public static List<List<Event>> feedNFA(
+		List<StreamRecord<Event>> inputEvents,
+		NFA<Event> nfa,
+		AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
+		return feedNFA(inputEvents, nfa, nfa.createInitialNFAState(), afterMatchSkipStrategy);
+	}
+
+	public static List<List<Event>> feedNFA(
+			List<StreamRecord<Event>> inputEvents,
+			NFA<Event> nfa,
+			NFAState nfaState,
+			AfterMatchSkipStrategy afterMatchSkipStrategy) throws Exception {
 		List<List<Event>> resultingPatterns = new ArrayList<>();
 
+		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 		for (StreamRecord<Event> inputEvent : inputEvents) {
+			nfa.advanceTime(sharedBuffer, nfaState, inputEvent.getTimestamp());
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
+				sharedBuffer,
+				nfaState,
 				inputEvent.getValue(),
 				inputEvent.getTimestamp(),
-				afterMatchSkipStrategy).f0;
+				afterMatchSkipStrategy);
 
 			for (Map<String, List<Event>> p: patterns) {
 				List<Event> res = new ArrayList<>();

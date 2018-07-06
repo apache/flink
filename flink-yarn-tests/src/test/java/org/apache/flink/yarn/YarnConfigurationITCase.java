@@ -87,8 +87,8 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 		// disable heap cutoff min
 		configuration.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 0);
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, (1L << 20));
-		configuration.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, (4L << 20));
+		configuration.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN, String.valueOf(1L << 20));
+		configuration.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(4L << 20));
 
 		final YarnConfiguration yarnConfiguration = getYarnConfiguration();
 		final YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
@@ -159,10 +159,11 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 					taskManagerInfos = taskManagersInfo.getTaskManagerInfos();
 
-					if (taskManagerInfos.isEmpty()) {
-						Thread.sleep(100L);
-					} else {
+					// wait until the task manager has registered and reported its slots
+					if (hasTaskManagerConnectedAndReportedSlots(taskManagerInfos)) {
 						break;
+					} else {
+						Thread.sleep(100L);
 					}
 				}
 
@@ -188,6 +189,15 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 		} finally {
 			clusterDescriptor.close();
+		}
+	}
+
+	private boolean hasTaskManagerConnectedAndReportedSlots(Collection<TaskManagerInfo> taskManagerInfos) {
+		if (taskManagerInfos.isEmpty()) {
+			return false;
+		} else {
+			final TaskManagerInfo taskManagerInfo = taskManagerInfos.iterator().next();
+			return taskManagerInfo.getNumberSlots() > 0;
 		}
 	}
 }

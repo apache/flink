@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 
 import javax.annotation.Nonnull;
 
@@ -30,29 +29,25 @@ import javax.annotation.Nonnull;
  */
 class EstablishedResourceManagerConnection {
 
+	@Nonnull
 	private final ResourceManagerGateway resourceManagerGateway;
 
-	private final ResourceManagerId resourceManagerId;
-
+	@Nonnull
 	private final ResourceID resourceManagerResourceID;
 
 	EstablishedResourceManagerConnection(
 			@Nonnull ResourceManagerGateway resourceManagerGateway,
-			@Nonnull ResourceManagerId resourceManagerId,
 			@Nonnull ResourceID resourceManagerResourceID) {
 		this.resourceManagerGateway = resourceManagerGateway;
-		this.resourceManagerId = resourceManagerId;
 		this.resourceManagerResourceID = resourceManagerResourceID;
 	}
 
+	@Nonnull
 	public ResourceManagerGateway getResourceManagerGateway() {
 		return resourceManagerGateway;
 	}
 
-	public ResourceManagerId getResourceManagerId() {
-		return resourceManagerId;
-	}
-
+	@Nonnull
 	public ResourceID getResourceManagerResourceID() {
 		return resourceManagerResourceID;
 	}

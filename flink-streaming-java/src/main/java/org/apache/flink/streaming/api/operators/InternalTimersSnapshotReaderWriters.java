@@ -96,15 +96,15 @@ public class InternalTimersSnapshotReaderWriters {
 		public final void writeTimersSnapshot(DataOutputView out) throws IOException {
 			writeKeyAndNamespaceSerializers(out);
 
-			InternalTimer.TimerSerializer<K, N> timerSerializer = new InternalTimer.TimerSerializer<>(
+			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer = new TimerHeapInternalTimer.TimerSerializer<>(
 				timersSnapshot.getKeySerializer(),
 				timersSnapshot.getNamespaceSerializer());
 
 			// write the event time timers
-			Set<InternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
+			Set<TimerHeapInternalTimer<K, N>> eventTimers = timersSnapshot.getEventTimeTimers();
 			if (eventTimers != null) {
 				out.writeInt(eventTimers.size());
-				for (InternalTimer<K, N> eventTimer : eventTimers) {
+				for (TimerHeapInternalTimer<K, N> eventTimer : eventTimers) {
 					timerSerializer.serialize(eventTimer, out);
 				}
 			} else {
@@ -112,10 +112,10 @@ public class InternalTimersSnapshotReaderWriters {
 			}
 
 			// write the processing time timers
-			Set<InternalTimer<K, N>> processingTimers = timersSnapshot.getProcessingTimeTimers();
+			Set<TimerHeapInternalTimer<K, N>> processingTimers = timersSnapshot.getProcessingTimeTimers();
 			if (processingTimers != null) {
 				out.writeInt(processingTimers.size());
-				for (InternalTimer<K, N> processingTimer : processingTimers) {
+				for (TimerHeapInternalTimer<K, N> processingTimer : processingTimers) {
 					timerSerializer.serialize(processingTimer, out);
 				}
 			} else {
@@ -215,16 +215,17 @@ public class InternalTimersSnapshotReaderWriters {
 
 			restoreKeyAndNamespaceSerializers(restoredTimersSnapshot, in);
 
-			InternalTimer.TimerSerializer<K, N> timerSerializer = new InternalTimer.TimerSerializer<>(
-				restoredTimersSnapshot.getKeySerializer(),
-				restoredTimersSnapshot.getNamespaceSerializer());
+			TimerHeapInternalTimer.TimerSerializer<K, N> timerSerializer =
+				new TimerHeapInternalTimer.TimerSerializer<>(
+					restoredTimersSnapshot.getKeySerializer(),
+					restoredTimersSnapshot.getNamespaceSerializer());
 
 			// read the event time timers
 			int sizeOfEventTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredEventTimers = new HashSet<>(sizeOfEventTimeTimers);
+			Set<TimerHeapInternalTimer<K, N>> restoredEventTimers = new HashSet<>(sizeOfEventTimeTimers);
 			if (sizeOfEventTimeTimers > 0) {
 				for (int i = 0; i < sizeOfEventTimeTimers; i++) {
-					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
+					TimerHeapInternalTimer<K, N> timer = timerSerializer.deserialize(in);
 					restoredEventTimers.add(timer);
 				}
 			}
@@ -232,10 +233,10 @@ public class InternalTimersSnapshotReaderWriters {
 
 			// read the processing time timers
 			int sizeOfProcessingTimeTimers = in.readInt();
-			Set<InternalTimer<K, N>> restoredProcessingTimers = new HashSet<>(sizeOfProcessingTimeTimers);
+			Set<TimerHeapInternalTimer<K, N>> restoredProcessingTimers = new HashSet<>(sizeOfProcessingTimeTimers);
 			if (sizeOfProcessingTimeTimers > 0) {
 				for (int i = 0; i < sizeOfProcessingTimeTimers; i++) {
-					InternalTimer<K, N> timer = timerSerializer.deserialize(in);
+					TimerHeapInternalTimer<K, N> timer = timerSerializer.deserialize(in);
 					restoredProcessingTimers.add(timer);
 				}
 			}

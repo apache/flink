@@ -26,6 +26,9 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTO
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 import org.apache.flink.types.Row
 
+/**
+  * Table source factory for testing.
+  */
 class TestTableSourceFactory extends TableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {

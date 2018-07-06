@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -27,7 +26,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -36,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -148,20 +147,18 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 		LocalRecoveryConfig localRecoveryConfig =
 			new LocalRecoveryConfig(mode != ONLY_JM_RECOVERY, directoryProvider);
 
-		MockEnvironment mockEnvironment = new MockEnvironment(
-			jobID,
-			jobVertexID,
-			"test",
-			1024L * 1024L,
-			new MockInputSplitProvider(),
-			1024 * 1024,
-			new Configuration(),
-			new ExecutionConfig(),
-			new TestTaskStateManager(localRecoveryConfig),
-			MAX_PARALLELISM,
-			1,
-			subtaskIdx,
-			getClass().getClassLoader());
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
+			.setJobID(jobID)
+			.setJobVertexID(jobVertexID)
+			.setTaskName("test")
+			.setMemorySize(1024L * 1024L)
+			.setInputSplitProvider(new MockInputSplitProvider())
+			.setBufferSize(1024 * 1024)
+			.setTaskStateManager(new TestTaskStateManager(localRecoveryConfig))
+			.setMaxParallelism(MAX_PARALLELISM)
+			.setSubtaskIndex(subtaskIdx)
+			.setUserCodeClassLoader(getClass().getClassLoader())
+			.build();
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(
@@ -200,7 +197,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 
 				return new StreamTaskStateInitializerImpl(env, stateBackend, processingTimeService) {
 					@Override
-					protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 						AbstractKeyedStateBackend<K> keyedStatedBackend,
 						KeyContext keyContext,
 						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {

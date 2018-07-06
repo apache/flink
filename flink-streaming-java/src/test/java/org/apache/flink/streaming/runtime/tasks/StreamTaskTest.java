@@ -62,6 +62,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -132,6 +133,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -141,8 +143,13 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -328,7 +335,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskInfo mockTaskInfo = mock(TaskInfo.class);
 		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
 		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
-		Environment mockEnvironment = new MockEnvironment();
+		Environment mockEnvironment = new MockEnvironmentBuilder().build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -398,7 +405,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		MockEnvironment mockEnvironment = new MockEnvironment();
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build();
 		StreamTask<?, ?> streamTask = spy(new EmptyStreamTask(mockEnvironment));
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
@@ -501,12 +508,10 @@ public class StreamTaskTest extends TestLogger {
 			null,
 			checkpointResponder);
 
-		MockEnvironment mockEnvironment = new MockEnvironment(
-			"mock-task",
-			1024 * MemoryManager.DEFAULT_PAGE_SIZE,
-			null,
-			16,
-			taskStateManager);
+		MockEnvironment mockEnvironment = new MockEnvironmentBuilder()
+			.setTaskName("mock-task")
+			.setTaskStateManager(taskStateManager)
+			.build();
 
 		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
@@ -599,7 +604,7 @@ public class StreamTaskTest extends TestLogger {
 		final OneShotLatch createSubtask = new OneShotLatch();
 		final OneShotLatch completeSubtask = new OneShotLatch();
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		whenNew(OperatorSnapshotFinalizer.class).
 			withAnyArguments().
@@ -685,7 +690,7 @@ public class StreamTaskTest extends TestLogger {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		Environment mockEnvironment = spy(new MockEnvironment());
+		Environment mockEnvironment = spy(new MockEnvironmentBuilder().build());
 
 		// latch blocks until the async checkpoint thread acknowledges
 		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
@@ -765,14 +770,14 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
 		streamConfig.setOperatorID(new OperatorID());
 
-		try (MockEnvironment mockEnvironment = new MockEnvironment(
-				"Test Task",
-				32L * 1024L,
-				new MockInputSplitProvider(),
-				1,
-				taskConfiguration,
-				new ExecutionConfig(),
-				new TestTaskStateManager())) {
+		try (MockEnvironment mockEnvironment =
+				new MockEnvironmentBuilder()
+					.setTaskName("Test Task")
+					.setMemorySize(32L * 1024L)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(1)
+					.setTaskConfiguration(taskConfiguration)
+					.build()) {
 			StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
 			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
 
@@ -804,6 +809,36 @@ public class StreamTaskTest extends TestLogger {
 			if (atomicThrowable.get() != null) {
 				throw atomicThrowable.get();
 			}
+		}
+	}
+
+	/**
+	 * Test set user code ClassLoader before calling ProcessingTimeCallback.
+	 */
+	@Test
+	public void testSetsUserCodeClassLoaderForTimerThreadFactory() throws Throwable {
+		syncLatch = new OneShotLatch();
+
+		try (MockEnvironment mockEnvironment =
+			new MockEnvironmentBuilder()
+				.setUserCodeClassLoader(new TestUserCodeClassLoader())
+				.build()) {
+			TimeServiceTask timerServiceTask = new TimeServiceTask(mockEnvironment);
+
+			CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
+				() -> {
+					try {
+						timerServiceTask.invoke();
+					} catch (Exception e) {
+						throw new CompletionException(e);
+					}
+				},
+				TestingUtils.defaultExecutor());
+
+			invokeFuture.get();
+
+			assertThat(timerServiceTask.getClassLoaders(), hasSize(greaterThanOrEqualTo(1)));
+			assertThat(timerServiceTask.getClassLoaders(), everyItem(instanceOf(TestUserCodeClassLoader.class)));
 		}
 	}
 
@@ -1109,8 +1144,8 @@ public class StreamTaskTest extends TestLogger {
 					}
 
 					@Override
-					public InternalTimeServiceManager<?, ?> internalTimerServiceManager() {
-						InternalTimeServiceManager<?, ?> timeServiceManager = context.internalTimerServiceManager();
+					public InternalTimeServiceManager<?> internalTimerServiceManager() {
+						InternalTimeServiceManager<?> timeServiceManager = context.internalTimerServiceManager();
 						return timeServiceManager != null ? spy(timeServiceManager) : null;
 					}
 
@@ -1238,6 +1273,57 @@ public class StreamTaskTest extends TestLogger {
 			throw new Exception("test exception");
 		}
 
+	}
+
+	/**
+	 * A task that register a processing time service callback.
+	 */
+	public static class TimeServiceTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		private final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
+
+		public TimeServiceTask(Environment env) {
+			super(env, null);
+		}
+
+		public List<ClassLoader> getClassLoaders() {
+			return classLoaders;
+		}
+
+		@Override
+		protected void init() throws Exception {
+			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+				@Override
+				public void onProcessingTime(long timestamp) throws Exception {
+					classLoaders.add(Thread.currentThread().getContextClassLoader());
+					syncLatch.trigger();
+				}
+			});
+		}
+
+		@Override
+		protected void run() throws Exception {
+			syncLatch.await();
+		}
+
+		@Override
+		protected void cleanup() throws Exception {
+
+		}
+
+		@Override
+		protected void cancelTask() throws Exception {
+
+		}
+	}
+
+	/**
+	 * A {@link ClassLoader} that delegates everything to {@link ClassLoader#getSystemClassLoader()}.
+	 */
+	private static class TestUserCodeClassLoader extends ClassLoader {
+		public TestUserCodeClassLoader() {
+			super(ClassLoader.getSystemClassLoader());
+		}
 	}
 
 	// ------------------------------------------------------------------------

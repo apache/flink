@@ -30,10 +30,8 @@ import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
-import org.rocksdb.RocksIterator;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,7 +50,7 @@ public class RocksDBMergeIteratorTest {
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Test
-	public void testEmptyMergeIterator() throws IOException {
+	public void testEmptyMergeIterator() throws Exception {
 		RocksDBKeyedStateBackend.RocksDBMergeIterator emptyIterator =
 				new RocksDBKeyedStateBackend.RocksDBMergeIterator(Collections.emptyList(), 2);
 		Assert.assertFalse(emptyIterator.isValid());
@@ -76,7 +74,7 @@ public class RocksDBMergeIteratorTest {
 		Random random = new Random(1234);
 
 		try (RocksDB rocksDB = RocksDB.open(tempFolder.getRoot().getAbsolutePath())) {
-			List<Tuple2<RocksIterator, Integer>> rocksIteratorsWithKVStateId = new ArrayList<>();
+			List<Tuple2<RocksIteratorWrapper, Integer>> rocksIteratorsWithKVStateId = new ArrayList<>();
 			List<Tuple2<ColumnFamilyHandle, Integer>> columnFamilyHandlesWithKeyCount = new ArrayList<>();
 
 			int totalKeysExpected = 0;
@@ -109,7 +107,7 @@ public class RocksDBMergeIteratorTest {
 
 			int id = 0;
 			for (Tuple2<ColumnFamilyHandle, Integer> columnFamilyHandle : columnFamilyHandlesWithKeyCount) {
-				rocksIteratorsWithKVStateId.add(new Tuple2<>(rocksDB.newIterator(columnFamilyHandle.f0), id));
+				rocksIteratorsWithKVStateId.add(new Tuple2<>(RocksDBKeyedStateBackend.getRocksIterator(rocksDB, columnFamilyHandle.f0), id));
 				++id;
 			}
 

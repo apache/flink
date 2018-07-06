@@ -690,7 +690,7 @@ public class TypeExtractor {
 					lambdaInput1TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
 					"Indices for first input type arguments within lambda not provided");
 				Preconditions.checkArgument(
-					lambdaInput2TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
+					lambdaInput2TypeArgumentIndices != null && lambdaInput2TypeArgumentIndices.length >= 1,
 					"Indices for second input type arguments within lambda not provided");
 				Preconditions.checkArgument(
 					lambdaOutputTypeArgumentIndices != null,

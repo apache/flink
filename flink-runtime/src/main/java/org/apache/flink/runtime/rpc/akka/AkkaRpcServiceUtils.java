@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -29,10 +27,11 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.A
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.util.Preconditions;
-import org.jboss.netty.channel.ChannelException;
 
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +101,7 @@ public class AkkaRpcServiceUtils {
 			throw new Exception("Could not create TaskManager actor system", t);
 		}
 
-		final Time timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
+		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
 		return new AkkaRpcService(actorSystem, timeout);
 	}
 

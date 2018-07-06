@@ -19,10 +19,16 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -45,9 +51,9 @@ import java.util.List;
  * @param <N> The type of the namespace.
  * @param <V> The type of the values in the list state.
  */
-public class RocksDBListState<K, N, V>
-		extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
-		implements InternalListState<K, N, V> {
+class RocksDBListState<K, N, V>
+	extends AbstractRocksDBState<K, N, List<V>, ListState<V>>
+	implements InternalListState<K, N, V> {
 
 	/** Serializer for the values. */
 	private final TypeSerializer<V> elementSerializer;
@@ -67,7 +73,7 @@ public class RocksDBListState<K, N, V>
 	 * @param elementSerializer The serializer for elements of the list state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	public RocksDBListState(
+	private RocksDBListState(
 			ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<List<V>> valueSerializer,
@@ -96,6 +102,11 @@ public class RocksDBListState<K, N, V>
 
 	@Override
 	public Iterable<V> get() {
+		return getInternal();
+	}
+
+	@Override
+	public List<V> getInternal() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
@@ -117,12 +128,12 @@ public class RocksDBListState<K, N, V>
 			}
 			return result;
 		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
 		}
 	}
 
 	@Override
-	public void add(V value) throws IOException {
+	public void add(V value) {
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
 		try {
@@ -133,12 +144,12 @@ public class RocksDBListState<K, N, V>
 			elementSerializer.serialize(value, out);
 			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}
 	}
 
 	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+	public void mergeNamespaces(N target, Collection<N> sources) {
 		if (sources == null || sources.isEmpty()) {
 			return;
 		}
@@ -163,7 +174,7 @@ public class RocksDBListState<K, N, V>
 
 					byte[] sourceKey = keySerializationStream.toByteArray();
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
-					backend.db.delete(columnFamily, sourceKey);
+					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
 						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
@@ -172,12 +183,17 @@ public class RocksDBListState<K, N, V>
 			}
 		}
 		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
+			throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
 		}
 	}
 
 	@Override
-	public void update(List<V> values) throws Exception {
+	public void update(List<V> valueToStore) {
+		updateInternal(valueToStore);
+	}
+
+	@Override
+	public void updateInternal(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
 		clear();
@@ -194,13 +210,13 @@ public class RocksDBListState<K, N, V>
 					throw new IOException("Failed pre-merge values in update()");
 				}
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while updating data to RocksDB", e);
+				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
 		}
 	}
 
 	@Override
-	public void addAll(List<V> values) throws Exception {
+	public void addAll(List<V> values) {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
 		if (!values.isEmpty()) {
@@ -215,7 +231,7 @@ public class RocksDBListState<K, N, V>
 					throw new IOException("Failed pre-merge values in addAll()");
 				}
 			} catch (IOException | RocksDBException e) {
-				throw new RuntimeException("Error while updating data to RocksDB", e);
+				throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
 			}
 		}
 	}
@@ -236,5 +252,19 @@ public class RocksDBListState<K, N, V>
 		}
 
 		return keySerializationStream.toByteArray();
+	}
+
+	@SuppressWarnings("unchecked")
+	static <E, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+		RocksDBKeyedStateBackend<K> backend) {
+		return (IS) new RocksDBListState<>(
+			registerResult.f0,
+			registerResult.f1.getNamespaceSerializer(),
+			(TypeSerializer<List<E>>) registerResult.f1.getStateSerializer(),
+			(List<E>) stateDesc.getDefaultValue(),
+			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
+			backend);
 	}
 }

@@ -44,7 +44,7 @@ import java.util.Map;
  * to come online.
  *
  * <p>The {@link Map} passed to the constructor is used to create the {@link Node} or {@link TransportClient}. The config
- * keys can be found in the <a href="https://www.elastic.io">Elasticsearch documentation</a>. An important setting is
+ * keys can be found in the <a href="https://www.elastic.co">Elasticsearch documentation</a>. An important setting is
  * {@code cluster.name}, which should be set to the name of the cluster that the sink should emit to.
  *
  * <p>Internally, the sink will use a {@link BulkProcessor} to send {@link ActionRequest ActionRequests}.

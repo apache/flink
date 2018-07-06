@@ -23,14 +23,12 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Arrays;
 import java.util.concurrent.Callable;
@@ -46,7 +44,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(New.class)
 public class AkkaRpcServiceTest extends TestLogger {
 
 	// ------------------------------------------------------------------------

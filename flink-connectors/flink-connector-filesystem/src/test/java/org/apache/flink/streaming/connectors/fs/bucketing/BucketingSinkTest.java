@@ -28,7 +28,6 @@ import org.apache.flink.streaming.connectors.fs.AvroKeyValueSinkWriter;
 import org.apache.flink.streaming.connectors.fs.Clock;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
-import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -918,7 +917,7 @@ public class BucketingSinkTest extends TestLogger {
 		}
 
 		@Override
-		public Writer<Tuple2<K, V>> duplicate() {
+		public StreamWriterWithConfigCheck<K, V> duplicate() {
 			return new StreamWriterWithConfigCheck<>(properties, key, expect);
 		}
 	}

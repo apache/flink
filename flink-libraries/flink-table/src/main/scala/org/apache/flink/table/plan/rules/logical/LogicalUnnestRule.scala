@@ -32,7 +32,7 @@ import org.apache.calcite.sql.`type`.AbstractSqlType
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.plan.schema.ArrayRelDataType
+import org.apache.flink.table.plan.schema.{ArrayRelDataType, MultisetRelDataType}
 import org.apache.flink.table.plan.util.ExplodeFunctionUtil
 
 class LogicalUnnestRule(
@@ -76,22 +76,27 @@ class LogicalUnnestRule(
         case uc: Uncollect =>
           // convert Uncollect into TableFunctionScan
           val cluster = correlate.getCluster
+          val dataType = uc.getInput.getRowType.getFieldList.get(0).getValue
+          val (componentType, explodeTableFunc) = dataType match {
+            case arrayType: ArrayRelDataType =>
+              (arrayType.getComponentType,
+                ExplodeFunctionUtil.explodeTableFuncFromType(arrayType.typeInfo))
+            case mt: MultisetRelDataType =>
+              (mt.getComponentType, ExplodeFunctionUtil.explodeTableFuncFromType(mt.typeInfo))
+            case _ => throw TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
+          }
 
-          val arrayType =
-            uc.getInput.getRowType.getFieldList.get(0).getValue.asInstanceOf[ArrayRelDataType]
-          val componentType = arrayType.getComponentType
-
-          // create table function
-          val explodeTableFunc = UserDefinedFunctionUtils.createTableSqlFunction(
+          // create sql function
+          val explodeSqlFunc = UserDefinedFunctionUtils.createTableSqlFunction(
             "explode",
             "explode",
-            ExplodeFunctionUtil.explodeTableFuncFromType(arrayType.typeInfo),
-            FlinkTypeFactory.toTypeInfo(arrayType.getComponentType),
+            explodeTableFunc,
+            FlinkTypeFactory.toTypeInfo(componentType),
             cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
 
           // create table function call
           val rexCall = cluster.getRexBuilder.makeCall(
-            explodeTableFunc,
+            explodeSqlFunc,
             uc.getInput.asInstanceOf[RelSubset]
               .getOriginal.asInstanceOf[LogicalProject].getChildExps
           )
@@ -104,7 +109,7 @@ class LogicalUnnestRule(
                 ImmutableList.of(new RelDataTypeFieldImpl("f0", 0, componentType)))
             case _: RelRecordType => componentType
             case _ => throw TableException(
-              s"Unsupported array component type in UNNEST: ${componentType.toString}")
+              s"Unsupported component type in UNNEST: ${componentType.toString}")
           }
 
           // create table function scan

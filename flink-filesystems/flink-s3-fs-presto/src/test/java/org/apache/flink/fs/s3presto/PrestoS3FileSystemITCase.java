@@ -32,16 +32,19 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import static com.facebook.presto.hive.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.PrestoS3FileSystem}.
@@ -64,6 +67,71 @@ public class PrestoS3FileSystemITCase extends TestLogger {
 		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
 		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
 		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+	}
+
+	@Test
+	public void testConfigKeysForwarding() throws Exception {
+		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+
+		// access without credentials should fail
+		{
+			Configuration conf = new Configuration();
+			// fail fast and do not fall back to trying EC2 credentials
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			FileSystem.initialize(conf);
+
+			try {
+				path.getFileSystem().exists(path);
+				fail("should fail with an exception");
+			} catch (IOException ignored) {}
+		}
+
+		// standard Presto-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("presto.s3.access-key", ACCESS_KEY);
+			conf.setString("presto.s3.secret-key", SECRET_KEY);
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Presto-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("s3.access-key", ACCESS_KEY);
+			conf.setString("s3.secret-key", SECRET_KEY);
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Hadoop-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("s3.access.key", ACCESS_KEY);
+			conf.setString("s3.secret.key", SECRET_KEY);
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Hadoop-style credential keys with presto prefix
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("presto.s3.access.key", ACCESS_KEY);
+			conf.setString("presto.s3.secret.key", SECRET_KEY);
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// re-set configuration
+		FileSystem.initialize(new Configuration());
 	}
 
 	@Test

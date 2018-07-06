@@ -95,14 +95,6 @@ under the License.
 			<version>1.11.2</version>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<!-- Required because the surefire plugin tries to load the New category annotation -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>

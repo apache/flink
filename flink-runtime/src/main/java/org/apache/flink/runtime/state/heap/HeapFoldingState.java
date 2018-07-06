@@ -20,6 +20,9 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
@@ -38,11 +41,10 @@ import java.io.IOException;
  * @deprecated will be removed in a future version
  */
 @Deprecated
-public class HeapFoldingState<K, N, T, ACC>
-		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>>
-		implements InternalFoldingState<K, N, T, ACC> {
-
-	/** The function used to fold the state */
+class HeapFoldingState<K, N, T, ACC>
+	extends AbstractHeapAppendingState<K, N, T, ACC, ACC>
+	implements InternalFoldingState<K, N, T, ACC> {
+	/** The function used to fold the state. */
 	private final FoldTransformation foldTransformation;
 
 	/**
@@ -55,13 +57,13 @@ public class HeapFoldingState<K, N, T, ACC>
 	 * @param defaultValue The default value for the state.
 	 * @param foldFunction The fold function used for folding state.
 	 */
-	public HeapFoldingState(
-			StateTable<K, N, ACC> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<ACC> valueSerializer,
-			TypeSerializer<N> namespaceSerializer,
-			ACC defaultValue,
-			FoldFunction<T, ACC> foldFunction) {
+	private HeapFoldingState(
+		StateTable<K, N, ACC> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<ACC> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		ACC defaultValue,
+		FoldFunction<T, ACC> foldFunction) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 		this.foldTransformation = new FoldTransformation(foldFunction);
 	}
@@ -87,7 +89,7 @@ public class HeapFoldingState<K, N, T, ACC>
 
 	@Override
 	public ACC get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override
@@ -117,5 +119,19 @@ public class HeapFoldingState<K, N, T, ACC>
 		public ACC apply(ACC previousState, T value) throws Exception {
 			return foldFunction.fold((previousState != null) ? previousState : getDefaultValue(), value);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapFoldingState<>(
+			stateTable,
+			keySerializer,
+			stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			stateDesc.getDefaultValue(),
+			((FoldingStateDescriptor<SV, SV>) stateDesc).getFoldFunction());
 	}
 }

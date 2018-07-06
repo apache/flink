@@ -152,7 +152,8 @@ Possible values for the config entry are *jobmanager* (MemoryStateBackend), *fil
 name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java),
 such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
-In the case where the default state backend is set to *filesystem*, the entry `state.backend.fs.checkpointdir` defines the directory where the checkpoint data will be stored.
+The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
+You can find more details about the checkpoint directory structure [here](checkpoints.html#directory-structure).
 
 A sample section in the configuration file could look as follows:
 
@@ -164,7 +165,7 @@ state.backend: filesystem
 
 # Directory for storing checkpoints
 
-state.backend.fs.checkpointdir: hdfs://namenode:40010/flink/checkpoints
+state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
 {% endhighlight %}
 
 {% top %}

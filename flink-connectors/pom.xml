@@ -89,6 +89,11 @@ under the License.
 		-->
 		<profile>
 			<id>include-kinesis</id>
+			<activation>
+				<property>
+					<name>include-kinesis</name>
+				</property>
+			</activation>
 			<modules>
 				<module>flink-connector-kinesis</module>
 			</modules>

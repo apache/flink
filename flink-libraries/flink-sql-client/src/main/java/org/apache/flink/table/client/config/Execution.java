@@ -46,13 +46,13 @@ public class Execution {
 
 	public boolean isStreamingExecution() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
+			properties.get(PropertyStrings.EXECUTION_TYPE),
 			PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING);
 	}
 
 	public boolean isBatchExecution() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
+			properties.get(PropertyStrings.EXECUTION_TYPE),
 			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
 	}
 
@@ -70,12 +70,16 @@ public class Execution {
 		}
 	}
 
+	public long getPeriodicWatermarksInterval() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_PERIODIC_WATERMARKS_INTERVAL, Long.toString(200L)));
+	}
+
 	public long getMinStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public long getMaxStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public int getParallelism() {
@@ -88,8 +92,14 @@ public class Execution {
 
 	public boolean isChangelogMode() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_RESULT_MODE, PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG),
+			properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
 			PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG);
+	}
+
+	public boolean isTableMode() {
+		return Objects.equals(
+				properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
+				PropertyStrings.EXECUTION_RESULT_MODE_VALUE_TABLE);
 	}
 
 	public Map<String, String> toProperties() {

@@ -73,7 +73,7 @@ That way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-c
 
 ## Common File System configurations
 
-The following configuration settings exist across different file systems
+The following configuration settings exist across different file systems.
 
 #### Default File System
 
@@ -83,8 +83,8 @@ If paths to files do not explicitly specify a file system scheme (and authority)
 fs.default-scheme: <default-fs>
 {% endhighlight %}
 
-For example, if the default file system configured as `fs.default-scheme: hdfs://localhost:9000/`, then a a file path of
-`/user/hugo/in.txt'` is interpreted as `hdfs://localhost:9000/user/hugo/in.txt'`
+For example, if the default file system configured as `fs.default-scheme: hdfs://localhost:9000/`, then a file path of
+`/user/hugo/in.txt` is interpreted as `hdfs://localhost:9000/user/hugo/in.txt`.
 
 #### Connection limiting
 
@@ -112,7 +112,7 @@ To prevent inactive streams from taking up the complete pool (preventing new con
 `fs.<scheme>.limit.stream-timeout`. If a stream does not read/write any bytes for at least that amount of time, it is forcibly closed.
 
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
-In addition, the The limit are also enforced only per FileSystem instance. Because File Systems are created per scheme and authority, different
+In addition, the limits are also only enforced per FileSystem instance. Because File Systems are created per scheme and authority, different
 authorities will have their own connection pool. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
 
 

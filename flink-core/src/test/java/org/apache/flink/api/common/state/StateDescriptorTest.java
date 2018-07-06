@@ -221,11 +221,6 @@ public class StateDescriptorTest {
 		}
 
 		@Override
-		public State bind(StateBinder stateBinder) throws Exception {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
 		public Type getType() {
 			return Type.VALUE;
 		}
@@ -245,11 +240,6 @@ public class StateDescriptorTest {
 
 		OtherTestStateDescriptor(String name, Class<T> type) {
 			super(name, type, null);
-		}
-
-		@Override
-		public State bind(StateBinder stateBinder) throws Exception {
-			throw new UnsupportedOperationException();
 		}
 
 		@Override

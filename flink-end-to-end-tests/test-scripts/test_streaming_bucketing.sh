@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
 
 # enable DEBUG logging level to retrieve truncate length later
 sed -i -e 's/#log4j.logger.org.apache.flink=INFO/log4j.logger.org.apache.flink=DEBUG/g' $FLINK_DIR/conf/log4j.properties
@@ -36,9 +36,6 @@ function bucketing_cleanup() {
 
   # restore default logging level
   sed -i -e 's/log4j.logger.org.apache.flink=DEBUG/#log4j.logger.org.apache.flink=INFO/g' $FLINK_DIR/conf/log4j.properties
-
-  # make sure to run regular cleanup as well
-  cleanup
 }
 trap bucketing_cleanup INT
 trap bucketing_cleanup EXIT

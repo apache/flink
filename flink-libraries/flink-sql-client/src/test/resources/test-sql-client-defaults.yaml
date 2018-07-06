@@ -64,13 +64,14 @@ tables:
       comment-prefix: "#"
 
 execution:
-  type: streaming
+  type: "$VAR_2"
   time-characteristic: event-time
+  periodic-watermarks-interval: 99
   parallelism: 1
   max-parallelism: 16
   min-idle-state-retention: 0
   max-idle-state-retention: 0
-  result-mode: "$VAR_2"
+  result-mode: "$VAR_3"
 
 deployment:
   response-timeout: 5000

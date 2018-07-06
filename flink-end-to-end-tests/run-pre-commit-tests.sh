@@ -25,74 +25,32 @@ if [ -z "$END_TO_END_DIR" ] ; then
     exit 1  # fail
 fi
 
+export END_TO_END_DIR
+
 if [ -z "$FLINK_DIR" ] ; then
     echo "You have to export the Flink distribution directory as FLINK_DIR"
     exit 1
 fi
+
+source ${END_TO_END_DIR}/test-scripts/test-runner-common.sh
 
 FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd )`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
 
-EXIT_CODE=0
+# Template for adding a test:
+# run_test "<description>" "$END_TO_END_DIR/test-scripts/<script_name>"
 
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Wordcount end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_batch_wordcount.sh
-    EXIT_CODE=$?
-fi
+run_test "Batch Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_python_wordcount.sh"
+run_test "Streaming Python Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh"
+run_test "Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh"
+run_test "Kafka end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_kafka010.sh"
+run_test "class loading end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_classloader.sh"
+run_test "Shaded Hadoop S3A end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_hadoop_s3a.sh"
+run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh"
+run_test "Hadoop-free Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_hadoop_free.sh"
+run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
 
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Kafka end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_streaming_kafka010.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running class loading end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_streaming_classloader.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Shaded Hadoop S3A end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_shaded_hadoop_s3a.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Shaded Presto S3 end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Hadoop-free Wordcount end-to-end test\n"
-    printf "==============================================================================\n"
-    CLUSTER_MODE=cluster $END_TO_END_DIR/test-scripts/test_hadoop_free.sh
-    EXIT_CODE=$?
-fi
-
-if [ $EXIT_CODE == 0 ]; then
-    printf "\n==============================================================================\n"
-    printf "Running Streaming Python Wordcount end-to-end test\n"
-    printf "==============================================================================\n"
-    $END_TO_END_DIR/test-scripts/test_streaming_python_wordcount.sh
-    EXIT_CODE=$?
-fi
-
-
-# Exit code for Travis build success/failure
-exit $EXIT_CODE
+printf "\n[PASS] All tests passed\n"
+exit 0

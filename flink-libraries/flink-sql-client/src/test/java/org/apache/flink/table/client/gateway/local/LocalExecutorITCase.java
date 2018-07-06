@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
@@ -71,11 +72,11 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfig(),
-			NUM_TMS,
-			NUM_SLOTS_PER_TM),
-		true);
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfig())
+			.setNumberTaskManagers(NUM_TMS)
+			.setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+			.build());
 
 	private static ClusterClient<?> clusterClient;
 
@@ -86,7 +87,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static Configuration getConfig() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
@@ -114,6 +115,7 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.getSessionProperties(session);
 
 		// modify defaults
+		session.setSessionProperty("execution.type", "streaming");
 		session.setSessionProperty("execution.result-mode", "table");
 
 		final Map<String, String> actualProperties = executor.getSessionProperties(session);
@@ -121,6 +123,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> expectedProperties = new HashMap<>();
 		expectedProperties.put("execution.type", "streaming");
 		expectedProperties.put("execution.time-characteristic", "event-time");
+		expectedProperties.put("execution.periodic-watermarks-interval", "99");
 		expectedProperties.put("execution.parallelism", "1");
 		expectedProperties.put("execution.max-parallelism", "16");
 		expectedProperties.put("execution.max-idle-state-retention", "0");
@@ -146,13 +149,14 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testQueryExecutionChangelog() throws Exception {
+	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "changelog");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "changelog");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -193,13 +197,14 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testQueryExecutionTable() throws Exception {
+	public void testStreamQueryExecutionTable() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_1", "/");
-		replaceVars.put("$VAR_2", "table");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "table");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -210,22 +215,41 @@ public class LocalExecutorITCase extends TestLogger {
 
 			assertTrue(desc.isMaterialized());
 
-			final List<String> actualResults = new ArrayList<>();
+			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
 
-			while (true) {
-				Thread.sleep(50); // slow the processing down
-				final TypedResult<Integer> result = executor.snapshotResult(session, desc.getResultId(), 2);
-				if (result.getType() == TypedResult.ResultType.PAYLOAD) {
-					actualResults.clear();
-					IntStream.rangeClosed(1, result.getPayload()).forEach((page) -> {
-						for (Row row : executor.retrieveResultPage(desc.getResultId(), page)) {
-							actualResults.add(row.toString());
-						}
-					});
-				} else if (result.getType() == TypedResult.ResultType.EOS) {
-					break;
-				}
-			}
+			final List<String> expectedResults = new ArrayList<>();
+			expectedResults.add("42");
+			expectedResults.add("22");
+			expectedResults.add("32");
+			expectedResults.add("32");
+			expectedResults.add("42");
+			expectedResults.add("52");
+
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.stop(session);
+		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void testBatchQueryExecution() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_1", "/");
+		replaceVars.put("$VAR_2", "batch");
+		replaceVars.put("$VAR_3", "table");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT IntegerField1 FROM TableNumber1");
+
+			assertTrue(desc.isMaterialized());
+
+			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
 			expectedResults.add("42");
@@ -243,7 +267,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE),
+			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, Collections.singletonMap("$VAR_2", "batch")),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));
@@ -255,5 +279,29 @@ public class LocalExecutorITCase extends TestLogger {
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));
+	}
+
+	private List<String> retrieveTableResult(
+			Executor executor,
+			SessionContext session,
+			String resultID) throws InterruptedException {
+
+		final List<String> actualResults = new ArrayList<>();
+		while (true) {
+			Thread.sleep(50); // slow the processing down
+			final TypedResult<Integer> result = executor.snapshotResult(session, resultID, 2);
+			if (result.getType() == TypedResult.ResultType.PAYLOAD) {
+				actualResults.clear();
+				IntStream.rangeClosed(1, result.getPayload()).forEach((page) -> {
+					for (Row row : executor.retrieveResultPage(resultID, page)) {
+						actualResults.add(row.toString());
+					}
+				});
+			} else if (result.getType() == TypedResult.ResultType.EOS) {
+				break;
+			}
+		}
+
+		return actualResults;
 	}
 }

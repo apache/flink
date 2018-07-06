@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -106,10 +107,11 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	protected final MiniClusterResource getMiniClusterResource() {
 		return new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				getConfigurationSafe(),
-				2,
-				PARALLELISM / 2));
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(getConfigurationSafe())
+				.setNumberTaskManagers(2)
+				.setNumberSlotsPerTaskManager(PARALLELISM / 2)
+				.build());
 	}
 
 	private Configuration getConfigurationSafe() {
@@ -188,9 +190,9 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		final File haDir = temporaryFolder.newFolder();
 
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
 		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 80L << 20); // 80 MB
+		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
 		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
 		if (zkServer != null) {

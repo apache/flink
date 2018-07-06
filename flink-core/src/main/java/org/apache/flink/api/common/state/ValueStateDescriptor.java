@@ -122,13 +122,6 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 		super(name, typeSerializer, null);
 	}
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public ValueState<T> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createValueState(this);
-	}
-
 	@Override
 	public Type getType() {
 		return Type.VALUE;

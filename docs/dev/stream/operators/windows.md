@@ -504,7 +504,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
@@ -730,7 +730,7 @@ input
 
 /* ... */
 
-public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+public class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
 
   void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
     long count = 0;
@@ -778,7 +778,7 @@ The example shows a `ProcessWindowFunction` that counts the elements in a window
 A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, an `AggregateFunction`, or a `FoldFunction` to
 incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `ProcessWindowFunction` will be provided with the aggregated result.
-This allows to incrementally compute windows while having access to the
+This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
 <span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
@@ -797,7 +797,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -810,7 +810,7 @@ private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+    extends ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
@@ -830,7 +830,7 @@ val input: DataStream[SensorReading] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
@@ -856,11 +856,11 @@ the average.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-DataStream<Tuple2<String, Long> input = ...;
+DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -883,7 +883,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
@@ -893,7 +893,7 @@ private static class AverageAggregate
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
+    extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
@@ -913,7 +913,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -959,7 +959,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -975,7 +975,7 @@ private static class MyFoldFunction
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
+    extends ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
@@ -995,7 +995,7 @@ val input: DataStream[SensorReading] = ...
 
 input
  .keyBy(<key selector>)
- .timeWindow(<window assigner>)
+ .timeWindow(<duration>)
  .fold (
     ("", 0L, 0),
     (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
@@ -1411,7 +1411,6 @@ val globalResults = resultsPerKey
 
 In this example, the results for time window `[0, 5)` from the first operation will also end up in
 time window `[0, 5)` in the subsequent windowed operation. This allows calculating a sum per key
-and then calculating the top-k elements within the same window in the second operation.
 and then calculating the top-k elements within the same window in the second operation.
 
 ## Useful state size considerations

@@ -35,46 +35,41 @@ the same semantics as a failure-free execution.
 See [Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) for how to enable and
 configure checkpoints for your program.
 
-## Externalized Checkpoints
+## Retained Checkpoints
 
-Checkpoints are by default not persisted externally and are only used to
-resume a job from failures. They are deleted when a program is cancelled.
-You can, however, configure periodic checkpoints to be persisted externally
-similarly to [savepoints](savepoints.html). These *externalized checkpoints*
-write their meta data out to persistent storage and are *not* automatically
-cleaned up when the job fails. This way, you will have a checkpoint around
-to resume from if your job fails.
+Checkpoints are by default not retained and are only used to resume a
+job from failures. They are deleted when a program is cancelled.
+You can, however, configure periodic checkpoints to be retained.
+Depending on the configuration these *retained* checkpoints are *not*
+automatically cleaned up when the job fails or is canceled.
+This way, you will have a checkpoint around to resume from if your job fails.
 
 {% highlight java %}
 CheckpointConfig config = env.getCheckpointConfig();
 config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 {% endhighlight %}
 
-The `ExternalizedCheckpointCleanup` mode configures what happens with externalized checkpoints when you cancel the job:
+The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoints when you cancel the job:
 
-- **`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`**: Retain the externalized checkpoint when the job is cancelled. Note that you have to manually clean up the checkpoint state after cancellation in this case.
+- **`ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION`**: Retain the checkpoint when the job is cancelled. Note that you have to manually clean up the checkpoint state after cancellation in this case.
 
-- **`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`**: Delete the externalized checkpoint when the job is cancelled. The checkpoint state will only be available if the job fails.
+- **`ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION`**: Delete the checkpoint when the job is cancelled. The checkpoint state will only be available if the job fails.
 
 ### Directory Structure
 
-Similarly to [savepoints](savepoints.html), an externalized checkpoint consists
-of a meta data file and, depending on the state back-end, some additional data
-files. The **target directory** for the externalized checkpoint's meta data is
-determined from the configuration key `state.checkpoints.dir` which, currently,
-can only be set via the configuration files.
+Similarly to [savepoints](savepoints.html), a checkpoint consists
+of a meta data file and, depending on the state backend, some additional data
+files. The meta data file and data files are stored in the directory that is
+configured via `state.checkpoints.dir` in the configuration files, 
+and also can be specified for per job in the code.
+
+#### Configure globally via configuration files
 
 {% highlight yaml %}
 state.checkpoints.dir: hdfs:///checkpoints/
 {% endhighlight %}
 
-This directory will then contain the checkpoint meta data required to restore
-the checkpoint. For the `MemoryStateBackend`, this meta data file will be
-self-contained and no further files are needed.
-
-`FsStateBackend` and `RocksDBStateBackend` write separate data files
-and only write the paths to these files into the meta data file. These data
-files are stored at the path given to the state back-end during construction.
+#### Configure for per job when constructing the state backend
 
 {% highlight java %}
 env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
@@ -82,13 +77,13 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/");
 
 ### Difference to Savepoints
 
-Externalized checkpoints have a few differences from [savepoints](savepoints.html). They
+Checkpoints have a few differences from [savepoints](savepoints.html). They
 - use a state backend specific (low-level) data format, may be incremental.
 - do not support Flink specific features like rescaling.
 
-### Resuming from an externalized checkpoint
+### Resuming from a retained checkpoint
 
-A job may be resumed from an externalized checkpoint just as from a savepoint
+A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
 [savepoint restore guide](../cli.html#restore-a-savepoint)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to

@@ -391,7 +391,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			final HashSet<T> openStreams,
 			final boolean output) throws IOException {
 
-		final int outputLimit = output && maxNumOpenInputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
+		final int outputLimit = output && maxNumOpenOutputStreams > 0 ? maxNumOpenOutputStreams : Integer.MAX_VALUE;
 		final int inputLimit = !output && maxNumOpenInputStreams > 0 ? maxNumOpenInputStreams : Integer.MAX_VALUE;
 		final int totalLimit = maxNumOpenStreamsTotal > 0 ? maxNumOpenStreamsTotal : Integer.MAX_VALUE;
 		final int outputCredit = output ? 1 : 0;

@@ -801,11 +801,13 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
+	 * @param cleanupBlobStoreFiles
+	 * 		True if the corresponding blob store files shall be cleaned up as well. Otherwise false.
 	 *
 	 * @return  <tt>true</tt> if the job directory is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	public boolean cleanupJob(JobID jobId) {
+	public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
 		checkNotNull(jobId);
 
 		final File jobDir =
@@ -830,8 +832,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 					jobDir.getAbsolutePath(), e);
 			}
 
-			// delete in HA store
-			boolean deletedHA = blobStore.deleteAll(jobId);
+			// delete in HA blob store files
+			final boolean deletedHA = !cleanupBlobStoreFiles || blobStore.deleteAll(jobId);
 
 			return deletedLocally && deletedHA;
 		} finally {

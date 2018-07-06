@@ -22,9 +22,9 @@ import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimesta
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.NonMergableCount
@@ -35,7 +35,6 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class AggregateITCase(
@@ -362,6 +361,34 @@ class AggregateITCase(
       "4,{4=2}", "4,{4=2}",
       "5,{5=1}", "5,{5=1}", "5,{5=3}",
       "6,{6=1}", "6,{6=2}", "6,{6=3}"
+    ).mkString("\n")
+
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testTumbleWindowAggregateWithCollectUnnest(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val ds = CollectionDataSets.get3TupleDataSet(env)
+      // create timestamps
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
+    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c, 'ts)
+
+    val t2 = tEnv.sqlQuery("SELECT b, COLLECT(b) as `set`" +
+        "FROM t1 " +
+        "GROUP BY b, TUMBLE(ts, INTERVAL '3' SECOND)")
+    tEnv.registerTable("t2", t2)
+
+    val result = tEnv.sqlQuery("SELECT b, s FROM t2, UNNEST(t2.`set`) AS A(s) where b < 3")
+      .toDataSet[Row]
+      .collect()
+
+    val expected = Seq(
+      "1,1",
+      "2,2",
+      "2,2"
     ).mkString("\n")
 
     TestBaseUtils.compareResultAsText(result.asJava, expected)

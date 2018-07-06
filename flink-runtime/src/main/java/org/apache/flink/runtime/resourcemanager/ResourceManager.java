@@ -338,7 +338,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	public CompletableFuture<RegistrationResponse> registerTaskExecutor(
 			final String taskExecutorAddress,
 			final ResourceID taskExecutorResourceId,
-			final SlotReport slotReport,
 			final int dataPort,
 			final HardwareDescription hardwareDescription,
 			final Time timeout) {
@@ -354,12 +353,23 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 						taskExecutorGateway,
 						taskExecutorAddress,
 						taskExecutorResourceId,
-						slotReport,
 						dataPort,
 						hardwareDescription);
 				}
 			},
 			getMainThreadExecutor());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> sendSlotReport(ResourceID taskManagerResourceId, InstanceID taskManagerRegistrationId, SlotReport slotReport, Time timeout) {
+		final WorkerRegistration<WorkerType> workerTypeWorkerRegistration = taskExecutors.get(taskManagerResourceId);
+
+		if (workerTypeWorkerRegistration.getInstanceID().equals(taskManagerRegistrationId)) {
+			slotManager.registerTaskManager(workerTypeWorkerRegistration, slotReport);
+			return CompletableFuture.completedFuture(Acknowledge.get());
+		} else {
+			return FutureUtils.completedExceptionally(new ResourceManagerException(String.format("Unknown TaskManager registration id %s.", taskManagerRegistrationId)));
+		}
 	}
 
 	@Override
@@ -669,7 +679,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @param taskExecutorGateway to communicate with the registering TaskExecutor
 	 * @param taskExecutorAddress address of the TaskExecutor
 	 * @param taskExecutorResourceId ResourceID of the TaskExecutor
-	 * @param slotReport initial slot report from the TaskExecutor
 	 * @param dataPort port used for data transfer
 	 * @param hardwareDescription of the registering TaskExecutor
 	 * @return RegistrationResponse
@@ -678,7 +687,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			TaskExecutorGateway taskExecutorGateway,
 			String taskExecutorAddress,
 			ResourceID taskExecutorResourceId,
-			SlotReport slotReport,
 			int dataPort,
 			HardwareDescription hardwareDescription) {
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
@@ -701,8 +709,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
 
 			taskExecutors.put(taskExecutorResourceId, registration);
-
-			slotManager.registerTaskManager(registration, slotReport);
 
 			taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
 				@Override
@@ -1007,6 +1013,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
+
+			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+			if (jobManagerRegistration != null) {
+				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
+			}
 		}
 	}
 
@@ -1113,6 +1124,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Resource Management
+	// ------------------------------------------------------------------------
+
+	protected int getNumberPendingSlotRequests() {
+		return slotManager.getNumberPendingSlotRequests();
 	}
 }
 

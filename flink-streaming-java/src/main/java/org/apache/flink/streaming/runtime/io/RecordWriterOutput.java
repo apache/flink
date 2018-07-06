@@ -148,7 +148,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		}
 	}
 
-	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
+	public void broadcastEvent(AbstractEvent event) throws IOException {
 		recordWriter.broadcastEvent(event);
 	}
 

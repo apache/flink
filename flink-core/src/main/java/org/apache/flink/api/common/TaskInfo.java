@@ -20,8 +20,8 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Internal;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Encapsulates task-specific information: name, index of subtask, parallelism and attempt number.
@@ -31,12 +31,35 @@ public class TaskInfo {
 
 	private final String taskName;
 	private final String taskNameWithSubtasks;
+	private final String allocationIDAsString;
 	private final int maxNumberOfParallelSubtasks;
 	private final int indexOfSubtask;
 	private final int numberOfParallelSubtasks;
 	private final int attemptNumber;
 
-	public TaskInfo(String taskName, int maxNumberOfParallelSubtasks, int indexOfSubtask, int numberOfParallelSubtasks, int attemptNumber) {
+	public TaskInfo(
+		String taskName,
+		int maxNumberOfParallelSubtasks,
+		int indexOfSubtask,
+		int numberOfParallelSubtasks,
+		int attemptNumber) {
+		this(
+			taskName,
+			maxNumberOfParallelSubtasks,
+			indexOfSubtask,
+			numberOfParallelSubtasks,
+			attemptNumber,
+			"UNKNOWN");
+	}
+
+	public TaskInfo(
+		String taskName,
+		int maxNumberOfParallelSubtasks,
+		int indexOfSubtask,
+		int numberOfParallelSubtasks,
+		int attemptNumber,
+		String allocationIDAsString) {
+
 		checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
 		checkArgument(maxNumberOfParallelSubtasks >= 1, "Max parallelism must be a positive number.");
 		checkArgument(maxNumberOfParallelSubtasks >= numberOfParallelSubtasks, "Max parallelism must be >= than parallelism.");
@@ -49,6 +72,7 @@ public class TaskInfo {
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.attemptNumber = attemptNumber;
 		this.taskNameWithSubtasks = taskName + " (" + (indexOfSubtask + 1) + '/' + numberOfParallelSubtasks + ')';
+		this.allocationIDAsString = checkNotNull(allocationIDAsString);
 	}
 
 	/**
@@ -106,5 +130,13 @@ public class TaskInfo {
 	 */
 	public String getTaskNameWithSubtasks() {
 		return this.taskNameWithSubtasks;
+	}
+
+	/**
+	 * Returns the allocation id for where this task is executed.
+	 * @return the allocation id for where this task is executed.
+	 */
+	public String getAllocationIDAsString() {
+		return allocationIDAsString;
 	}
 }
