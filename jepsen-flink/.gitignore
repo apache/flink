@@ -14,4 +14,6 @@
 pom.xml
 pom.xml.asc
 store
-bin/DataStreamAllroundTestProgram.jar
+bin/*
+!bin/.gitkeep
+
