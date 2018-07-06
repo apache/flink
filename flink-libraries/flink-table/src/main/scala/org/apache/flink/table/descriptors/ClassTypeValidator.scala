@@ -18,22 +18,20 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
-
 
 /**
-  * Validator for [[ClassTypeDescriptor]].
+  * Validator for [[ClassType]].
   */
 class ClassTypeValidator extends HierarchyDescriptorValidator {
   override def validateWithPrefix(keyPrefix: String, properties: DescriptorProperties): Unit = {
 
     properties.validateString(s"$keyPrefix${ClassTypeValidator.CLASS}", isOptional = false)
 
-    val constructorPrefix = s"$keyPrefix${ClassTypeValidator.CLASS_CONSTRUCTOR}"
-    properties.validateString(constructorPrefix, isOptional = true)
+    val constructorPrefix = s"$keyPrefix${ClassTypeValidator.CONSTRUCTOR}"
+    normalizeConstructorParams(constructorPrefix, properties)
 
     val constructorProps =
       properties.getVariableIndexedProperties(constructorPrefix, List())
@@ -50,53 +48,28 @@ class ClassTypeValidator extends HierarchyDescriptorValidator {
       i += 1
     }
   }
+
+  /**
+    * For each constructor parameter (e.g., constructor.0 = abc), we derive its type and replace it
+    * with the normalized form (e.g., constructor.0.type = VARCHAR, constructor.0.value = abc);
+    *
+    * @param constructorPrefix the prefix to get the constructor parameters
+    * @param properties the descriptor properties
+    */
+  def normalizeConstructorParams(
+    constructorPrefix: String,
+    properties: DescriptorProperties): Unit = {
+    val constructorValues = properties.getListProperties(constructorPrefix)
+    constructorValues.foreach(kv => {
+      properties.unsafeRemove(kv._1)
+      val tp = PrimitiveTypeValidator.deriveTypeStrFromValueStr(kv._2)
+      properties.putString(s"${kv._1}.${PrimitiveTypeValidator.PRIMITIVE_TYPE}", tp)
+      properties.putString(s"${kv._1}.${PrimitiveTypeValidator.PRIMITIVE_VALUE}", kv._2)
+    })
+  }
 }
 
 object ClassTypeValidator {
-
   val CLASS = "class"
-  val CLASS_CONSTRUCTOR = "constructor"
-
-  def generateInstance[T](
-      prefix: String,
-      properties: DescriptorProperties,
-      classLoader: ClassLoader): T = {
-    generateInstanceInternally(prefix, properties, classLoader)
-  }
-
-  private def generateInstanceInternally[T](
-      keyPrefix: String,
-      descriptorProps: DescriptorProperties,
-      classLoader: ClassLoader): T = {
-    val constructorPrefix = s"$keyPrefix$CLASS_CONSTRUCTOR"
-    val constructorProps =
-      descriptorProps.getVariableIndexedProperties(constructorPrefix, List())
-    var i = 0
-    val typeValueList: ArrayBuffer[(Class[_], Any)] = new ArrayBuffer
-    while (i < constructorProps.size()) {
-      if (constructorProps(i).containsKey(PrimitiveTypeValidator.PRIMITIVE_TYPE)) {
-        val primitiveVal = PrimitiveTypeValidator
-          .derivePrimitiveValue(s"$constructorPrefix.$i.", descriptorProps)
-        typeValueList += ((primitiveVal.getClass, primitiveVal))
-      } else if (constructorProps(i).containsKey(CLASS)) {
-        val typeValuePair = (
-          Class.forName(
-            descriptorProps.getString(constructorProps(i).get(CLASS))),
-          generateInstanceInternally(s"$constructorPrefix.$i.", descriptorProps, classLoader))
-        typeValueList += typeValuePair
-      }
-      i += 1
-    }
-    val clazz = classLoader.loadClass(descriptorProps.getString(s"$keyPrefix$CLASS"))
-    val constructor = clazz.getConstructor(typeValueList.map(_._1): _*)
-      if (null == constructor) {
-        throw TableException(s"Cannot find a constructor with parameter types " +
-          s"${typeValueList.map(_._1)} for ${clazz.getName}")
-      }
-    constructor.newInstance(typeValueList.map(_._2.asInstanceOf[AnyRef]): _*).asInstanceOf[T]
-  }
+  val CONSTRUCTOR = "constructor"
 }
-
-
-
-

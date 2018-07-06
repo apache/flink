@@ -49,8 +49,8 @@ import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FunctionValidator;
 import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.descriptors.service.FunctionService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -118,7 +118,7 @@ public class ExecutionContext<T> {
 			descriptor.addProperties(properties);
 			functions.put(
 					name,
-					FunctionValidator.generateUserDefinedFunction(properties, classLoader));
+					FunctionService.generateUserDefinedFunction(properties, classLoader));
 		});
 
 		// convert deployment options into command line options that describe a cluster
@@ -207,7 +207,6 @@ public class ExecutionContext<T> {
 		private final StreamExecutionEnvironment streamExecEnv;
 		private final TableEnvironment tableEnv;
 
-		@SuppressWarnings("unchecked")
 		private EnvironmentInstance() {
 			// create environments
 			if (mergedEnv.getExecution().isStreamingExecution()) {
@@ -235,9 +234,9 @@ public class ExecutionContext<T> {
 					if (v instanceof ScalarFunction) {
 						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
 					} else if (v instanceof AggregateFunction) {
-						streamTableEnvironment.registerFunction(k, (AggregateFunction) v);
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
 					} else if (v instanceof TableFunction) {
-						streamTableEnvironment.registerFunction(k, (TableFunction) v);
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
 					}
 				});
 			} else {
@@ -246,9 +245,9 @@ public class ExecutionContext<T> {
 					if (v instanceof ScalarFunction) {
 						batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
 					} else if (v instanceof AggregateFunction) {
-						batchTableEnvironment.registerFunction(k, (AggregateFunction) v);
+						batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
 					} else if (v instanceof TableFunction) {
-						batchTableEnvironment.registerFunction(k, (TableFunction) v);
+						batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
 					}
 				});
 			}

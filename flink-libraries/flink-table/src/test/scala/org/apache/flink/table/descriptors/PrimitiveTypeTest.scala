@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
+import java.util.{Arrays => JArrays, List => JList, Map => JMap}
+import java.math.{BigDecimal => JBigDecimal}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.junit.Test
 
 import scala.collection.JavaConverters._
@@ -38,47 +38,80 @@ class PrimitiveTypeTest extends DescriptorTestBase {
     removePropertyAndVerify(descriptors().get(0), PrimitiveTypeValidator.PRIMITIVE_VALUE)
   }
 
-  override def descriptors(): util.List[Descriptor] = {
-    val intDesc = PrimitiveTypeDescriptor().setType(BasicTypeInfo.INT_TYPE_INFO).setValue(1)
-    val longDesc = PrimitiveTypeDescriptor().setType(BasicTypeInfo.LONG_TYPE_INFO).setValue(2L)
-    val doubleDesc = PrimitiveTypeDescriptor().setType(BasicTypeInfo.DOUBLE_TYPE_INFO).setValue(3.0)
-    val stringDesc = PrimitiveTypeDescriptor().setType(BasicTypeInfo.STRING_TYPE_INFO).setValue("4")
-    val booleanDesc =
-      PrimitiveTypeDescriptor().setType(BasicTypeInfo.BOOLEAN_TYPE_INFO).setValue(false)
+  override def descriptors(): JList[Descriptor] = {
+    val bigDecimalDesc = PrimitiveType().of(Types.DECIMAL).value(new JBigDecimal(1))
+    val booleanDesc = PrimitiveType().of(Types.BOOLEAN).value(false)
+    val byteDesc = PrimitiveType().of(Types.BYTE).value(4.asInstanceOf[Byte])
+    val doubleDesc = PrimitiveType().of(Types.DOUBLE).value(7.0)
+    val floatDesc = PrimitiveType().of(Types.FLOAT).value(8f)
+    val intDesc = PrimitiveType().of(Types.INT).value(9)
+    val longDesc = PrimitiveType().of(Types.LONG).value(10L)
+    val shortDesc = PrimitiveType().of(Types.SHORT).value(11.asInstanceOf[Short])
+    val stringDesc = PrimitiveType().of(Types.STRING).value("12")
 
-    util.Arrays.asList(intDesc, longDesc, doubleDesc, stringDesc, booleanDesc)
+    JArrays.asList(
+      bigDecimalDesc,
+      booleanDesc,
+      byteDesc,
+      doubleDesc,
+      floatDesc,
+      intDesc,
+      longDesc,
+      shortDesc,
+      stringDesc)
   }
 
   override def validator(): DescriptorValidator = {
     new PrimitiveTypeValidator()
   }
 
-  override def properties(): util.List[util.Map[String, String]] = {
-    val intProps = Map(
-      "type" -> "INT",
+  override def properties(): JList[JMap[String, String]] = {
+    val bigDecimalProps = Map(
+      "type" -> "DECIMAL",
       "value" -> "1"
-    )
-    val longDesc = Map(
-      "type" -> "BIGINT",
-      "value" -> "2"
-    )
-    val doubleDesc = Map(
-      "type" -> "DOUBLE",
-      "value" -> "3.0"
-    )
-    val stringDesc = Map(
-      "type" -> "VARCHAR",
-      "value" -> "4"
     )
     val booleanDesc = Map(
       "type" -> "BOOLEAN",
       "value" -> "false"
     )
-    util.Arrays.asList(
+    val byteDesc = Map(
+      "type" -> "TINYINT",
+      "value" -> "4"
+    )
+
+    val doubleDesc = Map(
+      "type" -> "DOUBLE",
+      "value" -> "7.0"
+    )
+    val floatDesc = Map(
+      "type" -> "FLOAT",
+      "value" -> "8.0"
+    )
+    val intProps = Map(
+      "type" -> "INT",
+      "value" -> "9"
+    )
+    val longDesc = Map(
+      "type" -> "BIGINT",
+      "value" -> "10"
+    )
+    val shortDesc = Map(
+      "type" -> "SMALLINT",
+      "value" -> "11"
+    )
+    val stringDesc = Map(
+      "type" -> "VARCHAR",
+      "value" -> "12"
+    )
+    JArrays.asList(
+      bigDecimalProps.asJava,
+      booleanDesc.asJava,
+      byteDesc.asJava,
+      doubleDesc.asJava,
+      floatDesc.asJava,
       intProps.asJava,
       longDesc.asJava,
-      doubleDesc.asJava,
-      stringDesc.asJava,
-      booleanDesc.asJava)
+      shortDesc.asJava,
+      stringDesc.asJava)
   }
 }

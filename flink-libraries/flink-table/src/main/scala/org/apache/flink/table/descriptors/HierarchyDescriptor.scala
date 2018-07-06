@@ -19,10 +19,15 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * A descriptor that may exist in different levels (be included by other descriptors).
+  * A descriptor that may exist in an arbitrary level (be recursively included by other
+  * descriptors).
   */
 abstract class HierarchyDescriptor extends Descriptor {
 
+  /**
+    * Internal method for properties conversion. All the property keys will be prefixed according
+    * to the level.
+    */
   private[flink] def addPropertiesWithPrefix(
     keyPrefix: String, properties: DescriptorProperties): Unit
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
+import java.util.{List => JList, Map => JMap, Arrays => JArrays}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.api.ValidationException
@@ -33,38 +33,28 @@ class ClassTypeTest extends DescriptorTestBase {
     removePropertyAndVerify(descriptors().get(0), ClassTypeValidator.CLASS)
   }
 
-  override def descriptors(): util.List[Descriptor] = {
-    val desc1 = ClassTypeDescriptor()
-      .setClassName("class1")
-      .addConstructorField(
-        PrimitiveTypeDescriptor()
-          .setType(BasicTypeInfo.LONG_TYPE_INFO)
-          .setValue(1L))
-      .addConstructorField(
-        ClassTypeDescriptor()
-          .setClassName("class2")
-          .addConstructorField(
-            ClassTypeDescriptor()
-              .setClassName("class3")
-              .addConstructorField(
-                PrimitiveTypeDescriptor()
-                  .setType(BasicTypeInfo.STRING_TYPE_INFO)
-                  .setValue("StarryNight"))
-              .addConstructorField(
-                ClassTypeDescriptor()
-                  .setClassName("class4"))))
+  override def descriptors(): JList[Descriptor] = {
+    val desc1 = ClassType("class1")
+      .param(BasicTypeInfo.LONG_TYPE_INFO, "1")
+      .param(
+        ClassType("class2")
+          .param(
+            ClassType("class3")
+              .param("StarryNight")
+              .param(
+                ClassType("class4"))))
+      .param(2L)
 
-    val desc2 = ClassTypeDescriptor()
-        .setClassName("class2")
+    val desc2 = ClassType().of("class2")
 
-    util.Arrays.asList(desc1, desc2)
+    JArrays.asList(desc1, desc2)
   }
 
   override def validator(): DescriptorValidator = {
     new ClassTypeValidator()
   }
 
-  override def properties(): util.List[util.Map[String, String]] = {
+  override def properties(): JList[JMap[String, String]] = {
     val props1 = Map(
       "class" -> "class1",
       "constructor.0.type" -> "BIGINT",
@@ -73,12 +63,15 @@ class ClassTypeTest extends DescriptorTestBase {
       "constructor.1.constructor.0.class" -> "class3",
       "constructor.1.constructor.0.constructor.0.type" -> "VARCHAR",
       "constructor.1.constructor.0.constructor.0.value" -> "StarryNight",
-      "constructor.1.constructor.0.constructor.1.class" -> "class4"
+      "constructor.1.constructor.0.constructor.1.class" -> "class4",
+      "constructor.2.type" -> "BIGINT",
+      "constructor.2.value" -> "2"
     )
 
     val props2 = Map(
       "class" -> "class2"
     )
-    util.Arrays.asList(props1.asJava, props2.asJava)
+
+    JArrays.asList(props1.asJava, props2.asJava)
   }
 }

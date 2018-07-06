@@ -19,7 +19,8 @@
 package org.apache.flink.table.descriptors
 
 import java.io.Serializable
-import java.lang.{Boolean => JBoolean, Double => JDouble, Integer => JInt, Long => JLong}
+import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Short => JShort}
+import java.math.{BigDecimal => JBigDecimal}
 import java.util
 import java.util.function.{Consumer, Supplier}
 import java.util.regex.Pattern
@@ -238,10 +239,25 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
+    * Returns a big decimal value under the given key if it exists.
+    */
+  def getOptionalBigDecimal(key: String): Optional[JBigDecimal] = {
+    val value = properties.get(key).map(new JBigDecimal(_))
+    toJava(value)
+  }
+
+  /**
+    * Returns a big decimal value under the given existing key.
+    */
+  def getBigDecimal(key: String): BigDecimal = {
+    getOptionalBigDecimal(key).orElseThrow(exceptionSupplier(key))
+  }
+
+  /**
     * Returns a boolean value under the given key if it exists.
     */
   def getOptionalBoolean(key: String): Optional[JBoolean] = {
-    val value = properties.get(key).map(JBoolean.parseBoolean(_)).map(Boolean.box)
+    val value = properties.get(key).map(JBoolean.parseBoolean).map(Boolean.box)
     toJava(value)
   }
 
@@ -253,10 +269,55 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
+    * Returns a byte value under the given key if it exists.
+    */
+  def getOptionalByte(key: String): Optional[JByte] = {
+    val value = properties.get(key).map(JByte.parseByte).map(Byte.box)
+    toJava(value)
+  }
+
+  /**
+    * Returns a byte value under the given existing key.
+    */
+  def getByte(key: String): Byte = {
+    getOptionalByte(key).orElseThrow(exceptionSupplier(key))
+  }
+
+  /**
+    * Returns a double value under the given key if it exists.
+    */
+  def getOptionalDouble(key: String): Optional[JDouble] = {
+    val value = properties.get(key).map(JDouble.parseDouble).map(Double.box)
+    toJava(value)
+  }
+
+  /**
+    * Returns a double value under the given key if it exists.
+    */
+  def getDouble(key: String): Double = {
+    getOptionalDouble(key).orElseThrow(exceptionSupplier(key))
+  }
+
+  /**
+    * Returns a float value under the given key if it exists.
+    */
+  def getOptionalFloat(key: String): Optional[JFloat] = {
+    val value = properties.get(key).map(JFloat.parseFloat).map(Float.box)
+    toJava(value)
+  }
+
+  /**
+    * Returns a float value under the given key if it exists.
+    */
+  def getFloat(key: String): Float = {
+    getOptionalFloat(key).orElseThrow(exceptionSupplier(key))
+  }
+
+  /**
     * Returns an integer value under the given key if it exists.
     */
   def getOptionalInt(key: String): Optional[JInt] = {
-    val value = properties.get(key).map(JInt.parseInt(_)).map(Int.box)
+    val value = properties.get(key).map(JInt.parseInt).map(Int.box)
     toJava(value)
   }
 
@@ -271,7 +332,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     * Returns a long value under the given key if it exists.
     */
   def getOptionalLong(key: String): Optional[JLong] = {
-    val value = properties.get(key).map(JLong.parseLong(_)).map(Long.box)
+    val value = properties.get(key).map(JLong.parseLong).map(Long.box)
     toJava(value)
   }
 
@@ -283,18 +344,18 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
-    * Returns a double value under the given key if it exists.
+    * Returns a short value under the given key if it exists.
     */
-  def getOptionalDouble(key: String): Optional[JDouble] = {
-    val value = properties.get(key).map(JDouble.parseDouble(_)).map(Double.box)
+  def getOptionalShort(key: String): Optional[JShort] = {
+    val value = properties.get(key).map(JShort.parseShort).map(Short.box)
     toJava(value)
   }
 
   /**
-    * Returns a double value under the given key if it exists.
+    * Returns a short value under the given existing key.
     */
-  def getDouble(key: String): Double = {
-    getOptionalDouble(key).orElseThrow(exceptionSupplier(key))
+  def getShort(key: String): Short = {
+    getOptionalShort(key).orElseThrow(exceptionSupplier(key))
   }
 
   /**
@@ -470,6 +531,16 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   }
 
   /**
+    * Returns all properties under a group of array formed keys.
+    *
+    * E.g. constructor -> returns all constructor.# properties.
+    */
+  def getListProperties(key: String): JMap[String, String] = {
+    val escapedKey = Pattern.quote(key)
+    properties.filterKeys(k => k.matches(s"$escapedKey\\.\\d+")).asJava
+  }
+
+  /**
     * Returns all properties under a given key that contains an index in between.
     *
     * E.g. rowtime.0.name -> returns all rowtime.#.name properties
@@ -566,24 +637,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       min: Int, // inclusive
       max: Int) // inclusive
     : Unit = {
-
-    if (!properties.contains(key)) {
-      if (!isOptional) {
-        throw new ValidationException(s"Could not find required property '$key'.")
-      }
-    } else {
-      try {
-        val value = Integer.parseInt(properties(key))
-        if (value < min || value > max) {
-          throw new ValidationException(s"Property '$key' must be an integer value between $min " +
-            s"and $max but was: ${properties(key)}")
-        }
-      } catch {
-        case _: NumberFormatException =>
-          throw new ValidationException(
-            s"Property '$key' must be an integer value but was: ${properties(key)}")
-      }
-    }
+    validateComparable(key, isOptional, new Integer(min), new Integer(max), Integer.valueOf)
   }
 
   /**
@@ -616,24 +670,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       min: Long, // inclusive
       max: Long) // inclusive
     : Unit = {
-
-    if (!properties.contains(key)) {
-      if (!isOptional) {
-        throw new ValidationException(s"Could not find required property '$key'.")
-      }
-    } else {
-      try {
-        val value = JLong.parseLong(properties(key))
-        if (value < min || value > max) {
-          throw new ValidationException(s"Property '$key' must be a long value between $min " +
-            s"and $max but was: ${properties(key)}")
-        }
-      } catch {
-        case _: NumberFormatException =>
-          throw new ValidationException(
-            s"Property '$key' must be a long value but was: ${properties(key)}")
-      }
-    }
+    validateComparable(key, isOptional, new JLong(min), new JLong(max), JLong.valueOf)
   }
 
   /**
@@ -699,6 +736,15 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       min: Double, // inclusive
       max: Double) // inclusive
     : Unit = {
+    validateComparable(key, isOptional, new JDouble(min), new JDouble(max), JDouble.valueOf)
+  }
+
+  /**
+    * Validates a big decimal property.
+    */
+  def validateBigDecimal(
+      key: String,
+      isOptional: Boolean): Unit = {
 
     if (!properties.contains(key)) {
       if (!isOptional) {
@@ -706,15 +752,149 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       }
     } else {
       try {
-        val value = JDouble.parseDouble(properties(key))
-        if (value < min || value > max) {
-          throw new ValidationException(s"Property '$key' must be a double value between $min " +
-            s"and $max but was: ${properties(key)}")
+        new JBigDecimal(properties(key))
+      } catch {
+        case _: NumberFormatException =>
+          throw new ValidationException(
+            s"Property '$key' must be a big decimal value but was: ${properties(key)}")
+      }
+    }
+  }
+
+  /**
+    * Validates a big decimal property. The boundaries are inclusive.
+    */
+  def validateBigDecimal(
+      key: String,
+      isOptional: Boolean,
+      min: BigDecimal, // inclusive
+      max: BigDecimal) // inclusive
+  : Unit = {
+    validateComparable(
+      key,
+      isOptional,
+      min.bigDecimal,
+      max.bigDecimal,
+      (value: String) => new JBigDecimal(value))
+  }
+
+  /**
+    * Validates a byte property.
+    */
+  def validateByte(
+      key: String,
+      isOptional: Boolean): Unit = validateDouble(key, isOptional, Byte.MinValue, Byte.MaxValue)
+
+  /**
+    * Validates a byte property. The boundaries are inclusive.
+    */
+  def validateByte(
+      key: String,
+      isOptional: Boolean,
+      min: Byte) // inclusive
+  : Unit = {
+    validateByte(key, isOptional, min, Byte.MaxValue)
+  }
+
+  /**
+    * Validates a byte property. The boundaries are inclusive.
+    */
+  def validateByte(
+      key: String,
+      isOptional: Boolean,
+      min: Byte, // inclusive
+      max: Byte) // inclusive
+  : Unit = {
+    validateComparable(key, isOptional, new JByte(min), new JByte(max), JByte.valueOf)
+  }
+
+  /**
+    * Validates a float property.
+    */
+  def validateFloat(
+      key: String,
+      isOptional: Boolean): Unit = validateFloat(key, isOptional, Float.MinValue, Float.MaxValue)
+
+  /**
+    * Validates a float property. The boundaries are inclusive.
+    */
+  def validateFloat(
+      key: String,
+      isOptional: Boolean,
+      min: Float) // inclusive
+  : Unit = {
+    validateFloat(key, isOptional, min, Float.MaxValue)
+  }
+
+  /**
+    * Validates a float property. The boundaries are inclusive.
+    */
+  def validateFloat(
+      key: String,
+      isOptional: Boolean,
+      min: Float, // inclusive
+      max: Float) // inclusive
+  : Unit = {
+    validateComparable(key, isOptional, new JFloat(min), new JFloat(max), JFloat.valueOf)
+  }
+
+  /**
+    * Validates a short property.
+    */
+  def validateShort(
+      key: String,
+      isOptional: Boolean): Unit = validateFloat(key, isOptional, Short.MinValue, Short.MaxValue)
+
+  /**
+    * Validates a short property. The boundaries are inclusive.
+    */
+  def validateFloat(
+      key: String,
+      isOptional: Boolean,
+      min: Short) // inclusive
+  : Unit = {
+    validateShort(key, isOptional, min, Short.MaxValue)
+  }
+
+  /**
+    * Validates a float property. The boundaries are inclusive.
+    */
+  def validateShort(
+      key: String,
+      isOptional: Boolean,
+      min: Short, // inclusive
+      max: Short) // inclusive
+  : Unit = {
+    validateComparable(key, isOptional, new JShort(min), new JShort(max), JShort.valueOf)
+  }
+
+  /**
+    * Validates a property by first parsing the string value to a comparable object.
+    * The boundaries are inclusive.
+    */
+  private def validateComparable[T <: Comparable[T]](
+      key: String,
+      isOptional: Boolean,
+      min: T,
+      max: T,
+      parseFunction: String => T)
+  : Unit = {
+    if (!properties.contains(key)) {
+      if (!isOptional) {
+        throw new ValidationException(s"Could not find required property '$key'.")
+      }
+    } else {
+      try {
+        val value = parseFunction(properties(key))
+
+        if (value.compareTo(min) < 0 || value.compareTo(max) > 0) {
+          throw new ValidationException(s"Property '$key' must be a ${min.getClass.getSimpleName}" +
+            s" value between $min and $max but was: ${properties(key)}")
         }
       } catch {
         case _: NumberFormatException =>
           throw new ValidationException(
-            s"Property '$key' must be an double value but was: ${properties(key)}")
+            s"Property '$key' must be a byte value but was: ${properties(key)}")
       }
     }
   }

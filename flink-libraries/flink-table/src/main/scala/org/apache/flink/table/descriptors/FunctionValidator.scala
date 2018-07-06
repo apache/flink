@@ -37,12 +37,6 @@ object FunctionValidator {
 
   val FUNCTION_NAME = "name"
 
-  def generateUserDefinedFunction(
-      properties: DescriptorProperties,
-      classLoader: ClassLoader): UserDefinedFunction = {
-    new FunctionValidator().validate(properties)
-    ClassTypeValidator.generateInstance[UserDefinedFunction]("", properties, classLoader)
-  }
 }
 
 

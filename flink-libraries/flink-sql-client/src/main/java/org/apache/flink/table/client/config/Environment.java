@@ -46,7 +46,7 @@ public class Environment {
 
 	private Deployment deployment;
 
-	private Map<String, UDFDescriptor> functions;
+	private Map<String, UserDefinedFunction> functions;
 
 	public Environment() {
 		this.tables = Collections.emptyMap();
@@ -82,7 +82,7 @@ public class Environment {
 	public void setFunctions(List<Map<String, Object>> functions) {
 		this.functions = new HashMap<>(functions.size());
 		functions.forEach(config -> {
-			final UDFDescriptor f = UDFDescriptor.create(config);
+			final UserDefinedFunction f = UserDefinedFunction.create(config);
 			this.functions.put(f.name(), f);
 		});
 	}
@@ -103,7 +103,7 @@ public class Environment {
 		return deployment;
 	}
 
-	public Map<String, UDFDescriptor> getFunctions() {
+	public Map<String, UserDefinedFunction> getFunctions() {
 		return functions;
 	}
 
@@ -152,7 +152,7 @@ public class Environment {
 		mergedEnv.tables = tables;
 
 		// merge functions
-		final Map<String, UDFDescriptor> functions = new HashMap<>(env1.getFunctions());
+		final Map<String, UserDefinedFunction> functions = new HashMap<>(env1.getFunctions());
 		mergedEnv.getFunctions().putAll(env2.getFunctions());
 		mergedEnv.functions = functions;
 

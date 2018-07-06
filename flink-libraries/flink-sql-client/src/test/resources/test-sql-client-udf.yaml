@@ -55,13 +55,14 @@ functions:
     from: class
     class: org.apache.flink.table.client.gateway.utils.UserDefinedFunctions$AggregateUDF
     constructor:
-      - "funcName"
+      - StarryName
       - false
       - class: java.lang.Integer
         constructor:
           - class: java.lang.String
             constructor:
-              - "3"
+              - type: VARCHAR
+                value: 3
 
   - name: tableUDF
     from: class

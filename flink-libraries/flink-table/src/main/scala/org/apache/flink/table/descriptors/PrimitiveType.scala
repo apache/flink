@@ -18,24 +18,23 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.typeutils.TypeStringUtils
 
 /**
-  * Descriptor for a primitive type.
+  * Descriptor for a primitive type. Use internally only.
   */
-class PrimitiveTypeDescriptor[T] extends HierarchyDescriptor {
+class PrimitiveType[T] extends HierarchyDescriptor {
 
-  // TODO not sure if we should the BasicTypeInfo here
-  var typeInformation: BasicTypeInfo[T] = _
+  var typeInformation: TypeInformation[T] = _
   var value: T = _
 
-  def setType(basicType: BasicTypeInfo[T]): PrimitiveTypeDescriptor[T] = {
+  def of(basicType: TypeInformation[T]): PrimitiveType[T] = {
     typeInformation = basicType
     this
   }
 
-  def setValue(value: T): PrimitiveTypeDescriptor[T] = {
+  def value(value: T): PrimitiveType[T] = {
     this.value = value
     this
   }
@@ -51,6 +50,6 @@ class PrimitiveTypeDescriptor[T] extends HierarchyDescriptor {
   }
 }
 
-object PrimitiveTypeDescriptor {
-  def apply[T]() = new PrimitiveTypeDescriptor[T]()
+object PrimitiveType {
+  def apply[T]() = new PrimitiveType[T]()
 }

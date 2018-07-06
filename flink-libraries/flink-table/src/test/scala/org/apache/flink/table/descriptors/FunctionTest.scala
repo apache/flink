@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
+import java.util.{List => JList, Map => JMap, Arrays => JArrays}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.junit.Test
 
@@ -33,31 +32,25 @@ class FunctionTest extends DescriptorTestBase {
     removePropertyAndVerify(descriptors().get(0), "name")
   }
 
-  override def descriptors(): util.List[Descriptor] = {
+  override def descriptors(): JList[Descriptor] = {
     val desc1 = FunctionDescriptor("func1")
-      .setClassDescriptor(
-        ClassTypeDescriptor()
-          .setClassName("my.class")
-          .addConstructorField(
-            PrimitiveTypeDescriptor()
-              .setType(BasicTypeInfo.INT_TYPE_INFO)
-              .setValue(1))
-          .addConstructorField(
-            ClassTypeDescriptor()
-              .setClassName("my.class2")
-              .addConstructorField(
-                PrimitiveTypeDescriptor()
-                  .setType(BasicTypeInfo.BOOLEAN_TYPE_INFO)
-                  .setValue(true))))
+      .using(
+        ClassType("another.class")
+          .of("my.class")
+          .param("INT", "1")
+          .param(
+            ClassType()
+              .of("my.class2")
+              .strParam("true")))
 
-    util.Arrays.asList(desc1)
+    JArrays.asList(desc1)
   }
 
   override def validator(): DescriptorValidator = {
     new FunctionValidator()
   }
 
-  override def properties(): util.List[util.Map[String, String]] = {
+  override def properties(): JList[JMap[String, String]] = {
     val props1 = Map(
       "name" -> "func1",
       "class" -> "my.class",
@@ -67,6 +60,6 @@ class FunctionTest extends DescriptorTestBase {
       "constructor.1.constructor.0.type" -> "BOOLEAN",
       "constructor.1.constructor.0.value" -> "true"
     )
-    util.Arrays.asList(props1.asJava)
+    JArrays.asList(props1.asJava)
   }
 }

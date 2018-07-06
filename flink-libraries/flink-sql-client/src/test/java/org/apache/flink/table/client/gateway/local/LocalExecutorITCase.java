@@ -368,6 +368,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		return actualResults;
 	}
+
 	private List<String> retrieveChangelogResult(
 			Executor executor,
 			SessionContext session,
