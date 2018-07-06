@@ -15,25 +15,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.state;
+
+package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 /**
- * Test implementation of a {@link PriorityQueueSetFactory}.
+ *
  */
-public class TestPriorityQueueSetFactory implements PriorityQueueSetFactory {
+public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
+	@Nonnull
 	private final KeyGroupRange keyGroupRange;
-	private final int totalkeyGroups;
 
-	public TestPriorityQueueSetFactory(KeyGroupRange keyGroupRange, int totalKeyGroups) {
+	@Nonnegative
+	private final int totalKeyGroups;
+
+	@Nonnegative
+	private final int minimumCapacity;
+
+	public HeapPriorityQueueSetFactory(
+		@Nonnull KeyGroupRange keyGroupRange,
+		@Nonnegative int totalKeyGroups,
+		@Nonnegative int minimumCapacity) {
+
 		this.keyGroupRange = keyGroupRange;
-		this.totalkeyGroups = totalKeyGroups;
+		this.totalKeyGroups = totalKeyGroups;
+		this.minimumCapacity = minimumCapacity;
 	}
 
 	@Nonnull
@@ -46,8 +62,8 @@ public class TestPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		return new HeapPriorityQueueSet<>(
 			elementPriorityComparator,
 			keyExtractor,
-			128,
+			minimumCapacity,
 			keyGroupRange,
-			totalkeyGroups);
+			totalKeyGroups);
 	}
 }

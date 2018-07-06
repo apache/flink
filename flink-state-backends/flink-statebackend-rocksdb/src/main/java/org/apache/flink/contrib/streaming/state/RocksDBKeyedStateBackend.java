@@ -84,6 +84,7 @@ import org.apache.flink.runtime.state.TieBreakingPriorityComparator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.CachingInternalPriorityQueueSet;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.apache.flink.util.ExceptionUtils;
@@ -253,7 +254,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final SnapshotStrategy<SnapshotResult<KeyedStateHandle>> snapshotStrategy;
 
 	/** Factory for priority queue state. */
-	private RocksDBPriorityQueueFactory priorityQueueFactory;
+	private PriorityQueueSetFactory priorityQueueFactory;
 
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
@@ -267,7 +268,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
-		LocalRecoveryConfig localRecoveryConfig
+		LocalRecoveryConfig localRecoveryConfig,
+		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
@@ -307,6 +309,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			new FullSnapshotStrategy();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
+
+		switch (priorityQueueStateType) {
+			case HEAP:
+				this.priorityQueueFactory = new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+				break;
+			case ROCKS:
+				this.priorityQueueFactory = new RocksDBPriorityQueueSetFactory();
+				break;
+			default:
+				break;
+		}
 
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
@@ -391,7 +404,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			// ... then close the priority queue related resources ...
-			IOUtils.closeQuietly(priorityQueueFactory);
+			if (priorityQueueFactory instanceof AutoCloseable) {
+				IOUtils.closeQuietly((AutoCloseable) priorityQueueFactory);
+			}
 
 			// ... and finally close the DB instance ...
 			IOUtils.closeQuietly(db);
@@ -486,8 +501,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					restoreOperation.doRestore(restoreState);
 				}
 			}
-
-			this.priorityQueueFactory = new RocksDBPriorityQueueFactory();
 		} catch (Exception ex) {
 			dispose();
 			throw ex;
@@ -2611,7 +2624,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Encapsulates the logic and resources in connection with creating priority queue state structures.
 	 */
-	class RocksDBPriorityQueueFactory implements PriorityQueueSetFactory, AutoCloseable {
+	class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory, AutoCloseable {
 
 		/** Default cache size per key-group. */
 		private static final int DEFAULT_CACHES_SIZE = 8 * 1024;
@@ -2644,7 +2657,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull
 		private final RocksDB pqDb;
 
-		RocksDBPriorityQueueFactory() throws IOException {
+		RocksDBPriorityQueueSetFactory() throws IOException {
 			this.pqInstanceRocksDBPath = new File(instanceBasePath, "pqdb");
 			if (pqInstanceRocksDBPath.exists()) {
 				try {

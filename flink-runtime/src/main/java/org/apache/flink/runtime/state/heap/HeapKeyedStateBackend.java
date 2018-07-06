@@ -54,6 +54,7 @@ import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -156,6 +157,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private final HeapSnapshotStrategy snapshotStrategy;
 
+	/**
+	 *
+	 */
+	private final PriorityQueueSetFactory priorityQueueSetFactory;
+
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
@@ -164,7 +170,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			KeyGroupRange keyGroupRange,
 			boolean asynchronousSnapshots,
 			ExecutionConfig executionConfig,
-			LocalRecoveryConfig localRecoveryConfig) {
+			LocalRecoveryConfig localRecoveryConfig,
+			PriorityQueueSetFactory priorityQueueSetFactory) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
@@ -176,6 +183,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.snapshotStrategy = new HeapSnapshotStrategy(synchronicityTrait);
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 		this.restoredKvStateMetaInfos = new HashMap<>();
+		this.priorityQueueSetFactory = priorityQueueSetFactory;
 	}
 
 	// ------------------------------------------------------------------------

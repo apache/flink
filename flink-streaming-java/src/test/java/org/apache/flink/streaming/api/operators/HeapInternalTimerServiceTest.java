@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.runtime.state.TestPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -180,7 +180,8 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-		PriorityQueueSetFactory priorityQueueSetFactory = new TestPriorityQueueSetFactory(testKeyGroupRange, maxParallelism);
+		PriorityQueueSetFactory priorityQueueSetFactory =
+			new HeapPriorityQueueSetFactory(testKeyGroupRange, maxParallelism, 128);
 		HeapInternalTimerService<Integer, String> timerService =
 				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, priorityQueueSetFactory);
 
@@ -865,7 +866,7 @@ public class HeapInternalTimerServiceTest {
 	}
 
 	protected PriorityQueueSetFactory createQueueFactory(KeyGroupRange keyGroupRange, int numKeyGroups) {
-		return new TestPriorityQueueSetFactory(keyGroupRange, numKeyGroups);
+		return new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128);
 	}
 
 	// ------------------------------------------------------------------------

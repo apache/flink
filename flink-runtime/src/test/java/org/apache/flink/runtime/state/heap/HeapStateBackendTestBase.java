@@ -49,14 +49,18 @@ public abstract class HeapStateBackendTestBase {
 	}
 
 	public <K> HeapKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 15);
+		final int numKeyGroups = keyGroupRange.getNumberOfKeyGroups();
+
 		return new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			keySerializer,
 			HeapStateBackendTestBase.class.getClassLoader(),
-			16,
-			new KeyGroupRange(0, 15),
+			numKeyGroups,
+			keyGroupRange,
 			async,
 			new ExecutionConfig(),
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128));
 	}
 }
