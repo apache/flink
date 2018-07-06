@@ -81,6 +81,9 @@ public class JobPlanInfo implements ResponseBody {
 
 	@JsonSerialize(using = RawJson.Serializer.class)
 	@JsonDeserialize(using = RawJson.Deserializer.class)
+	/**
+	 * Simple wrapper around a raw JSON string.
+	 */
 	public static final class RawJson {
 		private final String json;
 
