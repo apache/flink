@@ -1318,7 +1318,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				namespaceSerializer,
 				stateDesc.getSerializer());
 
-			ColumnFamilyHandle columnFamily = createColumnFamily(stateName);
+			ColumnFamilyHandle columnFamily = createColumnFamily(stateName, db);
 
 			stateInfo = Tuple2.of(columnFamily, newMetaInfo);
 			kvStateInformation.put(stateDesc.getName(), stateInfo);
@@ -1330,7 +1330,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Creates a column family handle for use with a k/v state.
 	 */
-	private ColumnFamilyHandle createColumnFamily(String stateName) {
+	private ColumnFamilyHandle createColumnFamily(String stateName, RocksDB db) {
 		byte[] nameBytes = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
 		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
 			"The chosen state name 'default' collides with the name of the default column family!");
@@ -2632,10 +2632,33 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull
 		private final Map<String, ColumnFamilyHandle> priorityQueueColumnFamilies;
 
-		RocksDBPriorityQueueFactory() {
+		/** The mandatory default column family, so that we can close it later. */
+		@Nonnull
+		private final ColumnFamilyHandle defaultColumnFamily;
+
+		/** Path of the RocksDB instance that holds the priority queues. */
+		@Nonnull
+		private final File pqInstanceRocksDBPath;
+
+		/** RocksDB instance that holds the priority queues. */
+		@Nonnull
+		private final RocksDB pqDb;
+
+		RocksDBPriorityQueueFactory() throws IOException {
+			this.pqInstanceRocksDBPath = new File(instanceBasePath, "pqdb");
+			if (pqInstanceRocksDBPath.exists()) {
+				try {
+					FileUtils.deleteDirectory(pqInstanceRocksDBPath);
+				} catch (IOException ex) {
+					LOG.warn("Could not delete instance path for PQ RocksDB: " + pqInstanceRocksDBPath, ex);
+				}
+			}
+			List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
+			this.pqDb = openDB(pqInstanceRocksDBPath.getAbsolutePath(), Collections.emptyList(), columnFamilyHandles);
 			this.elementSerializationOutStream = new ByteArrayOutputStreamWithPos();
 			this.elementSerializationOutView = new DataOutputViewStreamWrapper(elementSerializationOutStream);
-			this.writeBatchWrapper = new RocksDBWriteBatchWrapper(db, writeOptions);
+			this.writeBatchWrapper = new RocksDBWriteBatchWrapper(pqDb, writeOptions);
+			this.defaultColumnFamily = columnFamilyHandles.get(0);
 			this.priorityQueueColumnFamilies = new HashMap<>();
 		}
 
@@ -2648,7 +2671,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			@Nonnull KeyExtractorFunction<T> keyExtractor) {
 
 			final ColumnFamilyHandle columnFamilyHandle =
-				priorityQueueColumnFamilies.computeIfAbsent(stateName, RocksDBKeyedStateBackend.this::createColumnFamily);
+				priorityQueueColumnFamilies.computeIfAbsent(
+					stateName,
+					(name) -> RocksDBKeyedStateBackend.this.createColumnFamily(name, pqDb));
 
 			@Nonnull
 			TieBreakingPriorityComparator<T> tieBreakingComparator =
@@ -2675,7 +2700,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							new RocksDBOrderedSetStore<>(
 								keyGroupId,
 								keyGroupPrefixBytes,
-								db,
+								pqDb,
 								columnFamilyHandle,
 								byteOrderedElementSerializer,
 								elementSerializationOutStream,
@@ -2694,6 +2719,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			IOUtils.closeQuietly(writeBatchWrapper);
 			for (ColumnFamilyHandle columnFamilyHandle : priorityQueueColumnFamilies.values()) {
 				IOUtils.closeQuietly(columnFamilyHandle);
+			}
+			IOUtils.closeQuietly(defaultColumnFamily);
+			IOUtils.closeQuietly(pqDb);
+			try {
+				FileUtils.deleteDirectory(pqInstanceRocksDBPath);
+			} catch (IOException ex) {
+				LOG.warn("Could not delete instance path for PQ RocksDB: " + pqInstanceRocksDBPath, ex);
 			}
 		}
 	}
