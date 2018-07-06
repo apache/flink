@@ -104,7 +104,10 @@ public class JarUploadHandlerTest extends TestLogger {
 
 		final JarUploadResponseBody jarUploadResponseBody = jarUploadHandler.handleRequest(request, mockDispatcherGateway).get();
 		assertThat(jarUploadResponseBody.getStatus(), equalTo(JarUploadResponseBody.UploadStatus.success));
-		assertThat(jarUploadResponseBody.getFilename(), equalTo(uploadedFile.normalize().toString()));
+		final String returnedFileNameWithUUID = jarUploadResponseBody.getFilename();
+		assertThat(returnedFileNameWithUUID, containsString("_"));
+		final String returnedFileName = returnedFileNameWithUUID.substring(returnedFileNameWithUUID.indexOf("_") + 1);
+		assertThat(returnedFileName, equalTo(uploadedFile.getFileName().toString()));
 	}
 
 	@Test
