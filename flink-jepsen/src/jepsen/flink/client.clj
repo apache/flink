@@ -19,6 +19,7 @@
             [clojure.tools.logging :refer :all]
             [jepsen.client :as client]
             [jepsen.flink.zookeeper :as fz]
+            [jepsen.flink.utils :as fu]
             [zookeeper :as zk])
   (:import (java.io ByteArrayInputStream ObjectInputStream)))
 
@@ -128,7 +129,10 @@
       :submit (do
                 (deploy-cluster! test)
                 (deref init-future)
-                (let [jobs (list-jobs! @rest-url)
+                (let [jobs (fu/retry (fn [] (list-jobs! @rest-url))
+                                     :fallback (fn [e] (do
+                                                         (fatal e "Could not get running jobs.")
+                                                         (System/exit 1))))
                       num-jobs (count jobs)]
                   (assert (= 1 num-jobs) (str "Expected 1 job, was " num-jobs))
                   (reset! job-id (first jobs)))
