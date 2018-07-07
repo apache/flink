@@ -59,6 +59,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -133,7 +134,7 @@ public class CheckpointCoordinator {
 	/** The max time (in ms) that a checkpoint may take */
 	private final long checkpointTimeout;
 
-	/** The min time(in ms) to delay after a checkpoint could be triggered. Allows to
+	/** The min time(in ns) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between checkpoint attempts */
 	private final long minPauseBetweenCheckpointsNanos;
 
@@ -1173,9 +1174,10 @@ public class CheckpointCoordinator {
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
+			long initialDelay = ThreadLocalRandom.current().nextLong(
+				minPauseBetweenCheckpointsNanos / 1_000_000, baseInterval + 1L);
 			currentPeriodicTrigger = timer.scheduleAtFixedRate(
-					new ScheduledTrigger(),
-					baseInterval, baseInterval, TimeUnit.MILLISECONDS);
+					new ScheduledTrigger(), initialDelay, baseInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
