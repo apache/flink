@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -43,7 +44,7 @@ class TtlMapState<K, N, UK, UV>
 	implements InternalMapState<K, N, UK, UV> {
 	TtlMapState(
 		InternalMapState<K, N, UK, TtlValue<UV>> original,
-		TtlConfig config,
+		StateTtlConfiguration config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<Map<UK, UV>> valueSerializer) {
 		super(original, config, timeProvider, valueSerializer);

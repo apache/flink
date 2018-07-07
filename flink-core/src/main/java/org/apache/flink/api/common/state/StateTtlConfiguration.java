@@ -16,16 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.api.common.state;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired;
+import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlTimeCharacteristic.ProcessingTime;
+import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite;
 
 /**
  * Configuration of state TTL logic.
  * TODO: builder
  */
-public class TtlConfig {
+public class StateTtlConfiguration {
 	/**
 	 * This option value configures when to update last access timestamp which prolongs state TTL.
 	 */
@@ -61,7 +65,7 @@ public class TtlConfig {
 	private final TtlTimeCharacteristic timeCharacteristic;
 	private final Time ttl;
 
-	public TtlConfig(
+	private StateTtlConfiguration(
 		TtlUpdateType ttlUpdateType,
 		TtlStateVisibility stateVisibility,
 		TtlTimeCharacteristic timeCharacteristic,
@@ -92,5 +96,83 @@ public class TtlConfig {
 
 	public TtlTimeCharacteristic getTimeCharacteristic() {
 		return timeCharacteristic;
+	}
+
+	@Override
+	public String toString() {
+		return "StateTtlConfiguration{" +
+			"ttlUpdateType=" + ttlUpdateType +
+			", stateVisibility=" + stateVisibility +
+			", timeCharacteristic=" + timeCharacteristic +
+			", ttl=" + ttl +
+			'}';
+	}
+
+	public static Builder newBuilder(Time ttl) {
+		return new Builder(ttl);
+	}
+
+	/**
+	 * Builder for the {@link StateTtlConfiguration}.
+	 */
+	public static class Builder {
+
+		private TtlUpdateType ttlUpdateType = OnCreateAndWrite;
+		private TtlStateVisibility stateVisibility = NeverReturnExpired;
+		private TtlTimeCharacteristic timeCharacteristic = ProcessingTime;
+		private Time ttl;
+
+		public Builder(Time ttl) {
+			this.ttl = ttl;
+		}
+
+		/**
+		 * Sets the ttl update type.
+		 *
+		 * @param ttlUpdateType The ttl update type configures when to update last access timestamp which prolongs state TTL.
+		 */
+		public Builder setTtlUpdateType(TtlUpdateType ttlUpdateType) {
+			this.ttlUpdateType = ttlUpdateType;
+			return this;
+		}
+
+		/**
+		 * Sets the state visibility.
+		 *
+		 * @param stateVisibility The state visibility configures whether expired user value can be returned or not.
+		 */
+		public Builder setStateVisibility(TtlStateVisibility stateVisibility) {
+			this.stateVisibility = stateVisibility;
+			return this;
+		}
+
+		/**
+		 * Sets the time characteristic.
+		 *
+		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
+		 */
+		public Builder setTimeCharacteristic(TtlTimeCharacteristic timeCharacteristic) {
+			this.timeCharacteristic = timeCharacteristic;
+			return this;
+		}
+
+		/**
+		 * Sets the ttl time.
+		 * @param ttl The ttl time.
+		 */
+		public Builder setTtl(Time ttl) {
+			this.ttl = ttl;
+			return this;
+		}
+
+		public StateTtlConfiguration build() {
+			return new StateTtlConfiguration(
+				ttlUpdateType,
+				stateVisibility,
+				timeCharacteristic,
+				ttl
+			);
+		}
+
 	}
 }
