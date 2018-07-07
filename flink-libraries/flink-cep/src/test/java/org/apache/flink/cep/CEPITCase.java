@@ -206,7 +206,7 @@ public class CEPITCase extends AbstractTestBase {
 			Tuple2.of(new Event(4, "end", 4.0), 10L),
 			Tuple2.of(new Event(5, "middle", 5.0), 7L),
 			// last element for high final watermark
-			Tuple2.of(new Event(6, "middle", 5.0), 100L)
+			Tuple2.of(new Event(5, "middle", 5.0), 100L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
 
 			@Override
@@ -345,8 +345,8 @@ public class CEPITCase extends AbstractTestBase {
 					StringBuilder builder = new StringBuilder();
 
 					builder.append(pattern.get("start").get(0).getId()).append(",")
-							.append(pattern.get("middle").get(0).getId()).append(",")
-							.append(pattern.get("end").get(0).getId());
+						.append(pattern.get("middle").get(0).getId()).append(",")
+						.append(pattern.get("end").get(0).getId());
 
 					return builder.toString();
 				}
@@ -497,8 +497,12 @@ public class CEPITCase extends AbstractTestBase {
 
 		resultList.sort(Comparator.comparing(either -> either.toString()));
 
-		List<Either<String, String>> expected = Arrays.asList(Either.Left.of("1.0"), Either.Left.of("2.0"),
-												Either.Left.of("2.0"), Either.Right.of("2.0,2.0,2.0"));
+		List<Either<String, String>> expected = Arrays.asList(
+			Either.Left.of("1.0"),
+			Either.Left.of("2.0"),
+			Either.Left.of("2.0"),
+			Either.Right.of("2.0,2.0,2.0")
+		);
 
 		assertEquals(expected, resultList);
 	}
@@ -567,7 +571,12 @@ public class CEPITCase extends AbstractTestBase {
 
 		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		List<String> expected = Arrays.asList("1,5,6\n1,2,3\n4,5,6\n1,2,6".split("\n"));
+		List<String> expected = Arrays.asList(
+			"1,5,6",
+			"1,2,3",
+			"4,5,6",
+			"1,2,6"
+		);
 
 		expected.sort(String::compareTo);
 
@@ -658,7 +667,10 @@ public class CEPITCase extends AbstractTestBase {
 
 		DataStreamUtils.collect(result).forEachRemaining(resultList::add);
 
-		List<String> expected = Arrays.asList("1,6,4\n1,5,4".split("\n"));
+		List<String> expected = Arrays.asList(
+			"1,6,4",
+			"1,5,4"
+		);
 
 		expected.sort(String::compareTo);
 
