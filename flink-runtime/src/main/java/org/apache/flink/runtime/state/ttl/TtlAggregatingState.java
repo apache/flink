@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
@@ -39,7 +40,7 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 
 	TtlAggregatingState(
 		InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT> originalState,
-		TtlConfig config,
+		StateTtlConfiguration config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<ACC> valueSerializer,
 		TtlAggregateFunction<IN, ACC, OUT> aggregateFunction) {

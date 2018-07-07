@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
@@ -35,7 +36,7 @@ class TtlReducingState<K, N, T>
 	implements InternalReducingState<K, N, T> {
 	TtlReducingState(
 		InternalReducingState<K, N, TtlValue<T>> originalState,
-		TtlConfig config,
+		StateTtlConfiguration config,
 		TtlTimeProvider timeProvider,
 		TypeSerializer<T> valueSerializer) {
 		super(originalState, config, timeProvider, valueSerializer);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -34,7 +35,7 @@ abstract class AbstractTtlDecorator<T> {
 	/** Wrapped original state handler. */
 	final T original;
 
-	final TtlConfig config;
+	final StateTtlConfiguration config;
 
 	final TtlTimeProvider timeProvider;
 
@@ -49,18 +50,18 @@ abstract class AbstractTtlDecorator<T> {
 
 	AbstractTtlDecorator(
 		T original,
-		TtlConfig config,
+		StateTtlConfiguration config,
 		TtlTimeProvider timeProvider) {
 		Preconditions.checkNotNull(original);
 		Preconditions.checkNotNull(config);
 		Preconditions.checkNotNull(timeProvider);
-		Preconditions.checkArgument(config.getTtlUpdateType() != TtlConfig.TtlUpdateType.Disabled,
+		Preconditions.checkArgument(config.getTtlUpdateType() != StateTtlConfiguration.TtlUpdateType.Disabled,
 			"State does not need to be wrapped with TTL if it is configured as disabled.");
 		this.original = original;
 		this.config = config;
 		this.timeProvider = timeProvider;
-		this.updateTsOnRead = config.getTtlUpdateType() == TtlConfig.TtlUpdateType.OnReadAndWrite;
-		this.returnExpired = config.getStateVisibility() == TtlConfig.TtlStateVisibility.ReturnExpiredIfNotCleanedUp;
+		this.updateTsOnRead = config.getTtlUpdateType() == StateTtlConfiguration.TtlUpdateType.OnReadAndWrite;
+		this.returnExpired = config.getStateVisibility() == StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp;
 		this.ttl = config.getTtl().toMilliseconds();
 	}
 
