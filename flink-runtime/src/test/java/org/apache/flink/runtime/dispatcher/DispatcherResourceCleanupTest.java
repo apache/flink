@@ -127,6 +127,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private CompletableFuture<JobID> deleteAllFuture;
 	private CompletableFuture<ArchivedExecutionGraph> resultFuture;
 	private CompletableFuture<JobID> cleanupJobFuture;
+	private CompletableFuture<Void> terminationFuture;
 
 	@BeforeClass
 	public static void setupClass() {
@@ -162,6 +163,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			.createTestingBlobStore();
 
 		cleanupJobFuture = new CompletableFuture<>();
+		terminationFuture = new CompletableFuture<>();
 
 		blobServer = new TestingBlobServer(configuration, testingBlobStore, cleanupJobFuture);
 
@@ -185,7 +187,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 			null,
 			new MemoryArchivedExecutionGraphStore(),
-			new TestingJobManagerRunnerFactory(resultFuture, CompletableFuture.completedFuture(null)),
+			new TestingJobManagerRunnerFactory(resultFuture, terminationFuture),
 			fatalErrorHandler);
 
 		dispatcher.start();
@@ -225,6 +227,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		// complete the job
 		resultFuture.complete(new ArchivedExecutionGraphBuilder().setJobID(jobId).setState(JobStatus.FINISHED).build());
+		terminationFuture.complete(null);
 
 		assertThat(cleanupJobFuture.get(), equalTo(jobId));
 
@@ -245,6 +248,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 		// job not finished
 		resultFuture.completeExceptionally(new JobNotFinishedException(jobId));
+		terminationFuture.complete(null);
 
 		assertThat(cleanupJobFuture.get(), equalTo(jobId));
 
@@ -266,6 +270,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		submitJob();
 
 		dispatcher.shutDown();
+		terminationFuture.complete(null);
 		dispatcher.getTerminationFuture().get();
 
 		assertThat(cleanupJobFuture.get(), equalTo(jobId));
@@ -295,11 +300,63 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(runningJobsRegistry.contains(jobId), is(true));
 
 		resultFuture.complete(new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).setJobID(jobId).build());
+		terminationFuture.complete(null);
 
 		// wait for the clearing
 		clearedJobLatch.await();
 
 		assertThat(runningJobsRegistry.contains(jobId), is(false));
+	}
+
+	/**
+	 * Tests that the previous JobManager needs to be completely terminated
+	 * before a new job with the same {@link JobID} is started.
+	 */
+	@Test
+	public void testJobSubmissionUnderSameJobId() throws Exception {
+		submitJob();
+
+		runningJobsRegistry.setJobRunning(jobId);
+		resultFuture.completeExceptionally(new JobNotFinishedException(jobId));
+
+		final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(jobGraph, timeout);
+
+		try {
+			submissionFuture.get(10L, TimeUnit.MILLISECONDS);
+			fail("The job submission future should not complete until the previous JobManager " +
+				"termination future has been completed.");
+		} catch (TimeoutException ignored) {
+			// expected
+		} finally {
+			terminationFuture.complete(null);
+		}
+
+		assertThat(submissionFuture.get(), equalTo(Acknowledge.get()));
+	}
+
+	/**
+	 * Tests that recovered jobs will only be started after the complete termination of any
+	 * other previously running JobMasters for the same job.
+	 */
+	@Test
+	public void testJobRecoveryWithPendingTermination() throws Exception {
+		submitJob();
+		runningJobsRegistry.setJobRunning(jobId);
+
+		dispatcherLeaderElectionService.notLeader();
+		final UUID leaderSessionId = UUID.randomUUID();
+		final CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(leaderSessionId);
+
+		try {
+			leaderFuture.get(10L, TimeUnit.MILLISECONDS);
+			fail("We should not become leader before all previously running JobMasters have terminated.");
+		} catch (TimeoutException ignored) {
+			// expected
+		} finally {
+			terminationFuture.complete(null);
+		}
+
+		assertThat(leaderFuture.get(), equalTo(leaderSessionId));
 	}
 
 	private static final class SingleRunningJobsRegistry implements RunningJobsRegistry {
