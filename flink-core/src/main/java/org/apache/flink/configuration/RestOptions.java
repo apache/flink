@@ -107,5 +107,4 @@ public class RestOptions {
 		key("rest.client.max-content-length")
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");
-
 }

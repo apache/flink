@@ -105,6 +105,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
@@ -131,6 +132,10 @@ import java.util.stream.Collectors;
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
 public class RestClusterClient<T> extends ClusterClient<T> implements NewClusterClient {
+
+	private static final String JOBGRAPH_SERIALIZED_FILE_PREFIX = "flink-jobgraph";
+
+	private static final String JOBGRAPH_SERIALIZED_FILE_SUFFIX = ".bin";
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 
@@ -316,8 +321,25 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		jobGraph.setAllowQueuedScheduling(true);
 
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
+			String jobGraphLocation = restClusterClientConfiguration.getSerializedJobGraphLocation();
+
 			try {
-				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
+				final java.nio.file.Path jobGraphFile;
+				if (!jobGraphLocation.equals("")) {
+					File storeDir = new File(jobGraphLocation);
+					if (!storeDir.exists()) {
+						storeDir.mkdirs();
+					}
+
+					//format : flink-jobgraph-${jobId}.bin
+					jobGraphFile = Paths.get(jobGraphLocation, JOBGRAPH_SERIALIZED_FILE_PREFIX, "-",
+						jobGraph.getJobID().toString(), JOBGRAPH_SERIALIZED_FILE_SUFFIX);
+
+					Files.createFile(jobGraphFile);
+				} else {
+					jobGraphFile = Files.createTempFile(JOBGRAPH_SERIALIZED_FILE_PREFIX, JOBGRAPH_SERIALIZED_FILE_SUFFIX);
+				}
+
 				try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
 					objectOut.writeObject(jobGraph);
 				}

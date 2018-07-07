@@ -25,11 +25,14 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A configuration object for {@link RestClusterClient}s.
  */
 public final class RestClusterClientConfiguration {
+
+	public static final String SERIALIZED_JOBGRAPH_LOCATION_KEY = "rest.serialized-jobgraph-location";
 
 	private final RestClientConfiguration restClientConfiguration;
 
@@ -39,19 +42,24 @@ public final class RestClusterClientConfiguration {
 
 	private final long retryDelay;
 
+	private final String serializedJobGraphLocation;
+
 	private RestClusterClientConfiguration(
 			final RestClientConfiguration endpointConfiguration,
 			final long awaitLeaderTimeout,
 			final int retryMaxAttempts,
-			final long retryDelay) {
+			final long retryDelay,
+			final String serializedJobGraphLocation) {
 		checkArgument(awaitLeaderTimeout >= 0, "awaitLeaderTimeout must be equal to or greater than 0");
 		checkArgument(retryMaxAttempts >= 0, "retryMaxAttempts must be equal to or greater than 0");
 		checkArgument(retryDelay >= 0, "retryDelay must be equal to or greater than 0");
+		checkNotNull(serializedJobGraphLocation, "serialized job graph location can not be null");
 
 		this.restClientConfiguration = Preconditions.checkNotNull(endpointConfiguration);
 		this.awaitLeaderTimeout = awaitLeaderTimeout;
 		this.retryMaxAttempts = retryMaxAttempts;
 		this.retryDelay = retryDelay;
+		this.serializedJobGraphLocation = serializedJobGraphLocation;
 	}
 
 	public RestClientConfiguration getRestClientConfiguration() {
@@ -79,13 +87,22 @@ public final class RestClusterClientConfiguration {
 		return retryDelay;
 	}
 
+	/**
+	 * Client-side configuration for the location of the serialized job graph.
+	 */
+	public String getSerializedJobGraphLocation() {
+		return serializedJobGraphLocation;
+	}
+
 	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		RestClientConfiguration restClientConfiguration = RestClientConfiguration.fromConfiguration(config);
 
 		final long awaitLeaderTimeout = config.getLong(RestOptions.AWAIT_LEADER_TIMEOUT);
 		final int retryMaxAttempts = config.getInteger(RestOptions.RETRY_MAX_ATTEMPTS);
 		final long retryDelay = config.getLong(RestOptions.RETRY_DELAY);
+		final String jobGraphStorePath = config.getString(SERIALIZED_JOBGRAPH_LOCATION_KEY, "");
 
-		return new RestClusterClientConfiguration(restClientConfiguration, awaitLeaderTimeout, retryMaxAttempts, retryDelay);
+		return new RestClusterClientConfiguration(restClientConfiguration, awaitLeaderTimeout,
+			retryMaxAttempts, retryDelay, jobGraphStorePath);
 	}
 }
