@@ -21,39 +21,49 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 
-import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 
 /**
- * This test delegates to instances of {@link AbstractEventTimeWindowCheckpointingITCase} that have been reconfigured
+ * This test delegates to instances of {@link EventTimeWindowCheckpointingITCase} that have been reconfigured
  * to use local recovery.
  *
- * <p>TODO: This class must be refactored to properly extend {@link AbstractEventTimeWindowCheckpointingITCase}.
+ * <p>TODO: This class must be refactored to properly extend {@link EventTimeWindowCheckpointingITCase}.
  */
-public abstract class AbstractLocalRecoveryITCase extends TestLogger {
+@RunWith(Parameterized.class)
+public class LocalRecoveryITCase extends TestLogger {
 
-	private final StateBackendEnum backendEnum;
-	private final boolean localRecoveryEnabled;
+	private final boolean localRecoveryEnabled = true;
 
 	@Rule
 	public TestName testName = new TestName();
 
-	AbstractLocalRecoveryITCase(StateBackendEnum backendEnum, boolean localRecoveryEnabled) {
-		this.backendEnum = backendEnum;
-		this.localRecoveryEnabled = localRecoveryEnabled;
+	@Parameterized.Parameter
+	public StateBackendEnum backendEnum;
+
+	@Parameterized.Parameters(name = "statebackend type ={0}")
+	public static Collection<StateBackendEnum> parameter() {
+		return Arrays.asList(ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL_ZK, FILE_ASYNC);
 	}
 
 	@Test
 	public final void executeTest() throws Exception {
-		AbstractEventTimeWindowCheckpointingITCase.tempFolder.create();
-		AbstractEventTimeWindowCheckpointingITCase windowChkITCase =
-			new AbstractEventTimeWindowCheckpointingITCase() {
+		EventTimeWindowCheckpointingITCase.tempFolder.create();
+		EventTimeWindowCheckpointingITCase windowChkITCase =
+			new EventTimeWindowCheckpointingITCase() {
+
 				@Override
 				protected StateBackendEnum getStateBackend() {
 					return backendEnum;
@@ -74,7 +84,7 @@ public abstract class AbstractLocalRecoveryITCase extends TestLogger {
 		executeTest(windowChkITCase);
 	}
 
-	private void executeTest(AbstractEventTimeWindowCheckpointingITCase delegate) throws Exception {
+	private void executeTest(EventTimeWindowCheckpointingITCase delegate) throws Exception {
 		delegate.name = testName;
 		try {
 			delegate.setupTestCluster();
