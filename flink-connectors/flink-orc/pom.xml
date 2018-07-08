@@ -55,6 +55,14 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-filesystem_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<!-- Projects depending on this project, won't depend on flink-filesystem. -->
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
 			<version>1.4.3</version>

@@ -58,7 +58,7 @@ import java.util.function.LongFunction;
 /**
  * A class that provides utility methods for orc file reading.
  */
-class OrcBatchReader {
+public class OrcBatchReader {
 
 	private static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
@@ -69,7 +69,7 @@ class OrcBatchReader {
 	 * @param schema The ORC schema.
 	 * @return The TypeInformation that corresponds to the ORC schema.
 	 */
-	static TypeInformation schemaToTypeInfo(TypeDescription schema) {
+	public static TypeInformation schemaToTypeInfo(TypeDescription schema) {
 		switch (schema.getCategory()) {
 			case BOOLEAN:
 				return BasicTypeInfo.BOOLEAN_TYPE_INFO;
