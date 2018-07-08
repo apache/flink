@@ -2070,6 +2070,144 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testQuarter(): Unit = {
+    testAllApis(
+      "1997-01-27".toDate.quarter(),
+      "'1997-01-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-01-27')",
+      "1")
+
+    testAllApis(
+      "1997-04-27".toDate.quarter(),
+      "'1997-04-27'.toDate.quarter()",
+      "QUARTER(DATE '1997-04-27')",
+      "2")
+
+    testAllApis(
+      "1997-12-31".toDate.quarter(),
+      "'1997-12-31'.toDate.quarter()",
+      "QUARTER(DATE '1997-12-31')",
+      "4")
+  }
+
+  @Test
+  def testTimestampDiff(): Unit = {
+    testAllApis(
+      timestampDiff(
+        TimeIntervalUnit.DAY,
+        "2018-07-03 11:11:11".toTimestamp,
+        "2018-07-05 11:11:11".toTimestamp),
+      "timestampDiff(DAY, '2018-07-03 11:11:11'.toTimestamp," +
+        "'2018-07-05 11:11:11'.toTimestamp)",
+      "TIMESTAMPDIFF(DAY, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-07-05 11:11:11')",
+      "2")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate, "2016-06-16 11:11:11".toTimestamp),
+      "timestampDiff(DAY, '2016-06-15'.toDate, '2016-06-16 11:11:11'.toTimestamp)",
+      "TIMESTAMPDIFF(DAY, DATE '2016-06-15', TIMESTAMP '2016-06-16 11:11:11')",
+      "1")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.DAY, "2016-06-15 11:00:00".toTimestamp, "2016-06-19".toDate),
+      "timestampDiff(DAY, '2016-06-15 11:00:00'.toTimestamp, '2016-06-19'.toDate)",
+      "TIMESTAMPDIFF(DAY, TIMESTAMP '2016-06-15 11:00:00', DATE '2016-06-19')",
+      "3")
+
+    testAllApis(
+      timestampDiff(
+          TimeIntervalUnit.MONTH,
+          "2018-07-03 11:11:11".toTimestamp,
+          "2018-09-05 11:11:11".toTimestamp),
+      "timestampDiff(MONTH, " +
+        "'2018-07-03 11:11:11'.toTimestamp, '2018-09-05 11:11:11'.toTimestamp)",
+      "TIMESTAMPDIFF(MONTH, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-09-05 11:11:11')",
+      "2")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.MONTH, "2016-06-15".toDate, "2016-04-18".toDate),
+      "TIMESTAMPDIFF(MONTH, '2016-06-15'.toDate, '2016-04-18'.toDate)",
+      "TIMESTAMPDIFF(MONTH, DATE '2016-06-15', DATE '2016-04-18')",
+      "-1")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.MONTH, "2016-06-15".toDate, "2016-04-14".toDate),
+      "timestampDiff(MONTH, '2016-06-15'.toDate, '2016-04-14'.toDate)",
+      "TIMESTAMPDIFF(MONTH, DATE '2016-06-15', DATE '2016-04-14')",
+      "-2")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.YEAR, "2016-06-15".toDate, "2019-06-16 11:11:11".toTimestamp),
+      "timestampDiff(YEAR, '2016-06-15'.toDate, '2019-06-16 11:11:11'.toTimestamp)",
+      "TIMESTAMPDIFF(YEAR, DATE '2016-06-15', TIMESTAMP '2019-06-16 11:11:11')",
+      "3")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.YEAR, "2016-06-15 11:00:00".toTimestamp, "2013-06-19".toDate),
+      "timestampDiff(YEAR, '2016-06-15 11:00:00'.toTimestamp, '2013-06-19'.toDate)",
+      "TIMESTAMPDIFF(YEAR, TIMESTAMP '2016-06-15 11:00:00', DATE '2013-06-19')",
+      "-2")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate, "2016-06-18".toDate),
+      "timestampDiff(DAY, '2016-06-15'.toDate, '2016-06-18'.toDate)",
+      "TIMESTAMPDIFF(DAY, DATE '2016-06-15', DATE '2016-06-18')",
+      "3")
+
+    testAllApis(
+      timestampDiff(
+        TimeIntervalUnit.HOUR,
+        "2018-07-03 11:11:11".toTimestamp,
+        "2018-07-04 12:12:11".toTimestamp),
+      "timestampDiff(HOUR, '2018-07-03 11:11:11'.toTimestamp," +
+        "'2018-07-04 12:12:11'.toTimestamp)",
+      "TIMESTAMPDIFF(HOUR, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-07-04 12:12:11')",
+      "25")
+
+    testAllApis(
+      timestampDiff(
+        TimeIntervalUnit.HOUR,
+        "2018-07-03 11:11:11".toTimestamp,
+        "2018-07-04 12:10:11".toTimestamp),
+      "timestampDiff(HOUR, '2018-07-03 11:11:11'.toTimestamp," +
+        "'2018-07-04 12:10:11'.toTimestamp)",
+      "TIMESTAMPDIFF(HOUR, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-07-04 12:10:11')",
+      "24")
+
+    testAllApis(
+      timestampDiff(
+        TimeIntervalUnit.MINUTE,
+        "2018-07-03 11:11:11".toTimestamp,
+        "2018-07-03 12:10:11".toTimestamp),
+      "timestampDiff(MINUTE, '2018-07-03 11:11:11'.toTimestamp," +
+        "'2018-07-03 12:10:11'.toTimestamp)",
+      "TIMESTAMPDIFF(MINUTE, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-07-03 12:10:11')",
+      "59")
+
+    testAllApis(
+      timestampDiff(
+        TimeIntervalUnit.SECOND,
+        "2018-07-03 11:11:11".toTimestamp,
+        "2018-07-03 11:12:12".toTimestamp),
+      "timestampDiff(SECOND, '2018-07-03 11:11:11'.toTimestamp," +
+        "'2018-07-03 11:12:12'.toTimestamp)",
+      "TIMESTAMPDIFF(SECOND, " +
+        "TIMESTAMP '2018-07-03 11:11:11', TIMESTAMP '2018-07-03 11:12:12')",
+      "61")
+
+    testAllApis(
+      timestampDiff(TimeIntervalUnit.MINUTE, "2018-07-03".toDate, "2018-07-04".toDate),
+      "timestampDiff(MINUTE, '2018-07-03'.toDate, '2018-07-04'.toDate)",
+      "TIMESTAMPDIFF(MINUTE, DATE '2018-07-03', DATE '2018-07-04')",
+      "1440")
+  }
+
+  @Test
   def testTimestampAdd(): Unit = {
     val data = Seq(
       (1, "2017-11-29 22:58:58.998"),

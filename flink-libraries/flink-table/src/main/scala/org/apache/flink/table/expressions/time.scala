@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
@@ -339,4 +342,67 @@ case class DateFormat(timestamp: Expression, format: Expression) extends Express
   override def toString: String = s"$timestamp.dateFormat($format)"
 
   override private[flink] def resultType = STRING_TYPE_INFO
+}
+
+case class TimestampDiff(
+    timeIntervalUnit: Expression,
+    timestamp1: Expression,
+    timestamp2: Expression)
+  extends Expression {
+
+  override private[flink] def children: Seq[Expression] =
+    timeIntervalUnit :: timestamp1 :: timestamp2 :: Nil
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (!TypeCheckUtils.isTimePoint(timestamp1.resultType)) {
+      return ValidationFailure(s"TimestampDiff operator requires Temporal input, " +
+        s"but timestamp1 is of type ${timestamp1.resultType}")
+    }
+
+    if (!TypeCheckUtils.isTimePoint(timestamp2.resultType)) {
+      return ValidationFailure(s"TimestampDiff operator requires Temporal input, " +
+        s"but timestamp2 is of type ${timestamp2.resultType}")
+    }
+
+    timeIntervalUnit match {
+      case SymbolExpression(TimeIntervalUnit.YEAR)
+           | SymbolExpression(TimeIntervalUnit.MONTH)
+           | SymbolExpression(TimeIntervalUnit.DAY)
+           | SymbolExpression(TimeIntervalUnit.HOUR)
+           | SymbolExpression(TimeIntervalUnit.MINUTE)
+           | SymbolExpression(TimeIntervalUnit.SECOND)
+        if timestamp1.resultType == SqlTimeTypeInfo.DATE
+          || timestamp1.resultType == SqlTimeTypeInfo.TIMESTAMP
+          || timestamp2.resultType == SqlTimeTypeInfo.DATE
+          || timestamp2.resultType == SqlTimeTypeInfo.TIMESTAMP =>
+        ValidationSuccess
+
+      case _ =>
+        ValidationFailure(s"TimestampDiff operator does not support unit '$timeIntervalUnit'" +
+            s" for input of type ('${timestamp1.resultType}', '${timestamp2.resultType}').")
+    }
+  }
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val typeFactory = relBuilder
+      .asInstanceOf[FlinkRelBuilder]
+      .getTypeFactory
+
+    val intervalUnit = timeIntervalUnit.asInstanceOf[SymbolExpression].symbol
+      .enum.asInstanceOf[TimeUnitRange]
+    val intervalType = typeFactory.createSqlIntervalType(
+      new SqlIntervalQualifier(intervalUnit.startUnit, intervalUnit.endUnit, SqlParserPos.ZERO))
+
+    val rexCall = relBuilder
+      .getRexBuilder
+      .makeCall(intervalType, SqlStdOperatorTable.MINUS_DATE,
+        List(timestamp2.toRexNode, timestamp1.toRexNode))
+
+    val intType = typeFactory.createSqlType(SqlTypeName.INTEGER)
+
+    relBuilder.getRexBuilder.makeCast(intType, rexCall)
+  }
+
+  override def toString: String = s"timestampDiff(${children.mkString(", ")})"
+
+  override private[flink] def resultType = INT_TYPE_INFO
 }

@@ -19,8 +19,11 @@ package org.apache.flink.table.codegen.calls
 
 import java.math.MathContext
 
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
+import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
@@ -825,6 +828,7 @@ object ScalarOperators {
   def generateTemporalPlusMinus(
       plus: Boolean,
       nullCheck: Boolean,
+      typeName: SqlTypeName,
       left: GeneratedExpression,
       right: GeneratedExpression,
       config: TableConfig)
@@ -859,6 +863,35 @@ object ScalarOperators {
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
           (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
+
+      case (l: SqlTimeTypeInfo[_], r: SqlTimeTypeInfo[_]) if !plus =>
+        generateOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, left, right) {
+          (ll, rr) => typeName match {
+            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
+              (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll, $rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
+                    s"($ll * ${MILLIS_PER_DAY}L, $rr)"
+                case _ =>
+                  s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
+              }
+
+            case _ =>
+              (l, r) match {
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"$ll $op $rr"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
+                  s"$ll $op ($rr * ${MILLIS_PER_DAY}L)"
+                case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
+                  s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
+              }
+          }
         }
 
       case _ =>
