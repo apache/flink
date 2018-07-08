@@ -150,7 +150,7 @@
       [(str "-c " (:main-class test))]
       [])
     (if (= :yarn-job (:deployment-mode test))
-      ["-m yarn-cluster" "-yjm 2048" "-ytm 2048"]
+      ["-m yarn-cluster" "-yjm 2048m" "-ytm 2048m"]
       [])))
 
 (defn submit-job!
@@ -175,7 +175,7 @@
           (c/su
             (c/exec (c/lit (str "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
                                 "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir
-                                " " install-dir "/bin/yarn-session.sh -d -jm 2048 -tm 2048")))
+                                " " install-dir "/bin/yarn-session.sh -d -jm 2048m -tm 2048m")))
             (submit-job! test)))))
 
 (defn start-yarn-job!
