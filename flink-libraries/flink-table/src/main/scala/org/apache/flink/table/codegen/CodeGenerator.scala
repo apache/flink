@@ -769,7 +769,7 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = true, nullCheck, left, right, config)
+        generateTemporalPlusMinus(plus = true, nullCheck, resultType, left, right, config)
 
       case MINUS if isNumeric(resultType) =>
         val left = operands.head
@@ -783,7 +783,7 @@ abstract class CodeGenerator(
         val right = operands(1)
         requireTemporal(left)
         requireTemporal(right)
-        generateTemporalPlusMinus(plus = false, nullCheck, left, right, config)
+        generateTemporalPlusMinus(plus = false, nullCheck, resultType, left, right, config)
 
       case MULTIPLY if isNumeric(resultType) =>
         val left = operands.head

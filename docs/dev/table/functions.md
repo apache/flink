@@ -3311,14 +3311,27 @@ DATE_FORMAT(timestamp, string)
     <tr>
       <td>
         {% highlight text %}
-TIMESTAMPADD(unit, interval, timevalue)
+TIMESTAMPADD(timeintervalunit, interval, timepoint)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new time value that adds a (signed) integer interval to <i>timevalue</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
+        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
         <p>E.g., <code>TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')</code> returns <code>2003-01-09</code>.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>timepointunit</i> between <i>timepoint1</i> and <i>timepoint2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -3564,6 +3577,19 @@ dateFormat(TIMESTAMP, STRING)
         <p>E.g., <code>dateFormat(ts, '%Y, %d %M')</code> results in strings formatted as "2017, 05 May".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>TIMEPOINTUNIT</i> between <i>TIMEPOINT1</i> and <i>TIMEPOINT2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>timestampDiff(DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
     </tbody>
 </table>
 </div>
@@ -3809,6 +3835,19 @@ dateFormat(TIMESTAMP, STRING)
         <p>E.g., <code>dateFormat('ts, "%Y, %d %M")</code> results in strings formatted as "2017, 05 May".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the (signed) number of <i>TIMEPOINTUNIT</i> between <i>TIMEPOINT1</i> and <i>TIMEPOINT2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
+        <p>E.g., <code>timestampDiff(TimePointUnit.DAY, '2003-01-02 10:00:00'.toTimestamp, '2003-01-03 10:00:00'.toTimestamp)</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 </div>
@@ -5461,5 +5500,46 @@ The following table lists specifiers for date format functions.
   </tr>
   </tbody>
 </table>
+
+{% top %}
+
+Time Interval and Point Unit Specifiers
+---------------------------------------
+
+The following table lists specifiers for time interval and time point units. 
+
+For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+
+| Time Interval Unit       | Time Point Unit                |
+| :----------------------- | :----------------------------- |
+| `MILLENIUM` _(SQL-only)_ |                                |
+| `CENTURY` _(SQL-only)_   |                                |
+| `YEAR`                   | `YEAR`                         |
+| `YEAR TO MONTH`          |                                |
+| `QUARTER`                | `QUARTER`                      |
+| `MONTH`                  | `MONTH`                        |
+| `WEEK`                   | `WEEK`                         |
+| `DAY`                    | `DAY`                          |
+| `DAY TO HOUR`            |                                |
+| `DAY TO MINUTE`          |                                |
+| `DAY TO SECOND`          |                                |
+| `HOUR`                   | `HOUR`                         |
+| `HOUR TO MINUTE`         |                                |
+| `HOUR TO SECOND`         |                                |
+| `MINUTE`                 | `MINUTE`                       |
+| `MINUTE TO SECOND`       |                                |
+| `SECOND`                 | `SECOND`                       |
+|                          | `MILLISECOND`                  |
+|                          | `MICROSECOND`                  |
+| `DOY` _(SQL-only)_       |                                |
+| `DOW` _(SQL-only)_       |                                |
+|                          | `SQL_TSI_YEAR` _(SQL-only)_    |
+|                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
+|                          | `SQL_TSI_MONTH` _(SQL-only)_   |
+|                          | `SQL_TSI_WEEK` _(SQL-only)_    |
+|                          | `SQL_TSI_DAY` _(SQL-only)_     |
+|                          | `SQL_TSI_HOUR` _(SQL-only)_    |
+|                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
+|                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
 
 {% top %}

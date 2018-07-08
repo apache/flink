@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen.calls
 
 import java.lang.reflect.Method
 
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -530,6 +531,29 @@ object FunctionGenerator {
     EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE),
     new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(
+      new GenericTypeInfo(classOf[TimeUnit]),
+      SqlTimeTypeInfo.TIMESTAMP,
+      SqlTimeTypeInfo.TIMESTAMP),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnit]), SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnit]), SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnit]), SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE),
+    new TimestampDiffCallGen)
 
   addSqlFunction(
     FLOOR,

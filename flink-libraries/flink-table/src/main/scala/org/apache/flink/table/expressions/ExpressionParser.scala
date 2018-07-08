@@ -59,6 +59,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val TO_TIMESTAMP: Keyword = Keyword("toTimestamp")
   lazy val TRIM: Keyword = Keyword("trim")
   lazy val EXTRACT: Keyword = Keyword("extract")
+  lazy val TIMESTAMP_DIFF: Keyword = Keyword("timestampDiff")
   lazy val FLOOR: Keyword = Keyword("floor")
   lazy val CEIL: Keyword = Keyword("ceil")
   lazy val LOG: Keyword = Keyword("log")
@@ -392,6 +393,11 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ => Extract(unit, operand)
     }
 
+  lazy val prefixTimestampDiff: PackratParser[Expression] =
+    TIMESTAMP_DIFF ~ "(" ~ timePointUnit ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
+      case _ ~ _ ~ unit ~ _ ~ operand1 ~ _ ~ operand2 ~ _ => TimestampDiff(unit, operand1, operand2)
+    }
+
   lazy val prefixFloor: PackratParser[Expression] =
     FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ => TemporalFloor(unit, operand)
@@ -437,6 +443,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     prefixAs| prefixToTimestamp | prefixToTime | prefixToDate |
     // expressions that take enumerations
     prefixCast | prefixTrim | prefixTrimWithoutArgs | prefixExtract | prefixFloor | prefixCeil |
+      prefixTimestampDiff |
     // expressions that take literals
     prefixGet |
     // expression with special identifier

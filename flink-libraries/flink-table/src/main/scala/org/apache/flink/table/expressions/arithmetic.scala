@@ -42,11 +42,10 @@ abstract class BinaryArithmetic extends BinaryExpression {
         throw new RuntimeException("This should never happen.")
     }
 
-  // TODO: tighten this rule once we implemented type coercion rules during validation
   override private[flink] def validateInput(): ValidationResult = {
     if (!isNumeric(left.resultType) || !isNumeric(right.resultType)) {
-      ValidationFailure(s"$this requires both operands Numeric, get " +
-        s"$left : ${left.resultType} and $right : ${right.resultType}")
+      ValidationFailure(s"The arithmetic '$this' requires both operands to be numeric, but was " +
+        s"'$left' : '${left.resultType}' and '$right' : '${right.resultType}'.")
     } else {
       ValidationSuccess
     }
@@ -93,9 +92,9 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationSuccess
     } else {
       ValidationFailure(
-        s"$this requires Numeric, String, Intervals of same type, " +
-        s"or Interval and a time point input, " +
-        s"get $left : ${left.resultType} and $right : ${right.resultType}")
+        s"The arithmetic '$this' requires input that is numeric, string, time intervals of the " +
+        s"same type, or a time interval and a time point type, " +
+        s"but was '$left' : '${left.resultType}' and '$right' : '${right.resultType}'.")
     }
   }
 }
@@ -115,7 +114,8 @@ case class UnaryMinus(child: Expression) extends UnaryExpression {
     } else if (isTimeInterval(child.resultType)) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"$this requires Numeric, or Interval input, get ${child.resultType}")
+      ValidationFailure(s"The arithmetic '$this' requires input that is numeric or a time " +
+        s"interval type, but was '${child.resultType}'.")
     }
   }
 }
@@ -132,8 +132,13 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationSuccess
     } else if (isTimeInterval(left.resultType) && isTimePoint(right.resultType)) {
       ValidationSuccess
+    } else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      ValidationSuccess
     } else {
-      super.validateInput()
+      ValidationFailure(
+        s"The arithmetic '$this' requires inputs that are numeric, time intervals of the same " +
+        s"type, or a time interval and a time point type, " +
+        s"but was '$left' : '${left.resultType}' and '$right' : '${right.resultType}'.")
     }
   }
 }
