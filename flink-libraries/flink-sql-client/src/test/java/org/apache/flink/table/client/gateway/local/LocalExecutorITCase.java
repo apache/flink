@@ -66,6 +66,7 @@ import static org.junit.Assert.assertTrue;
 public class LocalExecutorITCase extends TestLogger {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String UDF_ENVIRONMENT_FILE = "test-sql-client-udf.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -149,6 +150,68 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
+	public void testScalarUDF() throws Exception {
+		final Executor executor =
+				createDefaultExecutor(UDF_ENVIRONMENT_FILE, clusterClient);
+		final SessionContext session = new SessionContext("test-scalarUDF", new Environment());
+		final ResultDescriptor rd =
+				executor.executeQuery(session, "SELECT scalarUDF(10)");
+		final List<String> actualResults =
+				retrieveChangelogResult(executor, session, rd.getResultId());
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("(true,15)");
+		TestBaseUtils.compareResultCollections(
+				expectedResults, actualResults, Comparator.naturalOrder());
+	}
+
+	@Test(timeout = 30_000L)
+	public void testAggregateUDF() throws Exception {
+		final Executor executor =
+				createDefaultExecutor(UDF_ENVIRONMENT_FILE, clusterClient);
+		final SessionContext session = new SessionContext("test-aggregateUDF", new Environment());
+		final ResultDescriptor rd =
+				executor.executeQuery(session, "SELECT aggregateUDF(cast(1 as BIGINT))");
+		final List<String> actualResults =
+				retrieveChangelogResult(executor, session, rd.getResultId());
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("(true,100)");
+		TestBaseUtils.compareResultCollections(
+				expectedResults, actualResults, Comparator.naturalOrder());
+	}
+
+	@Test(timeout = 30_000L)
+	public void testTableUDF() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		final Executor executor =
+				createModifiedExecutor(UDF_ENVIRONMENT_FILE, clusterClient, replaceVars);
+
+		final SessionContext session = new SessionContext("test-aggregateUDF", new Environment());
+		final ResultDescriptor rd =
+				executor.executeQuery(
+						session,
+						"SELECT w, l from TableNumber1, LATERAL TABLE(tableUDF(StringField1)) as T(w, l)");
+		final List<String> actualResults =
+				retrieveChangelogResult(executor, session, rd.getResultId());
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World,10)");
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World,10)");
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World,10)");
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World,10)");
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World,10)");
+		expectedResults.add("(true,Hello,10)");
+		expectedResults.add("(true,World!!!!,14)");
+		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+	}
+
+	@Test(timeout = 30_000L)
 	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
@@ -167,20 +230,8 @@ public class LocalExecutorITCase extends TestLogger {
 
 			assertFalse(desc.isMaterialized());
 
-			final List<String> actualResults = new ArrayList<>();
-
-			while (true) {
-				Thread.sleep(50); // slow the processing down
-				final TypedResult<List<Tuple2<Boolean, Row>>> result =
-					executor.retrieveResultChanges(session, desc.getResultId());
-				if (result.getType() == TypedResult.ResultType.PAYLOAD) {
-					for (Tuple2<Boolean, Row> change : result.getPayload()) {
-						actualResults.add(change.toString());
-					}
-				} else if (result.getType() == TypedResult.ResultType.EOS) {
-					break;
-				}
-			}
+			final List<String> actualResults =
+					retrieveChangelogResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
 			expectedResults.add("(true,42,Hello World)");
@@ -266,19 +317,32 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
+		return createDefaultExecutor(DEFAULTS_ENVIRONMENT_FILE, clusterClient);
+	}
+
+	private <T> LocalExecutor createDefaultExecutor(
+			String configFileName, ClusterClient<T>
+			clusterClient) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, Collections.singletonMap("$VAR_2", "batch")),
+			EnvironmentFileUtil.parseModified(configFileName, Collections.singletonMap("$VAR_2", "batch")),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));
 	}
 
 	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+		return createModifiedExecutor(DEFAULTS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+	}
+
+	private <T> LocalExecutor createModifiedExecutor(
+			String configFileName,
+			ClusterClient<T> clusterClient,
+			Map<String, String>	replaceVars) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
-			Collections.emptyList(),
-			clusterClient.getFlinkConfiguration(),
-			new DummyCustomCommandLine<T>(clusterClient));
+				EnvironmentFileUtil.parseModified(configFileName, replaceVars),
+				Collections.emptyList(),
+				clusterClient.getFlinkConfiguration(),
+				new DummyCustomCommandLine<T>(clusterClient));
 	}
 
 	private List<String> retrieveTableResult(
@@ -302,6 +366,26 @@ public class LocalExecutorITCase extends TestLogger {
 			}
 		}
 
+		return actualResults;
+	}
+
+	private List<String> retrieveChangelogResult(
+			Executor executor,
+			SessionContext session,
+			String resultID) throws InterruptedException {
+		final List<String> actualResults = new ArrayList<>();
+		while (true) {
+			Thread.sleep(50); // slow the processing down
+			final TypedResult<List<Tuple2<Boolean, Row>>> result =
+					executor.retrieveResultChanges(session, resultID);
+			if (result.getType() == TypedResult.ResultType.PAYLOAD) {
+				for (Tuple2<Boolean, Row> change : result.getPayload()) {
+					actualResults.add(change.toString());
+				}
+			} else if (result.getType() == TypedResult.ResultType.EOS) {
+				break;
+			}
+		}
 		return actualResults;
 	}
 }
