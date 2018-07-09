@@ -220,8 +220,10 @@ class PartitionRequestClientFactory {
 			}
 			else {
 				notifyOfError(new LocalTransportException(
-						"Connecting to remote task manager + '" + connectionId.getAddress() +
-								"' has been cancelled.", null));
+					String.format(
+						"Connecting to remote task manager '%s' has been cancelled.",
+						connectionId.getAddress()),
+					null));
 			}
 		}
 	}
