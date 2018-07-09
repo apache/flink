@@ -37,15 +37,10 @@ export EXIT_CODE=0
 echo "Flink dist directory: $FLINK_DIR"
 
 TEST_ROOT=`pwd`
-TEST_INFRA_DIR="$0"
-TEST_INFRA_DIR=`dirname "$TEST_INFRA_DIR"`
+TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
 TEST_INFRA_DIR=`pwd`
 cd $TEST_ROOT
-
-# used to randomize created directories
-export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
-echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
 function print_mem_use_osx {
     declare -a mem_types=("active" "inactive" "wired down")
@@ -278,6 +273,12 @@ function check_logs_for_non_empty_out_files {
     cat $FLINK_DIR/log/*.out
     EXIT_CODE=1
   fi
+}
+
+function shutdown_all {
+	stop_cluster
+  tm_kill_all
+  jm_kill_all
 }
 
 function stop_cluster {
@@ -536,10 +537,12 @@ function end_timer {
 
 function clean_stdout_files {
     rm ${FLINK_DIR}/log/*.out
+    echo "Deleted all stdout files under ${FLINK_DIR}/log/"
 }
 
 function clean_log_files {
     rm ${FLINK_DIR}/log/*
+    echo "Deleted all files under ${FLINK_DIR}/log/"
 }
 
 # Expect a string to appear in the log files of the task manager before a given timeout
