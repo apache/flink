@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
@@ -114,9 +115,10 @@ public class PartitionRequestClient {
 			public void operationComplete(ChannelFuture future) throws Exception {
 				if (!future.isSuccess()) {
 					clientHandler.removeInputChannel(inputChannel);
+					SocketAddress remoteAddr = future.channel().remoteAddress();
 					inputChannel.onError(
 							new LocalTransportException(
-									"Sending the partition request failed.",
+									"Sending the partition request to '" + remoteAddr + "' failed.",
 									future.channel().localAddress(), future.cause()
 							));
 				}
@@ -158,8 +160,9 @@ public class PartitionRequestClient {
 							@Override
 							public void operationComplete(ChannelFuture future) throws Exception {
 								if (!future.isSuccess()) {
+									SocketAddress remoteAddr = future.channel().remoteAddress();
 									inputChannel.onError(new LocalTransportException(
-											"Sending the task event failed.",
+											"Sending the task event to '" + remoteAddr + "' failed.",
 											future.channel().localAddress(), future.cause()
 									));
 								}
@@ -193,7 +196,9 @@ public class PartitionRequestClient {
 
 	private void checkNotClosed() throws IOException {
 		if (closeReferenceCounter.isDisposed()) {
-			throw new LocalTransportException("Channel closed.", tcpChannel.localAddress());
+			final SocketAddress localAddr = tcpChannel.localAddress();
+			final SocketAddress remoteAddr = tcpChannel.remoteAddress();
+			throw new LocalTransportException("Channel to '" + remoteAddr + "'closed.", localAddr);
 		}
 	}
 }
