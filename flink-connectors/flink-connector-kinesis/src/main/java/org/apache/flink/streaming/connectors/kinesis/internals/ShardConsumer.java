@@ -199,6 +199,7 @@ public class ShardConsumer<T> implements Runnable {
 				}
 			}
 
+			long lastTimeNanos = 0;
 			while (isRunning()) {
 				if (nextShardItr == null) {
 					fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
@@ -207,7 +208,12 @@ public class ShardConsumer<T> implements Runnable {
 					break;
 				} else {
 					if (fetchIntervalMillis != 0) {
-						Thread.sleep(fetchIntervalMillis);
+						long elapsedTimeNanos = System.nanoTime() - lastTimeNanos;
+						long sleepTimeMillis = fetchIntervalMillis - (elapsedTimeNanos / 1_000_000);
+						if (sleepTimeMillis > 0) {
+							Thread.sleep(sleepTimeMillis);
+						}
+						lastTimeNanos = System.nanoTime();
 					}
 
 					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
