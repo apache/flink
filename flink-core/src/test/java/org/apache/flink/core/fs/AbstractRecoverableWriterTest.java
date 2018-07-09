@@ -39,7 +39,7 @@ import static org.junit.Assert.fail;
  * A base test-suite for the {@link RecoverableWriter}.
  * This should be subclassed to test each filesystem specific writer.
  */
-public abstract class AbstractResumableWriterTest extends TestLogger {
+public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 	private static final Random RND = new Random();
 
@@ -53,20 +53,20 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 
 	public abstract Path getBasePath() throws Exception;
 
-	public abstract FileSystem initializeFileSystem();
+	public abstract FileSystem initializeFileSystem() throws Exception;
 
 	public Path getBasePathForTest() {
 		return basePathForTest;
 	}
 
-	private FileSystem getFileSystem() {
+	private FileSystem getFileSystem() throws Exception {
 		if (fileSystem == null) {
 			fileSystem = initializeFileSystem();
 		}
 		return fileSystem;
 	}
 
-	private RecoverableWriter getNewFileSystemWriter() throws IOException {
+	private RecoverableWriter getNewFileSystemWriter() throws Exception {
 		return getFileSystem().createRecoverableWriter();
 	}
 
@@ -358,7 +358,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		fail();
 	}
 
-	private Map<Path, String> getFileContentByPath(Path directory) throws IOException {
+	private Map<Path, String> getFileContentByPath(Path directory) throws Exception {
 		Map<Path, String> contents = new HashMap<>();
 
 		final FileStatus[] filesInBucket = getFileSystem().listStatus(directory);

@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.fs.local;
 
-import org.apache.flink.core.fs.AbstractResumableWriterTest;
+import org.apache.flink.core.fs.AbstractRecoverableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
@@ -28,7 +28,7 @@ import org.junit.rules.TemporaryFolder;
 /**
  * Tests for the {@link LocalRecoverableWriter}.
  */
-public class LocalFileSystemResumableWriterTest extends AbstractResumableWriterTest {
+public class LocalFileSystemRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
 	@ClassRule
 	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
