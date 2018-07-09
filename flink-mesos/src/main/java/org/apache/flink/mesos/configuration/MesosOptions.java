@@ -120,4 +120,12 @@ public class MesosOptions {
 			.withDescription("Enables SSL for the Flink artifact server. Note that security.ssl.enabled also needs to" +
 				" be set to true encryption to enable encryption.");
 
+	/**
+	 * Config parameter to configure which configuration keys will dynamically get a port assigned through Mesos.
+	 */
+	public static final ConfigOption<String> PORT_ASSIGNMENTS = key("mesos.resourcemanager.tasks.port-assignments")
+		.defaultValue("")
+		.withDescription("Comma-separated list of configuration keys which represent a configurable port." +
+			"All port keys will dynamically get a port assigned through Mesos.");
+
 }
