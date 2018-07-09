@@ -24,11 +24,14 @@ import org.apache.flink.core.fs.ResumableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.ResumableWriter.ResumeRecoverable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.time.StopWatch;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -40,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @Internal
 class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+
+	private static final long LEASE_TIMEOUT = 100000L;
 
 	private static Method truncateHandle;
 
@@ -74,8 +79,15 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
+		// the getFileStatus will throw a FileNotFound exception if the file is not there.
+		final FileStatus tmpFileStatus = fs.getFileStatus(tempFile);
+		if (tmpFileStatus.getLen() < recoverable.offset()) {
+			throw new IOException("Missing data in tmp file: " + tempFile.getName());
+		}
+
 		// truncate back and append
-		truncate(fs, recoverable.tempFile(), recoverable.offset());
+		truncate(fs, tempFile, recoverable.offset());
+		waitUntilLeaseIsRevoked(tempFile);
 		out = fs.append(tempFile);
 	}
 
@@ -252,5 +264,40 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		public CommitRecoverable getRecoverable() {
 			return recoverable;
 		}
+	}
+
+	/**
+	 * Called when resuming execution after a failure and waits until the lease
+	 * of the file we are resuming is free.
+	 *
+	 * <p>The lease of the file we are resuming writing/committing to may still
+	 * belong to the process that failed previously and whose state we are
+	 * recovering.
+	 *
+	 * @param path The path to the file we want to resume writing to.
+	 */
+	private boolean waitUntilLeaseIsRevoked(final Path path) throws IOException {
+		Preconditions.checkState(fs instanceof DistributedFileSystem);
+
+		final DistributedFileSystem dfs = (DistributedFileSystem) fs;
+		dfs.recoverLease(path);
+		boolean isclosed = dfs.isFileClosed(path);
+
+		final StopWatch sw = new StopWatch();
+		sw.start();
+
+		while (!isclosed) {
+			if (sw.getTime() > LEASE_TIMEOUT) {
+				break;
+			}
+
+			try {
+				Thread.sleep(500L);
+			} catch (InterruptedException e1) {
+				// ignore it
+			}
+			isclosed = dfs.isFileClosed(path);
+		}
+		return isclosed;
 	}
 }

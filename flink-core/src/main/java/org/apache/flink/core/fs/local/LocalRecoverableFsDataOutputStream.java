@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.ResumableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.ResumableWriter.ResumeRecoverable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -54,6 +55,15 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 	LocalRecoverableFsDataOutputStream(LocalRecoverable resumable) throws IOException {
 		this.targetFile = checkNotNull(resumable.targetFile());
 		this.tempFile = checkNotNull(resumable.tempFile());
+
+		if (!tempFile.exists()) {
+			throw new FileNotFoundException("File Not Found: " + tempFile.getName());
+		}
+
+		if (tempFile.length() < resumable.offset()) {
+			throw new IOException("Missing data in tmp file: " + tempFile.getName());
+		}
+
 		this.fos = new FileOutputStream(this.tempFile, true);
 		this.fos.getChannel().truncate(resumable.offset());
 	}

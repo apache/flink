@@ -62,7 +62,7 @@ class HadoopRecoverableSerializer implements SimpleVersionedSerializer<HadoopFsR
 		bb.putLong(obj.offset());
 		bb.putInt(targetFileBytes.length);
 		bb.putInt(tempFileBytes.length);
-		bb.put(targetBytes);
+		bb.put(targetFileBytes);
 		bb.put(tempFileBytes);
 
 		return targetBytes;

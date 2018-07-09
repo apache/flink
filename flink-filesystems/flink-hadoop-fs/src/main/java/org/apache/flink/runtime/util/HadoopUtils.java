@@ -130,7 +130,7 @@ public class HadoopUtils {
 	 */
 	public static boolean isMinHadoopVersion(int major, int minor) throws FlinkRuntimeException {
 		String versionString = VersionInfo.getVersion();
-		String[] versionParts = versionString.split(".");
+		String[] versionParts = versionString.split("\\.");
 
 		if (versionParts.length < 2) {
 			throw new FlinkRuntimeException(
