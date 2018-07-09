@@ -155,7 +155,8 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			.channel(NioServerSocketChannel.class)
 			.childHandler(initializer);
 
-		Channel ch = this.bootstrap.bind(serverHostname, configuredPort).sync().channel();
+		// listen on all ports by default
+		Channel ch = this.bootstrap.bind(configuredPort).sync().channel();
 		this.serverChannel = ch;
 
 		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
