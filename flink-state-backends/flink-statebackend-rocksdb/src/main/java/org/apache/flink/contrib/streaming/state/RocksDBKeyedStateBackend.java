@@ -58,14 +58,18 @@ import org.apache.flink.runtime.state.DirectoryStateHandle;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalLocalKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
+import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotDirectory;
@@ -76,7 +80,13 @@ import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TieBreakingPriorityComparator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.heap.CachingInternalPriorityQueueSet;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
+import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -243,6 +253,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The snapshot strategy, e.g., if we use full or incremental checkpoints, local state, and so on. */
 	private final SnapshotStrategy<SnapshotResult<KeyedStateHandle>> snapshotStrategy;
 
+	/** Factory for priority queue state. */
+	private PriorityQueueSetFactory priorityQueueFactory;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -255,7 +268,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
-		LocalRecoveryConfig localRecoveryConfig
+		LocalRecoveryConfig localRecoveryConfig,
+		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
@@ -295,6 +309,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			new FullSnapshotStrategy();
 
 		this.writeOptions = new WriteOptions().setDisableWAL(true);
+
+		switch (priorityQueueStateType) {
+			case HEAP:
+				this.priorityQueueFactory = new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+				break;
+			case ROCKS:
+				this.priorityQueueFactory = new RocksDBPriorityQueueSetFactory();
+				break;
+			default:
+				break;
+		}
 
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
@@ -378,6 +403,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				IOUtils.closeQuietly(columnMetaData.f0);
 			}
 
+			// ... then close the priority queue related resources ...
+			if (priorityQueueFactory instanceof AutoCloseable) {
+				IOUtils.closeQuietly((AutoCloseable) priorityQueueFactory);
+			}
+
 			// ... and finally close the DB instance ...
 			IOUtils.closeQuietly(db);
 
@@ -392,6 +422,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			cleanInstanceBasePath();
 		}
+	}
+
+	@Nonnull
+	@Override
+	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
+		@Nonnull String stateName,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+		@Nonnull PriorityComparator<T> elementComparator,
+		@Nonnull KeyExtractorFunction<T> keyExtractor) {
+
+		return priorityQueueFactory.create(stateName, byteOrderedElementSerializer, elementComparator, keyExtractor);
 	}
 
 	private void cleanInstanceBasePath() {
@@ -1290,7 +1331,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				namespaceSerializer,
 				stateDesc.getSerializer());
 
-			ColumnFamilyHandle columnFamily = createColumnFamily(stateName);
+			ColumnFamilyHandle columnFamily = createColumnFamily(stateName, db);
 
 			stateInfo = Tuple2.of(columnFamily, newMetaInfo);
 			kvStateInformation.put(stateDesc.getName(), stateInfo);
@@ -1302,7 +1343,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * Creates a column family handle for use with a k/v state.
 	 */
-	private ColumnFamilyHandle createColumnFamily(String stateName) throws IOException {
+	private ColumnFamilyHandle createColumnFamily(String stateName, RocksDB db) {
 		byte[] nameBytes = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
 		Preconditions.checkState(!Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
 			"The chosen state name 'default' collides with the name of the default column family!");
@@ -1312,7 +1353,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			return db.createColumnFamily(columnDescriptor);
 		} catch (RocksDBException e) {
-			throw new IOException("Error creating ColumnFamilyHandle.", e);
+			throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
 		}
 	}
 
@@ -2578,5 +2619,127 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		ColumnFamilyHandle columnFamilyHandle,
 		ReadOptions readOptions) {
 		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
+	}
+
+	/**
+	 * Encapsulates the logic and resources in connection with creating priority queue state structures.
+	 */
+	class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory, AutoCloseable {
+
+		/** Default cache size per key-group. */
+		private static final int DEFAULT_CACHES_SIZE = 8 * 1024;
+
+		/** A shared buffer to serialize elements for the priority queue. */
+		@Nonnull
+		private final ByteArrayOutputStreamWithPos elementSerializationOutStream;
+
+		/** A shared adapter wrapper around elementSerializationOutStream to become a {@link DataOutputView}. */
+		@Nonnull
+		private final DataOutputViewStreamWrapper elementSerializationOutView;
+
+		/** A shared {@link RocksDBWriteBatchWrapper} to batch modifications to priority queues. */
+		@Nonnull
+		private final RocksDBWriteBatchWrapper writeBatchWrapper;
+
+		/** Map to track all column families created to back priority queues. */
+		@Nonnull
+		private final Map<String, ColumnFamilyHandle> priorityQueueColumnFamilies;
+
+		/** The mandatory default column family, so that we can close it later. */
+		@Nonnull
+		private final ColumnFamilyHandle defaultColumnFamily;
+
+		/** Path of the RocksDB instance that holds the priority queues. */
+		@Nonnull
+		private final File pqInstanceRocksDBPath;
+
+		/** RocksDB instance that holds the priority queues. */
+		@Nonnull
+		private final RocksDB pqDb;
+
+		RocksDBPriorityQueueSetFactory() throws IOException {
+			this.pqInstanceRocksDBPath = new File(instanceBasePath, "pqdb");
+			if (pqInstanceRocksDBPath.exists()) {
+				try {
+					FileUtils.deleteDirectory(pqInstanceRocksDBPath);
+				} catch (IOException ex) {
+					LOG.warn("Could not delete instance path for PQ RocksDB: " + pqInstanceRocksDBPath, ex);
+				}
+			}
+			List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
+			this.pqDb = openDB(pqInstanceRocksDBPath.getAbsolutePath(), Collections.emptyList(), columnFamilyHandles);
+			this.elementSerializationOutStream = new ByteArrayOutputStreamWithPos();
+			this.elementSerializationOutView = new DataOutputViewStreamWrapper(elementSerializationOutStream);
+			this.writeBatchWrapper = new RocksDBWriteBatchWrapper(pqDb, writeOptions);
+			this.defaultColumnFamily = columnFamilyHandles.get(0);
+			this.priorityQueueColumnFamilies = new HashMap<>();
+		}
+
+		@Nonnull
+		@Override
+		public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
+			@Nonnull String stateName,
+			@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+			@Nonnull PriorityComparator<T> elementPriorityComparator,
+			@Nonnull KeyExtractorFunction<T> keyExtractor) {
+
+			final ColumnFamilyHandle columnFamilyHandle =
+				priorityQueueColumnFamilies.computeIfAbsent(
+					stateName,
+					(name) -> RocksDBKeyedStateBackend.this.createColumnFamily(name, pqDb));
+
+			@Nonnull
+			TieBreakingPriorityComparator<T> tieBreakingComparator =
+				new TieBreakingPriorityComparator<>(
+					elementPriorityComparator,
+					byteOrderedElementSerializer,
+					elementSerializationOutStream,
+					elementSerializationOutView);
+
+			return new KeyGroupPartitionedPriorityQueue<>(
+				keyExtractor,
+				elementPriorityComparator,
+				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, CachingInternalPriorityQueueSet<T>>() {
+					@Nonnull
+					@Override
+					public CachingInternalPriorityQueueSet<T> create(
+						int keyGroupId,
+						int numKeyGroups,
+						@Nonnull PriorityComparator<T> elementPriorityComparator) {
+
+						CachingInternalPriorityQueueSet.OrderedSetCache<T> cache =
+							new TreeOrderedSetCache<>(tieBreakingComparator, DEFAULT_CACHES_SIZE);
+						CachingInternalPriorityQueueSet.OrderedSetStore<T> store =
+							new RocksDBOrderedSetStore<>(
+								keyGroupId,
+								keyGroupPrefixBytes,
+								pqDb,
+								columnFamilyHandle,
+								byteOrderedElementSerializer,
+								elementSerializationOutStream,
+								elementSerializationOutView,
+								writeBatchWrapper);
+
+						return new CachingInternalPriorityQueueSet<>(cache, store);
+					}
+				},
+				keyGroupRange,
+				numberOfKeyGroups);
+		}
+
+		@Override
+		public void close() {
+			IOUtils.closeQuietly(writeBatchWrapper);
+			for (ColumnFamilyHandle columnFamilyHandle : priorityQueueColumnFamilies.values()) {
+				IOUtils.closeQuietly(columnFamilyHandle);
+			}
+			IOUtils.closeQuietly(defaultColumnFamily);
+			IOUtils.closeQuietly(pqDb);
+			try {
+				FileUtils.deleteDirectory(pqInstanceRocksDBPath);
+			} catch (IOException ex) {
+				LOG.warn("Could not delete instance path for PQ RocksDB: " + pqInstanceRocksDBPath, ex);
+			}
+		}
 	}
 }

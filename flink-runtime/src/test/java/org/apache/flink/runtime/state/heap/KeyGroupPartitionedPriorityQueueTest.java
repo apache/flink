@@ -29,7 +29,7 @@ public class KeyGroupPartitionedPriorityQueueTest extends InternalPriorityQueueT
 	protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
 		return new KeyGroupPartitionedPriorityQueue<>(
 			KEY_EXTRACTOR_FUNCTION,
-			TEST_ELEMENT_COMPARATOR,
+			TEST_ELEMENT_PRIORITY_COMPARATOR,
 			newFactory(initialCapacity),
 			KEY_GROUP_RANGE, KEY_GROUP_RANGE.getNumberOfKeyGroups());
 	}

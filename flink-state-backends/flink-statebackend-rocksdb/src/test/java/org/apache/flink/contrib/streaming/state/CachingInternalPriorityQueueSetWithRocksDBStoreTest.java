@@ -57,7 +57,6 @@ public class CachingInternalPriorityQueueSetWithRocksDBStoreTest extends Caching
 			prefixBytes,
 			rocksDBResource.getRocksDB(),
 			rocksDBResource.getDefaultColumnFamily(),
-			rocksDBResource.getReadOptions(),
 			TestElementSerializer.INSTANCE,
 			outputStream,
 			outputView,

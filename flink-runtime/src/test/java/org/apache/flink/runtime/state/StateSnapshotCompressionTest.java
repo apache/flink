@@ -53,7 +53,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(PriorityQueueSetFactory.class));
 
 		try {
 			Assert.assertTrue(
@@ -75,7 +76,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(PriorityQueueSetFactory.class));
 
 		try {
 			Assert.assertTrue(
@@ -115,7 +117,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(PriorityQueueSetFactory.class));
 
 		try {
 
@@ -156,7 +159,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			new KeyGroupRange(0, 15),
 			true,
 			executionConfig,
-			TestLocalRecoveryConfig.disabled());
+			TestLocalRecoveryConfig.disabled(),
+			mock(PriorityQueueSetFactory.class));
 		try {
 
 			stateBackend.restore(StateObjectCollection.singleton(stateHandle));

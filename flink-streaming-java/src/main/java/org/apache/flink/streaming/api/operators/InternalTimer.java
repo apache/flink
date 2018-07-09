@@ -19,6 +19,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.PriorityComparator;
+
+import javax.annotation.Nonnull;
 
 /**
  * Internal interface for in-flight timers.
@@ -29,6 +33,12 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface InternalTimer<K, N> {
 
+	/** Function to extract the key from a {@link InternalTimer}. */
+	KeyExtractorFunction<InternalTimer<?, ?>> KEY_EXTRACTOR_FUNCTION = InternalTimer::getKey;
+
+	/** Function to compare instances of {@link InternalTimer}. */
+	PriorityComparator<InternalTimer<?, ?>> TIMER_COMPARATOR =
+		(left, right) -> Long.compare(left.getTimestamp(), right.getTimestamp());
 	/**
 	 * Returns the timestamp of the timer. This value determines the point in time when the timer will fire.
 	 */
@@ -37,10 +47,22 @@ public interface InternalTimer<K, N> {
 	/**
 	 * Returns the key that is bound to this timer.
 	 */
+	@Nonnull
 	K getKey();
 
 	/**
 	 * Returns the namespace that is bound to this timer.
 	 */
+	@Nonnull
 	N getNamespace();
+
+	@SuppressWarnings("unchecked")
+	static <T extends InternalTimer> PriorityComparator<T> getTimerComparator() {
+		return (PriorityComparator<T>) TIMER_COMPARATOR;
+	}
+
+	@SuppressWarnings("unchecked")
+	static <T extends InternalTimer> KeyExtractorFunction<T> getKeyExtractorFunction() {
+		return (KeyExtractorFunction<T>) KEY_EXTRACTOR_FUNCTION;
+	}
 }

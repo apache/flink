@@ -15,25 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.state.heap;
+
+package org.apache.flink.runtime.state;
+
+import javax.annotation.Nonnull;
+
+import java.util.Set;
 
 /**
- * Test for {@link HeapPriorityQueueSet}.
+ * This interface exists as (temporary) adapter between the new {@link InternalPriorityQueue} and the old way in which
+ * timers are written in a snapshot. This interface can probably go away once timer state becomes part of the
+ * keyed state backend snapshot.
  */
-public class HeapPriorityQueueSetTest extends HeapPriorityQueueTest {
+public interface KeyGroupedInternalPriorityQueue<T> extends InternalPriorityQueue<T> {
 
-	@Override
-	protected HeapPriorityQueueSet<TestElement> newPriorityQueue(int initialCapacity) {
-		return new HeapPriorityQueueSet<>(
-			TEST_ELEMENT_PRIORITY_COMPARATOR,
-			KEY_EXTRACTOR_FUNCTION,
-			initialCapacity,
-			KEY_GROUP_RANGE,
-			KEY_GROUP_RANGE.getNumberOfKeyGroups());
-	}
-
-	@Override
-	protected boolean testSetSemanticsAgainstDuplicateElements() {
-		return true;
-	}
+	/**
+	 * Returns the subset of elements in the priority queue that belongs to the given key-group, within the operator's
+	 * key-group range.
+	 */
+	@Nonnull
+	Set<T> getSubsetForKeyGroup(int keyGroupId);
 }
