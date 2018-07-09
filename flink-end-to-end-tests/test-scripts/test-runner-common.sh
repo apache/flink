@@ -34,10 +34,10 @@ function run_test {
     printf "==============================================================================\n"
 
     # used to randomize created directories
-		export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
-		echo "TEST_DATA_DIR: $TEST_DATA_DIR"
+    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
+    echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
-		start_timer
+    start_timer
     ${command}
     exit_code="$?"
     time_elapsed=$(end_timer)
@@ -46,8 +46,8 @@ function run_test {
     check_logs_for_exceptions
     check_logs_for_non_empty_out_files
 
-		# Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
-		# Do not clean up if either fails.
+    # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.
+    # Do not clean up if either fails.
     if [[ ${exit_code} == 0 ]]; then
         if [[ ${EXIT_CODE} != 0 ]]; then
             printf "\n[FAIL] '${description}' failed after ${time_elapsed}! Test exited with exit code 0 but the logs contained errors, exceptions or non-empty .out files\n\n"
@@ -72,22 +72,22 @@ function run_test {
 
 # Shuts down cluster and reverts changes to cluster configs
 function cleanup_proc {
-	shutdown_all
-	revert_default_config
+    shutdown_all
+    revert_default_config
 }
 
 # Cleans up all temporary folders and files
 function cleanup_files {
-	clean_log_files
+    clean_log_files
 
-	rm -rf ${TEST_DATA_DIR} 2> /dev/null
-	echo "Deleted ${TEST_DATA_DIR}"
+    rm -rf ${TEST_DATA_DIR} 2> /dev/null
+    echo "Deleted ${TEST_DATA_DIR}"
 }
 
 # Shuts down the cluster and cleans up all temporary folders and files.
 function cleanup {
-	cleanup_proc
-	cleanup_files
+    cleanup_proc
+    cleanup_files
 }
 
 trap cleanup SIGINT

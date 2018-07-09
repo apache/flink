@@ -276,7 +276,7 @@ function check_logs_for_non_empty_out_files {
 }
 
 function shutdown_all {
-	stop_cluster
+  stop_cluster
   tm_kill_all
   jm_kill_all
 }
