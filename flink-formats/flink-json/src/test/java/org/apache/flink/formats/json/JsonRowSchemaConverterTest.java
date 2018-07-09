@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link JsonRowSchemaConverter}.
  */
-public class JsonSchemaConverterTest {
+public class JsonRowSchemaConverterTest {
 
 	@Test
 	public void testComplexSchema() throws Exception {

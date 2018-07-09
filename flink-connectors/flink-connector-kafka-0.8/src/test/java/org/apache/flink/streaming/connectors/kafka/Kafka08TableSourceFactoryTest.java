@@ -42,12 +42,12 @@ public class Kafka08TableSourceFactoryTest extends KafkaTableSourceFactoryTestBa
 
 	@Override
 	@SuppressWarnings("unchecked")
-	protected Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer() {
+	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
 		return (Class) FlinkKafkaConsumer08.class;
 	}
 
 	@Override
-	protected KafkaTableSource getKafkaTableSource(
+	protected KafkaTableSource getExpectedKafkaTableSource(
 			TableSchema schema,
 			String proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,

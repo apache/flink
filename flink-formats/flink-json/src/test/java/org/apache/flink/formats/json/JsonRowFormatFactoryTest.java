@@ -30,6 +30,7 @@ import org.apache.flink.table.formats.DeserializationSchemaFactory;
 import org.apache.flink.table.formats.SerializationSchemaFactory;
 import org.apache.flink.table.formats.TableFormatFactoryService;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -40,7 +41,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the {@link JsonRowFormatFactory}.
  */
-public class JsonRowFormatFactoryTest {
+public class JsonRowFormatFactoryTest extends TestLogger {
 
 	private static final String JSON_SCHEMA =
 		"{" +
@@ -68,53 +69,31 @@ public class JsonRowFormatFactoryTest {
 
 	@Test
 	public void testSchema() {
-		final Map<String, String> props = toMap(
+		final Map<String, String> properties = toMap(
 			new Json()
 				.schema(SCHEMA)
 				.failOnMissingField(false));
 
-		// test serialization schema
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
-			.find(SerializationSchemaFactory.class, props)
-			.createSerializationSchema(props);
-		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
-		assertEquals(expected1, actual1);
+		testSchemaSerializationSchema(properties);
 
-		// test deserialization schema
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
-			.find(DeserializationSchemaFactory.class, props)
-			.createDeserializationSchema(props);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
-		expected2.setFailOnMissingField(false);
-		assertEquals(expected2, actual2);
+		testSchemaDeserializationSchema(properties);
 	}
 
 	@Test
 	public void testJsonSchema() {
-		final Map<String, String> props = toMap(
+		final Map<String, String> properties = toMap(
 			new Json()
 				.jsonSchema(JSON_SCHEMA)
 				.failOnMissingField(true));
 
-		// test serialization schema
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
-			.find(SerializationSchemaFactory.class, props)
-			.createSerializationSchema(props);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(JSON_SCHEMA);
-		assertEquals(expected1, actual1);
+		testJsonSchemaSerializationSchema(properties);
 
-		// test deserialization schema
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
-			.find(DeserializationSchemaFactory.class, props)
-			.createDeserializationSchema(props);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(JSON_SCHEMA);
-		expected2.setFailOnMissingField(true);
-		assertEquals(expected2, actual2);
+		testJsonSchemaDeserializationSchema(properties);
 	}
 
 	@Test
 	public void testSchemaDerivation() {
-		final Map<String, String> props = toMap(
+		final Map<String, String> properties = toMap(
 			new Schema()
 				.field("field1", Types.BOOLEAN())
 				.field("field2", Types.INT())
@@ -122,26 +101,50 @@ public class JsonRowFormatFactoryTest {
 			new Json()
 				.deriveSchema());
 
-		// test serialization schema
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
-			.find(SerializationSchemaFactory.class, props)
-			.createSerializationSchema(props);
-		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
-		assertEquals(expected1, actual1);
+		testSchemaSerializationSchema(properties);
 
-		// test deserialization schema
+		testSchemaDeserializationSchema(properties);
+	}
+
+	private void testSchemaDeserializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFormatFactoryService
-			.find(DeserializationSchemaFactory.class, props)
-			.createDeserializationSchema(props);
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
 		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
+		expected2.setFailOnMissingField(false);
 		assertEquals(expected2, actual2);
 	}
 
-	private Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties props = new DescriptorProperties(true);
+	private void testSchemaSerializationSchema(Map<String, String> properties) {
+		final SerializationSchema<?> actual1 = TableFormatFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
+		assertEquals(expected1, actual1);
+	}
+
+	private void testJsonSchemaDeserializationSchema(Map<String, String> properties) {
+		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(JSON_SCHEMA);
+		expected2.setFailOnMissingField(true);
+		assertEquals(expected2, actual2);
+	}
+
+	private void testJsonSchemaSerializationSchema(Map<String, String> properties) {
+		final SerializationSchema<?> actual1 = TableFormatFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(JSON_SCHEMA);
+		assertEquals(expected1, actual1);
+	}
+
+	private static Map<String, String> toMap(Descriptor... desc) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		for (Descriptor d : desc) {
-			d.addProperties(props);
+			d.addProperties(descriptorProperties);
 		}
-		return props.asMap();
+		return descriptorProperties.asMap();
 	}
 }

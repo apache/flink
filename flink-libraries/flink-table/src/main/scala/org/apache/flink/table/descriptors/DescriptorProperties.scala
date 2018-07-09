@@ -865,7 +865,8 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
         throw new ValidationException(s"Could not find required property '$key'.")
       }
     } else {
-      // throws validation exceptions
+      // we don't validate the string but let the parser do the work for us
+      // it throws a validation exception
       val info = TypeStringUtils.readTypeInfo(properties(key))
       if (requireRow && !info.isInstanceOf[RowTypeInfo]) {
         throw new ValidationException(

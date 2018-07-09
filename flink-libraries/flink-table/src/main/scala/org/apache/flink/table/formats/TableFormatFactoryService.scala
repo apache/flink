@@ -102,89 +102,28 @@ object TableFormatFactoryService extends Logging {
     val properties = propertyMap.asScala.toMap
 
     // find matching context
-    val (foundFactories, contextFactories) = findMatchingContext(properties, classLoader)
-    if (contextFactories.isEmpty) {
-      throw new NoMatchingTableFormatException(
-        "No context matches.",
-        factoryClass,
-        foundFactories,
-        properties)
-    }
+    val (foundFactories, contextFactories) = findMatchingContext(
+      factoryClass,
+      properties,
+      classLoader)
 
-    // filter for factory class
-    val classFactories = contextFactories.filter(f => factoryClass.isAssignableFrom(f.getClass))
-    if (classFactories.isEmpty) {
-      throw new NoMatchingTableFormatException(
-        s"No factory implements '${factoryClass.getCanonicalName}'.",
-        factoryClass,
-        foundFactories,
-        properties)
-    }
+    // filter by factory class
+    val classFactories = filterByFactoryClass(
+      factoryClass,
+      properties,
+      foundFactories,
+      contextFactories)
 
     // filter by supported keys
-    val plainGivenKeys = mutable.ArrayBuffer[String]()
-    properties.keys.foreach { k =>
-      // replace arrays with wildcard
-      val key = k.replaceAll(".\\d+", ".#")
-      // ignore duplicates
-      if (!plainGivenKeys.contains(key)) {
-        plainGivenKeys += key
-      }
-    }
-    var lastKey: Option[String] = None
-    val supportedFactories = classFactories.filter { factory =>
-      val requiredContextKeys = normalizeContext(factory).keySet
-      val includeSchema = factory.supportsSchemaDerivation()
-      val supportedKeys = normalizeSupportedProperties(factory)
-      val givenKeys = plainGivenKeys
-        // ignore context keys
-        .filter(!requiredContextKeys.contains(_))
-        // ignore non-format (or schema) keys
-        .filter { k =>
-          if (includeSchema) {
-            k.startsWith(SchemaValidator.SCHEMA + ".") ||
-              k.startsWith(FormatDescriptorValidator.FORMAT + ".")
-          } else {
-            k.startsWith(FormatDescriptorValidator.FORMAT + ".")
-          }
-        }
-      givenKeys.forall { k =>
-        lastKey = Option(k)
-        supportedKeys.contains(k)
-      }
-    }
-    if (supportedFactories.isEmpty && classFactories.length == 1 && lastKey.isDefined) {
-      // special case: when there is only one matching factory but the last property key
-      // was incorrect
-      val factory = classFactories.head
-      val supportedKeys = normalizeSupportedProperties(factory)
-      throw new NoMatchingTableFormatException(
-        s"""
-          |The matching factory '${factory.getClass.getName}' doesn't support '${lastKey.get}'.
-          |
-          |Supported properties of this factory are:
-          |${supportedKeys.sorted.mkString("\n")}""".stripMargin,
-        factoryClass,
-        foundFactories,
-        properties)
-    } else if (supportedFactories.isEmpty) {
-      throw new NoMatchingTableFormatException(
-        s"No factory supports all properties.",
-        factoryClass,
-        foundFactories,
-        properties)
-    } else if (supportedFactories.length > 1) {
-      throw new AmbiguousTableFormatException(
-        supportedFactories,
-        factoryClass,
-        foundFactories,
-        properties)
-    }
-
-    supportedFactories.head.asInstanceOf[T]
+    filterBySupportedProperties(
+      factoryClass,
+      properties,
+      foundFactories,
+      classFactories)
   }
 
-  private def findMatchingContext(
+  private def findMatchingContext[T](
+      factoryClass: Class[T],
       properties: Map[String, String],
       classLoader: ClassLoader)
     : (Seq[TableFormatFactory[_]], Seq[TableFormatFactory[_]]) = {
@@ -222,6 +161,14 @@ object TableFormatFactoryService extends Logging {
         throw new TableException("Could not load service provider for table format factories.", e)
     }
 
+    if (matchingFactories.isEmpty) {
+      throw new NoMatchingTableFormatException(
+        "No context matches.",
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+
     (foundFactories, matchingFactories)
   }
 
@@ -232,6 +179,94 @@ object TableFormatFactoryService extends Logging {
     } else {
       Map[String, String]()
     }
+  }
+
+  private def filterByFactoryClass[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFormatFactory[_]],
+      contextFactories: Seq[TableFormatFactory[_]])
+    : Seq[TableFormatFactory[_]] = {
+
+    val classFactories = contextFactories.filter(f => factoryClass.isAssignableFrom(f.getClass))
+    if (classFactories.isEmpty) {
+      throw new NoMatchingTableFormatException(
+        s"No factory implements '${factoryClass.getCanonicalName}'.",
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+    classFactories
+  }
+
+  private def filterBySupportedProperties[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFormatFactory[_]],
+      classFactories: Seq[TableFormatFactory[_]])
+    : T = {
+
+    val plainGivenKeys = mutable.ArrayBuffer[String]()
+    properties.keys.foreach { k =>
+      // replace arrays with wildcard
+      val key = k.replaceAll(".\\d+", ".#")
+      // ignore duplicates
+      if (!plainGivenKeys.contains(key)) {
+        plainGivenKeys += key
+      }
+    }
+    var lastKey: Option[String] = None
+    val supportedFactories = classFactories.filter { factory =>
+      val requiredContextKeys = normalizeContext(factory).keySet
+      val includeSchema = factory.supportsSchemaDerivation()
+      val supportedKeys = normalizeSupportedProperties(factory)
+      val givenKeys = plainGivenKeys
+        // ignore context keys
+        .filter(!requiredContextKeys.contains(_))
+        // ignore non-format (or schema) keys
+        .filter { k =>
+          if (includeSchema) {
+            k.startsWith(SchemaValidator.SCHEMA + ".") ||
+              k.startsWith(FormatDescriptorValidator.FORMAT + ".")
+          } else {
+            k.startsWith(FormatDescriptorValidator.FORMAT + ".")
+          }
+        }
+      givenKeys.forall { k =>
+        lastKey = Option(k)
+        supportedKeys.contains(k)
+      }
+    }
+
+    if (supportedFactories.isEmpty && classFactories.length == 1 && lastKey.isDefined) {
+      // special case: when there is only one matching factory but the last property key
+      // was incorrect
+      val factory = classFactories.head
+      val supportedKeys = normalizeSupportedProperties(factory)
+      throw new NoMatchingTableFormatException(
+        s"""
+          |The matching factory '${factory.getClass.getName}' doesn't support '${lastKey.get}'.
+          |
+          |Supported properties of this factory are:
+          |${supportedKeys.sorted.mkString("\n")}""".stripMargin,
+        factoryClass,
+        foundFactories,
+        properties)
+    } else if (supportedFactories.isEmpty) {
+      throw new NoMatchingTableFormatException(
+        s"No factory supports all properties.",
+        factoryClass,
+        foundFactories,
+        properties)
+    } else if (supportedFactories.length > 1) {
+      throw new AmbiguousTableFormatException(
+        supportedFactories,
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+
+    supportedFactories.head.asInstanceOf[T]
   }
 
   private def normalizeSupportedProperties(factory: TableFormatFactory[_]): Seq[String] = {

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
@@ -59,7 +58,8 @@ public class Kafka010TableSource extends KafkaTableSource {
 			String proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Map<String, String> fieldMapping,
-			String topic, Properties properties,
+			String topic,
+			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
@@ -89,26 +89,6 @@ public class Kafka010TableSource extends KafkaTableSource {
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
-
-		super(schema, topic, properties, deserializationSchema);
-	}
-
-	/**
-	 * Creates a Kafka 0.10 {@link StreamTableSource}.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param typeInfo              Not relevant anymore.
-	 * @deprecated Use {@link Kafka010TableSource#Kafka010TableSource(TableSchema, String, Properties, DeserializationSchema)} instead.
-	 */
-	@Deprecated
-	public Kafka010TableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			TableSchema schema,
-			TypeInformation<Row> typeInfo) {
 
 		super(schema, topic, properties, deserializationSchema);
 	}

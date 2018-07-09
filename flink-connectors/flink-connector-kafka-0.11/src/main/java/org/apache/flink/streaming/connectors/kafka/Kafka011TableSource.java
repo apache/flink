@@ -93,26 +93,6 @@ public class Kafka011TableSource extends KafkaTableSource {
 		super(schema, topic, properties, deserializationSchema);
 	}
 
-	/**
-	 * Creates a Kafka 0.11 {@link StreamTableSource}.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param typeInfo              Not relevant anymore.
-	 * @deprecated Use {@link Kafka011TableSource#Kafka011TableSource(TableSchema, String, Properties, DeserializationSchema)} instead.
-	 */
-	@Deprecated
-	public Kafka011TableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			TableSchema schema,
-			TypeInformation<Row> typeInfo) {
-
-		super(schema, topic, properties, deserializationSchema);
-	}
-
 	@Override
 	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
 		return new FlinkKafkaConsumer011<>(topic, deserializationSchema, properties);

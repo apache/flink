@@ -27,6 +27,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.formats.DeserializationSchemaFactory;
 import org.apache.flink.table.formats.SerializationSchemaFactory;
 import org.apache.flink.table.formats.TableFormatFactoryService;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the {@link AvroRowFormatFactory}.
  */
-public class AvroRowFormatFactoryTest {
+public class AvroRowFormatFactoryTest extends TestLogger {
 
 	private static final Class<User> AVRO_SPECIFIC_RECORD = User.class;
 
@@ -45,47 +46,59 @@ public class AvroRowFormatFactoryTest {
 
 	@Test
 	public void testRecordClass() {
-		final Map<String, String> props = toMap(new Avro().recordClass(AVRO_SPECIFIC_RECORD));
+		final Map<String, String> properties = toMap(new Avro().recordClass(AVRO_SPECIFIC_RECORD));
 
-		// test serialization schema
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
-			.find(SerializationSchemaFactory.class, props)
-			.createSerializationSchema(props);
-		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SPECIFIC_RECORD);
-		assertEquals(expected1, actual1);
+		testRecordClassDeserializationSchema(properties);
 
-		// test deserialization schema
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
-			.find(DeserializationSchemaFactory.class, props)
-			.createDeserializationSchema(props);
-		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(AVRO_SPECIFIC_RECORD);
-		assertEquals(expected2, actual2);
+		testRecordClassSerializationSchema(properties);
 	}
 
 	@Test
 	public void testAvroSchema() {
-		final Map<String, String> props = toMap(new Avro().avroSchema(AVRO_SCHEMA));
+		final Map<String, String> properties = toMap(new Avro().avroSchema(AVRO_SCHEMA));
 
-		// test serialization schema
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
-			.find(SerializationSchemaFactory.class, props)
-			.createSerializationSchema(props);
-		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SCHEMA);
-		assertEquals(expected1, actual1);
+		testAvroSchemaSerializationSchema(properties);
 
-		// test deserialization schema
+		testAvroSchemaDeserializationSchema(properties);
+	}
+
+	private void testRecordClassSerializationSchema(Map<String, String> properties) {
 		final DeserializationSchema<?> actual2 = TableFormatFactoryService
-			.find(DeserializationSchemaFactory.class, props)
-			.createDeserializationSchema(props);
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
+		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(AVRO_SPECIFIC_RECORD);
+		assertEquals(expected2, actual2);
+	}
+
+	private void testRecordClassDeserializationSchema(Map<String, String> properties) {
+		final SerializationSchema<?> actual1 = TableFormatFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SPECIFIC_RECORD);
+		assertEquals(expected1, actual1);
+	}
+
+	private void testAvroSchemaDeserializationSchema(Map<String, String> properties) {
+		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+			.find(DeserializationSchemaFactory.class, properties)
+			.createDeserializationSchema(properties);
 		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(AVRO_SCHEMA);
 		assertEquals(expected2, actual2);
 	}
 
-	private Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties props = new DescriptorProperties(true);
+	private void testAvroSchemaSerializationSchema(Map<String, String> properties) {
+		final SerializationSchema<?> actual1 = TableFormatFactoryService
+			.find(SerializationSchemaFactory.class, properties)
+			.createSerializationSchema(properties);
+		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SCHEMA);
+		assertEquals(expected1, actual1);
+	}
+
+	private static Map<String, String> toMap(Descriptor... desc) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		for (Descriptor d : desc) {
-			d.addProperties(props);
+			d.addProperties(descriptorProperties);
 		}
-		return props.asMap();
+		return descriptorProperties.asMap();
 	}
 }

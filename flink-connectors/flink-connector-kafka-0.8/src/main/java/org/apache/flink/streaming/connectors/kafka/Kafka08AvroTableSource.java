@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
@@ -43,7 +42,6 @@ import java.util.Properties;
  *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
  */
 @Deprecated
-@PublicEvolving
 public class Kafka08AvroTableSource extends KafkaAvroTableSource {
 
 	/**

@@ -63,35 +63,35 @@ public class AvroRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties props = new DescriptorProperties(true);
-		props.putProperties(properties);
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(properties);
 
 		// validate
-		new AvroValidator().validate(props);
+		new AvroValidator().validate(descriptorProperties);
 
 		// create and configure
-		if (props.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
+		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
 			return new AvroRowDeserializationSchema(
-				props.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
+				descriptorProperties.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
 		} else {
-			return new AvroRowDeserializationSchema(props.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
+			return new AvroRowDeserializationSchema(descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
 		}
 	}
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties props = new DescriptorProperties(true);
-		props.putProperties(properties);
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(properties);
 
 		// validate
-		new AvroValidator().validate(props);
+		new AvroValidator().validate(descriptorProperties);
 
 		// create and configure
-		if (props.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
+		if (descriptorProperties.containsKey(AvroValidator.FORMAT_RECORD_CLASS)) {
 			return new AvroRowSerializationSchema(
-				props.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
+				descriptorProperties.getClass(AvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class));
 		} else {
-			return new AvroRowSerializationSchema(props.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
+			return new AvroRowSerializationSchema(descriptorProperties.getString(AvroValidator.FORMAT_AVRO_SCHEMA));
 		}
 	}
 }

@@ -67,16 +67,16 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
-		final DescriptorProperties props = new DescriptorProperties(true);
-		props.putProperties(properties);
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(properties);
 
 		// validate
-		new JsonValidator().validate(props);
+		new JsonValidator().validate(descriptorProperties);
 
 		// create and configure
-		final JsonRowDeserializationSchema schema = new JsonRowDeserializationSchema(createTypeInformation(props));
+		final JsonRowDeserializationSchema schema = new JsonRowDeserializationSchema(createTypeInformation(descriptorProperties));
 
-		props.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
+		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
 				.ifPresent(schema::setFailOnMissingField);
 
 		return schema;
@@ -84,23 +84,23 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 	@Override
 	public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
-		final DescriptorProperties props = new DescriptorProperties(true);
-		props.putProperties(properties);
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(properties);
 
 		// validate
-		new JsonValidator().validate(props);
+		new JsonValidator().validate(descriptorProperties);
 
 		// create and configure
-		return new JsonRowSerializationSchema(createTypeInformation(props));
+		return new JsonRowSerializationSchema(createTypeInformation(descriptorProperties));
 	}
 
-	private TypeInformation<Row> createTypeInformation(DescriptorProperties props) {
-		if (props.containsKey(JsonValidator.FORMAT_SCHEMA)) {
-			return (RowTypeInfo) props.getType(JsonValidator.FORMAT_SCHEMA);
-		} else if (props.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
-			return JsonRowSchemaConverter.convert(props.getString(JsonValidator.FORMAT_JSON_SCHEMA));
+	private TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
+		if (descriptorProperties.containsKey(JsonValidator.FORMAT_SCHEMA)) {
+			return (RowTypeInfo) descriptorProperties.getType(JsonValidator.FORMAT_SCHEMA);
+		} else if (descriptorProperties.containsKey(JsonValidator.FORMAT_JSON_SCHEMA)) {
+			return JsonRowSchemaConverter.convert(descriptorProperties.getString(JsonValidator.FORMAT_JSON_SCHEMA));
 		} else {
-			return SchemaValidator.deriveFormatFields(props).toRowType();
+			return SchemaValidator.deriveFormatFields(descriptorProperties).toRowType();
 		}
 	}
 }

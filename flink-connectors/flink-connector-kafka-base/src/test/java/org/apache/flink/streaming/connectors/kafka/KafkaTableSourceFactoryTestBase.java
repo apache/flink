@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -38,6 +39,7 @@ import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -48,17 +50,12 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Abstract test base for {@link KafkaTableSourceFactory}.
  */
-public abstract class KafkaTableSourceFactoryTestBase {
+public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 
 	@Test
 	@SuppressWarnings("unchecked")
@@ -103,7 +100,7 @@ public abstract class KafkaTableSourceFactoryTestBase {
 
 		final StartupMode startupMode = StartupMode.SPECIFIC_OFFSETS;
 
-		final KafkaTableSource expected = getKafkaTableSource(
+		final KafkaTableSource expected = getExpectedKafkaTableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
@@ -135,24 +132,31 @@ public abstract class KafkaTableSourceFactoryTestBase {
 						new Rowtime().timestampsFromField("time").watermarksPeriodicAscending())
 					.field("proc-time", Types.SQL_TIMESTAMP()).proctime());
 
-		final TableSource<?> foundSource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
+		final TableSource<?> actualSource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
 
-		assertEquals(expected, foundSource);
+		assertEquals(expected, actualSource);
 
 		// test Kafka consumer
-		final KafkaTableSource kafkaSource = (KafkaTableSource) foundSource;
-		final KafkaTableSource observed = spy(kafkaSource);
-		final StreamExecutionEnvironment env = mock(StreamExecutionEnvironment.class);
-		when(env.addSource(any(SourceFunction.class))).thenReturn(mock(DataStreamSource.class));
-		observed.getDataStream(env);
+		final KafkaTableSource actualKafkaSource = (KafkaTableSource) actualSource;
+		final StreamExecutionEnvironmentMock mock = new StreamExecutionEnvironmentMock();
+		actualKafkaSource.getDataStream(mock);
+		assertTrue(getExpectedFlinkKafkaConsumer().isAssignableFrom(mock.function.getClass()));
+	}
 
-		verify(env).addSource(any(getFlinkKafkaConsumer()));
+	private static class StreamExecutionEnvironmentMock extends StreamExecutionEnvironment {
 
-		verify(observed).getKafkaConsumer(
-			eq(topic),
-			// the consumer modifies the properties that's why we compare them this way
-			eq(kafkaSource.getProperties()),
-			eq(deserializationSchema));
+		public SourceFunction<?> function;
+
+		@Override
+		public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
+			this.function = function;
+			return super.addSource(function);
+		}
+
+		@Override
+		public JobExecutionResult execute(String jobName) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -161,9 +165,9 @@ public abstract class KafkaTableSourceFactoryTestBase {
 
 	protected abstract String getKafkaVersion();
 
-	protected abstract Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer();
+	protected abstract Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer();
 
-	protected abstract KafkaTableSource getKafkaTableSource(
+	protected abstract KafkaTableSource getExpectedKafkaTableSource(
 		TableSchema schema,
 		String proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,

@@ -93,26 +93,6 @@ public class Kafka09TableSource extends KafkaTableSource {
 		super(schema, topic, properties, deserializationSchema);
 	}
 
-	/**
-	 * Creates a Kafka 0.9 {@link StreamTableSource}.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param typeInfo              Not relevant anymore.
-	 * @deprecated Use {@link Kafka09TableSource#Kafka09TableSource(TableSchema, String, Properties, DeserializationSchema)} instead.
-	 */
-	@Deprecated
-	public Kafka09TableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			TableSchema schema,
-			TypeInformation<Row> typeInfo) {
-
-		super(schema, topic, properties, deserializationSchema);
-	}
-
 	@Override
 	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
 		return new FlinkKafkaConsumer09<>(topic, deserializationSchema, properties);

@@ -144,9 +144,6 @@ public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>
 
 		// rowtime
 		final List<RowtimeAttributeDescriptor> rowtimeAttributes = SchemaValidator.deriveRowtimeAttributes(params);
-		if (rowtimeAttributes.size() > 1) {
-			throw new TableException("More than one rowtime attribute is not supported yet.");
-		}
 
 		// field mapping
 		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(params, Optional.of(schema));

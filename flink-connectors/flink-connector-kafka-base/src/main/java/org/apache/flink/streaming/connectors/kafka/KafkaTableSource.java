@@ -41,6 +41,8 @@ import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -56,8 +58,11 @@ import scala.Option;
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
 @Internal
-public abstract class KafkaTableSource
-	implements StreamTableSource<Row>, DefinedProctimeAttribute, DefinedRowtimeAttributes, DefinedFieldMapping {
+public abstract class KafkaTableSource implements
+		StreamTableSource<Row>,
+		DefinedProctimeAttribute,
+		DefinedRowtimeAttributes,
+		DefinedFieldMapping {
 
 	// common table source attributes
 	// TODO make all attributes final once we drop support for format-specific table sources
@@ -66,12 +71,14 @@ public abstract class KafkaTableSource
 	private final TableSchema schema;
 
 	/** Field name of the processing time attribute, null if no processing time field is defined. */
+	@Nullable
 	private String proctimeAttribute;
 
 	/** Descriptor for a rowtime attribute. */
 	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 	/** Mapping for the fields of the table schema to fields of the physical returned type or null. */
+	@Nullable
 	private Map<String, String> fieldMapping;
 
 	// Kafka-specific attributes
@@ -109,9 +116,9 @@ public abstract class KafkaTableSource
 	 */
 	protected KafkaTableSource(
 			TableSchema schema,
-			String proctimeAttribute,
+			@Nullable String proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Map<String, String> fieldMapping,
+			@Nullable Map<String, String> fieldMapping,
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
