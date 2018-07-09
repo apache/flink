@@ -142,39 +142,35 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.sources.TableSourceFactory]] for the
-  * given properties.
+  * Exception for not finding a [[org.apache.flink.table.connectors.TableFactoryDiscoverable]] for
+  * the given properties.
   *
-  * @param properties properties that describe the table source
+  * @param properties properties that describe the table connector
   * @param cause the cause
   */
-case class NoMatchingTableSourceException(
-    properties: Map[String, String],
-    cause: Throwable)
-    extends RuntimeException(
-      s"Could not find a table source factory in the classpath satisfying the " +
-        s"following properties: \n" +
-        s"${DescriptorProperties.toString(properties)}",
-      cause) {
+case class NoMatchingTableFactoryException(properties: Map[String, String], cause: Throwable)
+  extends RuntimeException(
+    s"Could not find a table factory in the classpath satisfying the " +
+      s"following properties: \n" +
+      s"${DescriptorProperties.toString(properties)}",
+    cause) {
 
   def this(properties: Map[String, String]) = this(properties, null)
 }
 
 /**
-  * Exception for finding more than one [[org.apache.flink.table.sources.TableSourceFactory]] for
-  * the given properties.
+  * Exception for finding more than one
+  * [[org.apache.flink.table.connectors.TableFactoryDiscoverable]] for the given properties.
   *
-  * @param properties properties that describe the table source
+  * @param properties properties that describe the table factory
   * @param cause the cause
   */
-case class AmbiguousTableSourceException(
-    properties: Map[String, String],
-    cause: Throwable)
-    extends RuntimeException(
-      s"More than one table source factory in the classpath satisfying the " +
-        s"following properties: \n" +
-        s"${DescriptorProperties.toString(properties)}",
-      cause) {
+case class AmbiguousTableFactoryException(properties: Map[String, String], cause: Throwable)
+  extends RuntimeException(
+    s"More than one table factory in the classpath satisfying the " +
+      s"following properties: \n" +
+      s"${DescriptorProperties.toString(properties)}",
+    cause) {
 
   def this(properties: Map[String, String]) = this(properties, null)
 }

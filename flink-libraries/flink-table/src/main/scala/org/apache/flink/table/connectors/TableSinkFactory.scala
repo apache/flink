@@ -16,27 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.connectors
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
+import org.apache.flink.table.sinks.TableSink
 
-class StreamTableSourceTable[T](
-    tableSource: StreamTableSource[T],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
-    tableSource,
-    statistic) {
+import java.util
 
-  TableSourceUtil.validateTableSource(tableSource)
-
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      None,
-      streaming = true,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
-  }
+trait TableSinkFactory[T] {
+  /**
+    * Creates and configures a [[org.apache.flink.table.sinks.TableSink]]
+    * using the given properties.
+    *
+    * @param properties normalized properties describing a table source.
+    * @return the configured table source.
+    */
+  def createTableSink(properties: util.Map[String, String]): TableSink[T]
 }

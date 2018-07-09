@@ -324,7 +324,6 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     if (fieldCount == 0) {
       return toJava(None)
     }
-
     // validate fields and build schema
     val schemaBuilder = TableSchema.builder()
     for (i <- 0 until fieldCount) {
@@ -336,7 +335,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
         ),
         TypeStringUtils.readTypeInfo(
           properties.getOrElse(tpe, throw new ValidationException(s"Invalid table schema. " +
-          s"Could not find type for field '$key.$i'."))
+            s"Could not find type for field '$key.$i'."))
         )
       )
     }

@@ -36,9 +36,9 @@ import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{BatchTableSourceTable, DataSetTable, RowSchema, TableSinkTable}
+import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
+import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
 
@@ -103,7 +103,20 @@ abstract class BatchTableEnvironment(
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        registerTableInternal(name, new BatchTableSourceTable(batchTableSource))
+        Option(getTable(name)) match {
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTableOpt match {
+            case Some(_: TableSourceTable[_]) =>
+              throw new TableException(s"Table \'$name\' already exists. " +
+                s"Please, choose a different name.")
+            case _ => replaceRegisteredTable(name,
+              new TableSourceSinkTable(Some(new BatchTableSourceTable(batchTableSource)),
+                table.tableSinkTableOpt))
+          }
+          case None => registerTableInternal(name,
+            new TableSourceSinkTable(Some(new BatchTableSourceTable(batchTableSource)), None))
+          case _ => throw new TableException(s"Table \'$name\' already exists. " +
+            s"Please, choose a different name.")
+        }
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")
@@ -160,10 +173,34 @@ abstract class BatchTableEnvironment(
       throw new TableException("Same number of field names and types required.")
     }
 
-    tableSink match {
+    val configuredSink = tableSink.configure(fieldNames, fieldTypes)
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
+    checkValidTableName(name)
+    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+      throw TableException("TableSink is not configured.")
+    }
+    registerTableSinkInternal(name, configuredSink)
+  }
+
+  private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+    configuredSink match {
       case batchTableSink: BatchTableSink[_] =>
-        val configuredSink = batchTableSink.configure(fieldNames, fieldTypes)
-        registerTableInternal(name, new TableSinkTable(configuredSink))
+        Option(getTable(name)) match {
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTableOpt match {
+            case Some(_: TableSinkTable[_]) =>
+              throw new TableException(s"Table \'$name\' already exists. " +
+                s"Please, choose a different name.")
+            case _ => replaceRegisteredTable (name, new TableSourceSinkTable(
+              table.tableSourceTableOpt, Some(new TableSinkTable(configuredSink))))
+          }
+          case None => registerTableInternal(name,
+            new TableSourceSinkTable(None, Some(new TableSinkTable(configuredSink))))
+          case _ => throw new TableException(s"Table \'$name\' already exists. " +
+            s"Please, choose a different name.")
+        }
       case _ =>
         throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
     }

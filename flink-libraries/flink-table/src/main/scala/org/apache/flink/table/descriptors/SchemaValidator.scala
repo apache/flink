@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 import java.util
 import java.util.Optional
 
-import org.apache.flink.table.api.{TableSchema, ValidationException}
+import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
 import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_FROM, ROWTIME_TIMESTAMPS_TYPE, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD}
 import org.apache.flink.table.descriptors.SchemaValidator._
@@ -134,6 +134,43 @@ object SchemaValidator {
     }
 
     attributes.asJava
+  }
+
+  def deriveTableSourceSchema(properties: DescriptorProperties): TableSchema = {
+    properties.getTableSchema(SCHEMA)
+  }
+
+  def deriveTableSinkSchema(properties: DescriptorProperties): TableSchema = {
+    val builder = TableSchema.builder()
+
+    val schema = properties.getTableSchema(SCHEMA)
+
+    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+      val isProctime = properties
+        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
+        .orElse(false)
+      val tsType = s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE"
+      val isRowtime = properties.containsKey(tsType)
+      if (!isProctime && !isRowtime) {
+        // check for a aliasing
+        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
+          .orElse(n)
+        builder.field(fieldName, t)
+      }
+      // only use the rowtime attribute if it references a field
+      else if (isRowtime) {
+        properties.getString(tsType) match {
+          case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD => {
+            val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
+            builder.field(field, t)
+          }
+          case _ => throw new TableException(s"Unsupported rowtime type for sink table schema: " +
+            s"${properties.getString(tsType)}")
+        }
+      }
+    }
+
+    builder.build()
   }
 
   /**

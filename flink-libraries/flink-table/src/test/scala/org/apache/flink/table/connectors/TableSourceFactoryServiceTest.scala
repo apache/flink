@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
-import org.apache.flink.table.api.{NoMatchingTableSourceException, TableException, ValidationException}
+import org.apache.flink.table.api.{NoMatchingTableFactoryException, ValidationException}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.descriptors.TableDescriptorValidator
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class TableSourceFactoryServiceTest {
@@ -31,14 +33,14 @@ class TableSourceFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
+    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap) != null)
   }
 
-  @Test(expected = classOf[NoMatchingTableSourceException])
+  @Test(expected = classOf[NoMatchingTableFactoryException])
   def testInvalidContext(): Unit = {
     val props = properties()
     props.put(CONNECTOR_TYPE, "FAIL")
-    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
   }
 
   @Test
@@ -46,25 +48,29 @@ class TableSourceFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableSourceFactoryService.findAndCreateTableSource(props.toMap) != null)
+    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap) != null)
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
     props.put("format.path_new", "/new/path")
-    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testFailingFactory(): Unit = {
     val props = properties()
     props.put("failing", "true")
-    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
+      .asInstanceOf[TableSourceFactory[_]]
+      .createTableSource(props.asJava)
   }
 
   private def properties(): mutable.Map[String, String] = {
     val properties = mutable.Map[String, String]()
+    properties.put(TableDescriptorValidator.TABLE_TYPE,
+      TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE);
     properties.put(CONNECTOR_TYPE, "test")
     properties.put(FORMAT_TYPE, "test")
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")

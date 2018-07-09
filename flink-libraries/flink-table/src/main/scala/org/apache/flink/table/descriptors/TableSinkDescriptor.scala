@@ -16,27 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.descriptors
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
-
-class StreamTableSourceTable[T](
-    tableSource: StreamTableSource[T],
-    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](
-    tableSource,
-    statistic) {
-
-  TableSourceUtil.validateTableSource(tableSource)
-
-  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    TableSourceUtil.getRelDataType(
-      tableSource,
-      None,
-      streaming = true,
-      typeFactory.asInstanceOf[FlinkTypeFactory])
+/**
+  * Common class for all descriptors describing a table sink.
+  */
+abstract class TableSinkDescriptor extends TableDescriptor {
+  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+    super.addProperties(properties)
+    properties.putString(TableDescriptorValidator.TABLE_TYPE,
+      TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE)
   }
 }

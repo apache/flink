@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.connectors
 
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
+import org.apache.flink.table.descriptors.FormatDescriptorValidator._
+import org.apache.flink.table.descriptors.TableDescriptorValidator
+import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 
-/**
-  * Table source factory for testing.
-  */
-class TestTableSourceFactory extends TableSourceFactory[Row] {
+class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactoryDiscoverable {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -50,14 +48,22 @@ class TestTableSourceFactory extends TableSourceFactory[Row] {
     properties
   }
 
-  override def create(properties: util.Map[String, String]): TableSource[Row] = {
+  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
     if (properties.get("failing") == "true") {
       throw new IllegalArgumentException("Error in this factory.")
     }
-    new TableSource[Row] {
-      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
+    new TableSink[Row] {
+      override def getOutputType: TypeInformation[Row] = throw new UnsupportedOperationException()
 
-      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
+      override def getFieldNames: Array[String] = throw new UnsupportedOperationException()
+
+      override def getFieldTypes: Array[TypeInformation[_]] =
+        throw new UnsupportedOperationException()
+
+      override def configure(fieldNames: Array[String],
+                             fieldTypes: Array[TypeInformation[_]]): TableSink[Row] =
+        throw new UnsupportedOperationException()
     }
   }
 }
+
