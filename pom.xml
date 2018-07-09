@@ -69,6 +69,7 @@ under the License.
 		<module>flink-formats</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
+		<module>flink-container</module>
 		<module>flink-queryable-state</module>
 		<module>flink-tests</module>
 		<module>flink-end-to-end-tests</module>

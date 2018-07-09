@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.util.TestLogger;
 
@@ -33,24 +34,28 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link ClusterConfigurationParserFactory}.
+ * Tests for the {@link StandaloneJobClusterConfigurationParserFactory}.
  */
-public class ClusterConfigurationParserFactoryTest extends TestLogger {
+public class StandaloneJobClusterConfigurationParserFactoryTest extends TestLogger {
 
 	@Test
 	public void testEntrypointClusterConfigurationParsing() throws FlinkParseException {
-		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
 
 		final String configDir = "/foo/bar";
 		final String key = "key";
 		final String value = "value";
+		final int restPort = 1234;
+		final String jobClassName = "foobar";
 		final String arg1 = "arg1";
 		final String arg2 = "arg2";
-		final String[] args = {"--configDir", configDir, String.format("-D%s=%s", key, value), arg1, arg2};
+		final String[] args = {"--configDir", configDir, "--webui-port", String.valueOf(restPort), "--job-classname", jobClassName, String.format("-D%s=%s", key, value), arg1, arg2};
 
-		final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
+		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));
+		assertThat(clusterConfiguration.getRestPort(), is(equalTo(restPort)));
 		final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
 
 		assertThat(dynamicProperties, hasEntry(key, value));
@@ -60,19 +65,22 @@ public class ClusterConfigurationParserFactoryTest extends TestLogger {
 
 	@Test
 	public void testOnlyRequiredArguments() throws FlinkParseException {
-		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
 
 		final String configDir = "/foo/bar";
-		final String[] args = {"--configDir", configDir};
+		final String jobClassName = "foobar";
+		final String[] args = {"--configDir", configDir, "--job-classname", jobClassName};
 
-		final ClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+		final StandaloneJobClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
 
 		assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
+		assertThat(clusterConfiguration.getJobClassName(), is(equalTo(jobClassName)));
+		assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
 	}
 
 	@Test(expected = FlinkParseException.class)
 	public void testMissingRequiredArgument() throws FlinkParseException {
-		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
 		final String[] args = {};
 
 		commandLineParser.parse(args);
