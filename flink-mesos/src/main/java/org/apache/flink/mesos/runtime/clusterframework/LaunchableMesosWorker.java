@@ -30,8 +30,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
@@ -41,6 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -85,11 +85,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param taskID the taskID for this worker.
 	 */
 	public LaunchableMesosWorker(
-			MesosArtifactResolver resolver,
-			MesosTaskManagerParameters params,
-			ContainerSpecification containerSpec,
-			Protos.TaskID taskID,
-			MesosConfiguration mesosConfiguration) {
+		MesosArtifactResolver resolver,
+		MesosTaskManagerParameters params,
+		ContainerSpecification containerSpec,
+		Protos.TaskID taskID,
+		MesosConfiguration mesosConfiguration) {
 		this.resolver = Preconditions.checkNotNull(resolver);
 		this.containerSpec = Preconditions.checkNotNull(containerSpec);
 		this.params = Preconditions.checkNotNull(params);
@@ -147,7 +147,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public int getPorts() {
-			return TM_PORT_KEYS.length;
+			return getPortKeys().size();
 		}
 
 		@Override
@@ -235,9 +235,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		// take needed ports for the TM
-		List<Protos.Resource> portResources = allocation.takeRanges("ports", TM_PORT_KEYS.length, roles);
+		List<String> tmPortKeys = getPortKeys();
+
+		List<Protos.Resource> portResources = allocation.takeRanges("ports", tmPortKeys.size(), roles);
 		taskInfo.addAllResources(portResources);
-		Iterator<String> portsToAssign = Iterators.forArray(TM_PORT_KEYS);
+		Iterator<String> portsToAssign = tmPortKeys.iterator();
 		rangeValues(portResources).forEach(port -> dynamicProperties.setLong(portsToAssign.next(), port));
 		if (portsToAssign.hasNext()) {
 			throw new IllegalArgumentException("insufficient # of ports assigned");
@@ -330,6 +332,18 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		taskInfo.setContainer(containerInfo);
 
 		return taskInfo.build();
+	}
+
+	private List<String> getPortKeys() {
+		List<String> tmPortKeys = new ArrayList<>(Arrays.asList(TM_PORT_KEYS));
+		if (containerSpec.getDynamicConfiguration().containsKey("metrics.reporter.prom.port")) {
+			LOG.debug("Adding \"metrics.reporter.prom.port\" to mesos TM request");
+			tmPortKeys.add("metrics.reporter.prom.port");
+		}
+		else {
+			LOG.debug("Prometheus port not configured");
+		}
+		return tmPortKeys;
 	}
 
 	@Override
