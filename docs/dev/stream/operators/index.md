@@ -310,6 +310,21 @@ dataStream.join(otherStream)
           </td>
         </tr>
         <tr>
+          <td><strong>Interval Join</strong><br>KeyedStream,KeyedStream &rarr; DataStream</td>
+          <td>
+            <p>Join two elements e1 and e2 of two keyed streams with a common key over a given time interval, so that e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound</p>
+    {% highlight java %}
+// this will join the two streams so that
+// key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
+keyedStream.intervalJoin(otherKeyedStream)
+    .between(Time.milliseconds(-2), Time.milliseconds(2)) // lower and upper bound
+    .upperBoundExclusive(true) // optional
+    .lowerBoundExclusive(true) // optional
+    .process(new IntervalJoinFunction() {...});
+    {% endhighlight %}
+          </td>
+        </tr>
+        <tr>
           <td><strong>Window CoGroup</strong><br>DataStream,DataStream &rarr; DataStream</td>
           <td>
             <p>Cogroups two data streams on a given key and a common window.</p>

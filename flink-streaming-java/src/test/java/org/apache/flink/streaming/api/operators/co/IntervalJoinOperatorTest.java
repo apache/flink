@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.co.TimeBoundedJoinFunction;
+import org.apache.flink.streaming.api.functions.co.IntervalJoinFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -52,11 +52,11 @@ import java.util.stream.Collectors;
 
 
 /**
- * Tests for {@link TimeBoundedStreamJoinOperator}.
+ * Tests for {@link IntervalJoinOperator}.
  * Those tests cover correctness and cleaning of state
  */
 @RunWith(Parameterized.class)
-public class TimeBoundedStreamJoinOperatorTest {
+public class IntervalJoinOperatorTest {
 
 	private final boolean lhsFasterThanRhs;
 
@@ -67,7 +67,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 		});
 	}
 
-	public TimeBoundedStreamJoinOperatorTest(boolean lhsFasterThanRhs) {
+	public IntervalJoinOperatorTest(boolean lhsFasterThanRhs) {
 		this.lhsFasterThanRhs = lhsFasterThanRhs;
 	}
 
@@ -436,15 +436,15 @@ public class TimeBoundedStreamJoinOperatorTest {
 	@Test
 	public void testContextCorrectLeftTimestamp() throws Exception {
 
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
-			new TimeBoundedStreamJoinOperator<>(
+		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
+			new IntervalJoinOperator<>(
 				-1,
 				1,
 				true,
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new TimeBoundedJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -472,15 +472,15 @@ public class TimeBoundedStreamJoinOperatorTest {
 
 	@Test
 	public void testReturnsCorrectTimestamp() throws Exception {
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
-			new TimeBoundedStreamJoinOperator<>(
+		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
+			new IntervalJoinOperator<>(
 				-1,
 				1,
 				true,
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new TimeBoundedJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -509,15 +509,15 @@ public class TimeBoundedStreamJoinOperatorTest {
 	@Test
 	public void testContextCorrectRightTimestamp() throws Exception {
 
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
-			new TimeBoundedStreamJoinOperator<>(
+		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> op =
+			new IntervalJoinOperator<>(
 				-1,
 				1,
 				true,
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new TimeBoundedJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -647,8 +647,8 @@ public class TimeBoundedStreamJoinOperatorTest {
 		long upperBound,
 		boolean upperBoundInclusive) throws Exception {
 
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
-			new TimeBoundedStreamJoinOperator<>(
+		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
+			new IntervalJoinOperator<>(
 				lowerBound,
 				upperBound,
 				lowerBoundInclusive,
@@ -671,8 +671,8 @@ public class TimeBoundedStreamJoinOperatorTest {
 		long upperBound,
 		boolean upperBoundInclusive) throws Exception {
 
-		TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
-			new TimeBoundedStreamJoinOperator<>(
+		IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator =
+			new IntervalJoinOperator<>(
 				lowerBound,
 				upperBound,
 				lowerBoundInclusive,
@@ -694,12 +694,12 @@ public class TimeBoundedStreamJoinOperatorTest {
 
 	private class JoinTestBuilder {
 
-		private TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator;
+		private IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator;
 		private TestHarness testHarness;
 
 		public JoinTestBuilder(
 			TestHarness t,
-			TimeBoundedStreamJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator
+			IntervalJoinOperator<String, TestElem, TestElem, Tuple2<TestElem, TestElem>> operator
 		) throws Exception {
 
 			this.testHarness = t;
@@ -816,7 +816,7 @@ public class TimeBoundedStreamJoinOperatorTest {
 		}
 	}
 
-	private static class PassthroughFunction extends TimeBoundedJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>> {
+	private static class PassthroughFunction extends IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>> {
 
 		@Override
 		public void processElement(
