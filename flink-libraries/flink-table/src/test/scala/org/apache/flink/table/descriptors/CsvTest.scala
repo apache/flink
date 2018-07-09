@@ -27,6 +27,9 @@ import org.junit.Test
 
 import scala.collection.JavaConverters._
 
+/**
+  * Tests for [[Csv]].
+  */
 class CsvTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])

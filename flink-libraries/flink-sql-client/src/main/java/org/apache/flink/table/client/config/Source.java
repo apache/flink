@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuration of a table source. Parses an entry in the `sources` list of an environment
+ * Configuration of a table source. Parses an entry in the `tables` list of an environment
  * file and translates to table descriptor properties.
  */
 public class Source extends TableSourceDescriptor {
@@ -49,6 +49,9 @@ public class Source extends TableSourceDescriptor {
 		return properties;
 	}
 
+	/**
+	 * Creates a table source descriptor with the given config.
+	 */
 	public static Source create(Map<String, Object> config) {
 		if (!config.containsKey(NAME)) {
 			throw new SqlClientException("The 'name' attribute of a table source is missing.");

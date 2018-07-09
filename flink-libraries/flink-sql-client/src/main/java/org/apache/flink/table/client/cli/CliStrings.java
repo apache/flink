@@ -45,6 +45,7 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.CLEAR, "Clears the current terminal."))
 		.append(formatCommand(SqlCommand.HELP, "Prints the available commands."))
 		.append(formatCommand(SqlCommand.SHOW_TABLES, "Shows all registered tables."))
+		.append(formatCommand(SqlCommand.SHOW_FUNCTIONS, "Shows all registered user-defined functions."))
 		.append(formatCommand(SqlCommand.DESCRIBE, "Describes the schema of a table with the given name."))
 		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))

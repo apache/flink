@@ -19,34 +19,38 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * Descriptor for describing a function that can be instantiated from somewhere (e.g., a class).
-  *
-  * @param name name of the function
+  * Descriptor for describing a function.
   */
-class FunctionDescriptor(var name: String) extends Descriptor {
+class FunctionDescriptor extends Descriptor {
 
-  var classDescriptor: Option[ClassType] = None
+  private var from: Option[String] = None
+  private var classInstance: Option[ClassInstance] = None
 
   /**
-    * Uses the class provided by the descriptor to instantiate the function.
+    * Creates a function from a class description.
     */
-  def using(classDescriptor: ClassType): FunctionDescriptor = {
-    this.classDescriptor = Option(classDescriptor)
+  def fromClass(classType: ClassInstance): FunctionDescriptor = {
+    from = Some(FunctionDescriptorValidator.FROM_VALUE_CLASS)
+    this.classInstance = Option(classType)
     this
   }
 
-  def getDescriptorProperties: DescriptorProperties = {
-    val descriptorProperties = new DescriptorProperties()
-    addProperties(descriptorProperties)
-    descriptorProperties
-  }
-
+  /**
+    * Internal method for format properties conversion.
+    */
   override def addProperties(properties: DescriptorProperties): Unit = {
-    properties.putString(FunctionValidator.FUNCTION_NAME, name)
-    classDescriptor.foreach(_.addProperties(properties))
+    from.foreach(properties.putString(FunctionDescriptorValidator.FROM, _))
+    classInstance.foreach(_.addProperties(properties))
   }
 }
 
+/**
+  * Descriptor for describing a function.
+  */
 object FunctionDescriptor {
-  def apply(name: String): FunctionDescriptor = new FunctionDescriptor(name)
+
+  /**
+    * Descriptor for describing a function.
+    */
+  def apply(): FunctionDescriptor = new FunctionDescriptor()
 }

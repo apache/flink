@@ -201,6 +201,9 @@ public class CliClient {
 				case SHOW_TABLES:
 					callShowTables(cmdCall);
 					break;
+				case SHOW_FUNCTIONS:
+					callShowFunctions(cmdCall);
+					break;
 				case DESCRIBE:
 					callDescribe(cmdCall);
 					break;
@@ -280,6 +283,22 @@ public class CliClient {
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
 		} else {
 			tables.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowFunctions(SqlCommandCall cmdCall) {
+		final List<String> functions;
+		try {
+			functions = executor.listUserDefinedFunctions(context);
+		} catch (SqlExecutionException e) {
+			printException(e);
+			return;
+		}
+		if (functions.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			functions.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
 	}

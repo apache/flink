@@ -18,25 +18,40 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.descriptors.DescriptorProperties.toJava
+import org.apache.flink.table.descriptors.FunctionDescriptorValidator.FROM
 
 import scala.collection.JavaConverters._
 
 /**
   * Validator for [[FunctionDescriptor]].
   */
-class FunctionValidator extends DescriptorValidator {
+class FunctionDescriptorValidator extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
-    properties.validateString(FunctionValidator.FUNCTION_NAME, isOptional = false, 1)
-    new ClassTypeValidator().validate(properties)
+
+    val classValidation = (_: String) => {
+      new ClassInstanceValidator().validate(properties)
+    }
+
+    // check for 'from'
+    if (properties.containsKey(FROM)) {
+      properties.validateEnum(
+        FROM,
+        isOptional = false,
+        Map(
+          FunctionDescriptorValidator.FROM_VALUE_CLASS -> toJava(classValidation)
+        ).asJava
+      )
+    } else {
+      throw new ValidationException("Could not find 'from' property for function.")
+    }
   }
 }
 
-object FunctionValidator {
+object FunctionDescriptorValidator {
 
-  val FUNCTION_NAME = "name"
-
+  val FROM = "from"
+  val FROM_VALUE_CLASS = "class"
 }
-
-

@@ -191,6 +191,14 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
+		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return Arrays.asList(tableEnv.listUserDefinedFunctions());
+	}
+
+	@Override
 	public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
 			.createEnvironmentInstance()

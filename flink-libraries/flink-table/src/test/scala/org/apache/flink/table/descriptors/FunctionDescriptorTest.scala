@@ -18,47 +18,41 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util.{List => JList, Map => JMap, Arrays => JArrays}
-
-import org.apache.flink.table.api.ValidationException
-import org.junit.Test
+import java.util.{Arrays => JArrays, List => JList, Map => JMap}
 
 import scala.collection.JavaConverters._
 
-class FunctionTest extends DescriptorTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testMissingName(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), "name")
-  }
+/**
+  * Tests for [[FunctionDescriptor]].
+  */
+class FunctionDescriptorTest extends DescriptorTestBase {
 
   override def descriptors(): JList[Descriptor] = {
-    val desc1 = FunctionDescriptor("func1")
-      .using(
-        ClassType("another.class")
+    val desc1 = FunctionDescriptor()
+      .fromClass(
+        ClassInstance()
           .of("my.class")
-          .param("INT", "1")
-          .param(
-            ClassType()
+          .parameter("INT", "1")
+          .parameter(
+            ClassInstance()
               .of("my.class2")
-              .strParam("true")))
+              .parameterString("true")))
 
     JArrays.asList(desc1)
   }
 
   override def validator(): DescriptorValidator = {
-    new FunctionValidator()
+    new FunctionDescriptorValidator()
   }
 
   override def properties(): JList[JMap[String, String]] = {
     val props1 = Map(
-      "name" -> "func1",
+      "from" -> "class",
       "class" -> "my.class",
       "constructor.0.type" -> "INT",
       "constructor.0.value" -> "1",
       "constructor.1.class" -> "my.class2",
-      "constructor.1.constructor.0.type" -> "BOOLEAN",
-      "constructor.1.constructor.0.value" -> "true"
+      "constructor.1.constructor.0" -> "true"
     )
     JArrays.asList(props1.asJava)
   }

@@ -21,11 +21,14 @@
 # Defaults might be overwritten by a session specific environment.
 
 
+# See the Table API & SQL documentation for details about supported properties.
+
+
 #==============================================================================
 # Table Sources
 #==============================================================================
 
-# Define table sources and sinks here. See the Table API & SQL documentation for details.
+# Define table sources and sinks here.
 
 tables: [] # empty list
 # A typical table source definition looks like:
@@ -34,6 +37,19 @@ tables: [] # empty list
 #   connector: ...
 #   format: ...
 #   schema: ...
+
+#==============================================================================
+# User-defined functions
+#==============================================================================
+
+# Define scalar, aggregate, or table functions here.
+
+functions: [] # empty list
+# A typical function definition looks like:
+# - name: ...
+#   from: class
+#   class: ...
+#   constructor: ...
 
 #==============================================================================
 # Execution properties

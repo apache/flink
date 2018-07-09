@@ -19,8 +19,12 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * A class that adds a set of string-based, normalized properties for describing a
-  * table source or table sink.
+  * A class that adds a set of string-based, normalized properties for describing DDL information.
+  *
+  * Typical characteristics of a descriptor are:
+  * - descriptors have a default constructor and a default 'apply()' method for Scala
+  * - descriptors themselves contain very little logic
+  * - corresponding validators validate the correctness (goal: have a single point of validation)
   */
 abstract class Descriptor {
 

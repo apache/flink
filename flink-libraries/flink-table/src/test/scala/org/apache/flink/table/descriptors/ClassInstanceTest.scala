@@ -18,40 +18,52 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util.{List => JList, Map => JMap, Arrays => JArrays}
+import java.util.{Arrays => JArrays, List => JList, Map => JMap}
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.junit.Test
 
 import scala.collection.JavaConverters._
 
-class ClassTypeTest extends DescriptorTestBase {
+class ClassInstanceTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testMissingClass(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), ClassTypeValidator.CLASS)
+    removePropertyAndVerify(descriptors().get(0), ClassInstanceValidator.CLASS)
   }
 
   override def descriptors(): JList[Descriptor] = {
-    val desc1 = ClassType("class1")
-      .param(BasicTypeInfo.LONG_TYPE_INFO, "1")
-      .param(
-        ClassType("class2")
-          .param(
-            ClassType("class3")
-              .param("StarryNight")
-              .param(
-                ClassType("class4"))))
-      .param(2L)
+    val desc1 = ClassInstance()
+      .of("class1")
+      .parameter(Types.LONG, "1")
+      .parameter(
+        ClassInstance()
+          .of("class2")
+          .parameter(
+            ClassInstance()
+              .of("class3")
+              .parameterString("StarryNight")
+              .parameter(
+                ClassInstance()
+                    .of("class4"))))
+      .parameter(2L)
 
-    val desc2 = ClassType().of("class2")
+    val desc2 = ClassInstance()
+      .of("class2")
 
-    JArrays.asList(desc1, desc2)
+    val desc3 = ClassInstance()
+      .of("org.example.Function")
+      .parameter(42)
+      .parameter(2.asInstanceOf[Byte])
+      .parameter(new java.math.BigDecimal("23.22"))
+      .parameter(222.2222)
+      .parameter(222.2222f)
+
+    JArrays.asList(desc1, desc2, desc3)
   }
 
   override def validator(): DescriptorValidator = {
-    new ClassTypeValidator()
+    new ClassInstanceValidator()
   }
 
   override def properties(): JList[JMap[String, String]] = {
@@ -61,8 +73,7 @@ class ClassTypeTest extends DescriptorTestBase {
       "constructor.0.value" -> "1",
       "constructor.1.class" -> "class2",
       "constructor.1.constructor.0.class" -> "class3",
-      "constructor.1.constructor.0.constructor.0.type" -> "VARCHAR",
-      "constructor.1.constructor.0.constructor.0.value" -> "StarryNight",
+      "constructor.1.constructor.0.constructor.0" -> "StarryNight",
       "constructor.1.constructor.0.constructor.1.class" -> "class4",
       "constructor.2.type" -> "BIGINT",
       "constructor.2.value" -> "2"
@@ -72,6 +83,20 @@ class ClassTypeTest extends DescriptorTestBase {
       "class" -> "class2"
     )
 
-    JArrays.asList(props1.asJava, props2.asJava)
+    val props3 = Map(
+      "class" -> "org.example.Function",
+      "constructor.0.type" -> "INT",
+      "constructor.0.value" -> "42",
+      "constructor.1.type" -> "TINYINT",
+      "constructor.1.value" -> "2",
+      "constructor.2.type" -> "DECIMAL",
+      "constructor.2.value" -> "23.22",
+      "constructor.3.type" -> "DOUBLE",
+      "constructor.3.value" -> "222.2222",
+      "constructor.4.type" -> "FLOAT",
+      "constructor.4.value" -> "222.2222"
+    )
+
+    JArrays.asList(props1.asJava, props2.asJava, props3.asJava)
   }
 }

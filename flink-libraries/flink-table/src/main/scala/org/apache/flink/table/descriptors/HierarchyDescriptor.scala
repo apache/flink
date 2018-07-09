@@ -25,10 +25,11 @@ package org.apache.flink.table.descriptors
 abstract class HierarchyDescriptor extends Descriptor {
 
   /**
-    * Internal method for properties conversion. All the property keys will be prefixed according
-    * to the level.
+    * Internal method for properties conversion. All the property keys will be prefixed with the
+    * given key prefix.
     */
   private[flink] def addPropertiesWithPrefix(
-    keyPrefix: String, properties: DescriptorProperties): Unit
+    keyPrefix: String,
+    properties: DescriptorProperties): Unit
 
 }

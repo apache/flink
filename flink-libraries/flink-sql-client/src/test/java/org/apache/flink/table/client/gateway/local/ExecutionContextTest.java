@@ -21,6 +21,7 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
@@ -28,8 +29,10 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.commons.cli.Options;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -44,6 +47,17 @@ public class ExecutionContextTest {
 		final ExecutionContext<?> context = createExecutionContext();
 		final ExecutionConfig config = context.createEnvironmentInstance().getExecutionConfig();
 		assertEquals(99, config.getAutoWatermarkInterval());
+	}
+
+	@Test
+	public void testFunctions() throws Exception {
+		final ExecutionContext<?> context = createExecutionContext();
+		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+		final String[] expected = new String[]{"scalarUDF", "tableUDF", "aggregateUDF"};
+		final String[] actual = tableEnv.listUserDefinedFunctions();
+		Arrays.sort(expected);
+		Arrays.sort(actual);
+		assertArrayEquals(expected, actual);
 	}
 
 	private <T> ExecutionContext<T> createExecutionContext() throws Exception {

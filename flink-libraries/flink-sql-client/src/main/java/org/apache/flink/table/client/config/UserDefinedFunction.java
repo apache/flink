@@ -21,68 +21,47 @@ package org.apache.flink.table.client.config;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FunctionDescriptor;
-import org.apache.flink.table.descriptors.FunctionValidator;
 
+import java.util.HashMap;
 import java.util.Map;
-
-import static org.apache.flink.table.client.config.UserDefinedFunction.From.CLASS;
 
 /**
  * Descriptor for user-defined functions.
  */
 public class UserDefinedFunction extends FunctionDescriptor {
 
-	private static final String FROM = "from";
-
-	private From from;
-
+	private String name;
 	private Map<String, String> properties;
 
-	private UserDefinedFunction(String name, From from, Map<String, String> properties) {
-		super(name);
-		this.from = from;
+	private static final String NAME = "name";
+
+	private UserDefinedFunction(String name, Map<String, String> properties) {
+		this.name = name;
 		this.properties = properties;
 	}
 
-	/**
-	 * Gets where the user-defined function should be created from.
-	 */
-	public From getFrom() {
-		return from;
+	public String getName() {
+		return name;
+	}
+
+	public Map<String, String> getProperties() {
+		return properties;
 	}
 
 	/**
-	 * Creates a UDF descriptor with the given config.
+	 * Creates a user-defined function descriptor with the given config.
 	 */
 	public static UserDefinedFunction create(Map<String, Object> config) {
-		Map<String, String> udfConfig = ConfigUtil.normalizeYaml(config);
-		if (!udfConfig.containsKey(FunctionValidator.FUNCTION_NAME())) {
+		if (!config.containsKey(NAME)) {
 			throw new SqlClientException("The 'name' attribute of a function is missing.");
 		}
-
-		final String name = udfConfig.get(FunctionValidator.FUNCTION_NAME());
-		if (name.trim().length() <= 0) {
+		final Object name = config.get(NAME);
+		if (name == null || !(name instanceof String) || ((String) name).trim().length() <= 0) {
 			throw new SqlClientException("Invalid function name '" + name + "'.");
 		}
-
-		// the default value is "CLASS"
-		From fromValue = CLASS;
-
-		if (udfConfig.containsKey(FROM)) {
-			final String from = udfConfig.get(FROM);
-			try {
-				fromValue = From.valueOf(from.toUpperCase());
-			} catch (IllegalArgumentException ex) {
-				throw new SqlClientException("Unknown 'from' value '" + from + "'.");
-			}
-		}
-
-		switch (fromValue) {
-			case CLASS:
-				return new UserDefinedFunction(name, fromValue, udfConfig);
-			default:
-				throw new SqlClientException("The from attribute can only be \"class\" now.");
-		}
+		final Map<String, Object> properties = new HashMap<>(config);
+		properties.remove(NAME);
+		return new UserDefinedFunction((String) name, ConfigUtil.normalizeYaml(properties));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -90,9 +69,5 @@ public class UserDefinedFunction extends FunctionDescriptor {
 	@Override
 	public void addProperties(DescriptorProperties properties) {
 		this.properties.forEach(properties::putString);
-	}
-
-	enum From {
-		CLASS
 	}
 }

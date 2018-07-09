@@ -27,12 +27,12 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
 
 /**
- * A bunch of UDFs for SQL-Client test.
+ * A bunch of UDFs for testing the SQL Client.
  */
 public class UserDefinedFunctions {
 
 	/**
-	 * The scalar function for SQL-Client test.
+	 * The scalar function for SQL Client test.
 	 */
 	public static class ScalarUDF extends ScalarFunction {
 
@@ -48,12 +48,12 @@ public class UserDefinedFunctions {
 	}
 
 	/**
-	 * The aggregate function for SQL-Client test.
+	 * The aggregate function for SQL Client test.
 	 */
 	public static class AggregateUDF extends AggregateFunction<Long, Long> {
 
 		public AggregateUDF(String name, Boolean flag, Integer value) {
-
+			// do nothing
 		}
 
 		@Override
@@ -67,7 +67,7 @@ public class UserDefinedFunctions {
 		}
 
 		public void accumulate(Long acc, Long value) {
-
+			// do nothing
 		}
 
 		@Override
@@ -77,10 +77,10 @@ public class UserDefinedFunctions {
 	}
 
 	/**
-	 * The table function for SQL-Client test.
+	 * The table function for SQL Client test.
 	 */
 	public static class TableUDF extends TableFunction<Row> {
-		private long extra = 2L;
+		private long extra;
 
 		public TableUDF(Long extra) {
 			this.extra = extra;
@@ -100,6 +100,4 @@ public class UserDefinedFunctions {
 			return Types.ROW(Types.STRING(), Types.LONG());
 		}
 	}
-
 }
-

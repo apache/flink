@@ -26,28 +26,35 @@ import org.junit.Test
 
 import scala.collection.JavaConverters._
 
-class PrimitiveTypeTest extends DescriptorTestBase {
-
-  @Test(expected = classOf[ValidationException])
-  def testMissingType(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), PrimitiveTypeValidator.PRIMITIVE_TYPE)
-  }
+/**
+  * Tests for [[LiteralValue]].
+  */
+class LiteralValueTest extends DescriptorTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testMissingValue(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), PrimitiveTypeValidator.PRIMITIVE_VALUE)
+    removePropertyAndVerify(descriptors().get(0), LiteralValueValidator.VALUE)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWrongValue(): Unit = {
+    // byte expected
+    addPropertyAndVerify(descriptors().get(2), LiteralValueValidator.VALUE, "12.222")
   }
 
   override def descriptors(): JList[Descriptor] = {
-    val bigDecimalDesc = PrimitiveType().of(Types.DECIMAL).value(new JBigDecimal(1))
-    val booleanDesc = PrimitiveType().of(Types.BOOLEAN).value(false)
-    val byteDesc = PrimitiveType().of(Types.BYTE).value(4.asInstanceOf[Byte])
-    val doubleDesc = PrimitiveType().of(Types.DOUBLE).value(7.0)
-    val floatDesc = PrimitiveType().of(Types.FLOAT).value(8f)
-    val intDesc = PrimitiveType().of(Types.INT).value(9)
-    val longDesc = PrimitiveType().of(Types.LONG).value(10L)
-    val shortDesc = PrimitiveType().of(Types.SHORT).value(11.asInstanceOf[Short])
-    val stringDesc = PrimitiveType().of(Types.STRING).value("12")
+    val bigDecimalDesc = LiteralValue().of(Types.DECIMAL).value(new JBigDecimal(1))
+    val booleanDesc = LiteralValue().of(Types.BOOLEAN).value(false)
+    val byteDesc = LiteralValue().of(Types.BYTE).value(4.asInstanceOf[Byte])
+    val doubleDesc = LiteralValue().of(Types.DOUBLE).value(7.0)
+    val floatDesc = LiteralValue().of(Types.FLOAT).value(8.0f)
+    val intDesc = LiteralValue().of(Types.INT).value(9)
+    val longDesc = LiteralValue().of(Types.LONG).value(10L)
+    val shortDesc = LiteralValue().of(Types.SHORT).value(11.asInstanceOf[Short])
+    val stringDesc = LiteralValue().of(Types.STRING).value("12")
+
+    // for tests with implicit type see ClassInstanceTest because literal value are not
+    // supported in the top level of a hierarchy
 
     JArrays.asList(
       bigDecimalDesc,
@@ -62,7 +69,7 @@ class PrimitiveTypeTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new PrimitiveTypeValidator()
+    new LiteralValueValidator(HierarchyDescriptorValidator.EMPTY_PREFIX)
   }
 
   override def properties(): JList[JMap[String, String]] = {
@@ -112,6 +119,7 @@ class PrimitiveTypeTest extends DescriptorTestBase {
       intProps.asJava,
       longDesc.asJava,
       shortDesc.asJava,
-      stringDesc.asJava)
+      stringDesc.asJava
+    )
   }
 }

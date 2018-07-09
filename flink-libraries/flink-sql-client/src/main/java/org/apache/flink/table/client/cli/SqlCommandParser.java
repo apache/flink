@@ -86,6 +86,7 @@ public final class SqlCommandParser {
 		CLEAR("clear"),
 		HELP("help"),
 		SHOW_TABLES("show tables"),
+		SHOW_FUNCTIONS("show functions"),
 		DESCRIBE("describe"),
 		EXPLAIN("explain"),
 		SELECT("select"),

@@ -48,10 +48,9 @@ import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableSourceDescriptor;
-import org.apache.flink.table.descriptors.service.FunctionService;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -105,20 +104,18 @@ public class ExecutionContext<T> {
 		tableSources = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
 			if (descriptor instanceof TableSourceDescriptor) {
-				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
-						(TableSourceDescriptor) descriptor, classLoader);
+				final TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
+					(TableSourceDescriptor) descriptor,
+					classLoader);
 				tableSources.put(name, tableSource);
 			}
 		});
 
-		// generate user-defined functions
+		// create user-defined functions
 		functions = new HashMap<>();
 		mergedEnv.getFunctions().forEach((name, descriptor) -> {
-			DescriptorProperties properties = new DescriptorProperties(true);
-			descriptor.addProperties(properties);
-			functions.put(
-					name,
-					FunctionService.generateUserDefinedFunction(properties, classLoader));
+			final UserDefinedFunction function = FunctionService.createFunction(descriptor, classLoader);
+			functions.put(name, function);
 		});
 
 		// convert deployment options into command line options that describe a cluster
@@ -227,7 +224,7 @@ public class ExecutionContext<T> {
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
 
-			// register UDFs
+			// register user-defined functions
 			if (tableEnv instanceof StreamTableEnvironment) {
 				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
 				functions.forEach((k, v) -> {
@@ -237,6 +234,8 @@ public class ExecutionContext<T> {
 						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
 					} else if (v instanceof TableFunction) {
 						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
 					}
 				});
 			} else {
@@ -248,6 +247,8 @@ public class ExecutionContext<T> {
 						batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
 					} else if (v instanceof TableFunction) {
 						batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
 					}
 				});
 			}

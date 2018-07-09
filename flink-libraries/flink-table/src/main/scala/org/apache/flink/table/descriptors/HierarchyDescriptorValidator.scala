@@ -20,16 +20,22 @@ package org.apache.flink.table.descriptors
 
 /**
   * Validator for a [[HierarchyDescriptor]].
+  *
+  * @param keyPrefix prefix to be added to every property before validation
   */
-trait HierarchyDescriptorValidator extends DescriptorValidator{
+abstract class HierarchyDescriptorValidator(keyPrefix: String) extends DescriptorValidator{
 
-  def validate(properties: DescriptorProperties): Unit = {
-    validateWithPrefix("", properties)
+  final def validate(properties: DescriptorProperties): Unit = {
+    validateWithPrefix(keyPrefix, properties)
   }
 
   /**
     * Performs validation with a prefix for the keys.
     */
-  def validateWithPrefix(keyPrefix: String, properties: DescriptorProperties): Unit
+  protected def validateWithPrefix(keyPrefix: String, properties: DescriptorProperties): Unit
 
+}
+
+object HierarchyDescriptorValidator {
+  val EMPTY_PREFIX = ""
 }

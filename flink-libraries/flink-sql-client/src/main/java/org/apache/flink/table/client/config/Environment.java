@@ -42,17 +42,17 @@ public class Environment {
 
 	private Map<String, TableDescriptor> tables;
 
+	private Map<String, UserDefinedFunction> functions;
+
 	private Execution execution;
 
 	private Deployment deployment;
 
-	private Map<String, UserDefinedFunction> functions;
-
 	public Environment() {
 		this.tables = Collections.emptyMap();
+		this.functions = Collections.emptyMap();
 		this.execution = new Execution();
 		this.deployment = new Deployment();
-		this.functions = Collections.emptyMap();
 	}
 
 	public Map<String, TableDescriptor> getTables() {
@@ -69,7 +69,7 @@ public class Environment {
 				config.remove(TableDescriptorValidator.TABLE_TYPE());
 				final Source s = Source.create(config);
 				if (this.tables.containsKey(s.getName())) {
-					throw new SqlClientException("Duplicate source name '" + s + "'.");
+					throw new SqlClientException("Duplicate source name '" + s.getName() + "'.");
 				}
 				this.tables.put(s.getName(), s);
 			} else {
@@ -79,11 +79,18 @@ public class Environment {
 		});
 	}
 
+	public Map<String, UserDefinedFunction> getFunctions() {
+		return functions;
+	}
+
 	public void setFunctions(List<Map<String, Object>> functions) {
 		this.functions = new HashMap<>(functions.size());
 		functions.forEach(config -> {
 			final UserDefinedFunction f = UserDefinedFunction.create(config);
-			this.functions.put(f.name(), f);
+			if (this.tables.containsKey(f.getName())) {
+				throw new SqlClientException("Duplicate function name '" + f.getName() + "'.");
+			}
+			this.functions.put(f.getName(), f);
 		});
 	}
 
@@ -103,10 +110,6 @@ public class Environment {
 		return deployment;
 	}
 
-	public Map<String, UserDefinedFunction> getFunctions() {
-		return functions;
-	}
-
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -115,6 +118,13 @@ public class Environment {
 			sb.append("- name: ").append(name).append("\n");
 			final DescriptorProperties props = new DescriptorProperties(true);
 			table.addProperties(props);
+			props.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
+		});
+		sb.append("=================== Functions ====================\n");
+		functions.forEach((name, function) -> {
+			sb.append("- name: ").append(name).append("\n");
+			final DescriptorProperties props = new DescriptorProperties(true);
+			function.addProperties(props);
 			props.asMap().forEach((k, v) -> sb.append("  ").append(k).append(": ").append(v).append('\n'));
 		});
 		sb.append("=================== Execution ====================\n");
@@ -153,7 +163,7 @@ public class Environment {
 
 		// merge functions
 		final Map<String, UserDefinedFunction> functions = new HashMap<>(env1.getFunctions());
-		mergedEnv.getFunctions().putAll(env2.getFunctions());
+		functions.putAll(env2.getFunctions());
 		mergedEnv.functions = functions;
 
 		// merge execution properties
@@ -165,11 +175,17 @@ public class Environment {
 		return mergedEnv;
 	}
 
+	/**
+	 * Enriches an environment with new/modified properties and returns the new instance.
+	 */
 	public static Environment enrich(Environment env, Map<String, String> properties) {
 		final Environment enrichedEnv = new Environment();
 
 		// merge tables
 		enrichedEnv.tables = new HashMap<>(env.getTables());
+
+		// merge functions
+		enrichedEnv.functions = new HashMap<>(env.getFunctions());
 
 		// enrich execution properties
 		enrichedEnv.execution = Execution.enrich(env.execution, properties);
