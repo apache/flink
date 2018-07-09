@@ -158,7 +158,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final HeapSnapshotStrategy snapshotStrategy;
 
 	/**
-	 *
+	 * Factory for state that is organized as priority queue.
 	 */
 	private final PriorityQueueSetFactory priorityQueueSetFactory;
 
