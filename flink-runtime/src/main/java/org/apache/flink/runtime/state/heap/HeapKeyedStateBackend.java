@@ -114,12 +114,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull PriorityComparator<T> elementPriorityComparator,
 		@Nonnull KeyExtractorFunction<T> keyExtractor) {
 
-		return new HeapPriorityQueueSet<>(
+		return priorityQueueSetFactory.create(
+			stateName,
+			byteOrderedElementSerializer,
 			elementPriorityComparator,
-			keyExtractor,
-			128,
-			keyGroupRange,
-			numberOfKeyGroups);
+			keyExtractor);
 	}
 
 	private interface StateFactory {
