@@ -38,7 +38,7 @@ Start a YARN session with 4 Task Managers (each with 4 GB of Heapspace):
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/yarn-session.sh -n 4 -jm 1024 -tm 4096
+./bin/yarn-session.sh -n 4 -jm 1024m -tm 4096m
 {% endhighlight %}
 
 Specify the `-s` flag for the number of processing slots per Task Manager. We recommend to set the number of slots to the number of processors per machine.
@@ -53,7 +53,7 @@ Once the session has been started, you can submit jobs to the cluster using the 
 curl -O <flink_hadoop2_download_url>
 tar xvzf flink-{{ site.version }}-bin-hadoop2.tgz
 cd flink-{{ site.version }}/
-./bin/flink run -m yarn-cluster -yn 4 -yjm 1024 -ytm 4096 ./examples/batch/WordCount.jar
+./bin/flink run -m yarn-cluster -yn 4 -yjm 1024m -ytm 4096m ./examples/batch/WordCount.jar
 {% endhighlight %}
 
 ## Flink YARN Session
@@ -101,12 +101,12 @@ Usage:
    Optional
      -D <arg>                        Dynamic properties
      -d,--detached                   Start detached
-     -jm,--jobManagerMemory <arg>    Memory for JobManager Container [in MB]
+     -jm,--jobManagerMemory <arg>    Memory for JobManager Container with optional unit (default: MB)
      -nm,--name                      Set a custom name for the application on YARN
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager
-     -tm,--taskManagerMemory <arg>   Memory per TaskManager Container [in MB]
+     -tm,--taskManagerMemory <arg>   Memory per TaskManager Container with optional unit (default: MB)
      -z,--zookeeperNamespace <arg>   Namespace to create the Zookeeper sub-paths for HA mode
 {% endhighlight %}
 
