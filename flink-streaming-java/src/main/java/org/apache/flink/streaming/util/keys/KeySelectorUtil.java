@@ -172,28 +172,16 @@ public final class KeySelectorUtil {
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final Object[] keyArray;
 
-		/**
-		 * Template tuple object for the key.
-		 *
-		 * <p>We will create copies of this to return in {@link #getKey(Object)}.
-		 */
-		private final Tuple templateKey;
-
 		ComparableKeySelector(TypeComparator<IN> comparator, int keyLength, TupleTypeInfo<Tuple> tupleTypeInfo) {
 			this.comparator = comparator;
 			this.keyLength = keyLength;
 			this.tupleTypeInfo = tupleTypeInfo;
 			this.keyArray = new Object[keyLength];
-			try {
-				this.templateKey = Tuple.getTupleClass(keyLength).newInstance();
-			} catch (ReflectiveOperationException e) {
-				throw new InvalidTypesException("Cannot create tuple of length " + keyLength, e);
-			}
 		}
 
 		@Override
 		public Tuple getKey(IN value) {
-			Tuple key = templateKey.copy();
+			Tuple key = Tuple.newInstance(keyLength);
 			comparator.extractKeys(value, keyArray, 0);
 			for (int i = 0; i < keyLength; i++) {
 				key.setField(keyArray[i], i);
@@ -224,26 +212,14 @@ public final class KeySelectorUtil {
 		private final int[] fields;
 		private transient TupleTypeInfo<Tuple> returnType;
 
-		/**
-		 * Template tuple object for the key.
-		 *
-		 * <p>We will create copies of this to return in {@link #getKey(Object)}.
-		 */
-		private final Tuple templateKey;
-
 		ArrayKeySelector(int[] fields, TupleTypeInfo<Tuple> returnType) {
 			this.fields = requireNonNull(fields);
 			this.returnType = requireNonNull(returnType);
-			try {
-				this.templateKey = Tuple.getTupleClass(fields.length).newInstance();
-			} catch (ReflectiveOperationException e) {
-				throw new InvalidTypesException("Cannot create tuple of length " + fields.length, e);
-			}
 		}
 
 		@Override
 		public Tuple getKey(IN value) {
-			Tuple key = templateKey.copy();
+			Tuple key = Tuple.newInstance(fields.length);
 			for (int i = 0; i < fields.length; i++) {
 				key.setField(Array.get(value, fields[i]), i);
 			}
