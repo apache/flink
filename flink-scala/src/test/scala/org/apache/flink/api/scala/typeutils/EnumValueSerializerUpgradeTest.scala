@@ -150,7 +150,8 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     val enum2 = instantiateEnum[Enumeration](classLoader2, enumName)
 
     val enumValueSerializer2 = new EnumValueSerializer(enum2)
-    enumValueSerializer2.internalEnsureCompatibility(snapshot2)
+    snapshot2.resolveSchemaCompatibility(enumValueSerializer2)
+      .asInstanceOf[TypeSerializerSchemaCompatibility[Enumeration#Value]]
   }
 }
 

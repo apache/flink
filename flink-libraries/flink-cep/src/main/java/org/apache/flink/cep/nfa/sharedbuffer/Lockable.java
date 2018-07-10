@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -194,8 +195,12 @@ public final class Lockable<T> {
 				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> nestedSerializerAndConfig =
 					snapshot.getSingleNestedSerializerAndConfig();
 
-				TypeSerializerSchemaCompatibility<E> inputComaptibilityResult = elementSerializer
-					.internalEnsureCompatibility(nestedSerializerAndConfig.f1);
+				@SuppressWarnings("unchecked")
+				TypeSerializerConfigSnapshot<E> elementSerializerSnapshot = (TypeSerializerConfigSnapshot<E>) nestedSerializerAndConfig.f1;
+
+				TypeSerializerSchemaCompatibility<E> inputComaptibilityResult =
+					CompatibilityUtil.resolveCompatibilityResult(elementSerializerSnapshot, elementSerializer);
+
 				if (inputComaptibilityResult.isIncompatible()) {
 					return TypeSerializerSchemaCompatibility.incompatible();
 				} else {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -215,29 +214,9 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
+	 *
+	 * @deprecated // TODO remove this method in follow-up commits
 	 */
-	protected abstract TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
-
-	/**
-	 * Public-facing method for serializer compatibility checks. Restored configuration snapshots should
-	 * be provided via this method.
-	 *
-	 * <p>Before passing the configuration snapshot to the actual
-	 * {@link #ensureCompatibility(TypeSerializerConfigSnapshot)} method, the configuration snapshot is checked
-	 * to see if it is a dummy {@link BackwardsCompatibleConfigSnapshot}. If so, then the actual wrapped
-	 * configuration snapshot is extracted and used instead.
-	 *
-	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
-	 *
-	 * @return the determined compatibility result (cannot be {@code null}).
-	 */
-	@Internal
-	public final TypeSerializerSchemaCompatibility<T> internalEnsureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-		if (configSnapshot instanceof BackwardsCompatibleConfigSnapshot) {
-			return ensureCompatibility(
-				((BackwardsCompatibleConfigSnapshot<?>) configSnapshot).getWrappedConfigSnapshot());
-		} else {
-			return ensureCompatibility(configSnapshot);
-		}
-	}
+	@Deprecated
+	public abstract TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
 }

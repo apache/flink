@@ -62,12 +62,12 @@ public class KryoSerializerCompatibilityTest {
 		KryoSerializer<TestClass> kryoSerializerForA = new KryoSerializer<>(TestClass.class, new ExecutionConfig());
 
 		// read configuration again from bytes
-		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot;
+		TypeSerializerConfigSnapshot<TestClass> kryoSerializerConfigSnapshot;
 		try (InputStream in = getClass().getResourceAsStream("/kryo-serializer-flink1.3-snapshot")) {
 			kryoSerializerConfigSnapshot = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
-		TypeSerializerSchemaCompatibility<TestClass> compatResult = kryoSerializerForA.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
+		TypeSerializerSchemaCompatibility<TestClass> compatResult = kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForA);
 		assertFalse(compatResult.isIncompatible());
 	}
 
@@ -95,7 +95,7 @@ public class KryoSerializerCompatibilityTest {
 		KryoSerializer<TestClassA> kryoSerializerForA = new KryoSerializer<>(TestClassA.class, new ExecutionConfig());
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot = kryoSerializerForA.snapshotConfiguration();
+		TypeSerializerConfigSnapshot<TestClassA> kryoSerializerConfigSnapshot = kryoSerializerForA.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
@@ -110,7 +110,7 @@ public class KryoSerializerCompatibilityTest {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		TypeSerializerSchemaCompatibility<TestClassB> compatResult = kryoSerializerForB.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
+		TypeSerializerSchemaCompatibility<TestClassA> compatResult = kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializerForB);
 		assertTrue(compatResult.isIncompatible());
 	}
 
@@ -249,7 +249,7 @@ public class KryoSerializerCompatibilityTest {
 		int testClassBId = kryoSerializer.getKryo().getRegistration(TestClassB.class).getId();
 
 		// snapshot configuration and serialize to bytes
-		TypeSerializerConfigSnapshot kryoSerializerConfigSnapshot = kryoSerializer.snapshotConfiguration();
+		TypeSerializerConfigSnapshot<TestClass> kryoSerializerConfigSnapshot = kryoSerializer.snapshotConfiguration();
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			TypeSerializerConfigSnapshotSerializationUtil.writeSerializerConfigSnapshot(new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
@@ -270,7 +270,7 @@ public class KryoSerializerCompatibilityTest {
 		}
 
 		// reconfigure - check reconfiguration result and that registration id remains the same
-		TypeSerializerSchemaCompatibility<TestClass> compatResult = kryoSerializer.internalEnsureCompatibility(kryoSerializerConfigSnapshot);
+		TypeSerializerSchemaCompatibility<TestClass> compatResult = kryoSerializerConfigSnapshot.resolveSchemaCompatibility(kryoSerializer);
 		assertFalse(compatResult.isIncompatible());
 		assertEquals(testClassId, kryoSerializer.getKryo().getRegistration(TestClass.class).getId());
 		assertEquals(testClassAId, kryoSerializer.getKryo().getRegistration(TestClassA.class).getId());

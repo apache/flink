@@ -74,7 +74,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 		// retrieve the old config snapshot
 
 		final TypeSerializer<User> serializer;
-		final TypeSerializerConfigSnapshot configSnapshot;
+		final TypeSerializerConfigSnapshot<User> configSnapshot;
 
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(SNAPSHOT_RESOURCE)) {
 			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
@@ -102,18 +102,18 @@ public class BackwardsCompatibleAvroSerializerTest {
 		validateDeserialization(serializer);
 
 		// sanity check for the test: check that a PoJoSerializer and the original serializer work together
-		assertFalse(serializer.internalEnsureCompatibility(configSnapshot).isIncompatible());
+		assertFalse(configSnapshot.resolveSchemaCompatibility(serializer).isIncompatible());
 
 		final TypeSerializer<User> newSerializer = new AvroTypeInfo<>(User.class, true).createSerializer(new ExecutionConfig());
-		assertFalse(newSerializer.internalEnsureCompatibility(configSnapshot).isIncompatible());
+		assertFalse(configSnapshot.resolveSchemaCompatibility(newSerializer).isIncompatible());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(newSerializer);
 
-		TypeSerializerConfigSnapshot nextSnapshot = newSerializer.snapshotConfiguration();
+		TypeSerializerConfigSnapshot<User> nextSnapshot = newSerializer.snapshotConfiguration();
 		final TypeSerializer<User> nextSerializer = new AvroTypeInfo<>(User.class, true).createSerializer(new ExecutionConfig());
 
-		assertFalse(nextSerializer.internalEnsureCompatibility(nextSnapshot).isIncompatible());
+		assertFalse(nextSnapshot.resolveSchemaCompatibility(nextSerializer).isIncompatible());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(nextSerializer);

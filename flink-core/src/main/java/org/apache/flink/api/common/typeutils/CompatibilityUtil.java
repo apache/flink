@@ -51,11 +51,11 @@ public class CompatibilityUtil {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityResult(
-			TypeSerializerConfigSnapshot precedingSerializerConfigSnapshot,
-			TypeSerializer<T> newSerializer) {
+			TypeSerializerConfigSnapshot<T> precedingSerializerConfigSnapshot,
+			TypeSerializer<?> newSerializer) {
 
 		if (precedingSerializerConfigSnapshot != null) {
-			return newSerializer.internalEnsureCompatibility(precedingSerializerConfigSnapshot);
+			return precedingSerializerConfigSnapshot.resolveSchemaCompatibility(newSerializer);
 		} else {
 			// if the configuration snapshot of the preceding serializer cannot be provided,
 			// we can only simply assume that the new serializer is compatible

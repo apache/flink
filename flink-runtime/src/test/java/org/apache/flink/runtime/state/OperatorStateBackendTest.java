@@ -357,7 +357,8 @@ public class OperatorStateBackendTest {
 
 		@Override
 		public TypeSerializerSchemaCompatibility<Integer> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
-			return IntSerializer.INSTANCE.internalEnsureCompatibility(configSnapshot);
+			// TODO this method will be removed in the follow-up commits
+			return null;
 		}
 	}
 

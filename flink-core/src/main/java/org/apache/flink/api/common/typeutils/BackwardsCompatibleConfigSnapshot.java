@@ -28,11 +28,6 @@ import java.io.IOException;
 /**
  * A utility {@link TypeSerializerConfigSnapshot} that is used for backwards compatibility purposes.
  *
- * <p>If this placeholder config snapshot is provided to a new serializer for compatibility checks, the wrapped
- * config snapshot will be "unwrapped" and be provided instead.
- *
- * @see TypeSerializer#internalEnsureCompatibility(TypeSerializerConfigSnapshot)
- *
  * @param <T> the data type that the wrapped serializer instance serializes.
  */
 @Internal
@@ -71,6 +66,12 @@ public class BackwardsCompatibleConfigSnapshot<T> extends TypeSerializerConfigSn
 	@Override
 	public TypeSerializer<T> restoreSerializer() {
 		return serializerInstance;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<?> newSerializer) {
+		return (TypeSerializerSchemaCompatibility<T>) wrappedConfigSnapshot.resolveSchemaCompatibility(newSerializer);
 	}
 
 	public TypeSerializerConfigSnapshot<?> getWrappedConfigSnapshot() {

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -186,7 +187,7 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 			checkState(serializer instanceof AvroSerializer,
 					"Serializer was changed backwards to PojoSerializer and now encounters AvroSerializer snapshot.");
 
-			return serializer.internalEnsureCompatibility(configSnapshot);
+			return CompatibilityUtil.resolveCompatibilityResult((TypeSerializerConfigSnapshot<T>) configSnapshot, serializer);
 		}
 		else if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			// common previous case
@@ -201,14 +202,14 @@ public class BackwardsCompatibleAvroSerializer<T> extends TypeSerializer<T> {
 			final TypeSerializer<T> pojoSerializer =
 					(TypeSerializer<T>) typeInfo.createPojoSerializer(new ExecutionConfig());
 			this.serializer = pojoSerializer;
-			return serializer.internalEnsureCompatibility(configSnapshot);
+			return CompatibilityUtil.resolveCompatibilityResult((TypeSerializerConfigSnapshot<T>) configSnapshot, serializer);
 		}
 		else if (configSnapshot instanceof KryoRegistrationSerializerConfigSnapshot) {
 			// force-kryo old case common previous case
 			// we create a new Kryo Serializer with a blank execution config.
 			// registrations are anyways picked up from the snapshot.
 			serializer = new KryoSerializer<>(type, new ExecutionConfig());
-			return serializer.internalEnsureCompatibility(configSnapshot);
+			return CompatibilityUtil.resolveCompatibilityResult((TypeSerializerConfigSnapshot<T>) configSnapshot, serializer);
 		}
 		else {
 			// completely incompatible type, needs migration

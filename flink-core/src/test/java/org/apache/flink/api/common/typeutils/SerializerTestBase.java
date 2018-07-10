@@ -105,7 +105,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
 	@Test
 	public void testSnapshotConfigurationAndReconfigure() throws Exception {
-		final TypeSerializerConfigSnapshot configSnapshot = getSerializer().snapshotConfiguration();
+		final TypeSerializerConfigSnapshot<T> configSnapshot = getSerializer().snapshotConfiguration();
 
 		byte[] serializedConfig;
 		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -114,17 +114,17 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerConfigSnapshot restoredConfig;
+		TypeSerializerConfigSnapshot<T> restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			restoredConfig = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		TypeSerializerSchemaCompatibility strategy = getSerializer().internalEnsureCompatibility(restoredConfig);
+		TypeSerializerSchemaCompatibility strategy = restoredConfig.resolveSchemaCompatibility(getSerializer());
 		assertFalse(strategy.isIncompatible());
 
 		// also verify that the serializer's reconfigure implementation detects incompatibility
-		strategy = getSerializer().internalEnsureCompatibility(new TestIncompatibleSerializerConfigSnapshot<>());
+		strategy = new TestIncompatibleSerializerConfigSnapshot<>().resolveSchemaCompatibility(getSerializer());
 		assertTrue(strategy.isIncompatible());
 	}
 	

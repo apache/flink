@@ -88,6 +88,21 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	}
 
 	/**
+	 * Determines the serialization schema compatibility between a new serializer
+	 * and the original serializer described by this configuration.
+	 *
+	 * @param newSerializer the new serializer to determine serialization schema compatibility with.
+	 *
+	 * @return the schema compatibility result.
+	 */
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<?> newSerializer) {
+		// TODO this method actually should not have a default implementation;
+		// TODO this placeholder should be removed as soon as all subclasses have a proper implementation in place, and
+		// TODO the method is properly integrated in state backends' restore procedures
+		throw new UnsupportedOperationException();
+	}
+
+	/**
 	 * Set the user code class loader.
 	 * Only relevant if this configuration instance was deserialized from binary form.
 	 *

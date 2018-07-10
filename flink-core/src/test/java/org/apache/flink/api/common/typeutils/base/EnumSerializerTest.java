@@ -72,8 +72,9 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
-			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult =
+			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder)
+				.resolveSchemaCompatibility(serializer);
 		assertFalse(compatResult.isIncompatible());
 
 		// after reconfiguration, the order should be first the original BAR, PAULA, NATHANIEL,
@@ -100,13 +101,13 @@ public class EnumSerializerTest extends TestLogger {
 			serializedConfig = out.toByteArray();
 		}
 
-		TypeSerializerConfigSnapshot restoredConfig;
+		TypeSerializerConfigSnapshot<PublicEnum> restoredConfig;
 		try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
 			restoredConfig = TypeSerializerConfigSnapshotSerializationUtil.readSerializerConfigSnapshot(
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(restoredConfig);
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = restoredConfig.resolveSchemaCompatibility(serializer);
 		assertFalse(compatResult.isIncompatible());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
@@ -161,8 +162,9 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
-			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult =
+			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder)
+				.resolveSchemaCompatibility(serializer);
 		assertFalse(compatResult.isIncompatible());
 
 		// serialize and deserialize again the serializer
