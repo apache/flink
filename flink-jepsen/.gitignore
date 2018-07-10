@@ -16,4 +16,3 @@ pom.xml.asc
 store
 bin/*
 !bin/.gitkeep
-
