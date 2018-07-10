@@ -46,6 +46,7 @@ class UnionTest extends TableTestBase {
         streamTableNode(0),
         term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
       ),
+      term("all", "true"),
       term("union all", "a")
     )
 
@@ -75,6 +76,7 @@ class UnionTest extends TableTestBase {
         streamTableNode(0),
         term("select", "b")
       ),
+      term("all", "true"),
       term("union all", "a")
     )
 
