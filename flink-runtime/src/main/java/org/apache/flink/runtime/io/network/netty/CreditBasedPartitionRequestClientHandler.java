@@ -168,7 +168,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 					"This indicates that the remote task manager was lost.", remoteAddr, cause);
 			} else {
 				final SocketAddress localAddr = ctx.channel().localAddress();
-				tex = new LocalTransportException(cause.getMessage() + " (connection to '" + remoteAddr + "')", localAddr, cause);
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr), localAddr, cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);

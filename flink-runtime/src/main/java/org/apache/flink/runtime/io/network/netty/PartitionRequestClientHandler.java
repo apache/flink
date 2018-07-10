@@ -165,8 +165,10 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 			}
 			else {
 				SocketAddress localAddr = ctx.channel().localAddress();
-				tex = new LocalTransportException(cause.getMessage() + " (connection to '" + remoteAddr + "')",
-					localAddr, cause);
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
+					localAddr,
+					cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);

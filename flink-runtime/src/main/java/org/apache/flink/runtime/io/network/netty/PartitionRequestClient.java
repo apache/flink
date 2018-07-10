@@ -118,8 +118,8 @@ public class PartitionRequestClient {
 					SocketAddress remoteAddr = future.channel().remoteAddress();
 					inputChannel.onError(
 							new LocalTransportException(
-									"Sending the partition request to '" + remoteAddr + "' failed.",
-									future.channel().localAddress(), future.cause()
+								String.format("Sending the partition request to '%s' failed.", remoteAddr),
+								future.channel().localAddress(), future.cause()
 							));
 				}
 			}
@@ -162,8 +162,8 @@ public class PartitionRequestClient {
 								if (!future.isSuccess()) {
 									SocketAddress remoteAddr = future.channel().remoteAddress();
 									inputChannel.onError(new LocalTransportException(
-											"Sending the task event to '" + remoteAddr + "' failed.",
-											future.channel().localAddress(), future.cause()
+										String.format("Sending the task event to '%s' failed.", remoteAddr),
+										future.channel().localAddress(), future.cause()
 									));
 								}
 							}
@@ -198,7 +198,7 @@ public class PartitionRequestClient {
 		if (closeReferenceCounter.isDisposed()) {
 			final SocketAddress localAddr = tcpChannel.localAddress();
 			final SocketAddress remoteAddr = tcpChannel.remoteAddress();
-			throw new LocalTransportException("Channel to '" + remoteAddr + "'closed.", localAddr);
+			throw new LocalTransportException(String.format("Channel to '%s' closed.", remoteAddr), localAddr);
 		}
 	}
 }
