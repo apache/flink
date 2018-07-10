@@ -60,7 +60,7 @@ make_binary_release() {
   fi
 
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -DskipTests -Prelease,scala-${SCALA_VERSION} -Dgpg.skip
+  $MVN clean package $FLAGS -DskipTests -Prelease -Dgpg.skip
 
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
