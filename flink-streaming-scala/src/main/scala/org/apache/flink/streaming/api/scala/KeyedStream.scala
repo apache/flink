@@ -133,11 +133,13 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * @tparam IN1 The type parameter of the elements in the first streams
     * @tparam IN2 The The type parameter of the elements in the second stream
     */
-  class IntervalJoin[IN1, IN2, KEY](val streamOne: KeyedStream[IN1, KEY], val streamTwo: KeyedStream[IN2, KEY]) {
+  class IntervalJoin[IN1, IN2, KEY](val streamOne: KeyedStream[IN1, KEY],
+                                    val streamTwo: KeyedStream[IN2, KEY]) {
 
     /**
       * Specifies the time boundaries over which the join operation works, so that
-      * <pre>leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound</pre>
+      * <pre>leftElement.timestamp + lowerBound <= rightElement.timestamp
+      * <= leftElement.timestamp + upperBound</pre>
       * By default both the lower and the upper bound are inclusive. This can be configured
       * with [[IntervalJoined.lowerBoundExclusive]] and
       * [[IntervalJoined.upperBoundExclusive]]

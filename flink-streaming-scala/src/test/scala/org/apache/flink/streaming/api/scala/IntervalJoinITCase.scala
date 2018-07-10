@@ -1,12 +1,13 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -97,18 +98,18 @@ class IntervalJoinITCase extends AbstractTestBase {
   }
 }
 
-object companion {
+object Companion {
   val results: ListBuffer[String] = new ListBuffer()
 }
 
 class ResultSink extends SinkFunction[String] {
 
   override def invoke(value: String, context: SinkFunction.Context[_]): Unit = {
-    companion.results.append(value)
+    Companion.results.append(value)
   }
 
   def expectInAnyOrder(expected: String*): Unit = {
-    Assert.assertTrue(expected.toSet.equals(companion.results.toSet))
+    Assert.assertTrue(expected.toSet.equals(Companion.results.toSet))
   }
 }
 
@@ -116,8 +117,18 @@ class TimestampExtractor extends AscendingTimestampExtractor[(String, Long)] {
   override def extractAscendingTimestamp(element: (String, Long)): Long = element._2
 }
 
-class CombineToStringJoinFunction extends ProcessJoinFunction[(String, Long), (String, Long), String] {
-  override def processElement(left: (String, Long), right: (String, Long), ctx: ProcessJoinFunction[(String, Long), (String, Long), String]#Context, out: Collector[String]): Unit = {
+class CombineToStringJoinFunction
+  extends ProcessJoinFunction[(String, Long), (String, Long), String] {
+
+  override def processElement(left: (String, Long),
+                              right: (String, Long),
+                              ctx: ProcessJoinFunction[
+                                (String, Long),
+                                (String, Long),
+                                String
+                                ]#Context,
+                              out: Collector[String]): Unit = {
+
     out.collect(left + ":" + right)
   }
 }
