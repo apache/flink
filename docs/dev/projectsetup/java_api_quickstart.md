@@ -111,11 +111,9 @@ allows to [import Maven projects](http://books.sonatype.com/m2eclipse-book/refer
 Some Eclipse bundles include that plugin by default, others require you
 to install it manually. 
 
-*A note to Mac OS X users*: The default JVM heapsize for Java may be too
+*Please note*: The default JVM heapsize for Java may be too
 small for Flink. You have to manually increase it.
-In Eclipse, choose
-`Run Configurations -> Arguments` and write into the `VM Arguments`
-box: `-Xmx800m`.
+In Eclipse, choose `Run Configurations -> Arguments` and write into the `VM Arguments` box: `-Xmx800m`.
 In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu. See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details. 
 
 ### Build Project
@@ -317,10 +315,10 @@ You may also use [Gradle's IDE integration](https://docs.gradle.org/current/user
 to create project files from Gradle.
 
 
-*A note to Mac OS X users*: The default JVM heapsize for Java may be too
-small for Flink. You have to manually increase it. In Eclipse, choose
-`Run Configurations -> Arguments` and write into the `VM Arguments`
-box: `-Xmx800m`.
+*Please note*: The default JVM heapsize for Java may be too
+small for Flink. You have to manually increase it.
+In Eclipse, choose `Run Configurations -> Arguments` and write into the `VM Arguments` box: `-Xmx800m`.
+In IntelliJ IDEA recommended way to change JVM options is from the `Help | Edit Custom VM Options` menu. See [this article](https://intellij-support.jetbrains.com/hc/en-us/articles/206544869-Configuring-JVM-options-and-platform-properties) for details.
 
 ### Build Project
 
