@@ -174,11 +174,11 @@ object TableFormatFactoryService extends Logging {
 
   private def normalizeContext(factory: TableFormatFactory[_]): Map[String, String] = {
     val requiredContextJava = factory.requiredContext()
-    if (requiredContextJava != null) {
-      requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2)).toMap
-    } else {
-      Map[String, String]()
+    if (requiredContextJava == null) {
+      throw new TableException(
+        s"Required context of format factory '${factory.getClass.getName}' must not be null.")
     }
+    requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2)).toMap
   }
 
   private def filterByFactoryClass[T](
@@ -271,10 +271,10 @@ object TableFormatFactoryService extends Logging {
 
   private def normalizeSupportedProperties(factory: TableFormatFactory[_]): Seq[String] = {
     val supportedPropertiesJava = factory.supportedProperties()
-    if (supportedPropertiesJava != null) {
-      supportedPropertiesJava.asScala.map(_.toLowerCase)
-    } else {
-      Seq[String]()
+    if (supportedPropertiesJava == null) {
+      throw new TableException(
+        s"Supported properties of format factory '${factory.getClass.getName}' must not be null.")
     }
+    supportedPropertiesJava.asScala.map(_.toLowerCase)
   }
 }
