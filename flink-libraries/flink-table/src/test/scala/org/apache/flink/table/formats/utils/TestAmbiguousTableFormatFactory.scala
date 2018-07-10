@@ -20,18 +20,24 @@ package org.apache.flink.table.formats.utils
 
 import java.util
 
-import org.apache.flink.table.formats.TableFormatFactory
+import org.apache.flink.table.descriptors.FormatDescriptorValidator
+import org.apache.flink.table.formats.{TableFormatFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
   * Table format factory for testing.
+  *
+  * It does not support UNIQUE_PROPERTY compared to [[TestTableFormatFactory]] nor
+  * schema derivation. Both formats have the same context and support COMMON_PATH.
   */
 class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put("format.type", "test-format")
-    context.put("format.property-version", "1")
+    context.put(
+      FormatDescriptorValidator.FORMAT_TYPE,
+      TableFormatFactoryServiceTest.TEST_FORMAT_TYPE)
+    context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
@@ -39,9 +45,8 @@ class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    // has no 'format.important'
-    properties.add("format.path")
-    properties.add("format.special_path")
+    properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
+    properties.add(TableFormatFactoryServiceTest.SPECIAL_PATH)
     properties
   }
 }

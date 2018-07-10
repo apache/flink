@@ -14,4 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.table.sources.TestFixedFormatTableFactory
-org.apache.flink.table.sources.TestWildcardFormatTableFactory
+org.apache.flink.table.sources.TestWildcardFormatTableSourceFactory

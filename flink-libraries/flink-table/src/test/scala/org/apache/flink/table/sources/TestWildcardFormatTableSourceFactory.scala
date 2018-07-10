@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 /**
   * Table source factory for testing with a wildcard format ("format.*").
   */
-class TestWildcardFormatTableFactory extends TableSourceFactory[Row] {
+class TestWildcardFormatTableSourceFactory extends TableSourceFactory[Row] with TableSource[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -47,10 +47,10 @@ class TestWildcardFormatTableFactory extends TableSourceFactory[Row] {
   }
 
   override def create(properties: util.Map[String, String]): TableSource[Row] = {
-    new TableSource[Row] {
-      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
-
-      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
-    }
+    this
   }
+
+  override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
+
+  override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
 }

@@ -22,18 +22,23 @@ import java.util
 
 import org.apache.flink.api.common.serialization.DeserializationSchema
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
-import org.apache.flink.table.formats.DeserializationSchemaFactory
+import org.apache.flink.table.formats.{DeserializationSchemaFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
   * Table format factory for testing.
+  *
+  * It has the same context as [[TestAmbiguousTableFormatFactory]] and both support COMMON_PATH.
+  * This format does not support SPECIAL_PATH but supports schema derivation.
   */
 class TestTableFormatFactory extends DeserializationSchemaFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put("format.type", "test-format")
-    context.put("format.property-version", "1")
+    context.put(
+      FormatDescriptorValidator.FORMAT_TYPE,
+      TableFormatFactoryServiceTest.TEST_FORMAT_TYPE)
+    context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
@@ -41,8 +46,8 @@ class TestTableFormatFactory extends DeserializationSchemaFactory[Row] {
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    properties.add("format.important")
-    properties.add("format.path")
+    properties.add(TableFormatFactoryServiceTest.UNIQUE_PROPERTY)
+    properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
     properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
     properties.addAll(SchemaValidator.getSchemaDerivationKeys)
     properties

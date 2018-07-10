@@ -79,7 +79,8 @@ class TableSourceFactoryServiceTest {
     props.put(FORMAT_TYPE, "test")
     props.put("format.type", "not-test")
     props.put("format.not-test-property", "wildcard-property")
-    TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+    val actualTableSource = TableSourceFactoryService.findAndCreateTableSource(props.toMap)
+    assertTrue(actualTableSource.isInstanceOf[TestWildcardFormatTableSourceFactory])
   }
 
   private def properties(): mutable.Map[String, String] = {
