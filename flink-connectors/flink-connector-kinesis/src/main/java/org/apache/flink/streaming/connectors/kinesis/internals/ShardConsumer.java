@@ -210,7 +210,7 @@ public class ShardConsumer<T> implements Runnable {
 					if (fetchIntervalMillis != 0) {
 						long elapsedTimeNanos = System.nanoTime() - lastTimeNanos;
 						long sleepTimeMillis = fetchIntervalMillis - (elapsedTimeNanos / 1_000_000);
-						if(sleepTimeMillis > 0) {
+						if (sleepTimeMillis > 0) {
 							Thread.sleep(sleepTimeMillis);
 						}
 						lastTimeNanos = System.nanoTime();
