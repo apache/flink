@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -48,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 import scala.Option;
 
@@ -85,11 +85,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 * @param taskID the taskID for this worker.
 	 */
 	public LaunchableMesosWorker(
-		MesosArtifactResolver resolver,
-		MesosTaskManagerParameters params,
-		ContainerSpecification containerSpec,
-		Protos.TaskID taskID,
-		MesosConfiguration mesosConfiguration) {
+			MesosArtifactResolver resolver,
+			MesosTaskManagerParameters params,
+			ContainerSpecification containerSpec,
+			Protos.TaskID taskID,
+			MesosConfiguration mesosConfiguration) {
 		this.resolver = Preconditions.checkNotNull(resolver);
 		this.containerSpec = Preconditions.checkNotNull(containerSpec);
 		this.params = Preconditions.checkNotNull(params);
@@ -235,7 +235,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		// take needed ports for the TM
-		List<String> tmPortKeys = getPortKeys();
+		Set<String> tmPortKeys = getPortKeys();
 
 		List<Protos.Resource> portResources = allocation.takeRanges("ports", tmPortKeys.size(), roles);
 		taskInfo.addAllResources(portResources);
@@ -334,15 +334,18 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		return taskInfo.build();
 	}
 
-	private List<String> getPortKeys() {
-		List<String> tmPortKeys = new ArrayList<>(Arrays.asList(TM_PORT_KEYS));
-		if (containerSpec.getDynamicConfiguration().containsKey("metrics.reporter.prom.port")) {
-			LOG.debug("Adding \"metrics.reporter.prom.port\" to mesos TM request");
-			tmPortKeys.add("metrics.reporter.prom.port");
-		}
-		else {
-			LOG.debug("Prometheus port not configured");
-		}
+	/**
+	 * Get port keys representing the TM's configured endpoints. This includes mandatory TM endpoints such as
+	 * data and rpc as well as optionally configured endpoints for services such as prometheus reporter
+	 * @return The Set of port keys to expose from the TM container
+	 */
+	private Set<String> getPortKeys() {
+		Set<String> tmPortKeys = containerSpec.getDynamicConfiguration().keySet().stream()
+			.filter(key -> key.endsWith(".port"))  // This matches property naming convention
+			.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
+			.collect(Collectors.toSet());
+
+		tmPortKeys.addAll(Arrays.asList(TM_PORT_KEYS));
 		return tmPortKeys;
 	}
 
