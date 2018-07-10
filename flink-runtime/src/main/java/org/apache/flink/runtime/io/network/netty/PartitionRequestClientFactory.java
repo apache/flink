@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -34,8 +34,8 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * Factory for {@link PartitionRequestClient} instances.
- * <p>
- * Instances of partition requests clients are shared among several {@link RemoteInputChannel}
+ *
+ * <p>Instances of partition requests clients are shared among several {@link RemoteInputChannel}
  * instances.
  */
 class PartitionRequestClientFactory {
