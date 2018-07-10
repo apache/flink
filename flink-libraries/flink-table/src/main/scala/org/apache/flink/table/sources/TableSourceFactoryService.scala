@@ -140,19 +140,10 @@ object TableSourceFactoryService extends Logging {
     }
 
     // extract wildcard prefixes
-    val wildcards = supportedProperties
-      .filter(_.endsWith("*"))
-      .map(s => s.substring(0, s.length - 1))
+    val wildcards = extractWildcardPrefixes(supportedProperties)
 
     // check for supported properties
-    plainProperties.foreach { k =>
-      if (!supportedProperties.contains(k) && !wildcards.exists(k.startsWith)) {
-        throw new ValidationException(
-          s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
-          s"property '$k'. Supported properties are: \n" +
-          s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
-      }
-    }
+    validateSupportedProperties(factory, supportedProperties, wildcards, plainProperties)
 
     // create the table source
     try {
@@ -162,6 +153,29 @@ object TableSourceFactoryService extends Logging {
         throw new TableException(
           s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
           t)
+    }
+  }
+
+  private def extractWildcardPrefixes(propertyKeys: Seq[String]): Seq[String] = {
+    propertyKeys
+      .filter(_.endsWith("*"))
+      .map(s => s.substring(0, s.length - 1))
+  }
+
+  private def validateSupportedProperties[T](
+      factory: TableSourceFactory[T],
+      supportedProperties: Seq[String],
+      wildcards: Seq[String],
+      plainProperties: Seq[String])
+    : Unit = {
+
+    plainProperties.foreach { k =>
+      if (!supportedProperties.contains(k) && !wildcards.exists(k.startsWith)) {
+        throw new ValidationException(
+          s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
+          s"property '$k'. Supported properties are: \n" +
+          s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
+      }
     }
   }
 }

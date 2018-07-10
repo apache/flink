@@ -29,81 +29,49 @@ class TableSourceDescriptorTest extends TableTestBase {
 
   @Test
   def testStreamTableSourceDescriptor(): Unit = {
-    val util = streamTestUtil()
-    val desc = util.tableEnv
-      .from(
-        FileSystem()
-          .path("/path/to/csv"))
-      .withFormat(
-        Csv()
-          .field("myfield", Types.STRING)
-          .field("myfield2", Types.INT)
-          .quoteCharacter(';')
-          .fieldDelimiter("#")
-          .lineDelimiter("\r\n")
-          .commentPrefix("%%")
-          .ignoreFirstLine()
-          .ignoreParseErrors())
-        .withSchema(
-          Schema()
-            .field("myfield", Types.STRING)
-            .field("myfield2", Types.INT)
-            .field("proctime", Types.SQL_TIMESTAMP).proctime()
-        )
-    val expected = Seq(
-      "connector.property-version" -> "1",
-      "connector.type" -> "filesystem",
-      "connector.path" -> "/path/to/csv",
-      "format.property-version" -> "1",
-      "format.type" -> "csv",
-      "format.fields.0.name" -> "myfield",
-      "format.fields.0.type" -> "VARCHAR",
-      "format.fields.1.name" -> "myfield2",
-      "format.fields.1.type" -> "INT",
-      "format.quote-character" -> ";",
-      "format.field-delimiter" -> "#",
-      "format.line-delimiter" -> "\r\n",
-      "format.comment-prefix" -> "%%",
-      "format.ignore-first-line" -> "true",
-      "format.ignore-parse-errors" -> "true",
-      "schema.0.name" -> "myfield",
-      "schema.0.type" -> "VARCHAR",
-      "schema.1.name" -> "myfield2",
-      "schema.1.type" -> "INT",
-      "schema.2.name" -> "proctime",
-      "schema.2.type" -> "TIMESTAMP",
-      "schema.2.proctime" -> "true"
-    ).toMap
-
-    val actual = new DescriptorProperties(true)
-    desc.addProperties(actual)
-
-    assertEquals(expected.asJava, actual.asMap)
+    testTableSourceDescriptor(true)
   }
 
   @Test
   def testBatchTableSourceDescriptor(): Unit = {
-    val util = batchTestUtil()
-    val desc = util.tableEnv
-      .from(
-        FileSystem()
-          .path("/path/to/csv"))
-      .withFormat(
-        Csv()
-          .field("myfield", Types.STRING)
-          .field("myfield2", Types.INT)
-          .quoteCharacter(';')
-          .fieldDelimiter("#")
-          .lineDelimiter("\r\n")
-          .commentPrefix("%%")
-          .ignoreFirstLine()
-          .ignoreParseErrors())
-        .withSchema(
-          Schema()
-            .field("myfield", Types.STRING)
-            .field("myfield2", Types.INT)
-        )
-    val expected = Seq(
+    testTableSourceDescriptor(false)
+  }
+
+  private def testTableSourceDescriptor(isStreaming: Boolean): Unit = {
+
+    val schema = Schema()
+      .field("myfield", Types.STRING)
+      .field("myfield2", Types.INT)
+    if (isStreaming) {
+      schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
+    }
+
+    val connector = FileSystem()
+      .path("/path/to/csv")
+
+    val format = Csv()
+      .field("myfield", Types.STRING)
+      .field("myfield2", Types.INT)
+      .quoteCharacter(';')
+      .fieldDelimiter("#")
+      .lineDelimiter("\r\n")
+      .commentPrefix("%%")
+      .ignoreFirstLine()
+      .ignoreParseErrors()
+
+    val descriptor = if (isStreaming) {
+      streamTestUtil().tableEnv
+        .from(connector)
+        .withFormat(format)
+        .withSchema(schema)
+    } else {
+      batchTestUtil().tableEnv
+        .from(connector)
+        .withFormat(format)
+        .withSchema(schema)
+    }
+
+    val expectedCommonProperties = Seq(
       "connector.property-version" -> "1",
       "connector.type" -> "filesystem",
       "connector.path" -> "/path/to/csv",
@@ -123,11 +91,21 @@ class TableSourceDescriptorTest extends TableTestBase {
       "schema.0.type" -> "VARCHAR",
       "schema.1.name" -> "myfield2",
       "schema.1.type" -> "INT"
-    ).toMap
+    )
 
-    val actual = new DescriptorProperties(true)
-    desc.addProperties(actual)
+    val expectedProperties = if (isStreaming) {
+      expectedCommonProperties ++ Seq(
+        "schema.2.name" -> "proctime",
+        "schema.2.type" -> "TIMESTAMP",
+        "schema.2.proctime" -> "true"
+      )
+    } else {
+      expectedCommonProperties
+    }
 
-    assertEquals(expected.asJava, actual.asMap)
+    val actualProperties = new DescriptorProperties(true)
+    descriptor.addProperties(actualProperties)
+
+    assertEquals(expectedProperties.toMap.asJava, actualProperties.asMap)
   }
 }
