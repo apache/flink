@@ -36,7 +36,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.functions.co.IntervalJoinFunction;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -65,7 +65,7 @@ import java.util.Objects;
  * (T1, T2) where t2.ts ∈ [T1.ts + lowerBound, T1.ts + upperBound]. Both the lower and the
  * upper bound can be configured to be either inclusive or exclusive.
  *
- * <p>As soon as elements are joined they are passed to a user-defined {@link IntervalJoinFunction}.
+ * <p>As soon as elements are joined they are passed to a user-defined {@link ProcessJoinFunction}.
  *
  * <p>The basic idea of this implementation is as follows: Whenever we receive an element at
  * {@link #processElement1(StreamRecord)} (a.k.a. the left side), we add it to the left buffer.
@@ -87,7 +87,7 @@ import java.util.Objects;
  */
 @Internal
 public class IntervalJoinOperator<K, T1, T2, OUT>
-		extends AbstractUdfStreamOperator<OUT, IntervalJoinFunction<T1, T2, OUT>>
+		extends AbstractUdfStreamOperator<OUT, ProcessJoinFunction<T1, T2, OUT>>
 		implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, String> {
 
 	private static final long serialVersionUID = -5380774605111543454L;
@@ -123,7 +123,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 *                            the lower bound
 	 * @param upperBoundInclusive Whether or not to include elements where the timestamp matches
 	 *                            the upper bound
-	 * @param udf                 A user-defined {@link IntervalJoinFunction} that gets called
+	 * @param udf                 A user-defined {@link ProcessJoinFunction} that gets called
 	 *                            whenever two elements of T1 and T2 are joined
 	 */
 	public IntervalJoinOperator(
@@ -133,7 +133,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			boolean upperBoundInclusive,
 			TypeSerializer<T1> leftTypeSerializer,
 			TypeSerializer<T2> rightTypeSerializer,
-			IntervalJoinFunction<T1, T2, OUT> udf) {
+			ProcessJoinFunction<T1, T2, OUT> udf) {
 
 		super(Preconditions.checkNotNull(udf));
 
@@ -179,7 +179,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 * Process a {@link StreamRecord} from the left stream. Whenever an {@link StreamRecord}
 	 * arrives at the left stream, it will get added to the left buffer. Possible join candidates
 	 * for that element will be looked up from the right buffer and if the pair lies within the
-	 * user defined boundaries, it gets passed to the {@link IntervalJoinFunction}.
+	 * user defined boundaries, it gets passed to the {@link ProcessJoinFunction}.
 	 *
 	 * @param record An incoming record to be joined
 	 * @throws Exception Can throw an Exception during state access
@@ -193,7 +193,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 * Process a {@link StreamRecord} from the right stream. Whenever a {@link StreamRecord}
 	 * arrives at the right stream, it will get added to the right buffer. Possible join candidates
 	 * for that element will be looked up from the left buffer and if the pair lies within the user
-	 * defined boundaries, it gets passed to the {@link IntervalJoinFunction}.
+	 * defined boundaries, it gets passed to the {@link ProcessJoinFunction}.
 	 *
 	 * @param record An incoming record to be joined
 	 * @throws Exception Can throw an exception during state access
@@ -306,18 +306,18 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 	/**
 	 * The context that is available during an invocation of
-	 * {@link IntervalJoinFunction#processElement(Object, Object, IntervalJoinFunction.Context, Collector)}.
+	 * {@link ProcessJoinFunction#processElement(Object, Object, ProcessJoinFunction.Context, Collector)}.
 	 *
 	 * <p>It gives access to the timestamps of the left element in the joined pair, the right one, and that of
 	 * the joined pair. In addition, this context allows to emit elements on a side output.
 	 */
-	private final class ContextImpl extends IntervalJoinFunction<T1, T2, OUT>.Context {
+	private final class ContextImpl extends ProcessJoinFunction<T1, T2, OUT>.Context {
 
 		private long leftTimestamp = Long.MIN_VALUE;
 
 		private long rightTimestamp = Long.MIN_VALUE;
 
-		private ContextImpl(IntervalJoinFunction<T1, T2, OUT> func) {
+		private ContextImpl(ProcessJoinFunction<T1, T2, OUT> func) {
 			func.super();
 		}
 

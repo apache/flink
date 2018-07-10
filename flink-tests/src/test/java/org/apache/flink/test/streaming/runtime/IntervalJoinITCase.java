@@ -23,7 +23,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.co.IntervalJoinFunction;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
@@ -85,7 +85,7 @@ public class IntervalJoinITCase {
 		streamOne
 			.intervalJoin(streamTwo)
 			.between(Time.milliseconds(0), Time.milliseconds(0))
-			.process(new IntervalJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
+			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override
 				public void processElement(Tuple2<String, Integer> left,
 					Tuple2<String, Integer> right, Context ctx,
@@ -300,8 +300,8 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(2))
-			.upperBoundExclusive(true)
-			.lowerBoundExclusive(true)
+			.upperBoundExclusive()
+			.lowerBoundExclusive()
 			.process(new CombineToStringJoinFunction())
 			.addSink(new ResultSink());
 
@@ -334,8 +334,6 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(2))
-			.upperBoundExclusive(false)
-			.lowerBoundExclusive(false)
 			.process(new CombineToStringJoinFunction())
 			.addSink(new ResultSink());
 
@@ -403,7 +401,7 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(0))
-			.process(new IntervalJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
+			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override
 				public void processElement(Tuple2<String, Integer> left,
 					Tuple2<String, Integer> right, Context ctx,
@@ -434,7 +432,7 @@ public class IntervalJoinITCase {
 		}
 	}
 
-	private static class CombineToStringJoinFunction extends IntervalJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
+	private static class CombineToStringJoinFunction extends ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
 		@Override
 		public void processElement(Tuple2<String, Integer> left,
 			Tuple2<String, Integer> right, Context ctx, Collector<String> out) {

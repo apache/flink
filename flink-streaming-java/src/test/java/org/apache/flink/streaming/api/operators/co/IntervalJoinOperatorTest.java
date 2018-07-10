@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.co.IntervalJoinFunction;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -444,7 +444,7 @@ public class IntervalJoinOperatorTest {
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -480,7 +480,7 @@ public class IntervalJoinOperatorTest {
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -517,7 +517,7 @@ public class IntervalJoinOperatorTest {
 				true,
 				TestElem.serializer(),
 				TestElem.serializer(),
-				new IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
 					@Override
 					public void processElement(
 						TestElem left,
@@ -816,7 +816,7 @@ public class IntervalJoinOperatorTest {
 		}
 	}
 
-	private static class PassthroughFunction extends IntervalJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>> {
+	private static class PassthroughFunction extends ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>> {
 
 		@Override
 		public void processElement(

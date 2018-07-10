@@ -42,7 +42,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
-import org.apache.flink.streaming.api.functions.co.IntervalJoinFunction;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -411,35 +411,34 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <T1> Type parameter of elements in the other stream
 	 * @return An instance of {@link IntervalJoin} with this keyed stream and the other keyed stream
 	 */
-	public <T1> IntervalJoin<T, T1> intervalJoin(KeyedStream<T1, KEY> otherStream) {
+	public <T1> IntervalJoin<T, T1, KEY> intervalJoin(KeyedStream<T1, KEY> otherStream) {
 		return new IntervalJoin<>(this, otherStream);
 	}
 
 	/**
 	 * Perform a join over a time interval.
-	 * @param <T1>
-	 * @param <T2>
+	 * @param <T1> The type parameter of the elements in the first streams
+	 * @param <T2> The The type parameter of the elements in the second stream
 	 */
-	public class IntervalJoin<T1, T2> {
+	public static class IntervalJoin<T1, T2, KEY> {
 
 		private final KeyedStream<T1, KEY> streamOne;
 		private final KeyedStream<T2, KEY> streamTwo;
 
 		IntervalJoin(
-			KeyedStream<T1, KEY> streamOne,
-			KeyedStream<T2, KEY> streamTwo
-		) {
+				KeyedStream<T1, KEY> streamOne,
+				KeyedStream<T2, KEY> streamTwo) {
 
-			this.streamOne = streamOne;
-			this.streamTwo = streamTwo;
+			this.streamOne = checkNotNull(streamOne);
+			this.streamTwo = checkNotNull(streamTwo);
 		}
 
 		/**
 		 * Specifies the time boundaries over which the join operation works, so that
 		 * <pre>leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound</pre>
 		 * By default both the lower and the upper bound are inclusive. This can be configured
-		 * with {@link IntervalJoined#lowerBoundExclusive(boolean)} and
-		 * {@link IntervalJoined#upperBoundExclusive(boolean)}
+		 * with {@link IntervalJoined#lowerBoundExclusive()} and
+		 * {@link IntervalJoined#upperBoundExclusive()}
 		 *
 		 * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
 		 * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
@@ -463,8 +462,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				upperBound.toMilliseconds(),
 				true,
 				true,
-				streamOne.keySelector,
-				streamTwo.keySelector
+				streamOne.getKeySelector(),
+				streamTwo.getKeySelector()
 			);
 		}
 	}
@@ -481,8 +480,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		private static final String INTERVAL_JOIN_FUNC_NAME = "IntervalJoin";
 
-		private final DataStream<IN1> left;
-		private final DataStream<IN2> right;
+		private final KeyedStream<IN1, KEY> left;
+		private final KeyedStream<IN2, KEY> right;
 
 		private final long lowerBound;
 		private final long upperBound;
@@ -494,8 +493,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		private boolean upperBoundInclusive;
 
 		IntervalJoined(
-			DataStream<IN1> left,
-			DataStream<IN2> right,
+			KeyedStream<IN1, KEY> left,
+			KeyedStream<IN2, KEY> right,
 			long lowerBound,
 			long upperBound,
 			boolean lowerBoundInclusive,
@@ -519,16 +518,16 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		/**
 		 * Configure whether the upper bound should be considered exclusive or inclusive.
 		 */
-		public IntervalJoined<IN1, IN2, KEY> upperBoundExclusive(boolean exclusive) {
-			this.upperBoundInclusive = !exclusive;
+		public IntervalJoined<IN1, IN2, KEY> upperBoundExclusive() {
+			this.upperBoundInclusive = false;
 			return this;
 		}
 
 		/**
 		 * Configure whether the lower bound should be considered exclusive or inclusive.
 		 */
-		public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive(boolean exclusive) {
-			this.lowerBoundInclusive = !exclusive;
+		public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive() {
+			this.lowerBoundInclusive = false;
 			return this;
 		}
 
@@ -539,23 +538,21 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		 * @param <OUT> The output type
 		 * @return Returns a DataStream
 		 */
-		public <OUT> DataStream<OUT> process(IntervalJoinFunction<IN1, IN2, OUT> udf) {
+		public <OUT> DataStream<OUT> process(ProcessJoinFunction<IN1, IN2, OUT> udf) {
 
-			ConnectedStreams<IN1, IN2> connected = left.connect(right);
-
-			udf = left.getExecutionEnvironment().clean(udf);
+			ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf = left.getExecutionEnvironment().clean(udf);
 
 			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
-				udf,
-				IntervalJoinFunction.class,    // IntervalJoinFunction<IN1, IN2, OUT>
-				0,                                //						  0    1    2
+				cleanedUdf,
+				ProcessJoinFunction.class,    // ProcessJoinFunction<IN1, IN2, OUT>
+				0,                             //					    0    1    2
 				1,
 				2,
 				new int[]{0},                   // lambda input 1 type arg indices
 				new int[]{1},                   // lambda input 1 type arg indices
 				TypeExtractor.NO_INDEX,         // output arg indices
 				left.getType(),                 // input 1 type information
-				right.getType(),                // input 1 type information
+				right.getType(),                // input 2 type information
 				INTERVAL_JOIN_FUNC_NAME ,
 				false
 			);
@@ -568,10 +565,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 					upperBoundInclusive,
 					left.getType().createSerializer(left.getExecutionConfig()),
 					right.getType().createSerializer(right.getExecutionConfig()),
-					udf
+					cleanedUdf
 				);
 
-			return connected
+			return left
+				.connect(right)
 				.keyBy(keySelector1, keySelector2)
 				.transform(INTERVAL_JOIN_FUNC_NAME , resultType, operator);
 
