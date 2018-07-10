@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -688,14 +689,15 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		Configuration configuration,
 		ScheduledExecutor scheduledExecutor) throws IOException;
 
-	private static EntrypointClusterConfiguration parseArguments(String[] args) throws FlinkParseException {
+	protected static EntrypointClusterConfiguration parseArguments(String[] args) throws FlinkParseException {
 		final CommandLineParser<EntrypointClusterConfiguration> clusterConfigurationParser = new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
 
 		return clusterConfigurationParser.parse(args);
 	}
 
 	protected static Configuration loadConfiguration(EntrypointClusterConfiguration entrypointClusterConfiguration) {
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(entrypointClusterConfiguration.getConfigDir());
+		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(entrypointClusterConfiguration.getDynamicProperties());
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
 
 		final int restPort = entrypointClusterConfiguration.getRestPort();
 

@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  * Utility class for {@link Configuration} related helper functions.
@@ -52,6 +54,25 @@ public class ConfigurationUtils {
 	public static String[] parseLocalStateDirectories(Configuration configuration) {
 		String configValue = configuration.getString(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, "");
 		return splitPaths(configValue);
+	}
+
+	/**
+	 * Creates a new {@link Configuration} from the given {@link Properties}.
+	 *
+	 * @param properties to convert into a {@link Configuration}
+	 * @return {@link Configuration} which has been populated by the values of the given {@link Properties}
+	 */
+	@Nonnull
+	public static Configuration createConfiguration(Properties properties) {
+		final Configuration configuration = new Configuration();
+
+		final Set<String> propertyNames = properties.stringPropertyNames();
+
+		for (String propertyName : propertyNames) {
+			configuration.setString(propertyName, properties.getProperty(propertyName));
+		}
+
+		return configuration;
 	}
 
 	@Nonnull
