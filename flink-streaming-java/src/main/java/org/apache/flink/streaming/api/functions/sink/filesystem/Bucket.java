@@ -98,7 +98,7 @@ public class Bucket<IN> {
 		// (from which we are recovering from)
 		for (List<ResumableWriter.CommitRecoverable> commitables: bucketstate.getPendingPerCheckpoint().values()) {
 			for (ResumableWriter.CommitRecoverable commitable: commitables) {
-				fsWriter.recoverForCommit(commitable).commit();
+				fsWriter.recoverForCommit(commitable).commitAfterRecovery();
 			}
 		}
 
@@ -177,6 +177,10 @@ public class Bucket<IN> {
 	void merge(final Bucket bucket) throws IOException {
 		Preconditions.checkNotNull(bucket);
 		Preconditions.checkState(bucket.getBucketPath().equals(getBucketPath()));
+
+		// there should be no pending files in the "to-merge" states.
+		Preconditions.checkState(bucket.pending.isEmpty());
+		Preconditions.checkState(bucket.pendingPerCheckpoint.isEmpty());
 
 		ResumableWriter.CommitRecoverable commitable = bucket.closeCurrentChunk();
 		if (commitable != null) {

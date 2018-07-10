@@ -24,7 +24,10 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * Javadoc.
+ * A {@link Writer} is used by the streaming file sink to perform the actual writing
+ * of the incoming elements to the files in a bucket.
+ *
+ * @param <IN> The type of the elements that are being written by the sink.
  */
 public interface Writer<IN> extends Serializable {
 

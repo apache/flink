@@ -29,7 +29,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.ResumableWriter;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -173,7 +172,7 @@ public class StreamingFileSink<IN>
 
 	private transient ListState<Long> restoredMaxCounters;
 
-	private transient SimpleVersionedSerializer<Bucket.BucketState> bucketStateSerializer;
+	private transient BucketStateSerializer bucketStateSerializer;
 
 	private final BucketFactory<IN> bucketFactory;
 
@@ -270,11 +269,11 @@ public class StreamingFileSink<IN>
 
 		this.activeBuckets = new HashMap<>();
 
-		// Now when restoring, we start fresh. Everything gets committed and the state is empty.
-		// If in the future we want to resume the in-progress files, we should make sure that in
-		// case we receive two states for the same bucket, we merge them appropriately. This includes
-		// keep only one in-progress file and commit the other, and commit the pending ones, as they
-		// were pending for a previous to the last successful checkpoint.
+		// When resuming after a failure:
+		// 1) we get the max part counter used before in order to make sure that we do not overwrite valid data
+		// 2) we commit any pending files for previous checkpoints (previous to the last successful one)
+		// 3) we resume writing to the previous in-progress file of each bucket, and
+		// 4) if we receive multiple states for the same bucket, we merge them.
 
 		final OperatorStateStore stateStore = context.getOperatorStateStore();
 
@@ -292,8 +291,8 @@ public class StreamingFileSink<IN>
 				}
 			}
 
-			final int version = bucketStateSerializer.getVersion();
 			for (byte[] recoveredState : restoredBucketStates.get()) {
+				final int version = bucketStateSerializer.getDeserializedVersion(recoveredState);
 				final Bucket.BucketState bucketState = bucketStateSerializer.deserialize(version, recoveredState);
 				final Path bucketPath = bucketState.getBucketPath();
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.ResumableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -34,9 +35,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link SimpleVersionedSerializer} used to serialize the
- * {@link org.apache.flink.streaming.api.functions.sink.filesystem.Bucket.BucketState BucketState}.
+ * A {@link SimpleVersionedSerializer} used to serialize the {@link Bucket.BucketState BucketState}.
  */
+@Internal
 public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.BucketState> {
 
 	private static final int MAGIC_NUMBER = 0x1e764b79;
@@ -62,7 +63,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 
 	@Override
 	public byte[] serialize(Bucket.BucketState state) throws IOException {
-		int sizeInBytes = 0;
+		int sizeInBytes = Integer.BYTES; // this is for the version.
 
 		// serializing the path
 		byte[] serializedPath = state.getBucketPath().toString().getBytes(CHARSET);
@@ -74,10 +75,14 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		if (current != null) {
 			final byte[] serResumable = resumableSerializer.serialize(current);
 			currentResumable = serResumable;
-			// 1 for the flag if the current is not null
-			// the rest for the actual resumable and its size and
+
+			// 1 byte for the flag if the current is not null
+			// an int for the serializer version
+			// an int for the size of the serialized resumable
+			// the actual bytes of the resumable
 			// a long for the creation time
-			sizeInBytes += 1 + Integer.BYTES + serResumable.length + Long.BYTES;
+
+			sizeInBytes += 1 + 2 * Integer.BYTES + serResumable.length + Long.BYTES;
 		} else {
 			sizeInBytes += 1; // this will be to mark non-existences
 		}
@@ -86,7 +91,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		Map<Long, List<byte[]>> serializedResumablesPerCheckpoint =
 				new HashMap<>(state.getPendingPerCheckpoint().size());
 
-		sizeInBytes += Integer.BYTES; // for the size of the map
+		sizeInBytes += 2 * Integer.BYTES; // the version of the commit recoverable serializer and the size of the map
 
 		for (Map.Entry<Long, List<ResumableWriter.CommitRecoverable>> entry: state.getPendingPerCheckpoint().entrySet()) {
 			final List<ResumableWriter.CommitRecoverable> resumables = entry.getValue();
@@ -106,6 +111,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		final byte[] targetBytes = new byte[Integer.BYTES + sizeInBytes]; // the 4 bytes are for the MAGIC NUMBER (marker)
 		final ByteBuffer bb = ByteBuffer.wrap(targetBytes).order(ByteOrder.LITTLE_ENDIAN);
 
+		bb.putInt(getVersion());
 		bb.putInt(MAGIC_NUMBER);
 
 		// put the path
@@ -115,6 +121,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		// put the current open part file
 		if (currentResumable != null) {
 			bb.put((byte) 1);
+			bb.putInt(resumableSerializer.getVersion());
 			bb.putInt(currentResumable.length);
 			bb.put(currentResumable);
 			bb.putLong(state.getCreationTime());
@@ -123,6 +130,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		}
 
 		// put the map of pending files per checkpoint
+		bb.putInt(commitableSerializer.getVersion());
 		bb.putInt(state.getPendingPerCheckpoint().size());
 		for (Map.Entry<Long, List<byte[]>> resumablesPerCheckpoint: serializedResumablesPerCheckpoint.entrySet()) {
 			long checkpointId = resumablesPerCheckpoint.getKey();
@@ -139,6 +147,20 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		return targetBytes;
 	}
 
+	/**
+	 * Returns the version that was written by the {@link #serialize(Bucket.BucketState)}.
+	 *
+	 * <p>This should be called before the {@link #deserialize(int, byte[])} and the returned version
+	 * should be passed as an argument.
+	 *
+	 * @param serialized The bytes containing the serialized state.
+	 * @return The version of the serializer that serialized this state.
+	 */
+	public int getDeserializedVersion(byte[] serialized) {
+		final ByteBuffer bb = ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN);
+		return bb.getInt();
+	}
+
 	@Override
 	public Bucket.BucketState deserialize(int version, byte[] serialized) throws IOException {
 		switch (version) {
@@ -152,6 +174,12 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 	private Bucket.BucketState deserializeV1(byte[] serialized) throws IOException {
 
 		final ByteBuffer bb = ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN);
+
+		// this is the serializer version.
+		// We read it but now we ignore it as we are supposed to
+		// have read it before calling this method. See getDeserializedVersion().
+
+		bb.getInt();
 
 		if (bb.getInt() != MAGIC_NUMBER) {
 			throw new IOException("Corrupt data: Unexpected magic number.");
@@ -167,14 +195,15 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		long creationTime = Long.MAX_VALUE;
 		ResumableWriter.ResumeRecoverable current = null;
 		if (bb.get() == 1) {
+			int version = bb.getInt();
 			final byte[] currentResumableBytes = new byte[bb.getInt()];
 			bb.get(currentResumableBytes);
 			creationTime = bb.getLong();
 
-			int version = resumableSerializer.getVersion();
 			current = resumableSerializer.deserialize(version, currentResumableBytes);
 		}
 
+		int version = bb.getInt();
 		int mapSize = bb.getInt();
 		Map<Long, List<ResumableWriter.CommitRecoverable>> resumablesPerCheckpoint = new HashMap<>(mapSize);
 		for (int i = 0; i < mapSize; i++) {
@@ -185,8 +214,6 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 			for (int j = 0; j < noOfResumables; j++) {
 				final byte[] currentResumableBytes = new byte[bb.getInt()];
 				bb.get(currentResumableBytes);
-
-				int version = commitableSerializer.getVersion();
 				resumables.add(commitableSerializer.deserialize(version, currentResumableBytes));
 			}
 			resumablesPerCheckpoint.put(checkpointId, resumables);
