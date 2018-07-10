@@ -461,9 +461,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				lowerBound.toMilliseconds(),
 				upperBound.toMilliseconds(),
 				true,
-				true,
-				streamOne.getKeySelector(),
-				streamTwo.getKeySelector()
+				true
 			);
 		}
 	}
@@ -492,15 +490,13 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		private boolean lowerBoundInclusive;
 		private boolean upperBoundInclusive;
 
-		IntervalJoined(
+		public IntervalJoined(
 			KeyedStream<IN1, KEY> left,
 			KeyedStream<IN2, KEY> right,
 			long lowerBound,
 			long upperBound,
 			boolean lowerBoundInclusive,
-			boolean upperBoundInclusive,
-			KeySelector<IN1, KEY> keySelector1,
-			KeySelector<IN2, KEY> keySelector2) {
+			boolean upperBoundInclusive) {
 
 			this.left = checkNotNull(left);
 			this.right = checkNotNull(right);
@@ -511,12 +507,12 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			this.lowerBoundInclusive = lowerBoundInclusive;
 			this.upperBoundInclusive = upperBoundInclusive;
 
-			this.keySelector1 = checkNotNull(keySelector1);
-			this.keySelector2 = checkNotNull(keySelector2);
+			this.keySelector1 = left.getKeySelector();
+			this.keySelector2 = right.getKeySelector();
 		}
 
 		/**
-		 * Configure whether the upper bound should be considered exclusive or inclusive.
+		 * Set the upper bound to be exclusive.
 		 */
 		public IntervalJoined<IN1, IN2, KEY> upperBoundExclusive() {
 			this.upperBoundInclusive = false;
@@ -524,7 +520,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		}
 
 		/**
-		 * Configure whether the lower bound should be considered exclusive or inclusive.
+		 * Set the lower bound to be exclusive.
 		 */
 		public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive() {
 			this.lowerBoundInclusive = false;
