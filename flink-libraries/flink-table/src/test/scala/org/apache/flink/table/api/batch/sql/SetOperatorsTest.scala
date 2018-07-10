@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.api.batch.sql
 
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
-import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.{Ignore, Test}
 
 class SetOperatorsTest extends TableTestBase {
@@ -190,6 +190,7 @@ class SetOperatorsTest extends TableTestBase {
         batchTableNode(0),
         term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
       ),
+      term("all", "true"),
       term("union", "a")
     )
 
@@ -219,9 +220,43 @@ class SetOperatorsTest extends TableTestBase {
         batchTableNode(0),
         term("select", "b")
       ),
+      term("all", "true"),
       term("union", "a")
     )
 
     util.verifyJavaSql("SELECT a FROM A UNION ALL SELECT b FROM A", expected)
+  }
+
+  @Test
+  def testValuesWithCast(): Unit = {
+    val util = batchTestUtil()
+
+    val expected = naryNode(
+      "DataSetUnion",
+      List(
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
+      ),
+      term("all", "true"),
+      term("union", "EXPR$0, EXPR$1")
+    )
+
+    util.verifySql(
+      "VALUES (1, cast(1 as BIGINT) ),(2, cast(2 as BIGINT)),(3, cast(3 as BIGINT))",
+      expected
+    )
   }
 }
