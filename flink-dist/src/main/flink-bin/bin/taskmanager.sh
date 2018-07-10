@@ -22,6 +22,8 @@ USAGE="Usage: taskmanager.sh (start|start-foreground|stop|stop-all)"
 
 STARTSTOP=$1
 
+ARGS=("${@:2}")
+
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
   exit 1
@@ -72,15 +74,15 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_TM}"
 
     # Startup parameters
-    args=("--configDir" "${FLINK_CONF_DIR}")
+    ARGS+=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh $TYPE "${args[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh $TYPE "${ARGS[@]}"
 else
     if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
         # Start a single TaskManager
-        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${args[@]}"
+        "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
     else
         # Example output from `numactl --show` on an AWS c4.8xlarge:
         # policy: default
@@ -92,7 +94,7 @@ else
         read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
         for NODE_ID in "${NODE_LIST[@]:1}"; do
             # Start a TaskManager for each NUMA node
-            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${args[@]}"
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $TYPE "${ARGS[@]}"
         done
     fi
 fi
