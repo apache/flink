@@ -168,6 +168,51 @@ public class ShardConsumerTest {
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
 	}
 
+	@Test
+	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() {
+		Properties consumerProperties = new Properties();
+		consumerProperties.put("flink.shard.adaptive.read.records.enabled", "true");
+
+		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
+
+		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
+		subscribedShardsStateUnderTest.add(
+			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
+				fakeToBeConsumedShard, new SequenceNumber("fakeStartingState")));
+
+		TestSourceContext<String> sourceContext = new TestSourceContext<>();
+
+		TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
+				Collections.singletonList("fakeStream"),
+				sourceContext,
+				consumerProperties,
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+				10,
+				2,
+				new AtomicReference<>(),
+				subscribedShardsStateUnderTest,
+				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
+				Mockito.mock(KinesisProxyInterface.class));
+
+		new ShardConsumer<>(
+			fetcher,
+			0,
+			subscribedShardsStateUnderTest.get(0).getStreamShardHandle(),
+			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
+			// Initial number of records to fetch --> 10
+			FakeKinesisBehavioursFactory.initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(10, 2, 500L),
+			new ShardMetricsReporter()).run();
+
+		// Avg record size for first batch --> 10 * 10 Kb/10 = 10 Kb
+		// Number of records fetched in second batch --> 2 Mb/10Kb * 5 = 40
+		// Total number of records = 10 + 40 = 50
+		assertEquals(50, sourceContext.getCollectedOutputs().size());
+		assertEquals(
+			SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
+			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
+	}
+
 	private static StreamShardHandle getMockStreamShard(String streamName, int shardId) {
 		return new StreamShardHandle(
 			streamName,
