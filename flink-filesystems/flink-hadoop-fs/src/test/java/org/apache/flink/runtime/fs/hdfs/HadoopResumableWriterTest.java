@@ -21,11 +21,13 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.AbstractResumableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -39,7 +41,7 @@ import java.io.File;
 public class HadoopResumableWriterTest extends AbstractResumableWriterTest {
 
 	@ClassRule
-	public static final TemporaryFolder tempFolder = new TemporaryFolder();
+	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	private static MiniDFSCluster hdfsCluster;
 
@@ -49,13 +51,18 @@ public class HadoopResumableWriterTest extends AbstractResumableWriterTest {
 	private static Path basePath;
 
 	@BeforeClass
+	public static void testHadoopVersion() {
+		Assert.assertTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+	}
+
+	@BeforeClass
 	public static void verifyOS() {
 		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
 	}
 
 	@BeforeClass
 	public static void createHDFS() throws Exception {
-		final File baseDir = tempFolder.newFolder();
+		final File baseDir = TEMP_FOLDER.newFolder();
 
 		final Configuration hdConf = new Configuration();
 		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());

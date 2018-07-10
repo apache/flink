@@ -31,11 +31,11 @@ import org.junit.rules.TemporaryFolder;
 public class LocalFileSystemResumableWriterTest extends AbstractResumableWriterTest {
 
 	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
+	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	@Override
 	public Path getBasePath() throws Exception {
-		return new Path(tempFolder.newFolder().toURI());
+		return new Path(TEMP_FOLDER.newFolder().toURI());
 	}
 
 	@Override

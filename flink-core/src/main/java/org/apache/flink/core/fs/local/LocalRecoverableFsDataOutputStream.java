@@ -57,11 +57,11 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 		this.tempFile = checkNotNull(resumable.tempFile());
 
 		if (!tempFile.exists()) {
-			throw new FileNotFoundException("File Not Found: " + tempFile.getName());
+			throw new FileNotFoundException("File Not Found: " + tempFile);
 		}
 
 		if (tempFile.length() < resumable.offset()) {
-			throw new IOException("Missing data in tmp file: " + tempFile.getName());
+			throw new IOException("Missing data in tmp file: " + tempFile);
 		}
 
 		this.fos = new FileOutputStream(this.tempFile, true);

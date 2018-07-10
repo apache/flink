@@ -27,16 +27,19 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
 import static org.junit.Assert.fail;
 
+/**
+ * A base test-suite for the {@link ResumableWriter}.
+ * This should be subclassed to test each filesystem specific writer.
+ */
 public abstract class AbstractResumableWriterTest extends TestLogger {
 
 	private static final Random RND = new Random();
@@ -85,7 +88,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 
 		final Path testDir = getBasePathForTest();
 
-		final Path path = new Path(testDir + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		final RecoverableFsDataOutputStream stream = writer.open(path);
 		for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
@@ -107,10 +110,10 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 
 		final Path testDir = getBasePathForTest();
 
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 			stream.closeForCommit().commit();
 
 			for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
@@ -125,13 +128,13 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		final Path testDir = getBasePathForTest();
 
 		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			stream.closeForCommit().getRecoverable();
-			stream.write(testData2.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 			fail();
 		}
 	}
@@ -143,17 +146,17 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		final Path testDir = getBasePathForTest();
 
 		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		ResumableWriter.ResumeRecoverable recoverable;
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			// get the valid offset
 			recoverable = stream.persist();
 
 			// and write some more data
-			stream.write(testData2.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			// todo if the check for the file contents were here,
 			// in hadoop it would fail because close() has not been called.
@@ -187,7 +190,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 				Assert.assertEquals(testData1, fileContents.getValue());
 			}
 
-			recoveredStream.write(testData3.getBytes(Charset.forName("UTF-8")));
+			recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
 			recoveredStream.closeForCommit().commit();
 
 			files = getFileContentByPath(testDir);
@@ -205,11 +208,11 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		final Path testDir = getBasePathForTest();
 
 		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		final ResumableWriter.CommitRecoverable recoverable;
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			recoverable = stream.closeForCommit().getRecoverable();
 		}
@@ -239,14 +242,14 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		final Path testDir = getBasePathForTest();
 
 		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		ResumableWriter.ResumeRecoverable recoverable;
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			recoverable = stream.persist();
-			stream.write(testData2.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			// TODO: 7/10/18 again hadoop do
 //			Map<Path, String> files = getFileContentByPath(testDir);
@@ -273,18 +276,18 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		final Path testDir = getBasePathForTest();
 
 		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir.getPath() + File.separator + "part-0");
+		final Path path = new Path(testDir, "part-0");
 
 		final ResumableWriter.ResumeRecoverable recoverable1;
 		final ResumableWriter.ResumeRecoverable recoverable2;
 		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			recoverable1 = stream.persist();
-			stream.write(testData2.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			recoverable2 = stream.persist();
-			stream.write(testData3.getBytes(Charset.forName("UTF-8")));
+			stream.write(testData3.getBytes(StandardCharsets.UTF_8));
 
 			// TODO: 7/10/18 again hadoop would fail without close().
 		}
@@ -292,7 +295,6 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable1)) {
 			// this should work fine
 		} catch (Exception e) {
-			System.out.println(e);
 			fail();
 		}
 
@@ -300,7 +302,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable2)) {
 			fail();
 		} catch (IOException e) {
-			Assert.assertTrue(e.getMessage().startsWith("Missing data in tmp file: .part-0.inprogress."));
+			Assert.assertTrue(e.getMessage().startsWith("Missing data in tmp file:"));
 		}
 	}
 
@@ -315,7 +317,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 			FSDataInputStream stream = getFileSystem().open(file.getPath());
 			stream.read(serContents);
 
-			contents.put(file.getPath(), new String(serContents, Charset.forName("UTF-8")));
+			contents.put(file.getPath(), new String(serContents, StandardCharsets.UTF_8));
 		}
 		return contents;
 	}

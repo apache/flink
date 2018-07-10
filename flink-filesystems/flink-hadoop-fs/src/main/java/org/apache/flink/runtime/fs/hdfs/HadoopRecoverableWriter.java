@@ -34,7 +34,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- *
+ * An implementation of the {@link ResumableWriter} for
+ * Hadoop's file system abstraction.
  */
 @Internal
 public class HadoopRecoverableWriter implements ResumableWriter {

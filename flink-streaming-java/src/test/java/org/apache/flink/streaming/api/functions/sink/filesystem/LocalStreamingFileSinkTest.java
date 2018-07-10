@@ -49,25 +49,23 @@ import java.util.Map;
 public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
+	public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 
 	@Test
 	public void testClosingWithoutInput() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
 				createRescalingTestSink(outDir, 1, 0, 100L, 124L);
 		testHarness.setup();
 		testHarness.open();
 
-		// verify that we can close without ever having an input. An earlier version of the code
-		// was throwing an NPE because we never initialized some internal state
 		testHarness.close();
 	}
 
 	@Test
 	public void testTruncateAfterRecoveryAndOverwrite() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 		OperatorSubtaskState snapshot;
 
 		// we set the max bucket size to small so that we can know when it rolls
@@ -190,7 +188,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@Test
 	public void testCommitStagedFilesInCorrectOrder() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		// we set the max bucket size to small so that we can know when it rolls
 		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(
@@ -278,7 +276,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@Test
 	public void testInactivityPeriodWithLateNotify() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		// we set a big bucket size so that it does not close by size, but by timers.
 		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(
@@ -366,7 +364,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@Test
 	public void testClosingOnSnapshot() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = createRescalingTestSink(
 				outDir, 1, 0, 100L, 2L)) {
@@ -405,7 +403,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@Test
 	public void testScalingDownAndMergingOfStates() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		OperatorSubtaskState mergedSnapshot;
 
@@ -492,7 +490,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	@Test
 	public void testMaxCounterUponRecovery() throws Exception {
-		final File outDir = tempFolder.newFolder();
+		final File outDir = TEMP_FOLDER.newFolder();
 
 		OperatorSubtaskState mergedSnapshot;
 

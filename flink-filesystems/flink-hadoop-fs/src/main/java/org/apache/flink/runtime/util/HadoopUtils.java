@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.ConfigConstants;
-
 import org.apache.flink.util.FlinkRuntimeException;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.io.Text;
