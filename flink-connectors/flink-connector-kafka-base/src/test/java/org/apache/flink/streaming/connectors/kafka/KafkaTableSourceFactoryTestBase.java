@@ -57,6 +57,23 @@ import static org.junit.Assert.assertTrue;
  */
 public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 
+	private static final String TOPIC = "myTopic";
+	private static final int PARTITION_0 = 0;
+	private static final long OFFSET_0 = 100L;
+	private static final int PARTITION_1 = 1;
+	private static final long OFFSET_1 = 123L;
+	private static final String FRUIT_NAME = "fruit-name";
+	private static final String NAME = "name";
+	private static final String COUNT = "count";
+	private static final String TIME = "time";
+	private static final String EVENT_TIME = "event-time";
+	private static final String PROC_TIME = "proc-time";
+	private static final Properties KAFKA_PROPERTIES = new Properties();
+	static {
+		KAFKA_PROPERTIES.setProperty("zookeeper.connect", "dummy");
+		KAFKA_PROPERTIES.setProperty("group.id", "dummy");
+	}
+
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTableSource() {
@@ -64,36 +81,28 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		// prepare parameters for Kafka table source
 
 		final TableSchema schema = TableSchema.builder()
-			.field("fruit-name", Types.STRING())
-			.field("count", Types.DECIMAL())
-			.field("event-time", Types.SQL_TIMESTAMP())
-			.field("proc-time", Types.SQL_TIMESTAMP())
+			.field(FRUIT_NAME, Types.STRING())
+			.field(COUNT, Types.DECIMAL())
+			.field(EVENT_TIME, Types.SQL_TIMESTAMP())
+			.field(PROC_TIME, Types.SQL_TIMESTAMP())
 			.build();
 
-		final String proctimeAttribute = "proc-time";
-
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors = Collections.singletonList(
-			new RowtimeAttributeDescriptor("event-time", new ExistingField("time"), new AscendingTimestamps()));
+			new RowtimeAttributeDescriptor(EVENT_TIME, new ExistingField(TIME), new AscendingTimestamps()));
 
 		final Map<String, String> fieldMapping = new HashMap<>();
-		fieldMapping.put("fruit-name", "name");
-		fieldMapping.put("count", "count");
-
-		final String topic = "myTopic";
-
-		final Properties kafkaProperties = new Properties();
-		kafkaProperties.setProperty("zookeeper.connect", "dummy");
-		kafkaProperties.setProperty("group.id", "dummy");
+		fieldMapping.put(FRUIT_NAME, NAME);
+		fieldMapping.put(COUNT, COUNT);
 
 		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
-		specificOffsets.put(new KafkaTopicPartition(topic, 0), 100L);
-		specificOffsets.put(new KafkaTopicPartition(topic, 1), 123L);
+		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
+		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_1), OFFSET_1);
 
 		final TestDeserializationSchema deserializationSchema = new TestDeserializationSchema(
 			TableSchema.builder()
-				.field("name", Types.STRING())
-				.field("count", Types.DECIMAL())
-				.field("time", Types.SQL_TIMESTAMP())
+				.field(NAME, Types.STRING())
+				.field(COUNT, Types.DECIMAL())
+				.field(TIME, Types.SQL_TIMESTAMP())
 				.build()
 				.toRowType()
 		);
@@ -101,12 +110,11 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		final StartupMode startupMode = StartupMode.SPECIFIC_OFFSETS;
 
 		final KafkaTableSource expected = getExpectedKafkaTableSource(
-			schema,
-			proctimeAttribute,
+			schema, PROC_TIME,
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			topic,
-			kafkaProperties,
+			TOPIC,
+			KAFKA_PROPERTIES,
 			deserializationSchema,
 			startupMode,
 			specificOffsets);
@@ -114,23 +122,23 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		// construct table source using descriptors and table source factory
 
 		final Map<Integer, Long> offsets = new HashMap<>();
-		offsets.put(0, 100L);
-		offsets.put(1, 123L);
+		offsets.put(PARTITION_0, OFFSET_0);
+		offsets.put(PARTITION_1, OFFSET_1);
 
 		final TestTableSourceDescriptor testDesc = new TestTableSourceDescriptor(
 				new Kafka()
 					.version(getKafkaVersion())
-					.topic(topic)
-					.properties(kafkaProperties)
+					.topic(TOPIC)
+					.properties(KAFKA_PROPERTIES)
 					.startFromSpecificOffsets(offsets))
 			.addFormat(new TestTableFormat())
 			.addSchema(
 				new Schema()
-					.field("fruit-name", Types.STRING()).from("name")
-					.field("count", Types.DECIMAL()) // no from so it must match with the input
-					.field("event-time", Types.SQL_TIMESTAMP()).rowtime(
-						new Rowtime().timestampsFromField("time").watermarksPeriodicAscending())
-					.field("proc-time", Types.SQL_TIMESTAMP()).proctime());
+					.field(FRUIT_NAME, Types.STRING()).from(NAME)
+					.field(COUNT, Types.DECIMAL()) // no from so it must match with the input
+					.field(EVENT_TIME, Types.SQL_TIMESTAMP()).rowtime(
+						new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
+					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime());
 
 		final TableSource<?> actualSource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
 
