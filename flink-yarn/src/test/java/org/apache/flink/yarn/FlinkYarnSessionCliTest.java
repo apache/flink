@@ -352,6 +352,105 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
 	}
 
+	/**
+	 * Tests the specifying heap memory without unit for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithoutUnit() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1024", "-ytm", "2048" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with unit (MB) for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1024m", "-ytm", "2048m" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with arbitrary unit for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1g", "-ytm", "2g" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with old config key for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
+		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
+
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
+	}
+
+	/**
+	 * Tests the specifying heap memory with config default value for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
+	}
+
+
 	///////////
 	// Utils //
 	///////////
