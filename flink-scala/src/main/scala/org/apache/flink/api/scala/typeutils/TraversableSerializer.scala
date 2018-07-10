@@ -157,7 +157,7 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): TypeSerializerSchemaCompatibility[T] = {
 
     configSnapshot match {
       case traversableSerializerConfigSnapshot
@@ -167,13 +167,13 @@ abstract class TraversableSerializer[T <: TraversableOnce[E], E](
           traversableSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           elementSerializer)
 
-        if (elemCompatRes.isRequiresMigration) {
-          CompatibilityResult.requiresMigration()
+        if (elemCompatRes.isIncompatible) {
+          TypeSerializerSchemaCompatibility.incompatible()
         } else {
-          CompatibilityResult.compatible()
+          TypeSerializerSchemaCompatibility.compatibleAsIs()
         }
 
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 }

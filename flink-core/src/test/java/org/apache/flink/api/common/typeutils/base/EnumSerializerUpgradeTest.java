@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -56,7 +56,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkIndenticalEnums() throws Exception {
-		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_A).isRequiresMigration());
+		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_A).isIncompatible());
 	}
 
 	/**
@@ -64,7 +64,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkAppendedField() throws Exception {
-		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_B).isRequiresMigration());
+		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_B).isIncompatible());
 	}
 
 	/**
@@ -72,7 +72,7 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkRemovedField() throws Exception {
-		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isRequiresMigration());
+		Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
 	}
 
 	/**
@@ -80,11 +80,11 @@ public class EnumSerializerUpgradeTest extends TestLogger {
 	 */
 	@Test
 	public void checkDifferentFieldOrder() throws Exception {
-		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_D).isRequiresMigration());
+		Assert.assertFalse(checkCompatibility(ENUM_A, ENUM_D).isIncompatible());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static CompatibilityResult checkCompatibility(String enumSourceA, String enumSourceB)
+	private static TypeSerializerSchemaCompatibility checkCompatibility(String enumSourceA, String enumSourceB)
 		throws IOException, ClassNotFoundException {
 
 		ClassLoader classLoader = compileAndLoadEnum(

@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -133,7 +133,7 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof TupleSerializerConfigSnapshot) {
 			final TupleSerializerConfigSnapshot<T> config = (TupleSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -143,24 +143,24 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 				if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
 
-					CompatibilityResult<Object> compatResult;
+					TypeSerializerSchemaCompatibility<Object> compatResult;
 					int i = 0;
 					for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
 						compatResult = CompatibilityUtil.resolveCompatibilityResult(f.f1, fieldSerializers[i]);
 
-						if (compatResult.isRequiresMigration()) {
-							return CompatibilityResult.requiresMigration();
+						if (compatResult.isIncompatible()) {
+							return TypeSerializerSchemaCompatibility.incompatible();
 						}
 
 						i++;
 					}
 
-					return CompatibilityResult.compatible();
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	protected abstract TupleSerializerBase<T> createSerializerInstance(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers);

@@ -109,7 +109,8 @@ class TrySerializer[A](
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Try[A]] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]):
+  TypeSerializerSchemaCompatibility[Try[A]] = {
 
     configSnapshot match {
       case trySerializerConfigSnapshot
@@ -118,13 +119,13 @@ class TrySerializer[A](
       case legacyTrySerializerConfigSnapshot
           : TrySerializer.TrySerializerConfigSnapshot[A] =>
         ensureCompatibility(legacyTrySerializerConfigSnapshot)
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 
   private def ensureCompatibility(
       compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Try[A]])
-        : CompatibilityResult[Try[A]] = {
+        : TypeSerializerSchemaCompatibility[Try[A]] = {
 
     val previousSerializersAndConfigs =
       compositeConfigSnapshot.getNestedSerializersAndConfigs
@@ -137,10 +138,10 @@ class TrySerializer[A](
       previousSerializersAndConfigs.get(1).f1,
       throwableSerializer)
 
-    if (elemCompatRes.isRequiresMigration || throwableCompatRes.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
+    if (elemCompatRes.isIncompatible || throwableCompatRes.isIncompatible) {
+      TypeSerializerSchemaCompatibility.incompatible()
     } else {
-      CompatibilityResult.compatible()
+      TypeSerializerSchemaCompatibility.compatibleAsIs()
     }
   }
 }

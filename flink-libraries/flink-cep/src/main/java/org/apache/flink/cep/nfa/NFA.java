@@ -19,11 +19,11 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
@@ -990,26 +990,26 @@ public class NFA<T> {
 		}
 
 		@Override
-		public CompatibilityResult<MigratedNFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public TypeSerializerSchemaCompatibility<MigratedNFA<T>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof NFASerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializersAndConfigs =
 					((NFASerializerConfigSnapshot<?>) configSnapshot).getNestedSerializersAndConfigs();
 
-				CompatibilityResult<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<T> eventCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						serializersAndConfigs.get(0).f1,
 						eventSerializer);
 
-				CompatibilityResult<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufCompatResult =
+				TypeSerializerSchemaCompatibility<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufCompatResult =
 						CompatibilityUtil.resolveCompatibilityResult(
 								serializersAndConfigs.get(1).f1,
 								sharedBufferSerializer);
 
-				if (!sharedBufCompatResult.isRequiresMigration() && !eventCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
+				if (!sharedBufCompatResult.isIncompatible() && !eventCompatResult.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			}
 
-			return CompatibilityResult.requiresMigration();
+			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 	}
 }

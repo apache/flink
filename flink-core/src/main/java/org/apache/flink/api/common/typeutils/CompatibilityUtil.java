@@ -50,7 +50,7 @@ public class CompatibilityUtil {
 	 * @return the final resolved compatibility result
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T> CompatibilityResult<T> resolveCompatibilityResult(
+	public static <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityResult(
 			TypeSerializerConfigSnapshot precedingSerializerConfigSnapshot,
 			TypeSerializer<T> newSerializer) {
 
@@ -59,7 +59,7 @@ public class CompatibilityUtil {
 		} else {
 			// if the configuration snapshot of the preceding serializer cannot be provided,
 			// we can only simply assume that the new serializer is compatible
-			return CompatibilityResult.compatible();
+			return TypeSerializerSchemaCompatibility.compatibleAsIs();
 		}
 	}
 

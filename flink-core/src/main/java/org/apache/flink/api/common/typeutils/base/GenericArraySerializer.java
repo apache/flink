@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -201,7 +201,7 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 	}
 
 	@Override
-	public CompatibilityResult<C[]> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<C[]> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof GenericArraySerializerConfigSnapshot) {
 			final GenericArraySerializerConfigSnapshot config = (GenericArraySerializerConfigSnapshot) configSnapshot;
 
@@ -209,16 +209,16 @@ public final class GenericArraySerializer<C> extends TypeSerializer<C[]> {
 				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousComponentSerializerAndConfig =
 					config.getSingleNestedSerializerAndConfig();
 
-				CompatibilityResult<C> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<C> compatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousComponentSerializerAndConfig.f1,
 						componentSerializer);
 
-				if (!compatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
+				if (!compatResult.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.compatibleAsIs();
 	}
 }

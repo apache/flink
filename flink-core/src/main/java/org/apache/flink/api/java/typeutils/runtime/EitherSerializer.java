@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -199,24 +199,24 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	}
 
 	@Override
-	public CompatibilityResult<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<Either<L, R>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof EitherSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousLeftRightSerializersAndConfigs =
 				((EitherSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
-			CompatibilityResult<L> leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<L> leftCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousLeftRightSerializersAndConfigs.get(0).f1,
 					leftSerializer);
 
-			CompatibilityResult<R> rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<R> rightCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousLeftRightSerializersAndConfigs.get(1).f1,
 					rightSerializer);
 
-			if (!leftCompatResult.isRequiresMigration() && !rightCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
+			if (!leftCompatResult.isIncompatible() && !rightCompatResult.isIncompatible()) {
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 }

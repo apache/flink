@@ -82,7 +82,7 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
 
   // copy and modified from MapSerializer.ensureCompatibility
   override def ensureCompatibility(configSnapshot: TypeSerializerConfigSnapshot[_])
-  : CompatibilityResult[MapView[K, V]] = {
+  : TypeSerializerSchemaCompatibility[MapView[K, V]] = {
 
     configSnapshot match {
       case snapshot: MapViewSerializerConfigSnapshot[K, V] =>
@@ -94,13 +94,13 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
       case legacySnapshot: MapSerializerConfigSnapshot[K, V] =>
         checkCompatibility(legacySnapshot)
 
-      case _ => CompatibilityResult.requiresMigration[MapView[K, V]]
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 
   private def checkCompatibility(
       configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[MapView[K, V]] = {
+    ): TypeSerializerSchemaCompatibility[MapView[K, V]] = {
 
     val previousKvSerializersAndConfigs = configSnapshot.getNestedSerializersAndConfigs
 
@@ -112,10 +112,10 @@ class MapViewSerializer[K, V](val mapSerializer: MapSerializer[K, V])
       previousKvSerializersAndConfigs.get(1).f1,
       mapSerializer.getValueSerializer)
 
-    if (!keyCompatResult.isRequiresMigration && !valueCompatResult.isRequiresMigration) {
-      CompatibilityResult.compatible[MapView[K, V]]
+    if (!keyCompatResult.isIncompatible && !valueCompatResult.isIncompatible) {
+      TypeSerializerSchemaCompatibility.compatibleAsIs()
     } else {
-      CompatibilityResult.requiresMigration[MapView[K, V]]
+      TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 }

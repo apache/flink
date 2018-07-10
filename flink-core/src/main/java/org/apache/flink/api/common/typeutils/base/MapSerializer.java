@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -210,24 +210,24 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	}
 
 	@Override
-	public CompatibilityResult<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<Map<K, V>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof MapSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousKvSerializersAndConfigs =
 				((MapSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
-			CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousKvSerializersAndConfigs.get(0).f1,
 					keySerializer);
 
-			CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 					previousKvSerializersAndConfigs.get(1).f1,
 					valueSerializer);
 
-			if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration()) {
-				return CompatibilityResult.compatible();
+			if (!keyCompatResult.isIncompatible() && !valueCompatResult.isIncompatible()) {
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 }

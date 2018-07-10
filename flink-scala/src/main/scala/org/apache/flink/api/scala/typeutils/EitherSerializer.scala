@@ -116,7 +116,7 @@ class EitherSerializer[A, B, T <: Either[A, B]](
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[T] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): TypeSerializerSchemaCompatibility[T] = {
 
     configSnapshot match {
       case eitherSerializerConfig: ScalaEitherSerializerConfigSnapshot[T, A, B] =>
@@ -128,13 +128,13 @@ class EitherSerializer[A, B, T <: Either[A, B]](
       case legacyConfig: EitherSerializerConfigSnapshot[A, B] =>
         checkCompatibility(legacyConfig)
 
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 
   private def checkCompatibility(
       configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[T] = {
+    ): TypeSerializerSchemaCompatibility[T] = {
 
     val previousLeftRightSerWithConfigs =
       configSnapshot.getNestedSerializersAndConfigs
@@ -147,11 +147,11 @@ class EitherSerializer[A, B, T <: Either[A, B]](
       previousLeftRightSerWithConfigs.get(1).f1,
       rightSerializer)
 
-    if (leftCompatResult.isRequiresMigration
-      || rightCompatResult.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
+    if (leftCompatResult.isIncompatible
+      || rightCompatResult.isIncompatible) {
+      TypeSerializerSchemaCompatibility.incompatible()
     } else {
-      CompatibilityResult.compatible()
+      TypeSerializerSchemaCompatibility.compatibleAsIs()
     }
   }
 }

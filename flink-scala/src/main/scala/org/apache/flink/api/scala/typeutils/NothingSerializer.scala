@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility, TypeSerializer, TypeSerializerConfigSnapshot}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
@@ -60,7 +60,7 @@ class NothingSerializer extends TypeSerializer[Any] {
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Any] =
+      configSnapshot: TypeSerializerConfigSnapshot[_]): TypeSerializerSchemaCompatibility[Any] =
     throw new RuntimeException("This must not be used. You encountered a bug.")
 
   override def equals(obj: Any): Boolean = {

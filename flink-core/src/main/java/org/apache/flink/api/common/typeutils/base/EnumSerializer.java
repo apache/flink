@@ -28,7 +28,7 @@ import java.util.Map;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -178,7 +178,7 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof EnumSerializerConfigSnapshot) {
 			final EnumSerializerConfigSnapshot<T> config = (EnumSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -201,13 +201,13 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 							rebuiltEnumConstantToOrdinalMap.put(enumConstant, i);
 						} catch (IllegalArgumentException e) {
 							// a previous enum constant no longer exists, and therefore requires migration
-							return CompatibilityResult.requiresMigration();
+							return TypeSerializerSchemaCompatibility.incompatible();
 						}
 					}
 				} else {
 					// some enum constants have been removed (because there are
 					// fewer constants now), and therefore requires migration
-					return CompatibilityResult.requiresMigration();
+					return TypeSerializerSchemaCompatibility.incompatible();
 				}
 
 				// if there are new enum constants, append them to the end
@@ -225,11 +225,11 @@ public final class EnumSerializer<T extends Enum<T>> extends TypeSerializer<T> {
 				// if we reach here, we can simply reconfigure ourselves to be compatible
 				this.values = reorderedEnumConstants;
 				this.valueToOrdinal = rebuiltEnumConstantToOrdinalMap;
-				return CompatibilityResult.compatible();
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	/**

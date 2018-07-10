@@ -21,7 +21,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io._
 import java.net.{URL, URLClassLoader}
 
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializerConfigSnapshotSerializationUtil}
+import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility, TypeSerializerConfigSnapshotSerializationUtil}
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
 import org.apache.flink.util.TestLogger
 import org.junit.rules.TemporaryFolder
@@ -84,7 +84,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     */
   @Test
   def checkIdenticalEnums(): Unit = {
-    assertFalse(checkCompatibility(enumA, enumA).isRequiresMigration)
+    assertFalse(checkCompatibility(enumA, enumA).isIncompatible)
   }
 
   /**
@@ -92,7 +92,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     */
   @Test
   def checkAppendedField(): Unit = {
-    assertFalse(checkCompatibility(enumA, enumB).isRequiresMigration)
+    assertFalse(checkCompatibility(enumA, enumB).isIncompatible)
   }
 
   /**
@@ -100,7 +100,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     */
   @Test
   def checkRemovedField(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumC).isRequiresMigration)
+    assertTrue(checkCompatibility(enumA, enumC).isIncompatible)
   }
 
   /**
@@ -108,7 +108,7 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
     */
   @Test
   def checkDifferentFieldOrder(): Unit = {
-    assertTrue(checkCompatibility(enumA, enumD).isRequiresMigration)
+    assertTrue(checkCompatibility(enumA, enumD).isIncompatible)
   }
 
   /**
@@ -118,11 +118,11 @@ class EnumValueSerializerUpgradeTest extends TestLogger with JUnitSuiteLike {
   def checkDifferentIds(): Unit = {
     assertTrue(
       "Different ids should cause a migration.",
-      checkCompatibility(enumA, enumE).isRequiresMigration)
+      checkCompatibility(enumA, enumE).isIncompatible)
   }
 
   def checkCompatibility(enumSourceA: String, enumSourceB: String)
-    : CompatibilityResult[Enumeration#Value] = {
+    : TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerUpgradeTest._
 
     val classLoader = compileAndLoadEnum(tempFolder.newFolder(), s"$enumName.scala", enumSourceA)

@@ -18,11 +18,11 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
@@ -349,32 +349,32 @@ public class SharedBuffer<V> {
 		}
 
 		@Override
-		public CompatibilityResult<SharedBuffer<V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		public TypeSerializerSchemaCompatibility<SharedBuffer<V>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			if (configSnapshot instanceof SharedBufferSerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> serializerConfigSnapshots =
 					((SharedBufferSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
-				CompatibilityResult<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<K> keyCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						serializerConfigSnapshots.get(0).f1,
 						keySerializer);
 
-				CompatibilityResult<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<V> valueCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						serializerConfigSnapshots.get(1).f1,
 						valueSerializer);
 
-				CompatibilityResult<DeweyNumber> versionCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<DeweyNumber> versionCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						serializerConfigSnapshots.get(2).f1,
 						versionSerializer);
 
-				if (!keyCompatResult.isRequiresMigration() && !valueCompatResult.isRequiresMigration() &&
-					!versionCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
+				if (!keyCompatResult.isIncompatible() && !valueCompatResult.isIncompatible() &&
+					!versionCompatResult.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				} else {
-					return CompatibilityResult.requiresMigration();
+					return TypeSerializerSchemaCompatibility.incompatible();
 				}
 			}
 
-			return CompatibilityResult.requiresMigration();
+			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 	}
 }

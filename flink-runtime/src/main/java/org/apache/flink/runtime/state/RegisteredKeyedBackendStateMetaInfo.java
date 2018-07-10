@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -246,16 +246,16 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> {
 		}
 
 		// check compatibility results to determine if state migration is required
-		CompatibilityResult<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+		TypeSerializerSchemaCompatibility<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 			restoredStateMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
 			newNamespaceSerializer);
 
 		TypeSerializer<S> newStateSerializer = newStateDescriptor.getSerializer();
-		CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+		TypeSerializerSchemaCompatibility<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 			restoredStateMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
 			newStateSerializer);
 
-		if (namespaceCompatibility.isRequiresMigration() || stateCompatibility.isRequiresMigration()) {
+		if (namespaceCompatibility.isIncompatible() || stateCompatibility.isIncompatible()) {
 			// TODO state migration currently isn't possible.
 			throw new StateMigrationException("State migration isn't supported, yet.");
 		} else {

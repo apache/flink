@@ -106,7 +106,8 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[Option[A]] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]):
+  TypeSerializerSchemaCompatibility[Option[A]] = {
 
     configSnapshot match {
       case optionSerializerConfigSnapshot
@@ -115,22 +116,22 @@ class OptionSerializer[A](val elemSerializer: TypeSerializer[A])
       case legacyOptionSerializerConfigSnapshot
           : OptionSerializer.OptionSerializerConfigSnapshot[A] =>
         ensureCompatibility(legacyOptionSerializerConfigSnapshot)
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 
   private def ensureCompatibility(
       compositeConfigSnapshot: CompositeTypeSerializerConfigSnapshot[Option[A]])
-      : CompatibilityResult[Option[A]] = {
+      : TypeSerializerSchemaCompatibility[Option[A]] = {
 
     val compatResult = CompatibilityUtil.resolveCompatibilityResult(
       compositeConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
       elemSerializer)
 
-    if (compatResult.isRequiresMigration) {
-      CompatibilityResult.requiresMigration()
+    if (compatResult.isIncompatible) {
+      TypeSerializerSchemaCompatibility.incompatible()
     } else {
-      CompatibilityResult.compatible()
+      TypeSerializerSchemaCompatibility.compatibleAsIs()
     }
   }
 }

@@ -79,7 +79,8 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
     new ListViewSerializerConfigSnapshot[T](listSerializer)
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[ListView[T]] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]):
+  TypeSerializerSchemaCompatibility[ListView[T]] = {
 
     configSnapshot match {
       case snapshot: ListViewSerializerConfigSnapshot[T] =>
@@ -91,13 +92,13 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
       case legacySnapshot: CollectionSerializerConfigSnapshot[java.util.List[T], T] =>
         checkCompatibility(legacySnapshot)
 
-      case _ => CompatibilityResult.requiresMigration[ListView[T]]
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 
   private def checkCompatibility(
       configSnapshot: CompositeTypeSerializerConfigSnapshot[_]
-    ): CompatibilityResult[ListView[T]] = {
+    ): TypeSerializerSchemaCompatibility[ListView[T]] = {
 
     val previousListSerializerAndConfig = configSnapshot.getSingleNestedSerializerAndConfig
 
@@ -105,10 +106,10 @@ class ListViewSerializer[T](val listSerializer: ListSerializer[T])
       previousListSerializerAndConfig.f1,
       listSerializer.getElementSerializer)
 
-    if (!compatResult.isRequiresMigration) {
-      CompatibilityResult.compatible[ListView[T]]
+    if (!compatResult.isIncompatible) {
+      TypeSerializerSchemaCompatibility.compatibleAsIs()
     } else {
-      CompatibilityResult.requiresMigration[ListView[T]]
+      TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 }

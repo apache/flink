@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshotSerializationUtil;
@@ -72,9 +72,9 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		CompatibilityResult<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
-		assertFalse(compatResult.isRequiresMigration());
+		assertFalse(compatResult.isIncompatible());
 
 		// after reconfiguration, the order should be first the original BAR, PAULA, NATHANIEL,
 		// followed by the "new enum constants" FOO, PETER, EMMA
@@ -106,8 +106,8 @@ public class EnumSerializerTest extends TestLogger {
 				new DataInputViewStreamWrapper(in), Thread.currentThread().getContextClassLoader());
 		}
 
-		CompatibilityResult<PublicEnum> compatResult = serializer.internalEnsureCompatibility(restoredConfig);
-		assertFalse(compatResult.isRequiresMigration());
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(restoredConfig);
+		assertFalse(compatResult.isIncompatible());
 
 		assertEquals(PublicEnum.FOO.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.FOO).intValue());
 		assertEquals(PublicEnum.BAR.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.BAR).intValue());
@@ -161,9 +161,9 @@ public class EnumSerializerTest extends TestLogger {
 		assertEquals(PublicEnum.PAULA.ordinal(), serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
 
 		// reconfigure and verify compatibility
-		CompatibilityResult<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
+		TypeSerializerSchemaCompatibility<PublicEnum> compatResult = serializer.internalEnsureCompatibility(
 			new EnumSerializer.EnumSerializerConfigSnapshot<>(PublicEnum.class, mockPreviousOrder));
-		assertFalse(compatResult.isRequiresMigration());
+		assertFalse(compatResult.isIncompatible());
 
 		// serialize and deserialize again the serializer
 		byte[] serializedSerializer = InstantiationUtil.serializeObject(serializer);

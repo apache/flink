@@ -194,29 +194,29 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 *
 	 * <p>The result can be one of the following:
 	 * <ul>
-	 *     <li>{@link CompatibilityResult#compatible()}: this signals Flink that this serializer is compatible, or
+	 *     <li>{@link TypeSerializerSchemaCompatibility#compatible()}: this signals Flink that this serializer is compatible, or
 	 *     has been reconfigured to be compatible, to continue reading previous data, and that the
 	 *     serialization schema remains the same. No migration needs to be performed.</li>
 	 *
-	 *     <li>{@link CompatibilityResult#requiresMigration(TypeDeserializer)}: this signals Flink that
+	 *     <li>{@link TypeSerializerSchemaCompatibility#requiresMigration(TypeDeserializer)}: this signals Flink that
 	 *     migration needs to be performed, because this serializer is not compatible, or cannot be reconfigured to be
 	 *     compatible, for previous data. Furthermore, in the case that the preceding serializer cannot be found or
 	 *     restored to read the previous data to perform the migration, the provided convert deserializer can be
 	 *     used as a fallback resort.</li>
 	 *
-	 *     <li>{@link CompatibilityResult#requiresMigration()}: this signals Flink that migration needs to be
+	 *     <li>{@link TypeSerializerSchemaCompatibility#requiresMigration()}: this signals Flink that migration needs to be
 	 *     performed, because this serializer is not compatible, or cannot be reconfigured to be compatible, for
 	 *     previous data. If the preceding serializer cannot be found (either its implementation changed or it was
 	 *     removed from the classpath) then the migration will fail due to incapability to read previous data.</li>
 	 * </ul>
 	 *
-	 * @see CompatibilityResult
+	 * @see TypeSerializerSchemaCompatibility
 	 *
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
 	 */
-	protected abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
+	protected abstract TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
 
 	/**
 	 * Public-facing method for serializer compatibility checks. Restored configuration snapshots should
@@ -232,7 +232,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @return the determined compatibility result (cannot be {@code null}).
 	 */
 	@Internal
-	public final CompatibilityResult<T> internalEnsureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public final TypeSerializerSchemaCompatibility<T> internalEnsureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof BackwardsCompatibleConfigSnapshot) {
 			return ensureCompatibility(
 				((BackwardsCompatibleConfigSnapshot<?>) configSnapshot).getWrappedConfigSnapshot());

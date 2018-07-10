@@ -613,7 +613,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (CompatibilityUtil.resolveCompatibilityResult(
 				serializationProxy.getKeySerializerConfigSnapshot(),
 				rocksDBKeyedStateBackend.keySerializer)
-				.isRequiresMigration()) {
+				.isIncompatible()) {
 
 				// TODO replace with state migration; note that key hash codes need to remain the same after migration
 				throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +
@@ -1155,7 +1155,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				if (CompatibilityUtil.resolveCompatibilityResult(
 					serializationProxy.getKeySerializerConfigSnapshot(),
 					stateBackend.keySerializer)
-					.isRequiresMigration()) {
+					.isIncompatible()) {
 
 					// TODO replace with state migration; note that key hash codes need to remain the same after migration
 					throw new StateMigrationException("The new key serializer is not compatible to read previous keys. " +

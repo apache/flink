@@ -85,7 +85,7 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[CRow] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]): TypeSerializerSchemaCompatibility[CRow] = {
 
     configSnapshot match {
       case crowSerializerConfigSnapshot: CRowSerializer.CRowSerializerConfigSnapshot =>
@@ -93,13 +93,13 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
           crowSerializerConfigSnapshot.getSingleNestedSerializerAndConfig.f1,
           rowSerializer)
 
-        if (compatResult.isRequiresMigration) {
-          CompatibilityResult.requiresMigration()
+        if (compatResult.isIncompatible) {
+          TypeSerializerSchemaCompatibility.incompatible()
         } else {
-          CompatibilityResult.compatible()
+          TypeSerializerSchemaCompatibility.compatibleAsIs()
         }
 
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -225,15 +225,15 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					(RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V>) restoredBroadcastStateMetaInfos.get(name);
 
 			// check compatibility to determine if state migration is required
-			CompatibilityResult<K> keyCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<K> keyCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getKeySerializerConfigSnapshot(),
 					broadcastStateKeySerializer);
 
-			CompatibilityResult<V> valueCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<V> valueCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getValueSerializerConfigSnapshot(),
 					broadcastStateValueSerializer);
 
-			if (!keyCompatibility.isRequiresMigration() && !valueCompatibility.isRequiresMigration()) {
+			if (!keyCompatibility.isIncompatible() && !valueCompatibility.isIncompatible()) {
 				// new serializer is compatible; use it to replace the old serializer
 				broadcastState.setStateMetaInfo(
 						new RegisteredBroadcastBackendStateMetaInfo<>(
@@ -761,11 +761,11 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			// check compatibility to determine if state migration is required
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
-			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+			TypeSerializerSchemaCompatibility<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getPartitionStateSerializerConfigSnapshot(),
 					newPartitionStateSerializer);
 
-			if (!stateCompatibility.isRequiresMigration()) {
+			if (!stateCompatibility.isIncompatible()) {
 				// new serializer is compatible; use it to replace the old serializer
 				partitionableListState.setStateMetaInfo(
 					new RegisteredOperatorBackendStateMetaInfo<>(name, newPartitionStateSerializer, mode));

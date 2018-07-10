@@ -24,11 +24,11 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -766,26 +766,26 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		}
 
 		@Override
-		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
+		public TypeSerializerSchemaCompatibility<State<TXN, CONTEXT>> ensureCompatibility(
 				TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
 				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
 						((StateSerializerConfigSnapshot<?, ?>) configSnapshot).getNestedSerializersAndConfigs();
 
-				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousSerializersAndConfigs.get(0).f1,
 						transactionSerializer);
 
-				CompatibilityResult<CONTEXT> contextCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+				TypeSerializerSchemaCompatibility<CONTEXT> contextCompatResult = CompatibilityUtil.resolveCompatibilityResult(
 						previousSerializersAndConfigs.get(1).f1,
 						contextSerializer);
 
-				if (!txnCompatResult.isRequiresMigration() && !contextCompatResult.isRequiresMigration()) {
-					return CompatibilityResult.compatible();
+				if (!txnCompatResult.isIncompatible() && !contextCompatResult.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			}
 
-			return CompatibilityResult.requiresMigration();
+			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 	}
 

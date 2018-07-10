@@ -135,7 +135,7 @@ public final class TypeDeserializerAdapter<T> extends TypeSerializer<T> implemen
 			"This is a TypeDeserializerAdapter used only for deserialization; this method should not be used.");
 	}
 
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		throw new UnsupportedOperationException(
 			"This is a TypeDeserializerAdapter used only for deserialization; this method should not be used.");
 	}

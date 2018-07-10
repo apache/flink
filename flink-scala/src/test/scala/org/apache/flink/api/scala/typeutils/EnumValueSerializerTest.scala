@@ -35,7 +35,7 @@ class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
 
     val snapshot = enumSerializer.snapshotConfiguration()
 
-    assertFalse(enumSerializer.internalEnsureCompatibility(snapshot).isRequiresMigration)
+    assertFalse(enumSerializer.internalEnsureCompatibility(snapshot).isIncompatible)
   }
 }
 

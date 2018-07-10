@@ -18,7 +18,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -266,30 +266,30 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	}
 
 	@Override
-	public CompatibilityResult<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<Row> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof RowSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousFieldSerializersAndConfigs =
 				((RowSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousFieldSerializersAndConfigs.size() == fieldSerializers.length) {
 
-				CompatibilityResult<?> compatResult;
+				TypeSerializerSchemaCompatibility<?> compatResult;
 				int i = 0;
 				for (Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> f : previousFieldSerializersAndConfigs) {
 					compatResult = CompatibilityUtil.resolveCompatibilityResult(f.f1, fieldSerializers[i]);
 
-					if (compatResult.isRequiresMigration()) {
-						return CompatibilityResult.requiresMigration();
+					if (compatResult.isIncompatible()) {
+						return TypeSerializerSchemaCompatibility.incompatible();
 					}
 
 					i++;
 				}
 
-				return CompatibilityResult.compatible();
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	public static final class RowSerializerConfigSnapshot extends CompositeTypeSerializerConfigSnapshot<Row> {

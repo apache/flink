@@ -33,7 +33,7 @@ import java.util.Objects;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -594,14 +594,14 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof PojoSerializerConfigSnapshot) {
 			final PojoSerializerConfigSnapshot<T> config = (PojoSerializerConfigSnapshot<T>) configSnapshot;
 
 			if (clazz.equals(config.getTypeClass())) {
 				if (this.numFields == config.getFieldToSerializerConfigSnapshot().size()) {
 
-					CompatibilityResult<?> compatResult;
+					TypeSerializerSchemaCompatibility<?> compatResult;
 
 					// ----------- check field order and compatibility of field serializers -----------
 
@@ -623,13 +623,13 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 								fieldToConfigSnapshotEntry.getValue().f1,
 								fieldSerializers[fieldIndex]);
 
-							if (compatResult.isRequiresMigration()) {
-								return CompatibilityResult.requiresMigration();
+							if (compatResult.isIncompatible()) {
+								return TypeSerializerSchemaCompatibility.incompatible();
 							} else {
 								reorderedFieldSerializers[i] = fieldSerializers[fieldIndex];
 							}
 						} else {
-							return CompatibilityResult.requiresMigration();
+							return TypeSerializerSchemaCompatibility.incompatible();
 						}
 
 						i++;
@@ -664,8 +664,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 								previousRegisteredSerializerConfig.f1,
 								reorderedRegisteredSubclassSerializers[i]);
 
-						if (compatResult.isRequiresMigration()) {
-							return CompatibilityResult.requiresMigration();
+						if (compatResult.isIncompatible()) {
+							return TypeSerializerSchemaCompatibility.incompatible();
 						}
 
 						i++;
@@ -687,8 +687,8 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 								previousCachedEntry.getValue().f1,
 								cachedSerializer);
 
-						if (compatResult.isRequiresMigration()) {
-							return CompatibilityResult.requiresMigration();
+						if (compatResult.isIncompatible()) {
+							return TypeSerializerSchemaCompatibility.incompatible();
 						} else {
 							rebuiltCache.put(previousCachedEntry.getKey(), cachedSerializer);
 						}
@@ -705,12 +705,12 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 					this.subclassSerializerCache = rebuiltCache;
 
-					return CompatibilityResult.compatible();
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	public static final class PojoSerializerConfigSnapshot<T> extends GenericTypeSerializerConfigSnapshot<T> {

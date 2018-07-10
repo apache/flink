@@ -19,11 +19,11 @@
 package org.apache.flink.streaming.runtime.streamrecord;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -284,7 +284,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	}
 
 	@Override
-	public CompatibilityResult<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<StreamElement> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> previousTypeSerializerAndConfig;
 
 		// we are compatible for data written by ourselves or the legacy MultiplexingStreamRecordSerializer
@@ -292,17 +292,17 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			previousTypeSerializerAndConfig =
 				((StreamElementSerializerConfigSnapshot<?>) configSnapshot).getSingleNestedSerializerAndConfig();
 		} else {
-			return CompatibilityResult.requiresMigration();
+			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 
-		CompatibilityResult<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
+		TypeSerializerSchemaCompatibility<T> compatResult = CompatibilityUtil.resolveCompatibilityResult(
 				previousTypeSerializerAndConfig.f1,
 				typeSerializer);
 
-		if (!compatResult.isRequiresMigration()) {
-			return CompatibilityResult.compatible();
+		if (!compatResult.isIncompatible()) {
+			return TypeSerializerSchemaCompatibility.compatibleAsIs();
 		} else {
-			return CompatibilityResult.requiresMigration();
+			return TypeSerializerSchemaCompatibility.incompatible();
 		}
 	}
 

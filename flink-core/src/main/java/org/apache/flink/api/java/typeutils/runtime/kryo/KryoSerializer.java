@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -463,7 +463,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+	public TypeSerializerSchemaCompatibility<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 		if (configSnapshot instanceof KryoSerializerConfigSnapshot) {
 			final KryoSerializerConfigSnapshot<T> config = (KryoSerializerConfigSnapshot<T>) configSnapshot;
 
@@ -483,18 +483,18 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 							"proper serializer, because its previous serializer cannot be loaded or is no " +
 							"longer valid but a new serializer is not available", reconfiguredRegistrationEntry.getKey());
 
-						return CompatibilityResult.requiresMigration();
+						return TypeSerializerSchemaCompatibility.incompatible();
 					}
 				}
 
 				// there's actually no way to tell if new Kryo serializers are compatible with
 				// the previous ones they overwrite; we can only signal compatibility and hope for the best
 				this.kryoRegistrations = reconfiguredRegistrations;
-				return CompatibilityResult.compatible();
+				return TypeSerializerSchemaCompatibility.compatibleAsIs();
 			}
 		}
 
-		return CompatibilityResult.requiresMigration();
+		return TypeSerializerSchemaCompatibility.incompatible();
 	}
 
 	public static final class KryoSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {

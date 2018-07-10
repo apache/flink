@@ -18,9 +18,9 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
@@ -186,7 +186,7 @@ public final class Lockable<T> {
 		}
 
 		@Override
-		public CompatibilityResult<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
+		public TypeSerializerSchemaCompatibility<Lockable<E>> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot) {
 			if (configSnapshot instanceof LockableSerializerConfigSnapshot) {
 				@SuppressWarnings("unchecked")
 				LockableSerializerConfigSnapshot<E> snapshot = (LockableSerializerConfigSnapshot<E>) configSnapshot;
@@ -194,15 +194,15 @@ public final class Lockable<T> {
 				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> nestedSerializerAndConfig =
 					snapshot.getSingleNestedSerializerAndConfig();
 
-				CompatibilityResult<E> inputComaptibilityResult = elementSerializer
+				TypeSerializerSchemaCompatibility<E> inputComaptibilityResult = elementSerializer
 					.internalEnsureCompatibility(nestedSerializerAndConfig.f1);
-				if (inputComaptibilityResult.isRequiresMigration()) {
-					return CompatibilityResult.requiresMigration();
+				if (inputComaptibilityResult.isIncompatible()) {
+					return TypeSerializerSchemaCompatibility.incompatible();
 				} else {
-					return CompatibilityResult.compatible();
+					return TypeSerializerSchemaCompatibility.compatibleAsIs();
 				}
 			} else {
-				return CompatibilityResult.requiresMigration();
+				return TypeSerializerSchemaCompatibility.incompatible();
 			}
 		}
 	}

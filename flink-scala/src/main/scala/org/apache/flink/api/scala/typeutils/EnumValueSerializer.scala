@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import java.io.IOException
 
 import org.apache.flink.annotation.Internal
-import org.apache.flink.api.common.typeutils.{CompatibilityResult, TypeSerializer, TypeSerializerConfigSnapshot}
+import org.apache.flink.api.common.typeutils.{TypeSerializer, TypeSerializerConfigSnapshot, TypeSerializerSchemaCompatibility}
 import org.apache.flink.api.common.typeutils.base.IntSerializer
 import org.apache.flink.api.java.typeutils.runtime.{DataInputViewStream, DataOutputViewStream}
 import org.apache.flink.core.memory.{DataInputView, DataOutputView}
@@ -84,7 +84,8 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
   }
 
   override def ensureCompatibility(
-      configSnapshot: TypeSerializerConfigSnapshot[_]): CompatibilityResult[E#Value] = {
+      configSnapshot: TypeSerializerConfigSnapshot[_]):
+  TypeSerializerSchemaCompatibility[E#Value] = {
 
     configSnapshot match {
       case enumSerializerConfigSnapshot: EnumValueSerializer.ScalaEnumSerializerConfigSnapshot[_] =>
@@ -99,22 +100,22 @@ class EnumValueSerializer[E <: Enumeration](val enum: E) extends TypeSerializer[
             } catch {
               case _: NoSuchElementException =>
                 // couldn't find an enum value for the given index
-                return CompatibilityResult.requiresMigration()
+                return TypeSerializerSchemaCompatibility.incompatible()
             }
 
             if (!previousEnumConstant.equals(enumValue.toString)) {
               // compatible only if new enum constants are only appended,
               // and original constants must be in the exact same order
-              return CompatibilityResult.requiresMigration()
+              return TypeSerializerSchemaCompatibility.incompatible()
             }
           }
 
-          CompatibilityResult.compatible()
+          TypeSerializerSchemaCompatibility.compatibleAsIs()
         } else {
-          CompatibilityResult.requiresMigration()
+          TypeSerializerSchemaCompatibility.incompatible()
         }
 
-      case _ => CompatibilityResult.requiresMigration()
+      case _ => TypeSerializerSchemaCompatibility.incompatible()
     }
   }
 }
