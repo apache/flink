@@ -32,6 +32,44 @@ public class ConfigurationUtils {
 	private static final String[] EMPTY = new String[0];
 
 	/**
+	 * Get job manager's heap memory. This method will check the new key
+	 * {@link JobManagerOptions#JOB_MANAGER_HEAP_MEMORY} and
+	 * the old key {@link JobManagerOptions#JOB_MANAGER_HEAP_MEMORY_MB} for backwards compatibility.
+	 *
+	 * @param configuration the configuration object
+	 * @return the memory size of job manager's heap memory.
+	 */
+	public static MemorySize getJobManagerHeapMemory(Configuration configuration) {
+		if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
+			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+		} else if (configuration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB.key())) {
+			return MemorySize.parse(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB) + "m");
+		} else {
+			//use default value
+			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+		}
+	}
+
+	/**
+	 * Get task manager's heap memory. This method will check the new key
+	 * {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY} and
+	 * the old key {@link TaskManagerOptions#TASK_MANAGER_HEAP_MEMORY_MB} for backwards compatibility.
+	 *
+	 * @param configuration the configuration object
+	 * @return the memory size of task manager's heap memory.
+	 */
+	public static MemorySize getTaskManagerHeapMemory(Configuration configuration) {
+		if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
+			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
+		} else if (configuration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB.key())) {
+			return MemorySize.parse(configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) + "m");
+		} else {
+			//use default value
+			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
+		}
+	}
+
+	/**
 	 * Extracts the task manager directories for temporary files as defined by
 	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}.
 	 *
