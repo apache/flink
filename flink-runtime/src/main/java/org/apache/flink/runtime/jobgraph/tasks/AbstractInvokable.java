@@ -59,6 +59,9 @@ public abstract class AbstractInvokable {
 	/** The environment assigned to this invokable. */
 	private final Environment environment;
 
+	/** Flag whether cancellation should interrupt the executing thread. */
+	private volatile boolean shouldInterruptOnCancel = true;
+
 	/**
 	 * Create an Invokable task and set its environment.
 	 *
@@ -67,6 +70,10 @@ public abstract class AbstractInvokable {
 	public AbstractInvokable(Environment environment) {
 		this.environment = checkNotNull(environment);
 	}
+
+	// ------------------------------------------------------------------------
+	//  Core methods
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Starts the execution.
@@ -95,8 +102,34 @@ public abstract class AbstractInvokable {
 	}
 
 	/**
+	 * Sets whether the thread that executes the {@link #invoke()} method should be
+	 * interrupted during cancellation. This method sets the flag for both the initial
+	 * interrupt, as well as for the repeated interrupt. Setting the interruption to
+	 * false at some point during the cancellation procedure is a way to stop further
+	 * interrupts from happening.
+	 */
+	public void setShouldInterruptOnCancel(boolean shouldInterruptOnCancel) {
+		this.shouldInterruptOnCancel = shouldInterruptOnCancel;
+	}
+
+	/**
+	 * Checks whether the task should be interrupted during cancellation.
+	 * This method is check both for the initial interrupt, as well as for the
+	 * repeated interrupt. Setting the interruption to false via
+	 * {@link #setShouldInterruptOnCancel(boolean)} is a way to stop further interrupts
+	 * from happening.
+	 */
+	public boolean shouldInterruptOnCancel() {
+		return shouldInterruptOnCancel;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Access to Environment and Configuration
+	// ------------------------------------------------------------------------
+
+	/**
 	 * Returns the environment of this task.
-	 * 
+	 *
 	 * @return The environment of this task.
 	 */
 	public Environment getEnvironment() {
@@ -114,7 +147,7 @@ public abstract class AbstractInvokable {
 
 	/**
 	 * Returns the current number of subtasks the respective task is split into.
-	 * 
+	 *
 	 * @return the current number of subtasks the respective task is split into
 	 */
 	public int getCurrentNumberOfSubtasks() {
@@ -123,7 +156,7 @@ public abstract class AbstractInvokable {
 
 	/**
 	 * Returns the index of this subtask in the subtask group.
-	 * 
+	 *
 	 * @return the index of this subtask in the subtask group
 	 */
 	public int getIndexInSubtaskGroup() {
@@ -132,7 +165,7 @@ public abstract class AbstractInvokable {
 
 	/**
 	 * Returns the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}.
-	 * 
+	 *
 	 * @return the task configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobVertex}
 	 */
 	public Configuration getTaskConfiguration() {
@@ -141,7 +174,7 @@ public abstract class AbstractInvokable {
 
 	/**
 	 * Returns the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}.
-	 * 
+	 *
 	 * @return the job configuration object which was attached to the original {@link org.apache.flink.runtime.jobgraph.JobGraph}
 	 */
 	public Configuration getJobConfiguration() {

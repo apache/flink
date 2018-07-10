@@ -341,6 +341,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// clean up everything we initialized
 			isRunning = false;
 
+			// Now that we are outside the user code, we do not want to be interrupted further
+			// upon cancellation. The shutdown logic below needs to make sure it does not issue calls
+			// that block and stall shutdown.
+			// Additionally, the cancellation watch dog will issue a hard-cancel (kill the TaskManager
+			// process) as a backup in case some shutdown procedure blocks outside our control.
+			setShouldInterruptOnCancel(false);
+
+			// clear any previously issued interrupt for a more graceful shutdown
+			Thread.interrupted();
+
 			// stop all timers and threads
 			tryShutdownTimerService();
 
