@@ -116,10 +116,8 @@ public class AsyncIOExample {
 	private static class SampleAsyncFunction extends RichAsyncFunction<Integer, String> {
 		private static final long serialVersionUID = 2098635244857937717L;
 
-		private static ExecutorService executorService;
-		private static Random random;
-
-		private int counter;
+		private ExecutorService executorService;
+		private Random random;
 
 		/**
 		 * The result of multiplying sleepFactor with a random float is used to pause
@@ -145,41 +143,28 @@ public class AsyncIOExample {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 
-			synchronized (SampleAsyncFunction.class) {
-				if (counter == 0) {
-					executorService = Executors.newFixedThreadPool(30);
-
-					random = new Random();
-				}
-
-				++counter;
-			}
+			executorService = Executors.newFixedThreadPool(30);
+			random = new Random();
 		}
 
 		@Override
 		public void close() throws Exception {
 			super.close();
 
-			synchronized (SampleAsyncFunction.class) {
-				--counter;
+			executorService.shutdown();
 
-				if (counter == 0) {
-					executorService.shutdown();
-
-					try {
-						if (!executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS)) {
-							executorService.shutdownNow();
-						}
-					} catch (InterruptedException e) {
-						executorService.shutdownNow();
-					}
+			try {
+				if (!executorService.awaitTermination(shutdownWaitTS, TimeUnit.MILLISECONDS)) {
+					executorService.shutdownNow();
 				}
+			} catch (InterruptedException e) {
+				executorService.shutdownNow();
 			}
 		}
 
 		@Override
 		public void asyncInvoke(final Integer input, final ResultFuture<String> resultFuture) throws Exception {
-			this.executorService.submit(new Runnable() {
+			executorService.submit(new Runnable() {
 				@Override
 				public void run() {
 					// wait for while to simulate async operation here
