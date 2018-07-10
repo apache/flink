@@ -18,12 +18,17 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
+import java.util.{List => JList}
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.calcite.rel.core.{SetOp, Union}
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
+
+import scala.collection.JavaConverters._
 
 /**
   * Flink RelNode which matches along with Union.
@@ -32,22 +37,19 @@ import org.apache.flink.table.runtime.types.CRow
 class DataStreamUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    leftNode: RelNode,
-    rightNode: RelNode,
+    inputs: JList[RelNode],
     schema: RowSchema)
-  extends BiRel(cluster, traitSet, leftNode, rightNode)
+  extends Union(cluster, traitSet, inputs, true)
   with DataStreamRel {
 
   override def deriveRowType() = schema.relDataType
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: JList[RelNode], all: Boolean): SetOp = {
     new DataStreamUnion(
       cluster,
       traitSet,
-      inputs.get(0),
-      inputs.get(1),
-      schema
-    )
+      inputs,
+      schema)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -62,9 +64,10 @@ class DataStreamUnion(
       tableEnv: StreamTableEnvironment,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val leftDataSet = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataSet = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
-    leftDataSet.union(rightDataSet)
+    getInputs
+      .asScala
+      .map(relNode => relNode.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig))
+      .reduce((dataSetLeft, dataSetRight) => dataSetLeft.union(dataSetRight))
   }
 
   private def unionSelectionToString: String = {

@@ -59,6 +59,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union", "_c0", "e", "_c2")
     )
 
@@ -86,6 +87,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS EXPR$0", "b", "c")
       ),
+      term("all", "true"),
       term("union", "EXPR$0", "e", "g"))
 
     util.verifySql(sqlQuery, expected)
@@ -118,6 +120,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceStreamTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union all", "_c0", "e", "_c2")
     )
 
@@ -145,6 +148,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceStreamTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS EXPR$0", "b", "c")
       ),
+      term("all", "true"),
       term("union all", "EXPR$0", "e", "g"))
 
     util.verifySql(sqlQuery, expected)
@@ -175,6 +179,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1TopLevelPath, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union", "_c0", "e", "_c2")
     )
 

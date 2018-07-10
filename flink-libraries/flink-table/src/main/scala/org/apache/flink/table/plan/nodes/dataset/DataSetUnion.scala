@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
+import java.util.{List => JList}
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.types.Row
@@ -36,22 +39,19 @@ import scala.collection.JavaConverters._
 class DataSetUnion(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    leftNode: RelNode,
-    rightNode: RelNode,
+    inputs: JList[RelNode],
     rowRelDataType: RelDataType)
-  extends BiRel(cluster, traitSet, leftNode, rightNode)
+  extends Union(cluster, traitSet, inputs, true)
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
+  override def copy(traitSet: RelTraitSet, inputs: JList[RelNode], all: Boolean): SetOp = {
     new DataSetUnion(
       cluster,
       traitSet,
-      inputs.get(0),
-      inputs.get(1),
-      rowRelDataType
-    )
+      inputs,
+      rowRelDataType)
   }
 
   override def toString: String = {
@@ -81,14 +81,13 @@ class DataSetUnion(
       tableEnv: BatchTableEnvironment,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
-    val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
-    val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
-
-    leftDataSet.union(rightDataSet)
+    getInputs
+      .asScala
+      .map(relNode => relNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig))
+      .reduce((dataSetLeft, dataSetRight) => dataSetLeft.union(dataSetRight))
   }
 
   private def unionSelectionToString: String = {
     rowRelDataType.getFieldNames.asScala.toList.mkString(", ")
   }
-
 }
