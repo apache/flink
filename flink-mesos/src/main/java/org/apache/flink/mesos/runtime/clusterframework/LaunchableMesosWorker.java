@@ -42,12 +42,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
-import java.util.stream.Collectors;
 
 import scala.Option;
 
@@ -337,15 +337,16 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	/**
 	 * Get port keys representing the TM's configured endpoints. This includes mandatory TM endpoints such as
 	 * data and rpc as well as optionally configured endpoints for services such as prometheus reporter
-	 * @return The Set of port keys to expose from the TM container
+	 *
+	 * @return A deterministicly ordered Set of port keys to expose from the TM container
 	 */
 	private Set<String> getPortKeys() {
-		Set<String> tmPortKeys = containerSpec.getDynamicConfiguration().keySet().stream()
+		LinkedHashSet<String> tmPortKeys = new LinkedHashSet<>(Arrays.asList(TM_PORT_KEYS));
+		containerSpec.getDynamicConfiguration().keySet().stream()
 			.filter(key -> key.endsWith(".port"))  // This matches property naming convention
 			.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
-			.collect(Collectors.toSet());
+			.forEach(tmPortKeys::add);
 
-		tmPortKeys.addAll(Arrays.asList(TM_PORT_KEYS));
 		return tmPortKeys;
 	}
 
