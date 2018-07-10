@@ -24,6 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.util.Logging
+import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
@@ -38,40 +39,6 @@ object TableFormatFactoryService extends Logging {
 
   /**
     * Finds a table format factory of the given class and creates configured instances from the
-    * given descriptor.
-    *
-    * @param factoryClass desired format factory
-    * @param descriptor descriptor that describes the format
-    * @tparam T factory class type
-    * @return configured instance from factory
-    */
-  def find[T](factoryClass: Class[T], descriptor: Descriptor): T = {
-    find(factoryClass, descriptor, null)
-  }
-
-  /**
-    * Finds a table format factory of the given class and creates configured instances from the
-    * given descriptor and classloader.
-    *
-    * @param factoryClass desired format factory
-    * @param descriptor descriptor that describes the format
-    * @param classLoader classloader for service loading
-    * @tparam T factory class type
-    * @return configured instance from factory
-    */
-  def find[T](
-      factoryClass: Class[T],
-      descriptor: Descriptor,
-      classLoader: ClassLoader)
-    : T = {
-
-    val properties = new DescriptorProperties()
-    descriptor.addProperties(properties)
-    find(factoryClass, properties.asMap, classLoader)
-  }
-
-  /**
-    * Finds a table format factory of the given class and creates configured instances from the
     * given property map.
     *
     * @param factoryClass desired format factory
@@ -80,7 +47,7 @@ object TableFormatFactoryService extends Logging {
     * @return configured instance from factory
     */
   def find[T](factoryClass: Class[T], propertyMap: JMap[String, String]): T = {
-    find(factoryClass, propertyMap, null)
+    findInternal(factoryClass, propertyMap, None)
   }
 
   /**
@@ -98,6 +65,28 @@ object TableFormatFactoryService extends Logging {
       propertyMap: JMap[String, String],
       classLoader: ClassLoader)
     : T = {
+    Preconditions.checkNotNull(classLoader)
+    findInternal(factoryClass, propertyMap, Some(classLoader))
+  }
+
+  /**
+    * Finds a table format factory of the given class and creates configured instances from the
+    * given property map and classloader.
+    *
+    * @param factoryClass desired format factory
+    * @param propertyMap properties that describes the format
+    * @param classLoader optional classloader for service loading
+    * @tparam T factory class type
+    * @return configured instance from factory
+    */
+  private def findInternal[T](
+      factoryClass: Class[T],
+      propertyMap: JMap[String, String],
+      classLoader: Option[ClassLoader])
+    : T = {
+
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(propertyMap)
 
     val properties = propertyMap.asScala.toMap
 
@@ -125,19 +114,21 @@ object TableFormatFactoryService extends Logging {
   private def findMatchingContext[T](
       factoryClass: Class[T],
       properties: Map[String, String],
-      classLoader: ClassLoader)
+      classLoader: Option[ClassLoader])
     : (Seq[TableFormatFactory[_]], Seq[TableFormatFactory[_]]) = {
 
     val foundFactories = mutable.ArrayBuffer[TableFormatFactory[_]]()
     val matchingFactories = mutable.ArrayBuffer[TableFormatFactory[_]]()
 
     try {
-      val iter = if (classLoader == null) {
-        defaultLoader.iterator()
-      } else {
-        val customLoader = ServiceLoader.load(classOf[TableFormatFactory[_]], classLoader)
-        customLoader.iterator()
+      val iter = classLoader match {
+        case Some(customClassLoader) =>
+          val customLoader = ServiceLoader.load(classOf[TableFormatFactory[_]], customClassLoader)
+          customLoader.iterator()
+        case None =>
+          defaultLoader.iterator()
       }
+
       while (iter.hasNext) {
         val factory = iter.next()
         foundFactories += factory
