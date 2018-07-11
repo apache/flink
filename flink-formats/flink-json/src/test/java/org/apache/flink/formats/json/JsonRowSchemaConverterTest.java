@@ -31,16 +31,16 @@ import java.util.Objects;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link JsonSchemaConverter}.
+ * Tests for {@link JsonRowSchemaConverter}.
  */
-public class JsonSchemaConverterTest {
+public class JsonRowSchemaConverterTest {
 
 	@Test
 	public void testComplexSchema() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("complex-schema.json");
 		Objects.requireNonNull(url);
 		final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
-		final TypeInformation<?> result = JsonSchemaConverter.convert(schema);
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
 
 		final TypeInformation<?> expected = Types.ROW_NAMED(
 			new String[] {"fn", "familyName", "additionalName", "tuples", "honorificPrefix", "url",
@@ -58,7 +58,7 @@ public class JsonSchemaConverterTest {
 		final URL url = getClass().getClassLoader().getResource("reference-schema.json");
 		Objects.requireNonNull(url);
 		final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
-		final TypeInformation<?> result = JsonSchemaConverter.convert(schema);
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
 
 		final TypeInformation<?> expected = Types.ROW_NAMED(
 			new String[] {"billing_address", "shipping_address", "optional_address"},
@@ -71,43 +71,43 @@ public class JsonSchemaConverterTest {
 
 	@Test
 	public void testAtomicType() {
-		final TypeInformation<?> result = JsonSchemaConverter.convert("{ type: 'number' }");
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'number' }");
 
 		assertEquals(Types.BIG_DEC, result);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testMissingType() {
-		JsonSchemaConverter.convert("{ }");
+		JsonRowSchemaConverter.convert("{ }");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrongType() {
-		JsonSchemaConverter.convert("{ type: 'whatever' }");
+		JsonRowSchemaConverter.convert("{ type: 'whatever' }");
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testArrayWithAdditionalItems() {
-		JsonSchemaConverter.convert("{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+		JsonRowSchemaConverter.convert("{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
 	}
 
 	@Test
 	public void testMissingProperties() {
-		final TypeInformation<?> result = JsonSchemaConverter.convert("{ type: 'object' }");
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'object' }");
 
 		assertEquals(Types.ROW(), result);
 	}
 
 	@Test
 	public void testNullUnionTypes() {
-		final TypeInformation<?> result = JsonSchemaConverter.convert("{ type: ['string', 'null'] }");
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: ['string', 'null'] }");
 
 		assertEquals(Types.STRING, result);
 	}
 
 	@Test
 	public void testTimestamp() {
-		final TypeInformation<?> result = JsonSchemaConverter.convert("{ type: 'string', format: 'date-time' }");
+		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'string', format: 'date-time' }");
 
 		assertEquals(Types.SQL_TIMESTAMP, result);
 	}

@@ -30,6 +30,7 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang.StringEscapeUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{NAME, TYPE, normalizeTableSchema, toJava}
 import org.apache.flink.table.typeutils.TypeStringUtils
@@ -950,7 +951,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
       validateString(prefix + NAME, isOptional = false, minLen = 1)
     }
     val typeValidation = (prefix: String) => {
-      validateType(prefix + TYPE, isOptional = false)
+      validateType(prefix + TYPE, requireRow = false, isOptional = false)
     }
 
     validateFixedIndexedProperties(
@@ -998,13 +999,19 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
   /**
     * Validates a type property.
     */
-  def validateType(key: String, isOptional: Boolean): Unit = {
+  def validateType(key: String, requireRow: Boolean, isOptional: Boolean): Unit = {
     if (!properties.contains(key)) {
       if (!isOptional) {
         throw new ValidationException(s"Could not find required property '$key'.")
       }
     } else {
-      TypeStringUtils.readTypeInfo(properties(key)) // throws validation exceptions
+      // we don't validate the string but let the parser do the work for us
+      // it throws a validation exception
+      val info = TypeStringUtils.readTypeInfo(properties(key))
+      if (requireRow && !info.isInstanceOf[RowTypeInfo]) {
+        throw new ValidationException(
+          s"Row type information expected for '$key' but was: ${properties(key)}")
+      }
     }
   }
 
@@ -1079,7 +1086,7 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     */
   private def put(key: String, value: String): Unit = {
     if (properties.contains(key)) {
-      throw new IllegalStateException("Property already present.")
+      throw new IllegalStateException("Property already present:" + key)
     }
     if (normalizeKeys) {
       properties.put(key.toLowerCase, value)
@@ -1263,7 +1270,7 @@ object DescriptorProperties {
   }
 
   def toString(keyOrValue: String): String = {
-    StringEscapeUtils.escapeJava(keyOrValue)
+    StringEscapeUtils.escapeJava(keyOrValue).replace("\\/", "/") // '/' must not be escaped
   }
 
   def toString(key: String, value: String): String = {

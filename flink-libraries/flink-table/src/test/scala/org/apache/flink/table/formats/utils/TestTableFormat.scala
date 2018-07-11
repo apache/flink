@@ -16,21 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.table.formats.utils
 
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_09;
+import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptor}
 
 /**
- * Factory for creating configured instances of {@link Kafka09AvroTableSource}.
- */
-public class Kafka09AvroTableSourceFactory extends KafkaAvroTableSourceFactory {
-	@Override
-	protected KafkaAvroTableSource.Builder createKafkaAvroBuilder() {
-		return new Kafka09AvroTableSource.Builder();
-	}
+  * Format descriptor for testing purposes.
+  */
+class TestTableFormat extends FormatDescriptor("test-format", 1) {
 
-	@Override
-	protected String kafkaVersion() {
-		return CONNECTOR_VERSION_VALUE_09;
-	}
+  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
+    properties.putString("format.important", "this is important")
+    properties.putString("format.path", "/path/to/sth")
+    properties.putString("format.derive-schema", "true")
+  }
 }

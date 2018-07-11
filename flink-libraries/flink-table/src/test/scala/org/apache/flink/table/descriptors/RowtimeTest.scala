@@ -41,6 +41,11 @@ class RowtimeTest extends DescriptorTestBase {
     removePropertyAndVerify(descriptors().get(1), "rowtime.watermarks.class")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedSourceWatermarks(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "from-source")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
@@ -56,7 +61,7 @@ class RowtimeTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new RowtimeValidator()
+    new RowtimeValidator(supportsSourceTimestamps = true, supportsSourceWatermarks = false)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {

@@ -111,7 +111,7 @@ public class JsonRowSerializationSchemaTest {
 
 	@Test
 	public void testSchema() throws IOException {
-		final TypeInformation<Row> rowSchema = JsonSchemaConverter.convert(
+		final TypeInformation<Row> rowSchema = JsonRowSchemaConverter.convert(
 			"{" +
 			"    type: 'object'," +
 			"    properties: {" +

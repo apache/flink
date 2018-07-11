@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableSourceDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -128,16 +129,44 @@ abstract class StreamTableEnvironment(
     }
   }
 
-// TODO expose this once we have enough table source factories that can deal with it
-//  /**
-//    * Creates a table from a descriptor that describes the source connector, source encoding,
-//    * the resulting table schema, and other properties.
-//    *
-//    * @param connectorDescriptor connector descriptor describing the source of the table
-//    */
-//  def from(connectorDescriptor: ConnectorDescriptor): StreamTableSourceDescriptor = {
-//    new StreamTableSourceDescriptor(this, connectorDescriptor)
-//  }
+  /**
+    * Creates a table from a descriptor that describes the source connector, the source format,
+    * the resulting table schema, and other properties.
+    *
+    * Descriptors allow for declaring communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
+    * are configured accordingly.
+    *
+    * The following example shows how to read from a Kafka connector using a JSON format and
+    * creating a table:
+    *
+    * {{{
+    *
+    * tableEnv
+    *   .from(
+    *     new Kafka()
+    *       .version("0.11")
+    *       .topic("clicks")
+    *       .property("zookeeper.connect", "localhost")
+    *       .property("group.id", "click-group")
+    *       .startFromEarliest())
+    *   .withFormat(
+    *     new Json()
+    *       .jsonSchema("{...}")
+    *       .failOnMissingField(false))
+    *   .withSchema(
+    *     new Schema()
+    *       .field("user-name", "VARCHAR").from("u_name")
+    *       .field("count", "DECIMAL")
+    *       .field("proc-time", "TIMESTAMP").proctime())
+    *   .toTable()
+    * }}}
+    *
+    * @param connectorDescriptor connector descriptor describing the source of the table
+    */
+  def from(connectorDescriptor: ConnectorDescriptor): StreamTableSourceDescriptor = {
+    new StreamTableSourceDescriptor(this, connectorDescriptor)
+  }
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this

@@ -13,5 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.streaming.connectors.kafka.Kafka010JsonTableSourceFactory
-org.apache.flink.streaming.connectors.kafka.Kafka010AvroTableSourceFactory
+org.apache.flink.streaming.connectors.kafka.Kafka010TableSourceFactory
