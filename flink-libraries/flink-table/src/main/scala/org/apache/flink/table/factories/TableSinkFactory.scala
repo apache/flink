@@ -16,19 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sinks.TableSink
 
 import java.util
 
-trait TableSourceFactory[T] {
+trait TableSinkFactory[T] {
   /**
-    * Creates and configures a [[org.apache.flink.table.sources.TableSource]]
+    * Creates and configures a [[org.apache.flink.table.sinks.TableSink]]
     * using the given properties.
     *
     * @param properties normalized properties describing a table source.
     * @return the configured table source.
     */
-  def createTableSource(properties: util.Map[String, String]): TableSource[T]
+  def createTableSink(properties: util.Map[String, String]): TableSink[T]
 }

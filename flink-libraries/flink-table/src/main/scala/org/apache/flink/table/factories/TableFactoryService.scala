@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
 import java.util.{ServiceConfigurationError, ServiceLoader}
 
@@ -36,33 +36,33 @@ import _root_.scala.collection.mutable
   */
 object TableFactoryService extends Logging {
 
-  private lazy val defaultLoader = ServiceLoader.load(classOf[DiscoverableTableFactory])
+  private lazy val defaultLoader = ServiceLoader.load(classOf[TableFactory])
 
-  def find(clz: Class[_], descriptor: TableDescriptor): DiscoverableTableFactory = {
+  def find(clz: Class[_], descriptor: TableDescriptor): TableFactory = {
     find(clz, descriptor, null)
   }
 
   def find(clz: Class[_], descriptor: TableDescriptor, classLoader: ClassLoader)
-  : DiscoverableTableFactory = {
+  : TableFactory = {
 
     val properties = new DescriptorProperties()
     descriptor.addProperties(properties)
     find(clz, properties.asMap.asScala.toMap, classLoader)
   }
 
-  def find(clz: Class[_], properties: Map[String, String]): DiscoverableTableFactory = {
+  def find(clz: Class[_], properties: Map[String, String]): TableFactory = {
     find(clz: Class[_], properties, null)
   }
 
   def find(clz: Class[_], properties: Map[String, String],
-           classLoader: ClassLoader): DiscoverableTableFactory = {
+           classLoader: ClassLoader): TableFactory = {
 
-    var matchingFactory: Option[(DiscoverableTableFactory, Seq[String])] = None
+    var matchingFactory: Option[(TableFactory, Seq[String])] = None
     try {
       val iter = if (classLoader == null) {
         defaultLoader.iterator()
       } else {
-        val customLoader = ServiceLoader.load(classOf[DiscoverableTableFactory], classLoader)
+        val customLoader = ServiceLoader.load(classOf[TableFactory], classLoader)
         customLoader.iterator()
       }
       while (iter.hasNext) {
@@ -98,7 +98,7 @@ object TableFactoryService extends Logging {
             matchingFactory match {
               case Some(_) => throw new AmbiguousTableFactoryException(properties)
               case None => matchingFactory =
-                Some((factory.asInstanceOf[DiscoverableTableFactory], requiredContext.keys.toSeq))
+                Some((factory.asInstanceOf[TableFactory], requiredContext.keys.toSeq))
             }
           }
         }

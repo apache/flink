@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
 import java.util
 
@@ -27,7 +27,7 @@ import org.apache.flink.table.descriptors.TableDescriptorValidator
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 
-class TestTableSinkFactory extends TableSinkFactory[Row] with DiscoverableTableFactory {
+class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()

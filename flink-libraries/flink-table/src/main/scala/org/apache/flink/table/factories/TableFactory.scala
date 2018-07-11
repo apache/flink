@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
 import java.util
 
 /**
   * Common trait for all properties-based discoverable table factories.
   */
-trait DiscoverableTableFactory {
+trait TableFactory {
 
   /**
     * Specifies the context that this factory has been implemented for.

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
 import java.util
 
@@ -30,7 +30,7 @@ import org.apache.flink.types.Row
 /**
   * Table source factory for testing.
   */
-class TestTableSourceFactory extends TableSourceFactory[Row] with DiscoverableTableFactory {
+class TestTableSourceFactory extends TableSourceFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()

@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
-import org.apache.flink.table.connectors.DiscoverableTableFactory;
-import org.apache.flink.table.connectors.TableSinkFactory;
+import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -47,7 +47,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Table sink factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSinkFactory implements TableSinkFactory<Row>, DiscoverableTableFactory {
+public class TestTableSinkFactory implements TableSinkFactory<Row>, TableFactory {
 
 	@Override
 	public Map<String, String> requiredContext() {

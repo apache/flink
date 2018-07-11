@@ -222,7 +222,7 @@ case class AmbiguousTableFormatException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.connectors.DiscoverableTableFactory]] for
+  * Exception for not finding a [[org.apache.flink.table.factories.TableFactory]] for
   * the given properties.
   *
   * @param properties properties that describe the table connector
@@ -240,7 +240,7 @@ case class NoMatchingTableFactoryException(properties: Map[String, String], caus
 
 /**
   * Exception for finding more than one
-  * [[org.apache.flink.table.connectors.DiscoverableTableFactory]] for the given properties.
+  * [[org.apache.flink.table.factories.TableFactory]] for the given properties.
   *
   * @param properties properties that describe the table factory
   * @param cause the cause
