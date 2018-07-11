@@ -1652,6 +1652,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final byte[] namespaceBytes;
 		private final boolean ambiguousKeyPossible;
 		private K nextKey;
+		private K preKey;
 
 		RocksIteratorForKeysWrapper(
 			RocksIteratorWrapper iterator,
@@ -1666,6 +1667,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
 			this.namespaceBytes = Preconditions.checkNotNull(namespaceBytes);
 			this.nextKey = null;
+			this.preKey = null;
 			this.ambiguousKeyPossible = ambiguousKeyPossible;
 		}
 
@@ -1675,15 +1677,22 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				while (nextKey == null && iterator.isValid()) {
 
 					byte[] key = iterator.key();
-					if (isMatchingNameSpace(key)) {
-						ByteArrayInputStreamWithPos inputStream =
-							new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
-						DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
-						K value = RocksDBKeySerializationUtils.readKey(
-							keySerializer,
-							inputStream,
-							dataInput,
-							ambiguousKeyPossible);
+
+					ByteArrayInputStreamWithPos inputStream =
+						new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
+
+					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
+
+					K value = RocksDBKeySerializationUtils.readKey(
+						keySerializer,
+						inputStream,
+						dataInput,
+						ambiguousKeyPossible);
+
+					int namespaceByteStartPos = inputStream.getPosition();
+
+					if (isMatchingNameSpace(key, namespaceByteStartPos) && !Objects.equals(preKey, value)) {
+						preKey = value;
 						nextKey = value;
 					}
 					iterator.next();
@@ -1705,12 +1714,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return tmpKey;
 		}
 
-		private boolean isMatchingNameSpace(@Nonnull byte[] key) {
+		private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
 			final int namespaceBytesLength = namespaceBytes.length;
-			final int basicLength = namespaceBytesLength + keyGroupPrefixBytes;
+			final int basicLength = namespaceBytesLength + beginPos;
 			if (key.length >= basicLength) {
-				for (int i = 1; i <= namespaceBytesLength; ++i) {
-					if (key[key.length - i] != namespaceBytes[namespaceBytesLength - i]) {
+				for (int i = 0; i < namespaceBytesLength; ++i) {
+					if (key[beginPos + i] != namespaceBytes[i]) {
 						return false;
 					}
 				}
