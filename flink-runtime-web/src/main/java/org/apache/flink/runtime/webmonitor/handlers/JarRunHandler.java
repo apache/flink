@@ -35,13 +35,10 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.util.ScalaUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import akka.actor.AddressFromURIString;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,7 +49,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -113,7 +109,7 @@ public class JarRunHandler extends
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
 		CompletableFuture<JobGraph> jarUploadFuture = jobGraphFuture.thenCombine(blobServerPortFuture, (jobGraph, blobServerPort) -> {
-			final InetSocketAddress address = new InetSocketAddress(getDispatcherHost(gateway), blobServerPort);
+			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			final List<PermanentBlobKey> keys;
 			try {
 				keys = BlobClient.uploadJarFiles(address, configuration, jobGraph.getJobID(), jobGraph.getUserJars());
@@ -187,16 +183,5 @@ public class JarRunHandler extends
 			jobGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 			return jobGraph;
 		}, executor);
-	}
-
-	private static String getDispatcherHost(DispatcherGateway gateway) {
-		String dispatcherAddress = gateway.getAddress();
-		final Optional<String> host = ScalaUtils.toJava(AddressFromURIString.parse(dispatcherAddress).host());
-
-		return host.orElseGet(() -> {
-			// if the dispatcher address does not contain a host part, then assume it's running
-			// on the same machine as the handler
-			return "localhost";
-		});
 	}
 }
