@@ -245,7 +245,7 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true" : "false",
 				memorySegmentSize, getTransportType(), getServerNumThreads(),
 				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,
