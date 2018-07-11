@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.KeyedStateFactory;
@@ -39,7 +40,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	S ttlState;
 	MockTimeProvider timeProvider;
-	TtlConfig ttlConfig;
+	StateTtlConfiguration ttlConfig;
 
 	ThrowingConsumer<UV, Exception> updater;
 	SupplierWithException<GV, Exception> getter;
@@ -56,20 +57,21 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 	GV emptyValue = null;
 
 	void initTest() {
-		initTest(TtlConfig.TtlUpdateType.OnCreateAndWrite, TtlConfig.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 	}
 
-	private void initTest(TtlConfig.TtlUpdateType updateType, TtlConfig.TtlStateVisibility visibility) {
+	private void initTest(StateTtlConfiguration.TtlUpdateType updateType, StateTtlConfiguration.TtlStateVisibility visibility) {
 		initTest(updateType, visibility, TTL);
 	}
 
-	private void initTest(TtlConfig.TtlUpdateType updateType, TtlConfig.TtlStateVisibility visibility, long ttl) {
+	private void initTest(StateTtlConfiguration.TtlUpdateType updateType, StateTtlConfiguration.TtlStateVisibility visibility, long ttl) {
 		timeProvider = new MockTimeProvider();
-		ttlConfig = new TtlConfig(
-			updateType,
-			visibility,
-			TtlConfig.TtlTimeCharacteristic.ProcessingTime,
-			Time.milliseconds(ttl));
+		StateTtlConfiguration.Builder ttlConfigBuilder = StateTtlConfiguration.newBuilder(Time.seconds(5));
+		ttlConfigBuilder.setTtlUpdateType(updateType)
+						.setStateVisibility(visibility)
+						.setTimeCharacteristic(StateTtlConfiguration.TtlTimeCharacteristic.ProcessingTime)
+						.setTtl(Time.milliseconds(ttl));
+		ttlConfig = ttlConfigBuilder.build();
 		ttlState = createState();
 		initTestValues();
 	}
@@ -96,7 +98,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	@Test
 	public void testExactExpirationOnWrite() throws Exception {
-		initTest(TtlConfig.TtlUpdateType.OnCreateAndWrite, TtlConfig.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 
 		timeProvider.time = 0;
 		updater.accept(updateEmpty);
@@ -123,7 +125,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	@Test
 	public void testRelaxedExpirationOnWrite() throws Exception {
-		initTest(TtlConfig.TtlUpdateType.OnCreateAndWrite, TtlConfig.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
 		updater.accept(updateEmpty);
@@ -135,7 +137,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	@Test
 	public void testExactExpirationOnRead() throws Exception {
-		initTest(TtlConfig.TtlUpdateType.OnReadAndWrite, TtlConfig.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
 
 		timeProvider.time = 0;
 		updater.accept(updateEmpty);
@@ -153,7 +155,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	@Test
 	public void testRelaxedExpirationOnRead() throws Exception {
-		initTest(TtlConfig.TtlUpdateType.OnReadAndWrite, TtlConfig.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
 		updater.accept(updateEmpty);
@@ -168,7 +170,7 @@ abstract class TtlStateTestBase<S extends InternalKvState<?, String, ?>, UV, GV>
 
 	@Test
 	public void testExpirationTimestampOverflow() throws Exception {
-		initTest(TtlConfig.TtlUpdateType.OnCreateAndWrite, TtlConfig.TtlStateVisibility.NeverReturnExpired, Long.MAX_VALUE);
+		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired, Long.MAX_VALUE);
 
 		timeProvider.time = 10;
 		updater.accept(updateEmpty);

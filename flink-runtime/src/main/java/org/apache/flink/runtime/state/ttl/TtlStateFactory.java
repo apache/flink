@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -48,14 +49,14 @@ public class TtlStateFactory {
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc,
 		KeyedStateFactory originalStateFactory,
-		TtlConfig ttlConfig,
+		StateTtlConfiguration ttlConfig,
 		TtlTimeProvider timeProvider) throws Exception {
 		Preconditions.checkNotNull(namespaceSerializer);
 		Preconditions.checkNotNull(stateDesc);
 		Preconditions.checkNotNull(originalStateFactory);
 		Preconditions.checkNotNull(ttlConfig);
 		Preconditions.checkNotNull(timeProvider);
-		return ttlConfig.getTtlUpdateType() == TtlConfig.TtlUpdateType.Disabled ?
+		return ttlConfig.getTtlUpdateType() == StateTtlConfiguration.TtlUpdateType.Disabled ?
 			originalStateFactory.createState(namespaceSerializer, stateDesc) :
 			new TtlStateFactory(originalStateFactory, ttlConfig, timeProvider)
 				.createState(namespaceSerializer, stateDesc);
@@ -64,10 +65,10 @@ public class TtlStateFactory {
 	private final Map<Class<? extends StateDescriptor>, KeyedStateFactory> stateFactories;
 
 	private final KeyedStateFactory originalStateFactory;
-	private final TtlConfig ttlConfig;
+	private final StateTtlConfiguration ttlConfig;
 	private final TtlTimeProvider timeProvider;
 
-	private TtlStateFactory(KeyedStateFactory originalStateFactory, TtlConfig ttlConfig, TtlTimeProvider timeProvider) {
+	private TtlStateFactory(KeyedStateFactory originalStateFactory, StateTtlConfiguration ttlConfig, TtlTimeProvider timeProvider) {
 		this.originalStateFactory = originalStateFactory;
 		this.ttlConfig = ttlConfig;
 		this.timeProvider = timeProvider;
