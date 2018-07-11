@@ -41,8 +41,6 @@ import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -71,14 +69,12 @@ public abstract class KafkaTableSource implements
 	private final TableSchema schema;
 
 	/** Field name of the processing time attribute, null if no processing time field is defined. */
-	@Nullable
 	private String proctimeAttribute;
 
 	/** Descriptor for a rowtime attribute. */
 	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 	/** Mapping for the fields of the table schema to fields of the physical returned type or null. */
-	@Nullable
 	private Map<String, String> fieldMapping;
 
 	// Kafka-specific attributes
@@ -116,9 +112,9 @@ public abstract class KafkaTableSource implements
 	 */
 	protected KafkaTableSource(
 			TableSchema schema,
-			@Nullable String proctimeAttribute,
+			String proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			@Nullable Map<String, String> fieldMapping,
+			Map<String, String> fieldMapping,
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
