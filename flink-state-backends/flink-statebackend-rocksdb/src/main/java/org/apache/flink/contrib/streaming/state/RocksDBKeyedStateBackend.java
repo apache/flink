@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
@@ -1269,10 +1270,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = RegisteredKeyedBackendStateMetaInfo.resolveKvStateCompatibility(
-				restoredMetaInfoSnapshot,
-				namespaceSerializer,
-				stateDesc);
+			StateUtil.checkStateTypeCompatibility(restoredMetaInfoSnapshot, stateDesc);
+
+			// check compatibility results to determine if state migration is required
+			TypeSerializerSchemaCompatibility<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+				restoredMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
+				namespaceSerializer);
+
+			TypeSerializer<S> stateSerializer = stateDesc.getSerializer();
+			TypeSerializerSchemaCompatibility<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+				restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
+				stateSerializer);
+
+			if (namespaceCompatibility.isIncompatible() || stateCompatibility.isIncompatible()) {
+				// TODO state migration currently isn't possible.
+				throw new StateMigrationException("State migration isn't supported, yet.");
+			} else {
+				newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+					stateDesc.getType(),
+					stateDesc.getName(),
+					namespaceSerializer,
+					stateSerializer);
+			}
 
 			stateInfo.f1 = newMetaInfo;
 		} else {

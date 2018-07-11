@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.LambdaUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
@@ -83,6 +86,26 @@ public class StateUtil {
 						"exception, which is expected an can be ignored.", ex);
 				}
 			}
+		}
+	}
+
+	public static <N, S> void checkStateTypeCompatibility(
+		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> restoredStateMetaInfoSnapshot,
+		StateDescriptor<?, S> newStateDescriptor) {
+		Preconditions.checkState(
+			Objects.equals(newStateDescriptor.getName(), restoredStateMetaInfoSnapshot.getName()),
+			"Incompatible state names. " +
+				"Was [" + restoredStateMetaInfoSnapshot.getName() + "], " +
+				"registered with [" + newStateDescriptor.getName() + "].");
+
+		if (!Objects.equals(newStateDescriptor.getType(), StateDescriptor.Type.UNKNOWN)
+			&& !Objects.equals(restoredStateMetaInfoSnapshot.getStateType(), StateDescriptor.Type.UNKNOWN)) {
+
+			Preconditions.checkState(
+				newStateDescriptor.getType() == restoredStateMetaInfoSnapshot.getStateType(),
+				"Incompatible state types. " +
+					"Was [" + restoredStateMetaInfoSnapshot.getStateType() + "], " +
+					"registered with [" + newStateDescriptor.getType() + "].");
 		}
 	}
 }
