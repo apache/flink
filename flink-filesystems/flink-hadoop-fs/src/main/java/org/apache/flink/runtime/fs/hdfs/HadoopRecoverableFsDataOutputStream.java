@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.ResumableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.ResumableWriter.ResumeRecoverable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.time.StopWatch;
@@ -85,23 +86,23 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
-		// the getFileStatus will throw a FileNotFound exception if the file is not there.
-		final FileStatus tmpFileStatus = fs.getFileStatus(tempFile);
-		if (tmpFileStatus.getLen() < recoverable.offset()) {
-			throw new IOException("Missing data in tmp file: " + tempFile);
-		}
-
 		// truncate back and append
-		truncate(fs, tempFile, recoverable.offset());
-
-		// sanity check
-		final FileStatus tmpFileStatusAfter = fs.getFileStatus(tempFile);
-		if (tmpFileStatusAfter.getLen() == recoverable.offset()) {
-			throw new IOException("Truncate failed: " + tempFile);
+		try {
+			truncate(fs, tempFile, recoverable.offset());
+		} catch (Exception e) {
+			throw new IOException("Missing data in tmp file: " + tempFile, e);
 		}
 
 		waitUntilLeaseIsRevoked(tempFile);
 		out = fs.append(tempFile);
+
+		// sanity check
+		long pos = out.getPos();
+		if (pos != recoverable.offset()) {
+			IOUtils.closeQuietly(out);
+			throw new IOException("Truncate failed: " + tempFile +
+					" (requested=" + recoverable.offset() + " ,size=" + pos + ')');
+		}
 	}
 
 	@Override
@@ -121,6 +122,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 	@Override
 	public void sync() throws IOException {
+		out.hflush();
 		out.hsync();
 	}
 
@@ -256,9 +258,22 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 			if (srcStatus != null) {
 				if (srcStatus.getLen() > expectedLength) {
-					// can happen if we co from persist to recovering for commit directly
+					// can happen if we go from persist to recovering for commit directly
 					// truncate the trailing junk away
-					truncate(fs, src, expectedLength);
+					try {
+						truncate(fs, src, expectedLength);
+					} catch (Exception e) {
+						// this can happen if the file is smaller than  expected
+						throw new IOException("Problem while truncating file: " + src, e);
+					}
+				}
+
+				// rename to final location (if it exists, overwrite it)
+				try {
+					fs.rename(src, dest);
+				}
+				catch (IOException e) {
+					throw new IOException("Committing file by rename failed: " + src + " to " + dest, e);
 				}
 			}
 			else if (!fs.exists(dest)) {

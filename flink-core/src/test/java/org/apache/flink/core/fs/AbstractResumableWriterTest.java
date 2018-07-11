@@ -27,7 +27,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -123,6 +122,166 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testCommitAfterPersist() throws Exception {
+		final ResumableWriter writer = getNewFileSystemWriter();
+
+		final Path testDir = getBasePathForTest();
+
+		final Path path = new Path(testDir, "part-0");
+
+		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+			stream.persist();
+
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+			stream.closeForCommit().commit();
+
+			for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
+				Assert.assertEquals("part-0", fileContents.getKey().getName());
+				Assert.assertEquals(testData1 + testData2, fileContents.getValue());
+			}
+		}
+	}
+
+	// TESTS FOR RECOVERY
+
+	private static final String INIT_EMPTY_PERSIST = "EMPTY";
+	private static final String INTERM_WITH_STATE_PERSIST = "INTERM-STATE";
+	private static final String INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST = "INTERM-IMEDIATE";
+	private static final String FINAL_WITH_EXTRA_STATE = "FINAL";
+
+	@Test
+	public void testRecoverWithEmptyState() throws Exception {
+		testResumeAfterMultiplePersist(
+				INIT_EMPTY_PERSIST,
+				"",
+				testData3);
+	}
+
+	@Test
+	public void testRecoverWithState() throws Exception {
+		testResumeAfterMultiplePersist(
+				INTERM_WITH_STATE_PERSIST,
+				testData1,
+				testData1 + testData3);
+	}
+
+	@Test
+	public void testRecoverFromIntermWithoutAdditionalState() throws Exception {
+		testResumeAfterMultiplePersist(
+				INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST,
+				testData1,
+				testData1 + testData3);
+	}
+
+	@Test
+	public void testRecoverAfterMultiplePersistsState() throws Exception {
+		testResumeAfterMultiplePersist(
+				FINAL_WITH_EXTRA_STATE,
+				testData1 + testData2,
+				testData1 + testData2 + testData3);
+	}
+
+	private void testResumeAfterMultiplePersist(
+			final String persistName,
+			final String expectedPostRecoveryContents,
+			final String expectedFinalContents) throws Exception {
+
+		final Path testDir = getBasePathForTest();
+		final Path path = new Path(testDir, "part-0");
+
+		final ResumableWriter initWriter = getNewFileSystemWriter();
+
+		final Map<String, ResumableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
+		try (final RecoverableFsDataOutputStream stream = initWriter.open(path)) {
+			recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
+
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+
+			recoverables.put(INTERM_WITH_STATE_PERSIST, stream.persist());
+			recoverables.put(INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, stream.persist());
+
+			// and write some more data
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+
+			recoverables.put(FINAL_WITH_EXTRA_STATE, stream.persist());
+		}
+
+		final SimpleVersionedSerializer<ResumableWriter.ResumeRecoverable> serializer = initWriter.getResumeRecoverableSerializer();
+		final byte[] serializedRecoverable = serializer.serialize(recoverables.get(persistName));
+
+		// get a new serializer from a new writer to make sure that no pre-initialized state leaks in.
+		final ResumableWriter newWriter = getNewFileSystemWriter();
+		final SimpleVersionedSerializer<ResumableWriter.ResumeRecoverable> deserializer = newWriter.getResumeRecoverableSerializer();
+		final ResumableWriter.ResumeRecoverable recoveredRecoverable =
+				deserializer.deserialize(serializer.getVersion(), serializedRecoverable);
+
+		try (final RecoverableFsDataOutputStream recoveredStream = newWriter.recover(recoveredRecoverable)) {
+
+			// we expect the data to be truncated
+			Map<Path, String> files = getFileContentByPath(testDir);
+			Assert.assertEquals(1L, files.size());
+
+			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
+				Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
+				Assert.assertEquals(expectedPostRecoveryContents, fileContents.getValue());
+			}
+
+			recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
+			recoveredStream.closeForCommit().commit();
+
+			files = getFileContentByPath(testDir);
+			Assert.assertEquals(1L, files.size());
+
+			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
+				Assert.assertEquals("part-0", fileContents.getKey().getName());
+				Assert.assertEquals(expectedFinalContents, fileContents.getValue());
+			}
+		}
+	}
+
+	@Test
+	public void testCommitAfterRecovery() throws Exception {
+		final Path testDir = getBasePathForTest();
+		final Path path = new Path(testDir, "part-0");
+
+		final ResumableWriter initWriter = getNewFileSystemWriter();
+
+		final ResumableWriter.CommitRecoverable recoverable;
+		try (final RecoverableFsDataOutputStream stream = initWriter.open(path)) {
+			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+
+			stream.persist();
+			stream.persist();
+
+			// and write some more data
+			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+
+			recoverable = stream.closeForCommit().getRecoverable();
+		}
+
+		final byte[] serializedRecoverable = initWriter.getCommitRecoverableSerializer().serialize(recoverable);
+
+		// get a new serializer from a new writer to make sure that no pre-initialized state leaks in.
+		final ResumableWriter newWriter = getNewFileSystemWriter();
+		final SimpleVersionedSerializer<ResumableWriter.CommitRecoverable> deserializer = newWriter.getCommitRecoverableSerializer();
+		final ResumableWriter.CommitRecoverable recoveredRecoverable = deserializer.deserialize(deserializer.getVersion(), serializedRecoverable);
+
+		final RecoverableFsDataOutputStream.Committer committer = newWriter.recoverForCommit(recoveredRecoverable);
+		committer.commitAfterRecovery();
+
+		Map<Path, String> files = getFileContentByPath(testDir);
+		Assert.assertEquals(1L, files.size());
+
+		for (Map.Entry<Path, String> fileContents : files.entrySet()) {
+			Assert.assertEquals("part-0", fileContents.getKey().getName());
+			Assert.assertEquals(testData1 + testData2, fileContents.getValue());
+		}
+	}
+
+	// TESTS FOR EXCEPTIONS
+
 	@Test(expected = IOException.class)
 	public void testExceptionWritingAfterCloseForCommit() throws Exception {
 		final Path testDir = getBasePathForTest();
@@ -139,105 +298,7 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		}
 	}
 
-	// TESTS FOR RECOVERY
-
-	@Test
-	public void testResumeAfterPersist() throws Exception {
-		final Path testDir = getBasePathForTest();
-
-		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir, "part-0");
-
-		ResumableWriter.ResumeRecoverable recoverable;
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
-
-			// get the valid offset
-			recoverable = stream.persist();
-
-			// and write some more data
-			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-
-			// todo if the check for the file contents were here,
-			// in hadoop it would fail because close() has not been called.
-		}
-
-		Map<Path, String> files = getFileContentByPath(testDir);
-		Assert.assertEquals(1L, files.size());
-
-		for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-			Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
-			Assert.assertEquals(testData1 + testData2, fileContents.getValue());
-		}
-
-		SimpleVersionedSerializer<ResumableWriter.ResumeRecoverable> serializer = writer.getResumeRecoverableSerializer();
-		byte[] serializedRecoverable = serializer.serialize(recoverable);
-
-		// get a new serializer from a new writer to make sure that no pre-initialized state leaks in.
-		final ResumableWriter newWriter = getNewFileSystemWriter();
-		final ResumableWriter.ResumeRecoverable recoveredRecoverable =
-				newWriter.getResumeRecoverableSerializer()
-						.deserialize(serializer.getVersion(), serializedRecoverable);
-
-		try (final RecoverableFsDataOutputStream recoveredStream = newWriter.recover(recoveredRecoverable)) {
-
-			// we expect the data to be truncated
-			files = getFileContentByPath(testDir);
-			Assert.assertEquals(1L, files.size());
-
-			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-				Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
-				Assert.assertEquals(testData1, fileContents.getValue());
-			}
-
-			recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
-			recoveredStream.closeForCommit().commit();
-
-			files = getFileContentByPath(testDir);
-			Assert.assertEquals(1L, files.size());
-
-			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-				Assert.assertEquals("part-0", fileContents.getKey().getName());
-				Assert.assertEquals(testData1 + testData3, fileContents.getValue());
-			}
-		}
-	}
-
-	@Test
-	public void testResumeCommitRecoverable() throws Exception {
-		final Path testDir = getBasePathForTest();
-
-		final ResumableWriter writer = getNewFileSystemWriter();
-		final Path path = new Path(testDir, "part-0");
-
-		final ResumableWriter.CommitRecoverable recoverable;
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
-			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
-
-			recoverable = stream.closeForCommit().getRecoverable();
-		}
-
-		final SimpleVersionedSerializer<ResumableWriter.CommitRecoverable> serializer = writer.getCommitRecoverableSerializer();
-		byte[] serializedCommitable = serializer.serialize(recoverable);
-
-		// get a new serializer from a new writer to make sure that no pre-initialized state leaks in.
-		final ResumableWriter newWriter = getNewFileSystemWriter();
-		final ResumableWriter.CommitRecoverable recoveredCommitable =
-				newWriter.getResumeRecoverableSerializer()
-						.deserialize(serializer.getVersion(), serializedCommitable);
-
-		newWriter.recoverForCommit(recoveredCommitable).commit();
-
-		Map<Path, String> files = getFileContentByPath(testDir);
-		Assert.assertEquals(1L, files.size());
-
-		for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-			Assert.assertEquals("part-0", fileContents.getKey().getName());
-			Assert.assertEquals(testData1, fileContents.getValue());
-		}
-	}
-
-	@Test(expected = FileNotFoundException.class)
+	@Test(expected = IOException.class)
 	public void testResumeAfterCommit() throws Exception {
 		final Path testDir = getBasePathForTest();
 
@@ -250,15 +311,6 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 
 			recoverable = stream.persist();
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-
-			// TODO: 7/10/18 again hadoop do
-//			Map<Path, String> files = getFileContentByPath(testDir);
-//			Assert.assertEquals(1L, files.size());
-//
-//			for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-//				Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
-//				Assert.assertEquals(testData1 + testData2, fileContents.getValue());
-//			}
 
 			stream.closeForCommit().commit();
 		}
@@ -288,8 +340,6 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 
 			recoverable2 = stream.persist();
 			stream.write(testData3.getBytes(StandardCharsets.UTF_8));
-
-			// TODO: 7/10/18 again hadoop would fail without close().
 		}
 
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable1)) {
@@ -302,8 +352,10 @@ public abstract class AbstractResumableWriterTest extends TestLogger {
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable2)) {
 			fail();
 		} catch (IOException e) {
-			Assert.assertTrue(e.getMessage().startsWith("Missing data in tmp file:"));
+			// we expect this
+			return;
 		}
+		fail();
 	}
 
 	private Map<Path, String> getFileContentByPath(Path directory) throws IOException {

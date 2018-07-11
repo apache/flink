@@ -165,6 +165,8 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 					try (FileOutputStream fos = new FileOutputStream(src, true)) {
 						fos.getChannel().truncate(expectedLength);
 					}
+				} else if (src.length() < expectedLength) {
+					throw new IOException("Missing data in tmp file: " + src);
 				}
 
 				// source still exists, so no renaming happened yet. do it!

@@ -27,7 +27,6 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -52,7 +51,7 @@ public class HadoopResumableWriterTest extends AbstractResumableWriterTest {
 
 	@BeforeClass
 	public static void testHadoopVersion() {
-		Assert.assertTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+		Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
 	}
 
 	@BeforeClass
