@@ -21,6 +21,7 @@ usage() {
   cat <<HERE
 Usage:
   build.sh --job-jar <path-to-job-jar> --from-local-dist [--image-name <image>]
+  build.sh --job-jar <path-to-job-jar> --from-archive <path-to-dist-archive> [--image-name <image>]
   build.sh --job-jar <path-to-job-jar> --from-release --flink-version <x.x.x> --hadoop-version <x.x> --scala-version <x.xx> [--image-name <image>]
   build.sh --help
 
@@ -35,9 +36,14 @@ key="$1"
   case $key in
     --job-jar)
     JOB_JAR_PATH="$2"
+    shift
     ;;
     --from-local-dist)
     FROM_LOCAL="true"
+    ;;
+    --from-archive)
+    FROM_ARCHIVE="$2"
+    shift
     ;;
     --from-release)
     FROM_RELEASE="true"
@@ -106,6 +112,10 @@ elif [ -n "${FROM_LOCAL}" ]; then
   FLINK_DIST="${TMPDIR}/flink.tgz"
   echo "Using flink dist: ${DIST_DIR}"
   tar -C ${DIST_DIR} -cvzf "${FLINK_DIST}" .
+
+elif [ -n "${FROM_ARCHIVE}" ]; then
+    FLINK_DIST="${TMPDIR}/flink.tgz"
+    cp "${FROM_ARCHIVE}" "${FLINK_DIST}"
 
 else
 
