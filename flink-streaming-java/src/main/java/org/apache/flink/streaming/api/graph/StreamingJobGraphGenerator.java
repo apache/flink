@@ -152,7 +152,7 @@ public class StreamingJobGraphGenerator {
 
 		setPhysicalEdges();
 
-		setSlotSharing();
+		setSlotSharingAndCoLocation();
 
 		configureCheckpointing();
 
@@ -531,20 +531,43 @@ public class StreamingJobGraphGenerator {
 				&& streamGraph.isChainingEnabled();
 	}
 
-	private void setSlotSharing() {
-
-		Map<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+	private void setSlotSharingAndCoLocation() {
+		final HashMap<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+		final HashMap<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
-			String slotSharingGroup = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
+			final StreamNode node = streamGraph.getStreamNode(entry.getKey());
+			final JobVertex vertex = entry.getValue();
 
-			SlotSharingGroup group = slotSharingGroups.get(slotSharingGroup);
-			if (group == null) {
-				group = new SlotSharingGroup();
-				slotSharingGroups.put(slotSharingGroup, group);
+			// configure slot sharing group
+			final String slotSharingGroupKey = node.getSlotSharingGroup();
+			final SlotSharingGroup sharingGroup;
+
+			if (slotSharingGroupKey != null) {
+				sharingGroup = slotSharingGroups.computeIfAbsent(
+						slotSharingGroupKey, (k) -> new SlotSharingGroup());
+				vertex.setSlotSharingGroup(sharingGroup);
+			} else {
+				sharingGroup = null;
 			}
-			entry.getValue().setSlotSharingGroup(group);
+
+			// configure co-location constraint
+			final String coLocationGroupKey = node.getCoLocationGroup();
+			if (coLocationGroupKey != null) {
+				if (sharingGroup == null) {
+					throw new IllegalStateException("Cannot use a co-location constraint without a slot sharing group");
+				}
+
+				Tuple2<SlotSharingGroup, CoLocationGroup> constraint = coLocationGroups.computeIfAbsent(
+						coLocationGroupKey, (k) -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
+
+				if (constraint.f0 != sharingGroup) {
+					throw new IllegalStateException("Cannot co-locate operators from different slot sharing groups");
+				}
+
+				vertex.updateCoLocationGroup(constraint.f1);
+			}
 		}
 
 		for (Tuple2<StreamNode, StreamNode> pair : streamGraph.getIterationSourceSinkPairs()) {
