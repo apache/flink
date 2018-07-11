@@ -1189,9 +1189,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					@Override
 					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 						throws IOException {
-						String fileName=file.getFileName().toString();
+						String fileName = file.getFileName().toString();
 						if (!(fileName.startsWith("flink-dist") &&
-							fileName.endsWith("jar"))) {
+								fileName.endsWith("jar"))) {
 
 							java.nio.file.Path relativePath = parentPath.relativize(file);
 
@@ -1227,7 +1227,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 						key, fs, appId, shipLocalPath, localResources, targetHomeDir, "");
 					remotePaths.add(remotePath);
 					envShipFileList.append(key).append("=").append(remotePath).append(",");
-
 					// add files to the classpath
 					classPaths.add(key);
 				}
