@@ -343,7 +343,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	private Set<String> getPortKeys() {
 		LinkedHashSet<String> tmPortKeys = new LinkedHashSet<>(Arrays.asList(TM_PORT_KEYS));
 		containerSpec.getDynamicConfiguration().keySet().stream()
-			.filter(key -> key.endsWith(".port"))  // This matches property naming convention
+			.filter(key -> key.endsWith(".port") || key.endsWith(".ports"))  // This matches property naming convention
 			.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
 			.forEach(tmPortKeys::add);
 
