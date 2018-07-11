@@ -16,25 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.util;
+package org.apache.flink.configuration.description;
 
 /**
- * Contains various shared utility functions.
+ * Part of description that represents an element inside a block e.g. a link.
  */
-public enum Utils {
-	;
+public interface InlineElement extends DescriptionElement {
 
-	/**
-	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
-	 * but only something that won't show up in config options.
-	 */
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
-
-	public static String escapeCharacters(String value) {
-		return value
-			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&lt;")
-			.replaceAll(">", "&gt;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
-	}
 }
