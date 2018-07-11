@@ -20,9 +20,13 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Objects;
+import javax.annotation.Nonnull;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Compound meta information for a registered state in an operator state backend.
@@ -30,12 +34,7 @@ import java.util.Objects;
  *
  * @param <S> Type of the state.
  */
-public class RegisteredOperatorBackendStateMetaInfo<S> {
-
-	/**
-	 * The name of the state, as registered by the user
-	 */
-	private final String name;
+public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMetaInfoBase {
 
 	/**
 	 * The mode how elements in this state are assigned to tasks during restore
@@ -51,19 +50,25 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 			String name,
 			TypeSerializer<S> partitionStateSerializer,
 			OperatorStateHandle.Mode assignmentMode) {
-
-		this.name = Preconditions.checkNotNull(name);
+		super(Preconditions.checkNotNull(name));
 		this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
 		this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
 	}
 
 	private RegisteredOperatorBackendStateMetaInfo(RegisteredOperatorBackendStateMetaInfo<S> copy) {
+		this(
+			Preconditions.checkNotNull(copy).name,
+			copy.partitionStateSerializer.duplicate(),
+			copy.assignmentMode);
+	}
 
-		Preconditions.checkNotNull(copy);
-
-		this.name = copy.name;
-		this.partitionStateSerializer = copy.partitionStateSerializer.duplicate();
-		this.assignmentMode = copy.assignmentMode;
+	@SuppressWarnings("unchecked")
+	public RegisteredOperatorBackendStateMetaInfo(StateMetaInfoSnapshot snapshot) {
+		this(
+			snapshot.getName(),
+			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
+			OperatorStateHandle.Mode.valueOf(
+				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)));
 	}
 
 	/**
@@ -73,8 +78,19 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 		return new RegisteredOperatorBackendStateMetaInfo<>(this);
 	}
 
-	public String getName() {
-		return name;
+	@Nonnull
+	@Override
+	public StateMetaInfoSnapshot snapshot() {
+		Map<String, String> optionsMap = Collections.singletonMap(
+			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
+			assignmentMode.toString());
+		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
+		Map<String, TypeSerializer<?>> serializerMap =
+			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.duplicate());
+		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
+			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.snapshotConfiguration());
+
+		return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigSnapshotsMap, serializerMap);
 	}
 
 	public OperatorStateHandle.Mode getAssignmentMode() {
@@ -83,14 +99,6 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 
 	public TypeSerializer<S> getPartitionStateSerializer() {
 		return partitionStateSerializer;
-	}
-
-	public Snapshot<S> snapshot() {
-		return new Snapshot<>(
-			name,
-			assignmentMode,
-			partitionStateSerializer.duplicate(),
-			partitionStateSerializer.snapshotConfiguration());
 	}
 
 	@Override
@@ -124,96 +132,5 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 			", assignmentMode=" + assignmentMode +
 			", partitionStateSerializer=" + partitionStateSerializer +
 			'}';
-	}
-
-	/**
-	 * A consistent snapshot of a {@link RegisteredOperatorBackendStateMetaInfo}.
-	 */
-	public static class Snapshot<S> {
-
-		private String name;
-		private OperatorStateHandle.Mode assignmentMode;
-		private TypeSerializer<S> partitionStateSerializer;
-		private TypeSerializerConfigSnapshot partitionStateSerializerConfigSnapshot;
-
-		/** Empty constructor used when restoring the state meta info snapshot. */
-		Snapshot() {}
-
-		private Snapshot(
-				String name,
-				OperatorStateHandle.Mode assignmentMode,
-				TypeSerializer<S> partitionStateSerializer,
-				TypeSerializerConfigSnapshot partitionStateSerializerConfigSnapshot) {
-
-			this.name = Preconditions.checkNotNull(name);
-			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
-			this.partitionStateSerializer = Preconditions.checkNotNull(partitionStateSerializer);
-			this.partitionStateSerializerConfigSnapshot = Preconditions.checkNotNull(partitionStateSerializerConfigSnapshot);
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		void setName(String name) {
-			this.name = name;
-		}
-
-		public OperatorStateHandle.Mode getAssignmentMode() {
-			return assignmentMode;
-		}
-
-		void setAssignmentMode(OperatorStateHandle.Mode assignmentMode) {
-			this.assignmentMode = assignmentMode;
-		}
-
-		public TypeSerializer<S> getPartitionStateSerializer() {
-			return partitionStateSerializer;
-		}
-
-		void setPartitionStateSerializer(TypeSerializer<S> partitionStateSerializer) {
-			this.partitionStateSerializer = partitionStateSerializer;
-		}
-
-		public TypeSerializerConfigSnapshot getPartitionStateSerializerConfigSnapshot() {
-			return partitionStateSerializerConfigSnapshot;
-		}
-
-		void setPartitionStateSerializerConfigSnapshot(TypeSerializerConfigSnapshot partitionStateSerializerConfigSnapshot) {
-			this.partitionStateSerializerConfigSnapshot = partitionStateSerializerConfigSnapshot;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == this) {
-				return true;
-			}
-
-			if (obj == null) {
-				return false;
-			}
-
-			if (!(obj instanceof Snapshot)) {
-				return false;
-			}
-
-			Snapshot snapshot = (Snapshot)obj;
-
-			// need to check for nulls because serializer and config snapshots may be null on restore
-			return name.equals(snapshot.getName())
-				&& assignmentMode.equals(snapshot.getAssignmentMode())
-				&& Objects.equals(partitionStateSerializer, snapshot.getPartitionStateSerializer())
-				&& Objects.equals(partitionStateSerializerConfigSnapshot, snapshot.getPartitionStateSerializerConfigSnapshot());
-		}
-
-		@Override
-		public int hashCode() {
-			// need to check for nulls because serializer and config snapshots may be null on restore
-			int result = getName().hashCode();
-			result = 31 * result + getAssignmentMode().hashCode();
-			result = 31 * result + (getPartitionStateSerializer() != null ? getPartitionStateSerializer().hashCode() : 0);
-			result = 31 * result + (getPartitionStateSerializerConfigSnapshot() != null ? getPartitionStateSerializerConfigSnapshot().hashCode() : 0);
-			return result;
-		}
 	}
 }

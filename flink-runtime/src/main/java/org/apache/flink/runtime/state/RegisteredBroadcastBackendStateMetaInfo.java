@@ -20,14 +20,17 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
-
-	/** The name of the state, as registered by the user. */
-	private final String name;
+public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredStateMetaInfoBase {
 
 	/** The mode how elements in this state are assigned to tasks during restore. */
 	private final OperatorStateHandle.Mode assignmentMode;
@@ -44,22 +47,29 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 			final TypeSerializer<K> keySerializer,
 			final TypeSerializer<V> valueSerializer) {
 
+		super(name);
 		Preconditions.checkArgument(assignmentMode != null && assignmentMode == OperatorStateHandle.Mode.BROADCAST);
-
-		this.name = Preconditions.checkNotNull(name);
 		this.assignmentMode = assignmentMode;
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.valueSerializer = Preconditions.checkNotNull(valueSerializer);
 	}
 
 	public RegisteredBroadcastBackendStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> copy) {
+		this(
+			Preconditions.checkNotNull(copy).name,
+			copy.assignmentMode,
+			copy.keySerializer.duplicate(),
+			copy.valueSerializer.duplicate());
+	}
 
-		Preconditions.checkNotNull(copy);
-
-		this.name = copy.name;
-		this.assignmentMode = copy.assignmentMode;
-		this.keySerializer = copy.keySerializer.duplicate();
-		this.valueSerializer = copy.valueSerializer.duplicate();
+	@SuppressWarnings("unchecked")
+	public RegisteredBroadcastBackendStateMetaInfo(StateMetaInfoSnapshot snapshot) {
+		this(
+			snapshot.getName(),
+			OperatorStateHandle.Mode.valueOf(
+				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
+			(TypeSerializer<K>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER),
+			(TypeSerializer<V>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
 	}
 
 	/**
@@ -69,8 +79,22 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 		return new RegisteredBroadcastBackendStateMetaInfo<>(this);
 	}
 
-	public String getName() {
-		return name;
+	@Nonnull
+	@Override
+	public StateMetaInfoSnapshot snapshot() {
+		Map<String, String> optionsMap = Collections.singletonMap(
+			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
+			assignmentMode.toString());
+		Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(2);
+		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap = new HashMap<>(2);
+		String keySerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString();
+		String valueSerializerKey = StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString();
+		serializerMap.put(keySerializerKey, keySerializer.duplicate());
+		serializerConfigSnapshotsMap.put(keySerializerKey, keySerializer.snapshotConfiguration());
+		serializerMap.put(valueSerializerKey, valueSerializer.duplicate());
+		serializerConfigSnapshotsMap.put(valueSerializerKey, valueSerializer.snapshotConfiguration());
+
+		return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigSnapshotsMap, serializerMap);
 	}
 
 	public TypeSerializer<K> getKeySerializer() {
@@ -83,16 +107,6 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 
 	public OperatorStateHandle.Mode getAssignmentMode() {
 		return assignmentMode;
-	}
-
-	public RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> snapshot() {
-		return new RegisteredBroadcastBackendStateMetaInfo.Snapshot<>(
-				name,
-				assignmentMode,
-				keySerializer.duplicate(),
-				valueSerializer.duplicate(),
-				keySerializer.snapshotConfiguration(),
-				valueSerializer.snapshotConfiguration());
 	}
 
 	@Override
@@ -131,117 +145,5 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> {
 				", valueSerializer=" + valueSerializer +
 				", assignmentMode=" + assignmentMode +
 				'}';
-	}
-
-	/**
-	 * A consistent snapshot of a {@link RegisteredOperatorBackendStateMetaInfo}.
-	 */
-	public static class Snapshot<K, V> {
-
-		private String name;
-		private OperatorStateHandle.Mode assignmentMode;
-		private TypeSerializer<K> keySerializer;
-		private TypeSerializer<V> valueSerializer;
-		private TypeSerializerConfigSnapshot keySerializerConfigSnapshot;
-		private TypeSerializerConfigSnapshot valueSerializerConfigSnapshot;
-
-		/** Empty constructor used when restoring the state meta info snapshot. */
-		Snapshot() {}
-
-		private Snapshot(
-				final String name,
-				final OperatorStateHandle.Mode assignmentMode,
-				final TypeSerializer<K> keySerializer,
-				final TypeSerializer<V> valueSerializer,
-				final TypeSerializerConfigSnapshot keySerializerConfigSnapshot,
-				final TypeSerializerConfigSnapshot valueSerializerConfigSnapshot) {
-
-			this.name = Preconditions.checkNotNull(name);
-			this.assignmentMode = Preconditions.checkNotNull(assignmentMode);
-			this.keySerializer = Preconditions.checkNotNull(keySerializer);
-			this.valueSerializer = Preconditions.checkNotNull(valueSerializer);
-			this.keySerializerConfigSnapshot = Preconditions.checkNotNull(keySerializerConfigSnapshot);
-			this.valueSerializerConfigSnapshot = Preconditions.checkNotNull(valueSerializerConfigSnapshot);
-		}
-
-		public String getName() {
-			return name;
-		}
-
-		void setName(String name) {
-			this.name = name;
-		}
-
-		public OperatorStateHandle.Mode getAssignmentMode() {
-			return assignmentMode;
-		}
-
-		void setAssignmentMode(OperatorStateHandle.Mode mode) {
-			this.assignmentMode = mode;
-		}
-
-		public TypeSerializer<K> getKeySerializer() {
-			return keySerializer;
-		}
-
-		void setKeySerializer(TypeSerializer<K> serializer) {
-			this.keySerializer = serializer;
-		}
-
-		public TypeSerializer<V> getValueSerializer() {
-			return valueSerializer;
-		}
-
-		void setValueSerializer(TypeSerializer<V> serializer) {
-			this.valueSerializer = serializer;
-		}
-
-		public TypeSerializerConfigSnapshot getKeySerializerConfigSnapshot() {
-			return keySerializerConfigSnapshot;
-		}
-
-		void setKeySerializerConfigSnapshot(TypeSerializerConfigSnapshot configSnapshot) {
-			this.keySerializerConfigSnapshot = configSnapshot;
-		}
-
-		public TypeSerializerConfigSnapshot getValueSerializerConfigSnapshot() {
-			return valueSerializerConfigSnapshot;
-		}
-
-		void setValueSerializerConfigSnapshot(TypeSerializerConfigSnapshot configSnapshot) {
-			this.valueSerializerConfigSnapshot = configSnapshot;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (obj == this) {
-				return true;
-			}
-
-			if (!(obj instanceof RegisteredBroadcastBackendStateMetaInfo.Snapshot)) {
-				return false;
-			}
-
-			RegisteredBroadcastBackendStateMetaInfo.Snapshot snapshot =
-					(RegisteredBroadcastBackendStateMetaInfo.Snapshot) obj;
-
-			return name.equals(snapshot.getName())
-					&& assignmentMode.ordinal() == snapshot.getAssignmentMode().ordinal()
-					&& Objects.equals(keySerializer, snapshot.getKeySerializer())
-					&& Objects.equals(valueSerializer, snapshot.getValueSerializer())
-					&& keySerializerConfigSnapshot.equals(snapshot.getKeySerializerConfigSnapshot())
-					&& valueSerializerConfigSnapshot.equals(snapshot.getValueSerializerConfigSnapshot());
-		}
-
-		@Override
-		public int hashCode() {
-			int result = name.hashCode();
-			result = 31 * result + assignmentMode.hashCode();
-			result = 31 * result + ((keySerializer != null) ? keySerializer.hashCode() : 0);
-			result = 31 * result + ((valueSerializer != null) ? valueSerializer.hashCode() : 0);
-			result = 31 * result + keySerializerConfigSnapshot.hashCode();
-			result = 31 * result + valueSerializerConfigSnapshot.hashCode();
-			return result;
-		}
 	}
 }
