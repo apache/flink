@@ -119,11 +119,22 @@ public class JDBCAppendTableSinkBuilder {
 		return this;
 	}
 
+	/**
+	 * Specify the interval that the idle connection will be checked.
+	 * @param idleConnectionCheckInterval the interval in milliseconds that the
+	 *                                    idle connection will be checked.
+	 */
 	public JDBCAppendTableSinkBuilder setIdleConnectionCheckInterval(long idleConnectionCheckInterval) {
 		this.idleConnectionCheckInterval = idleConnectionCheckInterval;
 		return this;
 	}
 
+	/**
+	 * Specify the time in seconds to wait for the database operation used to
+	 * validate the connection to complete.
+	 * @param idleConnectionCheckTimeout time in seconds to wait while validating
+	 *                                   the connection.
+	 */
 	public JDBCAppendTableSinkBuilder setIdleConnectionCheckTimeout(int idleConnectionCheckTimeout) {
 		this.idleConnectionCheckTimeout = idleConnectionCheckTimeout;
 		return this;

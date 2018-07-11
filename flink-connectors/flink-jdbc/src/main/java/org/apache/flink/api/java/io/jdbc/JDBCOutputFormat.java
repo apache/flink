@@ -43,7 +43,7 @@ import java.util.TimerTask;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
-	static final long DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL = 30 * 60 * 1000;
+	static final long DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL = 30 * 60 * 1000L;
 	static final int DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT = 0;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
@@ -58,9 +58,11 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private Connection dbConn;
 	private PreparedStatement upload;
 
+	//the interval in milliseconds that the idle connection will be checked
 	private long idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
-	private int idleConnectionCheckTimeOut = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
-	private transient Timer timer = new Timer();
+	//time in seconds to wait while validating the connection
+	private int idleConnectionCheckTimeout = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
+	private transient Timer timer;
 
 	private int batchCount = 0;
 
@@ -99,11 +101,12 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
+		timer = new Timer();
 		timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
 				try {
-					if (!dbConn.isValid(idleConnectionCheckTimeOut)) {
+					if (!dbConn.isValid(idleConnectionCheckTimeout)) {
 						throw new RuntimeException("JDBC connection is invalid.");
 					}
 				} catch (SQLException e) {
@@ -131,110 +134,117 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.getArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
 		}
-		try {
+		synchronized (this) {
+			try {
+				fillStmt(row);
+				upload.addBatch();
+				batchCount++;
+			} catch (SQLException e) {
+				throw new RuntimeException("Preparation of JDBC statement failed.", e);
+			}
 
-			if (typesArray == null) {
-				// no types provided
-				for (int index = 0; index < row.getArity(); index++) {
-					LOG.warn("Unknown column type for column {}. Best effort approach to set its value: {}.", index + 1, row.getField(index));
-					upload.setObject(index + 1, row.getField(index));
-				}
-			} else {
-				// types provided
-				for (int index = 0; index < row.getArity(); index++) {
+			if (batchCount >= batchInterval) {
+				// execute batch
+				flush();
+			}
+		}
+	}
 
-					if (row.getField(index) == null) {
-						upload.setNull(index + 1, typesArray[index]);
-					} else {
-						// casting values as suggested by http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html
-						switch (typesArray[index]) {
-							case java.sql.Types.NULL:
-								upload.setNull(index + 1, typesArray[index]);
-								break;
-							case java.sql.Types.BOOLEAN:
-							case java.sql.Types.BIT:
-								upload.setBoolean(index + 1, (boolean) row.getField(index));
-								break;
-							case java.sql.Types.CHAR:
-							case java.sql.Types.NCHAR:
-							case java.sql.Types.VARCHAR:
-							case java.sql.Types.LONGVARCHAR:
-							case java.sql.Types.LONGNVARCHAR:
-								upload.setString(index + 1, (String) row.getField(index));
-								break;
-							case java.sql.Types.TINYINT:
-								upload.setByte(index + 1, (byte) row.getField(index));
-								break;
-							case java.sql.Types.SMALLINT:
-								upload.setShort(index + 1, (short) row.getField(index));
-								break;
-							case java.sql.Types.INTEGER:
-								upload.setInt(index + 1, (int) row.getField(index));
-								break;
-							case java.sql.Types.BIGINT:
-								upload.setLong(index + 1, (long) row.getField(index));
-								break;
-							case java.sql.Types.REAL:
-								upload.setFloat(index + 1, (float) row.getField(index));
-								break;
-							case java.sql.Types.FLOAT:
-							case java.sql.Types.DOUBLE:
-								upload.setDouble(index + 1, (double) row.getField(index));
-								break;
-							case java.sql.Types.DECIMAL:
-							case java.sql.Types.NUMERIC:
-								upload.setBigDecimal(index + 1, (java.math.BigDecimal) row.getField(index));
-								break;
-							case java.sql.Types.DATE:
-								upload.setDate(index + 1, (java.sql.Date) row.getField(index));
-								break;
-							case java.sql.Types.TIME:
-								upload.setTime(index + 1, (java.sql.Time) row.getField(index));
-								break;
-							case java.sql.Types.TIMESTAMP:
-								upload.setTimestamp(index + 1, (java.sql.Timestamp) row.getField(index));
-								break;
-							case java.sql.Types.BINARY:
-							case java.sql.Types.VARBINARY:
-							case java.sql.Types.LONGVARBINARY:
-								upload.setBytes(index + 1, (byte[]) row.getField(index));
-								break;
-							default:
-								upload.setObject(index + 1, row.getField(index));
-								LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
-									typesArray[index], index + 1, row.getField(index));
-								// case java.sql.Types.SQLXML
-								// case java.sql.Types.ARRAY:
-								// case java.sql.Types.JAVA_OBJECT:
-								// case java.sql.Types.BLOB:
-								// case java.sql.Types.CLOB:
-								// case java.sql.Types.NCLOB:
-								// case java.sql.Types.DATALINK:
-								// case java.sql.Types.DISTINCT:
-								// case java.sql.Types.OTHER:
-								// case java.sql.Types.REF:
-								// case java.sql.Types.ROWID:
-								// case java.sql.Types.STRUC
-						}
+	private void fillStmt(Row row) throws SQLException {
+		if (typesArray == null) {
+			// no types provided
+			for (int index = 0; index < row.getArity(); index++) {
+				LOG.warn("Unknown column type for column {}. Best effort approach to set its value: {}.", index + 1, row.getField(index));
+				upload.setObject(index + 1, row.getField(index));
+			}
+		} else {
+			// types provided
+			for (int index = 0; index < row.getArity(); index++) {
+
+				if (row.getField(index) == null) {
+					upload.setNull(index + 1, typesArray[index]);
+				} else {
+					// casting values as suggested by http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html
+					switch (typesArray[index]) {
+						case java.sql.Types.NULL:
+							upload.setNull(index + 1, typesArray[index]);
+							break;
+						case java.sql.Types.BOOLEAN:
+						case java.sql.Types.BIT:
+							upload.setBoolean(index + 1, (boolean) row.getField(index));
+							break;
+						case java.sql.Types.CHAR:
+						case java.sql.Types.NCHAR:
+						case java.sql.Types.VARCHAR:
+						case java.sql.Types.LONGVARCHAR:
+						case java.sql.Types.LONGNVARCHAR:
+							upload.setString(index + 1, (String) row.getField(index));
+							break;
+						case java.sql.Types.TINYINT:
+							upload.setByte(index + 1, (byte) row.getField(index));
+							break;
+						case java.sql.Types.SMALLINT:
+							upload.setShort(index + 1, (short) row.getField(index));
+							break;
+						case java.sql.Types.INTEGER:
+							upload.setInt(index + 1, (int) row.getField(index));
+							break;
+						case java.sql.Types.BIGINT:
+							upload.setLong(index + 1, (long) row.getField(index));
+							break;
+						case java.sql.Types.REAL:
+							upload.setFloat(index + 1, (float) row.getField(index));
+							break;
+						case java.sql.Types.FLOAT:
+						case java.sql.Types.DOUBLE:
+							upload.setDouble(index + 1, (double) row.getField(index));
+							break;
+						case java.sql.Types.DECIMAL:
+						case java.sql.Types.NUMERIC:
+							upload.setBigDecimal(index + 1, (java.math.BigDecimal) row.getField(index));
+							break;
+						case java.sql.Types.DATE:
+							upload.setDate(index + 1, (java.sql.Date) row.getField(index));
+							break;
+						case java.sql.Types.TIME:
+							upload.setTime(index + 1, (java.sql.Time) row.getField(index));
+							break;
+						case java.sql.Types.TIMESTAMP:
+							upload.setTimestamp(index + 1, (java.sql.Timestamp) row.getField(index));
+							break;
+						case java.sql.Types.BINARY:
+						case java.sql.Types.VARBINARY:
+						case java.sql.Types.LONGVARBINARY:
+							upload.setBytes(index + 1, (byte[]) row.getField(index));
+							break;
+						default:
+							upload.setObject(index + 1, row.getField(index));
+							LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
+								typesArray[index], index + 1, row.getField(index));
+							// case java.sql.Types.SQLXML
+							// case java.sql.Types.ARRAY:
+							// case java.sql.Types.JAVA_OBJECT:
+							// case java.sql.Types.BLOB:
+							// case java.sql.Types.CLOB:
+							// case java.sql.Types.NCLOB:
+							// case java.sql.Types.DATALINK:
+							// case java.sql.Types.DISTINCT:
+							// case java.sql.Types.OTHER:
+							// case java.sql.Types.REF:
+							// case java.sql.Types.ROWID:
+							// case java.sql.Types.STRUC
 					}
 				}
 			}
-			upload.addBatch();
-			batchCount++;
-		} catch (SQLException e) {
-			throw new RuntimeException("Preparation of JDBC statement failed.", e);
-		}
-
-		if (batchCount >= batchInterval) {
-			// execute batch
-			flush();
 		}
 	}
 
 	void flush() {
 		try {
-			upload.executeBatch();
-			batchCount = 0;
+			synchronized (this) {
+				upload.executeBatch();
+				batchCount = 0;
+			}
 		} catch (SQLException e) {
 			throw new RuntimeException("Execution of JDBC statement failed.", e);
 		}
@@ -251,7 +261,9 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
-		timer.cancel();
+		if (timer != null) {
+			timer.cancel();
+		}
 		if (upload != null) {
 			flush();
 			// close the connection
@@ -330,7 +342,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		}
 
 		public JDBCOutputFormatBuilder setIdleConnectionCheckTimeout(int timeout) {
-			format.idleConnectionCheckTimeOut = timeout;
+			format.idleConnectionCheckTimeout = timeout;
 			return this;
 		}
 
