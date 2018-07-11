@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -33,6 +34,8 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
@@ -224,5 +227,25 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 		} else {
 			return null;
 		}
+	}
+
+	public byte[] migrateSerializedValue(
+			byte[] serializedOldValue,
+			TypeSerializer<V> migrationValueSerializer,
+			TypeSerializer<V> valueSerializer) throws IOException {
+
+		V value = migrationValueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(
+			serializedOldValue)));
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+		valueSerializer.serialize(value, out);
+
+		byte[] result = baos.toByteArray();
+
+		out.close();
+		baos.close();
+
+		return result;
 	}
 }

@@ -99,7 +99,8 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 		// TODO this method actually should not have a default implementation;
 		// TODO this placeholder should be removed as soon as all subclasses have a proper implementation in place, and
 		// TODO the method is properly integrated in state backends' restore procedures
-		throw new UnsupportedOperationException();
+//		throw new UnsupportedOperationException();
+		return TypeSerializerSchemaCompatibility.compatibleAsIs();
 	}
 
 	/**

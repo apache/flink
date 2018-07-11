@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -35,6 +36,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -266,5 +268,42 @@ class RocksDBListState<K, N, V>
 			(List<E>) stateDesc.getDefaultValue(),
 			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
 			backend);
+	}
+
+	@Override
+	public byte[] migrateSerializedValue(
+		byte[] serializedOldValue,
+		TypeSerializer<List<V>> migrationListSerializer,
+		TypeSerializer<List<V>> listSerializer) throws IOException {
+
+		Preconditions.checkArgument(migrationListSerializer instanceof ListSerializer);
+		Preconditions.checkArgument(listSerializer instanceof ListSerializer);
+
+		TypeSerializer<V> migrationElementSerializer =
+			((ListSerializer<V>) migrationListSerializer).getElementSerializer();
+		TypeSerializer<V> elementSerializer =
+			((ListSerializer<V>) listSerializer).getElementSerializer();
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(serializedOldValue);
+		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(baos);
+
+		while (in.available() > 0) {
+			V element = migrationElementSerializer.deserialize(in);
+			elementSerializer.serialize(element, out);
+			if (in.available() > 0) {
+				in.readByte();
+				out.write(DELIMITER);
+			}
+		}
+
+		byte[] result = baos.toByteArray();
+
+		out.close();
+		baos.close();
+
+		return result;
 	}
 }

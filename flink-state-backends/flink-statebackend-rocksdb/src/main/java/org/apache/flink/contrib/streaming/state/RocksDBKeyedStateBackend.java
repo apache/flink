@@ -1251,49 +1251,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * already have a registered entry for that and return it (after some necessary state compatibility checks)
 	 * or create a new one if it does not exist.
 	 */
-	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, S>> tryRegisterKvStateInformation(
-			StateDescriptor<?, S> stateDesc,
-			TypeSerializer<N> namespaceSerializer) throws StateMigrationException, IOException {
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private <N, S extends State, SV> Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> tryRegisterKvStateInformation(
+			StateDescriptor<S, SV> stateDesc,
+			TypeSerializer<N> namespaceSerializer) throws Exception {
 
 		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> stateInfo =
 			kvStateInformation.get(stateDesc.getName());
 
-		RegisteredKeyedBackendStateMetaInfo<N, S> newMetaInfo;
+		RegisteredKeyedBackendStateMetaInfo<N, SV> newMetaInfo;
 		if (stateInfo != null) {
-
-			@SuppressWarnings("unchecked")
-			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S> restoredMetaInfoSnapshot =
-				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, S>) restoredKvStateMetaInfos.get(stateDesc.getName());
-
-			Preconditions.checkState(
-				restoredMetaInfoSnapshot != null,
-				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
-					" but its corresponding restored snapshot cannot be found.");
-
-			StateUtil.checkStateTypeCompatibility(restoredMetaInfoSnapshot, stateDesc);
-
-			// check compatibility results to determine if state migration is required
-			TypeSerializerSchemaCompatibility<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-				restoredMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
-				namespaceSerializer);
-
-			TypeSerializer<S> stateSerializer = stateDesc.getSerializer();
-			TypeSerializerSchemaCompatibility<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-				restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
-				stateSerializer);
-
-			if (namespaceCompatibility.isIncompatible() || stateCompatibility.isIncompatible()) {
-				// TODO state migration currently isn't possible.
-				throw new StateMigrationException("State migration isn't supported, yet.");
-			} else {
-				newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
-					stateDesc.getType(),
-					stateDesc.getName(),
-					namespaceSerializer,
-					stateSerializer);
-			}
-
-			stateInfo.f1 = newMetaInfo;
+			newMetaInfo = migrateStateIfNecessary(
+				stateDesc,
+				namespaceSerializer,
+				stateInfo);
 		} else {
 			String stateName = stateDesc.getName();
 
@@ -1310,6 +1281,128 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		return Tuple2.of(stateInfo.f0, newMetaInfo);
+	}
+
+	private <N, S extends State, SV> RegisteredKeyedBackendStateMetaInfo<N, SV> migrateStateIfNecessary(
+			StateDescriptor<S, SV> stateDesc,
+			TypeSerializer<N> namespaceSerializer,
+			Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> stateInfo) throws Exception {
+
+		@SuppressWarnings("unchecked")
+		RegisteredKeyedBackendStateMetaInfo.Snapshot<N, SV> restoredMetaInfoSnapshot =
+			(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, SV>) restoredKvStateMetaInfos.get(
+				stateDesc.getName());
+
+		Preconditions.checkState(
+			restoredMetaInfoSnapshot != null,
+			"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+				" but its corresponding restored snapshot cannot be found.");
+
+		StateUtil.checkStateTypeCompatibility(restoredMetaInfoSnapshot, stateDesc);
+
+		TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
+
+		RegisteredKeyedBackendStateMetaInfo<N, SV> newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+			stateDesc.getType(),
+			stateDesc.getName(),
+			namespaceSerializer,
+			stateSerializer);
+
+		// check compatibility results to determine if state migration is required
+		TypeSerializerSchemaCompatibility<N> namespaceCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+			restoredMetaInfoSnapshot.getNamespaceSerializerConfigSnapshot(),
+			namespaceSerializer);
+
+		TypeSerializerSchemaCompatibility<SV> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
+			restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot(),
+			stateSerializer);
+
+		if (namespaceCompatibility.isIncompatible()) {
+			throw new UnsupportedOperationException(
+				"Changing the namespace TypeSerializer in an incompatible way is currently not supported.");
+		}
+
+		if (stateCompatibility.isIncompatible()) {
+			if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
+				throw new UnsupportedOperationException(
+					"Changing the TypeSerializers of a MapState in an incompatible way is currently not supported.");
+			}
+
+			LOG.info(
+				"Performing state migration for state {} because the state serializer changed in an incompatible way.",
+				stateDesc);
+
+			// we need to get an actual state instance because migration is different
+			// for different state types. For example, ListState needs to deal with
+			// individual elements
+			StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+			if (stateFactory == null) {
+				String message = String.format("State %s is not supported by %s",
+					stateDesc.getClass(), this.getClass());
+				throw new FlinkRuntimeException(message);
+			}
+
+			State state = stateFactory.createState(
+				stateDesc,
+				Tuple2.of(stateInfo.f0, newMetaInfo),
+				RocksDBKeyedStateBackend.this);
+
+			if (!(state instanceof AbstractRocksDBState)) {
+				throw new FlinkRuntimeException(
+					"State should be an AbstractRocksDBState but is " + state);
+			}
+
+			AbstractRocksDBState rocksDBState = (AbstractRocksDBState<?, N, ?, S>) state;
+
+			Snapshot rocksDBSnapshot = null;
+			RocksIteratorWrapper iterator = null;
+
+			try (ReadOptions readOptions = new ReadOptions();) {
+				// TODO: can I do this with try-with-resource or do I always have to call
+				// db.releaseSnapshot()
+				// I think I can't use try-with-resource anyways since I have to set the snapshot
+				// on the ReadOptions
+
+				rocksDBSnapshot = db.getSnapshot();
+				readOptions.setSnapshot(rocksDBSnapshot);
+
+				iterator = getRocksIterator(db, stateInfo.f0, readOptions);
+				iterator.seekToFirst();
+
+				while (iterator.isValid()) {
+
+					byte[] serializedValue = iterator.value();
+
+					byte[] migratedSerializedValue = rocksDBState.migrateSerializedValue(
+						serializedValue,
+						restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot().restoreSerializer(),
+						stateDesc.getSerializer());
+
+					db.put(stateInfo.f0, iterator.key(), migratedSerializedValue);
+
+					iterator.next();
+				}
+			} finally {
+				if (iterator != null) {
+					iterator.close();
+				}
+				if (rocksDBSnapshot != null) {
+					db.releaseSnapshot(rocksDBSnapshot);
+					// TODO: do I need to call close() or is calling db.releaseSnapshot() enough
+					rocksDBSnapshot.close();
+				}
+			}
+		} else if (stateCompatibility.isCompatibleAfterReconfiguration()) {
+			// need to use the reconfigured serializer
+			newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+				newMetaInfo.getStateType(),
+				newMetaInfo.getName(),
+				newMetaInfo.getNamespaceSerializer(),
+				stateCompatibility.getReconfiguredNewSerializer());
+		}
+
+		stateInfo.f1 = newMetaInfo;
+		return newMetaInfo;
 	}
 
 	/**
