@@ -31,7 +31,7 @@ import java.util.Collections;
  */
 public class JarPlanMessageParameters extends MessageParameters {
 
-	private final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+	public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
 	private final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
 

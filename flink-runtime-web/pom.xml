@@ -135,7 +135,35 @@ under the License.
 							<goal>test-jar</goal>
 						</goals>
 					</execution>
+					<execution>
+						<id>test-program-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>org/apache/flink/runtime/webmonitor/handlers/utils/TestProgram.java</include>
+							</includes>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.runtime.webmonitor.handlers.utils.TestProgram</mainClass>
+								</manifest>
+							</archive>
+							<finalName>test-program</finalName>
+						</configuration>
+					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<targetDir>${project.build.directory}</targetDir>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
