@@ -144,12 +144,16 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<!-- the example jars are included via assemblies -->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<!-- the example jars are included via assemblies -->
+			<scope>provided</scope>
 		</dependency>
 
 		<!-- Default file system support. The Hadoop and MapR dependencies -->
@@ -514,8 +518,6 @@ under the License.
 								<excludes>
 									<exclude>org.slf4j:slf4j-log4j12</exclude>
 									<exclude>log4j:log4j</exclude>
-									<!-- the example jars are included via assemblies -->
-									<exclude>org.apache.flink:flink-examples-*</exclude>
 								</excludes>
 							</artifactSet>
 							<transformers>
