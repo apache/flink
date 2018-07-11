@@ -1103,6 +1103,8 @@ under the License.
 
 						<exclude>flink-formats/flink-avro/src/test/resources/testdata.avro</exclude>
 						<exclude>flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/*.java</exclude>
+						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/EventType.java</exclude>
+						<exclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/User.java</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_csv</exclude>
 						<exclude>flink-libraries/flink-python/src/test/python/org/apache/flink/python/api/data_text</exclude>
 						<!-- netty test file, still Apache License 2.0 but with a different header -->
