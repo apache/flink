@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_BATCH_INTERVAL;
+import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
+import static org.apache.flink.api.java.io.jdbc.JDBCOutputFormat.DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
 
 /**
  * A builder to configure and build the JDBCAppendTableSink.
@@ -34,6 +36,8 @@ public class JDBCAppendTableSinkBuilder {
 	private String query;
 	private int batchSize = DEFAULT_BATCH_INTERVAL;
 	private int[] parameterTypes;
+	private long idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
+	private int idleConnectionCheckTimeout = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
 
 	/**
 	 * Specify the username of the JDBC connection.
@@ -115,6 +119,16 @@ public class JDBCAppendTableSinkBuilder {
 		return this;
 	}
 
+	public JDBCAppendTableSinkBuilder setIdleConnectionCheckInterval(long idleConnectionCheckInterval) {
+		this.idleConnectionCheckInterval = idleConnectionCheckInterval;
+		return this;
+	}
+
+	public JDBCAppendTableSinkBuilder setIdleConnectionCheckTimeout(int idleConnectionCheckTimeout) {
+		this.idleConnectionCheckTimeout = idleConnectionCheckTimeout;
+		return this;
+	}
+
 	/**
 	 * Finalizes the configuration and checks validity.
 	 *
@@ -133,6 +147,8 @@ public class JDBCAppendTableSinkBuilder {
 			.setDrivername(driverName)
 			.setBatchInterval(batchSize)
 			.setSqlTypes(parameterTypes)
+			.setIdleConnectionCheckInterval(idleConnectionCheckInterval)
+			.setIdleConnectionCheckTimeout(idleConnectionCheckTimeout)
 			.finish();
 
 		return new JDBCAppendTableSink(format);

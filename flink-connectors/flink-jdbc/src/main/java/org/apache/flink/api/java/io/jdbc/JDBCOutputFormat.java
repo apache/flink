@@ -30,6 +30,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * OutputFormat to write Rows into a JDBC database.
@@ -41,6 +43,8 @@ import java.sql.SQLException;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
+	static final long DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL = 30 * 60 * 1000;
+	static final int DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT = 0;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -53,6 +57,10 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 	private Connection dbConn;
 	private PreparedStatement upload;
+
+	private long idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
+	private int idleConnectionCheckTimeOut = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
+	private transient Timer timer = new Timer();
 
 	private int batchCount = 0;
 
@@ -91,6 +99,18 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
+		timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					if (!dbConn.isValid(idleConnectionCheckTimeOut)) {
+						throw new RuntimeException("JDBC connection is invalid.");
+					}
+				} catch (SQLException e) {
+					throw new RuntimeException("Error validating JDBC connection.", e);
+				}
+			}
+		}, idleConnectionCheckInterval, idleConnectionCheckInterval);
 	}
 
 	/**
@@ -231,6 +251,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
+		timer.cancel();
 		if (upload != null) {
 			flush();
 			// close the connection
@@ -300,6 +321,16 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		public JDBCOutputFormatBuilder setSqlTypes(int[] typesArray) {
 			format.typesArray = typesArray;
+			return this;
+		}
+
+		public JDBCOutputFormatBuilder setIdleConnectionCheckInterval(long interval) {
+			format.idleConnectionCheckInterval = interval;
+			return this;
+		}
+
+		public JDBCOutputFormatBuilder setIdleConnectionCheckTimeout(int timeout) {
+			format.idleConnectionCheckTimeOut = timeout;
 			return this;
 		}
 
