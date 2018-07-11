@@ -34,7 +34,6 @@ import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
@@ -409,7 +408,7 @@ public class RestClient {
 			try (InputStream in = new ByteBufInputStream(content)) {
 				rawResponse = objectMapper.readTree(in);
 				LOG.debug("Received response {}.", rawResponse);
-			} catch (JsonParseException je) {
+			} catch (JsonProcessingException je) {
 				LOG.error("Response was not valid JSON.", je);
 				// let's see if it was a plain-text message instead
 				content.readerIndex(0);
