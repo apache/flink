@@ -163,6 +163,88 @@ public class SSLUtils {
 	}
 
 	/**
+	 * SSL engine provider.
+	 */
+	public enum SSLProvider {
+		JDK,
+		/**
+		 * OpenSSL with fallback to JDK if not available.
+		 */
+		OPENSSL;
+
+		public static SSLProvider fromString(String value) {
+			Preconditions.checkNotNull(value);
+			if (value.equalsIgnoreCase("OPENSSL")) {
+				return OPENSSL;
+			} else if (value.equalsIgnoreCase("JDK")) {
+				return JDK;
+			} else {
+				throw new IllegalArgumentException("Unknown SSL provider: " + value);
+			}
+		}
+	}
+
+	/**
+	 * Instances needed to set up an SSL client connection.
+	 */
+	public static class SSLClientTools {
+		public final SSLProvider preferredSslProvider;
+		public final String sslProtocolVersion;
+		public final TrustManagerFactory trustManagerFactory;
+
+		public SSLClientTools(
+				SSLProvider preferredSslProvider,
+				String sslProtocolVersion,
+				TrustManagerFactory trustManagerFactory) {
+			this.preferredSslProvider = preferredSslProvider;
+			this.sslProtocolVersion = sslProtocolVersion;
+			this.trustManagerFactory = trustManagerFactory;
+		}
+	}
+
+	/**
+	 * Creates necessary helper objects to use for creating an SSL Context for the client if SSL is
+	 * configured.
+	 *
+	 * @param sslConfig
+	 *        The application configuration
+	 * @return The SSLClientTools object which can be used for creating some SSL context object;
+	 * 	       returns <tt>null</tt> if SSL is disabled.
+	 * @throws Exception
+	 *         Thrown if there is any misconfiguration
+	 */
+	@Nullable
+	public static SSLClientTools createSSLClientTools(Configuration sslConfig) throws Exception {
+		Preconditions.checkNotNull(sslConfig);
+
+		if (getSSLEnabled(sslConfig)) {
+			LOG.debug("Creating client SSL context from configuration");
+
+			String trustStoreFilePath = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE);
+			String trustStorePassword = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
+			SSLProvider sslProvider = SSLProvider.fromString(sslConfig.getString(SecurityOptions.SSL_PROVIDER));
+
+			Preconditions.checkNotNull(trustStoreFilePath, SecurityOptions.SSL_TRUSTSTORE.key() + " was not configured.");
+			Preconditions.checkNotNull(trustStorePassword, SecurityOptions.SSL_TRUSTSTORE_PASSWORD.key() + " was not configured.");
+
+			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+
+			try (FileInputStream trustStoreFile = new FileInputStream(new File(trustStoreFilePath))) {
+				trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
+			}
+
+			TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
+				TrustManagerFactory.getDefaultAlgorithm());
+			trustManagerFactory.init(trustStore);
+
+			return new SSLClientTools(sslProvider, sslProtocolVersion, trustManagerFactory);
+		}
+
+		return null;
+	}
+
+	/**
 	 * Creates the SSL Context for the client if SSL is configured.
 	 *
 	 * @param sslConfig
@@ -174,41 +256,83 @@ public class SSLUtils {
 	 */
 	@Nullable
 	public static SSLContext createSSLClientContext(Configuration sslConfig) throws Exception {
-
 		Preconditions.checkNotNull(sslConfig);
 		SSLContext clientSSLContext = null;
 
 		if (getSSLEnabled(sslConfig)) {
-			LOG.debug("Creating client SSL context from configuration");
+			SSLClientTools clientTools = createSSLClientTools(sslConfig);
 
-			String trustStoreFilePath = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE);
-			String trustStorePassword = sslConfig.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
-			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
-
-			Preconditions.checkNotNull(trustStoreFilePath, SecurityOptions.SSL_TRUSTSTORE.key() + " was not configured.");
-			Preconditions.checkNotNull(trustStorePassword, SecurityOptions.SSL_TRUSTSTORE_PASSWORD.key() + " was not configured.");
-
-			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-
-			FileInputStream trustStoreFile = null;
-			try {
-				trustStoreFile = new FileInputStream(new File(trustStoreFilePath));
-				trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
-			} finally {
-				if (trustStoreFile != null) {
-					trustStoreFile.close();
-				}
-			}
-
-			TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(
-				TrustManagerFactory.getDefaultAlgorithm());
-			trustManagerFactory.init(trustStore);
-
-			clientSSLContext = SSLContext.getInstance(sslProtocolVersion);
-			clientSSLContext.init(null, trustManagerFactory.getTrustManagers(), null);
+			clientSSLContext = SSLContext.getInstance(clientTools.sslProtocolVersion);
+			clientSSLContext.init(null, clientTools.trustManagerFactory.getTrustManagers(), null);
 		}
 
 		return clientSSLContext;
+	}
+
+	/**
+	 * Instances needed to set up an SSL client connection.
+	 */
+	public static class SSLServerTools {
+		public final SSLProvider preferredSslProvider;
+		public final String sslProtocolVersion;
+		public final String[] ciphers;
+		public final KeyManagerFactory keyManagerFactory;
+
+		public SSLServerTools(
+				SSLProvider preferredSslProvider,
+				String sslProtocolVersion,
+				String[] ciphers,
+				KeyManagerFactory keyManagerFactory) {
+			this.preferredSslProvider = preferredSslProvider;
+			this.sslProtocolVersion = sslProtocolVersion;
+			this.ciphers = ciphers;
+			this.keyManagerFactory = keyManagerFactory;
+		}
+	}
+
+	/**
+	 * Creates necessary helper objects to use for creating an SSL Context for the server if SSL is
+	 * configured.
+	 *
+	 * @param sslConfig
+	 *        The application configuration
+	 * @return The SSLServerTools object which can be used for creating some SSL context object;
+	 * 	       returns <tt>null</tt> if SSL is disabled.
+	 * @throws Exception
+	 *         Thrown if there is any misconfiguration
+	 */
+	@Nullable
+	public static SSLServerTools createSSLServerTools(Configuration sslConfig) throws Exception {
+		Preconditions.checkNotNull(sslConfig);
+
+		if (getSSLEnabled(sslConfig)) {
+			LOG.debug("Creating server SSL context from configuration");
+
+			String keystoreFilePath = sslConfig.getString(SecurityOptions.SSL_KEYSTORE);
+			String keystorePassword = sslConfig.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD);
+			String certPassword = sslConfig.getString(SecurityOptions.SSL_KEY_PASSWORD);
+			SSLProvider sslProvider = SSLProvider.fromString(sslConfig.getString(SecurityOptions.SSL_PROVIDER));
+			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
+			String[] sslCipherSuites = sslConfig.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
+
+			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
+			Preconditions.checkNotNull(keystorePassword, SecurityOptions.SSL_KEYSTORE_PASSWORD.key() + " was not configured.");
+			Preconditions.checkNotNull(certPassword, SecurityOptions.SSL_KEY_PASSWORD.key() + " was not configured.");
+
+			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+			try (FileInputStream keyStoreFile = new FileInputStream(new File(keystoreFilePath))) {
+				ks.load(keyStoreFile, keystorePassword.toCharArray());
+			}
+
+			// Set up key manager factory to use the server key store
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(
+				KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(ks, certPassword.toCharArray());
+
+			return new SSLServerTools(sslProvider, sslProtocolVersion, sslCipherSuites, kmf);
+		}
+
+		return null;
 	}
 
 	/**
@@ -228,35 +352,14 @@ public class SSLUtils {
 		SSLContext serverSSLContext = null;
 
 		if (getSSLEnabled(sslConfig)) {
-			LOG.debug("Creating server SSL context from configuration");
-
-			String keystoreFilePath = sslConfig.getString(SecurityOptions.SSL_KEYSTORE);
-
-			String keystorePassword = sslConfig.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD);
-
-			String certPassword = sslConfig.getString(SecurityOptions.SSL_KEY_PASSWORD);
-
-			String sslProtocolVersion = sslConfig.getString(SecurityOptions.SSL_PROTOCOL);
-
-			Preconditions.checkNotNull(keystoreFilePath, SecurityOptions.SSL_KEYSTORE.key() + " was not configured.");
-			Preconditions.checkNotNull(keystorePassword, SecurityOptions.SSL_KEYSTORE_PASSWORD.key() + " was not configured.");
-			Preconditions.checkNotNull(certPassword, SecurityOptions.SSL_KEY_PASSWORD.key() + " was not configured.");
-
-			KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-			try (FileInputStream keyStoreFile = new FileInputStream(new File(keystoreFilePath))) {
-				ks.load(keyStoreFile, keystorePassword.toCharArray());
-			}
-
-			// Set up key manager factory to use the server key store
-			KeyManagerFactory kmf = KeyManagerFactory.getInstance(
-					KeyManagerFactory.getDefaultAlgorithm());
-			kmf.init(ks, certPassword.toCharArray());
+			SSLServerTools serverTools = createSSLServerTools(sslConfig);
 
 			// Initialize the SSLContext
-			serverSSLContext = SSLContext.getInstance(sslProtocolVersion);
-			serverSSLContext.init(kmf.getKeyManagers(), null, null);
+			serverSSLContext = SSLContext.getInstance(serverTools.sslProtocolVersion);
+			serverSSLContext.init(serverTools.keyManagerFactory.getKeyManagers(), null, null);
 		}
 
 		return serverSSLContext;
 	}
+
 }

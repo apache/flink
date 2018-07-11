@@ -23,13 +23,20 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.net.SSLUtils.SSLProvider;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.net.InetAddress;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -189,23 +196,41 @@ public class NettyConfig {
 		}
 	}
 
-	public SSLContext createClientSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext clientSSLContext = null;
+	public SslContext createClientSSLContext() throws Exception {
+		SslContext clientSSLContext = null;
 		if (getSSLEnabled()) {
-			clientSSLContext = SSLUtils.createSSLClientContext(config);
+			SSLUtils.SSLClientTools clientTools = SSLUtils.createSSLClientTools(config);
+			checkNotNull(clientTools);
+
+			final SslProvider provider =
+				clientTools.preferredSslProvider == SSLProvider.OPENSSL && OpenSsl.isAvailable() ?
+					SslProvider.OPENSSL : SslProvider.JDK;
+
+			clientSSLContext = SslContextBuilder.forClient()
+				.sslProvider(provider)
+				.protocols(clientTools.sslProtocolVersion)
+				.trustManager(clientTools.trustManagerFactory)
+				.build();
 		}
 
 		return clientSSLContext;
 	}
 
-	public SSLContext createServerSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext serverSSLContext = null;
+	public SslContext createServerSSLContext() throws Exception {
+		SslContext serverSSLContext = null;
 		if (getSSLEnabled()) {
-			serverSSLContext = SSLUtils.createSSLServerContext(config);
+			SSLUtils.SSLServerTools serverTools = SSLUtils.createSSLServerTools(config);
+			checkNotNull(serverTools);
+
+			final SslProvider provider =
+				serverTools.preferredSslProvider == SSLProvider.OPENSSL && OpenSsl.isAvailable() ?
+					SslProvider.OPENSSL : SslProvider.JDK;
+
+			serverSSLContext = SslContextBuilder.forServer(serverTools.keyManagerFactory)
+				.sslProvider(provider)
+				.protocols(serverTools.sslProtocolVersion)
+				.ciphers(Arrays.asList(serverTools.ciphers))
+				.build();
 		}
 
 		return serverSSLContext;
@@ -214,10 +239,6 @@ public class NettyConfig {
 	public boolean getSSLEnabled() {
 		return config.getBoolean(TaskManagerOptions.DATA_SSL_ENABLED)
 			&& SSLUtils.getSSLEnabled(config);
-	}
-
-	public void setSSLVerAndCipherSuites(SSLEngine engine) {
-		SSLUtils.setSSLVerAndCipherSuites(engine, config);
 	}
 
 	public void setSSLVerifyHostname(SSLParameters sslParams) {

@@ -31,13 +31,10 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketCh
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -61,7 +58,7 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
+	private SslContext serverSSLContext = null;
 
 	private InetSocketAddress localAddress;
 
@@ -152,10 +149,8 @@ class NettyServer {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
 				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					config.setSSLVerAndCipherSuites(sslEngine);
-					sslEngine.setUseClientMode(false);
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					channel.pipeline().addLast("ssl",
+						serverSSLContext.newHandler(channel.alloc()));
 				}
 
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());

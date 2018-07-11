@@ -29,14 +29,15 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -52,7 +53,7 @@ class NettyClient {
 
 	private Bootstrap bootstrap;
 
-	private SSLContext clientSSLContext = null;
+	private SslContext clientSSLContext = null;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
@@ -178,19 +179,21 @@ class NettyClient {
 
 				// SSL handler should be added first in the pipeline
 				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
+
+					SslHandler sslHandler = clientSSLContext.newHandler(
+						channel.alloc(),
 						serverSocketAddress.getAddress().getCanonicalHostName(),
 						serverSocketAddress.getPort());
-					sslEngine.setUseClientMode(true);
 
 					// Enable hostname verification for remote SSL connections
 					if (!serverSocketAddress.getAddress().isLoopbackAddress()) {
+						SSLEngine sslEngine = sslHandler.engine();
 						SSLParameters newSSLParameters = sslEngine.getSSLParameters();
 						config.setSSLVerifyHostname(newSSLParameters);
 						sslEngine.setSSLParameters(newSSLParameters);
 					}
 
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					channel.pipeline().addLast("ssl", sslHandler);
 				}
 				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}

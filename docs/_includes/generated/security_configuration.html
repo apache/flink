@@ -38,6 +38,11 @@
             <td>The SSL protocol version to be supported for the ssl transport. Note that it doesn’t support comma separated list.</td>
         </tr>
         <tr>
+            <td><h5>security.ssl.provider</h5></td>
+            <td style="word-wrap: break-word;">"JDK"</td>
+            <td>The SSL engine provider to use for the ssl transport: JDK or OPENSSL. If OPENSSL is selected but not available, flink will automatically fall back to JDK. Please note: OPENSSL requires a custom build of [`netty-tcnative`](http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4) in our shaded package namespace which is not (yet) available but can be built manually.</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.truststore</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The truststore file containing the public CA certificates to be used by flink endpoints to verify the peer’s certificate.</td>

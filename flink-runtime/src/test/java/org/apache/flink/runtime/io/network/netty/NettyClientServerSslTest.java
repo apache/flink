@@ -160,6 +160,7 @@ public class NettyClientServerSslTest {
 		flinkConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
+//		flinkConfig.setString(SecurityOptions.SSL_PROVIDER, "OPENSSL");
 		return flinkConfig;
 	}
 }

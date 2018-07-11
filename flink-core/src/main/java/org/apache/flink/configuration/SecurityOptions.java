@@ -95,6 +95,18 @@ public class SecurityOptions {
 				" flags defined in different transport modules.");
 
 	/**
+	 * SSL engine provider.
+	 */
+	public static final ConfigOption<String> SSL_PROVIDER =
+		key("security.ssl.provider")
+			.defaultValue("JDK")
+			.withDescription("The SSL engine provider to use for the ssl transport: JDK or OPENSSL. " +
+				"If OPENSSL is selected but not available, flink will automatically fall back to JDK. " +
+				"Please note: OPENSSL requires a custom build of " +
+				"[`netty-tcnative`](http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4) in our " +
+				"shaded package namespace which is not (yet) available but can be built manually.");
+
+	/**
 	 * The Java keystore file containing the flink endpoint key and certificate.
 	 */
 	public static final ConfigOption<String> SSL_KEYSTORE =
