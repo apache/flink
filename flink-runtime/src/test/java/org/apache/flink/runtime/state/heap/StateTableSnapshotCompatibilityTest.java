@@ -47,17 +47,17 @@ public class StateTableSnapshotCompatibilityTest {
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
 		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-				new RegisteredKeyedBackendStateMetaInfo<>(
-						StateDescriptor.Type.UNKNOWN,
-						"test",
-						IntSerializer.INSTANCE,
-						new ArrayListSerializer<>(IntSerializer.INSTANCE));
+			new RegisteredKeyedBackendStateMetaInfo<>(
+				StateDescriptor.Type.UNKNOWN,
+				"test",
+				IntSerializer.INSTANCE,
+				new ArrayListSerializer<>(IntSerializer.INSTANCE));
 
 		final CopyOnWriteStateTableTest.MockInternalKeyContext<Integer> keyContext =
-				new CopyOnWriteStateTableTest.MockInternalKeyContext<>(IntSerializer.INSTANCE);
+			new CopyOnWriteStateTableTest.MockInternalKeyContext<>(IntSerializer.INSTANCE);
 
 		CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> cowStateTable =
-				new CopyOnWriteStateTable<>(keyContext, metaInfo);
+			new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
 		for (int i = 0; i < 100; ++i) {
 			ArrayList<Integer> list = new ArrayList<>(5);
@@ -72,7 +72,7 @@ public class StateTableSnapshotCompatibilityTest {
 		StateSnapshot snapshot = cowStateTable.createSnapshot();
 
 		final NestedMapsStateTable<Integer, Integer, ArrayList<Integer>> nestedMapsStateTable =
-				new NestedMapsStateTable<>(keyContext, metaInfo);
+			new NestedMapsStateTable<>(keyContext, metaInfo);
 
 		restoreStateTableFromSnapshot(nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
 		snapshot.release();
@@ -96,9 +96,9 @@ public class StateTableSnapshotCompatibilityTest {
 	}
 
 	private static <K, N, S> void restoreStateTableFromSnapshot(
-			StateTable<K, N, S> stateTable,
-			StateSnapshot snapshot,
-			KeyGroupRange keyGroupRange) throws IOException {
+		StateTable<K, N, S> stateTable,
+		StateSnapshot snapshot,
+		KeyGroupRange keyGroupRange) throws IOException {
 
 		final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(1024 * 1024);
 		final DataOutputViewStreamWrapper dov = new DataOutputViewStreamWrapper(out);
@@ -111,7 +111,7 @@ public class StateTableSnapshotCompatibilityTest {
 		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
 
 		final StateTableByKeyGroupReader keyGroupReader =
-				StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
+			StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
 
 		for (Integer keyGroup : keyGroupRange) {
 			keyGroupReader.readMappingsInKeyGroup(div, keyGroup);
