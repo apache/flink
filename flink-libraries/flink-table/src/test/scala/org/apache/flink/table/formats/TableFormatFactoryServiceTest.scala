@@ -22,6 +22,7 @@ import java.util.{HashMap => JHashMap, Map => JMap}
 
 import org.apache.flink.table.api.{AmbiguousTableFormatException, NoMatchingTableFormatException}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator
+import org.apache.flink.table.factories.TableFormatFactory
 import org.apache.flink.table.formats.TableFormatFactoryServiceTest.{COMMON_PATH, SPECIAL_PATH, TEST_FORMAT_TYPE, UNIQUE_PROPERTY}
 import org.apache.flink.table.formats.utils.{TestAmbiguousTableFormatFactory, TestTableFormatFactory}
 import org.junit.Assert.{assertNotNull, assertTrue}

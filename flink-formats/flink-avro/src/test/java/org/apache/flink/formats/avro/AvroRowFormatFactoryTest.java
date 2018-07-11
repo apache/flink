@@ -24,8 +24,8 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.table.descriptors.Avro;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
-import org.apache.flink.table.formats.SerializationSchemaFactory;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.formats.TableFormatFactoryService;
 import org.apache.flink.util.TestLogger;
 

@@ -23,6 +23,7 @@ import java.util.{ServiceConfigurationError, ServiceLoader, Map => JMap}
 import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION
 import org.apache.flink.table.descriptors._
+import org.apache.flink.table.factories.TableFormatFactory
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 

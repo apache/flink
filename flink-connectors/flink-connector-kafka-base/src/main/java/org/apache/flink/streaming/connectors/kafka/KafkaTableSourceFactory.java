@@ -28,7 +28,7 @@ import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.formats.TableFormatFactoryService;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;

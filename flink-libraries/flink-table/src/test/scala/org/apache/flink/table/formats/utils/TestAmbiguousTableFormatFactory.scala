@@ -21,7 +21,8 @@ package org.apache.flink.table.formats.utils
 import java.util
 
 import org.apache.flink.table.descriptors.FormatDescriptorValidator
-import org.apache.flink.table.formats.{TableFormatFactory, TableFormatFactoryServiceTest}
+import org.apache.flink.table.factories.TableFormatFactory
+import org.apache.flink.table.formats.TableFormatFactoryServiceTest
 import org.apache.flink.types.Row
 
 /**

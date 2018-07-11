@@ -22,7 +22,8 @@ import java.util
 
 import org.apache.flink.api.common.serialization.DeserializationSchema
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
-import org.apache.flink.table.formats.{DeserializationSchemaFactory, TableFormatFactoryServiceTest}
+import org.apache.flink.table.factories.DeserializationSchemaFactory
+import org.apache.flink.table.formats.TableFormatFactoryServiceTest
 import org.apache.flink.types.Row
 
 /**

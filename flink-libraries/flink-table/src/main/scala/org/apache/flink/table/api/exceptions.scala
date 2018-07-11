@@ -19,7 +19,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.formats.TableFormatFactory
+import org.apache.flink.table.factories.TableFormatFactory
 
 /**
   * Exception for all errors occurring during expression parsing.
@@ -143,7 +143,7 @@ case class CatalogAlreadyExistException(
 }
 
 /**
-  * Exception for not finding a [[org.apache.flink.table.formats.TableFormatFactory]] for the
+  * Exception for not finding a [[TableFormatFactory]] for the
   * given properties.
   *
   * @param message message that indicates the current matching step
@@ -182,7 +182,7 @@ case class NoMatchingTableFormatException(
 }
 
 /**
-  * Exception for finding more than one [[org.apache.flink.table.formats.TableFormatFactory]] for
+  * Exception for finding more than one [[TableFormatFactory]] for
   * the given properties.
   *
   * @param matchingFormatFactories format factories that match the properties
