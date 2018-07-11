@@ -1227,6 +1227,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 						key, fs, appId, shipLocalPath, localResources, targetHomeDir, "");
 					remotePaths.add(remotePath);
 					envShipFileList.append(key).append("=").append(remotePath).append(",");
+
 					// add files to the classpath
 					classPaths.add(key);
 				}
