@@ -1604,7 +1604,7 @@ public abstract class StreamExecutionEnvironment {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
 			return new StreamContextEnvironment((ContextEnvironment) env);
-		} else if (env instanceof OptimizerPlanEnvironment | env instanceof PreviewPlanEnvironment) {
+		} else if (env instanceof OptimizerPlanEnvironment || env instanceof PreviewPlanEnvironment) {
 			return new StreamPlanEnvironment(env);
 		} else {
 			return createLocalEnvironment();
