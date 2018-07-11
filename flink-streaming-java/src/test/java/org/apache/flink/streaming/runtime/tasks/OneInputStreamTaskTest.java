@@ -793,11 +793,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					null,
 					null,
+					null,
 					null
 				),
 				new StreamNode(
 					null,
 					chainedIndex,
+					null,
 					null,
 					null,
 					null,
