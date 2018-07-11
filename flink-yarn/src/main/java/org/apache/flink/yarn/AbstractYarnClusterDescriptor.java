@@ -1190,10 +1190,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 						throws IOException {
 						String fileName = file.getFileName().toString();
-						if (!(file.getFileName().startsWith("flink-dist") &&
-								file.getFileName().endsWith("jar"))) {
+						if (!(fileName.startsWith("flink-dist") &&
+							fileName.endsWith("jar"))) {
 
 							java.nio.file.Path relativePath = parentPath.relativize(file);
+
+
 
 							String key = relativePath.toString();
 							try {
