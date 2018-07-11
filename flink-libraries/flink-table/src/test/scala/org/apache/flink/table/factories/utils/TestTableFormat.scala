@@ -16,15 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats.utils
+package org.apache.flink.table.factories.utils
 
-import org.apache.flink.api.common.serialization.SerializationSchema
-import org.apache.flink.types.Row
+import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptor}
 
 /**
-  * Serialization schema for testing purposes.
+  * Format descriptor for testing purposes.
   */
-class TestSerializationSchema extends SerializationSchema[Row] {
+class TestTableFormat extends FormatDescriptor("test-format", 1) {
 
-  override def serialize(element: Row): Array[Byte] = throw new UnsupportedOperationException()
+  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
+    properties.putString("format.important", "this is important")
+    properties.putString("format.path", "/path/to/sth")
+    properties.putString("format.derive-schema", "true")
+  }
 }

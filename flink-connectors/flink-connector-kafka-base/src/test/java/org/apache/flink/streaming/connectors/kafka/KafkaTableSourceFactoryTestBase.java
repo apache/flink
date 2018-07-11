@@ -27,15 +27,17 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
-import org.apache.flink.table.formats.utils.TestDeserializationSchema;
-import org.apache.flink.table.formats.utils.TestTableFormat;
+import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.factories.utils.TestDeserializationSchema;
+import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
@@ -141,8 +143,12 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 					.field(EVENT_TIME, Types.SQL_TIMESTAMP()).rowtime(
 						new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
 					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime());
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		testDesc.addProperties(descriptorProperties);
+		final Map<String, String> propertiesMap = descriptorProperties.asMap();
 
-		final TableSource<?> actualSource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
+		final TableSource<?> actualSource = TableFactoryService.find(TableSourceFactory.class, testDesc)
+			.createTableSource(propertiesMap);
 
 		assertEquals(expected, actualSource);
 

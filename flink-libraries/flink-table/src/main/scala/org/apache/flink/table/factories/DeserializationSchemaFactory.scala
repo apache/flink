@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
-
-import org.apache.flink.table.sources.TableSource
+package org.apache.flink.table.factories
 
 import java.util
 
-trait TableSourceFactory[T] {
+import org.apache.flink.api.common.serialization.DeserializationSchema
+
+/**
+  * Factory for creating configured instances of [[DeserializationSchema]].
+  *
+  * @tparam T record type that the format produces or consumes
+  */
+trait DeserializationSchemaFactory[T] extends TableFormatFactory[T] {
+
   /**
-    * Creates and configures a [[org.apache.flink.table.sources.TableSource]]
-    * using the given properties.
+    * Creates and configures a [[DeserializationSchema]] using the given properties.
     *
-    * @param properties normalized properties describing a table source.
-    * @return the configured table source.
+    * @param properties normalized properties describing the format
+    * @return the configured serialization schema or null if the factory cannot provide an
+    *         instance of this class
     */
-  def createTableSource(properties: util.Map[String, String]): TableSource[T]
+  def createDeserializationSchema(properties: util.Map[String, String]): DeserializationSchema[T]
+
 }

@@ -23,8 +23,8 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.descriptors.AvroValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
-import org.apache.flink.table.formats.SerializationSchemaFactory;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.types.Row;
 
 import org.apache.avro.specific.SpecificRecord;

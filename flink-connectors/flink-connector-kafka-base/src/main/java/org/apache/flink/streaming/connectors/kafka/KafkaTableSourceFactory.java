@@ -23,13 +23,13 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.connectors.DiscoverableTableFactory;
-import org.apache.flink.table.connectors.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
-import org.apache.flink.table.formats.TableFormatFactoryService;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
@@ -72,7 +72,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link KafkaTableSource}.
  */
-public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>, DiscoverableTableFactory {
+public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>, TableFactory {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -129,7 +129,7 @@ public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>
 		new KafkaValidator().validate(params);
 
 		// deserialization schema using format discovery
-		final DeserializationSchemaFactory<?> formatFactory = TableFormatFactoryService.find(
+		final DeserializationSchemaFactory<?> formatFactory = TableFactoryService.find(
 			DeserializationSchemaFactory.class,
 			properties,
 			this.getClass().getClassLoader());

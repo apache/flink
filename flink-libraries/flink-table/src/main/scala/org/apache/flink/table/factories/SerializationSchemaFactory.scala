@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
-
-import org.apache.flink.table.sinks.TableSink
+package org.apache.flink.table.factories
 
 import java.util
 
-trait TableSinkFactory[T] {
+import org.apache.flink.api.common.serialization.SerializationSchema
+
+/**
+  * Factory for creating configured instances of [[SerializationSchema]].
+  *
+  * @tparam T record type that the format produces or consumes
+  */
+trait SerializationSchemaFactory[T] extends TableFormatFactory[T] {
+
   /**
-    * Creates and configures a [[org.apache.flink.table.sinks.TableSink]]
-    * using the given properties.
+    * Creates and configures a [[SerializationSchema]] using the given properties.
     *
-    * @param properties normalized properties describing a table source.
-    * @return the configured table source.
+    * @param properties normalized properties describing the format
+    * @return the configured serialization schema or null if the factory cannot provide an
+    *         instance of this class
     */
-  def createTableSink(properties: util.Map[String, String]): TableSink[T]
+  def createSerializationSchema(properties: util.Map[String, String]): SerializationSchema[T]
+
 }

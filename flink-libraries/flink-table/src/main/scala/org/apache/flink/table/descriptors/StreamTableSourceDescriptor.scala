@@ -19,7 +19,7 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException, ValidationException}
-import org.apache.flink.table.connectors.{TableFactoryService, TableSourceFactory}
+import org.apache.flink.table.factories.{TableFactoryService, TableSourceFactory}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 
 /**

@@ -21,11 +21,11 @@ package org.apache.flink.table.utils
 import java.util
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.connectors.{DiscoverableTableFactory, TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
+import org.apache.flink.table.factories.{TableFactory, TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
@@ -39,7 +39,7 @@ import org.apache.flink.types.Row
   * @param terminationCount determines when to shutdown the streaming source function
   */
 class InMemoryTableFactory(terminationCount: Int) extends TableSourceFactory[Row]
-  with TableSinkFactory[Row] with DiscoverableTableFactory {
+  with TableSinkFactory[Row] with TableFactory {
   override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)

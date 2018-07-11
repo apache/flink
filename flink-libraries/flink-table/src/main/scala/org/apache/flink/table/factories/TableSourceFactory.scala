@@ -16,18 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats.utils
+package org.apache.flink.table.factories
 
-import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptor}
+import org.apache.flink.table.sources.TableSource
 
-/**
-  * Format descriptor for testing purposes.
-  */
-class TestTableFormat extends FormatDescriptor("test-format", 1) {
+import java.util
 
-  override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
-    properties.putString("format.important", "this is important")
-    properties.putString("format.path", "/path/to/sth")
-    properties.putString("format.derive-schema", "true")
-  }
+trait TableSourceFactory[T] extends TableFactory {
+
+  /**
+    * Creates and configures a [[org.apache.flink.table.sources.TableSource]]
+    * using the given properties.
+    *
+    * @param properties normalized properties describing a table source.
+    * @return the configured table source.
+    */
+  def createTableSource(properties: util.Map[String, String]): TableSource[T]
 }

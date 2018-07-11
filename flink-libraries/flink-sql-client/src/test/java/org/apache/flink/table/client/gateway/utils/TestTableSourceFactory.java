@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
-import org.apache.flink.table.connectors.DiscoverableTableFactory;
-import org.apache.flink.table.connectors.TableSourceFactory;
+import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
@@ -51,7 +51,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Table source factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSourceFactory implements TableSourceFactory<Row>, DiscoverableTableFactory {
+public class TestTableSourceFactory implements TableSourceFactory<Row>, TableFactory {
 
 	@Override
 	public Map<String, String> requiredContext() {

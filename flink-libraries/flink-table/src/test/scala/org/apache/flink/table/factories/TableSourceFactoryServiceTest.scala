@@ -16,85 +16,77 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
-import org.apache.flink.table.api.{NoMatchingTableFactoryException, ValidationException}
+import java.util.{HashMap => JHashMap, Map => JMap}
+
+import org.apache.flink.table.api.NoMatchingTableFactoryException
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.descriptors.TableDescriptorValidator
-import org.apache.flink.table.sources.TestWildcardFormatTableSourceFactory
+import org.apache.flink.table.factories.utils.TestFixedFormatTableFactory.{CONNECTOR_TYPE_VALUE_FIXED, FORMAT_TYPE_VALUE_TEST}
+import org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory.CONNECTOR_TYPE_VALUE_WILDCARD
+import org.apache.flink.table.factories.utils.{TestFixedFormatTableFactory, TestWildcardFormatTableSourceFactory}
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-
+/**
+  * Tests for testing table source discovery using [[TableFactoryService]]. The tests assume the
+  * two table source factories [[TestFixedFormatTableFactory]] and
+  * [[TestWildcardFormatTableSourceFactory]] are registered.
+  *
+  * The first table source has a [[FORMAT_TYPE_VALUE_TEST]] type where as the second source uses
+  * a wildcard to match arbitrary formats.
+  */
 class TableSourceFactoryServiceTest {
 
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "fixed")
-    props.put(FORMAT_TYPE, "test")
-    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap) != null)
+    props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
+    props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
+    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+      .isInstanceOf[TestFixedFormatTableFactory])
   }
 
   @Test(expected = classOf[NoMatchingTableFactoryException])
   def testInvalidContext(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "FAIL")
-    props.put(FORMAT_TYPE, "test")
-    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
+    props.put(CONNECTOR_TYPE, "unknown-connector-type")
+    props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
+    TableFactoryService.find(classOf[TableSourceFactory[_]], props)
   }
 
   @Test
   def testDifferentContextVersion(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "fixed")
-    props.put(FORMAT_TYPE, "test")
+    props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
+    props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap) != null)
+    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+      .isInstanceOf[TestFixedFormatTableFactory])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[NoMatchingTableFactoryException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "fixed")
-    props.put(FORMAT_TYPE, "test")
-    props.put("format.path_new", "/new/path")
-    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
-  }
-
-  @Test(expected = classOf[IllegalArgumentException])
-  def testFailingFactory(): Unit = {
-    val props = properties()
-    props.put(CONNECTOR_TYPE, "fixed")
-    props.put(FORMAT_TYPE, "test")
-    props.put("failing", "true")
-    TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
-      .asInstanceOf[TableSourceFactory[_]]
-      .createTableSource(props.asJava)
+    props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
+    props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
+    props.put("format.unknown-format-type-property", "/new/path")
+    TableFactoryService.find(classOf[TableSourceFactory[_]], props)
   }
 
   @Test
   def testWildcardFormat(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "wildcard")
-    props.put(FORMAT_TYPE, "test")
-    props.put("format.type", "not-test")
-    props.put("format.not-test-property", "wildcard-property")
-    val actualTableSource = TableFactoryService.find(classOf[TableSourceFactory[_]], props.toMap)
+    props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_WILDCARD)
+    props.put("format.unknown-format-type-property", "wildcard-property")
+    val actualTableSource = TableFactoryService.find(classOf[TableSourceFactory[_]], props)
     assertTrue(actualTableSource.isInstanceOf[TestWildcardFormatTableSourceFactory])
   }
 
-  private def properties(): mutable.Map[String, String] = {
-    val properties = mutable.Map[String, String]()
-    properties.put(
-      TableDescriptorValidator.TABLE_TYPE,
-      TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE)
-    properties.put(CONNECTOR_TYPE, "test")
-    properties.put(FORMAT_TYPE, "test")
+  private def properties(): JMap[String, String] = {
+    val properties = new JHashMap[String, String]()
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")
     properties.put(FORMAT_PROPERTY_VERSION, "1")
     properties.put("format.path", "/path/to/target")
@@ -104,7 +96,6 @@ class TableSourceFactoryServiceTest {
     properties.put("schema.0.field.0.name", "a")
     properties.put("schema.0.field.1.name", "b")
     properties.put("schema.0.field.2.name", "c")
-    properties.put("failing", "false")
     properties
   }
 }

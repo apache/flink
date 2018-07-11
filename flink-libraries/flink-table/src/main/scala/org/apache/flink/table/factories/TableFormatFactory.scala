@@ -16,42 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats
+package org.apache.flink.table.factories
 
 import java.util
 
-import org.apache.flink.api.common.serialization.{DeserializationSchema, SerializationSchema}
-
 /**
-  * A factory to create different table format instances. This factory is used with Java's Service
-  * Provider Interfaces (SPI) for discovering. A factory is called with a set of normalized
-  * properties that describe the desired format. The factory allows for matching to the given set of
-  * properties. See also [[SerializationSchemaFactory]] and [[DeserializationSchemaFactory]] for
-  * creating configured instances of format classes accordingly.
-  *
-  * Classes that implement this interface need to be added to the
-  * "META_INF/services/org.apache.flink.table.formats.TableFormatFactory' file of a JAR file in
-  * the current classpath to be found.
+  * A factory to create configured table format instances based on string-based properties. See
+  * also [[TableFactory]] for more information.
   *
   * @tparam T record type that the format produces or consumes
   */
-trait TableFormatFactory[T] {
-
-  /**
-    * Specifies the context that this factory has been implemented for. The framework guarantees
-    * to only use the factory if the specified set of properties and values are met.
-    *
-    * Typical properties might be:
-    *   - format.type
-    *   - format.version
-    *
-    * Specified property versions allow the framework to provide backwards compatible properties
-    * in case of string format changes:
-    *   - format.property-version
-    *
-    * An empty context means that the factory matches for all requests.
-    */
-  def requiredContext(): util.Map[String, String]
+trait TableFormatFactory[T] extends TableFactory {
 
   /**
     * Flag to indicate if the given format supports deriving information from a schema. If the
@@ -75,10 +50,13 @@ trait TableFormatFactory[T] {
     *   - schema.#.name
     *   - schema.#.type
     *
-    * Note: Supported format properties must be prefixed with "format.". If schema derivation is
-    * enabled, also properties with "schema." prefix can be used. Use "#" to denote an array of
-    * values where "#" represents one or more digits. Property versions like
-    * "format.property-version" must not be part of the supported properties.
+    * Note: All supported format properties must be prefixed with "format.". If schema derivation is
+    * enabled, also properties with "schema." prefix can be used.
+    *
+    * Use "#" to denote an array of values where "#" represents one or more digits. Property
+    * versions like "format.property-version" must not be part of the supported properties.
+    *
+    * @see See also [[TableFactory.supportedProperties()]] for more information.
     */
   def supportedProperties(): util.List[String]
 

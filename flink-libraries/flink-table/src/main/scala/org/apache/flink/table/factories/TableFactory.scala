@@ -16,17 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories
 
 import java.util
 
 /**
-  * Common trait for all properties-based discoverable table factories.
+  * A factory to create different table-related instances from string-based properties. This
+  * factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory is
+  * called with a set of normalized properties that describe the desired configuration. The factory
+  * allows for matching to the given set of properties.
+  *
+  * Classes that implement this interface can be added to the
+  * "META_INF/services/org.apache.flink.table.factories.TableFactory" file of a JAR file in
+  * the current classpath to be found.
   */
-trait DiscoverableTableFactory {
+trait TableFactory {
 
   /**
-    * Specifies the context that this factory has been implemented for.
+    * Specifies the context that this factory has been implemented for. The framework guarantees to
+    * only match for this factory if the specified set of properties and values are met.
     *
     * Typical properties might be:
     *   - connector.type
@@ -47,6 +55,9 @@ trait DiscoverableTableFactory {
     * list must not contain the keys that are specified by the context.
     *
     * Example properties might be:
+    *   - schema.#.type
+    *   - schema.#.name
+    *   - connector.topic
     *   - format.line-delimiter
     *   - format.ignore-parse-errors
     *   - format.fields.#.type

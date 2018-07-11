@@ -26,9 +26,9 @@ import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
-import org.apache.flink.table.formats.SerializationSchemaFactory;
-import org.apache.flink.table.formats.TableFormatFactoryService;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.SerializationSchemaFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.TestLogger;
 
@@ -107,7 +107,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
 		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(SCHEMA);
@@ -116,7 +116,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
+		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
 		final SerializationSchema expected1 = new JsonRowSerializationSchema(SCHEMA);
@@ -124,7 +124,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testJsonSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
 		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema(JSON_SCHEMA);
@@ -133,7 +133,7 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testJsonSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
+		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
 		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema(JSON_SCHEMA);

@@ -16,21 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats.utils
+package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.table.descriptors.FormatDescriptorValidator
-import org.apache.flink.table.formats.{TableFormatFactory, TableFormatFactoryServiceTest}
+import org.apache.flink.api.common.serialization.DeserializationSchema
+import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
+import org.apache.flink.table.factories.{DeserializationSchemaFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
   * Table format factory for testing.
   *
-  * It does not support UNIQUE_PROPERTY compared to [[TestTableFormatFactory]] nor
-  * schema derivation. Both formats have the same context and support COMMON_PATH.
+  * It has the same context as [[TestAmbiguousTableFormatFactory]] and both support COMMON_PATH.
+  * This format does not support SPECIAL_PATH but supports schema derivation.
   */
-class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
+class TestTableFormatFactory extends DeserializationSchemaFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -41,12 +42,24 @@ class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
     context
   }
 
-  override def supportsSchemaDerivation(): Boolean = false // no schema derivation
+  override def supportsSchemaDerivation(): Boolean = true
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
+    properties.add(TableFormatFactoryServiceTest.UNIQUE_PROPERTY)
     properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
-    properties.add(TableFormatFactoryServiceTest.SPECIAL_PATH)
+    properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
+    properties.addAll(SchemaValidator.getSchemaDerivationKeys)
     properties
+  }
+
+  override def createDeserializationSchema(
+      properties: util.Map[String, String])
+    : DeserializationSchema[Row] = {
+
+    val props = new DescriptorProperties(true)
+    props.putProperties(properties)
+    val schema = SchemaValidator.deriveFormatFields(props)
+    new TestDeserializationSchema(schema.toRowType)
   }
 }

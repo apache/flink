@@ -26,8 +26,8 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.JsonValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
-import org.apache.flink.table.formats.DeserializationSchemaFactory;
-import org.apache.flink.table.formats.SerializationSchemaFactory;
+import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;

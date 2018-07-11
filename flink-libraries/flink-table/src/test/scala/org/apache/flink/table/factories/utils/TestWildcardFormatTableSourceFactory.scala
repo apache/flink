@@ -16,49 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.factories.TableSourceFactory
+import org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory.CONNECTOR_TYPE_VALUE_WILDCARD
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
 /**
-  * Table source factory for testing.
+  * Table source factory for testing with a wildcard format ("format.*").
   */
-class TestTableSourceFactory extends TableSourceFactory[Row] with DiscoverableTableFactory {
+class TestWildcardFormatTableSourceFactory
+  extends TableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "test")
-    context.put(FORMAT_TYPE, "test")
+    context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_WILDCARD)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
-    context.put(FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    // connector
-    properties.add("format.path")
+    properties.add("format.*")
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
-    properties.add("failing")
     properties
   }
 
   override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
-    if (properties.get("failing") == "true") {
-      throw new IllegalArgumentException("Error in this factory.")
-    }
-    new TableSource[Row] {
-      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
-
-      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
-    }
+    throw new UnsupportedOperationException()
   }
+}
+
+object TestWildcardFormatTableSourceFactory {
+  val CONNECTOR_TYPE_VALUE_WILDCARD = "wildcard"
 }

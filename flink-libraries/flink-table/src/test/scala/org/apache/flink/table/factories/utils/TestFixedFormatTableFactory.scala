@@ -16,23 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories.utils
 
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.connectors.TestTableSinkFactory.FORMAT_PATH
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
-import org.apache.flink.table.descriptors.FormatDescriptorValidator._
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
+import org.apache.flink.table.factories.TableSourceFactory
+import org.apache.flink.table.factories.utils.TestFixedFormatTableFactory._
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.types.Row
 
-class TestTableSinkFactory extends TableSinkFactory[Row] with DiscoverableTableFactory {
+/**
+  * Table source factory for testing with a fixed format.
+  */
+class TestFixedFormatTableFactory extends TableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "test")
-    context.put(FORMAT_TYPE, "test")
+    context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
+    context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
     context.put(FORMAT_PROPERTY_VERSION, "1")
     context
@@ -40,36 +45,22 @@ class TestTableSinkFactory extends TableSinkFactory[Row] with DiscoverableTableF
 
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    // connector
-    properties.add(FORMAT_PATH)
+    properties.add("format.path")
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
-    properties.add("failing")
     properties
   }
 
-  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
-    if (properties.get("failing") == "true") {
-      throw new IllegalArgumentException("Error in this factory.")
-    }
-    new TableSink[Row] {
-      override def getOutputType: TypeInformation[Row] = throw new UnsupportedOperationException()
+  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+    new TableSource[Row] {
+      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
 
-      override def getFieldNames: Array[String] = throw new UnsupportedOperationException()
-
-      override def getFieldTypes: Array[TypeInformation[_]] =
-        throw new UnsupportedOperationException()
-
-      override def configure(fieldNames: Array[String],
-                             fieldTypes: Array[TypeInformation[_]]): TableSink[Row] =
-        throw new UnsupportedOperationException()
+      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
     }
   }
 }
 
-object TestTableSinkFactory {
-  val CONNECTOR_TYPE_VALUE_TEST = "test"
+object TestFixedFormatTableFactory {
+  val CONNECTOR_TYPE_VALUE_FIXED = "fixed"
   val FORMAT_TYPE_VALUE_TEST = "test"
-  val FORMAT_PATH = "format.path"
 }
-

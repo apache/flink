@@ -16,38 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.connectors
+package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.descriptors.FormatDescriptorValidator
+import org.apache.flink.table.factories.{TableFormatFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
-  * Table source factory for testing with a wildcard format ("format.*").
+  * Table format factory for testing.
+  *
+  * It does not support UNIQUE_PROPERTY compared to [[TestTableFormatFactory]] nor
+  * schema derivation. Both formats have the same context and support COMMON_PATH.
   */
-class TestWildcardFormatTableSourceFactory
-  extends TableSourceFactory[Row]
-  with DiscoverableTableFactory  {
+class TestAmbiguousTableFormatFactory extends TableFormatFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "wildcard")
-    context.put(CONNECTOR_PROPERTY_VERSION, "1")
+    context.put(
+      FormatDescriptorValidator.FORMAT_TYPE,
+      TableFormatFactoryServiceTest.TEST_FORMAT_TYPE)
+    context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION, "1")
     context
   }
 
+  override def supportsSchemaDerivation(): Boolean = false // no schema derivation
+
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
-    properties.add("format.*")
-    properties.add("schema.#.name")
-    properties.add("schema.#.field.#.name")
-    properties.add("failing")
+    properties.add(TableFormatFactoryServiceTest.COMMON_PATH)
+    properties.add(TableFormatFactoryServiceTest.SPECIAL_PATH)
     properties
-  }
-
-  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
-    throw new UnsupportedOperationException()
   }
 }

@@ -21,7 +21,7 @@ package org.apache.flink.table.sources
 import java.util
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.connectors.{DiscoverableTableFactory, TableSourceFactory}
+import org.apache.flink.table.factories.{TableFactory, TableSourceFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.DescriptorProperties.toScala
@@ -34,7 +34,7 @@ import org.apache.flink.types.Row
 /**
   * Factory for creating configured instances of [[CsvTableSource]].
   */
-class CsvTableSourceFactory extends TableSourceFactory[Row] with DiscoverableTableFactory {
+class CsvTableSourceFactory extends TableSourceFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
