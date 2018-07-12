@@ -138,12 +138,12 @@ public class RestServerEndpointITCase extends TestLogger {
 			.getFile()).getAbsolutePath();
 
 		final Configuration sslConfig = new Configuration(config);
-		sslConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE, truststorePath);
-		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_KEYSTORE, keystorePath);
-		sslConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
+		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
+		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
 		return Arrays.asList(new Object[][]{
 			{config}, {sslConfig}
@@ -164,7 +164,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		defaultSSLContext = SSLContext.getDefault();
-		final SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
+		final SSLContext sslClientContext = SSLUtils.createRestClientSSLContext(config);
 		if (sslClientContext != null) {
 			SSLContext.setDefault(sslClientContext);
 		}
@@ -209,7 +209,9 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
-		SSLContext.setDefault(defaultSSLContext);
+		if (defaultSSLContext != null) {
+			SSLContext.setDefault(defaultSSLContext);
+		}
 
 		if (restClient != null) {
 			restClient.shutdown(timeout);

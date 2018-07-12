@@ -22,13 +22,14 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
+import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -89,9 +90,9 @@ public class NettyConfig {
 		NIO, EPOLL, AUTO
 	}
 
-	final static String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
+	static final String SERVER_THREAD_GROUP_NAME = "Flink Netty Server";
 
-	final static String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
+	static final String CLIENT_THREAD_GROUP_NAME = "Flink Netty Client";
 
 	private final InetAddress serverAddress;
 
@@ -189,39 +190,23 @@ public class NettyConfig {
 		}
 	}
 
-	public SSLContext createClientSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext clientSSLContext = null;
-		if (getSSLEnabled()) {
-			clientSSLContext = SSLUtils.createSSLClientContext(config);
-		}
-
-		return clientSSLContext;
+	@Nullable
+	public SSLEngineFactory createClientSSLEngineFactory() throws Exception {
+		return getSSLEnabled() ?
+				SSLUtils.createInternalClientSSLEngineFactory(config) :
+				null;
 	}
 
-	public SSLContext createServerSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext serverSSLContext = null;
-		if (getSSLEnabled()) {
-			serverSSLContext = SSLUtils.createSSLServerContext(config);
-		}
-
-		return serverSSLContext;
+	@Nullable
+	public SSLEngineFactory createServerSSLEngineFactory() throws Exception {
+		return getSSLEnabled() ?
+				SSLUtils.createInternalServerSSLEngineFactory(config) :
+				null;
 	}
 
 	public boolean getSSLEnabled() {
 		return config.getBoolean(TaskManagerOptions.DATA_SSL_ENABLED)
-			&& SSLUtils.getSSLEnabled(config);
-	}
-
-	public void setSSLVerAndCipherSuites(SSLEngine engine) {
-		SSLUtils.setSSLVerAndCipherSuites(engine, config);
-	}
-
-	public void setSSLVerifyHostname(SSLParameters sslParams) {
-		SSLUtils.setSSLVerifyHostname(config, sslParams);
+			&& SSLUtils.isInternalSSLEnabled(config);
 	}
 
 	public boolean isCreditBasedEnabled() {
@@ -245,7 +230,7 @@ public class NettyConfig {
 		String def = "use Netty's default";
 		String man = "manual";
 
-		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true":"false",
+		return String.format(format, serverAddress, serverPort, getSSLEnabled() ? "true" : "false",
 				memorySegmentSize, getTransportType(), getServerNumThreads(),
 				getServerNumThreads() == 0 ? def : man,
 				getClientNumThreads(), getClientNumThreads() == 0 ? def : man,

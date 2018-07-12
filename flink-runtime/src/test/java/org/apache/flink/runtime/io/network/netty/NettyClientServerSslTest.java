@@ -151,15 +151,14 @@ public class NettyClientServerSslTest {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
-	private Configuration createSslConfig() throws Exception {
-
+	private static Configuration createSslConfig() throws Exception {
 		Configuration flinkConfig = new Configuration();
-		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
+		flinkConfig.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+		flinkConfig.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/local127.keystore");
+		flinkConfig.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
+		flinkConfig.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
+		flinkConfig.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, "src/test/resources/local127.truststore");
+		flinkConfig.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
 		return flinkConfig;
 	}
 }
