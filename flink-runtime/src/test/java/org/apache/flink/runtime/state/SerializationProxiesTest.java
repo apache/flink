@@ -419,6 +419,7 @@ public class SerializationProxiesTest {
 
 	private void assertEqualStateMetaInfoSnapshots(StateMetaInfoSnapshot expected, StateMetaInfoSnapshot actual) {
 		Assert.assertEquals(expected.getName(), actual.getName());
+		Assert.assertEquals(expected.getBackendStateType(), actual.getBackendStateType());
 		Assert.assertEquals(expected.getOptionsImmutable(), actual.getOptionsImmutable());
 		Assert.assertEquals(expected.getSerializersImmutable(), actual.getSerializersImmutable());
 		Assert.assertEquals(

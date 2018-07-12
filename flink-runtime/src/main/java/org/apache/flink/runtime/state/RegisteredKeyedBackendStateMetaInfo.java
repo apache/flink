@@ -50,15 +50,6 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	private final TypeSerializer<N> namespaceSerializer;
 	private final TypeSerializer<S> stateSerializer;
 
-	@SuppressWarnings("unchecked")
-	public RegisteredKeyedBackendStateMetaInfo(StateMetaInfoSnapshot snapshot) {
-		this(
-			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
-			snapshot.getName(),
-			(TypeSerializer<N>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
-			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
-	}
-
 	public RegisteredKeyedBackendStateMetaInfo(
 			StateDescriptor.Type stateType,
 			String name,
@@ -69,6 +60,16 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 		this.stateType = checkNotNull(stateType);
 		this.namespaceSerializer = checkNotNull(namespaceSerializer);
 		this.stateSerializer = checkNotNull(stateSerializer);
+	}
+
+	@SuppressWarnings("unchecked")
+	public RegisteredKeyedBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+		this(
+			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
+			snapshot.getName(),
+			(TypeSerializer<N>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
+			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
+		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
 
 	public StateDescriptor.Type getStateType() {
@@ -201,6 +202,11 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 		serializerMap.put(valueSerializerKey, stateSerializer.duplicate());
 		serializerConfigSnapshotsMap.put(valueSerializerKey, stateSerializer.snapshotConfiguration());
 
-		return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigSnapshotsMap, serializerMap);
+		return new StateMetaInfoSnapshot(
+			name,
+			StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+			optionsMap,
+			serializerConfigSnapshotsMap,
+			serializerMap);
 	}
 }

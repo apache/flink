@@ -63,13 +63,14 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredBroadcastBackendStateMetaInfo(StateMetaInfoSnapshot snapshot) {
+	public RegisteredBroadcastBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)),
 			(TypeSerializer<K>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER),
 			(TypeSerializer<V>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
+		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.BROADCAST == snapshot.getBackendStateType());
 	}
 
 	/**
@@ -94,7 +95,12 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 		serializerMap.put(valueSerializerKey, valueSerializer.duplicate());
 		serializerConfigSnapshotsMap.put(valueSerializerKey, valueSerializer.snapshotConfiguration());
 
-		return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigSnapshotsMap, serializerMap);
+		return new StateMetaInfoSnapshot(
+			name,
+			StateMetaInfoSnapshot.BackendStateType.BROADCAST,
+			optionsMap,
+			serializerConfigSnapshotsMap,
+			serializerMap);
 	}
 
 	public TypeSerializer<K> getKeySerializer() {

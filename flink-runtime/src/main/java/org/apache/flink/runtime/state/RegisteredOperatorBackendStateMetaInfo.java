@@ -63,12 +63,13 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredOperatorBackendStateMetaInfo(StateMetaInfoSnapshot snapshot) {
+	public RegisteredOperatorBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
 			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
 			OperatorStateHandle.Mode.valueOf(
 				snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE)));
+		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.OPERATOR == snapshot.getBackendStateType());
 	}
 
 	/**
@@ -90,7 +91,12 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 		Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshotsMap =
 			Collections.singletonMap(valueSerializerKey, partitionStateSerializer.snapshotConfiguration());
 
-		return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigSnapshotsMap, serializerMap);
+		return new StateMetaInfoSnapshot(
+			name,
+			StateMetaInfoSnapshot.BackendStateType.OPERATOR,
+			optionsMap,
+			serializerConfigSnapshotsMap,
+			serializerMap);
 	}
 
 	public OperatorStateHandle.Mode getAssignmentMode() {

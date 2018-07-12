@@ -35,6 +35,16 @@ import java.util.Map;
 public class StateMetaInfoSnapshot {
 
 	/**
+	 * Enum that defines the different types of state that live in Flink backends.
+	 */
+	public enum BackendStateType {
+		KEY_VALUE,
+		OPERATOR,
+		BROADCAST,
+		TIMER
+	}
+
+	/**
 	 * Predefined keys for the most common options in the meta info.
 	 */
 	public enum CommonOptionsKeys {
@@ -60,6 +70,9 @@ public class StateMetaInfoSnapshot {
 	@Nonnull
 	private final String name;
 
+	@Nonnull
+	private final BackendStateType backendStateType;
+
 	/** Map of options (encoded as strings) for the state. */
 	@Nonnull
 	private final Map<String, String> options;
@@ -75,13 +88,20 @@ public class StateMetaInfoSnapshot {
 
 	public StateMetaInfoSnapshot(
 		@Nonnull String name,
+		@Nonnull BackendStateType backendStateType,
 		@Nonnull Map<String, String> options,
 		@Nonnull Map<String, TypeSerializerConfigSnapshot> serializerConfigSnapshots,
 		@Nonnull Map<String, TypeSerializer<?>> serializers) {
 		this.name = name;
+		this.backendStateType = backendStateType;
 		this.options = options;
 		this.serializerConfigSnapshots = serializerConfigSnapshots;
 		this.serializers = serializers;
+	}
+
+	@Nonnull
+	public BackendStateType getBackendStateType() {
+		return backendStateType;
 	}
 
 	@Nullable

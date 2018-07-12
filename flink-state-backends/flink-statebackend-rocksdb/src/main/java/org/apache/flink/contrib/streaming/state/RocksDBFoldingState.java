@@ -58,12 +58,13 @@ class RocksDBFoldingState<K, N, T, ACC>
 	 * @param foldFunction The fold function used for folding state.
 	 * @param backend The backend for which this state is bind to.
 	 */
-	private RocksDBFoldingState(ColumnFamilyHandle columnFamily,
-								TypeSerializer<N> namespaceSerializer,
-								TypeSerializer<ACC> valueSerializer,
-								ACC defaultValue,
-								FoldFunction<T, ACC> foldFunction,
-								RocksDBKeyedStateBackend<K> backend) {
+	private RocksDBFoldingState(
+		ColumnFamilyHandle columnFamily,
+		TypeSerializer<N> namespaceSerializer,
+		TypeSerializer<ACC> valueSerializer,
+		ACC defaultValue,
+		FoldFunction<T, ACC> foldFunction,
+		RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
 

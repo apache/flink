@@ -149,6 +149,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 			Preconditions.checkState(serializerMap.size() == serializerConfigSnapshotsMap.size());
 
 			outputView.writeUTF(snapshot.getName());
+			outputView.writeInt(snapshot.getBackendStateType().ordinal());
 			outputView.writeInt(optionsMap.size());
 			for (Map.Entry<String, String> entry : optionsMap.entrySet()) {
 				outputView.writeUTF(entry.getKey());
@@ -187,6 +188,8 @@ public class StateMetaInfoSnapshotReadersWriters {
 			@Nonnull ClassLoader userCodeClassLoader) throws IOException {
 
 			final String stateName = inputView.readUTF();
+			final StateMetaInfoSnapshot.BackendStateType stateType =
+				StateMetaInfoSnapshot.BackendStateType.values()[inputView.readInt()];
 			final int numOptions = inputView.readInt();
 			HashMap<String, String> optionsMap = new HashMap<>(numOptions);
 			for (int i = 0; i < numOptions; ++i) {
@@ -213,7 +216,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 				serializerConfigsMap.put(key, serializerConfigTuple.f1);
 			}
 
-			return new StateMetaInfoSnapshot(stateName, optionsMap, serializerConfigsMap, serializerMap);
+			return new StateMetaInfoSnapshot(stateName, stateType, optionsMap, serializerConfigsMap, serializerMap);
 		}
 	}
 
@@ -254,7 +257,12 @@ public class StateMetaInfoSnapshotReadersWriters {
 			serializerConfigSnapshotMap.put(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				serializersAndConfigs.get(1).f1);
 
-			return new StateMetaInfoSnapshot(stateName, optionsMap, serializerConfigSnapshotMap, serializerMap);
+			return new StateMetaInfoSnapshot(
+				stateName,
+				StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+				optionsMap,
+				serializerConfigSnapshotMap,
+				serializerMap);
 		}
 	}
 
@@ -288,7 +296,12 @@ public class StateMetaInfoSnapshotReadersWriters {
 			serializerMap.put(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
 				TypeSerializerSerializationUtil.tryReadSerializer(in, userCodeClassLoader, true));
-			return new StateMetaInfoSnapshot(stateName, optionsMap, Collections.emptyMap(), serializerMap);
+			return new StateMetaInfoSnapshot(
+				stateName,
+				StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+				optionsMap,
+				Collections.emptyMap(),
+				serializerMap);
 		}
 	}
 
@@ -324,6 +337,8 @@ public class StateMetaInfoSnapshotReadersWriters {
 				TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(in, userCodeClassLoader);
 
 			final int listSize = stateSerializerAndConfigList.size();
+			StateMetaInfoSnapshot.BackendStateType stateType = listSize == 1 ?
+				StateMetaInfoSnapshot.BackendStateType.OPERATOR : StateMetaInfoSnapshot.BackendStateType.BROADCAST;
 			Map<String, TypeSerializer<?>> serializerMap = new HashMap<>(listSize);
 			Map<String, TypeSerializerConfigSnapshot> serializerConfigsMap = new HashMap<>(listSize);
 			for (int i = 0; i < listSize; ++i) {
@@ -341,7 +356,12 @@ public class StateMetaInfoSnapshotReadersWriters {
 					serializerAndConf.f1);
 			}
 
-			return new StateMetaInfoSnapshot(name, optionsMap, serializerConfigsMap, serializerMap);
+			return new StateMetaInfoSnapshot(
+				name,
+				stateType,
+				optionsMap,
+				serializerConfigsMap,
+				serializerMap);
 		}
 	}
 
@@ -375,6 +395,7 @@ public class StateMetaInfoSnapshotReadersWriters {
 				TypeSerializer<?> stateSerializer = (TypeSerializer<?>) ois.readObject();
 				return new StateMetaInfoSnapshot(
 					name,
+					StateMetaInfoSnapshot.BackendStateType.OPERATOR,
 					optionsMap,
 					Collections.emptyMap(),
 					Collections.singletonMap(

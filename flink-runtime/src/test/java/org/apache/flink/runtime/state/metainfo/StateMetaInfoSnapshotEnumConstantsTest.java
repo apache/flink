@@ -20,13 +20,24 @@ package org.apache.flink.runtime.state.metainfo;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 /**
  * This test fixes the enum constants in {@link StateMetaInfoSnapshot} because any changes can break backwards
  * compatibility. Consider this before changing this test.
  */
 public class StateMetaInfoSnapshotEnumConstantsTest {
+
+	@Test
+	public void testFixedBackendStateTypeEnumConstants() {
+		Assert.assertEquals(4, StateMetaInfoSnapshot.BackendStateType.values().length);
+		Assert.assertEquals(0, StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal());
+		Assert.assertEquals(1, StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal());
+		Assert.assertEquals(2, StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal());
+		Assert.assertEquals(3, StateMetaInfoSnapshot.BackendStateType.TIMER.ordinal());
+		Assert.assertEquals("KEY_VALUE", StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.toString());
+		Assert.assertEquals("OPERATOR", StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString());
+		Assert.assertEquals("BROADCAST", StateMetaInfoSnapshot.BackendStateType.BROADCAST.toString());
+		Assert.assertEquals("TIMER", StateMetaInfoSnapshot.BackendStateType.TIMER.toString());
+	}
 
 	@Test
 	public void testFixedOptionsEnumConstants() {
