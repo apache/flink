@@ -20,20 +20,18 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.List;
 
 /** Test suite for {@link TtlReducingState}. */
-public class TtlReducingStateTest
-	extends TtlMergingStateBase.TtlIntegerMergingStateBase<TtlReducingState<?, String, Integer>, Integer, Integer> {
+class TtlReducingStateTestContext
+	extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<TtlReducingState<?, String, Integer>, Integer, Integer> {
 	@Override
 	void initTestValues() {
-		updater = v -> ttlState.add(v);
-		getter = () -> ttlState.get();
-		originalGetter = () -> ttlState.original.get();
-
 		updateEmpty = 5;
 		updateUnexpired = 7;
 		updateExpired = 6;
@@ -43,11 +41,26 @@ public class TtlReducingStateTest
 		getUpdateExpired = 6;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	TtlReducingState<?, String, Integer> createState() {
-		ReducingStateDescriptor<Integer> aggregatingStateDes =
-			new ReducingStateDescriptor<>("TtlTestReducingState", REDUCE, IntSerializer.INSTANCE);
-		return (TtlReducingState<?, String, Integer>) wrapMockState(aggregatingStateDes);
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new ReducingStateDescriptor<>(
+			"TtlTestReducingState", REDUCE, IntSerializer.INSTANCE);
+	}
+
+	@Override
+	void update(Integer value) throws Exception {
+		ttlState.add(value);
+	}
+
+	@Override
+	Integer get() throws Exception {
+		return ttlState.get();
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.get();
 	}
 
 	@Override

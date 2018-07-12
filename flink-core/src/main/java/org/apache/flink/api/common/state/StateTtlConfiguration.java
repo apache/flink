@@ -27,9 +27,11 @@ import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateT
 
 /**
  * Configuration of state TTL logic.
- * TODO: builder
  */
 public class StateTtlConfiguration {
+	public static final StateTtlConfiguration DISABLED =
+		newBuilder(Time.milliseconds(Long.MAX_VALUE)).setTtlUpdateType(TtlUpdateType.Disabled).build();
+
 	/**
 	 * This option value configures when to update last access timestamp which prolongs state TTL.
 	 */
@@ -94,6 +96,10 @@ public class StateTtlConfiguration {
 		return timeCharacteristic;
 	}
 
+	public boolean isEnabled() {
+		return ttlUpdateType != TtlUpdateType.Disabled;
+	}
+
 	@Override
 	public String toString() {
 		return "StateTtlConfiguration{" +
@@ -132,6 +138,14 @@ public class StateTtlConfiguration {
 			return this;
 		}
 
+		public Builder updateTtlOnCreateAndWrite() {
+			return setTtlUpdateType(TtlUpdateType.OnCreateAndWrite);
+		}
+
+		public Builder updateTtlOnReadAndWrite() {
+			return setTtlUpdateType(TtlUpdateType.OnReadAndWrite);
+		}
+
 		/**
 		 * Sets the state visibility.
 		 *
@@ -142,6 +156,14 @@ public class StateTtlConfiguration {
 			return this;
 		}
 
+		public Builder returnExpiredIfNotCleanedUp() {
+			return setStateVisibility(TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		}
+
+		public Builder neverReturnExpired() {
+			return setStateVisibility(TtlStateVisibility.NeverReturnExpired);
+		}
+
 		/**
 		 * Sets the time characteristic.
 		 *
@@ -150,6 +172,10 @@ public class StateTtlConfiguration {
 		public Builder setTimeCharacteristic(TtlTimeCharacteristic timeCharacteristic) {
 			this.timeCharacteristic = timeCharacteristic;
 			return this;
+		}
+
+		public Builder useProcessingTime() {
+			return setTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
 		}
 
 		/**

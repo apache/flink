@@ -73,6 +73,7 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.types.IntValue;
@@ -182,7 +183,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				keySerializer,
 				numberOfKeyGroups,
 				keyGroupRange,
-				env.getTaskKvStateRegistry());
+				env.getTaskKvStateRegistry(),
+			    TtlTimeProvider.DEFAULT);
 
 		backend.restore(null);
 
@@ -219,7 +221,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			keySerializer,
 			numberOfKeyGroups,
 			keyGroupRange,
-			env.getTaskKvStateRegistry());
+			env.getTaskKvStateRegistry(),
+			TtlTimeProvider.DEFAULT);
 
 		backend.restore(new StateObjectCollection<>(state));
 
@@ -3545,7 +3548,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 
 			// insert some data to the backend.
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createInternalState(
 				VoidNamespaceSerializer.INSTANCE,
 				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3602,7 +3605,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		try {
 			backend = createKeyedBackend(IntSerializer.INSTANCE);
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createInternalState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3649,7 +3652,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			backend = restoreKeyedBackend(IntSerializer.INSTANCE, stateHandle);
 
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createInternalState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 
@@ -3791,7 +3794,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				return;
 			}
 
-			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createState(
+			InternalValueState<Integer, VoidNamespace, Integer> valueState = backend.createInternalState(
 					VoidNamespaceSerializer.INSTANCE,
 					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
 

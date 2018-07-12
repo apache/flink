@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -28,16 +30,12 @@ import java.util.List;
 import java.util.Set;
 
 /** Test suite for {@link TtlAggregatingState}. */
-public class TtlAggregatingStateTest
-	extends TtlMergingStateBase.TtlIntegerMergingStateBase<TtlAggregatingState<?, String, Integer, Long, String>, Integer, String> {
+class TtlAggregatingStateTestContext
+	extends TtlMergingStateTestContext.TtlIntegerMergingStateTestContext<TtlAggregatingState<?, String, Integer, Long, String>, Integer, String> {
 	private static final long DEFAULT_ACCUMULATOR = 3L;
 
 	@Override
 	void initTestValues() {
-		updater = v -> ttlState.add(v);
-		getter = () -> ttlState.get();
-		originalGetter = () -> ttlState.original.get();
-
 		updateEmpty = 5;
 		updateUnexpired = 7;
 		updateExpired = 6;
@@ -47,11 +45,26 @@ public class TtlAggregatingStateTest
 		getUpdateExpired = "9";
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	TtlAggregatingState<?, String, Integer, Long, String> createState() {
-		AggregatingStateDescriptor<Integer, Long, String> aggregatingStateDes =
-			new AggregatingStateDescriptor<>("TtlTestAggregatingState", AGGREGATE, LongSerializer.INSTANCE);
-		return (TtlAggregatingState<?, String, Integer, Long, String>) wrapMockState(aggregatingStateDes);
+	<US extends State, SV> StateDescriptor<US, SV> createStateDescriptor() {
+		return (StateDescriptor<US, SV>) new AggregatingStateDescriptor<>(
+			"TtlTestAggregatingState", AGGREGATE, LongSerializer.INSTANCE);
+	}
+
+	@Override
+	void update(Integer value) throws Exception {
+		ttlState.add(value);
+	}
+
+	@Override
+	String get() throws Exception {
+		return ttlState.get();
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.get();
 	}
 
 	@Override

@@ -88,6 +88,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -270,10 +271,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		ExecutionConfig executionConfig,
 		boolean enableIncrementalCheckpointing,
 		LocalRecoveryConfig localRecoveryConfig,
-		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType
+		RocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+		TtlTimeProvider ttlTimeProvider
 	) throws IOException {
 
-		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader,
+			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider);
 
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
 
@@ -1347,7 +1350,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, SV, S extends State, IS extends S> IS createState(
+	public <N, SV, S extends State, IS extends S> IS createInternalState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());

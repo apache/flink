@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,12 +81,13 @@ public final class KVStateRequestSerializerRocksDBTest {
 				new ExecutionConfig(),
 				false,
 				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP
+				RocksDBStateBackend.PriorityQueueStateType.HEAP,
+				TtlTimeProvider.DEFAULT
 			);
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createState(VoidNamespaceSerializer.INSTANCE,
+		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testListSerialization(key, listState);
@@ -121,7 +123,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				new ExecutionConfig(),
 				false,
 				TestLocalRecoveryConfig.disabled(),
-				RocksDBStateBackend.PriorityQueueStateType.HEAP);
+				RocksDBStateBackend.PriorityQueueStateType.HEAP,
+				TtlTimeProvider.DEFAULT);
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

@@ -49,17 +49,15 @@ public class TtlStateFactory {
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc,
 		KeyedStateFactory originalStateFactory,
-		StateTtlConfiguration ttlConfig,
 		TtlTimeProvider timeProvider) throws Exception {
 		Preconditions.checkNotNull(namespaceSerializer);
 		Preconditions.checkNotNull(stateDesc);
 		Preconditions.checkNotNull(originalStateFactory);
-		Preconditions.checkNotNull(ttlConfig);
 		Preconditions.checkNotNull(timeProvider);
-		return ttlConfig.getTtlUpdateType() == StateTtlConfiguration.TtlUpdateType.Disabled ?
-			originalStateFactory.createState(namespaceSerializer, stateDesc) :
-			new TtlStateFactory(originalStateFactory, ttlConfig, timeProvider)
-				.createState(namespaceSerializer, stateDesc);
+		return  stateDesc.getTtlConfig().isEnabled() ?
+			new TtlStateFactory(originalStateFactory, stateDesc.getTtlConfig(), timeProvider)
+				.createState(namespaceSerializer, stateDesc) :
+			originalStateFactory.createInternalState(namespaceSerializer, stateDesc);
 	}
 
 	private final Map<Class<? extends StateDescriptor>, KeyedStateFactory> stateFactories;
@@ -96,7 +94,7 @@ public class TtlStateFactory {
 				stateDesc.getClass(), TtlStateFactory.class);
 			throw new FlinkRuntimeException(message);
 		}
-		return stateFactory.createState(namespaceSerializer, stateDesc);
+		return stateFactory.createInternalState(namespaceSerializer, stateDesc);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -106,7 +104,7 @@ public class TtlStateFactory {
 		ValueStateDescriptor<TtlValue<SV>> ttlDescriptor = new ValueStateDescriptor<>(
 			stateDesc.getName(), new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlValueState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
@@ -118,7 +116,7 @@ public class TtlStateFactory {
 		ListStateDescriptor<TtlValue<T>> ttlDescriptor = new ListStateDescriptor<>(
 			stateDesc.getName(), new TtlSerializer<>(listStateDesc.getElementSerializer()));
 		return (IS) new TtlListState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, listStateDesc.getSerializer());
 	}
 
@@ -132,7 +130,7 @@ public class TtlStateFactory {
 			mapStateDesc.getKeySerializer(),
 			new TtlSerializer<>(mapStateDesc.getValueSerializer()));
 		return (IS) new TtlMapState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, mapStateDesc.getSerializer());
 	}
 
@@ -146,7 +144,7 @@ public class TtlStateFactory {
 			new TtlReduceFunction<>(reducingStateDesc.getReduceFunction(), ttlConfig, timeProvider),
 			new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlReducingState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 
@@ -161,7 +159,7 @@ public class TtlStateFactory {
 		AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor = new AggregatingStateDescriptor<>(
 			stateDesc.getName(), ttlAggregateFunction, new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlAggregatingState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer(), ttlAggregateFunction);
 	}
 
@@ -178,7 +176,7 @@ public class TtlStateFactory {
 			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider, initAcc),
 			new TtlSerializer<>(stateDesc.getSerializer()));
 		return (IS) new TtlFoldingState<>(
-			originalStateFactory.createState(namespaceSerializer, ttlDescriptor),
+			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor),
 			ttlConfig, timeProvider, stateDesc.getSerializer());
 	}
 

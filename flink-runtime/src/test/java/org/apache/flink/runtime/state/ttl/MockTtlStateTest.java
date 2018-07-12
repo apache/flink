@@ -18,16 +18,18 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 
-abstract class TtlMapStateTestBase<UV, GV>
-	extends TtlStateTestBase<TtlMapState<?, String, Integer, String>, UV, GV> {
+/** Test suite for mock state TTL. */
+public class MockTtlStateTest extends TtlStateTestBase {
 	@Override
-	TtlMapState<?, String, Integer, String> createState() {
-		MapStateDescriptor<Integer, String> mapStateDesc =
-			new MapStateDescriptor<>("TtlTestMapState", IntSerializer.INSTANCE, StringSerializer.INSTANCE);
-		return (TtlMapState<?, String, Integer, String>) wrapMockState(mapStateDesc);
+	protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
+		return new StateBackendTestContext(timeProvider) {
+			@Override
+			protected StateBackend createStateBackend() {
+				return new MockStateBackend();
+			}
+		};
 	}
 }

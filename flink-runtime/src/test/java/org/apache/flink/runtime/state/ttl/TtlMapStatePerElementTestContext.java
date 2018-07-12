@@ -18,11 +18,36 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-/**
- * Provides time to TTL logic to judge about state expiration.
- */
-public interface TtlTimeProvider {
-	TtlTimeProvider DEFAULT = System::currentTimeMillis;
+/** Test suite for per element methods of {@link TtlMapState}. */
+class TtlMapStatePerElementTestContext extends TtlMapStateTestContext<String, String> {
+	private static final int TEST_KEY = 1;
+	private static final String TEST_VAL1 = "test value1";
+	private static final String TEST_VAL2 = "test value2";
+	private static final String TEST_VAL3 = "test value3";
 
-	long currentTimestamp();
+	@Override
+	void initTestValues() {
+		updateEmpty = TEST_VAL1;
+		updateUnexpired = TEST_VAL2;
+		updateExpired = TEST_VAL3;
+
+		getUpdateEmpty = TEST_VAL1;
+		getUnexpired = TEST_VAL2;
+		getUpdateExpired = TEST_VAL3;
+	}
+
+	@Override
+	void update(String value) throws Exception {
+		ttlState.put(TEST_KEY, value);
+	}
+
+	@Override
+	String get() throws Exception {
+		return ttlState.get(TEST_KEY);
+	}
+
+	@Override
+	Object getOriginal() throws Exception {
+		return ttlState.original.get(TEST_KEY);
+	}
 }
