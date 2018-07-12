@@ -1775,7 +1775,6 @@ class JobManager(
       case None => None
     }
 
-
     futureOption
   }
 
