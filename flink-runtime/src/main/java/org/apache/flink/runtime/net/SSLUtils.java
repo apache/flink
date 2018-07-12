@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.net;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.Preconditions;
 
@@ -26,26 +27,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.net.ServerSocketFactory;
+import javax.net.SocketFactory;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.security.KeyStore;
-import java.util.Arrays;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Common utilities to manage SSL transport settings.
  */
 public class SSLUtils {
+
 	private static final Logger LOG = LoggerFactory.getLogger(SSLUtils.class);
 
 	/**
@@ -56,33 +62,35 @@ public class SSLUtils {
 	 * @return true if global ssl flag is set
 	 */
 	public static boolean getSSLEnabled(Configuration sslConfig) {
-
-		Preconditions.checkNotNull(sslConfig);
-
 		return sslConfig.getBoolean(SecurityOptions.SSL_ENABLED);
 	}
 
 	/**
-	 * Sets SSl version and cipher suites for SSLServerSocket.
-	 * @param socket
-	 *        Socket to be handled
-	 * @param config
-	 *        The application configuration
+	 * Creates a factory for SSL Server Sockets from the given configuration.
 	 */
-	public static void setSSLVerAndCipherSuites(ServerSocket socket, Configuration config) {
-		if (socket instanceof SSLServerSocket) {
-			final String[] protocols = config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
-
-			final String[] cipherSuites = config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
-
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Configuring TLS version and cipher suites on SSL socket {} / {}",
-						Arrays.toString(protocols), Arrays.toString(cipherSuites));
-			}
-
-			((SSLServerSocket) socket).setEnabledProtocols(protocols);
-			((SSLServerSocket) socket).setEnabledCipherSuites(cipherSuites);
+	public static ServerSocketFactory createSSLServerSocketFactory(Configuration config) throws Exception {
+		SSLContext sslContext = createSSLServerContext(config);
+		if (sslContext == null) {
+			throw new IllegalConfigurationException("SSL is not enabled");
 		}
+
+		String[] protocols = getEnabledProtocols(config);
+		String[] cipherSuites = getEnabledCipherSuites(config);
+
+		SSLServerSocketFactory factory = sslContext.getServerSocketFactory();
+		return new ConfiguringSSLServerSocketFactory(factory, protocols, cipherSuites);
+	}
+
+	/**
+	 * Creates a factory for SSL Client Sockets from the given configuration.
+	 */
+	public static SocketFactory createSSLClientSocketFactory(Configuration config) throws Exception {
+		SSLContext sslContext = createSSLServerContext(config);
+		if (sslContext == null) {
+			throw new IllegalConfigurationException("SSL is not enabled");
+		}
+
+		return sslContext.getSocketFactory();
 	}
 
 	/**
@@ -134,12 +142,12 @@ public class SSLUtils {
 	}
 
 	private static String[] getEnabledProtocols(final Configuration config) {
-		requireNonNull(config, "config must not be null");
+		checkNotNull(config, "config must not be null");
 		return config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
 	}
 
 	private static String[] getEnabledCipherSuites(final Configuration config) {
-		requireNonNull(config, "config must not be null");
+		checkNotNull(config, "config must not be null");
 		return config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
 	}
 
@@ -258,5 +266,52 @@ public class SSLUtils {
 		}
 
 		return serverSSLContext;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Wrappers for socket factories that additionally configure the sockets
+	// ------------------------------------------------------------------------
+
+	private static class ConfiguringSSLServerSocketFactory extends ServerSocketFactory {
+
+		private final SSLServerSocketFactory sslServerSocketFactory;
+		private final String[] protocols;
+		private final String[] cipherSuites;
+
+		ConfiguringSSLServerSocketFactory(
+				SSLServerSocketFactory sslServerSocketFactory,
+				String[] protocols,
+				String[] cipherSuites) {
+
+			this.sslServerSocketFactory = sslServerSocketFactory;
+			this.protocols = protocols;
+			this.cipherSuites = cipherSuites;
+		}
+
+		@Override
+		public ServerSocket createServerSocket(int i) throws IOException {
+			SSLServerSocket socket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(i);
+			configureServerSocket(socket);
+			return socket;
+		}
+
+		@Override
+		public ServerSocket createServerSocket(int i, int i1) throws IOException {
+			SSLServerSocket socket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(i, i1);
+			configureServerSocket(socket);
+			return socket;
+		}
+
+		@Override
+		public ServerSocket createServerSocket(int i, int i1, InetAddress inetAddress) throws IOException {
+			SSLServerSocket socket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(i, i1, inetAddress);
+			configureServerSocket(socket);
+			return socket;
+		}
+
+		private void configureServerSocket(SSLServerSocket socket) {
+			socket.setEnabledProtocols(protocols);
+			socket.setEnabledCipherSuites(cipherSuites);
+		}
 	}
 }

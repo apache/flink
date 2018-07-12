@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.net;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 
+import org.hamcrest.collection.IsArrayContainingInAnyOrder;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,7 +35,10 @@ import java.util.Arrays;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link SSLUtils}.
@@ -157,44 +162,48 @@ public class SSLUtilsTest {
 		}
 	}
 
+	@Test
+	public void testSocketFactoriesWhenSslDisables() throws Exception {
+		Configuration config = new Configuration();
+
+		try {
+			SSLUtils.createSSLServerSocketFactory(config);
+			fail("exception expected");
+		} catch (IllegalConfigurationException ignored) {}
+
+		try {
+			SSLUtils.createSSLClientSocketFactory(config);
+			fail("exception expected");
+		} catch (IllegalConfigurationException ignored) {}
+	}
+
 	/**
 	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLServerSocket.
 	 */
 	@Test
 	public void testSetSSLVersionAndCipherSuitesForSSLServerSocket() throws Exception {
-
 		Configuration serverConfig = new Configuration();
 		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+
+		// set custom protocol and cipher suites
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
 		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
-		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
-		ServerSocket socket = null;
-		try {
-			socket = serverContext.getServerSocketFactory().createServerSocket(0);
+		try (ServerSocket socket = SSLUtils.createSSLServerSocketFactory(serverConfig).createServerSocket(0)) {
+			assertTrue(socket instanceof SSLServerSocket);
+			final SSLServerSocket sslSocket = (SSLServerSocket) socket;
 
-			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
-			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
+			String[] protocols = sslSocket.getEnabledProtocols();
+			String[] algorithms = sslSocket.getEnabledCipherSuites();
 
-			Assert.assertNotEquals(1, protocols.length);
-			Assert.assertNotEquals(2, algorithms.length);
-
-			SSLUtils.setSSLVerAndCipherSuites(socket, serverConfig);
-			protocols = ((SSLServerSocket) socket).getEnabledProtocols();
-			algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
-
-			Assert.assertEquals(1, protocols.length);
-			Assert.assertEquals("TLSv1.1", protocols[0]);
-			Assert.assertEquals(2, algorithms.length);
-			Assert.assertTrue(algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
-			Assert.assertTrue(algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
-		} finally {
-			if (socket != null) {
-				socket.close();
-			}
+			assertEquals(1, protocols.length);
+			assertEquals("TLSv1.1", protocols[0]);
+			assertEquals(2, algorithms.length);
+			assertThat(algorithms, IsArrayContainingInAnyOrder.arrayContainingInAnyOrder(
+					"TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA256"));
 		}
 	}
 
