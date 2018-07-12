@@ -21,7 +21,6 @@ package org.apache.flink.table.client.config;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptorValidator;
 
 import java.io.IOException;
 import java.net.URL;
@@ -50,6 +49,9 @@ public class Environment {
 
 	private static final String TABLE_NAME = "name";
 	private static final String TABLE_TYPE = "type";
+	private static final String TABLE_TYPE_VALUE_SOURCE = "source";
+	private static final String TABLE_TYPE_VALUE_SINK = "sink";
+	private static final String TABLE_TYPE_VALUE_BOTH = "both";
 
 	public Environment() {
 		this.tables = Collections.emptyMap();
@@ -214,17 +216,21 @@ public class Environment {
 		if (typeObject == null || !(typeObject instanceof String)) {
 			throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'.");
 		}
-		final String type = (String) config.get(TABLE_TYPE);
-		config.remove(TABLE_TYPE);
-		final Map<String, String> normalizedConfig = ConfigUtil.normalizeYaml(config);
-		if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
-			return new Source(name, normalizedConfig);
-		} else if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SINK())) {
-			return new Sink(name, normalizedConfig);
-		} else if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE_SINK())) {
-			return new SourceSink(name, normalizedConfig);
+		final String type = (String) typeObject;
+		final Map<String, Object> configCopy = new HashMap<>(config);
+		configCopy.remove(TABLE_TYPE);
+
+		final Map<String, String> normalizedConfig = ConfigUtil.normalizeYaml(configCopy);
+		switch (type) {
+			case TABLE_TYPE_VALUE_SOURCE:
+				return new Source(name, normalizedConfig);
+			case TABLE_TYPE_VALUE_SINK:
+				return new Sink(name, normalizedConfig);
+			case TABLE_TYPE_VALUE_BOTH:
+				return new SourceSink(name, normalizedConfig);
+			default:
+				throw new SqlClientException(String.format("Invalid 'type' attribute for table '%s'. " +
+					"Only 'source', 'sink', and 'both' are supported. But was '%s'.", name, type));
 		}
-		throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'. " +
-			"Only 'source', 'sink', and 'both' are supported.");
 	}
 }

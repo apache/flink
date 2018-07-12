@@ -22,9 +22,11 @@ package org.apache.flink.table.descriptors
   * Common class for all descriptors describing a table sink.
   */
 abstract class TableSinkDescriptor extends TableDescriptor {
+
+  /**
+    * Internal method for properties conversion.
+    */
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
     super.addProperties(properties)
-    properties.putString(TableDescriptorValidator.TABLE_TYPE,
-      TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE)
   }
 }

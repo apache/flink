@@ -27,18 +27,3 @@ class TableDescriptorValidator extends DescriptorValidator {
     // nothing to do
   }
 }
-
-object TableDescriptorValidator {
-
-  /**
-    * Key for describing the type of this table, valid values are ('source', 'sink', 'both').
-    */
-  val TABLE_TYPE = "type"
-
-  /**
-    * Valid TABLE_TYPE value.
-    */
-  val TABLE_TYPE_VALUE_SOURCE = "source"
-  val TABLE_TYPE_VALUE_SINK = "sink"
-  val TABLE_TYPE_VALUE_SOURCE_SINK = "both"
-}
