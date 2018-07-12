@@ -32,8 +32,8 @@ import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.factories.utils.TestDeserializationSchema;
 import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -145,8 +145,8 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		testDesc.addProperties(descriptorProperties);
 		final Map<String, String> propertiesMap = descriptorProperties.asMap();
 
-		final TableSource<?> actualSource = TableFactoryService.find(TableSourceFactory.class, testDesc)
-			.createTableSource(propertiesMap);
+		final TableSource<?> actualSource = TableFactoryService.find(StreamTableSourceFactory.class, testDesc)
+			.createStreamTableSource(propertiesMap);
 
 		assertEquals(expected, actualSource);
 

@@ -44,7 +44,7 @@ class TableSourceFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
-    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+    assertTrue(TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
       .isInstanceOf[TestFixedFormatTableFactory])
   }
 
@@ -53,7 +53,7 @@ class TableSourceFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_TYPE, "unknown-connector-type")
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
-    TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+    TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
   }
 
   @Test
@@ -63,7 +63,7 @@ class TableSourceFactoryServiceTest {
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+    assertTrue(TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
       .isInstanceOf[TestFixedFormatTableFactory])
   }
 
@@ -73,7 +73,7 @@ class TableSourceFactoryServiceTest {
     props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     props.put("format.unknown-format-type-property", "/new/path")
-    TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+    TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
   }
 
   @Test
@@ -81,7 +81,7 @@ class TableSourceFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_WILDCARD)
     props.put("format.unknown-format-type-property", "wildcard-property")
-    val actualTableSource = TableFactoryService.find(classOf[TableSourceFactory[_]], props)
+    val actualTableSource = TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
     assertTrue(actualTableSource.isInstanceOf[TestWildcardFormatTableSourceFactory])
   }
 

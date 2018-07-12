@@ -21,7 +21,6 @@ package org.apache.flink.table.sinks
 import java.util
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.factories.{TableFactory, TableSinkFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.DescriptorProperties._
@@ -29,12 +28,16 @@ import org.apache.flink.table.descriptors.FileSystemValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.descriptors._
+import org.apache.flink.table.factories.{BatchTableSinkFactory, StreamTableSinkFactory, TableFactory}
 import org.apache.flink.types.Row
 
 /**
   * Factory for creating configured instances of [[CsvTableSink]].
   */
-class CsvTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
+class CsvTableSinkFactory
+  extends TableFactory
+  with StreamTableSinkFactory[Row]
+  with BatchTableSinkFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -62,14 +65,33 @@ class CsvTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
     properties
   }
 
-  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
+  override def createStreamTableSink(
+      properties: util.Map[String, String])
+    : StreamTableSink[Row] = {
+    createTableSink(isStreaming = true, properties)
+  }
+
+  override def createBatchTableSink(
+      properties: util.Map[String, String])
+    : BatchTableSink[Row] = {
+    createTableSink(isStreaming = false, properties)
+  }
+
+  private def createTableSink(
+      isStreaming: Boolean,
+      properties: util.Map[String, String])
+    : CsvTableSink = {
+
     val params = new DescriptorProperties()
     params.putProperties(properties)
 
     // validate
     new FileSystemValidator().validate(params)
     new CsvValidator().validate(params)
-    new SchemaValidator(true, false, false).validate(params)
+    new SchemaValidator(
+      isStreaming,
+      supportsSourceTimestamps = false,
+      supportsSourceWatermarks = false).validate(params)
 
     // build
     val csvTableSinkBuilder = new CsvTableSink.Builder
@@ -91,6 +113,9 @@ class CsvTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
     toScala(params.getOptionalString(FORMAT_FIELD_DELIMITER))
       .foreach(csvTableSinkBuilder.fieldDelimiter)
 
-    csvTableSinkBuilder.build().configure(formatSchema.getColumnNames, formatSchema.getTypes)
+    csvTableSinkBuilder
+      .build()
+      .configure(formatSchema.getColumnNames, formatSchema.getTypes)
+      .asInstanceOf[CsvTableSink]
   }
 }

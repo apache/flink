@@ -20,19 +20,17 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 import org.apache.flink.table.factories.utils.TestTableSinkFactory.{CONNECTOR_TYPE_VALUE_TEST, FORMAT_TYPE_VALUE_TEST}
-import org.apache.flink.table.factories.{TableFactory, TableSourceFactory}
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.factories.{StreamTableSourceFactory, TableFactory}
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 
 /**
   * Table source factory for testing.
   */
-class TestTableSourceFactory extends TableSourceFactory[Row] with TableFactory {
+class TestTableSourceFactory extends StreamTableSourceFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -49,19 +47,13 @@ class TestTableSourceFactory extends TableSourceFactory[Row] with TableFactory {
     properties.add("format.path")
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
-    properties.add("failing")
     properties
   }
 
-  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
-    if (properties.get("failing") == "true") {
-      throw new IllegalArgumentException("Error in this factory.")
-    }
-    new TableSource[Row] {
-      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
-
-      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
-    }
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
+    throw new UnsupportedOperationException()
   }
 }
 

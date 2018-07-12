@@ -20,19 +20,17 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
-import org.apache.flink.table.factories.TableSourceFactory
+import org.apache.flink.table.factories.StreamTableSourceFactory
 import org.apache.flink.table.factories.utils.TestFixedFormatTableFactory._
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 
 /**
   * Table source factory for testing with a fixed format.
   */
-class TestFixedFormatTableFactory extends TableSourceFactory[Row] {
+class TestFixedFormatTableFactory extends StreamTableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -51,12 +49,10 @@ class TestFixedFormatTableFactory extends TableSourceFactory[Row] {
     properties
   }
 
-  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
-    new TableSource[Row] {
-      override def getTableSchema: TableSchema = throw new UnsupportedOperationException()
-
-      override def getReturnType: TypeInformation[Row] = throw new UnsupportedOperationException()
-    }
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
+    throw new UnsupportedOperationException()
   }
 }
 

@@ -18,16 +18,17 @@
 
 package org.apache.flink.table.factories.utils
 
+import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptor}
+import org.apache.flink.table.factories.TableFormatFactoryServiceTest._
 
 /**
   * Format descriptor for testing purposes.
   */
-class TestTableFormat extends FormatDescriptor("test-format", 1) {
+class TestTableFormat extends FormatDescriptor(TEST_FORMAT_TYPE, 1) {
 
   override protected def addFormatProperties(properties: DescriptorProperties): Unit = {
-    properties.putString("format.important", "this is important")
-    properties.putString("format.path", "/path/to/sth")
-    properties.putString("format.derive-schema", "true")
+    properties.putString(COMMON_PATH, "/path/to/sth")
+    properties.putString(FORMAT_DERIVE_SCHEMA, "true")
   }
 }

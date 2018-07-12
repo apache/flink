@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.factories
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import java.util
 
-/** Defines an external stream table and provides read access to its data.
+import org.apache.flink.table.sources.BatchTableSource
+
+/**
+  * A factory to create configured table source instances in a batch environment based on
+  * string-based properties. See also [[TableFactory]] for more information.
   *
-  * @tparam T Type of the [[DataStream]] created by this [[TableSource]].
+  * @tparam T type of records that the factory produces
   */
-trait StreamTableSource[T] extends TableSource[T] {
+trait BatchTableSourceFactory[T] extends TableFactory {
 
   /**
-    * Returns the data of the table as a [[DataStream]].
+    * Creates and configures a [[org.apache.flink.table.sources.BatchTableSource]]
+    * using the given properties.
     *
-    * NOTE: This method is for internal use only for defining a [[TableSource]].
-    *       Do not use it in Table API programs.
+    * @param properties normalized properties describing a batch table source.
+    * @return the configured batch table source.
     */
-  def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T]
+  def createBatchTableSource(properties: util.Map[String, String]): BatchTableSource[T]
 }

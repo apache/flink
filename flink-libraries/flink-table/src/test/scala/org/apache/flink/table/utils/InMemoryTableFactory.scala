@@ -21,48 +21,52 @@ package org.apache.flink.table.utils
 import java.util
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.factories.{TableFactory, TableSinkFactory, TableSourceFactory}
-import org.apache.flink.table.sources.TableSource
-import org.apache.flink.types.Row
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR_PROPERTY_VERSION, CONNECTOR_TYPE}
+import org.apache.flink.table.descriptors.RowtimeValidator._
+import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_CLASS
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_SERIALIZED
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_CLASS
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_DELAY
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_SERIALIZED
-import org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME
-import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.factories._
+import org.apache.flink.table.sinks.StreamTableSink
+import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.types.Row
 
-class InMemoryTableFactory extends TableSourceFactory[Row]
-  with TableSinkFactory[Row] with TableFactory {
-  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
+class InMemoryTableFactory
+  extends TableFactory
+  with StreamTableSourceFactory[Row]
+  with StreamTableSinkFactory[Row] {
+
+  override def createStreamTableSink(
+      properties: util.Map[String, String])
+    : StreamTableSink[Row] = {
+
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true, true, true).validate(params)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = true,
+      supportsSourceWatermarks = true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
       .configure(tableSchema.getColumnNames, tableSchema.getTypes)
+      .asInstanceOf[StreamTableSink[Row]]
   }
 
-  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
+
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true, true, true).validate(params)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = true,
+      supportsSourceWatermarks = true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSourceSchema(params)
 

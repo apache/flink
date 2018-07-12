@@ -718,9 +718,9 @@ class SqlITCase extends StreamingWithStateTestBase {
 
   @Test
   def testWriteReadTableSourceSink(): Unit = {
-    var env = StreamExecutionEnvironment.getExecutionEnvironment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    var tEnv = TableEnvironment.getTableEnvironment(env)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
     MemoryTableSourceSinkUtil.clear
 
     val desc = Schema()
@@ -739,9 +739,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("sourceTable", t)
 
     tEnv.registerTableSource("targetTable",
-      new InMemoryTableFactory().createTableSource(props.asMap))
+      new InMemoryTableFactory().createStreamTableSource(props.asMap))
     tEnv.registerTableSink("targetTable",
-      new InMemoryTableFactory().createTableSink(props.asMap))
+      new InMemoryTableFactory().createStreamTableSink(props.asMap))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")
