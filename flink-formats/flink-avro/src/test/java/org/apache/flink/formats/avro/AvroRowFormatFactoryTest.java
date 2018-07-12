@@ -26,7 +26,7 @@ import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
-import org.apache.flink.table.formats.TableFormatFactoryService;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -63,7 +63,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testRecordClassSerializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
 		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(AVRO_SPECIFIC_RECORD);
@@ -71,7 +71,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testRecordClassDeserializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
+		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
 		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SPECIFIC_RECORD);
@@ -79,7 +79,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testAvroSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFormatFactoryService
+		final DeserializationSchema<?> actual2 = TableFactoryService
 			.find(DeserializationSchemaFactory.class, properties)
 			.createDeserializationSchema(properties);
 		final AvroRowDeserializationSchema expected2 = new AvroRowDeserializationSchema(AVRO_SCHEMA);
@@ -87,7 +87,7 @@ public class AvroRowFormatFactoryTest extends TestLogger {
 	}
 
 	private void testAvroSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFormatFactoryService
+		final SerializationSchema<?> actual1 = TableFactoryService
 			.find(SerializationSchemaFactory.class, properties)
 			.createSerializationSchema(properties);
 		final SerializationSchema<?> expected1 = new AvroRowSerializationSchema(AVRO_SCHEMA);

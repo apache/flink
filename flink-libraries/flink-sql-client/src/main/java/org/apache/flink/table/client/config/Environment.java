@@ -48,7 +48,8 @@ public class Environment {
 
 	private Deployment deployment;
 
-	private static final String NAME = "name";
+	private static final String TABLE_NAME = "name";
+	private static final String TABLE_TYPE = "type";
 
 	public Environment() {
 		this.tables = Collections.emptyMap();
@@ -64,16 +65,16 @@ public class Environment {
 	public void setTables(List<Map<String, Object>> tables) {
 		this.tables = new HashMap<>(tables.size());
 		tables.forEach(config -> {
-			if (!config.containsKey(NAME)) {
+			if (!config.containsKey(TABLE_NAME)) {
 				throw new SqlClientException("The 'name' attribute of a table is missing.");
 			}
-			final Object nameObject = config.get(NAME);
+			final Object nameObject = config.get(TABLE_NAME);
 			if (nameObject == null || !(nameObject instanceof String) || ((String) nameObject).length() <= 0) {
 				throw new SqlClientException("Invalid table name '" + nameObject + "'.");
 			}
 			final String name = (String) nameObject;
 			final Map<String, Object> properties = new HashMap<>(config);
-			properties.remove(NAME);
+			properties.remove(TABLE_NAME);
 
 			if (this.tables.containsKey(name)) {
 				throw new SqlClientException("Duplicate table name '" + name + "'.");
@@ -209,11 +210,12 @@ public class Environment {
 	 * @return table descriptor describing a source, sink, or both
 	 */
 	private static TableDescriptor createTableDescriptor(String name, Map<String, Object> config) {
-		final Object typeObject = config.get(TableDescriptorValidator.TABLE_TYPE());
+		final Object typeObject = config.get(TABLE_TYPE);
 		if (typeObject == null || !(typeObject instanceof String)) {
 			throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'.");
 		}
-		final String type = (String) config.get(TableDescriptorValidator.TABLE_TYPE());
+		final String type = (String) config.get(TABLE_TYPE);
+		config.remove(TABLE_TYPE);
 		final Map<String, String> normalizedConfig = ConfigUtil.normalizeYaml(config);
 		if (type.equals(TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE())) {
 			return new Source(name, normalizedConfig);

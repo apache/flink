@@ -18,28 +18,34 @@
 
 package org.apache.flink.table.factories
 
-import org.apache.flink.table.api.{NoMatchingTableFactoryException, ValidationException}
+import java.util.{HashMap => JHashMap, Map => JMap}
+
+import org.apache.flink.table.api.NoMatchingTableFactoryException
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
-import org.apache.flink.table.descriptors.TableDescriptorValidator
+import org.apache.flink.table.factories.utils.TestTableSinkFactory
+import org.apache.flink.table.factories.utils.TestTableSinkFactory._
 import org.junit.Assert._
 import org.junit.Test
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-
+/**
+  * Tests for testing table sink discovery using [[TableFactoryService]]. The tests assume the
+  * table sink factory [[TestTableSinkFactory]] is registered.
+  */
 class TableSinkFactoryServiceTest {
+
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props.toMap) != null)
+    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+      .isInstanceOf[TestTableSinkFactory])
   }
 
   @Test(expected = classOf[NoMatchingTableFactoryException])
   def testInvalidContext(): Unit = {
     val props = properties()
-    props.put(CONNECTOR_TYPE, "FAIL")
-    TableFactoryService.find(classOf[TableSinkFactory[_]], props.toMap)
+    props.put(CONNECTOR_TYPE, "unknown-connector-type")
+    TableFactoryService.find(classOf[TableSinkFactory[_]], props)
   }
 
   @Test
@@ -47,29 +53,21 @@ class TableSinkFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props.toMap) != null)
+    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+      .isInstanceOf[TestTableSinkFactory])
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[NoMatchingTableFactoryException])
   def testUnsupportedProperty(): Unit = {
     val props = properties()
     props.put("format.path_new", "/new/path")
-    TableFactoryService.find(classOf[TableSinkFactory[_]], props.toMap)
+    TableFactoryService.find(classOf[TableSinkFactory[_]], props)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
-  def testFailingFactory(): Unit = {
-    val props = properties()
-    props.put("failing", "true")
-    TableFactoryService.find(classOf[TableSinkFactory[_]], props.toMap)
-      .asInstanceOf[TableSinkFactory[_]].createTableSink(props.asJava)
-  }
-
-  private def properties(): mutable.Map[String, String] = {
-    val properties = mutable.Map[String, String]()
-    properties.put(TableDescriptorValidator.TABLE_TYPE, "sink")
-    properties.put(CONNECTOR_TYPE, "test")
-    properties.put(FORMAT_TYPE, "test")
+  private def properties(): JMap[String, String] = {
+    val properties = new JHashMap[String, String]()
+    properties.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST)
+    properties.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")
     properties.put(FORMAT_PROPERTY_VERSION, "1")
     properties.put("format.path", "/path/to/target")

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.formats.utils
+package org.apache.flink.table.factories.utils
 
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.types.Row

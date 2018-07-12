@@ -49,9 +49,9 @@ class InMemoryTableFactory extends TableSourceFactory[Row]
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
-    val tableSchema = SchemaValidator.deriveTableSinkSchema(params);
+    val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
       .configure(tableSchema.getColumnNames, tableSchema.getTypes)
@@ -62,9 +62,9 @@ class InMemoryTableFactory extends TableSourceFactory[Row]
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
-    val tableSchema = SchemaValidator.deriveTableSourceSchema(params);
+    val tableSchema = SchemaValidator.deriveTableSourceSchema(params)
 
     // proctime
     val proctimeAttributeOpt = SchemaValidator.deriveProctimeAttribute(params)

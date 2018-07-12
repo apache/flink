@@ -69,7 +69,7 @@ class CsvTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
     // validate
     new FileSystemValidator().validate(params)
     new CsvValidator().validate(params)
-    new SchemaValidator().validate(params)
+    new SchemaValidator(true, false, false).validate(params)
 
     // build
     val csvTableSinkBuilder = new CsvTableSink.Builder

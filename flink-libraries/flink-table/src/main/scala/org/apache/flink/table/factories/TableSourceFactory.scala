@@ -22,7 +22,8 @@ import org.apache.flink.table.sources.TableSource
 
 import java.util
 
-trait TableSourceFactory[T] {
+trait TableSourceFactory[T] extends TableFactory {
+
   /**
     * Creates and configures a [[org.apache.flink.table.sources.TableSource]]
     * using the given properties.

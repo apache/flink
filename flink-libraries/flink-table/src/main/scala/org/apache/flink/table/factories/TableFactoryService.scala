@@ -18,143 +18,358 @@
 
 package org.apache.flink.table.factories
 
-import java.util.{ServiceConfigurationError, ServiceLoader}
+import java.util.{ServiceConfigurationError, ServiceLoader, Map => JMap}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.MetadataValidator._
 import org.apache.flink.table.descriptors.StatisticsValidator._
-import org.apache.flink.table.descriptors.{DescriptorProperties, TableDescriptor, TableDescriptorValidator}
+import org.apache.flink.table.descriptors._
 import org.apache.flink.table.util.Logging
+import org.apache.flink.util.Preconditions
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
 
 /**
-  * Unified interface to search for TableFactoryDiscoverable of provided type and properties.
+  * Unified interface to search for a [[TableFactory]] of provided type and properties.
   */
 object TableFactoryService extends Logging {
 
   private lazy val defaultLoader = ServiceLoader.load(classOf[TableFactory])
 
-  def find(clz: Class[_], descriptor: TableDescriptor): TableFactory = {
-    find(clz, descriptor, null)
+  /**
+    * Finds a table factory of the given class and descriptor.
+    *
+    * @param factoryClass desired factory class
+    * @param descriptor descriptor describing the factory configuration
+    * @tparam T factory class type
+    * @return the matching factory
+    */
+  def find[T](factoryClass: Class[T], descriptor: Descriptor): T = {
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(descriptor)
+
+    val descriptorProperties = new DescriptorProperties()
+    descriptor.addProperties(descriptorProperties)
+    findInternal(factoryClass, descriptorProperties.asMap, None)
   }
 
-  def find(clz: Class[_], descriptor: TableDescriptor, classLoader: ClassLoader)
-  : TableFactory = {
+  /**
+    * Finds a table factory of the given class, descriptor, and classloader.
+    *
+    * @param factoryClass desired factory class
+    * @param descriptor descriptor describing the factory configuration
+    * @param classLoader classloader for service loading
+    * @tparam T factory class type
+    * @return the matching factory
+    */
+  def find[T](factoryClass: Class[T], descriptor: Descriptor, classLoader: ClassLoader): T = {
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(descriptor)
+    Preconditions.checkNotNull(classLoader)
 
-    val properties = new DescriptorProperties()
-    descriptor.addProperties(properties)
-    find(clz, properties.asMap.asScala.toMap, classLoader)
+    val descriptorProperties = new DescriptorProperties()
+    descriptor.addProperties(descriptorProperties)
+    findInternal(factoryClass, descriptorProperties.asMap, None)
   }
 
-  def find(clz: Class[_], properties: Map[String, String]): TableFactory = {
-    find(clz: Class[_], properties, null)
+  /**
+    * Finds a table factory of the given class and property map.
+    *
+    * @param factoryClass desired factory class
+    * @param propertyMap properties that describe the factory configuration
+    * @tparam T factory class type
+    * @return the matching factory
+    */
+  def find[T](factoryClass: Class[T], propertyMap: JMap[String, String]): T = {
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(propertyMap)
+
+    findInternal(factoryClass, propertyMap, None)
   }
 
-  def find(clz: Class[_], properties: Map[String, String],
-           classLoader: ClassLoader): TableFactory = {
+  /**
+    * Finds a table factory of the given class, property map, and classloader.
+    *
+    * @param factoryClass desired factory class
+    * @param propertyMap properties that describe the factory configuration
+    * @param classLoader classloader for service loading
+    * @tparam T factory class type
+    * @return the matching factory
+    */
+  def find[T](
+      factoryClass: Class[T],
+      propertyMap: JMap[String, String],
+      classLoader: ClassLoader)
+    : T = {
+    Preconditions.checkNotNull(factoryClass)
+    Preconditions.checkNotNull(propertyMap)
+    Preconditions.checkNotNull(classLoader)
 
-    var matchingFactory: Option[(TableFactory, Seq[String])] = None
+    findInternal(factoryClass, propertyMap, Some(classLoader))
+  }
+
+  /**
+    * Finds a table factory of the given class, property map, and classloader.
+    *
+    * @param factoryClass desired factory class
+    * @param propertyMap properties that describe the factory configuration
+    * @param classLoader classloader for service loading
+    * @tparam T factory class type
+    * @return the matching factory
+    */
+  private def findInternal[T](
+      factoryClass: Class[T],
+      propertyMap: JMap[String, String],
+      classLoader: Option[ClassLoader])
+    : T = {
+
+    val properties = propertyMap.asScala.toMap
+
+    // discover table factories
+    val foundFactories = discoverFactories(classLoader)
+
+    // filter by factory class
+    val classFactories = filterByFactoryClass(
+      factoryClass,
+      properties,
+      foundFactories)
+
+    // find matching context
+    val contextFactories = filterByContext(
+      factoryClass,
+      properties,
+      foundFactories,
+      classFactories)
+
+    // filter by supported keys
+    filterBySupportedProperties(
+      factoryClass,
+      properties,
+      foundFactories,
+      contextFactories)
+  }
+
+  /**
+    * Searches for factories using Java service providers.
+    *
+    * @return all factories in the classpath
+    */
+  private def discoverFactories[T](classLoader: Option[ClassLoader]): Seq[TableFactory] = {
+    val foundFactories = mutable.ArrayBuffer[TableFactory]()
     try {
-      val iter = if (classLoader == null) {
-        defaultLoader.iterator()
-      } else {
-        val customLoader = ServiceLoader.load(classOf[TableFactory], classLoader)
-        customLoader.iterator()
+      val iterator = classLoader match {
+        case Some(customClassLoader) =>
+          val customLoader = ServiceLoader.load(classOf[TableFactory], customClassLoader)
+          customLoader.iterator()
+        case None =>
+          defaultLoader.iterator()
       }
-      while (iter.hasNext) {
-        val factory = iter.next()
 
-        if (clz.isAssignableFrom(factory.getClass)) {
-          val requiredContextJava = try {
-            factory.requiredContext()
-          } catch {
-            case t: Throwable =>
-              throw new TableException(
-                s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
-                t)
-          }
-
-          val requiredContext = if (requiredContextJava != null) {
-            // normalize properties
-            requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2))
-          } else {
-            Map[String, String]()
-          }
-
-          val plainContext = mutable.Map[String, String]()
-          plainContext ++= requiredContext
-          // we remove the versions for now until we have the first backwards compatibility case
-          // with the version we can provide mappings in case the format changes
-          plainContext.remove(CONNECTOR_PROPERTY_VERSION)
-          plainContext.remove(FORMAT_PROPERTY_VERSION)
-          plainContext.remove(METADATA_PROPERTY_VERSION)
-          plainContext.remove(STATISTICS_PROPERTY_VERSION)
-
-          if (plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
-            matchingFactory match {
-              case Some(_) => throw new AmbiguousTableFactoryException(properties)
-              case None => matchingFactory =
-                Some((factory.asInstanceOf[TableFactory], requiredContext.keys.toSeq))
-            }
-          }
-        }
+      while (iterator.hasNext) {
+        val factory = iterator.next()
+        foundFactories += factory
       }
+
+      foundFactories
     } catch {
       case e: ServiceConfigurationError =>
         LOG.error("Could not load service provider for table factories.", e)
         throw new TableException("Could not load service provider for table factories.", e)
     }
+  }
 
-    val (factory, context) = matchingFactory
-      .getOrElse(throw new NoMatchingTableFactoryException(properties))
+  /**
+    * Filters for factories with matching context.
+    *
+    * @return all matching factories
+    */
+  private def filterByContext[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFactory],
+      classFactories: Seq[TableFactory])
+    : Seq[TableFactory] = {
 
-    val plainProperties = mutable.ArrayBuffer[String]()
+    val matchingFactories = mutable.ArrayBuffer[TableFactory]()
+
+    classFactories.foreach { factory =>
+      val requestedContext = normalizeContext(factory)
+
+      val plainContext = mutable.Map[String, String]()
+      plainContext ++= requestedContext
+      // we remove the version for now until we have the first backwards compatibility case
+      // with the version we can provide mappings in case the format changes
+      plainContext.remove(CONNECTOR_PROPERTY_VERSION)
+      plainContext.remove(FORMAT_PROPERTY_VERSION)
+      plainContext.remove(METADATA_PROPERTY_VERSION)
+      plainContext.remove(STATISTICS_PROPERTY_VERSION)
+
+      // check if required context is met
+      if (plainContext.forall(e => properties.contains(e._1) && properties(e._1) == e._2)) {
+        matchingFactories += factory
+      }
+    }
+
+    if (matchingFactories.isEmpty) {
+      throw new NoMatchingTableFactoryException(
+        "No context matches.",
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+
+    matchingFactories
+  }
+
+  /**
+    * Filters factories with matching context by factory class.
+    */
+  private def filterByFactoryClass[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFactory])
+    : Seq[TableFactory] = {
+
+    val classFactories = foundFactories.filter(f => factoryClass.isAssignableFrom(f.getClass))
+    if (classFactories.isEmpty) {
+      throw new NoMatchingTableFactoryException(
+        s"No factory implements '${factoryClass.getCanonicalName}'.",
+        factoryClass,
+        foundFactories,
+        properties)
+    }
+    classFactories
+  }
+
+  /**
+    * Prepares the properties of a context to be used for match operations.
+    */
+  private def normalizeContext(factory: TableFactory): Map[String, String] = {
+    val requiredContextJava = factory.requiredContext()
+    if (requiredContextJava == null) {
+      throw new TableException(
+        s"Required context of factory '${factory.getClass.getName}' must not be null.")
+    }
+    requiredContextJava.asScala.map(e => (e._1.toLowerCase, e._2)).toMap
+  }
+
+  /**
+    * Filters the matching class factories by supported properties.
+    */
+  private def filterBySupportedProperties[T](
+      factoryClass: Class[T],
+      properties: Map[String, String],
+      foundFactories: Seq[TableFactory],
+      classFactories: Seq[TableFactory])
+    : T = {
+
+    val plainGivenKeys = mutable.ArrayBuffer[String]()
     properties.keys.foreach { k =>
       // replace arrays with wildcard
       val key = k.replaceAll(".\\d+", ".#")
-      // ignore context properties and duplicates
-      if (!context.contains(key) && !plainProperties.contains(key)) {
-        plainProperties += key
+      // ignore duplicates
+      if (!plainGivenKeys.contains(key)) {
+        plainGivenKeys += key
+      }
+    }
+    var lastKey: Option[String] = None
+    val supportedFactories = classFactories.filter { factory =>
+      val requiredContextKeys = normalizeContext(factory).keySet
+      val (supportedKeys, wildcards) = normalizeSupportedProperties(factory)
+      // ignore context keys
+      val givenContextFreeKeys = plainGivenKeys.filter(!requiredContextKeys.contains(_))
+      // perform factory specific filtering of keys
+      val givenFilteredKeys = filterSupportedPropertiesFactorySpecific(
+        factory,
+        givenContextFreeKeys)
+
+      givenFilteredKeys.forall { k =>
+        lastKey = Option(k)
+        supportedKeys.contains(k) || wildcards.exists(k.startsWith)
       }
     }
 
-    val supportedPropertiesJava = try {
-      factory.supportedProperties()
-    } catch {
-      case t: Throwable =>
-        throw new TableException(
-          s"Table source factory '${factory.getClass.getCanonicalName}' caused an exception.",
-          t)
+    if (supportedFactories.isEmpty && classFactories.length == 1 && lastKey.isDefined) {
+      // special case: when there is only one matching factory but the last property key
+      // was incorrect
+      val factory = classFactories.head
+      val (supportedKeys, _) = normalizeSupportedProperties(factory)
+      throw new NoMatchingTableFactoryException(
+        s"""
+          |The matching factory '${factory.getClass.getName}' doesn't support '${lastKey.get}'.
+          |
+          |Supported properties of this factory are:
+          |${supportedKeys.sorted.mkString("\n")}""".stripMargin,
+        factoryClass,
+        foundFactories,
+        properties)
+    } else if (supportedFactories.isEmpty) {
+      throw new NoMatchingTableFactoryException(
+        s"No factory supports all properties.",
+        factoryClass,
+        foundFactories,
+        properties)
+    } else if (supportedFactories.length > 1) {
+      throw new AmbiguousTableFactoryException(
+        supportedFactories,
+        factoryClass,
+        foundFactories,
+        properties)
     }
 
-    val supportedProperties = if (supportedPropertiesJava != null) {
-      supportedPropertiesJava.asScala.map(_.toLowerCase)
-    } else {
-      Seq[String]()
-    }
+    supportedFactories.head.asInstanceOf[T]
+  }
 
-    // check for supported properties
-    plainProperties.foreach { k =>
-      if (!k.equals(TableDescriptorValidator.TABLE_TYPE) && !supportedProperties.contains(k)) {
-        throw new ValidationException(
-          s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
-            s"property '$k'. Supported properties are: \n" +
-            s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
+  /**
+    * Prepares the supported properties of a factory to be used for match operations.
+    */
+  private def normalizeSupportedProperties(factory: TableFactory): (Seq[String], Seq[String]) = {
+    val supportedPropertiesJava = factory.supportedProperties()
+    if (supportedPropertiesJava == null) {
+      throw new TableException(
+        s"Supported properties of factory '${factory.getClass.getName}' must not be null.")
+    }
+    val supportedKeys = supportedPropertiesJava.asScala.map(_.toLowerCase)
+
+    // extract wildcard prefixes
+    val wildcards = extractWildcardPrefixes(supportedKeys)
+
+    (supportedKeys, wildcards)
+  }
+
+  /**
+    * Converts the prefix of properties with wildcards (e.g., "format.*").
+    */
+  private def extractWildcardPrefixes(propertyKeys: Seq[String]): Seq[String] = {
+    propertyKeys
+      .filter(_.endsWith("*"))
+      .map(s => s.substring(0, s.length - 1))
+  }
+
+  /**
+    * Performs filtering for special cases (i.e. table format factories with schema derivation).
+    */
+  private def filterSupportedPropertiesFactorySpecific(
+      factory: TableFactory,
+      keys: Seq[String])
+    : Seq[String] = factory match {
+
+    case formatFactory: TableFormatFactory[_] =>
+      val includeSchema = formatFactory.supportsSchemaDerivation()
+      // ignore non-format (or schema) keys
+      keys.filter { k =>
+        if (includeSchema) {
+          k.startsWith(SchemaValidator.SCHEMA + ".") ||
+            k.startsWith(FormatDescriptorValidator.FORMAT + ".")
+        } else {
+          k.startsWith(FormatDescriptorValidator.FORMAT + ".")
+        }
       }
-    }
 
-    // create the table connector
-    try {
-      factory
-    } catch {
-      case t: Throwable =>
-        throw new TableException(
-          s"Table connector factory '${factory.getClass.getCanonicalName}' caused an exception.",
-          t)
-    }
+    case _ =>
+      keys
   }
 }

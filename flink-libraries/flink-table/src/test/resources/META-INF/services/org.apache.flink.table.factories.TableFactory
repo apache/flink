@@ -13,10 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-<<<<<<< HEAD:flink-libraries/flink-table/src/test/resources/META-INF/services/org.apache.flink.table.sources.TableSourceFactory
-org.apache.flink.table.sources.TestFixedFormatTableFactory
-org.apache.flink.table.sources.TestWildcardFormatTableSourceFactory
-=======
-org.apache.flink.table.factories.TestTableSinkFactory
-org.apache.flink.table.factories.TestTableSourceFactory
->>>>>>> 2fce6f6765... [FLINK-8866] [table] Create unified interfaces to configure and instatiate TableSinks:flink-libraries/flink-table/src/test/resources/META-INF/services/org.apache.flink.table.factories.TableFactory
+org.apache.flink.table.factories.utils.TestFixedFormatTableFactory
+org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory
+org.apache.flink.table.factories.utils.TestTableSinkFactory
+org.apache.flink.table.factories.utils.TestTableSourceFactory
+org.apache.flink.table.factories.utils.TestTableFormatFactory
+org.apache.flink.table.factories.utils.TestAmbiguousTableFormatFactory

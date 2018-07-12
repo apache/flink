@@ -16,23 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.factories
+package org.apache.flink.table.factories.utils
 
 import java.util
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
-import org.apache.flink.table.descriptors.TableDescriptorValidator
+import org.apache.flink.table.factories.utils.TestTableSinkFactory._
+import org.apache.flink.table.factories.{TableFactory, TableSinkFactory}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.types.Row
 
+/**
+  * Test table sink factory.
+  */
 class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "test")
-    context.put(FORMAT_TYPE, "test")
+    context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST)
+    context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     context.put(CONNECTOR_PROPERTY_VERSION, "1")
     context.put(FORMAT_PROPERTY_VERSION, "1")
     context
@@ -65,5 +69,10 @@ class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
         throw new UnsupportedOperationException()
     }
   }
+}
+
+object TestTableSinkFactory {
+  val CONNECTOR_TYPE_VALUE_TEST = "test"
+  val FORMAT_TYPE_VALUE_TEST = "test"
 }
 
