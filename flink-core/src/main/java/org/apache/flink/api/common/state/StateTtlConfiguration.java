@@ -21,6 +21,8 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
+
 import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired;
 import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlTimeCharacteristic.ProcessingTime;
 import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite;
@@ -28,11 +30,16 @@ import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateT
 /**
  * Configuration of state TTL logic.
  */
-public class StateTtlConfiguration {
+public class StateTtlConfiguration implements Serializable {
+	public static final StateTtlConfiguration DISABLED =
+		newBuilder(Time.milliseconds(Long.MAX_VALUE)).setTtlUpdateType(TtlUpdateType.Disabled).build();
+
 	/**
 	 * This option value configures when to update last access timestamp which prolongs state TTL.
 	 */
 	public enum TtlUpdateType {
+		/** TTL is disabled. State does not expire. */
+		Disabled,
 		/** Last access timestamp is initialised when state is created and updated on every write operation. */
 		OnCreateAndWrite,
 		/** The same as <code>OnCreateAndWrite</code> but also updated on read. */
@@ -91,6 +98,10 @@ public class StateTtlConfiguration {
 		return timeCharacteristic;
 	}
 
+	public boolean isEnabled() {
+		return ttlUpdateType != TtlUpdateType.Disabled;
+	}
+
 	@Override
 	public String toString() {
 		return "StateTtlConfiguration{" +
@@ -129,6 +140,14 @@ public class StateTtlConfiguration {
 			return this;
 		}
 
+		public Builder updateTtlOnCreateAndWrite() {
+			return setTtlUpdateType(TtlUpdateType.OnCreateAndWrite);
+		}
+
+		public Builder updateTtlOnReadAndWrite() {
+			return setTtlUpdateType(TtlUpdateType.OnReadAndWrite);
+		}
+
 		/**
 		 * Sets the state visibility.
 		 *
@@ -139,6 +158,14 @@ public class StateTtlConfiguration {
 			return this;
 		}
 
+		public Builder returnExpiredIfNotCleanedUp() {
+			return setStateVisibility(TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		}
+
+		public Builder neverReturnExpired() {
+			return setStateVisibility(TtlStateVisibility.NeverReturnExpired);
+		}
+
 		/**
 		 * Sets the time characteristic.
 		 *
@@ -147,6 +174,10 @@ public class StateTtlConfiguration {
 		public Builder setTimeCharacteristic(TtlTimeCharacteristic timeCharacteristic) {
 			this.timeCharacteristic = timeCharacteristic;
 			return this;
+		}
+
+		public Builder useProcessingTime() {
+			return setTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
 		}
 
 		/**

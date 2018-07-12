@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
@@ -94,8 +95,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	private String queryableStateName;
 
 	/** Name for queries against state created from this StateDescriptor. */
-	@Nullable
-	private StateTtlConfiguration ttlConfig;
+	@Nonnull
+	private StateTtlConfiguration ttlConfig = StateTtlConfiguration.DISABLED;
 
 	/** The default value returned by the state when no other value is bound to a key. */
 	@Nullable
@@ -208,7 +209,8 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * @throws IllegalStateException If queryable state name already set
 	 */
 	public void setQueryable(String queryableStateName) {
-		Preconditions.checkArgument(ttlConfig == null,
+		Preconditions.checkArgument(
+			ttlConfig.getTtlUpdateType() == StateTtlConfiguration.TtlUpdateType.Disabled,
 			"Queryable state is currently not supported with TTL");
 		if (this.queryableStateName == null) {
 			this.queryableStateName = Preconditions.checkNotNull(queryableStateName, "Registration name");
@@ -247,12 +249,14 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	public void enableTimeToLive(StateTtlConfiguration ttlConfig) {
 		Preconditions.checkNotNull(ttlConfig);
-		Preconditions.checkArgument(queryableStateName == null,
+		Preconditions.checkArgument(
+			ttlConfig.getTtlUpdateType() != StateTtlConfiguration.TtlUpdateType.Disabled &&
+				queryableStateName == null,
 			"Queryable state is currently not supported with TTL");
 		this.ttlConfig = ttlConfig;
 	}
 
-	@Nullable
+	@Nonnull
 	@Internal
 	public StateTtlConfiguration getTtlConfig() {
 		return ttlConfig;
