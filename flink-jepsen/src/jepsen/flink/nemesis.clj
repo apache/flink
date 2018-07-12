@@ -24,6 +24,7 @@
             [jepsen.control.util :as cu]
             [jepsen.flink.client :refer :all]
             [jepsen.flink.checker :as flink-checker]
+            [jepsen.flink.generator :as fgen]
             [jepsen.flink.hadoop :as fh]
             [jepsen.flink.zookeeper :refer :all]))
 
@@ -116,17 +117,17 @@
 
 (defn kill-taskmanagers-gen
   [time-limit dt op]
-  (gen/time-limit time-limit (gen/stagger dt (gen/seq (cycle [{:type :info, :f op}])))))
+  (fgen/time-limit time-limit (gen/stagger dt (gen/seq (cycle [{:type :info, :f op}])))))
 
 (defn kill-taskmanagers-bursts-gen
   [time-limit]
-  (gen/time-limit time-limit
+  (fgen/time-limit time-limit
                   (gen/seq (cycle (concat (repeat 20 {:type :info, :f :kill-task-managers})
                                           [(gen/sleep 300)])))))
 
 (defn kill-jobmanagers-gen
   [time-limit]
-  (gen/time-limit (+ time-limit job-submit-grace-period)
+  (fgen/time-limit (+ time-limit job-submit-grace-period)
                   (gen/seq (cons (gen/sleep job-submit-grace-period)
                                  (cycle [{:type :info, :f :kill-job-manager}])))))
 

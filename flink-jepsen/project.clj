@@ -21,7 +21,7 @@
   :dependencies [[org.clojure/clojure "1.9.0"],
                  [cheshire "5.8.0"]
                  [clj-http "3.8.0"]
-                 [jepsen "0.1.8"],
+                 [jepsen "0.1.10"],
                  [jepsen.zookeeper "0.1.0"]
                  [org.clojure/data.xml "0.0.8"]
                  [zookeeper-clj "0.9.4" :exclusions [org.slf4j/slf4j-log4j12]]]
