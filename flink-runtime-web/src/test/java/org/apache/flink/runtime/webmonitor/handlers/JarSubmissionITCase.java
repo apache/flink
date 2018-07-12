@@ -133,7 +133,7 @@ public class JarSubmissionITCase {
 		return handler.handleRequest(planRequest, restfulGateway)
 			.get();
 	}
-	
+
 	private static JarRunResponseBody runJar(JarRunHandler handler, String jarName, DispatcherGateway restfulGateway) throws Exception {
 		final JarRunMessageParameters runParameters = JarRunHeaders.getInstance().getUnresolvedMessageParameters();
 		HandlerRequest<EmptyRequestBody, JarRunMessageParameters> runRequest = new HandlerRequest<>(
