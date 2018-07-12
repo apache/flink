@@ -645,6 +645,29 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>check-convergence</id>
+			<activation>
+				<property>
+					<name>check-convergence</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>dependency-convergence</id>
+								<phase>validate</phase>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>legacyCode</id>
 			<activation>
 				<property>
@@ -1243,6 +1266,7 @@ under the License.
 					</execution>
 					<execution>
 						<id>dependency-convergence</id>
+						<phase>none</phase>
 						<goals>
 							<goal>enforce</goal>
 						</goals>
