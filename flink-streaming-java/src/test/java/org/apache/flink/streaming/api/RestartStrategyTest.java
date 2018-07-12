@@ -37,7 +37,7 @@ public class RestartStrategyTest extends TestLogger {
 	 * client side.
 	 */
 	@Test
-	public void testNoDefaultStrategyOnClientSideWhenCheckpointing() throws Exception {
+	public void testNoDefaultStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 

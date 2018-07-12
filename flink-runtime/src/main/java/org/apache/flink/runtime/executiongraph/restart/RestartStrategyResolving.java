@@ -34,12 +34,14 @@ public final class RestartStrategyResolving {
 	 * The resolving strategy is as follows:
 	 * <ol>
 	 * <li>Strategy set within job graph.</li>
-	 * <li>Strategy set flink-conf.yaml on the server set, unless is set to {@link NoRestartStrategy} and checkpointing is enabled.</li>
-	 * <li>If no strategy was set on client and server side and checkpointing was enabled then {@link FixedDelayRestartStrategy} is used</li>
+	 * <li>Strategy set flink-conf.yaml on the server set, unless is set to {@link NoRestartStrategy} and checkpointing
+	 * is enabled.</li>
+	 * <li>If no strategy was set on client and server side and checkpointing was enabled then
+	 * {@link FixedDelayRestartStrategy} is used</li>
 	 * </ol>
 	 *
-	 * @param clientConfiguration    restart configuration given within the job graph
-	 * @param serverStrategyFactory  default server side strategy factory
+	 * @param clientConfiguration restart configuration given within the job graph
+	 * @param serverStrategyFactory default server side strategy factory
 	 * @param isCheckpointingEnabled if checkpointing was enabled for the job
 	 * @return resolved strategy
 	 */
@@ -50,13 +52,15 @@ public final class RestartStrategyResolving {
 
 		final RestartStrategy serverSideRestartStrategy = serverStrategyFactory.createRestartStrategy();
 
-		RestartStrategy clientSideRestartStrategy = null;
+		final RestartStrategy clientSideRestartStrategy;
 		if (clientConfiguration != null) {
 			if (clientConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
 				clientSideRestartStrategy = serverSideRestartStrategy;
 			} else {
 				clientSideRestartStrategy = RestartStrategyFactory.createRestartStrategy(clientConfiguration);
 			}
+		} else {
+			clientSideRestartStrategy = null;
 		}
 
 		if (clientSideRestartStrategy == null && serverSideRestartStrategy instanceof NoRestartStrategy &&

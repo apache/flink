@@ -19,54 +19,52 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRestart;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 
 /**
  * Tests for {@link RestartStrategyResolving}.
  */
-public class RestartStrategyResolvingTest {
+public class RestartStrategyResolvingTest extends TestLogger {
 
 	@Test
 	public void testClientSideHighestPriority() {
-
 		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(noRestart(),
 			new FixedDelayRestartStrategy.FixedDelayRestartStrategyFactory(2, 1000L),
 			true);
 
-		assertTrue(resolvedStrategy instanceof NoRestartStrategy);
+		assertThat(resolvedStrategy, instanceOf(NoRestartStrategy.class));
 	}
 
 	@Test
 	public void testFixedStrategySetWhenCheckpointingEnabled() {
-
 		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(null,
 			new NoRestartStrategy.NoRestartStrategyFactory(),
 			true);
 
-		assertTrue(resolvedStrategy instanceof FixedDelayRestartStrategy);
+		assertThat(resolvedStrategy, instanceOf(FixedDelayRestartStrategy.class));
 	}
 
 	@Test
 	public void testServerStrategyIsUsedSetWhenCheckpointingEnabled() {
-
 		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(null,
 			new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(5, Time.seconds(5), Time.seconds(2)),
 			true);
 
-		assertTrue(resolvedStrategy instanceof FailureRateRestartStrategy);
+		assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
 	}
 
 	@Test
 	public void testServerStrategyIsUsedSetWhenCheckpointingDisabled() {
-
 		RestartStrategy resolvedStrategy = RestartStrategyResolving.resolve(null,
 			new FailureRateRestartStrategy.FailureRateRestartStrategyFactory(5, Time.seconds(5), Time.seconds(2)),
 			false);
 
-		assertTrue(resolvedStrategy instanceof FailureRateRestartStrategy);
+		assertThat(resolvedStrategy, instanceOf(FailureRateRestartStrategy.class));
 	}
 }
