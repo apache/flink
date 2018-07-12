@@ -240,7 +240,7 @@ public class ShardConsumer<T> implements Runnable {
 						deserializeRecordForCollectionAndUpdateState(record);
 					}
 
-					if (useAdaptiveReads && fetchedRecords.size() != 0) {
+					if (useAdaptiveReads && !fetchedRecords.isEmpty()) {
 						averageRecordSizeBytes = recordBatchSizeBytes / fetchedRecords.size();
 						maxNumberOfRecordsPerFetch = getAdaptiveMaxRecordsPerFetch(averageRecordSizeBytes);
 					}
@@ -356,7 +356,7 @@ public class ShardConsumer<T> implements Runnable {
 	 * @return adaptedMaxRecordsPerFetch
 	 */
 
-	private int getAdaptiveMaxRecordsPerFetch(long averageRecordSizeBytes) {
+	protected int getAdaptiveMaxRecordsPerFetch(long averageRecordSizeBytes) {
 		int adaptedMaxRecordsPerFetch = maxNumberOfRecordsPerFetch;
 		if (averageRecordSizeBytes != 0 && fetchIntervalMillis != 0) {
 				adaptedMaxRecordsPerFetch = (int) (KINESIS_SHARD_BYTES_PER_SECOND_LIMIT / (averageRecordSizeBytes * 1000L / fetchIntervalMillis));
