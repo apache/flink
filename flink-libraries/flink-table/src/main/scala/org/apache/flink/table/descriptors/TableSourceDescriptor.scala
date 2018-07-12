@@ -36,8 +36,6 @@ abstract class TableSourceDescriptor extends TableDescriptor {
     */
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
     super.addProperties(properties)
-    properties.putString(TableDescriptorValidator.TABLE_TYPE,
-      TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE)
     statisticsDescriptor.foreach(_.addProperties(properties))
   }
 

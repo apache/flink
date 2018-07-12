@@ -51,16 +51,10 @@ public class SourceSink extends TableDescriptor {
 	}
 
 	public Source toSource() {
-		final Map<String, String> newProperties = new HashMap<>(properties);
-		newProperties.replace(TableDescriptorValidator.TABLE_TYPE(),
-				TableDescriptorValidator.TABLE_TYPE_VALUE_SOURCE());
-		return new Source(name, newProperties);
+		return new Source(name, properties);
 	}
 
 	public Sink toSink() {
-		final Map<String, String> newProperties = new HashMap<>(properties);
-		newProperties.replace(TableDescriptorValidator.TABLE_TYPE(),
-				TableDescriptorValidator.TABLE_TYPE_VALUE_SINK());
-		return new Sink(name, newProperties);
+		return new Sink(name, properties);
 	}
 }
