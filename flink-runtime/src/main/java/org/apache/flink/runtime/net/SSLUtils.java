@@ -108,7 +108,8 @@ public class SSLUtils {
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
-				false);
+				false,
+				true);
 	}
 
 	/**
@@ -124,6 +125,7 @@ public class SSLUtils {
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
+				true,
 				true);
 	}
 
@@ -142,6 +144,7 @@ public class SSLUtils {
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
+				false,
 				false);
 	}
 
@@ -160,7 +163,8 @@ public class SSLUtils {
 				sslContext,
 				getEnabledProtocols(config),
 				getEnabledCipherSuites(config),
-				true);
+				true,
+				false);
 	}
 
 	private static String[] getEnabledProtocols(final Configuration config) {
@@ -352,6 +356,7 @@ public class SSLUtils {
 		private void configureServerSocket(SSLServerSocket socket) {
 			socket.setEnabledProtocols(protocols);
 			socket.setEnabledCipherSuites(cipherSuites);
+			socket.setNeedClientAuth(true);
 		}
 	}
 }
