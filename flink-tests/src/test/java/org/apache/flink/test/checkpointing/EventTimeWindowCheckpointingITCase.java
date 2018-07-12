@@ -899,7 +899,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			case ROCKSDB_INCREMENTAL_ZK:
 				return 3000;
 			default:
-			return 300;
+				return 300;
 		}
 	}
 
