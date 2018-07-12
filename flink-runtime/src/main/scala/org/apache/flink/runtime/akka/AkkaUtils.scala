@@ -336,21 +336,31 @@ object AkkaUtils {
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
     val akkaEnableSSLConfig = configuration.getBoolean(AkkaOptions.SSL_ENABLED) &&
-          SSLUtils.getSSLEnabled(configuration)
+          SSLUtils.isInternalSSLEnabled(configuration)
 
     val retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR)
 
     val akkaEnableSSL = if (akkaEnableSSLConfig) "on" else "off"
 
-    val akkaSSLKeyStore = configuration.getString(SecurityOptions.SSL_KEYSTORE)
+    val akkaSSLKeyStore = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_KEYSTORE,
+                              configuration.getString(SecurityOptions.SSL_KEYSTORE))
 
-    val akkaSSLKeyStorePassword = configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD)
+    val akkaSSLKeyStorePassword = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD,
+                              configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD))
 
-    val akkaSSLKeyPassword = configuration.getString(SecurityOptions.SSL_KEY_PASSWORD)
+    val akkaSSLKeyPassword = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_KEY_PASSWORD,
+                              configuration.getString(SecurityOptions.SSL_KEY_PASSWORD))
 
-    val akkaSSLTrustStore = configuration.getString(SecurityOptions.SSL_TRUSTSTORE)
+    val akkaSSLTrustStore = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_TRUSTSTORE,
+                              configuration.getString(SecurityOptions.SSL_TRUSTSTORE))
 
-    val akkaSSLTrustStorePassword = configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD)
+    val akkaSSLTrustStorePassword = configuration.getString(
+                              SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
+                              configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD))
 
     val akkaSSLProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL)
 

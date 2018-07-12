@@ -49,9 +49,19 @@ public class SSLEngineFactory {
 
 	public SSLEngine createSSLEngine() {
 		final SSLEngine sslEngine = sslContext.createSSLEngine();
+		configureSSLEngine(sslEngine);
+		return sslEngine;
+	}
+
+	public SSLEngine createSSLEngine(String hostname, int port) {
+		final SSLEngine sslEngine = sslContext.createSSLEngine(hostname, port);
+		configureSSLEngine(sslEngine);
+		return sslEngine;
+	}
+
+	private void configureSSLEngine(SSLEngine sslEngine) {
 		sslEngine.setEnabledProtocols(enabledProtocols);
 		sslEngine.setEnabledCipherSuites(enabledCipherSuites);
 		sslEngine.setUseClientMode(clientMode);
-		return sslEngine;
 	}
 }

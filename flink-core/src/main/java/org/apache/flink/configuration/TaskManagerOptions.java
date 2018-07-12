@@ -116,7 +116,7 @@ public class TaskManagerOptions {
 		key("taskmanager.data.ssl.enabled")
 			.defaultValue(true)
 			.withDescription("Enable SSL support for the taskmanager data transport. This is applicable only when the" +
-				" global ssl flag " + SecurityOptions.SSL_ENABLED.key() + " is set to true");
+				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
 
 	/**
 	 * The initial registration backoff between two consecutive registration attempts. The backoff

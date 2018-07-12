@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -176,7 +175,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		final Iterator<Integer> ports = NetUtils.getPortRangeFromString(serverPortRange);
 
 		final ServerSocketFactory socketFactory;
-		if (config.getBoolean(SecurityOptions.SSL_ENABLED) && config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
+		if (SSLUtils.isInternalSSLEnabled(config) && config.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 			try {
 				socketFactory = SSLUtils.createSSLServerSocketFactory(config);
 			}
