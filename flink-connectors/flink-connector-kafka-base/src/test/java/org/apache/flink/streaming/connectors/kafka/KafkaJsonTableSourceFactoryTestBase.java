@@ -22,8 +22,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.formats.json.JsonRowSchemaConverter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
@@ -31,6 +29,8 @@ import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
@@ -153,8 +153,8 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		DescriptorProperties properties = new DescriptorProperties(true);
 		testDesc.addProperties(properties);
 		final TableSource<?> factorySource =
-				((TableSourceFactory) TableFactoryService.find(TableSourceFactory.class, testDesc))
-						.createTableSource(properties.asMap());
+				TableFactoryService.find(StreamTableSourceFactory.class, testDesc)
+						.createStreamTableSource(properties.asMap());
 
 		assertEquals(builderSource, factorySource);
 	}

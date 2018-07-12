@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.factories
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import java.util
 
-/** Defines an external stream table and provides read access to its data.
+import org.apache.flink.table.sinks.StreamTableSink
+
+/**
+  * A factory to create configured table sink instances in a streaming environment based on
+  * string-based properties. See also [[TableFactory]] for more information.
   *
-  * @tparam T Type of the [[DataStream]] created by this [[TableSource]].
+  * @tparam T type of records that the factory consumes
   */
-trait StreamTableSource[T] extends TableSource[T] {
+trait StreamTableSinkFactory[T] extends TableFactory {
 
   /**
-    * Returns the data of the table as a [[DataStream]].
+    * Creates and configures a [[org.apache.flink.table.sinks.StreamTableSink]]
+    * using the given properties.
     *
-    * NOTE: This method is for internal use only for defining a [[TableSource]].
-    *       Do not use it in Table API programs.
+    * @param properties normalized properties describing a table sink.
+    * @return the configured table sink.
     */
-  def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T]
+  def createStreamTableSink(properties: util.Map[String, String]): StreamTableSink[T]
 }

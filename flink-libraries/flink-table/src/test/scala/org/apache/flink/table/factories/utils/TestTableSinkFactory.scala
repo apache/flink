@@ -20,18 +20,17 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.factories.utils.TestTableSinkFactory._
-import org.apache.flink.table.factories.{TableFactory, TableSinkFactory}
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.factories.{StreamTableSinkFactory, TableFactory}
+import org.apache.flink.table.sinks.StreamTableSink
 import org.apache.flink.types.Row
 
 /**
   * Test table sink factory.
   */
-class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
+class TestTableSinkFactory extends StreamTableSinkFactory[Row] with TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -48,26 +47,13 @@ class TestTableSinkFactory extends TableSinkFactory[Row] with TableFactory {
     properties.add(FORMAT_PATH)
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
-    properties.add("failing")
     properties
   }
 
-  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
-    if (properties.get("failing") == "true") {
-      throw new IllegalArgumentException("Error in this factory.")
-    }
-    new TableSink[Row] {
-      override def getOutputType: TypeInformation[Row] = throw new UnsupportedOperationException()
-
-      override def getFieldNames: Array[String] = throw new UnsupportedOperationException()
-
-      override def getFieldTypes: Array[TypeInformation[_]] =
-        throw new UnsupportedOperationException()
-
-      override def configure(fieldNames: Array[String],
-                             fieldTypes: Array[TypeInformation[_]]): TableSink[Row] =
-        throw new UnsupportedOperationException()
-    }
+  override def createStreamTableSink(
+      properties: util.Map[String, String])
+    : StreamTableSink[Row] = {
+    throw new UnsupportedOperationException()
   }
 }
 

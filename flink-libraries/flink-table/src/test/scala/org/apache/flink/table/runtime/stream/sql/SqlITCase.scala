@@ -739,9 +739,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("sourceTable", t)
 
     tEnv.registerTableSource("targetTable",
-      new InMemoryTableFactory(3).createTableSource(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSource(props.asMap))
     tEnv.registerTableSink("targetTable",
-      new InMemoryTableFactory(3).createTableSink(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSink(props.asMap))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")

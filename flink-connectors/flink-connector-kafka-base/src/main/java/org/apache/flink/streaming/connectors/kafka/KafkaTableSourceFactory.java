@@ -27,11 +27,10 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -72,7 +71,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Factory for creating configured instances of {@link KafkaTableSource}.
  */
-public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>, TableFactory {
+public abstract class KafkaTableSourceFactory implements StreamTableSourceFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -119,7 +118,7 @@ public abstract class KafkaTableSourceFactory implements TableSourceFactory<Row>
 	}
 
 	@Override
-	public TableSource<Row> createTableSource(Map<String, String> properties) {
+	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 

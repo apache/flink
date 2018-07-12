@@ -46,15 +46,18 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Execution;
 import org.apache.flink.table.client.config.Sink;
 import org.apache.flink.table.client.config.Source;
 import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.factories.TableFactoryService;
-import org.apache.flink.table.factories.TableSinkFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.StreamTableSinkFactory;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -114,15 +117,12 @@ public class ExecutionContext<T> {
 			final DescriptorProperties properties = new DescriptorProperties(true);
 			descriptor.addProperties(properties);
 			final Map<String, String> propertyMap = properties.asMap();
+
 			if (descriptor instanceof Source || descriptor instanceof SourceSink) {
-				final TableSourceFactory<?> factory = (TableSourceFactory<?>)
-					TableFactoryService.find(TableSourceFactory.class, descriptor, classLoader);
-				tableSources.put(name, factory.createTableSource(propertyMap));
+				tableSources.put(name, createTableSource(mergedEnv.getExecution(), propertyMap, classLoader));
 			}
 			if (descriptor instanceof Sink || descriptor instanceof SourceSink) {
-				final TableSinkFactory<?> factory = (TableSinkFactory<?>)
-					TableFactoryService.find(TableSinkFactory.class, descriptor, classLoader);
-				tableSinks.put(name, factory.createTableSink(propertyMap));
+				tableSinks.put(name, createTableSink(mergedEnv.getExecution(), propertyMap, classLoader));
 			}
 		});
 
@@ -203,6 +203,32 @@ public class ExecutionContext<T> {
 		} catch (FlinkException e) {
 			throw new SqlExecutionException("Could not create cluster specification for the given deployment.", e);
 		}
+	}
+
+	private static TableSource<?> createTableSource(Execution execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSourceFactory<?> factory = (StreamTableSourceFactory<?>)
+				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createStreamTableSource(sourceProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
+				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createBatchTableSource(sourceProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
+	}
+
+	private static TableSink<?> createTableSink(Execution execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSinkFactory<?> factory = (StreamTableSinkFactory<?>)
+				TableFactoryService.find(StreamTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createStreamTableSink(sinkProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
+				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createBatchTableSink(sinkProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
 	}
 
 	// --------------------------------------------------------------------------------------------

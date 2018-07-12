@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.{StreamTableEnvironment, Table, TableException, ValidationException}
-import org.apache.flink.table.factories.{TableFactoryService, TableSourceFactory}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.api.{StreamTableEnvironment, Table, ValidationException}
+import org.apache.flink.table.factories.{StreamTableSourceFactory, TableFactoryService}
+import org.apache.flink.table.sources.TableSource
 
 /**
   * Descriptor for specifying a table source in a streaming environment.
@@ -49,15 +49,10 @@ class StreamTableSourceDescriptor(tableEnv: StreamTableEnvironment, connector: C
   def toTableSource: TableSource[_] = {
     val properties = new DescriptorProperties()
     addProperties(properties)
-    val source = TableFactoryService.find(classOf[TableSourceFactory[_]], this)
-      .asInstanceOf[TableSourceFactory[_]]
-      .createTableSource(properties.asMap)
-    source match {
-      case _: StreamTableSource[_] => source
-      case _ => throw new TableException(
-        s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
-          s"in a streaming environment.")
-    }
+    val javaMap = properties.asMap
+    TableFactoryService
+      .find(classOf[StreamTableSourceFactory[_]], javaMap)
+      .createStreamTableSource(javaMap)
   }
 
   /**

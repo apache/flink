@@ -37,7 +37,7 @@ class TableSinkFactoryServiceTest {
   @Test
   def testValidProperties(): Unit = {
     val props = properties()
-    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+    assertTrue(TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
       .isInstanceOf[TestTableSinkFactory])
   }
 
@@ -45,7 +45,7 @@ class TableSinkFactoryServiceTest {
   def testInvalidContext(): Unit = {
     val props = properties()
     props.put(CONNECTOR_TYPE, "unknown-connector-type")
-    TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+    TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
   }
 
   @Test
@@ -53,7 +53,7 @@ class TableSinkFactoryServiceTest {
     val props = properties()
     props.put(CONNECTOR_PROPERTY_VERSION, "2")
     // the table source should still be found
-    assertTrue(TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+    assertTrue(TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
       .isInstanceOf[TestTableSinkFactory])
   }
 
@@ -61,7 +61,7 @@ class TableSinkFactoryServiceTest {
   def testUnsupportedProperty(): Unit = {
     val props = properties()
     props.put("format.path_new", "/new/path")
-    TableFactoryService.find(classOf[TableSinkFactory[_]], props)
+    TableFactoryService.find(classOf[StreamTableSinkFactory[_]], props)
   }
 
   private def properties(): JMap[String, String] = {
@@ -77,7 +77,6 @@ class TableSinkFactoryServiceTest {
     properties.put("schema.0.field.0.name", "a")
     properties.put("schema.0.field.1.name", "b")
     properties.put("schema.0.field.2.name", "c")
-    properties.put("failing", "false")
     properties
   }
 }

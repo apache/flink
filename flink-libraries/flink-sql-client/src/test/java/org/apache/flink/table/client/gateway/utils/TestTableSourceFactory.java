@@ -24,10 +24,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
-import org.apache.flink.table.factories.TableFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -51,7 +50,7 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Table source factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSourceFactory implements TableSourceFactory<Row>, TableFactory {
+public class TestTableSourceFactory implements StreamTableSourceFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {
@@ -73,7 +72,7 @@ public class TestTableSourceFactory implements TableSourceFactory<Row>, TableFac
 	}
 
 	@Override
-	public TableSource<Row> createTableSource(Map<String, String> properties) {
+	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);

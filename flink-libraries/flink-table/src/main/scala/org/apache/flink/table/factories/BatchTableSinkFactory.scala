@@ -18,17 +18,24 @@
 
 package org.apache.flink.table.factories
 
-import org.apache.flink.table.sinks.TableSink
-
 import java.util
 
-trait TableSinkFactory[T] {
+import org.apache.flink.table.sinks.BatchTableSink
+
+/**
+  * A factory to create configured table sink instances in a streaming environment based on
+  * string-based properties. See also [[TableFactory]] for more information.
+  *
+  * @tparam T type of records that the factory consumes
+  */
+trait BatchTableSinkFactory[T] extends TableFactory {
+
   /**
-    * Creates and configures a [[org.apache.flink.table.sinks.TableSink]]
+    * Creates and configures a [[org.apache.flink.table.sinks.BatchTableSink]]
     * using the given properties.
     *
-    * @param properties normalized properties describing a table source.
-    * @return the configured table source.
+    * @param properties normalized properties describing a table sink.
+    * @return the configured table sink.
     */
-  def createTableSink(properties: util.Map[String, String]): TableSink[T]
+  def createBatchTableSink(properties: util.Map[String, String]): BatchTableSink[T]
 }

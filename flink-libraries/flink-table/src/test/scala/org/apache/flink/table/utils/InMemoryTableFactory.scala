@@ -25,9 +25,9 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTO
 import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.descriptors.{DescriptorProperties, SchemaValidator}
-import org.apache.flink.table.factories.{TableFactory, TableSinkFactory, TableSourceFactory}
-import org.apache.flink.table.sinks.TableSink
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactory}
+import org.apache.flink.table.sinks.StreamTableSink
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 
 /**
@@ -38,27 +38,43 @@ import org.apache.flink.types.Row
   *
   * @param terminationCount determines when to shutdown the streaming source function
   */
-class InMemoryTableFactory(terminationCount: Int) extends TableSourceFactory[Row]
-  with TableSinkFactory[Row] with TableFactory {
-  override def createTableSink(properties: util.Map[String, String]): TableSink[Row] = {
+class InMemoryTableFactory(terminationCount: Int)
+  extends TableFactory
+  with StreamTableSourceFactory[Row]
+  with StreamTableSinkFactory[Row] {
+
+  override def createStreamTableSink(
+      properties: util.Map[String, String])
+    : StreamTableSink[Row] = {
+
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true, true, true).validate(params)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = true,
+      supportsSourceWatermarks = true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
     new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink()
       .configure(tableSchema.getColumnNames, tableSchema.getTypes)
+      .asInstanceOf[StreamTableSink[Row]]
   }
 
-  override def createTableSource(properties: util.Map[String, String]): TableSource[Row] = {
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
+
     val params: DescriptorProperties = new DescriptorProperties(true)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(true, true, true).validate(params)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = true,
+      supportsSourceWatermarks = true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSourceSchema(params)
 

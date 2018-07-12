@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.{BatchTableEnvironment, Table, TableException, ValidationException}
-import org.apache.flink.table.factories.{TableFactoryService, TableSourceFactory}
-import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.api.{BatchTableEnvironment, Table, ValidationException}
+import org.apache.flink.table.factories.{BatchTableSourceFactory, TableFactoryService}
+import org.apache.flink.table.sources.TableSource
 
 class BatchTableSourceDescriptor(tableEnv: BatchTableEnvironment, connector: ConnectorDescriptor)
   extends TableSourceDescriptor {
@@ -46,15 +46,10 @@ class BatchTableSourceDescriptor(tableEnv: BatchTableEnvironment, connector: Con
   def toTableSource: TableSource[_] = {
     val properties = new DescriptorProperties()
     addProperties(properties)
-    val source = TableFactoryService.find(classOf[TableSourceFactory[_]], this)
-      .asInstanceOf[TableSourceFactory[_]]
-      .createTableSource(properties.asMap)
-    source match {
-      case _: BatchTableSource[_] => source
-      case _ => throw new TableException(
-        s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
-          s"in a batch environment.")
-    }
+    val javaMap = properties.asMap
+    TableFactoryService
+      .find(classOf[BatchTableSourceFactory[_]], javaMap)
+      .createBatchTableSource(javaMap)
   }
 
   /**
