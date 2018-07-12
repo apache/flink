@@ -130,23 +130,20 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void writeRecord(Row row) throws IOException {
-
 		if (typesArray != null && typesArray.length > 0 && typesArray.length != row.getArity()) {
 			LOG.warn("Column SQL types array doesn't match arity of passed Row! Check the passed array...");
 		}
-		synchronized (this) {
-			try {
-				fillStmt(row);
-				upload.addBatch();
-				batchCount++;
-			} catch (SQLException e) {
-				throw new RuntimeException("Preparation of JDBC statement failed.", e);
-			}
+		try {
+			fillStmt(row);
+			upload.addBatch();
+			batchCount++;
+		} catch (SQLException e) {
+			throw new RuntimeException("Preparation of JDBC statement failed.", e);
+		}
 
-			if (batchCount >= batchInterval) {
-				// execute batch
-				flush();
-			}
+		if (batchCount >= batchInterval) {
+			// execute batch
+			flush();
 		}
 	}
 
@@ -241,10 +238,8 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 	void flush() {
 		try {
-			synchronized (this) {
-				upload.executeBatch();
-				batchCount = 0;
-			}
+			upload.executeBatch();
+			batchCount = 0;
 		} catch (SQLException e) {
 			throw new RuntimeException("Execution of JDBC statement failed.", e);
 		}
