@@ -125,10 +125,7 @@
     (teardown! [_ test node]
       (info "Teardown Hadoop")
       (c/su
-        (stop-name-node!)
-        (c/exec (str install-dir "/sbin/hadoop-daemon.sh") :--config hadoop-conf-dir :--script :hdfs :stop :datanode)
-        (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :stop :resourcemanager)
-        (c/exec (str install-dir "/sbin/yarn-daemon.sh") :--config hadoop-conf-dir :stop :nodemanager)
+        (cu/grepkill! "hadoop")
         (c/exec (c/lit (str "rm -rf /tmp/hadoop-* ||:")))))
 
     db/LogFiles
