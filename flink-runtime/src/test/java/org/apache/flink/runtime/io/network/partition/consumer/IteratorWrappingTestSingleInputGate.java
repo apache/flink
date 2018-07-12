@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
@@ -66,12 +67,12 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		// The input iterator can produce an infinite stream. That's why we have to serialize each
 		// record on demand and cannot do it upfront.
-		final Answer<Optional<BufferAndAvailability>> answer = new Answer<Optional<BufferAndAvailability>>() {
+		final BufferAvailabilityProvider answer = new BufferAvailabilityProvider() {
 
 			private boolean hasData = inputIterator.next(reuse) != null;
 
 			@Override
-			public Optional<BufferAndAvailability> answer(InvocationOnMock invocationOnMock) throws Throwable {
+			public Optional<BufferAndAvailability> getBufferAvailability() throws IOException {
 				if (hasData) {
 					serializer.clear();
 					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
@@ -83,14 +84,16 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 					// Call getCurrentBuffer to ensure size is set
 					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0));
 				} else {
-					when(inputChannel.getInputChannel().isReleased()).thenReturn(true);
+					inputChannel.getInputChannel().setReleased();
 
-					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0));
+					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
+						false,
+						0));
 				}
 			}
 		};
 
-		when(inputChannel.getInputChannel().getNextBuffer()).thenAnswer(answer);
+		inputChannel.getInputChannel().addBufferAndAvailability(answer);
 
 		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel.getInputChannel());
 
