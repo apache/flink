@@ -36,15 +36,20 @@ public class SSLEngineFactory {
 
 	private final boolean clientMode;
 
+	final boolean clientAuthentication;
+
 	public SSLEngineFactory(
 			final SSLContext sslContext,
 			final String[] enabledProtocols,
 			final String[] enabledCipherSuites,
-			final boolean clientMode) {
+			final boolean clientMode,
+			final boolean clientAuthentication) {
+
 		this.sslContext = requireNonNull(sslContext, "sslContext must not be null");
 		this.enabledProtocols = requireNonNull(enabledProtocols, "enabledProtocols must not be null");
 		this.enabledCipherSuites = requireNonNull(enabledCipherSuites, "cipherSuites must not be null");
 		this.clientMode = clientMode;
+		this.clientAuthentication = clientAuthentication;
 	}
 
 	public SSLEngine createSSLEngine() {
@@ -63,5 +68,8 @@ public class SSLEngineFactory {
 		sslEngine.setEnabledProtocols(enabledProtocols);
 		sslEngine.setEnabledCipherSuites(enabledCipherSuites);
 		sslEngine.setUseClientMode(clientMode);
+		if (!clientMode) {
+			sslEngine.setNeedClientAuth(clientAuthentication);
+		}
 	}
 }

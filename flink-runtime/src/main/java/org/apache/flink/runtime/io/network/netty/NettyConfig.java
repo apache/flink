@@ -213,6 +213,10 @@ public class NettyConfig {
 		return config.getBoolean(TaskManagerOptions.NETWORK_CREDIT_MODEL);
 	}
 
+	public Configuration getConfig() {
+		return config;
+	}
+
 	@Override
 	public String toString() {
 		String format = "NettyConfig [" +
