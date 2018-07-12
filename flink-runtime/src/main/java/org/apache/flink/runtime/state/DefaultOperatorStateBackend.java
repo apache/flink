@@ -38,6 +38,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
@@ -111,12 +112,12 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	 * <p>TODO this map can be removed when eager-state registration is in place.
 	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
 	 */
-	private final Map<String, RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> restoredOperatorStateMetaInfos;
+	private final Map<String, StateMetaInfoSnapshot> restoredOperatorStateMetaInfos;
 
 	/**
 	 * Map of state names to their corresponding restored broadcast state meta info.
 	 */
-	private final Map<String, RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> restoredBroadcastStateMetaInfos;
+	private final Map<String, StateMetaInfoSnapshot> restoredBroadcastStateMetaInfos;
 
 	/**
 	 * Cache of already accessed states.
@@ -180,14 +181,16 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	//  State access methods
 	// -------------------------------------------------------------------------------------------
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <K, V> BroadcastState<K, V> getBroadcastState(final MapStateDescriptor<K, V> stateDescriptor) throws StateMigrationException {
 
 		Preconditions.checkNotNull(stateDescriptor);
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
 
-		@SuppressWarnings("unchecked")
-		BackendWritableBroadcastState<K, V> previous = (BackendWritableBroadcastState<K, V>) accessedBroadcastStatesByName.get(name);
+		BackendWritableBroadcastState<K, V> previous =
+			(BackendWritableBroadcastState<K, V>) accessedBroadcastStatesByName.get(name);
+
 		if (previous != null) {
 			checkStateNameAndMode(
 					previous.getStateMetaInfo().getName(),
@@ -201,7 +204,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		TypeSerializer<K> broadcastStateKeySerializer = Preconditions.checkNotNull(stateDescriptor.getKeySerializer());
 		TypeSerializer<V> broadcastStateValueSerializer = Preconditions.checkNotNull(stateDescriptor.getValueSerializer());
 
-		BackendWritableBroadcastState<K, V> broadcastState = (BackendWritableBroadcastState<K, V>) registeredBroadcastStates.get(name);
+		BackendWritableBroadcastState<K, V> broadcastState =
+			(BackendWritableBroadcastState<K, V>) registeredBroadcastStates.get(name);
 
 		if (broadcastState == null) {
 			broadcastState = new HeapBroadcastState<>(
@@ -220,21 +224,24 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					broadcastState.getStateMetaInfo().getAssignmentMode(),
 					OperatorStateHandle.Mode.BROADCAST);
 
+			final StateMetaInfoSnapshot metaInfoSnapshot = restoredBroadcastStateMetaInfos.get(name);
+
 			@SuppressWarnings("unchecked")
-			RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V> restoredMetaInfo =
-					(RegisteredBroadcastBackendStateMetaInfo.Snapshot<K, V>) restoredBroadcastStateMetaInfos.get(name);
+			RegisteredBroadcastBackendStateMetaInfo<K, V> restoredMetaInfo = new RegisteredBroadcastBackendStateMetaInfo<K, V>(metaInfoSnapshot);
 
 			// check compatibility to determine if state migration is required
 			CompatibilityResult<K> keyCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getKeySerializer(),
 					UnloadableDummyTypeSerializer.class,
-					restoredMetaInfo.getKeySerializerConfigSnapshot(),
+					//TODO this keys should not be exposed and should be adapted after FLINK-9377 was merged
+					metaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER),
 					broadcastStateKeySerializer);
 
 			CompatibilityResult<V> valueCompatibility = CompatibilityUtil.resolveCompatibilityResult(
 					restoredMetaInfo.getValueSerializer(),
 					UnloadableDummyTypeSerializer.class,
-					restoredMetaInfo.getValueSerializerConfigSnapshot(),
+					//TODO this keys should not be exposed and should be adapted after FLINK-9377 was merged
+					metaInfoSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
 					broadcastStateValueSerializer);
 
 			if (!keyCompatibility.isRequiresMigration() && !valueCompatibility.isRequiresMigration()) {
@@ -387,7 +394,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					CheckpointStreamFactory.CheckpointStateOutputStream localOut = this.out;
 
 					// get the registered operator state infos ...
-					List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> operatorMetaInfoSnapshots =
+					List<StateMetaInfoSnapshot> operatorMetaInfoSnapshots =
 						new ArrayList<>(registeredOperatorStatesDeepCopies.size());
 
 					for (Map.Entry<String, PartitionableListState<?>> entry : registeredOperatorStatesDeepCopies.entrySet()) {
@@ -395,7 +402,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					}
 
 					// ... get the registered broadcast operator state infos ...
-					List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> broadcastMetaInfoSnapshots =
+					List<StateMetaInfoSnapshot> broadcastMetaInfoSnapshots =
 							new ArrayList<>(registeredBroadcastStatesDeepCopies.size());
 
 					for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry : registeredBroadcastStatesDeepCopies.entrySet()) {
@@ -497,36 +504,35 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				backendSerializationProxy.read(new DataInputViewStreamWrapper(in));
 
-				List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> restoredOperatorMetaInfoSnapshots =
+				List<StateMetaInfoSnapshot> restoredOperatorMetaInfoSnapshots =
 						backendSerializationProxy.getOperatorStateMetaInfoSnapshots();
 
 				// Recreate all PartitionableListStates from the meta info
-				for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> restoredMetaInfo : restoredOperatorMetaInfoSnapshots) {
+				for (StateMetaInfoSnapshot restoredSnapshot : restoredOperatorMetaInfoSnapshots) {
+
+					final RegisteredOperatorBackendStateMetaInfo<?> restoredMetaInfo =
+						new RegisteredOperatorBackendStateMetaInfo<>(restoredSnapshot);
 
 					if (restoredMetaInfo.getPartitionStateSerializer() == null ||
-							restoredMetaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer) {
+						restoredMetaInfo.getPartitionStateSerializer() instanceof UnloadableDummyTypeSerializer) {
 
 						// must fail now if the previous serializer cannot be restored because there is no serializer
 						// capable of reading previous state
 						// TODO when eager state registration is in place, we can try to get a convert deserializer
 						// TODO from the newly registered serializer instead of simply failing here
 
-						throw new IOException("Unable to restore operator state [" + restoredMetaInfo.getName() + "]." +
+						throw new IOException("Unable to restore operator state [" + restoredSnapshot.getName() + "]." +
 							" The previous serializer of the operator state must be present; the serializer could" +
 							" have been removed from the classpath, or its implementation have changed and could" +
 							" not be loaded. This is a temporary restriction that will be fixed in future versions.");
 					}
 
-					restoredOperatorStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
+					restoredOperatorStateMetaInfos.put(restoredSnapshot.getName(), restoredSnapshot);
 
-					PartitionableListState<?> listState = registeredOperatorStates.get(restoredMetaInfo.getName());
+					PartitionableListState<?> listState = registeredOperatorStates.get(restoredSnapshot.getName());
 
 					if (null == listState) {
-						listState = new PartitionableListState<>(
-								new RegisteredOperatorBackendStateMetaInfo<>(
-										restoredMetaInfo.getName(),
-										restoredMetaInfo.getPartitionStateSerializer(),
-										restoredMetaInfo.getAssignmentMode()));
+						listState = new PartitionableListState<>(restoredMetaInfo);
 
 						registeredOperatorStates.put(listState.getStateMetaInfo().getName(), listState);
 					} else {
@@ -535,37 +541,35 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				}
 
 				// ... and then get back the broadcast state.
-				List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> restoredBroadcastMetaInfoSnapshots =
+				List<StateMetaInfoSnapshot> restoredBroadcastMetaInfoSnapshots =
 						backendSerializationProxy.getBroadcastStateMetaInfoSnapshots();
 
-				for (RegisteredBroadcastBackendStateMetaInfo.Snapshot<? ,?> restoredMetaInfo : restoredBroadcastMetaInfoSnapshots) {
+				for (StateMetaInfoSnapshot restoredSnapshot : restoredBroadcastMetaInfoSnapshots) {
+
+					final RegisteredBroadcastBackendStateMetaInfo<?, ?> restoredMetaInfo =
+						new RegisteredBroadcastBackendStateMetaInfo<>(restoredSnapshot);
 
 					if (restoredMetaInfo.getKeySerializer() == null || restoredMetaInfo.getValueSerializer() == null ||
-							restoredMetaInfo.getKeySerializer() instanceof UnloadableDummyTypeSerializer ||
-							restoredMetaInfo.getValueSerializer() instanceof UnloadableDummyTypeSerializer) {
+						restoredMetaInfo.getKeySerializer() instanceof UnloadableDummyTypeSerializer ||
+						restoredMetaInfo.getValueSerializer() instanceof UnloadableDummyTypeSerializer) {
 
 						// must fail now if the previous serializer cannot be restored because there is no serializer
 						// capable of reading previous state
 						// TODO when eager state registration is in place, we can try to get a convert deserializer
 						// TODO from the newly registered serializer instead of simply failing here
 
-						throw new IOException("Unable to restore broadcast state [" + restoredMetaInfo.getName() + "]." +
+						throw new IOException("Unable to restore broadcast state [" + restoredSnapshot.getName() + "]." +
 								" The previous key and value serializers of the state must be present; the serializers could" +
 								" have been removed from the classpath, or their implementations have changed and could" +
 								" not be loaded. This is a temporary restriction that will be fixed in future versions.");
 					}
 
-					restoredBroadcastStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
+					restoredBroadcastStateMetaInfos.put(restoredSnapshot.getName(), restoredSnapshot);
 
-					BackendWritableBroadcastState<? ,?> broadcastState = registeredBroadcastStates.get(restoredMetaInfo.getName());
+					BackendWritableBroadcastState<? ,?> broadcastState = registeredBroadcastStates.get(restoredSnapshot.getName());
 
 					if (broadcastState == null) {
-						broadcastState = new HeapBroadcastState<>(
-								new RegisteredBroadcastBackendStateMetaInfo<>(
-										restoredMetaInfo.getName(),
-										restoredMetaInfo.getAssignmentMode(),
-										restoredMetaInfo.getKeySerializer(),
-										restoredMetaInfo.getValueSerializer()));
+						broadcastState = new HeapBroadcastState<>(restoredMetaInfo);
 
 						registeredBroadcastStates.put(broadcastState.getStateMetaInfo().getName(), broadcastState);
 					} else {
@@ -752,16 +756,17 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					partitionableListState.getStateMetaInfo().getAssignmentMode(),
 					mode);
 
-			@SuppressWarnings("unchecked")
-			RegisteredOperatorBackendStateMetaInfo.Snapshot<S> restoredMetaInfo =
-				(RegisteredOperatorBackendStateMetaInfo.Snapshot<S>) restoredOperatorStateMetaInfos.get(name);
+			StateMetaInfoSnapshot restoredSnapshot = restoredOperatorStateMetaInfos.get(name);
+			RegisteredOperatorBackendStateMetaInfo<S> metaInfo =
+				new RegisteredOperatorBackendStateMetaInfo<>(restoredSnapshot);
 
 			// check compatibility to determine if state migration is required
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
 			CompatibilityResult<S> stateCompatibility = CompatibilityUtil.resolveCompatibilityResult(
-					restoredMetaInfo.getPartitionStateSerializer(),
+					metaInfo.getPartitionStateSerializer(),
 					UnloadableDummyTypeSerializer.class,
-					restoredMetaInfo.getPartitionStateSerializerConfigSnapshot(),
+					//TODO this keys should not be exposed and should be adapted after FLINK-9377 was merged
+					restoredSnapshot.getTypeSerializerConfigSnapshot(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER),
 					newPartitionStateSerializer);
 
 			if (!stateCompatibility.isRequiresMigration()) {

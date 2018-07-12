@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
@@ -173,7 +174,7 @@ public abstract class StateTable<K, N, S> {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredKeyedBackendStateMetaInfo<N, S> getMetaInfo() {
+	public RegisteredStateMetaInfoBase getMetaInfo() {
 		return metaInfo;
 	}
 
