@@ -28,13 +28,13 @@ import java.util.concurrent.TimeUnit;
  * This class defines methods to generate RestartStrategyConfigurations. These configurations are
  * used to create RestartStrategies at runtime.
  *
- * The RestartStrategyConfigurations are used to decouple the core module from the runtime module.
+ * <p>The RestartStrategyConfigurations are used to decouple the core module from the runtime module.
  */
 @PublicEvolving
 public class RestartStrategies {
 
 	/**
-	 * Generates NoRestartStrategyConfiguration
+	 * Generates NoRestartStrategyConfiguration.
 	 *
 	 * @return NoRestartStrategyConfiguration
 	 */
@@ -80,20 +80,26 @@ public class RestartStrategies {
 		return new FailureRateRestartStrategyConfiguration(failureRate, failureInterval, delayInterval);
 	}
 
+	/**
+	 * Abstract configuration for restart strategies.
+	 */
 	public abstract static class RestartStrategyConfiguration implements Serializable {
 		private static final long serialVersionUID = 6285853591578313960L;
 
 		private RestartStrategyConfiguration() {}
 
 		/**
-		 * Returns a description which is shown in the web interface
+		 * Returns a description which is shown in the web interface.
 		 *
 		 * @return Description of the restart strategy
 		 */
 		public abstract String getDescription();
 	}
 
-	final public static class NoRestartStrategyConfiguration extends RestartStrategyConfiguration {
+	/**
+	 * Configuration representing no restart strategy.
+	 */
+	public static final class NoRestartStrategyConfiguration extends RestartStrategyConfiguration {
 		private static final long serialVersionUID = -5894362702943349962L;
 
 		@Override
@@ -102,7 +108,10 @@ public class RestartStrategies {
 		}
 	}
 
-	final public static class FixedDelayRestartStrategyConfiguration extends RestartStrategyConfiguration {
+	/**
+	 * Configuration representing a fixed delay restart strategy.
+	 */
+	public static final class FixedDelayRestartStrategyConfiguration extends RestartStrategyConfiguration {
 		private static final long serialVersionUID = 4149870149673363190L;
 
 		private final int restartAttempts;
@@ -146,7 +155,10 @@ public class RestartStrategies {
 		}
 	}
 
-	final public static class FailureRateRestartStrategyConfiguration extends RestartStrategyConfiguration {
+	/**
+	 * Configuration representing a failure rate restart strategy.
+	 */
+	public static final class FailureRateRestartStrategyConfiguration extends RestartStrategyConfiguration {
 		private static final long serialVersionUID = 1195028697539661739L;
 		private final int maxFailureRate;
 
@@ -183,7 +195,7 @@ public class RestartStrategies {
 	 * strategy. Useful especially when one has a custom implementation of restart strategy set via
 	 * flink-conf.yaml.
 	 */
-	final public static class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
+	public static final class FallbackRestartStrategyConfiguration extends RestartStrategyConfiguration{
 		private static final long serialVersionUID = -4441787204284085544L;
 
 		@Override
