@@ -40,12 +40,9 @@ abstract class PhysicalTableSourceScan(
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val streamingTable = table.unwrap(classOf[TableSourceSinkTable[_, _]]) match {
-      case t: TableSourceSinkTable[_, _] => t.tableSourceTableOpt match {
-        case Some(_: StreamTableSourceTable[_]) => true
-        case Some(_: BatchTableSourceTable[_]) => false
-        case _ => throw TableException(s"Unknown Table type ${t.getClass}.")
-      }
-      case t => throw TableException(s"Unknown Table type ${t.getClass}.")
+      case t: TableSourceSinkTable[_, _] if t.isStreamSourceTable => true
+      // null
+      case _ => false
     }
 
     TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)

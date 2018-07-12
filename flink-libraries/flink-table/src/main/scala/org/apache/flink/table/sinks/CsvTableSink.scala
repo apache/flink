@@ -21,7 +21,6 @@ package org.apache.flink.table.sinks
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.io.CsvInputFormat
 import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
@@ -138,95 +137,4 @@ class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
     }
     builder.mkString
   }
-}
-
-object CsvTableSink {
-
-  /**
-    * A builder for creating [[CsvTableSink]] instances.
-    *
-    * For example:
-    *
-    * {{{
-    *   val sink: CsvTableSink = new CsvTableSink.builder()
-    *     .path("/path/to/your/file.csv")
-    *     .build()
-    * }}}
-    *
-    */
-  class Builder {
-
-    private var path: String = _
-    private var fieldDelimOpt: Option[String] = Some(CsvInputFormat.DEFAULT_FIELD_DELIMITER)
-    private var numFilesOpt: Option[Int] = None
-    private var writeModeOpt: Option[WriteMode] = None
-
-    /**
-      * Sets the path to the CSV file. Required.
-      *
-      * @param path the path to the CSV file
-      */
-    def path(path: String): Builder = {
-      this.path = path
-      this
-    }
-
-    /**
-      * Sets the field delimiter, "," by default.
-      *
-      * @param delim the field delimiter
-      */
-    def fieldDelimiter(delim: String): Builder = {
-      this.fieldDelimOpt = Some(delim)
-      this
-    }
-
-    /**
-      * Sets the number of files to write to
-      *
-      * @param numFiles the number of files
-      */
-    def numFiles(numFiles: Int): Builder = {
-      this.numFilesOpt = Some(numFiles)
-      this
-    }
-
-    /**
-      * Sets the write mode
-      *
-      * @param mode the write mode
-      */
-    def writeMode(mode: String): Builder = {
-      this.writeModeOpt = Some(WriteMode.valueOf(mode))
-      this
-    }
-
-    /**
-      * Apply the current values and constructs a newly-created [[CsvTableSink]].
-      *
-      * @return a newly-created [[CsvTableSink]].
-      */
-    def build(): CsvTableSink = {
-      if (path == null) {
-        throw new IllegalArgumentException("Path must be defined.")
-      }
-      new CsvTableSink(path, fieldDelimOpt, numFilesOpt, writeModeOpt)
-    }
-
-  }
-
-  /**
-    * Return a new builder that builds a [[CsvTableSink]].
-    *
-    * For example:
-    *
-    * {{{
-    *   val sink: CsvTableSink = CsvTableSink
-    *     .builder()
-    *     .path("/path/to/your/file.csv")
-    *     .build()
-    * }}}
-    * @return a new builder to build a [[CsvTableSink]]
-    */
-  def builder(): Builder = new Builder
 }

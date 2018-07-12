@@ -49,7 +49,7 @@ public class Environment {
 
 	private static final String TABLE_NAME = "name";
 	private static final String TABLE_TYPE = "type";
-	private static final String TABLE_TYPE_VALUE_SOURCE = "type";
+	private static final String TABLE_TYPE_VALUE_SOURCE = "source";
 	private static final String TABLE_TYPE_VALUE_SINK = "sink";
 	private static final String TABLE_TYPE_VALUE_BOTH = "both";
 
@@ -218,7 +218,7 @@ public class Environment {
 		}
 		final String type = (String) typeObject;
 		final Map<String, Object> properties = new HashMap<>(config);
-		config.remove(TABLE_TYPE);
+		properties.remove(TABLE_TYPE);
 
 		final Map<String, String> normalizedProperties = ConfigUtil.normalizeYaml(properties);
 		switch (type) {

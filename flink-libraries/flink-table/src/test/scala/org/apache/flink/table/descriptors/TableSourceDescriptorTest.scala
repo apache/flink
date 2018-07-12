@@ -25,6 +25,9 @@ import org.junit.Test
 
 import scala.collection.JavaConverters._
 
+/**
+  * Tests for [[TableSourceDescriptor]].
+  */
 class TableSourceDescriptorTest extends TableTestBase {
 
   @Test

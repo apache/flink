@@ -24,8 +24,7 @@ import org.apache.flink.table.descriptors.TableSourceDescriptor;
 import java.util.Map;
 
 /**
- * Configuration of a table source. Parses an entry in the `tables` list of an environment
- * file and translates to table descriptor properties.
+ * Configuration of a table source.
  */
 public class Source extends TableSourceDescriptor {
 

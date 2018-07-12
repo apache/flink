@@ -183,7 +183,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val stream = env
       .fromCollection(data)
@@ -199,7 +199,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.008,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.016,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableData.map(_.toString).sorted)
+    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test

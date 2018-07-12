@@ -70,7 +70,7 @@ class TableSinkFactoryServiceTest {
     properties.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     properties.put(CONNECTOR_PROPERTY_VERSION, "1")
     properties.put(FORMAT_PROPERTY_VERSION, "1")
-    properties.put("format.path", "/path/to/target")
+    properties.put(FORMAT_PATH, "/path/to/target")
     properties.put("schema.0.name", "a")
     properties.put("schema.1.name", "b")
     properties.put("schema.2.name", "c")

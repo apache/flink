@@ -56,7 +56,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable, TableSourceSinkTable}
+import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -465,14 +465,14 @@ abstract class TableEnvironment(val config: TableConfig) {
       tableSink: TableSink[_]): Unit
 
   /**
-    * Registers an external [[TableSink]] which is already configured in this
-    * [[TableEnvironment]]'s catalog.
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
     * Registered sink tables can be referenced in SQL DML statements.
     *
     * @param name The name under which the [[TableSink]] is registered.
-    * @param tableSink The [[TableSink]] to register.
+    * @param configuredSink The configured [[TableSink]] to register.
     */
-  def registerTableSink(name: String, tableSink: TableSink[_]): Unit
+  def registerTableSink(name: String, configuredSink: TableSink[_]): Unit
 
   /**
     * Replaces a registered Table with another Table under the same name.
@@ -760,8 +760,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     getTable(sinkTableName) match {
-      case s: TableSourceSinkTable[_, _] if s.tableSinkTableOpt != None =>
-        val tableSink = s.tableSinkTableOpt.get.tableSink
+
+      // check for registered table that wraps a sink
+      case s: TableSourceSinkTable[_, _] if s.tableSinkTable.isDefined =>
+        val tableSink = s.tableSinkTable.get.tableSink
         // validate schema of source table and table sink
         val srcFieldTypes = table.getSchema.getTypes
         val sinkFieldTypes = tableSink.getFieldTypes
@@ -781,7 +783,7 @@ abstract class TableEnvironment(val config: TableConfig) {
             .mkString("[", ", ", "]")
 
           throw ValidationException(
-            s"Field types of query result and registered TableSink $sinkTableName do not match." +
+            s"Field types of query result and registered TableSink $sinkTableName do not match.\n" +
               s"Query result schema: $srcSchema\n" +
               s"TableSink schema:    $sinkSchema")
         }

@@ -103,24 +103,40 @@ abstract class BatchTableEnvironment(
     : Unit = {
 
     tableSource match {
+
+      // check for proper batch table source
       case batchTableSource: BatchTableSource[_] =>
+        // check if a table (source or sink) is registered
         Option(getTable(name)) match {
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTableOpt match {
+
+          // table source and/or sink is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSourceTable match {
+
+            // wrapper contains source
             case Some(_: TableSourceTable[_]) =>
-              throw new TableException(s"Table \'$name\' already exists. " +
-                s"Please, choose a different name.")
-            case _ => replaceRegisteredTable(name,
-              new TableSourceSinkTable(Some(new BatchTableSourceTable(batchTableSource)),
-                table.tableSinkTableOpt))
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only sink (not source)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                Some(new BatchTableSourceTable(batchTableSource)),
+                table.tableSinkTable)
+              replaceRegisteredTable(name, enrichedTable)
           }
-          case None => registerTableInternal(name,
-            new TableSourceSinkTable(Some(new BatchTableSourceTable(batchTableSource)), None))
-          case _ => throw new TableException(s"Table \'$name\' already exists. " +
-            s"Please, choose a different name.")
+
+          // no table is registered
+          case None =>
+            val newTable = new TableSourceSinkTable(
+              Some(new BatchTableSourceTable(batchTableSource)),
+              None)
+            registerTableInternal(name, newTable)
         }
+
+      // not a batch table source
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
-            "BatchTableEnvironment")
+            "BatchTableEnvironment.")
     }
   }
 
@@ -193,7 +209,7 @@ abstract class BatchTableEnvironment(
       fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]],
       tableSink: TableSink[_]): Unit = {
-
+    // validate
     checkValidTableName(name)
     if (fieldNames == null) throw TableException("fieldNames must not be null.")
     if (fieldTypes == null) throw TableException("fieldTypes must not be null.")
@@ -202,34 +218,70 @@ abstract class BatchTableEnvironment(
       throw new TableException("Same number of field names and types required.")
     }
 
+    // configure and register
     val configuredSink = tableSink.configure(fieldNames, fieldTypes)
     registerTableSinkInternal(name, configuredSink)
   }
 
+  /**
+    * Registers an external [[TableSink]] with already configured field names and field types in
+    * this [[TableEnvironment]]'s catalog.
+    * Registered sink tables can be referenced in SQL DML statements.
+    *
+    * @param name The name under which the [[TableSink]] is registered.
+    * @param configuredSink The configured [[TableSink]] to register.
+    */
   def registerTableSink(name: String, configuredSink: TableSink[_]): Unit = {
-    checkValidTableName(name)
-    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
-      throw TableException("TableSink is not configured.")
-    }
     registerTableSinkInternal(name, configuredSink)
   }
 
   private def registerTableSinkInternal(name: String, configuredSink: TableSink[_]): Unit = {
+    // validate
+    checkValidTableName(name)
+    if (configuredSink.getFieldNames == null || configuredSink.getFieldTypes == null) {
+      throw new TableException("Table sink is not configured.")
+    }
+    if (configuredSink.getFieldNames.length == 0) {
+      throw new TableException("Field names must not be empty.")
+    }
+    if (configuredSink.getFieldNames.length != configuredSink.getFieldTypes.length) {
+      throw new TableException("Same number of field names and types required.")
+    }
+
+    // register
     configuredSink match {
-      case batchTableSink: BatchTableSink[_] =>
+
+      // check for proper batch table sink
+      case _: BatchTableSink[_] =>
+
+        // check if a table (source or sink) is registered
         Option(getTable(name)) match {
-          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTableOpt match {
+
+          // table source and/or sink is registered
+          case Some(table: TableSourceSinkTable[_, _]) => table.tableSinkTable match {
+
+            // wrapper contains sink
             case Some(_: TableSinkTable[_]) =>
-              throw new TableException(s"Table \'$name\' already exists. " +
-                s"Please, choose a different name.")
-            case _ => replaceRegisteredTable (name, new TableSourceSinkTable(
-              table.tableSourceTableOpt, Some(new TableSinkTable(configuredSink))))
+              throw new TableException(s"Table '$name' already exists. " +
+                s"Please choose a different name.")
+
+            // wrapper contains only source (not sink)
+            case _ =>
+              val enrichedTable = new TableSourceSinkTable(
+                table.tableSourceTable,
+                Some(new TableSinkTable(configuredSink)))
+              replaceRegisteredTable(name, enrichedTable)
           }
-          case None => registerTableInternal(name,
-            new TableSourceSinkTable(None, Some(new TableSinkTable(configuredSink))))
-          case _ => throw new TableException(s"Table \'$name\' already exists. " +
-            s"Please, choose a different name.")
+
+          // no table is registered
+          case _ =>
+            val newTable = new TableSourceSinkTable(
+              None,
+              Some(new TableSinkTable(configuredSink)))
+            registerTableInternal(name, newTable)
         }
+
+      // not a batch table sink
       case _ =>
         throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
     }

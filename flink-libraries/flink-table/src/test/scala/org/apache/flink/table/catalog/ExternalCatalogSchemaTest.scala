@@ -79,7 +79,7 @@ class ExternalCatalogSchemaTest extends TableTestBase {
     val relOptTable = calciteCatalogReader.getTable(Lists.newArrayList(schemaName, db, tb))
     assertNotNull(relOptTable)
     val tableSourceSinkTable = relOptTable.unwrap(classOf[TableSourceSinkTable[_, _]])
-    tableSourceSinkTable.tableSourceTableOpt match {
+    tableSourceSinkTable.tableSourceTable match {
       case Some(tst: TableSourceTable[_]) =>
         assertTrue(tst.tableSource.isInstanceOf[CsvTableSource])
       case _ =>

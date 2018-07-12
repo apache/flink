@@ -33,7 +33,8 @@ import java.util
 trait TableFactory {
 
   /**
-    * Specifies the context that this factory has been implemented for.
+    * Specifies the context that this factory has been implemented for. The framework guarantees to
+    * only match for this factory if the specified set of properties and values are met.
     *
     * Typical properties might be:
     *   - connector.type

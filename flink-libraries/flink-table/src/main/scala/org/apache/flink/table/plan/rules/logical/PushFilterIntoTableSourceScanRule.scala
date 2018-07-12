@@ -24,9 +24,8 @@ import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.schema.{TableSourceSinkTable, TableSourceTable}
-import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions

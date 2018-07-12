@@ -24,10 +24,10 @@ import org.apache.flink.table.descriptors.TableSinkDescriptor;
 import java.util.Map;
 
 /**
- * Configuration of a table sink. Parses an entry in the `tables` list of an environment
- * file and translates to table descriptor properties.
+ * Configuration of a table sink.
  */
 public class Sink extends TableSinkDescriptor {
+
 	private String name;
 	private Map<String, String> properties;
 

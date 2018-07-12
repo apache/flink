@@ -57,8 +57,6 @@ class CsvTableSinkFactory
     properties.add(s"$FORMAT_FIELDS.#.${DescriptorProperties.NAME}")
     properties.add(FORMAT_FIELD_DELIMITER)
     properties.add(CONNECTOR_PATH)
-    properties.add(NUM_FILES)
-    properties.add(WRITE_MODE)
     // schema
     properties.add(s"$SCHEMA.#.${DescriptorProperties.TYPE}")
     properties.add(s"$SCHEMA.#.${DescriptorProperties.NAME}")
@@ -94,8 +92,6 @@ class CsvTableSinkFactory
       supportsSourceWatermarks = false).validate(params)
 
     // build
-    val csvTableSinkBuilder = new CsvTableSink.Builder
-
     val formatSchema = params.getTableSchema(FORMAT_FIELDS)
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
@@ -104,17 +100,12 @@ class CsvTableSinkFactory
         "Encodings that differ from the schema are not supported yet for CsvTableSink.")
     }
 
-    toScala(params.getOptionalString(CONNECTOR_PATH))
-      .foreach(csvTableSinkBuilder.path)
-    toScala(params.getOptionalInt(NUM_FILES))
-      .foreach(n => csvTableSinkBuilder.numFiles(n))
-    toScala(params.getOptionalString(WRITE_MODE))
-      .foreach(csvTableSinkBuilder.writeMode)
-    toScala(params.getOptionalString(FORMAT_FIELD_DELIMITER))
-      .foreach(csvTableSinkBuilder.fieldDelimiter)
+    val path = params.getString(CONNECTOR_PATH)
+    val fieldDelimiter = toScala(params.getOptionalString(FORMAT_FIELD_DELIMITER)).getOrElse(",")
 
-    csvTableSinkBuilder
-      .build()
+    val csvTableSink = new CsvTableSink(path, fieldDelimiter)
+
+    csvTableSink
       .configure(formatSchema.getColumnNames, formatSchema.getTypes)
       .asInstanceOf[CsvTableSink]
   }

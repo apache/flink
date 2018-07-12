@@ -21,23 +21,47 @@ package org.apache.flink.table.plan.schema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
+import org.apache.flink.table.api.TableException
 
-class TableSourceSinkTable[T1, T2](val tableSourceTableOpt: Option[TableSourceTable[T1]],
-                                   val tableSinkTableOpt: Option[TableSinkTable[T2]])
+/**
+  * Wrapper for both a [[TableSourceTable]] and [[TableSinkTable]] under a common name.
+  *
+  * @param tableSourceTable table source table (if available)
+  * @param tableSinkTable table sink table (if available)
+  * @tparam T1 type of the table source table
+  * @tparam T2 type of the table sink table
+  */
+class TableSourceSinkTable[T1, T2](
+    val tableSourceTable: Option[TableSourceTable[T1]],
+    val tableSinkTable: Option[TableSinkTable[T2]])
   extends AbstractTable {
 
-  // In streaming case, the table schema as source and sink can differ because of extra
+  // In the streaming case, the table schema of source and sink can differ because of extra
   // rowtime/proctime fields. We will always return the source table schema if tableSourceTable
   // is not None, otherwise return the sink table schema. We move the Calcite validation logic of
   // the sink table schema into Flink. This allows us to have different schemas as source and sink
   // of the same table.
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
-    tableSourceTableOpt.map(_.getRowType(typeFactory))
-      .orElse(tableSinkTableOpt.map(_.getRowType(typeFactory))).orNull
+    tableSourceTable.map(_.getRowType(typeFactory))
+      .orElse(tableSinkTable.map(_.getRowType(typeFactory)))
+      .getOrElse(throw new TableException("Unable to get row type of table source sink table."))
   }
 
   override def getStatistic: Statistic = {
-    tableSourceTableOpt.map(_.getStatistic)
-      .orElse(tableSinkTableOpt.map(_.getStatistic)).orNull
+    tableSourceTable.map(_.getStatistic)
+      .orElse(tableSinkTable.map(_.getStatistic))
+      .getOrElse(throw new TableException("Unable to get statistics of table source sink table."))
+  }
+
+  def isSourceTable: Boolean = tableSourceTable.isDefined
+
+  def isStreamSourceTable: Boolean = tableSourceTable match {
+    case Some(_: StreamTableSourceTable[_]) => true
+    case _ => false
+  }
+
+  def isBatchSourceTable: Boolean = tableSourceTable match {
+    case Some(_: BatchTableSourceTable[_]) => true
+    case _ => false
   }
 }

@@ -329,18 +329,6 @@ public class LocalExecutor implements Executor {
 		}
 	}
 
-	private <T> void executeUpdateInternal(ExecutionContext<T> context, String query) {
-		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
-
-		envInst.getTableEnvironment().sqlUpdate(query);
-		// create job graph with dependencies
-		final String jobName = context.getSessionContext().getName() + ": " + query;
-		final JobGraph jobGraph = envInst.createJobGraph(jobName);
-
-		// create execution
-		new Thread(new ProgramDeployer<>(context, jobName, jobGraph, null)).start();
-	}
-
 	private <T> ResultDescriptor executeQueryInternal(ExecutionContext<T> context, String query) {
 		final ExecutionContext.EnvironmentInstance envInst = context.createEnvironmentInstance();
 

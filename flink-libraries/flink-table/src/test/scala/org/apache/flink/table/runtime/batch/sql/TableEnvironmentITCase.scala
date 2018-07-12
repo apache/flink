@@ -120,7 +120,7 @@ class TableEnvironmentITCase(
   def testInsertIntoMemoryTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     tEnv.registerTable("sourceTable", t)
@@ -135,7 +135,7 @@ class TableEnvironmentITCase(
     env.execute()
 
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableData.map(_.toString).sorted)
+    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
 }

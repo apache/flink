@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.utils
 
-import java.sql.Timestamp
 import java.util
-import java.util.Collections
 
 import org.apache.flink.api.common.io.RichOutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -34,19 +32,23 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSinkBase}
-import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp
-import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.table.sources._
 import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
+/**
+  * Utilities to ingest and retrieve results into and from a table program.
+  */
 object MemoryTableSourceSinkUtil {
-  var tableData: mutable.ListBuffer[Row] = mutable.ListBuffer[Row]()
 
-  def clear = {
+  val tableData: mutable.ListBuffer[Row] = mutable.ListBuffer[Row]()
+
+  def tableDataStrings: Seq[String] = tableData.map(_.toString)
+
+  def clear(): Unit = {
     MemoryTableSourceSinkUtil.tableData.clear()
   }
 
@@ -55,9 +57,11 @@ object MemoryTableSourceSinkUtil {
       returnType: TypeInformation[Row],
       rowtimeAttributeDescriptor: util.List[RowtimeAttributeDescriptor],
       proctime: String,
-      val rowCount: Integer)
+      val terminationCount: Int)
     extends BatchTableSource[Row]
-      with StreamTableSource[Row] with DefinedProctimeAttribute with DefinedRowtimeAttributes {
+    with StreamTableSource[Row]
+    with DefinedProctimeAttribute
+    with DefinedRowtimeAttributes {
 
     override def getReturnType: TypeInformation[Row] = returnType
 
@@ -67,13 +71,15 @@ object MemoryTableSourceSinkUtil {
       execEnv.fromCollection(tableData.asJava, returnType)
     }
 
-    final class InMemorySourceFunction(var count: Int = rowCount) extends SourceFunction[Row] {
-      override def cancel(): Unit = ???
+    final class InMemorySourceFunction(var count: Int = terminationCount)
+      extends SourceFunction[Row] {
+
+      override def cancel(): Unit = throw new UnsupportedOperationException()
 
       override def run(ctx: SourceContext[Row]): Unit = {
         while (count > 0) {
           tableData.synchronized {
-            if (tableData.size > 0) {
+            if (tableData.nonEmpty) {
               val r = tableData.remove(0)
               ctx.collect(r)
               count -= 1

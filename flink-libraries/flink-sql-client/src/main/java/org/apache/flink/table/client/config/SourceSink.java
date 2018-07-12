@@ -20,15 +20,14 @@ package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.TableDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptorValidator;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Common class for all descriptors describing a table source and sink together.
  */
 public class SourceSink extends TableDescriptor {
+
 	private String name;
 	private Map<String, String> properties;
 

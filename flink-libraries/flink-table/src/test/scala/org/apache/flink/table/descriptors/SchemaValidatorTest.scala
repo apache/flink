@@ -85,7 +85,7 @@ class SchemaValidatorTest {
       .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
-      Rowtime().timestampsFromSource().watermarksFromSource())
+        Rowtime().timestampsFromSource().watermarksFromSource())
     val props = new DescriptorProperties()
     desc1.addProperties(props)
 
@@ -99,7 +99,7 @@ class SchemaValidatorTest {
       .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
       .field("r", Types.SQL_TIMESTAMP).rowtime(
-      Rowtime().timestampsFromField("myTime").watermarksFromSource())
+        Rowtime().timestampsFromField("myTime").watermarksFromSource())
     val props = new DescriptorProperties()
     desc1.addProperties(props)
 

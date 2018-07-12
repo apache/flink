@@ -30,7 +30,15 @@ import org.apache.flink.table.sinks.StreamTableSink
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 
-class InMemoryTableFactory
+/**
+  * Factory for creating stream table sources and sinks.
+  *
+  * See [[MemoryTableSourceSinkUtil.UnsafeMemoryTableSource]] and
+  * [[MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink]].
+  *
+  * @param terminationCount determines when to shutdown the streaming source function
+  */
+class InMemoryTableFactory(terminationCount: Int)
   extends TableFactory
   with StreamTableSourceFactory[Row]
   with StreamTableSinkFactory[Row] {
@@ -82,7 +90,7 @@ class InMemoryTableFactory
       new RowTypeInfo(types, names),
       rowtimeDescriptors,
       proctimeAttributeOpt.get(),
-      3)
+      terminationCount)
   }
 
   override def requiredContext(): util.Map[String, String] = {

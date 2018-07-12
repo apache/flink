@@ -102,9 +102,9 @@ object SchemaValidator {
   val SCHEMA_FROM = "from"
 
   /**
-    * Returns keys for a [[org.apache.flink.table.sources.TableSourceFactory.supportedProperties()]]
-    * method that are accepted for schema derivation using
-    * [[deriveFormatFields(DescriptorProperties)]].
+    * Returns keys for a
+    * [[org.apache.flink.table.factories.TableFormatFactory.supportedProperties()]] method that
+    * are accepted for schema derivation using [[deriveFormatFields(DescriptorProperties)]].
     */
   def getSchemaDerivationKeys: util.List[String] = {
     val keys = new util.ArrayList[String]()
@@ -174,10 +174,18 @@ object SchemaValidator {
     attributes.asJava
   }
 
+  /**
+    * Derives the table schema for a table source. A table source can directly use "name" and
+    * "type" and needs no special handling for time attributes or aliasing.
+    */
   def deriveTableSourceSchema(properties: DescriptorProperties): TableSchema = {
     properties.getTableSchema(SCHEMA)
   }
 
+  /**
+    * Derives the table schema for a table sink. A sink ignores a proctime attribute and
+    * needs to track the origin of a rowtime field.
+    */
   def deriveTableSinkSchema(properties: DescriptorProperties): TableSchema = {
     val builder = TableSchema.builder()
 
@@ -198,12 +206,16 @@ object SchemaValidator {
       // only use the rowtime attribute if it references a field
       else if (isRowtime) {
         properties.getString(tsType) match {
-          case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD => {
+          case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD =>
             val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
             builder.field(field, t)
-          }
-          case _ => throw new TableException(s"Unsupported rowtime type for sink table schema: " +
-            s"${properties.getString(tsType)}")
+
+          // other timestamp strategies require a reverse timestamp extractor to
+          // insert the timestamp into the output
+          case t@_ =>
+            throw new TableException(
+              s"Unsupported rowtime type '$t' for sink table schema. Currently " +
+              s"only '$ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD' is supported for table sinks.")
         }
       }
     }

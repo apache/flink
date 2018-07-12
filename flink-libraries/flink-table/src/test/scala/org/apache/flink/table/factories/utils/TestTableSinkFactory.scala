@@ -44,7 +44,7 @@ class TestTableSinkFactory extends StreamTableSinkFactory[Row] with TableFactory
   override def supportedProperties(): util.List[String] = {
     val properties = new util.ArrayList[String]()
     // connector
-    properties.add("format.path")
+    properties.add(FORMAT_PATH)
     properties.add("schema.#.name")
     properties.add("schema.#.field.#.name")
     properties
@@ -60,5 +60,6 @@ class TestTableSinkFactory extends StreamTableSinkFactory[Row] with TableFactory
 object TestTableSinkFactory {
   val CONNECTOR_TYPE_VALUE_TEST = "test"
   val FORMAT_TYPE_VALUE_TEST = "test"
+  val FORMAT_PATH = "format.path"
 }
 

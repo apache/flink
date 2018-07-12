@@ -42,20 +42,19 @@ import static org.junit.Assert.assertEquals;
 public class DependencyTest {
 
 	private static final String FACTORY_ENVIRONMENT_FILE = "test-sql-client-factory.yaml";
-	private static final String TABLE_CONNECTOR_FACTORY_JAR_FILE =
-			"table-connector-factory-test-jar.jar";
+	private static final String TABLE_SOURCE_FACTORY_JAR_FILE = "table-source-factory-test-jar.jar";
 
 	@Test
-	public void testTableFactoryDiscovery() throws Exception {
+	public void testTableSourceFactoryDiscovery() throws Exception {
 		// create environment
 		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_0", "test-connector");
+		replaceVars.put("$VAR_0", "test-table-source-factory");
 		replaceVars.put("$VAR_1", "test-property");
 		replaceVars.put("$VAR_2", "test-value");
 		final Environment env = EnvironmentFileUtil.parseModified(FACTORY_ENVIRONMENT_FILE, replaceVars);
 
 		// create executor with dependencies
-		final URL dependency = Paths.get("target", TABLE_CONNECTOR_FACTORY_JAR_FILE).toUri().toURL();
+		final URL dependency = Paths.get("target", TABLE_SOURCE_FACTORY_JAR_FILE).toUri().toURL();
 		final LocalExecutor executor = new LocalExecutor(
 			env,
 			Collections.singletonList(dependency),

@@ -31,7 +31,6 @@ import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -56,7 +55,7 @@ public class TestTableSourceFactory implements StreamTableSourceFactory<Row> {
 	@Override
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE(), "test-connector");
+		context.put(CONNECTOR_TYPE(), "test-table-source-factory");
 		return context;
 	}
 

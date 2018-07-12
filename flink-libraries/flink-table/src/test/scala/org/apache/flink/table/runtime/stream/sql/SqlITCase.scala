@@ -692,7 +692,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
         .assignAscendingTimestamps(x => x._2)
@@ -713,7 +713,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       "1,1,Hi,1970-01-01 00:00:00.001",
       "2,2,Hello,1970-01-01 00:00:00.002",
       "3,2,Hello world,1970-01-01 00:00:00.002")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableData.map(_.toString).sorted)
+    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test
@@ -721,7 +721,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val desc = Schema()
       .field("a", Types.INT)
@@ -739,9 +739,9 @@ class SqlITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("sourceTable", t)
 
     tEnv.registerTableSource("targetTable",
-      new InMemoryTableFactory().createStreamTableSource(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSource(props.asMap))
     tEnv.registerTableSink("targetTable",
-      new InMemoryTableFactory().createStreamTableSink(props.asMap))
+      new InMemoryTableFactory(3).createStreamTableSink(props.asMap))
 
     tEnv.sqlUpdate("INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable")
     tEnv.sqlQuery("SELECT a, e, f, t from targetTable")

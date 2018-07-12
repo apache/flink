@@ -33,17 +33,6 @@ class FileSystemTest extends DescriptorTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testInvalidWriteMode(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "connector.write-mode", "")
-  }
-
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidNumFiles(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "connector.num-files", "0")
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testMissingPath(): Unit = {
     removePropertyAndVerify(descriptors().get(0), "connector.path")
   }
@@ -51,7 +40,7 @@ class FileSystemTest extends DescriptorTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    util.Arrays.asList(FileSystem().path("/myfile").writeMode("OVERWRITE").numFiles(1))
+    util.Arrays.asList(FileSystem().path("/myfile"))
   }
 
   override def validator(): DescriptorValidator = {
@@ -62,8 +51,6 @@ class FileSystemTest extends DescriptorTestBase {
     val desc = Map(
       "connector.type" -> "filesystem",
       "connector.property-version" -> "1",
-      "connector.num-files" -> "1",
-      "connector.write-mode" -> "OVERWRITE",
       "connector.path" -> "/myfile")
 
     util.Arrays.asList(desc.asJava)

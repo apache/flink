@@ -69,6 +69,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
+
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
 		new MiniClusterResourceConfiguration.Builder()
@@ -159,7 +160,7 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test(timeout = 30_000L)
-	public void testQueryExecutionChangelog() throws Exception {
+	public void testStreamQueryExecutionChangelog() throws Exception {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
