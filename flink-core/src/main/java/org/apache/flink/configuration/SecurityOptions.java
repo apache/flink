@@ -151,7 +151,7 @@ public class SecurityOptions {
 	 */
 	public static final ConfigOption<String> SSL_ALGORITHMS =
 		key("security.ssl.algorithms")
-			.defaultValue("TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
 			.withDescription("The comma separated list of standard SSL algorithms to be supported. Read more" +
 				" <a href=\"http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites\">here</a>.");
 
