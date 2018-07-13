@@ -159,7 +159,6 @@ public class RocksDBOrderedSetStore<T> implements CachingInternalPriorityQueueSe
 	public RocksToJavaIteratorAdapter orderedIterator() {
 
 		flushWriteBatch();
-
 		return new RocksToJavaIteratorAdapter(
 			new RocksIteratorWrapper(
 				db.newIterator(columnFamilyHandle)));

@@ -2643,7 +2643,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
 		/** Default cache size per key-group. */
-		private static final int DEFAULT_CACHES_SIZE = 8 * 1024;
+		private static final int DEFAULT_CACHES_SIZE = 1024;
 
 		/** A shared buffer to serialize elements for the priority queue. */
 		@Nonnull

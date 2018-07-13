@@ -30,6 +30,8 @@ import java.util.Collection;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import static org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue.ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION;
+
 /**
  * This class is an implementation of a {@link InternalPriorityQueue} with set semantics that internally consists of
  * two different storage types. The first storage is a (potentially slow) ordered set store manages the ground truth
@@ -80,10 +82,54 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 
 	@Override
 	public void bulkPoll(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
+		if (ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION) {
+			bulkPollRelaxedOrder(canConsume, consumer);
+		} else {
+			bulkPollStrictOrder(canConsume, consumer);
+		}
+	}
+
+	private void bulkPollRelaxedOrder(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
+		if (orderedCache.isEmpty()) {
+			bulkPollStore(canConsume, consumer);
+		} else {
+			while (!orderedCache.isEmpty() && canConsume.test(orderedCache.peekFirst())) {
+				final E next = orderedCache.removeFirst();
+				orderedStore.remove(next);
+				consumer.accept(next);
+			}
+
+			if (orderedCache.isEmpty()) {
+				bulkPollStore(canConsume, consumer);
+			}
+		}
+	}
+
+	private void bulkPollStrictOrder(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
 		E element;
 		while ((element = peek()) != null && canConsume.test(element)) {
 			poll();
 			consumer.accept(element);
+		}
+	}
+
+	private void bulkPollStore(@Nonnull Predicate<E> canConsume, @Nonnull Consumer<E> consumer) {
+		try (CloseableIterator<E> iterator = orderedStore.orderedIterator()) {
+			while (iterator.hasNext()) {
+				final E next = iterator.next();
+				if (canConsume.test(next)) {
+					orderedStore.remove(next);
+					consumer.accept(next);
+				} else {
+					orderedCache.add(next);
+					while (iterator.hasNext() && !orderedCache.isFull()) {
+						orderedCache.add(iterator.next());
+					}
+					break;
+				}
+			}
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Exception while bulk polling store.", e);
 		}
 	}
 
@@ -305,6 +351,6 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		 * after usage.
 		 */
 		@Nonnull
-		CloseableIterator<E> orderedIterator();
+		CloseableIterator<E> orderedIterator();;
 	}
 }
