@@ -360,11 +360,31 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=#pa
     </tr>
     <tr>
       <td colspan="2">
-        <button data-toggle="collapse" data-target="#1936993190">Request</button>
-        <div id="1936993190" class="collapse">
+        <button data-toggle="collapse" data-target="#315035146">Request</button>
+        <div id="315035146" class="collapse">
           <pre>
             <code>
-{}            </code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
+  "properties" : {
+    "entryClass" : {
+      "type" : "string"
+    },
+    "programArgs" : {
+      "type" : "string"
+    },
+    "parallelism" : {
+      "type" : "integer"
+    },
+    "allowNonRestoredState" : {
+      "type" : "boolean"
+    },
+    "savepointPath" : {
+      "type" : "string"
+    }
+  }
+}            </code>
           </pre>
          </div>
       </td>
