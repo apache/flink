@@ -58,15 +58,25 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.flink.test.checkpointing.AbstractEventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.MEM;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.MEM_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL;
+import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -82,7 +92,8 @@ import static org.junit.Assert.fail;
  * I/O heavy variants.
  */
 @SuppressWarnings("serial")
-public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLogger {
+@RunWith(Parameterized.class)
+public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	private static final int MAX_MEM_STATE_SIZE = 20 * 1024 * 1024;
 	private static final int PARALLELISM = 4;
@@ -99,11 +110,21 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 	private AbstractStateBackend stateBackend;
 
+	@Parameterized.Parameter
+	public StateBackendEnum stateBackendEnum;
+
 	enum StateBackendEnum {
 		MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC
 	}
 
-	protected abstract StateBackendEnum getStateBackend();
+	@Parameterized.Parameters(name = "statebackend type ={0}")
+	public static Collection<StateBackendEnum> parameter() {
+		return Arrays.asList(StateBackendEnum.values());
+	}
+
+	protected StateBackendEnum getStateBackend() {
+		return this.stateBackendEnum;
+	}
 
 	protected final MiniClusterResource getMiniClusterResource() {
 		return new MiniClusterResource(
@@ -871,19 +892,40 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		}
 	}
 
-	protected int numElementsPerKey() {
-		return 300;
+	private int numElementsPerKey() {
+		switch (this.stateBackendEnum) {
+			case ROCKSDB_FULLY_ASYNC:
+			case ROCKSDB_INCREMENTAL:
+			case ROCKSDB_INCREMENTAL_ZK:
+				return 3000;
+			default:
+				return 300;
+		}
 	}
 
-	protected int windowSize() {
+	private int windowSize() {
+		switch (this.stateBackendEnum) {
+			case ROCKSDB_FULLY_ASYNC:
+			case ROCKSDB_INCREMENTAL:
+			case ROCKSDB_INCREMENTAL_ZK:
+				return 1000;
+			default:
+				return 100;
+		}
+	}
+
+	private int windowSlide() {
 		return 100;
 	}
 
-	protected int windowSlide() {
-		return 100;
-	}
-
-	protected int numKeys() {
-		return 20;
+	private int numKeys() {
+		switch (this.stateBackendEnum) {
+			case ROCKSDB_FULLY_ASYNC:
+			case ROCKSDB_INCREMENTAL:
+			case ROCKSDB_INCREMENTAL_ZK:
+				return 100;
+			default:
+				return 20;
+		}
 	}
 }
