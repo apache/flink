@@ -33,7 +33,7 @@ import java.util.Date;
  * <p>The {@code DateTimeBucketer} will create directories of the following form:
  * {@code /{basePath}/{dateTimePath}/}. The {@code basePath} is the path
  * that was specified as a base path when creating the
- * {@link org.apache.flink.streaming.api.functions.sink.filesystem.BucketingSink}.
+ * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}.
  * The {@code dateTimePath} is determined based on the current system time and the
  * user provided format string.
  *

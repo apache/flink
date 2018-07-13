@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.ResumableWriter;
@@ -27,19 +28,17 @@ import java.io.IOException;
 /**
  * A factory returning {@link Bucket buckets}.
  */
+@Internal
 public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 
 	private static final long serialVersionUID = 3372881359208513357L;
 
 	@Override
-	public Bucket<IN> getNewBucket(
+	public Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
 			Path bucketPath,
 			long initialPartCounter,
-			long maxPartSize,
-			long rolloverTime,
-			long inactivityTime,
 			Writer<IN> writer) throws IOException {
 
 		return new Bucket<>(
@@ -47,33 +46,24 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 				subtaskIndex,
 				bucketPath,
 				initialPartCounter,
-				maxPartSize,
-				rolloverTime,
-				inactivityTime,
 				writer);
 	}
 
 	@Override
-	public Bucket<IN> getRestoredBucket(
+	public Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
 			Path bucketPath,
 			long initialPartCounter,
-			long maxPartSize,
-			long rolloverTime,
-			long inactivityTime,
 			Writer<IN> writer,
-			Bucket.BucketState bucketstate) throws IOException {
+			BucketState bucketState) throws IOException {
 
 		return new Bucket<>(
 				fsWriter,
 				subtaskIndex,
 				bucketPath,
 				initialPartCounter,
-				maxPartSize,
-				rolloverTime,
-				inactivityTime,
 				writer,
-				bucketstate);
+				bucketState);
 	}
 }

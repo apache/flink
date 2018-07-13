@@ -34,6 +34,6 @@ public interface Writer<IN> extends Serializable {
 	/**
 	 * Writes one element to the bucket file.
 	 */
-	void write(IN element, Long timestamp, FSDataOutputStream stream)throws IOException;
+	void write(IN element, FSDataOutputStream stream)throws IOException;
 
 }

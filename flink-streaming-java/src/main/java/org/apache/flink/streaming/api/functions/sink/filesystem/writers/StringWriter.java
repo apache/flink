@@ -57,7 +57,7 @@ public class StringWriter<IN> implements Writer<IN> {
 	}
 
 	@Override
-	public void write(IN element, Long timestamp, FSDataOutputStream stream) throws IOException {
+	public void write(IN element, FSDataOutputStream stream) throws IOException {
 		if (charset == null) {
 			charset = Charset.forName(charsetName);
 		}

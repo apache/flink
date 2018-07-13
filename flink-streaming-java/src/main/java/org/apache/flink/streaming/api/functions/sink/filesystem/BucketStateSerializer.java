@@ -35,10 +35,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link SimpleVersionedSerializer} used to serialize the {@link Bucket.BucketState BucketState}.
+ * A {@link SimpleVersionedSerializer} used to serialize the {@link BucketState BucketState}.
  */
 @Internal
-public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.BucketState> {
+public class BucketStateSerializer implements SimpleVersionedSerializer<BucketState> {
 
 	private static final int MAGIC_NUMBER = 0x1e764b79;
 
@@ -62,7 +62,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 	}
 
 	@Override
-	public byte[] serialize(Bucket.BucketState state) throws IOException {
+	public byte[] serialize(BucketState state) throws IOException {
 		int sizeInBytes = Integer.BYTES; // this is for the version.
 
 		// serializing the path
@@ -148,7 +148,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 	}
 
 	/**
-	 * Returns the version that was written by the {@link #serialize(Bucket.BucketState)}.
+	 * Returns the version that was written by the {@link #serialize(BucketState)}.
 	 *
 	 * <p>This should be called before the {@link #deserialize(int, byte[])} and the returned version
 	 * should be passed as an argument.
@@ -162,7 +162,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 	}
 
 	@Override
-	public Bucket.BucketState deserialize(int version, byte[] serialized) throws IOException {
+	public BucketState deserialize(int version, byte[] serialized) throws IOException {
 		switch (version) {
 			case 1:
 				return deserializeV1(serialized);
@@ -171,7 +171,7 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 		}
 	}
 
-	private Bucket.BucketState deserializeV1(byte[] serialized) throws IOException {
+	private BucketState deserializeV1(byte[] serialized) throws IOException {
 
 		final ByteBuffer bb = ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN);
 
@@ -218,6 +218,6 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<Bucket.B
 			}
 			resumablesPerCheckpoint.put(checkpointId, resumables);
 		}
-		return new Bucket.BucketState(bucketPath, creationTime, current, resumablesPerCheckpoint);
+		return new BucketState(bucketPath, creationTime, current, resumablesPerCheckpoint);
 	}
 }

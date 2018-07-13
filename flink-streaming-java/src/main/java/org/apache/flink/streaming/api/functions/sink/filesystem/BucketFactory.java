@@ -26,28 +26,22 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * Javadoc.
+ * A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}.
  */
 public interface BucketFactory<IN> extends Serializable {
 
-	Bucket<IN> getNewBucket(
+	Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
 			Path bucketPath,
 			long initialPartCounter,
-			long maxPartSize,
-			long rolloverTime,
-			long inactivityTime,
 			Writer<IN> writer) throws IOException;
 
-	Bucket<IN> getRestoredBucket(
+	Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
 			Path bucketPath,
 			long initialPartCounter,
-			long maxPartSize,
-			long rolloverTime,
-			long inactivityTime,
 			Writer<IN> writer,
-			Bucket.BucketState bucketstate) throws IOException;
+			BucketState bucketstate) throws IOException;
 }

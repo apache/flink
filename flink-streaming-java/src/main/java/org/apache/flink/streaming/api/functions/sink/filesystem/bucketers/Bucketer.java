@@ -24,7 +24,14 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.Clock;
 import java.io.Serializable;
 
 /**
- * Javadoc.
+ * A bucketer is used with a {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}
+ * to put emitted elements into rolling files.
+ *
+ *
+ * <p>The {@code BucketingSink} can be writing to many buckets at a time, and it is responsible for managing
+ * a set of active buckets. Whenever a new element arrives it will ask the {@code Bucketer} for the bucket
+ * path the element should fall in. The {@code Bucketer} can, for example, determine buckets based on
+ * system time.
  */
 public interface Bucketer<T> extends Serializable {
 

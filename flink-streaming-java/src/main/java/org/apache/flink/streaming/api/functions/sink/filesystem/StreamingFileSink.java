@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.api.common.state.ListState;
@@ -71,23 +72,12 @@ import java.util.Map;
  * <p>The filenames of the part files contain the part prefix, "part-", the parallel subtask index of the sink
  * and a rolling counter. For example the file {@code "part-1-17"} contains the data from
  * {@code subtask 1} of the sink and is the {@code 17th} bucket created by that subtask.
- * When a part file becomes bigger than the user-specified part size or when the part file becomes older
- * than the user-specified roll over interval the current part file is closed, the part counter is increased
- * and a new part file is created. The batch size defaults to {@code 384MB}, this can be configured
- * using {@link #setPartFileSize(long)}. The roll over interval defaults to {@code Long.MAX_VALUE} and
- * this can be configured using {@link #setRolloverInterval(long)}.
+ * Part files roll based on the user-specified {@link RollingPolicy}. By default, a {@link DefaultRollingPolicy}
+ * is used.
  *
- *
- * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the sink
- * needs to determine when a bucket has become inactive, in order to flush and close the part file.
- * To support this there are two configurable settings:
- * <ol>
- *     <li>the frequency to check for inactive buckets, configured by {@link #setBucketCheckInterval(long)}, and</li>
- *     <li>the minimum amount of time a bucket has to not receive any data before it is considered inactive,
- *     configured by {@link #setInactivityInterval(long)}.</li>
- * </ol>
- * Both of these parameters default to {@code 60, 000 ms}, or {@code 1 min}.
- *
+ * <p>In some scenarios, the open buckets are required to change based on time. In these cases, the user
+ * can specify a {@code bucketCheckInterval} (by default 1m) and the sink will check periodically and roll
+ * the part file if the specified rolling policy says so.
  *
  * <p>Part files can be in one of three states: {@code in-progress}, {@code pending} or {@code finished}.
  * The reason for this is how the sink works together with the checkpointing mechanism to provide exactly-once
@@ -118,6 +108,7 @@ import java.util.Map;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
+@PublicEvolving
 public class StreamingFileSink<IN>
 		extends RichSinkFunction<IN>
 		implements CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
@@ -128,15 +119,9 @@ public class StreamingFileSink<IN>
 
 	private static final long DEFAULT_CHECK_INTERVAL = 60L * 1000L;
 
-	private static final long DEFAULT_INACTIVITY_INTERVAL = 60L * 1000L;
-
-	private static final long DEFAULT_ROLLOVER_INTERVAL = 60L * 1000L;
-
-	private static final long DEFAULT_PART_SIZE = 1024L * 1024L * 384L;
-
 	private final Path basePath;
 
-	private transient ResumableWriter fsWriter;
+	private transient ResumableWriter filesystemWriter;
 
 	private transient Clock clock;
 
@@ -148,17 +133,13 @@ public class StreamingFileSink<IN>
 
 	private long bucketCheckInterval = DEFAULT_CHECK_INTERVAL;
 
-	private long partFileSize = DEFAULT_PART_SIZE;
-
-	private long rolloverInterval = DEFAULT_ROLLOVER_INTERVAL;
-
-	private long inactivityInterval = DEFAULT_INACTIVITY_INTERVAL;
-
 	private transient Map<Path, Bucket<IN>> activeBuckets;
 
-	private long initMaxPartCounter = 0L;
+	private long initMaxPartCounter;
 
-	private long maxPartCounterUsed = 0L;
+	private long maxPartCounterUsed;
+
+	private RollingPolicy rollingPolicy;
 
 	private final ListStateDescriptor<byte[]> bucketStateDesc =
 			new ListStateDescriptor<>("bucket-states",
@@ -194,6 +175,7 @@ public class StreamingFileSink<IN>
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketer = new DateTimeBucketer<>();
 		this.writer = new StringWriter<>();
+		this.rollingPolicy = new DefaultRollingPolicy();
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 	}
 
@@ -207,23 +189,13 @@ public class StreamingFileSink<IN>
 		return this;
 	}
 
-	public StreamingFileSink<IN> setPartFileSize(long partFileSize) {
-		this.partFileSize = partFileSize;
+	public StreamingFileSink<IN> setBucketCheckInterval(long interval) {
+		this.bucketCheckInterval = interval;
 		return this;
 	}
 
-	public StreamingFileSink<IN>  setBucketCheckInterval(long bucketCheckInterval) {
-		this.bucketCheckInterval = bucketCheckInterval;
-		return this;
-	}
-
-	public StreamingFileSink<IN> setRolloverInterval(long rolloverInterval) {
-		this.rolloverInterval = rolloverInterval;
-		return this;
-	}
-
-	public StreamingFileSink<IN> setInactivityInterval(long inactivityInterval) {
-		this.inactivityInterval = inactivityInterval;
+	public StreamingFileSink<IN> setRollingPolicy(RollingPolicy policy) {
+		this.rollingPolicy = Preconditions.checkNotNull(policy);
 		return this;
 	}
 
@@ -247,15 +219,20 @@ public class StreamingFileSink<IN>
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkNotNull(restoredBucketStates);
-		Preconditions.checkNotNull(fsWriter);
+		Preconditions.checkNotNull(filesystemWriter);
 		Preconditions.checkNotNull(bucketStateSerializer);
 
 		restoredBucketStates.clear();
 		for (Map.Entry<Path, Bucket<IN>> bucketStateEntry : activeBuckets.entrySet()) {
 			final Bucket<IN> bucket = bucketStateEntry.getValue();
-			final Bucket.BucketState bucketState = bucket.snapshot(
-					context.getCheckpointId(),
-					context.getCheckpointTimestamp());
+
+			if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), context.getCheckpointTimestamp())) {
+				// we also check here so that we do not have to always
+				// wait for the "next" element to arrive.
+				bucket.closePartFile();
+			}
+
+			final BucketState bucketState = bucket.snapshot(context.getCheckpointId());
 			restoredBucketStates.add(bucketStateSerializer.serialize(bucketState));
 		}
 
@@ -293,19 +270,16 @@ public class StreamingFileSink<IN>
 
 			for (byte[] recoveredState : restoredBucketStates.get()) {
 				final int version = bucketStateSerializer.getDeserializedVersion(recoveredState);
-				final Bucket.BucketState bucketState = bucketStateSerializer.deserialize(version, recoveredState);
+				final BucketState bucketState = bucketStateSerializer.deserialize(version, recoveredState);
 				final Path bucketPath = bucketState.getBucketPath();
 
 				LOG.info("Recovered bucket for {}", bucketPath);
 
-				final Bucket<IN> restoredBucket = bucketFactory.getRestoredBucket(
-						fsWriter,
+				final Bucket<IN> restoredBucket = bucketFactory.getBucket(
+						filesystemWriter,
 						subtaskIndex,
 						bucketPath,
 						initMaxPartCounter,
-						partFileSize,
-						rolloverInterval,
-						inactivityInterval,
 						writer,
 						bucketState
 				);
@@ -330,7 +304,7 @@ public class StreamingFileSink<IN>
 
 		processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
 		this.clock = () -> processingTimeService.getCurrentProcessingTime();
-		long currentProcessingTime = clock.currentTimeMillis();
+		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 		processingTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
 	}
 
@@ -338,32 +312,35 @@ public class StreamingFileSink<IN>
 	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 		for (Map.Entry<Path, Bucket<IN>> entry : activeBuckets.entrySet()) {
-			entry.getValue().rollByTime(currentProcessingTime);
+			final Bucket<IN> bucket = entry.getValue();
+			if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), currentProcessingTime)) {
+				bucket.closePartFile();
+			}
 		}
 		processingTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
 	}
 
 	@Override
 	public void invoke(IN value, Context context) throws Exception {
+		final long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 		final Path bucketPath = bucketer.getBucketPath(clock, basePath, value);
-		final long currentProcessingTime = clock.currentTimeMillis();
 		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
 		Bucket<IN> bucket = activeBuckets.get(bucketPath);
 		if (bucket == null) {
-			bucket = bucketFactory.getNewBucket(
-					fsWriter,
+			bucket = bucketFactory.getBucket(
+					filesystemWriter,
 					subtaskIndex,
 					bucketPath,
 					initMaxPartCounter,
-					partFileSize,
-					rolloverInterval,
-					inactivityInterval,
 					writer);
 			activeBuckets.put(bucketPath, bucket);
 		}
 
-		bucket.write(value, context.timestamp(), currentProcessingTime);
+		if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), currentProcessingTime)) {
+			bucket.rollPartPartFile(currentProcessingTime);
+		}
+		bucket.write(value, currentProcessingTime);
 
 		// we update the counter here because as buckets become inactive and
 		// get removed in the initializeState(), at the time we snapshot they
@@ -376,15 +353,18 @@ public class StreamingFileSink<IN>
 		if (activeBuckets != null) {
 			// here we cannot "commit" because this is also called in case of failures.
 			for (Map.Entry<Path, Bucket<IN>> entry : activeBuckets.entrySet()) {
-				entry.getValue().closeCurrentChunk();
+				entry.getValue().closePartFile();
 			}
 		}
 	}
 
 	private void initFileSystemWriter() throws IOException {
-		if (fsWriter == null) {
-			fsWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
-			bucketStateSerializer = Bucket.getBucketStateSerializer(fsWriter);
+		if (filesystemWriter == null) {
+			filesystemWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
+			bucketStateSerializer = new BucketStateSerializer(
+					filesystemWriter.getResumeRecoverableSerializer(),
+					filesystemWriter.getCommitRecoverableSerializer()
+			);
 		}
 	}
 
