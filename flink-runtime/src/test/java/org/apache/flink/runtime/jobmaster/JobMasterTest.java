@@ -47,8 +47,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -388,14 +388,14 @@ public class JobMasterTest extends TestLogger {
 			new Configuration(),
 			jobGraph,
 			haServices,
-			new TestingJobManagerSharedServicesBuilder().build());
+			new TestingJobManagerSharedServicesBuilder()
+				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
+				.build());
 
 		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
 
 		assertNotNull(restartStrategy);
-		assertTrue(restartStrategy instanceof NoOrFixedIfCheckpointingEnabledRestartStrategy);
-		RestartStrategy innerStrategy = ((NoOrFixedIfCheckpointingEnabledRestartStrategy) restartStrategy).getResolvedStrategy();
-		assertTrue(innerStrategy instanceof FixedDelayRestartStrategy);
+		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 	}
 
 	/**

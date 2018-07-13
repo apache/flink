@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategy.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 
 /**
  * Utility method for resolving {@link RestartStrategy}.

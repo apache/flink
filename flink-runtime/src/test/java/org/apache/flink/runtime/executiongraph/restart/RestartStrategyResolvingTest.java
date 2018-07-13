@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategy.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -49,9 +48,7 @@ public class RestartStrategyResolvingTest extends TestLogger {
 			new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory(),
 			true);
 
-		assertThat(resolvedStrategy, instanceOf(NoOrFixedIfCheckpointingEnabledRestartStrategy.class));
-		RestartStrategy innerStrategy = ((NoOrFixedIfCheckpointingEnabledRestartStrategy) resolvedStrategy).getResolvedStrategy();
-		assertThat(innerStrategy, instanceOf(FixedDelayRestartStrategy.class));
+		assertThat(resolvedStrategy, instanceOf(FixedDelayRestartStrategy.class));
 	}
 
 	@Test
