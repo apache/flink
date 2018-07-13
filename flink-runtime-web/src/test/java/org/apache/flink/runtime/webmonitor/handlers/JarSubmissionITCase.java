@@ -21,28 +21,30 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -56,9 +58,20 @@ public class JarSubmissionITCase {
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
+	@Rule
+	public final BlobServerResource blobServerResource = new BlobServerResource();
+
+	@BeforeClass
+	public static void checkOS() {
+		Assume.assumeFalse("This test fails on Windows due to unclosed JarFiles, see FLINK-9844.", OperatingSystem.isWindows());
+	}
+
 	@Test
 	public void testJarSubmission() throws Exception {
-		final TestingDispatcherGateway restfulGateway = new TestingDispatcherGateway.Builder().build();
+		final TestingDispatcherGateway restfulGateway = new TestingDispatcherGateway.Builder()
+			.setBlobServerPort(blobServerResource.getBlobServerPort())
+			.setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+			.build();
 		final JarHandlers handlers = new JarHandlers(temporaryFolder.newFolder().toPath(), restfulGateway);
 		final JarUploadHandler uploadHandler = handlers.uploadHandler;
 		final JarListHandler listHandler = handlers.listHandler;
@@ -83,18 +96,7 @@ public class JarSubmissionITCase {
 		// we're only interested in the core functionality so checking for a small detail is sufficient
 		Assert.assertThat(planResponse.getJsonPlan(), containsString("TestProgram.java:29"));
 
-		try {
-			runJar(runHandler, storedJarName, restfulGateway);
-			Assert.fail("We assume the actual job submission to fail.");
-		} catch (Exception e) {
-			final Optional<ConnectException> expected = ExceptionUtils.findThrowable(e, ConnectException.class);
-			if (expected.isPresent()) {
-				// we use a bogus dispatcher address causing the blob upload to fail
-				// at that point we've already processed the jar however, which is all we're interested in
-			} else {
-				throw e;
-			}
-		}
+		runJar(runHandler, storedJarName, restfulGateway);
 
 		deleteJar(deleteHandler, storedJarName, restfulGateway);
 
