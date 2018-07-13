@@ -362,8 +362,7 @@ public class ShardConsumer<T> implements Runnable {
 				adaptedMaxRecordsPerFetch = (int) (KINESIS_SHARD_BYTES_PER_SECOND_LIMIT / (averageRecordSizeBytes * 1000L / fetchIntervalMillis));
 
 				// Ensure the value is not more than 10000L
-				adaptedMaxRecordsPerFetch = adaptedMaxRecordsPerFetch <= ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX ?
-						adaptedMaxRecordsPerFetch : ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX;
+				adaptedMaxRecordsPerFetch = Math.min(adaptedMaxRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX);
 			}
 		return adaptedMaxRecordsPerFetch;
 	}

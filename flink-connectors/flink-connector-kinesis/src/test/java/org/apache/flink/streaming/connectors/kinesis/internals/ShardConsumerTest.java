@@ -171,7 +171,7 @@ public class ShardConsumerTest {
 	@Test
 	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() {
 		Properties consumerProperties = new Properties();
-		consumerProperties.put("flink.shard.use.adaptive.reads", "true");
+		consumerProperties.put("flink.shard.adaptive.read.records.enabled", "true");
 
 		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
 
