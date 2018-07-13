@@ -37,7 +37,7 @@ public class RestartStrategyTest extends TestLogger {
 	 * client side.
 	 */
 	@Test
-	public void testNoDefaultStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
+	public void testFallbackStrategyOnClientSideWhenCheckpointingEnabled() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.enableCheckpointing(500);
 
@@ -49,7 +49,8 @@ public class RestartStrategyTest extends TestLogger {
 		RestartStrategies.RestartStrategyConfiguration restartStrategy =
 			jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy();
 
-		Assert.assertNull(restartStrategy);
+		Assert.assertNotNull(restartStrategy);
+		Assert.assertTrue(restartStrategy instanceof RestartStrategies.FallbackRestartStrategyConfiguration);
 	}
 
 	/**

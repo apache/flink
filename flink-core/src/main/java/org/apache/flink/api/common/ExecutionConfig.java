@@ -138,7 +138,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Deprecated
 	private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
-	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
+	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
+		new RestartStrategies.FallbackRestartStrategyConfiguration();
 	
 	private long taskCancellationIntervalMillis = -1;
 

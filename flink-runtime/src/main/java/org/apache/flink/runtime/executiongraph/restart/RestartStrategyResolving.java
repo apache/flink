@@ -19,15 +19,12 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-
-import javax.annotation.Nullable;
+import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategy.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
 
 /**
  * Utility method for resolving {@link RestartStrategy}.
  */
 public final class RestartStrategyResolving {
-
-	private static final long DEFAULT_RESTART_DELAY = 0;
 
 	/**
 	 * Resolves which {@link RestartStrategy} to use. It should be used only on the server side.
@@ -46,30 +43,22 @@ public final class RestartStrategyResolving {
 	 * @return resolved strategy
 	 */
 	public static RestartStrategy resolve(
-			@Nullable RestartStrategies.RestartStrategyConfiguration clientConfiguration,
+			RestartStrategies.RestartStrategyConfiguration clientConfiguration,
 			RestartStrategyFactory serverStrategyFactory,
 			boolean isCheckpointingEnabled) {
 
-		final RestartStrategy serverSideRestartStrategy = serverStrategyFactory.createRestartStrategy();
+		final RestartStrategy clientSideRestartStrategy =
+			RestartStrategyFactory.createRestartStrategy(clientConfiguration);
 
-		final RestartStrategy clientSideRestartStrategy;
-		if (clientConfiguration != null) {
-			if (clientConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
-				clientSideRestartStrategy = serverSideRestartStrategy;
-			} else {
-				clientSideRestartStrategy = RestartStrategyFactory.createRestartStrategy(clientConfiguration);
-			}
-		} else {
-			clientSideRestartStrategy = null;
-		}
-
-		if (clientSideRestartStrategy == null && serverSideRestartStrategy instanceof NoRestartStrategy &&
-			isCheckpointingEnabled) {
-			return new FixedDelayRestartStrategy(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY);
-		} else if (clientSideRestartStrategy != null) {
+		if (clientSideRestartStrategy != null) {
 			return clientSideRestartStrategy;
 		} else {
-			return serverSideRestartStrategy;
+			if (serverStrategyFactory instanceof NoOrFixedIfCheckpointingEnabledRestartStrategyFactory) {
+				return ((NoOrFixedIfCheckpointingEnabledRestartStrategyFactory) serverStrategyFactory)
+					.createRestartStrategy(isCheckpointingEnabled);
+			} else {
+				return serverStrategyFactory.createRestartStrategy();
+			}
 		}
 	}
 

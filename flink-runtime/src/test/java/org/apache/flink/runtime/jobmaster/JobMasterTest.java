@@ -47,6 +47,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -113,7 +114,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -379,8 +379,6 @@ public class JobMasterTest extends TestLogger {
 			true);
 		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
 
-		assertNull(jobGraph.getSerializedExecutionConfig().deserializeValue(getClass().getClassLoader()).getRestartStrategy());
-
 		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
 		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
 			completedCheckpointStore,
@@ -395,7 +393,9 @@ public class JobMasterTest extends TestLogger {
 		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
 
 		assertNotNull(restartStrategy);
-		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
+		assertTrue(restartStrategy instanceof NoOrFixedIfCheckpointingEnabledRestartStrategy);
+		RestartStrategy innerStrategy = ((NoOrFixedIfCheckpointingEnabledRestartStrategy) restartStrategy).getResolvedStrategy();
+		assertTrue(innerStrategy instanceof FixedDelayRestartStrategy);
 	}
 
 	/**

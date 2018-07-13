@@ -149,7 +149,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 				}
 
 				// fallback in case of an error
-				return NoRestartStrategy.createFactory(configuration);
+				return NoOrFixedIfCheckpointingEnabledRestartStrategy.createFactory(configuration);
 		}
 	}
 }

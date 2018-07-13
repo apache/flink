@@ -87,10 +87,6 @@ public class CoordinatorShutdownTest extends TestLogger {
 						true),
 					null));
 
-			ExecutionConfig executionConfig = new ExecutionConfig();
-			executionConfig.setRestartStrategy(RestartStrategies.fallBackRestart());
-			testGraph.setExecutionConfig(executionConfig);
-			
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);

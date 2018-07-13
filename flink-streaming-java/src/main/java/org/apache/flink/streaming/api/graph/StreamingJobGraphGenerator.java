@@ -568,6 +568,8 @@ public class StreamingJobGraphGenerator {
 			interval = Long.MAX_VALUE;
 		}
 
+
+
 		//  --- configure the participating vertices ---
 
 		// collect the vertices that receive "trigger checkpoint" messages.
