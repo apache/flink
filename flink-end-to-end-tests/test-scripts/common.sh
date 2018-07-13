@@ -240,6 +240,15 @@ function start_cluster {
   done
 }
 
+function start_taskmanagers {
+    tmnum=$1
+    echo "Start ${tmnum} more task managers"
+    for (( c=0; c<tmnum; c++ ))
+    do
+        $FLINK_DIR/bin/taskmanager.sh start
+    done
+}
+
 function start_and_wait_for_tm {
 
   tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")
@@ -456,18 +465,17 @@ function s3_delete {
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
 
-# This function starts the given number of task managers and monitors their processes. If a task manager process goes
-# away a replacement is started.
+# This function starts the given number of task managers and monitors their processes.
+# If a task manager process goes away a replacement is started.
 function tm_watchdog {
   local expectedTm=$1
   while true;
   do
     runningTm=`jps | grep -Eo 'TaskManagerRunner|TaskManager' | wc -l`;
     count=$((expectedTm-runningTm))
-    for (( c=0; c<count; c++ ))
-    do
-      $FLINK_DIR/bin/taskmanager.sh start > /dev/null
-    done
+    if (( count != 0 )); then
+        start_taskmanagers ${count} > /dev/null
+    fi
     sleep 5;
   done
 }
@@ -508,7 +516,8 @@ function rollback_flink_slf4j_metric_reporter() {
 
 function get_metric_processed_records {
   OPERATOR=$1
-  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
+  JOB_NAME="${2:-General purpose test job}"
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | tail -1)
   if [ -z $N ]; then
     N=0
   fi
@@ -517,7 +526,8 @@ function get_metric_processed_records {
 
 function get_num_metric_samples {
   OPERATOR=$1
-  N=$(grep ".General purpose test job.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
+  JOB_NAME="${2:-General purpose test job}"
+  N=$(grep ".${JOB_NAME}.$OPERATOR.numRecordsIn:" $FLINK_DIR/log/*taskexecutor*.log | wc -l)
   if [ -z $N ]; then
     N=0
   fi
@@ -527,13 +537,14 @@ function get_num_metric_samples {
 function wait_oper_metric_num_in_records {
     OPERATOR=$1
     MAX_NUM_METRICS="${2:-200}"
-    NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
-    OLD_NUM_METRICS=${3:-${NUM_METRICS}}
+    JOB_NAME="${3:-General purpose test job}"
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
+    OLD_NUM_METRICS=${4:-${NUM_METRICS}}
     # monitor the numRecordsIn metric of the state machine operator in the second execution
     # we let the test finish once the second restore execution has processed 200 records
     while : ; do
-      NUM_METRICS=$(get_num_metric_samples ${OPERATOR})
-      NUM_RECORDS=$(get_metric_processed_records ${OPERATOR})
+      NUM_METRICS=$(get_num_metric_samples ${OPERATOR} "${JOB_NAME}")
+      NUM_RECORDS=$(get_metric_processed_records ${OPERATOR} "${JOB_NAME}")
 
       # only account for metrics that appeared in the second execution
       if (( $OLD_NUM_METRICS >= $NUM_METRICS )) ; then
@@ -541,7 +552,7 @@ function wait_oper_metric_num_in_records {
       fi
 
       if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
-        echo "Waiting for job to process up to 200 records, current progress: $NUM_RECORDS records ..."
+        echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
         sleep 1
       else
         break
