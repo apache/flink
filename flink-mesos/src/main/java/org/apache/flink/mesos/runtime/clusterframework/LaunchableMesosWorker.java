@@ -30,8 +30,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
@@ -41,8 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,9 +66,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	/**
 	 * The set of configuration keys to be dynamically configured with a port allocated from Mesos.
 	 */
-	private static final String[] TM_PORT_KEYS = {
+	static final String[] TM_PORT_KEYS = {
 		"taskmanager.rpc.port",
 		"taskmanager.data.port"};
+	static final String PORT_ASSIGNMENT_KEY = "mesos.resourcemanager.tasks.port-assignments";
 
 	private final MesosArtifactResolver resolver;
 	private final ContainerSpecification containerSpec;
@@ -147,7 +148,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public int getPorts() {
-			return TM_PORT_KEYS.length;
+			return extractPortKeys(LaunchableMesosWorker.this.containerSpec.getDynamicConfiguration()).size();
 		}
 
 		@Override
@@ -235,9 +236,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		// take needed ports for the TM
-		List<Protos.Resource> portResources = allocation.takeRanges("ports", TM_PORT_KEYS.length, roles);
+		Set<String> tmPortKeys = extractPortKeys(containerSpec.getDynamicConfiguration());
+		List<Protos.Resource> portResources = allocation.takeRanges("ports", tmPortKeys.size(), roles);
 		taskInfo.addAllResources(portResources);
-		Iterator<String> portsToAssign = Iterators.forArray(TM_PORT_KEYS);
+		Iterator<String> portsToAssign = tmPortKeys.iterator();
 		rangeValues(portResources).forEach(port -> dynamicProperties.setLong(portsToAssign.next(), port));
 		if (portsToAssign.hasNext()) {
 			throw new IllegalArgumentException("insufficient # of ports assigned");
@@ -330,6 +332,27 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		taskInfo.setContainer(containerInfo);
 
 		return taskInfo.build();
+	}
+
+	/**
+	 * Get the port keys representing the TM's configured endpoints. This includes mandatory TM endpoints such as
+	 * data and rpc as well as optionally configured endpoints for services such as prometheus reporter
+	 *
+	 * @return A deterministicly ordered Set of port keys to expose from the TM container
+	 * @param config
+	 */
+	static Set<String> extractPortKeys(Configuration config) {
+		LinkedHashSet<String> tmPortKeys = new LinkedHashSet<>(Arrays.asList(TM_PORT_KEYS));
+
+		if (config.containsKey(PORT_ASSIGNMENT_KEY)) {
+			String portAssignments = config.getString(PORT_ASSIGNMENT_KEY, "");
+			Arrays.stream(portAssignments.split(","))
+				.map(String::trim)
+				.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
+				.forEach(tmPortKeys::add);
+		}
+
+		return tmPortKeys;
 	}
 
 	@Override
