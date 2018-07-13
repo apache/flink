@@ -1,4 +1,4 @@
-# jepsen.flink
+# flink-jepsen
 
 A Clojure project based on the [Jepsen](https://github.com/jepsen-io/jepsen) framework to find bugs in the
 distributed coordination of Apache Flink®.
@@ -19,11 +19,13 @@ semantics.
 
 ## Usage
 See the [Jepsen documentation](https://github.com/jepsen-io/jepsen#setting-up-a-jepsen-environment)
-for how to set up the environment to run tests. The `scripts/run-tests.sh` documents how to invoke
+for how to set up the environment to run tests. The script under `scripts/run-tests.sh` documents how to invoke
 tests. The Flink job used for testing is located under
 `flink-end-to-end-tests/flink-datastream-allround-test`. You have to build the job first and copy
 the resulting jar (`DataStreamAllroundTestProgram.jar`) to the `./bin` directory of this project's
 root.
+
+### Docker
 
 To simplify development, we have prepared Dockerfiles and a Docker Compose template
 so that you can run the tests locally in containers. To build the images
@@ -45,7 +47,14 @@ Moreover, this allows you to test locally built Flink distributions by copying t
 project's root and passing a URI with the `file://` scheme to the `run-tests.sh` script, e.g.,
 `file:///jepsen/flink-dist.tgz`.
 
-### Checking the output of tests
+#### Memory Requirements
+
+The tests have high memory demands due to the many processes that are started by the control node.
+For example, to test Flink on YARN in a HA setup, we require ZooKeeper, HDFS NameNode,
+HDFS DataNode, YARN NodeManager, and YARN ResourceManager, in addition to the Flink processes.
+We found that the tests can be run comfortably in Docker containers on a machine with 32 GiB RAM. 
+
+### Checking the Output of Tests
 
 Consult the `jepsen.log` file for the particular test run in the `store` folder. The final output of every test will be either
 
@@ -55,6 +64,7 @@ or
 
     Analysis invalid! (ﾉಥ益ಥ）ﾉ ┻━┻
 
-depending on whether the test passed or not.
+depending on whether the test passed or not. If neither output is generated, the test did not finish
+properly due to problems of the environment, bugs in Jepsen or in the test suite, etc.
 
 In addition, the test directories contain all relevant log files aggregated from all hosts.
