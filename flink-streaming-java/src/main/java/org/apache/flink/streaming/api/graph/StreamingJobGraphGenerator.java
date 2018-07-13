@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -80,12 +79,6 @@ import java.util.Map.Entry;
 public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
-
-	/**
-	 * Restart delay used for the FixedDelayRestartStrategy in case checkpointing was enabled but
-	 * no restart strategy has been specified.
-	 */
-	private static final long DEFAULT_RESTART_DELAY = 0L;
 
 	// ------------------------------------------------------------------------
 
@@ -590,21 +583,15 @@ public class StreamingJobGraphGenerator {
 
 		long interval = cfg.getCheckpointInterval();
 		if (interval > 0) {
-
 			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
 			// propagate the expected behaviour for checkpoint errors to task.
 			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
-
-			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (executionConfig.getRestartStrategy() == null) {
-				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				executionConfig.setRestartStrategy(
-					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
-			}
 		} else {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;
 		}
+
+
 
 		//  --- configure the participating vertices ---
 
