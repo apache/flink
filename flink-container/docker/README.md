@@ -1,4 +1,4 @@
-# Apache Flink cluster deployment on docker using docker-compose
+# Apache Flink job cluster deployment on docker using docker-compose
 
 ## Installation
 
@@ -19,7 +19,7 @@ or
 If you want to build the container for a specific version of flink/hadoop/scala
 you can configure it in the respective args:
 
-    docker build --build-arg FLINK_VERSION=1.0.3 --build-arg HADOOP_VERSION=26 --build-arg SCALA_VERSION=2.10 -t "flink:1.0.3-hadoop2.6-scala_2.10" flink
+    docker build --build-arg FLINK_VERSION=1.6.0 --build-arg HADOOP_VERSION=28 --build-arg SCALA_VERSION=2.11 -t "flink:1.6.0-hadoop2.8-scala_2.11" flink
 
 ## Deploy
 
