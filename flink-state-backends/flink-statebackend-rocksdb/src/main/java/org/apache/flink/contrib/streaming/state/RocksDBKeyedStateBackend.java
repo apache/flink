@@ -1323,75 +1323,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		if (stateCompatibility.isIncompatible()) {
-			if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
-				throw new UnsupportedOperationException(
-					"Changing the TypeSerializers of a MapState in an incompatible way is currently not supported.");
-			}
-
-			LOG.info(
-				"Performing state migration for state {} because the state serializer changed in an incompatible way.",
-				stateDesc);
-
-			// we need to get an actual state instance because migration is different
-			// for different state types. For example, ListState needs to deal with
-			// individual elements
-			StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
-			if (stateFactory == null) {
-				String message = String.format("State %s is not supported by %s",
-					stateDesc.getClass(), this.getClass());
-				throw new FlinkRuntimeException(message);
-			}
-
-			State state = stateFactory.createState(
-				stateDesc,
-				Tuple2.of(stateInfo.f0, newMetaInfo),
-				RocksDBKeyedStateBackend.this);
-
-			if (!(state instanceof AbstractRocksDBState)) {
-				throw new FlinkRuntimeException(
-					"State should be an AbstractRocksDBState but is " + state);
-			}
-
-			AbstractRocksDBState rocksDBState = (AbstractRocksDBState<?, N, ?, S>) state;
-
-			Snapshot rocksDBSnapshot = null;
-			RocksIteratorWrapper iterator = null;
-
-			try (ReadOptions readOptions = new ReadOptions();) {
-				// TODO: can I do this with try-with-resource or do I always have to call
-				// db.releaseSnapshot()
-				// I think I can't use try-with-resource anyways since I have to set the snapshot
-				// on the ReadOptions
-
-				rocksDBSnapshot = db.getSnapshot();
-				readOptions.setSnapshot(rocksDBSnapshot);
-
-				iterator = getRocksIterator(db, stateInfo.f0, readOptions);
-				iterator.seekToFirst();
-
-				while (iterator.isValid()) {
-
-					byte[] serializedValue = iterator.value();
-
-					byte[] migratedSerializedValue = rocksDBState.migrateSerializedValue(
-						serializedValue,
-						restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot().restoreSerializer(),
-						stateDesc.getSerializer());
-
-					db.put(stateInfo.f0, iterator.key(), migratedSerializedValue);
-
-					iterator.next();
-				}
-			} finally {
-				if (iterator != null) {
-					iterator.close();
-				}
-				if (rocksDBSnapshot != null) {
-					db.releaseSnapshot(rocksDBSnapshot);
-					// TODO: do I need to call close() or is calling db.releaseSnapshot() enough
-					rocksDBSnapshot.close();
-				}
-			}
+			migrateStateValue(stateDesc, stateInfo, restoredMetaInfoSnapshot, newMetaInfo);
 		} else if (stateCompatibility.isCompatibleAfterReconfiguration()) {
 			// need to use the reconfigured serializer
 			newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
@@ -1403,6 +1335,76 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		stateInfo.f1 = newMetaInfo;
 		return newMetaInfo;
+	}
+
+	/**
+	 * Migrate only the state value, that is the "value" that is stored in RocksDB. We don't migrate
+	 * the key here, which is made up of key group, key, namespace and map key
+	 * (in case of MapState).
+	 */
+	private <N, S extends State, SV> void migrateStateValue(
+			StateDescriptor<S, SV> stateDesc,
+			Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> stateInfo,
+			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, SV> restoredMetaInfoSnapshot,
+			RegisteredKeyedBackendStateMetaInfo<N, SV> newMetaInfo) throws Exception {
+
+		if (stateDesc.getType().equals(StateDescriptor.Type.MAP)) {
+			throw new UnsupportedOperationException(
+				"Changing the TypeSerializers of a MapState in an incompatible way is currently not supported.");
+		}
+
+		LOG.info(
+			"Performing state migration for state {} because the state serializer changed in an incompatible way.",
+			stateDesc);
+
+		// we need to get an actual state instance because migration is different
+		// for different state types. For example, ListState needs to deal with
+		// individual elements
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+		if (stateFactory == null) {
+			String message = String.format("State %s is not supported by %s",
+				stateDesc.getClass(), this.getClass());
+			throw new FlinkRuntimeException(message);
+		}
+
+		State state = stateFactory.createState(
+			stateDesc,
+			Tuple2.of(stateInfo.f0, newMetaInfo),
+			RocksDBKeyedStateBackend.this);
+
+		if (!(state instanceof AbstractRocksDBState)) {
+			throw new FlinkRuntimeException(
+				"State should be an AbstractRocksDBState but is " + state);
+		}
+
+		@SuppressWarnings("unchecked")
+		AbstractRocksDBState<?, ?, SV, ?> rocksDBState = (AbstractRocksDBState<?, ?, SV, ?>) state;
+
+		Snapshot rocksDBSnapshot = db.getSnapshot();
+		try (ReadOptions readOptions = new ReadOptions().setSnapshot(rocksDBSnapshot);
+		     RocksIteratorWrapper iterator = getRocksIterator(db, stateInfo.f0, readOptions)) {
+
+			iterator.seekToFirst();
+
+			while (iterator.isValid()) {
+
+				byte[] serializedValue = iterator.value();
+
+				byte[] migratedSerializedValue = rocksDBState.migrateSerializedValue(
+					serializedValue,
+					restoredMetaInfoSnapshot.getStateSerializerConfigSnapshot().restoreSerializer(),
+					stateDesc.getSerializer());
+
+				db.put(stateInfo.f0, iterator.key(), migratedSerializedValue);
+
+				iterator.next();
+			}
+		} finally {
+			if (rocksDBSnapshot != null) {
+				db.releaseSnapshot(rocksDBSnapshot);
+				rocksDBSnapshot.close();
+			}
+		}
 	}
 
 	/**
