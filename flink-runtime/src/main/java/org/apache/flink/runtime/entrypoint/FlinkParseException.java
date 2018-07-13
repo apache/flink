@@ -18,43 +18,25 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import javax.annotation.Nonnull;
-
-import java.util.Properties;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Configuration class which contains the parsed command line arguments for
- * the {@link ClusterEntrypoint}.
+ * Exception which indicates that the parsing of command line
+ * arguments failed.
  */
-public class ClusterConfiguration {
+public class FlinkParseException extends FlinkException {
 
-	@Nonnull
-	private final String configDir;
+	private static final long serialVersionUID = 5164983338744708430L;
 
-	@Nonnull
-	private final Properties dynamicProperties;
-
-	@Nonnull
-	private final String[] args;
-
-	public ClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args) {
-		this.configDir = configDir;
-		this.dynamicProperties = dynamicProperties;
-		this.args = args;
+	public FlinkParseException(String message) {
+		super(message);
 	}
 
-	@Nonnull
-	public String getConfigDir() {
-		return configDir;
+	public FlinkParseException(Throwable cause) {
+		super(cause);
 	}
 
-	@Nonnull
-	public Properties getDynamicProperties() {
-		return dynamicProperties;
-	}
-
-	@Nonnull
-	public String[] getArgs() {
-		return args;
+	public FlinkParseException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }
