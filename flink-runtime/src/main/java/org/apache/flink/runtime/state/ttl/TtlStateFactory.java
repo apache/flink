@@ -54,10 +54,10 @@ public class TtlStateFactory {
 		Preconditions.checkNotNull(stateDesc);
 		Preconditions.checkNotNull(originalStateFactory);
 		Preconditions.checkNotNull(timeProvider);
-		return stateDesc.getTtlConfig() == null ?
-			originalStateFactory.createInternalState(namespaceSerializer, stateDesc) :
+		return  stateDesc.getTtlConfig().isEnabled() ?
 			new TtlStateFactory(originalStateFactory, stateDesc.getTtlConfig(), timeProvider)
-				.createState(namespaceSerializer, stateDesc);
+				.createState(namespaceSerializer, stateDesc) :
+			originalStateFactory.createInternalState(namespaceSerializer, stateDesc);
 	}
 
 	private final Map<Class<? extends StateDescriptor>, KeyedStateFactory> stateFactories;
