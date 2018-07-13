@@ -24,7 +24,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.test.util.MiniClusterResource;
@@ -85,7 +84,7 @@ public class JarRunHandlerTest {
 				int port = clientConfig.getInteger(RestOptions.PORT);
 
 				try {
-					client.sendRequest(host, port, headers, parameters, EmptyRequestBody.getInstance())
+					client.sendRequest(host, port, headers, parameters, new JarRunRequestBody())
 						.get();
 				} catch (Exception e) {
 					Optional<RestClientException> expected = ExceptionUtils.findThrowable(e, RestClientException.class);
