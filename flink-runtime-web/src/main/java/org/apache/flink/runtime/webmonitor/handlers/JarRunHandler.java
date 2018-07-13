@@ -33,12 +33,14 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -61,7 +63,7 @@ import static org.apache.flink.shaded.guava18.com.google.common.base.Strings.emp
  * Handler to submit jobs uploaded via the Web UI.
  */
 public class JarRunHandler extends
-		AbstractRestHandler<DispatcherGateway, EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+		AbstractRestHandler<DispatcherGateway, JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
 	private final Path jarDir;
 
@@ -74,7 +76,7 @@ public class JarRunHandler extends
 			final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> responseHeaders,
-			final MessageHeaders<EmptyRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
+			final MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> messageHeaders,
 			final Path jarDir,
 			final Configuration configuration,
 			final Executor executor) {
@@ -87,15 +89,33 @@ public class JarRunHandler extends
 
 	@Override
 	protected CompletableFuture<JarRunResponseBody> handleRequest(
-			@Nonnull final HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request,
+			@Nonnull final HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request,
 			@Nonnull final DispatcherGateway gateway) throws RestHandlerException {
+
+		final JarRunRequestBody requestBody = request.getRequestBody();
 
 		final String pathParameter = request.getPathParameter(JarIdPathParameter.class);
 		final Path jarFile = jarDir.resolve(pathParameter);
 
-		final String entryClass = emptyToNull(getQueryParameter(request, EntryClassQueryParameter.class));
-		final List<String> programArgs = tokenizeArguments(getQueryParameter(request, ProgramArgsQueryParameter.class));
-		final int parallelism = getQueryParameter(request, ParallelismQueryParameter.class, ExecutionConfig.PARALLELISM_DEFAULT);
+		final String entryClass = fromRequestBodyOrQueryParameter(
+			emptyToNull(requestBody.getEntryClassName()),
+			() -> emptyToNull(getQueryParameter(request, EntryClassQueryParameter.class)),
+			null,
+			log);
+
+		final List<String> programArgs = tokenizeArguments(
+			fromRequestBodyOrQueryParameter(
+				emptyToNull(requestBody.getProgramArguments()),
+				() -> getQueryParameter(request, ProgramArgsQueryParameter.class),
+				null,
+				log));
+
+		final int parallelism = fromRequestBodyOrQueryParameter(
+			requestBody.getParallelism(),
+			() -> getQueryParameter(request, ParallelismQueryParameter.class),
+			ExecutionConfig.PARALLELISM_DEFAULT,
+			log);
+
 		final SavepointRestoreSettings savepointRestoreSettings = getSavepointRestoreSettings(request);
 
 		final CompletableFuture<JobGraph> jobGraphFuture = getJobGraphAsync(
@@ -134,12 +154,22 @@ public class JarRunHandler extends
 			});
 	}
 
-	private static SavepointRestoreSettings getSavepointRestoreSettings(
-			final @Nonnull HandlerRequest<EmptyRequestBody, JarRunMessageParameters> request)
+	private SavepointRestoreSettings getSavepointRestoreSettings(
+			final @Nonnull HandlerRequest<JarRunRequestBody, JarRunMessageParameters> request)
 				throws RestHandlerException {
 
-		final boolean allowNonRestoredState = getQueryParameter(request, AllowNonRestoredStateQueryParameter.class, false);
-		final String savepointPath = getQueryParameter(request, SavepointPathQueryParameter.class);
+		final JarRunRequestBody requestBody = request.getRequestBody();
+
+		final boolean allowNonRestoredState = fromRequestBodyOrQueryParameter(
+			requestBody.getAllowNonRestoredState(),
+			() -> getQueryParameter(request, AllowNonRestoredStateQueryParameter.class),
+			false,
+			log);
+		final String savepointPath = fromRequestBodyOrQueryParameter(
+			emptyToNull(requestBody.getSavepointPath()),
+			() -> emptyToNull(getQueryParameter(request, SavepointPathQueryParameter.class)),
+			null,
+			log);
 		final SavepointRestoreSettings savepointRestoreSettings;
 		if (savepointPath != null) {
 			savepointRestoreSettings = SavepointRestoreSettings.forPath(
@@ -149,6 +179,29 @@ public class JarRunHandler extends
 			savepointRestoreSettings = SavepointRestoreSettings.none();
 		}
 		return savepointRestoreSettings;
+	}
+
+	/**
+	 * Returns {@code requestValue} if it is not null, otherwise returns the query parameter value
+	 * if it is not null, otherwise returns the default value.
+	 */
+	private static <T> T fromRequestBodyOrQueryParameter(
+			T requestValue,
+			SupplierWithException<T, RestHandlerException> queryParameterExtractor,
+			T defaultValue,
+			Logger log) throws RestHandlerException {
+		if (requestValue != null) {
+			return requestValue;
+		} else {
+			T queryParameterValue = queryParameterExtractor.get();
+			if (queryParameterValue != null) {
+				log.warn("Configuring the job submission via query parameters is deprecated." +
+					" Please migrate to submitting a JSON request instead.");
+				return queryParameterValue;
+			} else {
+				return defaultValue;
+			}
+		}
 	}
 
 	private CompletableFuture<JobGraph> getJobGraphAsync(
