@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * TODO: add javadoc.
+ * A simple {@link ExternalResource} to be used by tests that require a {@link BlobServer}.
  */
 public class BlobServerResource extends ExternalResource {
 	private static final Logger LOG = LoggerFactory.getLogger(BlobServerResource.class);
