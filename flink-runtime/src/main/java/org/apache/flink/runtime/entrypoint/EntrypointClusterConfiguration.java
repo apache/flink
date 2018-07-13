@@ -23,38 +23,18 @@ import javax.annotation.Nonnull;
 import java.util.Properties;
 
 /**
- * Configuration class which contains the parsed command line arguments for
- * the {@link ClusterEntrypoint}.
+ * Basic {@link ClusterConfiguration} for entry points.
  */
-public class ClusterConfiguration {
+public class EntrypointClusterConfiguration extends ClusterConfiguration {
 
-	@Nonnull
-	private final String configDir;
+	private final int restPort;
 
-	@Nonnull
-	private final Properties dynamicProperties;
-
-	@Nonnull
-	private final String[] args;
-
-	public ClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args) {
-		this.configDir = configDir;
-		this.dynamicProperties = dynamicProperties;
-		this.args = args;
+	public EntrypointClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, int restPort) {
+		super(configDir, dynamicProperties, args);
+		this.restPort = restPort;
 	}
 
-	@Nonnull
-	public String getConfigDir() {
-		return configDir;
-	}
-
-	@Nonnull
-	public Properties getDynamicProperties() {
-		return dynamicProperties;
-	}
-
-	@Nonnull
-	public String[] getArgs() {
-		return args;
+	public int getRestPort() {
+		return restPort;
 	}
 }

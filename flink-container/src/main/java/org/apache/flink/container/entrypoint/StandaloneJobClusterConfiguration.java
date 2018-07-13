@@ -16,45 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.container.entrypoint;
+
+import org.apache.flink.runtime.entrypoint.EntrypointClusterConfiguration;
 
 import javax.annotation.Nonnull;
 
 import java.util.Properties;
 
 /**
- * Configuration class which contains the parsed command line arguments for
- * the {@link ClusterEntrypoint}.
+ * Configuration for the {@link StandaloneJobClusterEntryPoint}.
  */
-public class ClusterConfiguration {
-
+final class StandaloneJobClusterConfiguration extends EntrypointClusterConfiguration {
 	@Nonnull
-	private final String configDir;
+	private final String jobClassName;
 
-	@Nonnull
-	private final Properties dynamicProperties;
-
-	@Nonnull
-	private final String[] args;
-
-	public ClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args) {
-		this.configDir = configDir;
-		this.dynamicProperties = dynamicProperties;
-		this.args = args;
+	public StandaloneJobClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, int restPort, @Nonnull String jobClassName) {
+		super(configDir, dynamicProperties, args, restPort);
+		this.jobClassName = jobClassName;
 	}
 
 	@Nonnull
-	public String getConfigDir() {
-		return configDir;
-	}
-
-	@Nonnull
-	public Properties getDynamicProperties() {
-		return dynamicProperties;
-	}
-
-	@Nonnull
-	public String[] getArgs() {
-		return args;
+	String getJobClassName() {
+		return jobClassName;
 	}
 }
