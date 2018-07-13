@@ -377,8 +377,7 @@ public class SlotPoolTest extends TestLogger {
 			final DummyPayload dummyPayload = new DummyPayload(releaseFuture);
 
 			slot1.tryAssignPayload(dummyPayload);
-
-			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), null);
+			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), new Throwable("un-register taskmanager from slot pool"));
 
 			releaseFuture.get();
 			assertFalse(slot1.isAlive());
@@ -720,7 +719,7 @@ public class SlotPoolTest extends TestLogger {
 				timeout);
 
 			// release the TaskExecutor before we get a response from the slot releasing
-			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), null).get();
+			slotPoolGateway.releaseTaskManager(taskManagerLocation.getResourceID(), new Throwable("un-register taskmanager from slot pool")).get();
 
 			// let the slot releasing fail --> since the owning TaskExecutor is no longer registered
 			// the slot should be discarded

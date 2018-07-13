@@ -301,7 +301,7 @@ public class SchedulerTestBase extends TestLogger {
 		@Override
 		public void releaseTaskManager(ResourceID resourceId) {
 			try {
-				slotPool.releaseTaskManager(resourceId, null).get();
+				slotPool.releaseTaskManager(resourceId, new Throwable("un-register taskmanager from slot pool.")).get();
 			} catch (Exception e) {
 				throw new RuntimeException("Should not have happened.", e);
 			}

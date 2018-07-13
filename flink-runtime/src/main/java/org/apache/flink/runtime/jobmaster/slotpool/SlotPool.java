@@ -224,9 +224,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
-			final FlinkException cause = new FlinkException(
-				"Releasing TaskManager " + taskManagerResourceId + ", because of stopping of SlotPool");
-			releaseTaskManagerInternal(taskManagerResourceId, cause);
+			releaseTaskManagerInternal(taskManagerResourceId, new Throwable("Releasing TaskManager " + taskManagerResourceId + ", because of stopping of SlotPool"));
 		}
 
 		clear();
@@ -1051,10 +1049,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * when we find some TaskManager becomes "dead" or "abnormal", and we decide to not using slots from it anymore.
 	 *
 	 * @param resourceId The id of the TaskManager
-	 * @param cause for the releasing of the TaskManager
+	 * @param cause for the release the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Exception cause) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Throwable cause) {
 		if (registeredTaskManagers.remove(resourceId)) {
 			releaseTaskManagerInternal(resourceId, cause);
 		}
@@ -1072,7 +1070,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		removePendingRequest(slotRequestId);
 	}
 
-	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
+	private void releaseTaskManagerInternal(final ResourceID resourceId, final Throwable cause) {
 		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
 
 		for (AllocatedSlot allocatedSlot : removedSlots) {
