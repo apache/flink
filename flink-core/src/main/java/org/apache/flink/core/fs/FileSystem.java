@@ -229,9 +229,7 @@ public abstract class FileSystem {
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
-	//CHECKSTYLE.OFF: StaticVariableName
-	private static URI DEFAULT_SCHEME;
-	//CHECKSTYLE.ON: StaticVariableName
+	private static URI defaultScheme;
 
 	// ------------------------------------------------------------------------
 	//  Initialization
@@ -275,11 +273,11 @@ public abstract class FileSystem {
 			// also read the default file system scheme
 			final String stringifiedUri = config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
 			if (stringifiedUri == null) {
-				DEFAULT_SCHEME = null;
+				defaultScheme = null;
 			}
 			else {
 				try {
-					DEFAULT_SCHEME = new URI(stringifiedUri);
+					defaultScheme = new URI(stringifiedUri);
 				}
 				catch (URISyntaxException e) {
 					throw new IllegalConfigurationException("The default file system scheme ('" +
@@ -427,7 +425,7 @@ public abstract class FileSystem {
 	 * @return The default file system URI
 	 */
 	public static URI getDefaultFsUri() {
-		return DEFAULT_SCHEME != null ? DEFAULT_SCHEME : LocalFileSystem.getLocalFsURI();
+		return defaultScheme != null ? defaultScheme : LocalFileSystem.getLocalFsURI();
 	}
 
 	// ------------------------------------------------------------------------
