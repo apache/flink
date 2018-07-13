@@ -16,14 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.entrypoint;
+package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.client.program.PackagedProgramUtils;
+import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
@@ -35,16 +44,55 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FlinkException;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/**
- * Entry point for the standalone session cluster.
- */
-public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint {
+import java.util.concurrent.CompletableFuture;
 
-	public StandaloneSessionClusterEntrypoint(Configuration configuration) {
+/**
+ * {@link JobClusterEntrypoint} which is started with a job in a predefined
+ * location.
+ */
+public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
+
+	private  static final String[] EMPTY_ARGS = new String[0];
+
+	@Nonnull
+	private final String jobClassName;
+
+	StandaloneJobClusterEntryPoint(Configuration configuration, @Nonnull String jobClassName) {
 		super(configuration);
+		this.jobClassName = jobClassName;
+	}
+
+	@Override
+	protected JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException {
+		final PackagedProgram packagedProgram = createPackagedProgram();
+		final int defaultParallelism = configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+		try {
+			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, defaultParallelism);
+			jobGraph.setAllowQueuedScheduling(true);
+
+			return jobGraph;
+		} catch (Exception e) {
+			throw new FlinkException("Could not create the JobGraph from the provided user code jar.", e);
+		}
+	}
+
+	private PackagedProgram createPackagedProgram() throws FlinkException {
+		try {
+			final Class<?> mainClass = getClass().getClassLoader().loadClass(jobClassName);
+			return new PackagedProgram(mainClass, EMPTY_ARGS);
+		} catch (ClassNotFoundException | ProgramInvocationException e) {
+			throw new FlinkException("Could not load the provied entrypoint class.", e);
+		}
+	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {
+		terminationFuture.thenAccept((status) -> shutDownAndTerminate(0, ApplicationStatus.SUCCEEDED, null, true));
 	}
 
 	@Override
@@ -67,7 +115,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 
 		return new StandaloneResourceManager(
 			rpcService,
-			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			ResourceManager.RESOURCE_MANAGER_NAME,
 			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
@@ -81,25 +129,28 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 
 	public static void main(String[] args) {
 		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneSessionClusterEntrypoint.class.getSimpleName(), args);
+		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneJobClusterEntryPoint.class.getSimpleName(), args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		EntrypointClusterConfiguration entrypointClusterConfiguration = null;
-		final CommandLineParser<EntrypointClusterConfiguration> commandLineParser = new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
+		final CommandLineParser<StandaloneJobClusterConfiguration> commandLineParser = new CommandLineParser<>(new StandaloneJobClusterConfigurationParserFactory());
+		StandaloneJobClusterConfiguration clusterConfiguration = null;
 
 		try {
-			entrypointClusterConfiguration = commandLineParser.parse(args);
+			clusterConfiguration = commandLineParser.parse(args);
 		} catch (FlinkParseException e) {
 			LOG.error("Could not parse command line arguments {}.", args, e);
 			commandLineParser.printHelp();
 			System.exit(1);
 		}
 
-		Configuration configuration = loadConfiguration(entrypointClusterConfiguration);
+		Configuration configuration = loadConfiguration(clusterConfiguration);
 
-		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
+		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
+
+		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration, clusterConfiguration.getJobClassName());
 
 		entrypoint.startCluster();
 	}
+
 }

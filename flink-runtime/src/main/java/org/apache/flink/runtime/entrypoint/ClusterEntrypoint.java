@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -44,6 +44,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -688,27 +689,17 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		Configuration configuration,
 		ScheduledExecutor scheduledExecutor) throws IOException;
 
-	protected static ClusterConfiguration parseArguments(String[] args) {
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+	protected static EntrypointClusterConfiguration parseArguments(String[] args) throws FlinkParseException {
+		final CommandLineParser<EntrypointClusterConfiguration> clusterConfigurationParser = new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
 
-		final String configDir = parameterTool.get("configDir", "");
-
-		final int restPort;
-
-		final String portKey = "webui-port";
-		if (parameterTool.has(portKey)) {
-			restPort = Integer.valueOf(parameterTool.get(portKey));
-		} else {
-			restPort = -1;
-		}
-
-		return new ClusterConfiguration(configDir, restPort);
+		return clusterConfigurationParser.parse(args);
 	}
 
-	protected static Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir());
+	protected static Configuration loadConfiguration(EntrypointClusterConfiguration entrypointClusterConfiguration) {
+		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(entrypointClusterConfiguration.getDynamicProperties());
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
 
-		final int restPort = clusterConfiguration.getRestPort();
+		final int restPort = entrypointClusterConfiguration.getRestPort();
 
 		if (restPort >= 0) {
 			configuration.setInteger(RestOptions.PORT, restPort);

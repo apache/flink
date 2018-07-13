@@ -223,7 +223,7 @@ public class PackagedProgram {
 		}
 	}
 
-	PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
 		this.jarFile = null;
 		this.args = args == null ? new String[0] : args;
 
