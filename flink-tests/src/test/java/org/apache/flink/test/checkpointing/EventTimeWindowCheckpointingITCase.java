@@ -119,7 +119,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 	@Parameterized.Parameters(name = "statebackend type ={0}")
 	public static Collection<StateBackendEnum> parameter() {
-		return Arrays.asList(MEM, FILE, ROCKSDB_FULLY_ASYNC, ROCKSDB_INCREMENTAL, ROCKSDB_INCREMENTAL_ZK, MEM_ASYNC, FILE_ASYNC);
+		return Arrays.asList(StateBackendEnum.values());
 	}
 
 	protected StateBackendEnum getStateBackend() {
