@@ -62,7 +62,7 @@ public interface Executor {
 	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink job (detached) and returns the result descriptor.
+	 * Submits a Flink job (detached/non-blocking) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
 
@@ -83,7 +83,8 @@ public interface Executor {
 	List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
 
 	/**
-	 * Cancels a table program and stops the result retrieval.
+	 * Cancels a table program and stops the result retrieval. Blocking until cancellation command has
+	 * been sent to cluster.
 	 */
 	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
 
