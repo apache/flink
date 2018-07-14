@@ -19,6 +19,7 @@
 package org.apache.flink.table.sources
 
 import java.util.{Map => JMap}
+import javax.annotation.Nullable
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
@@ -53,5 +54,6 @@ trait DefinedFieldMapping {
     * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields or
     *         null if no mapping is necessary.
     */
+  @Nullable
   def getFieldMapping: JMap[String, String]
 }
