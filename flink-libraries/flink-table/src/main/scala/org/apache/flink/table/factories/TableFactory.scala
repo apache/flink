@@ -23,8 +23,8 @@ import java.util
 /**
   * A factory to create different table-related instances from string-based properties. This
   * factory is used with Java's Service Provider Interfaces (SPI) for discovering. A factory is
-  * called with a set of normalized properties that describe the desired format. The factory allows
-  * for matching to the given set of properties.
+  * called with a set of normalized properties that describe the desired configuration. The factory
+  * allows for matching to the given set of properties.
   *
   * Classes that implement this interface can be added to the
   * "META_INF/services/org.apache.flink.table.factories.TableFactory" file of a JAR file in
