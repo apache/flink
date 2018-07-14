@@ -71,6 +71,7 @@ import org.apache.flink.util.TestLogger;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
+import akka.actor.RobustActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
@@ -351,7 +352,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final int sequenceEnd = 5000;
 		final long expectedSum = Parallelism * sequenceEnd * (sequenceEnd + 1) / 2;
 
-		final ActorSystem system = ActorSystem.create("Test", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = new RobustActorSystem("Test", AkkaUtils.getDefaultAkkaConfig());
 		final TestingServer testingServer = new TestingServer();
 		final TemporaryFolder temporaryFolder = new TemporaryFolder();
 		temporaryFolder.create();
