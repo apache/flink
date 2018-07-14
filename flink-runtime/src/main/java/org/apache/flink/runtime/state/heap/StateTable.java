@@ -20,8 +20,8 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
-import org.apache.flink.runtime.state.StateTableByKeyGroupReader;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
@@ -48,14 +48,14 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	/**
 	 * Combined meta information such as name and serializers for this state
 	 */
-	protected RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo;
+	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
 
 	/**
 	 *
 	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
 	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
@@ -176,11 +176,11 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredKeyedBackendStateMetaInfo<N, S> getMetaInfo() {
+	public RegisteredKeyValueStateBackendMetaInfo<N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
-	public void setMetaInfo(RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 
@@ -195,7 +195,7 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 
 	@Nonnull
 	@Override
-	public StateTableByKeyGroupReader keyGroupReader(int readVersion) {
+	public StateSnapshotKeyGroupReader keyGroupReader(int readVersion) {
 		return StateTableByKeyGroupReaders.readerForVersion(this, readVersion);
 	}
 }

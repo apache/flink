@@ -27,9 +27,9 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateTableByKeyGroupReader;
+import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -47,8 +47,8 @@ public class StateTableSnapshotCompatibilityTest {
 	@Test
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
-		RegisteredKeyedBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
-			new RegisteredKeyedBackendStateMetaInfo<>(
+		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
 				IntSerializer.INSTANCE,
@@ -111,7 +111,7 @@ public class StateTableSnapshotCompatibilityTest {
 		final ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(out.getBuf());
 		final DataInputViewStreamWrapper div = new DataInputViewStreamWrapper(in);
 
-		final StateTableByKeyGroupReader keyGroupReader =
+		final StateSnapshotKeyGroupReader keyGroupReader =
 			StateTableByKeyGroupReaders.readerForVersion(stateTable, KeyedBackendSerializationProxy.VERSION);
 
 		for (Integer keyGroup : keyGroupRange) {

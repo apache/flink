@@ -31,7 +31,7 @@ import java.io.IOException;
  * Interface for state de-serialization into {@link StateTable}s by key-group.
  */
 @Internal
-public interface StateTableByKeyGroupReader {
+public interface StateSnapshotKeyGroupReader {
 
 	/**
 	 * Read the data for the specified key-group from the input.

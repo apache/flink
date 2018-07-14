@@ -36,12 +36,12 @@ public interface StateSnapshotRestore {
 	StateSnapshot stateSnapshot();
 
 	/**
-	 * This method returns a {@link StateTableByKeyGroupReader} that can be used to restore the state on a
+	 * This method returns a {@link StateSnapshotKeyGroupReader} that can be used to restore the state on a
 	 * per-key-group basis. This method tries to return a reader for the given version hint.
 	 *
 	 * @param readVersionHint the required version of the state to read.
 	 * @return a reader that reads state by key-groups, for the given read version.
 	 */
 	@Nonnull
-	StateTableByKeyGroupReader keyGroupReader(int readVersionHint);
+	StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint);
 }

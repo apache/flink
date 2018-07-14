@@ -24,7 +24,7 @@ import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateTableByKeyGroupReader;
+import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 
 import javax.annotation.Nonnegative;
@@ -88,7 +88,7 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 
 	@Nonnull
 	@Override
-	public StateTableByKeyGroupReader keyGroupReader(int readVersionHint) {
+	public StateSnapshotKeyGroupReader keyGroupReader(int readVersionHint) {
 		final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
 		return KeyGroupPartitioner.createKeyGroupPartitionReader(
 			elementSerializer::deserialize, //we know that this does not deliver nulls, because we never write nulls

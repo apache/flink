@@ -265,7 +265,7 @@ public class KeyGroupPartitioner<T> {
 		}
 	}
 
-	public static <T> StateTableByKeyGroupReader createKeyGroupPartitionReader(
+	public static <T> StateSnapshotKeyGroupReader createKeyGroupPartitionReader(
 		@Nonnull ElementReaderFunction<T> readerFunction,
 		@Nonnull KeyGroupElementsConsumer<T> elementConsumer) {
 		return new PartitioningResultKeyGroupReader<>(readerFunction, elementConsumer);
@@ -275,7 +275,7 @@ public class KeyGroupPartitioner<T> {
 	 * General algorithm to read key-grouped state that was written from a {@link PartitioningResult}
 	 * @param <T>
 	 */
-	private static class PartitioningResultKeyGroupReader<T> implements StateTableByKeyGroupReader {
+	private static class PartitioningResultKeyGroupReader<T> implements StateSnapshotKeyGroupReader {
 
 		@Nonnull
 		private final ElementReaderFunction<T> readerFunction;

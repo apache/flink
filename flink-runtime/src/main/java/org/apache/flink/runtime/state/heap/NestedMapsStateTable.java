@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -71,7 +71,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param keyContext the key context.
 	 * @param metaInfo the meta information for this state table.
 	 */
-	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		super(keyContext, metaInfo);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 

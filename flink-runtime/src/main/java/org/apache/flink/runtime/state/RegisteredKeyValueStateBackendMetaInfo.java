@@ -43,7 +43,7 @@ import java.util.Objects;
  * @param <N> Type of namespace
  * @param <S> Type of state value
  */
-public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
+public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
 
 	@Nonnull
 	private final StateDescriptor.Type stateType;
@@ -54,7 +54,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	@Nullable
 	private StateMetaInfoSnapshot precomputedSnapshot;
 
-	public RegisteredKeyedBackendStateMetaInfo(
+	public RegisteredKeyValueStateBackendMetaInfo(
 			@Nonnull StateDescriptor.Type stateType,
 			@Nonnull String name,
 			@Nonnull TypeSerializer<N> namespaceSerializer,
@@ -68,7 +68,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredKeyedBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+	public RegisteredKeyValueStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
 			snapshot.getName(),
@@ -104,7 +104,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 			return false;
 		}
 
-		RegisteredKeyedBackendStateMetaInfo<?, ?> that = (RegisteredKeyedBackendStateMetaInfo<?, ?>) o;
+		RegisteredKeyValueStateBackendMetaInfo<?, ?> that = (RegisteredKeyValueStateBackendMetaInfo<?, ?>) o;
 
 		if (!stateType.equals(that.stateType)) {
 			return false;
@@ -143,7 +143,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	 * serializers that are compatible for the restored k/v state bytes.
 	 */
 	@Nonnull
-	public static <N, S> RegisteredKeyedBackendStateMetaInfo<N, S> resolveKvStateCompatibility(
+	public static <N, S> RegisteredKeyValueStateBackendMetaInfo<N, S> resolveKvStateCompatibility(
 		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
 		TypeSerializer<N> newNamespaceSerializer,
 		StateDescriptor<?, S> newStateDescriptor) throws StateMigrationException {
@@ -190,7 +190,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 			// TODO state migration currently isn't possible.
 			throw new StateMigrationException("State migration isn't supported, yet.");
 		} else {
-			return new RegisteredKeyedBackendStateMetaInfo<>(
+			return new RegisteredKeyValueStateBackendMetaInfo<>(
 				newStateDescriptor.getType(),
 				newStateDescriptor.getName(),
 				newNamespaceSerializer,

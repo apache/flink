@@ -35,7 +35,7 @@ import java.util.Map;
  *
  * @param <S> Type of the state.
  */
-public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMetaInfoBase {
+public class RegisteredOperatorStateBackendMetaInfo<S> extends RegisteredStateMetaInfoBase {
 
 	/**
 	 * The mode how elements in this state are assigned to tasks during restore
@@ -53,7 +53,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	@Nullable
 	private StateMetaInfoSnapshot precomputedSnapshot;
 
-	public RegisteredOperatorBackendStateMetaInfo(
+	public RegisteredOperatorStateBackendMetaInfo(
 			@Nonnull String name,
 			@Nonnull TypeSerializer<S> partitionStateSerializer,
 			@Nonnull OperatorStateHandle.Mode assignmentMode) {
@@ -63,7 +63,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 		this.precomputedSnapshot = null;
 	}
 
-	private RegisteredOperatorBackendStateMetaInfo(@Nonnull RegisteredOperatorBackendStateMetaInfo<S> copy) {
+	private RegisteredOperatorStateBackendMetaInfo(@Nonnull RegisteredOperatorStateBackendMetaInfo<S> copy) {
 		this(
 			Preconditions.checkNotNull(copy).name,
 			copy.partitionStateSerializer.duplicate(),
@@ -71,7 +71,7 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredOperatorBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+	public RegisteredOperatorStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
 			(TypeSerializer<S>) Preconditions.checkNotNull(
@@ -85,8 +85,8 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 	 * Creates a deep copy of the itself.
 	 */
 	@Nonnull
-	public RegisteredOperatorBackendStateMetaInfo<S> deepCopy() {
-		return new RegisteredOperatorBackendStateMetaInfo<>(this);
+	public RegisteredOperatorStateBackendMetaInfo<S> deepCopy() {
+		return new RegisteredOperatorStateBackendMetaInfo<>(this);
 	}
 
 	@Nonnull
@@ -118,10 +118,10 @@ public class RegisteredOperatorBackendStateMetaInfo<S> extends RegisteredStateMe
 			return false;
 		}
 
-		return (obj instanceof RegisteredOperatorBackendStateMetaInfo)
-			&& name.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getName())
-			&& assignmentMode.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getAssignmentMode())
-			&& partitionStateSerializer.equals(((RegisteredOperatorBackendStateMetaInfo) obj).getPartitionStateSerializer());
+		return (obj instanceof RegisteredOperatorStateBackendMetaInfo)
+			&& name.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getName())
+			&& assignmentMode.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getAssignmentMode())
+			&& partitionStateSerializer.equals(((RegisteredOperatorStateBackendMetaInfo) obj).getPartitionStateSerializer());
 	}
 
 	@Override

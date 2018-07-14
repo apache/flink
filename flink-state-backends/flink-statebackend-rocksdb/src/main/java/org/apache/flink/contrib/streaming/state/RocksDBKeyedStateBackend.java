@@ -72,7 +72,7 @@ import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
@@ -181,7 +181,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private interface StateFactory {
 		<K, N, SV, S extends State, IS extends S> IS createState(
 			StateDescriptor<S, SV> stateDesc,
-			Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult,
+			Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
 			RocksDBKeyedStateBackend<K> backend) throws Exception;
 	}
 
@@ -351,12 +351,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public <N> Stream<K> getKeys(String state, N namespace) {
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> columnInfo = kvStateInformation.get(state);
-		if (columnInfo == null || !(columnInfo.f1 instanceof RegisteredKeyedBackendStateMetaInfo)) {
+		if (columnInfo == null || !(columnInfo.f1 instanceof RegisteredKeyValueStateBackendMetaInfo)) {
 			return Stream.empty();
 		}
 
-		RegisteredKeyedBackendStateMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
-			(RegisteredKeyedBackendStateMetaInfo<N, ?>) columnInfo.f1;
+		RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
+			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.f1;
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
 		final ByteArrayOutputStreamWithPos namespaceOutputStream = new ByteArrayOutputStreamWithPos(8);
@@ -1301,14 +1301,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * already have a registered entry for that and return it (after some necessary state compatibility checks)
 	 * or create a new one if it does not exist.
 	 */
-	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, S>> tryRegisterKvStateInformation(
+	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, S>> tryRegisterKvStateInformation(
 			StateDescriptor<?, S> stateDesc,
 			TypeSerializer<N> namespaceSerializer) throws StateMigrationException {
 
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo =
 			kvStateInformation.get(stateDesc.getName());
 
-		RegisteredKeyedBackendStateMetaInfo<N, S> newMetaInfo;
+		RegisteredKeyValueStateBackendMetaInfo<N, S> newMetaInfo;
 		if (stateInfo != null) {
 
 			@SuppressWarnings("unchecked")
@@ -1319,7 +1319,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
 					" but its corresponding restored snapshot cannot be found.");
 
-			newMetaInfo = RegisteredKeyedBackendStateMetaInfo.resolveKvStateCompatibility(
+			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
 				restoredMetaInfoSnapshot,
 				namespaceSerializer,
 				stateDesc);
@@ -1328,7 +1328,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		} else {
 			String stateName = stateDesc.getName();
 
-			newMetaInfo = new RegisteredKeyedBackendStateMetaInfo<>(
+			newMetaInfo = new RegisteredKeyValueStateBackendMetaInfo<>(
 				stateDesc.getType(),
 				stateName,
 				namespaceSerializer,
@@ -1370,7 +1370,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
-		Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<N, SV>> registerResult =
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
 			tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
 		return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
 	}

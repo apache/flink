@@ -48,11 +48,11 @@ public abstract class RegisteredStateMetaInfoBase {
 		final StateMetaInfoSnapshot.BackendStateType backendStateType = snapshot.getBackendStateType();
 		switch (backendStateType) {
 			case KEY_VALUE:
-				return new RegisteredKeyedBackendStateMetaInfo<>(snapshot);
+				return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
 			case OPERATOR:
-				return new RegisteredOperatorBackendStateMetaInfo<>(snapshot);
+				return new RegisteredOperatorStateBackendMetaInfo<>(snapshot);
 			case BROADCAST:
-				return new RegisteredBroadcastBackendStateMetaInfo<>(snapshot);
+				return new RegisteredBroadcastStateBackendMetaInfo<>(snapshot);
 			case PRIORITY_QUEUE:
 				return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot);
 			default:

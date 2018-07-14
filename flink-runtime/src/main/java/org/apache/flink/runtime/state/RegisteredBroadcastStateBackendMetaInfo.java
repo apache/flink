@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredStateMetaInfoBase {
+public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredStateMetaInfoBase {
 
 	/** The mode how elements in this state are assigned to tasks during restore. */
 	@Nonnull
@@ -49,7 +49,7 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 	@Nullable
 	private StateMetaInfoSnapshot precomputedSnapshot;
 
-	public RegisteredBroadcastBackendStateMetaInfo(
+	public RegisteredBroadcastStateBackendMetaInfo(
 			@Nonnull final String name,
 			@Nonnull final OperatorStateHandle.Mode assignmentMode,
 			@Nonnull final TypeSerializer<K> keySerializer,
@@ -63,7 +63,7 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 		this.precomputedSnapshot = null;
 	}
 
-	public RegisteredBroadcastBackendStateMetaInfo(@Nonnull RegisteredBroadcastBackendStateMetaInfo<K, V> copy) {
+	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
 		this(
 			Preconditions.checkNotNull(copy).name,
 			copy.assignmentMode,
@@ -72,7 +72,7 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredBroadcastBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			snapshot.getName(),
 			OperatorStateHandle.Mode.valueOf(
@@ -88,8 +88,8 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 	 * Creates a deep copy of the itself.
 	 */
 	@Nonnull
-	public RegisteredBroadcastBackendStateMetaInfo<K, V> deepCopy() {
-		return new RegisteredBroadcastBackendStateMetaInfo<>(this);
+	public RegisteredBroadcastStateBackendMetaInfo<K, V> deepCopy() {
+		return new RegisteredBroadcastStateBackendMetaInfo<>(this);
 	}
 
 	@Nonnull
@@ -122,12 +122,12 @@ public class RegisteredBroadcastBackendStateMetaInfo<K, V> extends RegisteredSta
 			return true;
 		}
 
-		if (!(obj instanceof RegisteredBroadcastBackendStateMetaInfo)) {
+		if (!(obj instanceof RegisteredBroadcastStateBackendMetaInfo)) {
 			return false;
 		}
 
-		final RegisteredBroadcastBackendStateMetaInfo other =
-				(RegisteredBroadcastBackendStateMetaInfo) obj;
+		final RegisteredBroadcastStateBackendMetaInfo other =
+				(RegisteredBroadcastStateBackendMetaInfo) obj;
 
 		return Objects.equals(name, other.getName())
 				&& Objects.equals(assignmentMode, other.getAssignmentMode())

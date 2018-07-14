@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
-import org.apache.flink.runtime.state.StateTableByKeyGroupReader;
+import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 
 /**
- * This class provides a static factory method to create different implementations of {@link StateTableByKeyGroupReader}
+ * This class provides a static factory method to create different implementations of {@link StateSnapshotKeyGroupReader}
  * depending on the provided serialization format version.
  * <p>
  * The implementations are also located here as inner classes.
@@ -48,7 +48,7 @@ class StateTableByKeyGroupReaders {
 	 * @param <S> type of state.
 	 * @return the appropriate reader.
 	 */
-	static <K, N, S> StateTableByKeyGroupReader readerForVersion(StateTable<K, N, S> stateTable, int version) {
+	static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(StateTable<K, N, S> stateTable, int version) {
 		switch (version) {
 			case 1:
 				return new StateTableByKeyGroupReaderV1<>(stateTable);
@@ -62,7 +62,7 @@ class StateTableByKeyGroupReaders {
 		}
 	}
 
-	private static <K, N, S> StateTableByKeyGroupReader createV2PlusReader(StateTable<K, N, S> stateTable) {
+	private static <K, N, S> StateSnapshotKeyGroupReader createV2PlusReader(StateTable<K, N, S> stateTable) {
 		final TypeSerializer<K> keySerializer = stateTable.keyContext.getKeySerializer();
 		final TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		final TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
@@ -75,7 +75,7 @@ class StateTableByKeyGroupReaders {
 		}, (element, keyGroupId1) -> stateTable.put(element.f1, keyGroupId1, element.f0, element.f2));
 	}
 
-	static final class StateTableByKeyGroupReaderV1<K, N, S> implements StateTableByKeyGroupReader {
+	static final class StateTableByKeyGroupReaderV1<K, N, S> implements StateSnapshotKeyGroupReader {
 
 		protected final StateTable<K, N, S> stateTable;
 
