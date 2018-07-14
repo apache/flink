@@ -228,8 +228,9 @@ public class Environment {
 				return new Sink(name, normalizedConfig);
 			case TABLE_TYPE_VALUE_BOTH:
 				return new SourceSink(name, normalizedConfig);
+			default:
+				throw new SqlClientException(String.format("Invalid 'type' attribute for table '%s'. " +
+					"Only 'source', 'sink', and 'both' are supported. But was '%s'.", name, type));
 		}
-		throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'. " +
-			"Only 'source', 'sink', and 'both' are supported.");
 	}
 }
