@@ -242,8 +242,16 @@ public abstract class KafkaTableSource implements
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(schema, proctimeAttribute, rowtimeAttributeDescriptors, fieldMapping,
-			topic, properties, deserializationSchema, startupMode, specificStartupOffsets);
+		return Objects.hash(
+			schema,
+			proctimeAttribute,
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			topic,
+			properties,
+			deserializationSchema,
+			startupMode,
+			specificStartupOffsets);
 	}
 
 	/**
