@@ -47,6 +47,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.actor.RobustActorSystem;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
@@ -78,7 +79,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 	@BeforeClass
 	public static void setup() throws Exception {
-		actorSystem = ActorSystem.create("TestingActorSystem");
+		actorSystem = new RobustActorSystem("TestingActorSystem", TestingUtils.getDefaultTestingActorSystemConfig());
 		testingServer = new TestingServer();
 	}
 

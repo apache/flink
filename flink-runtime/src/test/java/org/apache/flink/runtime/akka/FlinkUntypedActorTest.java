@@ -26,6 +26,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestActorRef;
 import org.junit.AfterClass;
@@ -46,7 +47,7 @@ public class FlinkUntypedActorTest {
 
 	@BeforeClass
 	public static void setup() {
-		actorSystem = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		actorSystem = new RobustActorSystem("TestingActorSystem", TestingUtils.testConfig());
 	}
 
 	@AfterClass

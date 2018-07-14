@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.recovery;
 
+import akka.actor.RobustActorSystem;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -349,7 +350,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final int sequenceEnd = 5000;
 		final long expectedSum = Parallelism * sequenceEnd * (sequenceEnd + 1) / 2;
 
-		final ActorSystem system = ActorSystem.create("Test", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = new RobustActorSystem("Test", AkkaUtils.getDefaultAkkaConfig());
 		final TestingServer testingServer = new TestingServer();
 		final TemporaryFolder temporaryFolder = new TemporaryFolder();
 		temporaryFolder.create();
