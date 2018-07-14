@@ -29,6 +29,7 @@ import org.apache.flink.types.Row;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -41,11 +42,10 @@ public class Kafka010TableSource extends KafkaTableSource {
 	 * Creates a Kafka 0.10 {@link StreamTableSource}.
 	 *
 	 * @param schema                      Schema of the produced table.
-	 * @param proctimeAttribute           Field name of the processing time attribute, null if no
-	 *                                    processing time field is defined.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
-	 *                                    fields of the physical returned type or null.
+	 *                                    fields of the physical returned type.
 	 * @param topic                       Kafka topic to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
@@ -55,9 +55,9 @@ public class Kafka010TableSource extends KafkaTableSource {
 	 */
 	public Kafka010TableSource(
 			TableSchema schema,
-			String proctimeAttribute,
+			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Map<String, String> fieldMapping,
+			Optional<Map<String, String>> fieldMapping,
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,

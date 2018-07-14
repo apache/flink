@@ -49,6 +49,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
@@ -112,7 +113,8 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		final StartupMode startupMode = StartupMode.SPECIFIC_OFFSETS;
 
 		final KafkaTableSource expected = getExpectedKafkaTableSource(
-			schema, PROC_TIME,
+			schema,
+			Optional.of(PROC_TIME),
 			rowtimeAttributeDescriptors,
 			fieldMapping,
 			TOPIC,
@@ -183,7 +185,7 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 
 	protected abstract KafkaTableSource getExpectedKafkaTableSource(
 		TableSchema schema,
-		String proctimeAttribute,
+		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Map<String, String> fieldMapping,
 		String topic, Properties properties,

@@ -28,6 +28,7 @@ import org.apache.flink.types.Row;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -49,7 +50,7 @@ public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 	@Override
 	protected KafkaTableSource getExpectedKafkaTableSource(
 			TableSchema schema,
-			String proctimeAttribute,
+			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Map<String, String> fieldMapping,
 			String topic,
@@ -62,7 +63,7 @@ public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
-			fieldMapping,
+			Optional.of(fieldMapping),
 			topic,
 			properties,
 			deserializationSchema,

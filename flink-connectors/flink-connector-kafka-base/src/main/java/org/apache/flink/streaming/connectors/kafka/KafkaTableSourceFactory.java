@@ -140,7 +140,7 @@ public abstract class KafkaTableSourceFactory implements StreamTableSourceFactor
 		final TableSchema schema = params.getTableSchema(SCHEMA());
 
 		// proctime
-		final String proctimeAttribute = SchemaValidator.deriveProctimeAttribute(params).orElse(null);
+		final Optional<String> proctimeAttribute = SchemaValidator.deriveProctimeAttribute(params);
 
 		// rowtime
 		final List<RowtimeAttributeDescriptor> rowtimeAttributes = SchemaValidator.deriveRowtimeAttributes(params);
@@ -224,11 +224,10 @@ public abstract class KafkaTableSourceFactory implements StreamTableSourceFactor
 	 * Constructs the version-specific Kafka table source.
 	 *
 	 * @param schema                      Schema of the produced table.
-	 * @param proctimeAttribute           Field name of the processing time attribute, null if no
-	 *                                    processing time field is defined.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
-	 *                                    fields of the physical returned type or null.
+	 *                                    fields of the physical returned type.
 	 * @param topic                       Kafka topic to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
@@ -238,7 +237,7 @@ public abstract class KafkaTableSourceFactory implements StreamTableSourceFactor
 	 */
 	protected abstract KafkaTableSource createKafkaTableSource(
 		TableSchema schema,
-		String proctimeAttribute,
+		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Map<String, String> fieldMapping,
 		String topic, Properties properties,

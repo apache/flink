@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 
 import scala.Option;
@@ -69,13 +70,13 @@ public abstract class KafkaTableSource implements
 	private final TableSchema schema;
 
 	/** Field name of the processing time attribute, null if no processing time field is defined. */
-	private String proctimeAttribute;
+	private Optional<String> proctimeAttribute;
 
 	/** Descriptor for a rowtime attribute. */
 	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
-	/** Mapping for the fields of the table schema to fields of the physical returned type or null. */
-	private Map<String, String> fieldMapping;
+	/** Mapping for the fields of the table schema to fields of the physical returned type. */
+	private Optional<Map<String, String>> fieldMapping;
 
 	// Kafka-specific attributes
 
@@ -98,11 +99,10 @@ public abstract class KafkaTableSource implements
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
 	 * @param schema                      Schema of the produced table.
-	 * @param proctimeAttribute           Field name of the processing time attribute, null if no
-	 *                                    processing time field is defined.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
-	 *                                    fields of the physical returned type or null.
+	 *                                    fields of the physical returned type.
 	 * @param topic                       Kafka topic to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
@@ -112,9 +112,9 @@ public abstract class KafkaTableSource implements
 	 */
 	protected KafkaTableSource(
 			TableSchema schema,
-			String proctimeAttribute,
+			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
-			Map<String, String> fieldMapping,
+			Optional<Map<String, String>> fieldMapping,
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
@@ -148,9 +148,9 @@ public abstract class KafkaTableSource implements
 			DeserializationSchema<Row> deserializationSchema) {
 		this(
 			schema,
-			null,
+			Optional.empty(),
 			Collections.emptyList(),
-			null,
+			Optional.empty(),
 			topic, properties,
 			deserializationSchema,
 			StartupMode.GROUP_OFFSETS,
@@ -182,7 +182,7 @@ public abstract class KafkaTableSource implements
 
 	@Override
 	public String getProctimeAttribute() {
-		return proctimeAttribute;
+		return proctimeAttribute.orElse(null);
 	}
 
 	@Override
@@ -192,7 +192,7 @@ public abstract class KafkaTableSource implements
 
 	@Override
 	public Map<String, String> getFieldMapping() {
-		return fieldMapping;
+		return fieldMapping.orElse(null);
 	}
 
 	@Override
@@ -284,17 +284,17 @@ public abstract class KafkaTableSource implements
 	 *
 	 * @param proctimeAttribute The name of the field that becomes the processing time field.
 	 */
-	private String validateProctimeAttribute(String proctimeAttribute) {
-		if (proctimeAttribute != null) {
+	private Optional<String> validateProctimeAttribute(Optional<String> proctimeAttribute) {
+		return proctimeAttribute.map((attribute) -> {
 			// validate that field exists and is of correct type
-			Option<TypeInformation<?>> tpe = schema.getType(proctimeAttribute);
+			Option<TypeInformation<?>> tpe = schema.getType(attribute);
 			if (tpe.isEmpty()) {
-				throw new ValidationException("Processing time attribute '" + proctimeAttribute + "' is not present in TableSchema.");
+				throw new ValidationException("Processing time attribute '" + attribute + "' is not present in TableSchema.");
 			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
-				throw new ValidationException("Processing time attribute '" + proctimeAttribute + "' is not of type SQL_TIMESTAMP.");
+				throw new ValidationException("Processing time attribute '" + attribute + "' is not of type SQL_TIMESTAMP.");
 			}
-		}
-		return proctimeAttribute;
+			return attribute;
+		});
 	}
 
 	/**
@@ -327,7 +327,7 @@ public abstract class KafkaTableSource implements
 	 */
 	@Deprecated
 	protected void setProctimeAttribute(String proctimeAttribute) {
-		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
+		this.proctimeAttribute = validateProctimeAttribute(Optional.ofNullable(proctimeAttribute));
 	}
 
 	/**
@@ -364,14 +364,14 @@ public abstract class KafkaTableSource implements
 	}
 
 	/**
-	 * Mapping for the fields of the table schema to fields of the physical returned type or null.
+	 * Mapping for the fields of the table schema to fields of the physical returned type.
 	 *
 	 * @param fieldMapping The mapping from table schema fields to format schema fields.
 	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
 	@Deprecated
 	protected void setFieldMapping(Map<String, String> fieldMapping) {
-		this.fieldMapping = fieldMapping;
+		this.fieldMapping = Optional.ofNullable(fieldMapping);
 	}
 
 	//////// ABSTRACT METHODS FOR SUBCLASSES
