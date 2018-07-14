@@ -217,17 +217,17 @@ public class Environment {
 			throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'.");
 		}
 		final String type = (String) typeObject;
-		final Map<String, Object> properties = new HashMap<>(config);
-		properties.remove(TABLE_TYPE);
+		final Map<String, Object> configCopy = new HashMap<>(config);
+		configCopy.remove(TABLE_TYPE);
 
-		final Map<String, String> normalizedProperties = ConfigUtil.normalizeYaml(properties);
+		final Map<String, String> normalizedConfig = ConfigUtil.normalizeYaml(configCopy);
 		switch (type) {
 			case TABLE_TYPE_VALUE_SOURCE:
-				return new Source(name, normalizedProperties);
+				return new Source(name, normalizedConfig);
 			case TABLE_TYPE_VALUE_SINK:
-				return new Sink(name, normalizedProperties);
+				return new Sink(name, normalizedConfig);
 			case TABLE_TYPE_VALUE_BOTH:
-				return new SourceSink(name, normalizedProperties);
+				return new SourceSink(name, normalizedConfig);
 		}
 		throw new SqlClientException("Invalid 'type' attribute for table '" + name + "'. " +
 			"Only 'source', 'sink', and 'both' are supported.");
