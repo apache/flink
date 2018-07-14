@@ -49,7 +49,7 @@ import java.util.function.Predicate;
 public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
 	implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
 
-	static final boolean ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION = true;
+	static final boolean ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION = false;
 
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
