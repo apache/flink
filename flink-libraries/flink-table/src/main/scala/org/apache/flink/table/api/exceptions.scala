@@ -19,7 +19,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.factories.{TableFactory, TableFormatFactory}
+import org.apache.flink.table.factories.TableFactory
 
 /**
   * Exception for all errors occurring during expression parsing.
