@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -34,7 +34,7 @@ import java.io.IOException;
  * 	   <li>the current file has not been written to for more than the allowed inactivityTime (by default 60 sec).</li>
  * </ol>
  */
-@Internal
+@PublicEvolving
 public class DefaultRollingPolicy implements RollingPolicy {
 
 	private static final long serialVersionUID = 1318929857047767030L;

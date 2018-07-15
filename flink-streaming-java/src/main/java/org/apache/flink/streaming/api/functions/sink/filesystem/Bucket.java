@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.ResumableWriter;
@@ -37,6 +38,7 @@ import java.util.Map;
  * {@link org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer Bucketer} is
  * queried to see in which bucket this element should be written to.
  */
+@PublicEvolving
 public class Bucket<IN> {
 
 	private static final String PART_PREFIX = "part";

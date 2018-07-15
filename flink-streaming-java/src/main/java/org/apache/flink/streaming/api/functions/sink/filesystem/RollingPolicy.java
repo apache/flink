@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -27,7 +28,7 @@ import java.io.Serializable;
  * The policy based on which a {@link Bucket} in the {@link StreamingFileSink}
  * rolls its currently open part file and opens a new one.
  */
-@Internal
+@PublicEvolving
 @FunctionalInterface
 public interface RollingPolicy extends Serializable {
 
@@ -38,6 +39,7 @@ public interface RollingPolicy extends Serializable {
 	 * that is necessary to the {@link RollingPolicy} in order to determine if it
 	 * should roll the part file or not.
 	 */
+	@Internal
 	interface PartFileInfoHandler {
 
 		/**

@@ -117,27 +117,27 @@ public class StreamingFileSink<IN>
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingFileSink.class);
 
-	private static final long DEFAULT_CHECK_INTERVAL = 60L * 1000L;
-
 	private final Path basePath;
 
-	private transient ResumableWriter filesystemWriter;
+	private final BucketFactory<IN> bucketFactory;
 
-	private transient ProcessingTimeService processingTimeService;
+	private long bucketCheckInterval = 60L * 1000L;
 
 	private Bucketer<IN> bucketer;
 
 	private Writer<IN> writer;
 
-	private long bucketCheckInterval = DEFAULT_CHECK_INTERVAL;
+	private RollingPolicy rollingPolicy;
+
+	private transient ResumableWriter fileSystemWriter;
+
+	private transient ProcessingTimeService processingTimeService;
 
 	private transient Map<String, Bucket<IN>> activeBuckets;
 
-	private long initMaxPartCounter;
+	//////////////////			State Related Fields			/////////////////////
 
-	private long maxPartCounterUsed;
-
-	private RollingPolicy rollingPolicy;
+	private transient BucketStateSerializer bucketStateSerializer;
 
 	private final ListStateDescriptor<byte[]> bucketStateDesc =
 			new ListStateDescriptor<>("bucket-states",
@@ -151,9 +151,9 @@ public class StreamingFileSink<IN>
 
 	private transient ListState<Long> restoredMaxCounters;
 
-	private transient BucketStateSerializer bucketStateSerializer;
+	private long initMaxPartCounter;
 
-	private final BucketFactory<IN> bucketFactory;
+	private long maxPartCounterUsed;
 
 	/**
 	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
@@ -217,7 +217,7 @@ public class StreamingFileSink<IN>
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		Preconditions.checkNotNull(restoredBucketStates);
-		Preconditions.checkNotNull(filesystemWriter);
+		Preconditions.checkNotNull(fileSystemWriter);
 		Preconditions.checkNotNull(bucketStateSerializer);
 
 		restoredBucketStates.clear();
@@ -274,7 +274,7 @@ public class StreamingFileSink<IN>
 				LOG.info("Recovered bucket for {}", bucketId);
 
 				final Bucket<IN> restoredBucket = bucketFactory.getBucket(
-						filesystemWriter,
+						fileSystemWriter,
 						subtaskIndex,
 						initMaxPartCounter,
 						writer,
@@ -327,7 +327,7 @@ public class StreamingFileSink<IN>
 		if (bucket == null) {
 			final Path bucketPath = assembleBucketPath(bucketId);
 			bucket = bucketFactory.getBucket(
-					filesystemWriter,
+					fileSystemWriter,
 					subtaskIndex,
 					bucketId,
 					bucketPath,
@@ -358,11 +358,11 @@ public class StreamingFileSink<IN>
 	}
 
 	private void initFileSystemWriter() throws IOException {
-		if (filesystemWriter == null) {
-			filesystemWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
+		if (fileSystemWriter == null) {
+			fileSystemWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
 			bucketStateSerializer = new BucketStateSerializer(
-					filesystemWriter.getResumeRecoverableSerializer(),
-					filesystemWriter.getCommitRecoverableSerializer()
+					fileSystemWriter.getResumeRecoverableSerializer(),
+					fileSystemWriter.getCommitRecoverableSerializer()
 			);
 		}
 	}

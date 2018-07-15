@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.writers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
@@ -30,6 +31,7 @@ import java.nio.charset.Charset;
  *
  * @param <IN> The type of the elements that are being written by the sink.
  */
+@PublicEvolving
 public class StringWriter<IN> implements Writer<IN> {
 
 	private static final long serialVersionUID = -6865107843734614452L;

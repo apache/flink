@@ -18,12 +18,14 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
  * A {@link Bucketer} that does not perform any
  * bucketing of files. All files are written to the base path.
  */
+@PublicEvolving
 public class BasePathBucketer<T> implements Bucketer<T> {
 
 	private static final long serialVersionUID = -6033643155550226022L;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 import java.text.SimpleDateFormat;
@@ -49,6 +50,7 @@ import java.util.Date;
  * {@code /base/1976-12-31-14/}
  *
  */
+@PublicEvolving
 public class DateTimeBucketer<T> implements Bucketer<T> {
 
 	private static final long serialVersionUID = 3284420879277893804L;
