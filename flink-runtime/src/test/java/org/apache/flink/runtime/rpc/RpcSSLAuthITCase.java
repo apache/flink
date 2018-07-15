@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -51,9 +51,11 @@ public class RpcSSLAuthITCase extends TestLogger {
 
 	@Test
 	public void testConnectFailure() throws Exception {
+		final Configuration baseConfig = new Configuration();
+		baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
 
 		// !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
-		Configuration sslConfig1 = new Configuration();
+		Configuration sslConfig1 = new Configuration(baseConfig);
 		sslConfig1.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
 		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
@@ -65,7 +67,7 @@ public class RpcSSLAuthITCase extends TestLogger {
 		// !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
 		// If this is presented by a client, it will trust the server, but the server will
 		// not trust this client in case client auth is enabled.
-		Configuration sslConfig2 = new Configuration();
+		Configuration sslConfig2 = new Configuration(baseConfig);
 		sslConfig2.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
 		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
@@ -116,18 +118,8 @@ public class RpcSSLAuthITCase extends TestLogger {
 					rpcService2.stopService() :
 					CompletableFuture.completedFuture(null);
 
-			final CompletableFuture<Terminated> actorSystemTerminationFuture1 = actorSystem1 != null ?
-					FutureUtils.toJava(actorSystem1.terminate()) :
-					CompletableFuture.completedFuture(null);
-
-			final CompletableFuture<Terminated> actorSystemTerminationFuture2 = actorSystem2 != null ?
-					FutureUtils.toJava(actorSystem2.terminate()) :
-					CompletableFuture.completedFuture(null);
-
 			FutureUtils
-				.waitForAll(Arrays.asList(
-						rpcTerminationFuture1, rpcTerminationFuture2,
-						actorSystemTerminationFuture1, actorSystemTerminationFuture2))
+				.waitForAll(Arrays.asList(rpcTerminationFuture1, rpcTerminationFuture2))
 				.get();
 		}
 	}
