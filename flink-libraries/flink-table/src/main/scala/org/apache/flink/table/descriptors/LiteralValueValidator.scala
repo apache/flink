@@ -46,7 +46,7 @@ class LiteralValueValidator(keyPrefix: String) extends HierarchyDescriptorValida
 
     val typeKey = s"$keyPrefix${LiteralValueValidator.TYPE}"
 
-    properties.validateType(typeKey, isOptional = true)
+    properties.validateType(typeKey, isOptional = true, requireRow = false)
 
     // explicit type
     if (properties.containsKey(typeKey)) {

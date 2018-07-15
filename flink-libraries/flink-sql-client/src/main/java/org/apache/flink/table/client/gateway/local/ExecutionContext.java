@@ -46,16 +46,25 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Execution;
+import org.apache.flink.table.client.config.Sink;
+import org.apache.flink.table.client.config.Source;
+import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.StreamTableSinkFactory;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -80,6 +89,7 @@ public class ExecutionContext<T> {
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, TableSink<?>> tableSinks;
 	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
@@ -100,14 +110,19 @@ public class ExecutionContext<T> {
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
 
-		// create table sources
+		// create table sources & sinks.
 		tableSources = new HashMap<>();
+		tableSinks = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
-			if (descriptor instanceof TableSourceDescriptor) {
-				final TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
-					(TableSourceDescriptor) descriptor,
-					classLoader);
-				tableSources.put(name, tableSource);
+			final DescriptorProperties properties = new DescriptorProperties(true);
+			descriptor.addProperties(properties);
+			final Map<String, String> propertyMap = properties.asMap();
+
+			if (descriptor instanceof Source || descriptor instanceof SourceSink) {
+				tableSources.put(name, createTableSource(mergedEnv.getExecution(), propertyMap, classLoader));
+			}
+			if (descriptor instanceof Sink || descriptor instanceof SourceSink) {
+				tableSinks.put(name, createTableSink(mergedEnv.getExecution(), propertyMap, classLoader));
 			}
 		});
 
@@ -190,6 +205,32 @@ public class ExecutionContext<T> {
 		}
 	}
 
+	private static TableSource<?> createTableSource(Execution execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSourceFactory<?> factory = (StreamTableSourceFactory<?>)
+				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createStreamTableSource(sourceProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
+				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createBatchTableSource(sourceProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
+	}
+
+	private static TableSink<?> createTableSink(Execution execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSinkFactory<?> factory = (StreamTableSinkFactory<?>)
+				TableFactoryService.find(StreamTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createStreamTableSink(sinkProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
+				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createBatchTableSink(sinkProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -223,6 +264,9 @@ public class ExecutionContext<T> {
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
+
+			// register table sinks
+			tableSinks.forEach(tableEnv::registerTableSink);
 
 			// register user-defined functions
 			if (tableEnv instanceof StreamTableEnvironment) {

@@ -49,5 +49,4 @@ object CsvValidator {
   val FORMAT_IGNORE_FIRST_LINE = "format.ignore-first-line"
   val FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors"
   val FORMAT_FIELDS = "format.fields"
-
 }

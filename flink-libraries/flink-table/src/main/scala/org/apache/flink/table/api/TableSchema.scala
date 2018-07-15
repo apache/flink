@@ -24,6 +24,7 @@ import _root_.scala.collection.mutable.ArrayBuffer
 import _root_.java.util.Objects
 
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.types.Row
 
 /**
   * A TableSchema represents a Table's structure.
@@ -133,6 +134,15 @@ class TableSchema(
       }
     }
     new TableSchema(columnNames, converted)
+  }
+
+  /**
+    * Converts a table schema into a (nested) type information describing a [[Row]].
+    *
+    * @return type information where columns are fields of a row
+    */
+  def toRowType: TypeInformation[Row] = {
+    Types.ROW(getColumnNames, getTypes)
   }
 
   override def toString: String = {

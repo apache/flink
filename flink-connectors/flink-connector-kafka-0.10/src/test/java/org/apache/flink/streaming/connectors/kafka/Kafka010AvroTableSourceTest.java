@@ -24,7 +24,11 @@ import org.apache.flink.types.Row;
 
 /**
  * Tests for the {@link Kafka010AvroTableSource}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
+@Deprecated
 public class Kafka010AvroTableSourceTest extends KafkaAvroTableSourceTestBase {
 
 	@Override

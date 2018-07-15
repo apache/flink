@@ -28,12 +28,16 @@ import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, C
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA
 import org.apache.flink.table.descriptors._
+import org.apache.flink.table.factories.{BatchTableSourceFactory, StreamTableSourceFactory, TableFactory}
 import org.apache.flink.types.Row
 
 /**
   * Factory for creating configured instances of [[CsvTableSource]].
   */
-class CsvTableSourceFactory extends TableSourceFactory[Row] {
+class CsvTableSourceFactory
+  extends TableFactory
+  with StreamTableSourceFactory[Row]
+  with BatchTableSourceFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -64,14 +68,33 @@ class CsvTableSourceFactory extends TableSourceFactory[Row] {
     properties
   }
 
-  override def create(properties: util.Map[String, String]): TableSource[Row] = {
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
+    createTableSource(isStreaming = true, properties)
+  }
+
+  override def createBatchTableSource(
+      properties: util.Map[String, String])
+    : BatchTableSource[Row] = {
+    createTableSource(isStreaming = false, properties)
+  }
+
+  private def createTableSource(
+      isStreaming: Boolean,
+      properties: util.Map[String, String])
+    : CsvTableSource = {
+
     val params = new DescriptorProperties()
     params.putProperties(properties)
 
     // validate
     new FileSystemValidator().validate(params)
     new CsvValidator().validate(params)
-    new SchemaValidator().validate(params)
+    new SchemaValidator(
+      isStreaming,
+      supportsSourceTimestamps = false,
+      supportsSourceWatermarks = false).validate(params)
 
     // build
     val csvTableSourceBuilder = new CsvTableSource.Builder

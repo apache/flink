@@ -21,9 +21,9 @@ package org.apache.flink.table.descriptors
 import java.util
 import java.util.Optional
 
-import org.apache.flink.table.api.{TableSchema, ValidationException}
+import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
-import org.apache.flink.table.descriptors.RowtimeValidator.{ROWTIME, ROWTIME_TIMESTAMPS_FROM, ROWTIME_TIMESTAMPS_TYPE, ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD}
+import org.apache.flink.table.descriptors.RowtimeValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor
 
@@ -33,7 +33,11 @@ import scala.collection.mutable
 /**
   * Validator for [[Schema]].
   */
-class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorValidator {
+class SchemaValidator(
+    isStreamEnvironment: Boolean,
+    supportsSourceTimestamps: Boolean,
+    supportsSourceWatermarks: Boolean)
+  extends DescriptorValidator {
 
   override def validate(properties: DescriptorProperties): Unit = {
     val names = properties.getIndexedProperty(SCHEMA, SCHEMA_NAME)
@@ -50,7 +54,7 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
       properties
         .validateString(s"$SCHEMA.$i.$SCHEMA_NAME", isOptional = false, minLen = 1)
       properties
-        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", isOptional = false)
+        .validateType(s"$SCHEMA.$i.$SCHEMA_TYPE", requireRow = false, isOptional = false)
       properties
         .validateString(s"$SCHEMA.$i.$SCHEMA_FROM", isOptional = true, minLen = 1)
       // either proctime or rowtime
@@ -73,7 +77,10 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
         properties.validatePrefixExclusion(rowtime)
       } else if (properties.hasPrefix(rowtime)) {
         // check rowtime
-        val rowtimeValidator = new RowtimeValidator(s"$SCHEMA.$i.")
+        val rowtimeValidator = new RowtimeValidator(
+          supportsSourceTimestamps,
+          supportsSourceWatermarks,
+          s"$SCHEMA.$i.")
         rowtimeValidator.validate(properties)
         // no proctime
         properties.validateExclusion(proctime)
@@ -84,11 +91,42 @@ class SchemaValidator(isStreamEnvironment: Boolean = true) extends DescriptorVal
 
 object SchemaValidator {
 
+  /**
+    * Prefix for schema-related properties.
+    */
   val SCHEMA = "schema"
+
   val SCHEMA_NAME = "name"
   val SCHEMA_TYPE = "type"
   val SCHEMA_PROCTIME = "proctime"
   val SCHEMA_FROM = "from"
+
+  /**
+    * Returns keys for a
+    * [[org.apache.flink.table.factories.TableFormatFactory.supportedProperties()]] method that
+    * are accepted for schema derivation using [[deriveFormatFields(DescriptorProperties)]].
+    */
+  def getSchemaDerivationKeys: util.List[String] = {
+    val keys = new util.ArrayList[String]()
+
+    // schema
+    keys.add(SCHEMA + ".#." + SCHEMA_TYPE)
+    keys.add(SCHEMA + ".#." + SCHEMA_NAME)
+    keys.add(SCHEMA + ".#." + SCHEMA_FROM)
+
+    // time attributes
+    keys.add(SCHEMA + ".#." + SCHEMA_PROCTIME)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS)
+    keys.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED)
+    keys.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY)
+
+    keys
+  }
 
   // utilities
 
@@ -134,6 +172,55 @@ object SchemaValidator {
     }
 
     attributes.asJava
+  }
+
+  /**
+    * Derives the table schema for a table source. A table source can directly use "name" and
+    * "type" and needs no special handling for time attributes or aliasing.
+    */
+  def deriveTableSourceSchema(properties: DescriptorProperties): TableSchema = {
+    properties.getTableSchema(SCHEMA)
+  }
+
+  /**
+    * Derives the table schema for a table sink. A sink ignores a proctime attribute and
+    * needs to track the origin of a rowtime field.
+    */
+  def deriveTableSinkSchema(properties: DescriptorProperties): TableSchema = {
+    val builder = TableSchema.builder()
+
+    val schema = properties.getTableSchema(SCHEMA)
+
+    schema.getColumnNames.zip(schema.getTypes).zipWithIndex.foreach { case ((n, t), i) =>
+      val isProctime = properties
+        .getOptionalBoolean(s"$SCHEMA.$i.$SCHEMA_PROCTIME")
+        .orElse(false)
+      val tsType = s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_TYPE"
+      val isRowtime = properties.containsKey(tsType)
+      if (!isProctime && !isRowtime) {
+        // check for a aliasing
+        val fieldName = properties.getOptionalString(s"$SCHEMA.$i.$SCHEMA_FROM")
+          .orElse(n)
+        builder.field(fieldName, t)
+      }
+      // only use the rowtime attribute if it references a field
+      else if (isRowtime) {
+        properties.getString(tsType) match {
+          case ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD =>
+            val field = properties.getString(s"$SCHEMA.$i.$ROWTIME_TIMESTAMPS_FROM")
+            builder.field(field, t)
+
+          // other timestamp strategies require a reverse timestamp extractor to
+          // insert the timestamp into the output
+          case t@_ =>
+            throw new TableException(
+              s"Unsupported rowtime type '$t' for sink table schema. Currently " +
+              s"only '$ROWTIME_TIMESTAMPS_TYPE_VALUE_FROM_FIELD' is supported for table sinks.")
+        }
+      }
+    }
+
+    builder.build()
   }
 
   /**
