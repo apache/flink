@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.time.StopWatch;
@@ -38,13 +40,18 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.time.Duration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * An implementation of the {@link RecoverableFsDataOutputStream} for Hadoop's
+ * file system abstraction.
+ */
 @Internal
 class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
-	private static final long LEASE_TIMEOUT = 100000L;
+	private static final long LEASE_TIMEOUT = 100_000L;
 
 	private static Method truncateHandle;
 
@@ -79,16 +86,23 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
-		// the getFileStatus will throw a FileNotFound exception if the file is not there.
-		final FileStatus tmpFileStatus = fs.getFileStatus(tempFile);
-		if (tmpFileStatus.getLen() < recoverable.offset()) {
-			throw new IOException("Missing data in tmp file: " + tempFile.getName());
+		// truncate back and append
+		try {
+			truncate(fs, tempFile, recoverable.offset());
+		} catch (Exception e) {
+			throw new IOException("Missing data in tmp file: " + tempFile, e);
 		}
 
-		// truncate back and append
-		truncate(fs, tempFile, recoverable.offset());
 		waitUntilLeaseIsRevoked(tempFile);
 		out = fs.append(tempFile);
+
+		// sanity check
+		long pos = out.getPos();
+		if (pos != recoverable.offset()) {
+			IOUtils.closeQuietly(out);
+			throw new IOException("Truncate failed: " + tempFile +
+					" (requested=" + recoverable.offset() + " ,size=" + pos + ')');
+		}
 	}
 
 	@Override
@@ -108,6 +122,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 	@Override
 	public void sync() throws IOException {
+		out.hflush();
 		out.hsync();
 	}
 
@@ -243,9 +258,22 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 			if (srcStatus != null) {
 				if (srcStatus.getLen() > expectedLength) {
-					// can happen if we co from persist to recovering for commit directly
+					// can happen if we go from persist to recovering for commit directly
 					// truncate the trailing junk away
-					truncate(fs, src, expectedLength);
+					try {
+						truncate(fs, src, expectedLength);
+					} catch (Exception e) {
+						// this can happen if the file is smaller than  expected
+						throw new IOException("Problem while truncating file: " + src, e);
+					}
+				}
+
+				// rename to final location (if it exists, overwrite it)
+				try {
+					fs.rename(src, dest);
+				}
+				catch (IOException e) {
+					throw new IOException("Committing file by rename failed: " + src + " to " + dest, e);
 				}
 			}
 			else if (!fs.exists(dest)) {
@@ -281,23 +309,21 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 		final DistributedFileSystem dfs = (DistributedFileSystem) fs;
 		dfs.recoverLease(path);
-		boolean isclosed = dfs.isFileClosed(path);
+
+		final Deadline deadline = Deadline.now().plus(Duration.ofMillis(LEASE_TIMEOUT));
 
 		final StopWatch sw = new StopWatch();
 		sw.start();
 
-		while (!isclosed) {
-			if (sw.getTime() > LEASE_TIMEOUT) {
-				break;
-			}
-
+		boolean isClosed = dfs.isFileClosed(path);
+		while (!isClosed && deadline.hasTimeLeft()) {
 			try {
 				Thread.sleep(500L);
 			} catch (InterruptedException e1) {
-				// ignore it
+				throw new IOException("Recovering the lease failed: ", e1);
 			}
-			isclosed = dfs.isFileClosed(path);
+			isClosed = dfs.isFileClosed(path);
 		}
-		return isclosed;
+		return isClosed;
 	}
 }
