@@ -21,6 +21,7 @@ package org.apache.flink.runtime.net;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -40,15 +41,14 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link SSLUtils}.
  */
-public class SSLUtilsTest {
+public class SSLUtilsTest extends TestLogger {
 
-	public static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
-	public static final String KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
-	public static final String UNTRUSTED_KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
+	private static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
+	private static final String KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
 
-	public static final String TRUST_STORE_PASSWORD = "password";
-	public static final String KEY_STORE_PASSWORD = "password";
-	public static final String KEY_PASSWORD = "password";
+	private static final String TRUST_STORE_PASSWORD = "password";
+	private static final String KEY_STORE_PASSWORD = "password";
+	private static final String KEY_PASSWORD = "password";
 
 	/**
 	 * Tests whether activation of internal / REST SSL evaluates the config flags correctly.

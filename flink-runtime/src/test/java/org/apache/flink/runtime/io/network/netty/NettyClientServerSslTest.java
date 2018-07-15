@@ -23,6 +23,7 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -41,7 +42,7 @@ import static org.junit.Assert.assertTrue;
  * Tests for the SSL connection between Netty Server and Client used for the
  * data plane.
  */
-public class NettyClientServerSslTest {
+public class NettyClientServerSslTest extends TestLogger {
 
 	/**
 	 * Verify valid ssl configuration and connection.
