@@ -32,6 +32,8 @@ import java.util.Map;
 @Internal
 public class BucketState {
 
+	private final String bucketId;
+
 	/**
 	 * The base path for the bucket, i.e. the directory where all the part files are stored.
 	 */
@@ -54,15 +56,21 @@ public class BucketState {
 	private final Map<Long, List<ResumableWriter.CommitRecoverable>> pendingPerCheckpoint;
 
 	public BucketState(
+			final String bucketId,
 			final Path bucketPath,
 			final long creationTime,
 			final ResumableWriter.ResumeRecoverable inProgress,
 			final Map<Long, List<ResumableWriter.CommitRecoverable>> pendingPerCheckpoint
 	) {
+		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
 		this.creationTime = creationTime;
 		this.inProgress = inProgress;
 		this.pendingPerCheckpoint = Preconditions.checkNotNull(pendingPerCheckpoint);
+	}
+
+	public String getBucketId() {
+		return bucketId;
 	}
 
 	public Path getBucketPath() {

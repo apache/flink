@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.ResumableWriter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.writers.StringWriter;
 import org.apache.flink.streaming.api.operators.StreamSink;
@@ -591,8 +592,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					private static final long serialVersionUID = -3086487303018372007L;
 
 					@Override
-					public Path getBucketPath(Clock clock, Path basePath, Tuple2<String, Integer> element) {
-						return new Path(basePath, element.f0);
+					public String getBucketId(Tuple2<String, Integer> element, SinkFunction.Context context) {
+						return element.f0;
 					}
 				})
 				.setWriter(writer)
@@ -616,6 +617,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 		public Bucket<Tuple2<String, Integer>> getBucket(
 				ResumableWriter fsWriter,
 				int subtaskIndex,
+				String bucketId,
 				Path bucketPath,
 				long initialPartCounter,
 				Writer<Tuple2<String, Integer>> writer) throws IOException {
@@ -625,6 +627,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			return super.getBucket(
 					fsWriter,
 					subtaskIndex,
+					bucketId,
 					bucketPath,
 					initialPartCounter,
 					writer);
@@ -634,7 +637,6 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 		public Bucket<Tuple2<String, Integer>> getBucket(
 				ResumableWriter fsWriter,
 				int subtaskIndex,
-				Path bucketPath,
 				long initialPartCounter,
 				Writer<Tuple2<String, Integer>> writer,
 				BucketState bucketState) throws IOException {
@@ -644,7 +646,6 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			return super.getBucket(
 					fsWriter,
 					subtaskIndex,
-					bucketPath,
 					initialPartCounter,
 					writer,
 					bucketState);

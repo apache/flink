@@ -33,6 +33,7 @@ public interface BucketFactory<IN> extends Serializable {
 	Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
+			String bucketId,
 			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer) throws IOException;
@@ -40,7 +41,6 @@ public interface BucketFactory<IN> extends Serializable {
 	Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
-			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer,
 			BucketState bucketstate) throws IOException;

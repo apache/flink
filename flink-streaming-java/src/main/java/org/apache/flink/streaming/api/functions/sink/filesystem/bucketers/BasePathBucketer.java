@@ -18,8 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Clock;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 /**
  * A {@link Bucketer} that does not perform any
@@ -30,8 +29,8 @@ public class BasePathBucketer<T> implements Bucketer<T> {
 	private static final long serialVersionUID = -6033643155550226022L;
 
 	@Override
-	public Path getBucketPath(Clock clock, Path basePath, T element) {
-		return basePath;
+	public String getBucketId(T element, SinkFunction.Context context) {
+		return "";
 	}
 
 	@Override

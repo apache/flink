@@ -41,6 +41,8 @@ public class Bucket<IN> {
 
 	private static final String PART_PREFIX = "part";
 
+	private final String bucketId;
+
 	private final Path bucketPath;
 
 	private int subtaskIndex;
@@ -60,12 +62,11 @@ public class Bucket<IN> {
 	public Bucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
-			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer,
 			BucketState bucketstate) throws IOException {
 
-		this(fsWriter, subtaskIndex, bucketPath, initialPartCounter, writer);
+		this(fsWriter, subtaskIndex, bucketstate.getBucketId(), bucketstate.getBucketPath(), initialPartCounter, writer);
 
 		// the constructor must have already initialized the filesystem writer
 		Preconditions.checkState(fsWriter != null);
@@ -91,12 +92,14 @@ public class Bucket<IN> {
 	public Bucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
+			String bucketId,
 			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer) {
 
 		this.fsWriter = Preconditions.checkNotNull(fsWriter);
 		this.subtaskIndex = subtaskIndex;
+		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
 		this.partCounter = initialPartCounter;
 		this.outputFormatWriter = Preconditions.checkNotNull(writer);
@@ -105,6 +108,10 @@ public class Bucket<IN> {
 
 	public RollingPolicy.PartFileInfoHandler getCurrentPartFileInfo() {
 		return handler;
+	}
+
+	public String getBucketId() {
+		return bucketId;
 	}
 
 	public Path getBucketPath() {
@@ -176,7 +183,7 @@ public class Bucket<IN> {
 			pendingPerCheckpoint.put(checkpointId, pending);
 			pending = new ArrayList<>();
 		}
-		return new BucketState(bucketPath, handler.getCreationTime(), resumable, pendingPerCheckpoint);
+		return new BucketState(bucketId, bucketPath, handler.getCreationTime(), resumable, pendingPerCheckpoint);
 	}
 
 	private Path getNewPartPath() {

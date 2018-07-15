@@ -18,11 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Clock;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -77,20 +74,14 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	 */
 	public DateTimeBucketer(String formatString) {
 		this.formatString = formatString;
-
-		this.dateFormatter = new SimpleDateFormat(formatString);
-	}
-
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-
-		this.dateFormatter = new SimpleDateFormat(formatString);
 	}
 
 	@Override
-	public Path getBucketPath(Clock clock, Path basePath, T element) {
-		String newDateTimeString = dateFormatter.format(new Date(clock.currentTimeMillis()));
-		return new Path(basePath + "/" + newDateTimeString);
+	public String getBucketId(T element, SinkFunction.Context context) {
+		if (dateFormatter == null) {
+			dateFormatter = new SimpleDateFormat(formatString);
+		}
+		return dateFormatter.format(new Date(context.currentProcessingTime()));
 	}
 
 	@Override

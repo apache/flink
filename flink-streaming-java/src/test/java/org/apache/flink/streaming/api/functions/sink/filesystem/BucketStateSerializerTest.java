@@ -57,10 +57,10 @@ public class BucketStateSerializerTest {
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
 		final ResumableWriter writer = fs.createRecoverableWriter();
 
-		final Path testBucket = new Path(testFolder.getPath() + File.separator + "part-0-0");
+		final Path testBucket = new Path(testFolder.getPath(), "test");
 
 		final BucketState bucketState = new BucketState(
-				testBucket, Long.MAX_VALUE, null, new HashMap<>());
+				"test", testBucket, Long.MAX_VALUE, null, new HashMap<>());
 
 		final SimpleVersionedSerializer<BucketState> serializer =
 				new BucketStateSerializer(
@@ -89,7 +89,7 @@ public class BucketStateSerializerTest {
 		final File testFolder = tempFolder.newFolder();
 		final FileSystem fs = FileSystem.get(testFolder.toURI());
 
-		final Path testBucket = new Path(testFolder.getPath() + File.separator + "part-0-0");
+		final Path testBucket = new Path(testFolder.getPath(), "test");
 
 		final ResumableWriter writer = fs.createRecoverableWriter();
 		final RecoverableFsDataOutputStream stream = writer.open(testBucket);
@@ -98,7 +98,7 @@ public class BucketStateSerializerTest {
 		final ResumableWriter.ResumeRecoverable current = stream.persist();
 
 		final BucketState bucketState = new BucketState(
-				testBucket, Long.MAX_VALUE, current, new HashMap<>());
+				"test", testBucket, Long.MAX_VALUE, current, new HashMap<>());
 
 		final SimpleVersionedSerializer<BucketState> serializer =
 				new BucketStateSerializer(
@@ -126,7 +126,7 @@ public class BucketStateSerializerTest {
 		Assert.assertEquals(1L, statuses.length);
 		Assert.assertTrue(
 				statuses[0].getPath().getPath().startsWith(
-						testBucket.getParent() + File.separator + ".part-0-0.inprogress")
+						(new Path(testBucket.getParent(), ".test.inprogress")).toString())
 		);
 	}
 
@@ -145,24 +145,24 @@ public class BucketStateSerializerTest {
 		for (int i = 0; i < noOfTasks; i++) {
 			final List<ResumableWriter.CommitRecoverable> recoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
-				final Path part = new Path(bucketPath + File.separator + "part-" + i + "-" + j);
+				final Path part = new Path(bucketPath, "part-" + i + '-' + j);
 
 				final RecoverableFsDataOutputStream stream = writer.open(part);
-				stream.write((PENDING_CONTENT + "-" + j).getBytes(Charset.forName("UTF-8")));
+				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
 				recoverables.add(stream.closeForCommit().getRecoverable());
 			}
 			commitRecoverables.put((long) i, recoverables);
 		}
 
 		// in-progress
-		final Path testBucket = new Path(bucketPath + File.separator + "part-0-" + 2);
+		final Path testBucket = new Path(bucketPath, "test-2");
 		final RecoverableFsDataOutputStream stream = writer.open(testBucket);
 		stream.write(IN_PROGRESS_CONTENT.getBytes(Charset.forName("UTF-8")));
 
 		final ResumableWriter.ResumeRecoverable current = stream.persist();
 
 		final BucketState bucketState = new BucketState(
-				bucketPath, Long.MAX_VALUE, current, commitRecoverables);
+				"test-2", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
 		final SimpleVersionedSerializer<BucketState> serializer =
 				new BucketStateSerializer(
 						writer.getResumeRecoverableSerializer(),
@@ -201,7 +201,7 @@ public class BucketStateSerializerTest {
 
 		for (int i = 0; i < noOfTasks; i++) {
 			for (int j = 0; j < 2 + i; j++) {
-				final String part = bucketPath + File.separator + "part-" + i + "-" + j;
+				final String part = new Path(bucketPath, "part-" + i + '-' + j).toString();
 				Assert.assertTrue(paths.contains(part));
 				paths.remove(part);
 			}
@@ -211,7 +211,8 @@ public class BucketStateSerializerTest {
 		Assert.assertEquals(1L, paths.size());
 
 		// verify that the in-progress file is still there
-		Assert.assertTrue(paths.iterator().next().startsWith(testBucket.getParent() + File.separator + ".part-0-2.inprogress"));
+		Assert.assertTrue(paths.iterator().next().startsWith(
+				(new Path(testBucket.getParent(), ".test-2.inprogress").toString())));
 	}
 
 	@Test
@@ -229,10 +230,10 @@ public class BucketStateSerializerTest {
 		for (int i = 0; i < noOfTasks; i++) {
 			final List<ResumableWriter.CommitRecoverable> recoverables = new ArrayList<>();
 			for (int j = 0; j < 2 + i; j++) {
-				final Path part = new Path(bucketPath + File.separator + "part-" + i + "-" + j);
+				final Path part = new Path(bucketPath, "test-" + i + '-' + j);
 
 				final RecoverableFsDataOutputStream stream = writer.open(part);
-				stream.write((PENDING_CONTENT + "-" + j).getBytes(Charset.forName("UTF-8")));
+				stream.write((PENDING_CONTENT + '-' + j).getBytes(Charset.forName("UTF-8")));
 				recoverables.add(stream.closeForCommit().getRecoverable());
 			}
 			commitRecoverables.put((long) i, recoverables);
@@ -241,7 +242,7 @@ public class BucketStateSerializerTest {
 		final ResumableWriter.ResumeRecoverable current = null;
 
 		final BucketState bucketState = new BucketState(
-				bucketPath, Long.MAX_VALUE, current, commitRecoverables);
+				"", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
 
 		final SimpleVersionedSerializer<BucketState> serializer = new BucketStateSerializer(
 				writer.getResumeRecoverableSerializer(),
@@ -279,7 +280,7 @@ public class BucketStateSerializerTest {
 
 		for (int i = 0; i < noOfTasks; i++) {
 			for (int j = 0; j < 2 + i; j++) {
-				final String part = bucketPath + File.separator + "part-" + i + "-" + j;
+				final String part = new Path(bucketPath, "test-" + i + '-' + j).toString();
 				Assert.assertTrue(paths.contains(part));
 				paths.remove(part);
 			}

@@ -123,8 +123,6 @@ public class StreamingFileSink<IN>
 
 	private transient ResumableWriter filesystemWriter;
 
-	private transient Clock clock;
-
 	private transient ProcessingTimeService processingTimeService;
 
 	private Bucketer<IN> bucketer;
@@ -133,7 +131,7 @@ public class StreamingFileSink<IN>
 
 	private long bucketCheckInterval = DEFAULT_CHECK_INTERVAL;
 
-	private transient Map<Path, Bucket<IN>> activeBuckets;
+	private transient Map<String, Bucket<IN>> activeBuckets;
 
 	private long initMaxPartCounter;
 
@@ -201,7 +199,7 @@ public class StreamingFileSink<IN>
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		final Iterator<Map.Entry<Path, Bucket<IN>>> activeBucketIt =
+		final Iterator<Map.Entry<String, Bucket<IN>>> activeBucketIt =
 				activeBuckets.entrySet().iterator();
 
 		while (activeBucketIt.hasNext()) {
@@ -223,8 +221,7 @@ public class StreamingFileSink<IN>
 		Preconditions.checkNotNull(bucketStateSerializer);
 
 		restoredBucketStates.clear();
-		for (Map.Entry<Path, Bucket<IN>> bucketStateEntry : activeBuckets.entrySet()) {
-			final Bucket<IN> bucket = bucketStateEntry.getValue();
+		for (Bucket<IN> bucket : activeBuckets.values()) {
 
 			if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), context.getCheckpointTimestamp())) {
 				// we also check here so that we do not have to always
@@ -271,28 +268,29 @@ public class StreamingFileSink<IN>
 			for (byte[] recoveredState : restoredBucketStates.get()) {
 				final int version = bucketStateSerializer.getDeserializedVersion(recoveredState);
 				final BucketState bucketState = bucketStateSerializer.deserialize(version, recoveredState);
-				final Path bucketPath = bucketState.getBucketPath();
 
-				LOG.info("Recovered bucket for {}", bucketPath);
+				final String bucketId = bucketState.getBucketId();
+
+				LOG.info("Recovered bucket for {}", bucketId);
 
 				final Bucket<IN> restoredBucket = bucketFactory.getBucket(
 						filesystemWriter,
 						subtaskIndex,
-						bucketPath,
 						initMaxPartCounter,
 						writer,
 						bucketState
 				);
 
-				final Bucket<IN> existingBucket = activeBuckets.get(bucketPath);
+				final Bucket<IN> existingBucket = activeBuckets.get(bucketId);
 				if (existingBucket == null) {
-					activeBuckets.put(bucketPath, restoredBucket);
+					activeBuckets.put(bucketId, restoredBucket);
 				} else {
 					existingBucket.merge(restoredBucket);
 				}
 
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} idx {} restored state for bucket {}", getClass().getSimpleName(), subtaskIndex, bucketPath);
+					LOG.debug("{} idx {} restored state for bucket {}", getClass().getSimpleName(),
+							subtaskIndex, assembleBucketPath(bucketId));
 				}
 			}
 		}
@@ -303,7 +301,6 @@ public class StreamingFileSink<IN>
 		super.open(parameters);
 
 		processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
-		this.clock = () -> processingTimeService.getCurrentProcessingTime();
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 		processingTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
 	}
@@ -311,8 +308,7 @@ public class StreamingFileSink<IN>
 	@Override
 	public void onProcessingTime(long timestamp) throws Exception {
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
-		for (Map.Entry<Path, Bucket<IN>> entry : activeBuckets.entrySet()) {
-			final Bucket<IN> bucket = entry.getValue();
+		for (Bucket<IN> bucket : activeBuckets.values()) {
 			if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), currentProcessingTime)) {
 				bucket.closePartFile();
 			}
@@ -323,18 +319,21 @@ public class StreamingFileSink<IN>
 	@Override
 	public void invoke(IN value, Context context) throws Exception {
 		final long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
-		final Path bucketPath = bucketer.getBucketPath(clock, basePath, value);
 		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
-		Bucket<IN> bucket = activeBuckets.get(bucketPath);
+		final String bucketId = bucketer.getBucketId(value, context);
+
+		Bucket<IN> bucket = activeBuckets.get(bucketId);
 		if (bucket == null) {
+			final Path bucketPath = assembleBucketPath(bucketId);
 			bucket = bucketFactory.getBucket(
 					filesystemWriter,
 					subtaskIndex,
+					bucketId,
 					bucketPath,
 					initMaxPartCounter,
 					writer);
-			activeBuckets.put(bucketPath, bucket);
+			activeBuckets.put(bucketId, bucket);
 		}
 
 		if (rollingPolicy.shouldRoll(bucket.getCurrentPartFileInfo(), currentProcessingTime)) {
@@ -352,8 +351,8 @@ public class StreamingFileSink<IN>
 	public void close() throws Exception {
 		if (activeBuckets != null) {
 			// here we cannot "commit" because this is also called in case of failures.
-			for (Map.Entry<Path, Bucket<IN>> entry : activeBuckets.entrySet()) {
-				entry.getValue().closePartFile();
+			for (Bucket<IN> bucket : activeBuckets.values()) {
+				bucket.closePartFile();
 			}
 		}
 	}
@@ -372,5 +371,9 @@ public class StreamingFileSink<IN>
 		if (candidate > maxPartCounterUsed) {
 			this.maxPartCounterUsed = candidate;
 		}
+	}
+
+	private Path assembleBucketPath(String bucketId) {
+		return new Path(basePath, bucketId);
 	}
 }

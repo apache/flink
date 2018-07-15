@@ -18,32 +18,34 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Clock;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 import java.io.Serializable;
 
 /**
  * A bucketer is used with a {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}
- * to put emitted elements into rolling files.
+ * to determine the {@link org.apache.flink.streaming.api.functions.sink.filesystem.Bucket} each incoming element
+ * should be put into.
  *
- *
- * <p>The {@code BucketingSink} can be writing to many buckets at a time, and it is responsible for managing
- * a set of active buckets. Whenever a new element arrives it will ask the {@code Bucketer} for the bucket
- * path the element should fall in. The {@code Bucketer} can, for example, determine buckets based on
- * system time.
+ * <p>The {@code StreamingFileSink} can be writing to many buckets at a time, and it is responsible for managing
+ * a set of active buckets. Whenever a new element arrives it will ask the {@code Bucketer} for the bucket the
+ * element should fall in. The {@code Bucketer} can, for example, determine buckets based on system time.
  */
+@PublicEvolving
+@FunctionalInterface
 public interface Bucketer<T> extends Serializable {
 
 	/**
-	 * Returns the {@link Path} of a bucket file.
-	 *
-	 * @param basePath The base path containing all the buckets.
+	 * Returns the identifier of the bucket the provided element should be put into.
 	 * @param element The current element being processed.
+	 * @param context The {@link SinkFunction.Context context} used by the
+	 *                {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink sink}.
 	 *
-	 * @return The complete {@code Path} of the bucket which the provided element should fall in. This
-	 * should include the {@code basePath} and also the {@code subtaskIndex} to avoid clashes with
-	 * parallel sinks.
+	 * @return A string representing the identifier of the bucket the element should be put into.
+	 * This actual path to the bucket will result from the concatenation of the returned string
+	 * and the {@code base path} provided during the initialization of the
+	 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink sink}.
 	 */
-	Path getBucketPath(Clock clock, Path basePath, T element);
+	String getBucketId(T element, SinkFunction.Context context);
 }

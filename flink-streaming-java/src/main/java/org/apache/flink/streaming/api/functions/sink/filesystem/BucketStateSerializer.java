@@ -65,6 +65,10 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<BucketSt
 	public byte[] serialize(BucketState state) throws IOException {
 		int sizeInBytes = Integer.BYTES; // this is for the version.
 
+		// serializing the bucket id
+		byte[] serializedBucketId = state.getBucketId().getBytes(CHARSET);
+		sizeInBytes += Integer.BYTES + serializedBucketId.length;
+
 		// serializing the path
 		byte[] serializedPath = state.getBucketPath().toString().getBytes(CHARSET);
 		sizeInBytes += Integer.BYTES + serializedPath.length;
@@ -113,6 +117,10 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<BucketSt
 
 		bb.putInt(getVersion());
 		bb.putInt(MAGIC_NUMBER);
+
+		// put the id
+		bb.putInt(serializedBucketId.length);
+		bb.put(serializedBucketId);
 
 		// put the path
 		bb.putInt(serializedPath.length);
@@ -185,7 +193,12 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<BucketSt
 			throw new IOException("Corrupt data: Unexpected magic number.");
 		}
 
-		// first get the path
+		// first get the bucket id
+		final byte[] bucketIdBytes = new byte[bb.getInt()];
+		bb.get(bucketIdBytes);
+		final String bucketId = new String(bucketIdBytes, CHARSET);
+
+		// then get the path
 		final byte[] pathBytes = new byte[bb.getInt()];
 		bb.get(pathBytes);
 		final String bucketPathStr = new String(pathBytes, CHARSET);
@@ -218,6 +231,6 @@ public class BucketStateSerializer implements SimpleVersionedSerializer<BucketSt
 			}
 			resumablesPerCheckpoint.put(checkpointId, resumables);
 		}
-		return new BucketState(bucketPath, creationTime, current, resumablesPerCheckpoint);
+		return new BucketState(bucketId, bucketPath, creationTime, current, resumablesPerCheckpoint);
 	}
 }

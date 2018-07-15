@@ -37,6 +37,7 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 	public Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
+			String bucketId,
 			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer) throws IOException {
@@ -44,6 +45,7 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 		return new Bucket<>(
 				fsWriter,
 				subtaskIndex,
+				bucketId,
 				bucketPath,
 				initialPartCounter,
 				writer);
@@ -53,7 +55,6 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 	public Bucket<IN> getBucket(
 			ResumableWriter fsWriter,
 			int subtaskIndex,
-			Path bucketPath,
 			long initialPartCounter,
 			Writer<IN> writer,
 			BucketState bucketState) throws IOException {
@@ -61,7 +62,6 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 		return new Bucket<>(
 				fsWriter,
 				subtaskIndex,
-				bucketPath,
 				initialPartCounter,
 				writer,
 				bucketState);
