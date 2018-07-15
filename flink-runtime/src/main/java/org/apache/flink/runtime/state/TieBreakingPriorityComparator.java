@@ -85,11 +85,6 @@ public class TieBreakingPriorityComparator<T> implements Comparator<T>, Priority
 			return ((Comparable<T>) o1).compareTo(o2);
 		}
 
-//		// we catch this case before moving to more expensive tie breaks.
-//		if (o1.equals(o2)) {
-//			return 0;
-//		}
-
 		// if objects are not equal, their serialized form should somehow differ as well. this can be costly, and...
 		// TODO we should have an alternative approach in the future, e.g. a cache that does not rely on compare to check equality.
 		try {

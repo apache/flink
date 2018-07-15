@@ -36,16 +36,12 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 	@Nonnull
 	private final TypeSerializer<T> elementSerializer;
 
-	@Nonnull
-	private final StateMetaInfoSnapshot precomputedSnapshot;
-
 	public RegisteredPriorityQueueStateBackendMetaInfo(
 		@Nonnull String name,
 		@Nonnull TypeSerializer<T> elementSerializer) {
 
 		super(name);
 		this.elementSerializer = elementSerializer;
-		this.precomputedSnapshot = precomputeSnapshot();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -59,7 +55,7 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
-		return precomputedSnapshot;
+		return computeSnapshot();
 	}
 
 	@Nonnull
@@ -67,7 +63,7 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 		return elementSerializer;
 	}
 
-	private StateMetaInfoSnapshot precomputeSnapshot() {
+	private StateMetaInfoSnapshot computeSnapshot() {
 		Map<String, TypeSerializer<?>> serializerMap =
 			Collections.singletonMap(
 				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString(),
@@ -83,5 +79,9 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
 			Collections.emptyMap(),
 			serializerSnapshotMap,
 			serializerMap);
+	}
+
+	public RegisteredPriorityQueueStateBackendMetaInfo deepCopy() {
+		return new RegisteredPriorityQueueStateBackendMetaInfo<>(name, elementSerializer.duplicate());
 	}
 }

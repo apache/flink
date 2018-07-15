@@ -24,7 +24,6 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,10 +44,6 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 	@Nonnull
 	private final TypeSerializer<V> valueSerializer;
 
-	/** The precomputed immutable snapshot of this state */
-	@Nullable
-	private StateMetaInfoSnapshot precomputedSnapshot;
-
 	public RegisteredBroadcastStateBackendMetaInfo(
 			@Nonnull final String name,
 			@Nonnull final OperatorStateHandle.Mode assignmentMode,
@@ -60,7 +55,6 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 		this.assignmentMode = assignmentMode;
 		this.keySerializer = keySerializer;
 		this.valueSerializer = valueSerializer;
-		this.precomputedSnapshot = null;
 	}
 
 	public RegisteredBroadcastStateBackendMetaInfo(@Nonnull RegisteredBroadcastStateBackendMetaInfo<K, V> copy) {
@@ -95,10 +89,7 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
-		if (precomputedSnapshot == null) {
-			precomputedSnapshot = precomputeSnapshot();
-		}
-		return precomputedSnapshot;
+		return computeSnapshot();
 	}
 
 	@Nonnull
@@ -155,7 +146,7 @@ public class RegisteredBroadcastStateBackendMetaInfo<K, V> extends RegisteredSta
 	}
 
 	@Nonnull
-	private StateMetaInfoSnapshot precomputeSnapshot() {
+	private StateMetaInfoSnapshot computeSnapshot() {
 		Map<String, String> optionsMap = Collections.singletonMap(
 			StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.toString(),
 			assignmentMode.toString());

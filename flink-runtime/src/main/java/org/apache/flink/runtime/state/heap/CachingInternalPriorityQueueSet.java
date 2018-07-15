@@ -351,6 +351,6 @@ public class CachingInternalPriorityQueueSet<E> implements InternalPriorityQueue
 		 * after usage.
 		 */
 		@Nonnull
-		CloseableIterator<E> orderedIterator();;
+		CloseableIterator<E> orderedIterator();
 	}
 }

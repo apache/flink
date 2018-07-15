@@ -266,14 +266,15 @@ public class KeyGroupPartitioner<T> {
 	}
 
 	public static <T> StateSnapshotKeyGroupReader createKeyGroupPartitionReader(
-		@Nonnull ElementReaderFunction<T> readerFunction,
-		@Nonnull KeyGroupElementsConsumer<T> elementConsumer) {
+			@Nonnull ElementReaderFunction<T> readerFunction,
+			@Nonnull KeyGroupElementsConsumer<T> elementConsumer) {
 		return new PartitioningResultKeyGroupReader<>(readerFunction, elementConsumer);
 	}
 
 	/**
 	 * General algorithm to read key-grouped state that was written from a {@link PartitioningResult}
-	 * @param <T>
+	 *
+	 * @param <T> type of the elements to read.
 	 */
 	private static class PartitioningResultKeyGroupReader<T> implements StateSnapshotKeyGroupReader {
 

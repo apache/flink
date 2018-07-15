@@ -162,12 +162,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * Map of state tables that stores all state of key/value states. We store it centrally so
-	 * that we can easily checkpoint/restore it.
-	 *
-	 * <p>The actual parameters of StateTable are {@code StateTable<NamespaceT, Map<KeyT, StateT>>}
-	 * but we can't put them here because different key/value states with different types and
-	 * namespace types share this central list of tables.
+	 * Map of registered states for snapshot/restore.
 	 */
 	private final Map<String, StateSnapshotRestore> registeredStates = new HashMap<>();
 
@@ -425,10 +420,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						for (int i = 0; i < restoredMetaInfos.size(); i++) {
 							int kvStateId = kgCompressionInView.readShort();
-							StateSnapshotRestore stateTable = registeredStates.get(kvStatesById.get(kvStateId));
+							StateSnapshotRestore registeredState = registeredStates.get(kvStatesById.get(kvStateId));
 
 							StateSnapshotKeyGroupReader keyGroupReader =
-								stateTable.keyGroupReader(serializationProxy.getReadVersion());
+								registeredState.keyGroupReader(serializationProxy.getReadVersion());
 
 							keyGroupReader.readMappingsInKeyGroup(kgCompressionInView, keyGroupIndex);
 						}
@@ -485,9 +480,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public int numStateEntries() {
 		int sum = 0;
-		for (StateSnapshotRestore stateTable : registeredStates.values()) {
-			if (stateTable instanceof StateTable) {
-				sum += ((StateTable<?, ?, ?>) stateTable).size();
+		for (StateSnapshotRestore state : registeredStates.values()) {
+			if (state instanceof StateTable) {
+				sum += ((StateTable<?, ?, ?>) state).size();
 			}
 		}
 		return sum;
@@ -499,9 +494,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@VisibleForTesting
 	public int numStateEntries(Object namespace) {
 		int sum = 0;
-		for (StateSnapshotRestore stateTable : registeredStates.values()) {
-			if (stateTable instanceof StateTable) {
-				sum += ((StateTable<?, ?, ?>) stateTable).sizeOfNamespace(namespace);
+		for (StateSnapshotRestore state : registeredStates.values()) {
+			if (state instanceof StateTable) {
+				sum += ((StateTable<?, ?, ?>) state).sizeOfNamespace(namespace);
 			}
 		}
 		return sum;
@@ -612,9 +607,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (Map.Entry<String, StateSnapshotRestore> kvState : registeredStates.entrySet()) {
 				String stateName = kvState.getKey();
 				kVStateToId.put(stateName, kVStateToId.size());
-				StateSnapshotRestore stateTable = kvState.getValue();
-				if (null != stateTable) {
-					final StateSnapshot stateSnapshot = stateTable.stateSnapshot();
+				StateSnapshotRestore state = kvState.getValue();
+				if (null != state) {
+					final StateSnapshot stateSnapshot = state.stateSnapshot();
 					metaInfoSnapshots.add(stateSnapshot.getMetaInfoSnapshot());
 					cowStateStableSnapshots.put(stateName, stateSnapshot);
 				}

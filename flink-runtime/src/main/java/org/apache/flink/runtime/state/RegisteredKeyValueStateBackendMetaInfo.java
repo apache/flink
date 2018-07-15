@@ -29,7 +29,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,8 +50,6 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	private final TypeSerializer<N> namespaceSerializer;
 	@Nonnull
 	private final TypeSerializer<S> stateSerializer;
-	@Nullable
-	private StateMetaInfoSnapshot precomputedSnapshot;
 
 	public RegisteredKeyValueStateBackendMetaInfo(
 			@Nonnull StateDescriptor.Type stateType,
@@ -64,7 +61,6 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		this.stateType = stateType;
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateSerializer = stateSerializer;
-		this.precomputedSnapshot = null;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -201,14 +197,11 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
-		if (precomputedSnapshot == null) {
-			precomputedSnapshot = precomputeSnapshot();
-		}
-		return precomputedSnapshot;
+		return computeSnapshot();
 	}
 
 	@Nonnull
-	private StateMetaInfoSnapshot precomputeSnapshot() {
+	private StateMetaInfoSnapshot computeSnapshot() {
 		Map<String, String> optionsMap = Collections.singletonMap(
 			StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 			stateType.toString());

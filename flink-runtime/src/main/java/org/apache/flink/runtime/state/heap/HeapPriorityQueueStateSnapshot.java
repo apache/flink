@@ -61,7 +61,7 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 
 	/** Result of partitioning the snapshot by key-group. */
 	@Nullable
-	private StateKeyGroupWriter partitionedSnapshot;
+	private StateKeyGroupWriter stateKeyGroupWriter;
 
 	HeapPriorityQueueStateSnapshot(
 		@Nonnull T[] heapArrayCopy,
@@ -82,7 +82,7 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 	@Override
 	public StateKeyGroupWriter getKeyGroupWriter() {
 
-		if (partitionedSnapshot == null) {
+		if (stateKeyGroupWriter == null) {
 
 			T[] partitioningOutput = (T[]) Array.newInstance(
 				heapArrayCopy.getClass().getComponentType(),
@@ -100,10 +100,10 @@ public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 					keyExtractor,
 					elementSerializer::serialize);
 
-			partitionedSnapshot = keyGroupPartitioner.partitionByKeyGroup();
+			stateKeyGroupWriter = keyGroupPartitioner.partitionByKeyGroup();
 		}
 
-		return partitionedSnapshot;
+		return stateKeyGroupWriter;
 	}
 
 	@Nonnull

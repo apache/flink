@@ -21,15 +21,13 @@ package org.apache.flink.runtime.state;
 import javax.annotation.Nonnull;
 
 /**
- *
- * @param <T>
+ * Interface for objects that can be compared by priority.
+ * @param <T> type of the compared objects.
  */
 public interface PriorityComparable<T> {
 
 	/**
-	 *
-	 * @param other
-	 * @return
+	 * @see PriorityComparator#comparePriority(Object, Object).
 	 */
 	int comparePriorityTo(@Nonnull T other);
 }

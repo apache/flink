@@ -81,7 +81,7 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 		return new HeapPriorityQueueStateSnapshot<>(
 			queueDump,
 			keyExtractorFunction,
-			metaInfo,
+			metaInfo.deepCopy(),
 			localKeyGroupRange,
 			totalKeyGroups);
 	}
