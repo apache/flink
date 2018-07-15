@@ -50,10 +50,13 @@ trait TableFormatFactory[T] extends TableFactory {
     *   - schema.#.name
     *   - schema.#.type
     *
-    * Note: Supported format properties must be prefixed with "format.". If schema derivation is
-    * enabled, also properties with "schema." prefix can be used. Use "#" to denote an array of
-    * values where "#" represents one or more digits. Property versions like
-    * "format.property-version" must not be part of the supported properties.
+    * Note: All supported format properties must be prefixed with "format.". If schema derivation is
+    * enabled, also properties with "schema." prefix can be used.
+    *
+    * Use "#" to denote an array of values where "#" represents one or more digits. Property
+    * versions like "format.property-version" must not be part of the supported properties.
+    *
+    * @see See also [[TableFactory.supportedProperties()]] for more information.
     */
   def supportedProperties(): util.List[String]
 

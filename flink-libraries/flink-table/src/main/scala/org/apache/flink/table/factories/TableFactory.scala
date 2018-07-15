@@ -55,6 +55,9 @@ trait TableFactory {
     * list must not contain the keys that are specified by the context.
     *
     * Example properties might be:
+    *   - schema.#.type
+    *   - schema.#.name
+    *   - connector.topic
     *   - format.line-delimiter
     *   - format.ignore-parse-errors
     *   - format.fields.#.type
