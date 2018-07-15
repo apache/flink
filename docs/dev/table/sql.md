@@ -1630,6 +1630,17 @@ BIN(numeric)
       </td>
     </tr>
 
+    <tr>
+      <td>
+{% highlight text %}
+HEX(numeric)
+HEX(string)
+      {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string representation of an integer numeric value or a string in hex format. Returns null if numeric is null. E.g. "20" leads to "14", "100" leads to "64", "hello,world" leads to "68656c6c6f2c776f726c64".</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
