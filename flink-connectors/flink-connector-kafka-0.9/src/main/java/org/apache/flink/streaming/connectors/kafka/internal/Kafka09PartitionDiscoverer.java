@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescript
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.errors.TopicAuthorizationException;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -81,6 +82,9 @@ public class Kafka09PartitionDiscoverer extends AbstractPartitionDiscoverer {
 		} catch (org.apache.kafka.common.errors.WakeupException e) {
 			// rethrow our own wakeup exception
 			throw new WakeupException();
+		} catch (TopicAuthorizationException tae) {
+			closeConnectionsQuietly();
+			throw tae;
 		}
 
 		return partitions;
@@ -100,6 +104,15 @@ public class Kafka09PartitionDiscoverer extends AbstractPartitionDiscoverer {
 
 			// de-reference the consumer to avoid closing multiple times
 			this.kafkaConsumer = null;
+		}
+	}
+
+	private void closeConnectionsQuietly() {
+		try {
+			closeConnections();
+		} catch (Exception e) {
+			// no-op for now, this is called from getAllPartitionsForTopics(),
+			// which only throws WakeupException, so swallow Exception here
 		}
 	}
 }
