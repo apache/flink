@@ -47,7 +47,7 @@ class ExternalCatalogSchemaTest extends TableTestBase {
   @Before
   def setUp(): Unit = {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
-    val catalog = CommonTestData.getInMemoryTestCatalog
+    val catalog = CommonTestData.getInMemoryTestCatalog(isStreaming = true)
     ExternalCatalogSchema.registerCatalog(
       streamTestUtil().tableEnv, rootSchemaPlus, schemaName, catalog)
     externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")

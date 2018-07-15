@@ -62,13 +62,13 @@ object CommonTestData {
     )
   }
 
-  def getInMemoryTestCatalog: ExternalCatalog = {
+  def getInMemoryTestCatalog(isStreaming: Boolean): ExternalCatalog = {
     val csvRecord1 = Seq(
       "1#1#Hi",
       "2#2#Hello",
       "3#2#Hello world"
     )
-    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("$"), "csv-test1", "tmp")
+    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
 
     val connDesc1 = FileSystem().path(tempFilePath1)
     val formatDesc1 = Csv()
@@ -76,13 +76,16 @@ object CommonTestData {
       .field("b", Types.LONG)
       .field("c", Types.STRING)
       .fieldDelimiter("#")
-      .lineDelimiter("$")
     val schemaDesc1 = Schema()
       .field("a", Types.INT)
       .field("b", Types.LONG)
       .field("c", Types.STRING)
     val externalCatalogTable1 = new ExternalCatalogTable(
       connDesc1, Some(formatDesc1), Some(schemaDesc1), None, None)
+
+    if (isStreaming) {
+      externalCatalogTable1.inAppendMode()
+    }
 
     val csvRecord2 = Seq(
       "1#1#0#Hallo#1",
@@ -101,7 +104,7 @@ object CommonTestData {
       "5#14#13#JKL#2",
       "5#15#14#KLM#2"
     )
-    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("$"), "csv-test2", "tmp")
+    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
 
     val connDesc2 = FileSystem().path(tempFilePath2)
     val formatDesc2 = Csv()
@@ -111,7 +114,6 @@ object CommonTestData {
       .field("g", Types.STRING)
       .field("h", Types.LONG)
       .fieldDelimiter("#")
-      .lineDelimiter("$")
     val schemaDesc2 = Schema()
       .field("d", Types.INT)
       .field("e", Types.LONG)
@@ -120,6 +122,10 @@ object CommonTestData {
       .field("h", Types.LONG)
     val externalCatalogTable2 = new ExternalCatalogTable(
       connDesc2, Some(formatDesc2), Some(schemaDesc2), None, None)
+
+    if (isStreaming) {
+      externalCatalogTable2.inAppendMode()
+    }
 
     val catalog = new InMemoryExternalCatalog("test")
     val db1 = new InMemoryExternalCatalog("db1")

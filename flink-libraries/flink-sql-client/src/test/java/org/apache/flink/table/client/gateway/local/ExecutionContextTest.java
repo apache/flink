@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
@@ -112,9 +113,12 @@ public class ExecutionContextTest {
 	}
 
 	private <T> ExecutionContext<T> createExecutionContext() throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		final Environment env = EnvironmentFileUtil.parseModified(
 			DEFAULTS_ENVIRONMENT_FILE,
-			Collections.singletonMap("$VAR_2", "streaming"));
+			replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 		final Configuration flinkConfig = new Configuration();
 		return new ExecutionContext<>(

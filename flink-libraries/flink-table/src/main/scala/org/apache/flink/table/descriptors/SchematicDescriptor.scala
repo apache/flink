@@ -19,11 +19,17 @@
 package org.apache.flink.table.descriptors
 
 /**
-  * Validator for [[TableDescriptor]].
+  * A trait for descriptors that allow to define a format and schema.
   */
-class TableDescriptorValidator extends DescriptorValidator {
+trait SchematicDescriptor extends Descriptor {
 
-  override def validate(properties: DescriptorProperties): Unit = {
-    // nothing to do
-  }
+  /**
+    * Specifies the format that defines how to read data from a connector.
+    */
+  def withFormat(format: FormatDescriptor): SchematicDescriptor
+
+  /**
+    * Specifies the resulting table schema.
+    */
+  def withSchema(schema: Schema): SchematicDescriptor
 }

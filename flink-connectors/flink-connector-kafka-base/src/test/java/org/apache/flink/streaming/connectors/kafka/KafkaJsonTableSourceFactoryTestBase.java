@@ -28,7 +28,7 @@ import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
+import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sources.TableSource;
@@ -135,20 +135,21 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		offsets.put(0, 100L);
 		offsets.put(1, 123L);
 
-		final TestTableSourceDescriptor testDesc = new TestTableSourceDescriptor(
+		final TestTableDescriptor testDesc = new TestTableDescriptor(
 				new Kafka()
 					.version(version())
 					.topic(TOPIC)
 					.properties(props)
 					.startFromSpecificOffsets(offsets))
-			.addFormat(format)
-			.addSchema(
+			.withFormat(format)
+			.withSchema(
 				new Schema()
 						.field("fruit-name", Types.STRING).from("name")
 						.field("count", Types.BIG_DEC) // no from so it must match with the input
 						.field("event-time", Types.SQL_TIMESTAMP).rowtime(
 							new Rowtime().timestampsFromField("time").watermarksPeriodicAscending())
-						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
+						.field("proc-time", Types.SQL_TIMESTAMP).proctime())
+			.inAppendMode();
 
 		DescriptorProperties properties = new DescriptorProperties(true);
 		testDesc.addProperties(properties);

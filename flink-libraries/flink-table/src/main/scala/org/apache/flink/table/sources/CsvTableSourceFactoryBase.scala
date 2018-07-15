@@ -28,16 +28,12 @@ import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, C
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROPERTY_VERSION, FORMAT_TYPE}
 import org.apache.flink.table.descriptors.SchemaValidator.SCHEMA
 import org.apache.flink.table.descriptors._
-import org.apache.flink.table.factories.{BatchTableSourceFactory, StreamTableSourceFactory, TableFactory}
-import org.apache.flink.types.Row
+import org.apache.flink.table.factories.TableFactory
 
 /**
-  * Factory for creating configured instances of [[CsvTableSource]].
+  * Factory base for creating configured instances of [[CsvTableSource]].
   */
-class CsvTableSourceFactory
-  extends TableFactory
-  with StreamTableSourceFactory[Row]
-  with BatchTableSourceFactory[Row] {
+class CsvTableSourceFactoryBase extends TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -68,19 +64,7 @@ class CsvTableSourceFactory
     properties
   }
 
-  override def createStreamTableSource(
-      properties: util.Map[String, String])
-    : StreamTableSource[Row] = {
-    createTableSource(isStreaming = true, properties)
-  }
-
-  override def createBatchTableSource(
-      properties: util.Map[String, String])
-    : BatchTableSource[Row] = {
-    createTableSource(isStreaming = false, properties)
-  }
-
-  private def createTableSource(
+  protected def createTableSource(
       isStreaming: Boolean,
       properties: util.Map[String, String])
     : CsvTableSource = {

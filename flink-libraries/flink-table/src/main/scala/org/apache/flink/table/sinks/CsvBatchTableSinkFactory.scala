@@ -16,17 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.sinks
+
+import java.util
+
+import org.apache.flink.table.factories.BatchTableSinkFactory
+import org.apache.flink.types.Row
 
 /**
-  * Common class for all descriptors describing a table sink.
+  * Factory base for creating configured instances of [[CsvTableSink]] in a batch environment.
   */
-abstract class TableSinkDescriptor extends TableDescriptor {
+class CsvBatchTableSinkFactory
+  extends CsvTableSinkFactoryBase
+  with BatchTableSinkFactory[Row] {
 
-  /**
-    * Internal method for properties conversion.
-    */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    super.addProperties(properties)
+  override def createBatchTableSink(
+      properties: util.Map[String, String])
+    : BatchTableSink[Row] = {
+    createTableSink(isStreaming = false, properties)
   }
 }

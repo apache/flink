@@ -31,7 +31,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
+import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.factories.utils.TestDeserializationSchema;
@@ -129,20 +129,21 @@ public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
 		offsets.put(PARTITION_0, OFFSET_0);
 		offsets.put(PARTITION_1, OFFSET_1);
 
-		final TestTableSourceDescriptor testDesc = new TestTableSourceDescriptor(
+		final TestTableDescriptor testDesc = new TestTableDescriptor(
 				new Kafka()
 					.version(getKafkaVersion())
 					.topic(TOPIC)
 					.properties(KAFKA_PROPERTIES)
 					.startFromSpecificOffsets(offsets))
-			.addFormat(new TestTableFormat())
-			.addSchema(
+			.withFormat(new TestTableFormat())
+			.withSchema(
 				new Schema()
 					.field(FRUIT_NAME, Types.STRING()).from(NAME)
 					.field(COUNT, Types.DECIMAL()) // no from so it must match with the input
 					.field(EVENT_TIME, Types.SQL_TIMESTAMP()).rowtime(
 						new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
-					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime());
+					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime())
+			.inAppendMode();
 		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		testDesc.addProperties(descriptorProperties);
 		final Map<String, String> propertiesMap = descriptorProperties.asMap();

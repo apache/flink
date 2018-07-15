@@ -23,8 +23,9 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -40,10 +41,18 @@ public class EnvironmentTest {
 
 	@Test
 	public void testMerging() throws Exception {
-		final Environment env1 = EnvironmentFileUtil.parseUnmodified(DEFAULTS_ENVIRONMENT_FILE);
+		final Map<String, String> replaceVars1 = new HashMap<>();
+		replaceVars1.put("$VAR_UPDATE_MODE", "update-mode: append");
+		final Environment env1 = EnvironmentFileUtil.parseModified(
+			DEFAULTS_ENVIRONMENT_FILE,
+			replaceVars1);
+
+		final Map<String, String> replaceVars2 = new HashMap<>();
+		replaceVars2.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars2.put("TableNumber1", "NewTable");
 		final Environment env2 = EnvironmentFileUtil.parseModified(
 			FACTORY_ENVIRONMENT_FILE,
-			Collections.singletonMap("TableNumber1", "NewTable"));
+			replaceVars2);
 
 		final Environment merged = Environment.merge(env1, env2);
 

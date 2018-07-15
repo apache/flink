@@ -1064,6 +1064,10 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     properties.toMap.asJava
   }
 
+  override def toString: String = {
+    DescriptorProperties.toString(properties.toMap)
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   /**

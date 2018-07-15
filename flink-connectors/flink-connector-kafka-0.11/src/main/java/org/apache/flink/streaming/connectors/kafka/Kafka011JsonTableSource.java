@@ -36,7 +36,7 @@ import java.util.Properties;
  * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
  *             with descriptors for schema and format instead. Descriptors allow for
  *             implementation-agnostic definition of tables. See also
- *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+ *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
  */
 @Deprecated
 public class Kafka011JsonTableSource extends KafkaJsonTableSource {
@@ -121,7 +121,7 @@ public class Kafka011JsonTableSource extends KafkaJsonTableSource {
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
-	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
 	public static Kafka011JsonTableSource.Builder builder() {
@@ -134,7 +134,7 @@ public class Kafka011JsonTableSource extends KafkaJsonTableSource {
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
-	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
 	public static class Builder extends KafkaJsonTableSource.Builder<Kafka011JsonTableSource, Kafka011JsonTableSource.Builder> {

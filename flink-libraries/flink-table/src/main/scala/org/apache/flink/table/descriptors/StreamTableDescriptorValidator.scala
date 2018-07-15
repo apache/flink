@@ -16,38 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
+package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
+import java.util
 
-import java.util.Map;
+import org.apache.flink.table.descriptors.StreamTableDescriptorValidator._
 
 /**
- * Configuration of a table source.
- */
-public class Source implements TableDescriptor {
+  * Validator for [[StreamTableDescriptor]].
+  */
+class StreamTableDescriptorValidator extends DescriptorValidator {
 
-	private String name;
-	private Map<String, String> properties;
+  override def validate(properties: DescriptorProperties): Unit = {
+    properties.validateEnumValues(
+      UPDATE_MODE,
+      isOptional = false,
+      util.Arrays.asList(
+        UPDATE_MODE_VALUE_APPEND,
+        UPDATE_MODE_VALUE_RETRACT,
+        UPDATE_MODE_VALUE_UPSERT)
+    )
+  }
+}
 
-	protected Source(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
-	}
+object StreamTableDescriptorValidator {
 
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
-	}
+  val UPDATE_MODE = "update-mode"
+  val UPDATE_MODE_VALUE_APPEND = "append"
+  val UPDATE_MODE_VALUE_RETRACT = "retract"
+  val UPDATE_MODE_VALUE_UPSERT = "upsert"
 }
