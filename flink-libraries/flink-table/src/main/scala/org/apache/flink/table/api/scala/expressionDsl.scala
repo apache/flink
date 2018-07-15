@@ -406,6 +406,15 @@ trait ImplicitExpressionOperations {
     */
   def bin() = Bin(expr)
 
+  /**
+    * Returns a string representation of an integer numeric value or a string in hex format. Returns
+    * null if numeric or string is null.
+    *
+    * E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", and a string "hello,world" leads
+    * to "68656c6c6f2c776f726c64".
+    */
+  def hex() = Hex(expr)
+
   // String operations
 
   /**

@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.runtime.functions
 
-import scala.annotation.varargs
+import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
-import java.lang.StringBuilder
 
-import org.apache.commons.codec.binary.Base64
+import org.apache.commons.codec.binary.{Base64, Hex}
+
+import scala.annotation.varargs
 
 /**
   * Built-in scalar runtime functions.
@@ -212,4 +213,13 @@ object ScalarFunctions {
     */
   def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
 
+  /**
+    * Returns the hex string of a long argument.
+    */
+  def hex(x: Long): String = JLong.toHexString(x).toUpperCase()
+
+  /**
+    * Returns the hex string of a string argument.
+    */
+  def hex(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
 }

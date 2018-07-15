@@ -455,6 +455,18 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.BIN)
 
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_LONG)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_STRING)
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

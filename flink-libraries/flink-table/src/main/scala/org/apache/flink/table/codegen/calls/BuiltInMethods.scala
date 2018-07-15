@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.codegen.calls
 
+import java.lang.reflect.Method
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
@@ -135,4 +136,7 @@ object BuiltInMethods {
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 
   val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
+
+  val HEX_LONG: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[Long])
+  val HEX_STRING: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
 }

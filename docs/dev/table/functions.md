@@ -1393,6 +1393,19 @@ BIN(integer)
         <p>E.g. <code>BIN(4)</code> returns '100' and <code>BIN(12)</code> returns '1100'.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+{% highlight text %}
+HEX(numeric)
+HEX(string)
+      {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string representation of an integer <i>numeric</i> value or a <i>string</i> in hex format. Returns NULL if the argument is NULL.</p>
+        <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -1805,6 +1818,19 @@ INTEGER.bin()
       <p>E.g., <code>4.bin()</code> returns "100" and <code>12.bin()</code> returns "1100".</p>
     </td>
    </tr>
+
+    <tr>
+      <td>
+       {% highlight java %}
+NUMERIC.hex()
+STRING.hex()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a string representation of an integer <i>NUMERIC</i> value or a <i>STRING</i> in hex format. Returns NULL if the argument is NULL.</p>
+      <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
+    </td>
+   </tr>
   </tbody>
 </table>
 </div>
@@ -2215,6 +2241,19 @@ INTEGER.bin()
     <td>
       <p>Returns a string representation of <i>INTEGER</i> in binary format. Returns NULL if <i>INTEGER</i> is NULL.</p>
       <p>E.g., <code>4.bin()</code> returns "100" and <code>12.bin()</code> returns "1100".</p>
+    </td>
+   </tr>
+
+    <tr>
+      <td>
+       {% highlight scala %}
+NUMERIC.hex()
+STRING.hex()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a string representation of an integer <i>NUMERIC</i> value or a <i>STRING</i> in hex format. Returns NULL if the argument is NULL.</p>
+      <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
     </td>
    </tr>
   </tbody>
