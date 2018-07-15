@@ -16,28 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway.local;
-
-import org.apache.flink.table.client.gateway.TypedResult;
-import org.apache.flink.types.Row;
-
-import java.util.List;
+package org.apache.flink.table.client.gateway.local.result;
 
 /**
- * A result that is materialized and can be viewed by navigating through a snapshot.
+ * A result of a table program submission to a cluster.
  *
- * @param <C> cluster id to which this result belongs to
+ * @param <C> type of the cluster id to which this result belongs to
  */
-public interface MaterializedResult<C> extends DynamicResult<C> {
+public interface Result<C> {
 
 	/**
-	 * Takes a snapshot of the current table and returns the number of pages for navigating
-	 * through the snapshot.
+	 * Sets the cluster information of the cluster this result comes from. This method should only be called once.
 	 */
-	TypedResult<Integer> snapshot(int pageSize);
+	void setClusterInformation(C clusterId, String webInterfaceUrl);
 
-	/**
-	 * Retrieves a page of a snapshotted result.
-	 */
-	List<Row> retrievePage(int page);
 }

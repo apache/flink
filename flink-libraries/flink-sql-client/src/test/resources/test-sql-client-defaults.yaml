@@ -62,6 +62,23 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+  - name: TableSourceSink
+    type: both
+    schema:
+      - name: BooleanField
+        type: BOOLEAN
+      - name: StringField
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_4"
+    format:
+      type: csv
+      fields:
+        - name: BooleanField
+          type: BOOLEAN
+        - name: StringField
+          type: VARCHAR
 
 functions:
   - name: scalarUDF

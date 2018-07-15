@@ -169,6 +169,14 @@ public class ExecutionContext<T> {
 		return new EnvironmentInstance();
 	}
 
+	public Map<String, TableSource<?>> getTableSources() {
+		return tableSources;
+	}
+
+	public Map<String, TableSink<?>> getTableSinks() {
+		return tableSinks;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static CommandLine createCommandLine(Deployment deployment, Options commandLineOptions) {

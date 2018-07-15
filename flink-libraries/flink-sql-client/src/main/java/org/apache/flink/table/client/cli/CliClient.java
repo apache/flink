@@ -20,9 +20,9 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.SqlClientException;
-import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommand;
 import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -50,6 +50,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * SQL CLI client.
@@ -85,6 +86,9 @@ public class CliClient {
 			terminal = TerminalBuilder.builder()
 				.name(CliStrings.CLI_NAME)
 				.build();
+			// make space from previous output and test the writer
+			terminal.writer().println();
+			terminal.writer().flush();
 		} catch (IOException e) {
 			throw new SqlClientException("Error opening command line interface.", e);
 		}
@@ -149,6 +153,9 @@ public class CliClient {
 		return executor;
 	}
 
+	/**
+	 * Opens the interactive CLI shell.
+	 */
 	public void open() {
 		isRunning = true;
 
@@ -173,54 +180,90 @@ public class CliClient {
 			if (line == null || line.equals("")) {
 				continue;
 			}
-
-			final SqlCommandCall cmdCall = SqlCommandParser.parse(line);
-
-			if (cmdCall == null) {
-				terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_UNKNOWN_SQL));
-				continue;
-			}
-
-			switch (cmdCall.command) {
-				case QUIT:
-				case EXIT:
-					callQuit(cmdCall);
-					break;
-				case CLEAR:
-					callClear(cmdCall);
-					break;
-				case RESET:
-					callReset(cmdCall);
-					break;
-				case SET:
-					callSet(cmdCall);
-					break;
-				case HELP:
-					callHelp(cmdCall);
-					break;
-				case SHOW_TABLES:
-					callShowTables(cmdCall);
-					break;
-				case SHOW_FUNCTIONS:
-					callShowFunctions(cmdCall);
-					break;
-				case DESCRIBE:
-					callDescribe(cmdCall);
-					break;
-				case EXPLAIN:
-					callExplain(cmdCall);
-					break;
-				case SELECT:
-					callSelect(cmdCall);
-					break;
-				case SOURCE:
-					callSource(cmdCall);
-					break;
-			}
+			final Optional<SqlCommandCall> cmdCall = parseCommand(line);
+			cmdCall.ifPresent(this::callCommand);
 		}
 	}
 
+	/**
+	 * Submits a SQL update statement and prints status information and/or errors on the terminal.
+	 *
+	 * @param statement SQL update statement
+	 * @return flag to indicate if the submission was successful or not
+	 */
+	public boolean submitUpdate(String statement) {
+		terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
+		terminal.writer().println(new AttributedString(statement).toString());
+		terminal.flush();
+
+		final Optional<SqlCommandCall> parsedStatement = parseCommand(statement);
+		// only support INSERT INTO
+		return parsedStatement.map(cmdCall -> {
+			switch (cmdCall.command) {
+				case INSERT_INTO:
+					return callInsertInto(cmdCall);
+				default:
+					terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_UNSUPPORTED_SQL).toAnsi());
+					terminal.flush();
+					return false;
+			}
+		}).orElse(false);
+	}
+
 	// --------------------------------------------------------------------------------------------
+
+	private Optional<SqlCommandCall> parseCommand(String line) {
+		final Optional<SqlCommandCall> parsedLine = SqlCommandParser.parse(line);
+		if (!parsedLine.isPresent()) {
+			terminal.writer().println(CliStrings.messageError(CliStrings.MESSAGE_UNKNOWN_SQL).toAnsi());
+			terminal.flush();
+		}
+		return parsedLine;
+	}
+
+	private void callCommand(SqlCommandCall cmdCall) {
+		switch (cmdCall.command) {
+			case QUIT:
+			case EXIT:
+				callQuit(cmdCall);
+				break;
+			case CLEAR:
+				callClear(cmdCall);
+				break;
+			case RESET:
+				callReset(cmdCall);
+				break;
+			case SET:
+				callSet(cmdCall);
+				break;
+			case HELP:
+				callHelp(cmdCall);
+				break;
+			case SHOW_TABLES:
+				callShowTables(cmdCall);
+				break;
+			case SHOW_FUNCTIONS:
+				callShowFunctions(cmdCall);
+				break;
+			case DESCRIBE:
+				callDescribe(cmdCall);
+				break;
+			case EXPLAIN:
+				callExplain(cmdCall);
+				break;
+			case SELECT:
+				callSelect(cmdCall);
+				break;
+			case INSERT_INTO:
+				callInsertInto(cmdCall);
+				break;
+			case SOURCE:
+				callSource(cmdCall);
+				break;
+			default:
+				throw new SqlClientException("Unsupported command: " + cmdCall.command);
+		}
+	}
 
 	private void callQuit(SqlCommandCall cmdCall) {
 		terminal.writer().println(CliStrings.MESSAGE_QUIT);
@@ -354,6 +397,22 @@ public class CliClient {
 		}
 	}
 
+	private boolean callInsertInto(SqlCommandCall cmdCall) {
+		terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_SUBMITTING_STATEMENT).toAnsi());
+		terminal.flush();
+
+		try {
+			final ProgramTargetDescriptor programTarget = executor.executeUpdate(context, cmdCall.operands[0]);
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_STATEMENT_SUBMITTED).toAnsi());
+			terminal.writer().println(programTarget.toString());
+			terminal.flush();
+		} catch (SqlExecutionException e) {
+			printException(e);
+			return false;
+		}
+		return true;
+	}
+
 	private void callSource(SqlCommandCall cmdCall) {
 		final String pathString = cmdCall.operands[0];
 
@@ -384,7 +443,8 @@ public class CliClient {
 		terminal.flush();
 
 		// try to run it
-		callSelect(new SqlCommandCall(SqlCommand.SELECT, new String[] { stmt }));
+		final Optional<SqlCommandCall> call = parseCommand(stmt);
+		call.ifPresent(this::callCommand);
 	}
 
 	// --------------------------------------------------------------------------------------------

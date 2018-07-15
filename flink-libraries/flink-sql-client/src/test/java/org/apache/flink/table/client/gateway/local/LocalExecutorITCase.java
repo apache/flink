@@ -19,6 +19,7 @@
 
 package org.apache.flink.table.client.gateway.local;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,9 +29,11 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -44,7 +47,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,6 +65,7 @@ import java.util.stream.IntStream;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Contains basic tests for the {@link LocalExecutor}.
@@ -69,6 +76,9 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
+
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
@@ -101,7 +111,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> actualTables = executor.listTables(session);
 
-		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2");
+		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2", "TableSourceSink");
 		assertEquals(expectedTables, actualTables);
 	}
 
@@ -266,6 +276,59 @@ public class LocalExecutorITCase extends TestLogger {
 		} finally {
 			executor.stop(session);
 		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void testStreamQueryExecutionSink() throws Exception {
+		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_4", csvOutputPath);
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			// start job
+			final ProgramTargetDescriptor targetDescriptor = executor.executeUpdate(
+				session,
+				"INSERT INTO TableSourceSink SELECT IntegerField1 = 42, StringField1 FROM TableNumber1");
+
+			// wait for job completion and verify result
+			boolean isRunning = true;
+			while (isRunning) {
+				final JobStatus jobStatus = clusterClient.getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+				switch (jobStatus) {
+					case CREATED:
+					case RUNNING:
+						continue;
+					case FINISHED:
+						isRunning = false;
+						verifySinkResult(csvOutputPath);
+						break;
+					default:
+						fail("Unexpected job status.");
+				}
+			}
+		} finally {
+			executor.stop(session);
+		}
+	}
+
+	private void verifySinkResult(String path) throws IOException {
+		final List<String> actualResults = new ArrayList<>();
+		TestBaseUtils.readAllResultLines(actualResults, path);
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("true,Hello World");
+		expectedResults.add("false,Hello World");
+		expectedResults.add("false,Hello World");
+		expectedResults.add("false,Hello World");
+		expectedResults.add("true,Hello World");
+		expectedResults.add("false,Hello World!!!!");
+		TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
