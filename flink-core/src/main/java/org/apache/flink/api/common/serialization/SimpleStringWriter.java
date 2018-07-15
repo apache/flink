@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.writers;
+package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.Writer;
-import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 /**
- * A {@link Writer} that uses {@code toString()} on the input elements and
+ * A simple {@link Writer} that uses {@code toString()} on the input elements and
  * writes them to the output bucket file separated by newline.
  *
  * @param <IN> The type of the elements that are being written by the sink.
  */
 @PublicEvolving
-public class StringWriter<IN> implements Writer<IN> {
+public class SimpleStringWriter<IN> implements Writer<IN> {
 
 	private static final long serialVersionUID = -6865107843734614452L;
 
@@ -44,7 +43,7 @@ public class StringWriter<IN> implements Writer<IN> {
 	 * Creates a new {@code StringWriter} that uses {@code "UTF-8"} charset to convert
 	 * strings to bytes.
 	 */
-	public StringWriter() {
+	public SimpleStringWriter() {
 		this("UTF-8");
 	}
 
@@ -54,12 +53,12 @@ public class StringWriter<IN> implements Writer<IN> {
 	 *
 	 * @param charsetName Name of the charset to be used, must be valid input for {@code Charset.forName(charsetName)}
 	 */
-	public StringWriter(String charsetName) {
+	public SimpleStringWriter(String charsetName) {
 		this.charsetName = charsetName;
 	}
 
 	@Override
-	public void write(IN element, FSDataOutputStream stream) throws IOException {
+	public void write(IN element, OutputStream stream) throws IOException {
 		if (charset == null) {
 			charset = Charset.forName(charsetName);
 		}

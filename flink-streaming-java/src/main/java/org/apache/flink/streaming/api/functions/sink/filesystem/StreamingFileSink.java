@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.serialization.SimpleStringWriter;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -37,7 +38,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.DateTimeBucketer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.writers.StringWriter;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -94,13 +94,11 @@ import java.util.Map;
  * <p><b>NOTE:</b>
  * <ol>
  *     <li>
- *         If checkpointing is not enabled the pending files will never be moved to the finished state. In that case,
- *         the pending suffix/prefix can be set to {@code ""} to make the sink work in a non-fault-tolerant way but
- *         still provide output without prefixes and suffixes.
+ *         If checkpointing is not enabled the pending files will never be moved to the finished state.
  *     </li>
  *     <li>
  *         The part files are written using an instance of {@link Writer}. By default, a
- *         {@link StringWriter} is used, which writes the result of {@code toString()} for
+ *         {@link SimpleStringWriter} is used, which writes the result of {@code toString()} for
  *         every element, separated by newlines. You can configure the writer using the
  *         {@link #setWriter(Writer)}.
  *     </li>
@@ -156,12 +154,8 @@ public class StreamingFileSink<IN>
 	private long maxPartCounterUsed;
 
 	/**
-	 * Creates a new {@code BucketingSink} that writes files to the given base directory.
-	 *
-	 *
-	 * <p>This uses a{@link DateTimeBucketer} as {@link Bucketer} and a {@link StringWriter} has writer.
-	 * The maximum bucket size is set to 384 MB.
-	 *
+	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory.
+	 * <p>This uses a {@link DateTimeBucketer} as {@link Bucketer} and a {@link SimpleStringWriter} as a writer.
 	 * @param basePath The directory to which to write the bucket files.
 	 */
 	public StreamingFileSink(Path basePath) {
@@ -172,7 +166,7 @@ public class StreamingFileSink<IN>
 	StreamingFileSink(Path basePath, BucketFactory<IN> bucketFactory) {
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketer = new DateTimeBucketer<>();
-		this.writer = new StringWriter<>();
+		this.writer = new SimpleStringWriter<>();
 		this.rollingPolicy = new DefaultRollingPolicy();
 		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
 	}

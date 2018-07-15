@@ -18,9 +18,10 @@
 
 package org.apache.flink.api.common.serialization;
 
-import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
@@ -29,11 +30,15 @@ import java.io.Serializable;
  *
  * @param <IN> The type of the elements that are being written by the sink.
  */
+@PublicEvolving
+@FunctionalInterface
 public interface Writer<IN> extends Serializable {
 
 	/**
 	 * Writes one element to the bucket file.
+	 * @param element the element to be written.
+	 * @param stream the stream to write the element to.
 	 */
-	void write(IN element, FSDataOutputStream stream)throws IOException;
+	void write(IN element, OutputStream stream) throws IOException;
 
 }

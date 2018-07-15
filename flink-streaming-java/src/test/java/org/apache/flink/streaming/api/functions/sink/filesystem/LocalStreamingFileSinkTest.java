@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.api.common.serialization.SimpleStringWriter;
 import org.apache.flink.api.common.serialization.Writer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
@@ -25,7 +26,6 @@ import org.apache.flink.core.fs.ResumableWriter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.writers.StringWriter;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -501,9 +501,9 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = createCustomRescalingTestSink(
-						outDir, 2, 0, 100L, 2L, first, new StringWriter<>());
+						outDir, 2, 0, 100L, 2L, first, new SimpleStringWriter<>());
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness2 = createCustomRescalingTestSink(
-						outDir, 2, 1, 100L, 2L, second, new StringWriter<>())
+						outDir, 2, 1, 100L, 2L, second, new SimpleStringWriter<>())
 		) {
 			testHarness1.setup();
 			testHarness1.open();
@@ -529,9 +529,9 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = createCustomRescalingTestSink(
-						outDir, 2, 0, 100L, 2L, firstRecovered, new StringWriter<>());
+						outDir, 2, 0, 100L, 2L, firstRecovered, new SimpleStringWriter<>());
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness2 = createCustomRescalingTestSink(
-						outDir, 2, 1, 100L, 2L, secondRecovered, new StringWriter<>())
+						outDir, 2, 1, 100L, 2L, secondRecovered, new SimpleStringWriter<>())
 		) {
 			testHarness1.setup();
 			testHarness1.initializeState(mergedSnapshot);
