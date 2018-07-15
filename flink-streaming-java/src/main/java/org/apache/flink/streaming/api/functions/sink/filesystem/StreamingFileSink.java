@@ -155,7 +155,9 @@ public class StreamingFileSink<IN>
 
 	/**
 	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory.
+	 *
 	 * <p>This uses a {@link DateTimeBucketer} as {@link Bucketer} and a {@link SimpleStringWriter} as a writer.
+	 *
 	 * @param basePath The directory to which to write the bucket files.
 	 */
 	public StreamingFileSink(Path basePath) {

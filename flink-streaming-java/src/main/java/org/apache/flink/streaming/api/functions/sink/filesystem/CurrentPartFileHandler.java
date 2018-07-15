@@ -85,7 +85,6 @@ class CurrentPartFileHandler<IN> implements RollingPolicy.PartFileInfoHandler {
 		return commitRecoverable;
 	}
 
-
 	@Override
 	public boolean isOpen() {
 		return currentPartStream != null;
