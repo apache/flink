@@ -21,6 +21,8 @@ import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
 import java.lang.StringBuilder
 
+import org.apache.commons.codec.binary.Hex
+
 /**
   * Built-in scalar runtime functions.
   */
@@ -182,4 +184,6 @@ object ScalarFunctions {
 
     new String(data)
   }
+
+  def hex(x: String): String = Hex.encodeHexString(x.getBytes)
 }

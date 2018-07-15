@@ -110,4 +110,9 @@ object BuiltInMethods {
     classOf[String])
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
+
+  val HEX = Types.lookupMethod(classOf[JLong], "toHexString", classOf[Long])
+
+  val HEX_STRING =
+    Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
 }

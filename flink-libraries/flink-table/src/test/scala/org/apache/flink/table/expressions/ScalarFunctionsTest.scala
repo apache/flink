@@ -393,6 +393,93 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testHex(): Unit = {
+    testAllApis(
+      100.hex(),
+      "100.hex()",
+      "HEX(100)",
+      "64")
+
+    testAllApis(
+      'f2.hex(),
+      "f2.hex()",
+      "HEX(f2)",
+      "2a")
+
+    testAllApis(
+      Null(Types.BYTE).hex(),
+      "hex(Null(BYTE))",
+      "HEX(CAST(NULL AS TINYINT))",
+      "null")
+
+    testAllApis(
+      'f3.hex(),
+      "f3.hex()",
+      "HEX(f3)",
+      "2b")
+
+    testAllApis(
+      'f4.hex(),
+      "f4.hex()",
+      "HEX(f4)",
+      "2c")
+
+    testAllApis(
+      'f7.hex(),
+      "f7.hex()",
+      "HEX(f7)",
+      "3")
+
+    testAllApis(
+      12.hex(),
+      "12.hex()",
+      "HEX(12)",
+      "c")
+
+    testAllApis(
+      10.hex(),
+      "10.hex()",
+      "HEX(10)",
+      "a")
+
+    testAllApis(
+      0.hex(),
+      "0.hex()",
+      "HEX(0)",
+      "0")
+
+    testAllApis(
+      'f32.hex(),
+      "f32.hex()",
+      "HEX(f32)",
+      "ffffffffffffffff")
+
+    testAllApis(
+      'f0.hex(),
+      "f0.hex()",
+      "HEX(f0)",
+      "546869732069732061207465737420537472696e672e")
+
+    testAllApis(
+      'f8.hex(),
+      "f8.hex()",
+      "HEX(f8)",
+      "20546869732069732061207465737420537472696e672e20")
+
+    testAllApis(
+      'f23.hex(),
+      "f23.hex()",
+      "HEX(f23)",
+      "25546869732069732061207465737420537472696e672e")
+
+    testAllApis(
+      'f24.hex(),
+      "f24.hex()",
+      "HEX(f24)",
+      "2a5f546869732069732061207465737420537472696e672e")
+  }
+
+  @Test
   def testBin(): Unit = {
 
     testAllApis(

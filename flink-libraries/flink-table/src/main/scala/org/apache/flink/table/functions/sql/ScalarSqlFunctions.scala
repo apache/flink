@@ -42,6 +42,15 @@ object ScalarSqlFunctions {
     OperandTypes.family(SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC)
 
+  val HEX = new SqlFunction(
+    "HEX",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.or(OperandTypes.family(SqlTypeFamily.INTEGER),
+      OperandTypes.family(SqlTypeFamily.STRING)),
+    SqlFunctionCategory.NUMERIC)
+
   val CONCAT = new SqlFunction(
     "CONCAT",
     SqlKind.OTHER_FUNCTION,

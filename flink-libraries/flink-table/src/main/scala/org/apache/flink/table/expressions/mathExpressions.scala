@@ -21,7 +21,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, IntegerTypeInfo, TypeInformation}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.validate._
@@ -388,5 +388,23 @@ case class Bin(child: Expression) extends UnaryExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.BIN, child.toRexNode)
+  }
+}
+
+case class Hex(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = child.resultType match {
+    case _: IntegerTypeInfo[_] =>
+      ValidationSuccess
+    case BasicTypeInfo.STRING_TYPE_INFO =>
+      ValidationSuccess
+    case _ =>
+      ValidationFailure(s"hex requires integer or string types but was '${child.resultType}'.")
+  }
+  override def toString: String = s"hex($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.HEX, child.toRexNode)
   }
 }
