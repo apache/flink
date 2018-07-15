@@ -105,7 +105,7 @@ public class Bucket<IN> {
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
 		this.partCounter = initialPartCounter;
 		this.outputFormatWriter = Preconditions.checkNotNull(writer);
-		this.handler = new CurrentPartFileHandler<>();
+		this.handler = new CurrentPartFileHandler<>(bucketId);
 	}
 
 	public RollingPolicy.PartFileInfoHandler getCurrentPartFileInfo() {

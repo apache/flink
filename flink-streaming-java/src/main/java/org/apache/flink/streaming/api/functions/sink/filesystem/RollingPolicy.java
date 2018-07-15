@@ -20,6 +20,8 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -46,6 +48,12 @@ public interface RollingPolicy extends Serializable {
 		 * @return {@code True} if there is a currently open part file.
 		 */
 		boolean isOpen();
+
+		/**
+		 * @return The bucket identifier of the current buffer, as returned by the
+		 * {@link Bucketer#getBucketId(Object, SinkFunction.Context)}.
+		 */
+		String getBucketId();
 
 		/**
 		 * @return The creation time (in ms) of the currently open part file.

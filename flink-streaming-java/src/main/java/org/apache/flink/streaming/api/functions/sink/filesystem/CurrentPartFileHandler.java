@@ -34,13 +34,16 @@ import java.io.IOException;
 @Internal
 class CurrentPartFileHandler<IN> implements RollingPolicy.PartFileInfoHandler {
 
+	private final String bucketId;
+
 	private long creationTime;
 
 	private long lastUpdateTime;
 
 	private RecoverableFsDataOutputStream currentPartStream;
 
-	CurrentPartFileHandler() {
+	CurrentPartFileHandler(final String bucketId) {
+		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.creationTime = Long.MAX_VALUE;
 		this.lastUpdateTime = Long.MAX_VALUE;
 	}
@@ -82,9 +85,15 @@ class CurrentPartFileHandler<IN> implements RollingPolicy.PartFileInfoHandler {
 		return commitRecoverable;
 	}
 
+
 	@Override
 	public boolean isOpen() {
 		return currentPartStream != null;
+	}
+
+	@Override
+	public String getBucketId() {
+		return bucketId;
 	}
 
 	@Override
