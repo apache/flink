@@ -574,11 +574,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return jobManagerRunnerTerminationFuture.thenRunAsync(
 			() -> {
 				jobManagerMetricGroup.removeJob(jobId);
-				blobServer.cleanupJob(jobId, cleanupHA);
 
 				if (cleanupHA) {
 					try {
 						submittedJobGraphStore.removeJobGraph(jobId);
+						blobServer.cleanupJob(jobId, cleanupHA);
 					} catch (Exception e) {
 						log.warn("Could not properly remove job {} from submitted job graph store.", jobId);
 					}
