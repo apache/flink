@@ -49,7 +49,7 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 	public BigDecimal copy(BigDecimal from) {
 		return from;
 	}
-	
+
 	@Override
 	public BigDecimal copy(BigDecimal from, BigDecimal reuse) {
 		return from;
@@ -69,17 +69,17 @@ public final class BigDecSerializer extends TypeSerializerSingleton<BigDecimal> 
 		}
 		// fast paths for 0, 1, 10
 		// only reference equality is checked because equals would be too expensive
-		else if (record == BigDecimal.ZERO) {
+		else if (BigDecimal.ZERO.equals(record)) {
 			BigIntSerializer.writeBigInteger(BigInteger.ZERO, target);
 			target.writeInt(0);
 			return;
 		}
-		else if (record == BigDecimal.ONE) {
+		else if (BigDecimal.ONE.equals(record)) {
 			BigIntSerializer.writeBigInteger(BigInteger.ONE, target);
 			target.writeInt(0);
 			return;
 		}
-		else if (record == BigDecimal.TEN) {
+		else if (BigDecimal.TEN.equals(record)) {
 			BigIntSerializer.writeBigInteger(BigInteger.TEN, target);
 			target.writeInt(0);
 			return;
