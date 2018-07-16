@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.io;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 
 /**
@@ -44,6 +46,7 @@ import java.io.IOException;
  * 
  * @param <E> The data type serialized / deserialized by this serializer.
  */
+@Internal
 public interface SimpleVersionedSerializer<E> extends Versioned {
 
 	/**

@@ -1013,6 +1013,11 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
+
+			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
+			if (jobManagerRegistration != null) {
+				jobManagerRegistration.getJobManagerGateway().notifyAllocationFailure(allocationId, cause);
+			}
 		}
 	}
 
@@ -1119,6 +1124,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
 			return CompletableFuture.completedFuture(null);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Resource Management
+	// ------------------------------------------------------------------------
+
+	protected int getNumberPendingSlotRequests() {
+		return slotManager.getNumberPendingSlotRequests();
 	}
 }
 

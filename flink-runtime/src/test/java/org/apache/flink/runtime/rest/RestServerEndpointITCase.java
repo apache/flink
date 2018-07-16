@@ -34,8 +34,8 @@ import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandle
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.messages.FileUpload;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
@@ -85,6 +85,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.containsString;
@@ -137,12 +138,12 @@ public class RestServerEndpointITCase extends TestLogger {
 			.getFile()).getAbsolutePath();
 
 		final Configuration sslConfig = new Configuration(config);
-		sslConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE, truststorePath);
-		sslConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_KEYSTORE, keystorePath);
-		sslConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
+		sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
+		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
+		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
+		sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
 
 		return Arrays.asList(new Object[][]{
 			{config}, {sslConfig}
@@ -163,7 +164,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		defaultSSLContext = SSLContext.getDefault();
-		final SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
+		final SSLContext sslClientContext = SSLUtils.createRestClientSSLContext(config);
 		if (sslClientContext != null) {
 			SSLContext.setDefault(sslClientContext);
 		}
@@ -208,7 +209,9 @@ public class RestServerEndpointITCase extends TestLogger {
 
 	@After
 	public void teardown() throws Exception {
-		SSLContext.setDefault(defaultSSLContext);
+		if (defaultSSLContext != null) {
+			SSLContext.setDefault(defaultSSLContext);
+		}
 
 		if (restClient != null) {
 			restClient.shutdown(timeout);
@@ -367,8 +370,8 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		assertEquals(200, connection.getResponseCode());
-		final Path lastUploadedPath = testUploadHandler.getLastUploadedPath();
-		assertEquals(uploadedContent, new String(Files.readAllBytes(lastUploadedPath), StandardCharsets.UTF_8));
+		final byte[] lastUploadedFileContents = testUploadHandler.getLastUploadedFileContents();
+		assertEquals(uploadedContent, new String(lastUploadedFileContents, StandardCharsets.UTF_8));
 	}
 
 	/**
@@ -648,9 +651,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 	}
 
-	private static class TestUploadHandler extends AbstractRestHandler<RestfulGateway, FileUpload, EmptyResponseBody, EmptyMessageParameters> {
+	private static class TestUploadHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-		private volatile Path lastUploadedPath;
+		private volatile byte[] lastUploadedFileContents;
 
 		private TestUploadHandler(
 			final CompletableFuture<String> localRestAddress,
@@ -660,17 +663,26 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull final HandlerRequest<FileUpload, EmptyMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
-			lastUploadedPath = request.getRequestBody().getPath();
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull final RestfulGateway gateway) throws RestHandlerException {
+			Collection<Path> uploadedFiles = request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
+			if (uploadedFiles.size() != 1) {
+				throw new RestHandlerException("Expected 1 file, received " + uploadedFiles.size() + '.', HttpResponseStatus.BAD_REQUEST);
+			}
+
+			try {
+				lastUploadedFileContents = Files.readAllBytes(uploadedFiles.iterator().next());
+			} catch (IOException e) {
+				throw new RestHandlerException("Could not read contents of uploaded file.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+			}
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
 		}
 
-		public Path getLastUploadedPath() {
-			return lastUploadedPath;
+		public byte[] getLastUploadedFileContents() {
+			return lastUploadedFileContents;
 		}
 	}
 
-	private enum TestUploadHeaders implements MessageHeaders<FileUpload, EmptyResponseBody, EmptyMessageParameters> {
+	private enum TestUploadHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 		INSTANCE;
 
 		@Override
@@ -684,8 +696,8 @@ public class RestServerEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		public Class<FileUpload> getRequestClass() {
-			return FileUpload.class;
+		public Class<EmptyRequestBody> getRequestClass() {
+			return EmptyRequestBody.class;
 		}
 
 		@Override
@@ -706,6 +718,11 @@ public class RestServerEndpointITCase extends TestLogger {
 		@Override
 		public String getDescription() {
 			return "";
+		}
+
+		@Override
+		public boolean acceptsFileUploads() {
+			return true;
 		}
 	}
 }

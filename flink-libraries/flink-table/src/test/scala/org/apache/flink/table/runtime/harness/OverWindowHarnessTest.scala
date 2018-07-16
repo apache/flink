@@ -35,7 +35,7 @@ import org.junit.Test
 class OverWindowHarnessTest extends HarnessTestBase{
 
   protected var queryConfig: StreamQueryConfig =
-    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
@@ -208,6 +208,21 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.setProcessingTime(11006)
 
+    // test for clean-up timer NPE
+    testHarness.setProcessingTime(20000)
+
+    // timer registered for 23000
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong), change = true)))
+
+    // update clean-up timer to 25500. Previous timer should not clean up
+    testHarness.setProcessingTime(22500)
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 20L: JLong), change = true)))
+
+    // 23000 clean-up timer should fire but not fail with an NPE
+    testHarness.setProcessingTime(23001)
+
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -241,6 +256,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(Row.of(0L: JLong, "aaa", 10L: JLong, 7L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
 
@@ -349,7 +368,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         4000,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -499,7 +518,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxCRowType,
         3,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -646,7 +665,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -782,7 +801,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(

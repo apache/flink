@@ -165,7 +165,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 		final String msg = "Exception in server pipeline. Caused by: " + ExceptionUtils.stringifyException(cause);
-		final ByteBuf err = serializer.serializeServerFailure(ctx.alloc(), new RuntimeException(msg));
+		final ByteBuf err = MessageSerializer.serializeServerFailure(ctx.alloc(), new RuntimeException(msg));
 
 		LOG.debug(msg);
 		ctx.writeAndFlush(err).addListener(ChannelFutureListener.CLOSE);

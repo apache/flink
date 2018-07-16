@@ -267,7 +267,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			jmProcess[0].startProcess();
 
 			// Task manager configuration
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 			config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 100);
 			config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
 

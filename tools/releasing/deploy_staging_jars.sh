@@ -41,5 +41,5 @@ cd ..
 echo "Deploying to repository.apache.org"
 
 echo "Deploying Scala 2.11 version"
-$MVN clean deploy -Prelease,docs-and-source,scala-2.11 -DskipTests -DretryFailedDeploymentCount=10
+$MVN clean deploy -Prelease,docs-and-source -DskipTests -DretryFailedDeploymentCount=10
 

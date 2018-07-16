@@ -30,7 +30,6 @@ import org.apache.calcite.rel.logical.{LogicalTableFunctionScan, LogicalTableSca
 import org.apache.calcite.rel.metadata.RelColumnMapping
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.TableSourceTable
 
 class FlinkLogicalTableFunctionScan(
     cluster: RelOptCluster,

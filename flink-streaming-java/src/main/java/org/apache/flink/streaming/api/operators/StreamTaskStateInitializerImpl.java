@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.OperatorSubtaskDescriptionText;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
@@ -207,6 +208,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 			keyedStatedBackend.getNumberOfKeyGroups(),
 			keyGroupRange,
 			keyContext,
+			keyedStatedBackend,
 			processingTimeService);
 
 		// and then initialize the timer services
@@ -269,7 +271,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 					keySerializer,
 					taskInfo.getMaxNumberOfParallelSubtasks(),
 					keyGroupRange,
-					environment.getTaskKvStateRegistry()),
+					environment.getTaskKvStateRegistry(),
+					TtlTimeProvider.DEFAULT),
 				backendCloseableRegistry,
 				logDescription);
 

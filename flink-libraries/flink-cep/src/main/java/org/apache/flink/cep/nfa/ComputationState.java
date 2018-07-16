@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 
 import javax.annotation.Nullable;
@@ -42,15 +43,24 @@ public class ComputationState {
 	@Nullable
 	private final NodeId previousBufferEntry;
 
+	@Nullable
+	private final EventId startEventID;
+
 	private ComputationState(
 			final String currentState,
 			@Nullable final NodeId previousBufferEntry,
 			final DeweyNumber version,
+			@Nullable final EventId startEventID,
 			final long startTimestamp) {
 		this.currentStateName = currentState;
 		this.version = version;
 		this.startTimestamp = startTimestamp;
 		this.previousBufferEntry = previousBufferEntry;
+		this.startEventID = startEventID;
+	}
+
+	public EventId getStartEventID() {
+		return startEventID;
 	}
 
 	public NodeId getPreviousBufferEntry() {
@@ -76,6 +86,7 @@ public class ComputationState {
 			return Objects.equals(currentStateName, other.currentStateName) &&
 				Objects.equals(version, other.version) &&
 				startTimestamp == other.startTimestamp &&
+				Objects.equals(startEventID, other.startEventID) &&
 				Objects.equals(previousBufferEntry, other.previousBufferEntry);
 		} else {
 			return false;
@@ -89,12 +100,13 @@ public class ComputationState {
 			", version=" + version +
 			", startTimestamp=" + startTimestamp +
 			", previousBufferEntry=" + previousBufferEntry +
+			", startEventID=" + startEventID +
 			'}';
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(currentStateName, version, startTimestamp, previousBufferEntry);
+		return Objects.hash(currentStateName, version, startTimestamp, startEventID, previousBufferEntry);
 	}
 
 	public static ComputationState createStartState(final String state) {
@@ -102,14 +114,15 @@ public class ComputationState {
 	}
 
 	public static ComputationState createStartState(final String state, final DeweyNumber version) {
-		return createState(state, null, version, -1L);
+		return createState(state, null, version, -1L, null);
 	}
 
 	public static ComputationState createState(
 			final String currentState,
 			final NodeId previousEntry,
 			final DeweyNumber version,
-			final long startTimestamp) {
-		return new ComputationState(currentState, previousEntry, version, startTimestamp);
+			final long startTimestamp,
+			final EventId startEventID) {
+		return new ComputationState(currentState, previousEntry, version, startEventID, startTimestamp);
 	}
 }

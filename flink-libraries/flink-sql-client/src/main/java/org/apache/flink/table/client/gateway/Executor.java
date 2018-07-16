@@ -46,6 +46,11 @@ public interface Executor {
 	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Lists all user-defined functions known to the executor.
+	 */
+	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
+
+	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The
 	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */
@@ -57,7 +62,7 @@ public interface Executor {
 	String explainStatement(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
-	 * Submits a Flink job (detached) and returns the result descriptor.
+	 * Submits a Flink SQL query job (detached) and returns the result descriptor.
 	 */
 	ResultDescriptor executeQuery(SessionContext session, String query) throws SqlExecutionException;
 
@@ -81,6 +86,15 @@ public interface Executor {
 	 * Cancels a table program and stops the result retrieval.
 	 */
 	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
+
+	/**
+	 * Submits a Flink SQL update statement such as INSERT INTO.
+	 *
+	 * @param session context in with the statement is executed
+	 * @param statement SQL update statement (currently only INSERT INTO is supported)
+	 * @return information about the target of the submitted Flink job
+	 */
+	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
 	 * Stops the executor.

@@ -509,11 +509,39 @@ EXIT_CODE=$(<$MVN_EXIT)
 
 echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+# Make sure to kill the watchdog in any case after $MVN_COMPILE has completed
+echo "Trying to KILL watchdog (${WD_PID})."
+( kill $WD_PID 2>&1 ) > /dev/null
+
 rm $MVN_PID
 rm $MVN_EXIT
 
+# only run dependency-convergence in misc because it is the only profile building all of Flink
+case $TEST in
+	(misc)
+		if [ $EXIT_CODE == 0 ]; then
+			printf "\n\n==============================================================================\n"
+			printf "Checking dependency convergence\n"
+			printf "==============================================================================\n"
+
+			./tools/check_dependency_convergence.sh
+			EXIT_CODE=$?
+		else
+			printf "\n==============================================================================\n"
+			printf "Previous build failure detected, skipping dependency-convergence check.\n"
+			printf "==============================================================================\n"
+		fi
+	;;
+esac
+
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
+
+	# Start watching $MVN_OUT
+	watchdog &
+	echo "STARTED watchdog (${WD_PID})."
+
+	WD_PID=$!
 
 	echo "RUNNING '${MVN_TEST}'."
 
@@ -526,6 +554,10 @@ if [ $EXIT_CODE == 0 ]; then
 
 	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+	# Make sure to kill the watchdog in any case after $MVN_TEST has completed
+	echo "Trying to KILL watchdog (${WD_PID})."
+	( kill $WD_PID 2>&1 ) > /dev/null
+
 	rm $MVN_PID
 	rm $MVN_EXIT
 else
@@ -535,10 +567,6 @@ else
 fi
 
 # Post
-
-# Make sure to kill the watchdog in any case after $MVN_COMPILE and $MVN_TEST have completed
-echo "Trying to KILL watchdog (${WD_PID})."
-( kill $WD_PID 2>&1 ) > /dev/null
 
 # only misc builds flink-dist and flink-yarn-tests
 case $TEST in

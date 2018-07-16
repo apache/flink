@@ -87,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>All the allocation or the slot offering will be identified by self generated AllocationID, we will use it to
  * eliminate ambiguities.
  *
- * TODO : Make pending requests location preference aware
+ * <p>TODO : Make pending requests location preference aware
  * TODO : Make pass location preferences to ResourceManager when sending a slot request
  */
 public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedSlotActions {
@@ -96,6 +96,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	private static final int STATUS_LOG_INTERVAL_MS = 60_000;
 
 	private final JobID jobId;
+
+	private final SchedulingStrategy schedulingStrategy;
 
 	private final ProviderAndOwner providerAndOwner;
 
@@ -136,10 +138,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	protected SlotPool(RpcService rpcService, JobID jobId) {
+	protected SlotPool(RpcService rpcService, JobID jobId, SchedulingStrategy schedulingStrategy) {
 		this(
 			rpcService,
 			jobId,
+			schedulingStrategy,
 			SystemClock.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
@@ -148,6 +151,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	public SlotPool(
 			RpcService rpcService,
 			JobID jobId,
+			SchedulingStrategy schedulingStrategy,
 			Clock clock,
 			Time rpcTimeout,
 			Time idleSlotTimeout) {
@@ -155,6 +159,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		super(rpcService);
 
 		this.jobId = checkNotNull(jobId);
+		this.schedulingStrategy = checkNotNull(schedulingStrategy);
 		this.clock = checkNotNull(clock);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 		this.idleSlotTimeout = checkNotNull(idleSlotTimeout);
@@ -219,7 +224,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
-			releaseTaskManagerInternal(taskManagerResourceId);
+			final FlinkException cause = new FlinkException(
+				"Releasing TaskManager " + taskManagerResourceId + ", because of stopping of SlotPool");
+			releaseTaskManagerInternal(taskManagerResourceId, cause);
 		}
 
 		clear();
@@ -509,7 +516,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		// check first whether we have a resolved root slot which we can use
 		SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = slotSharingManager.getResolvedRootSlot(
 			groupId,
-			slotProfile.matcher());
+			schedulingStrategy,
+			slotProfile);
 
 		if (multiTaskSlotLocality != null && multiTaskSlotLocality.getLocality() == Locality.LOCAL) {
 			return multiTaskSlotLocality;
@@ -804,7 +812,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	@Nullable
 	private SlotAndLocality pollAndAllocateSlot(SlotRequestId slotRequestId, SlotProfile slotProfile) {
-		SlotAndLocality slotFromPool = availableSlots.poll(slotProfile);
+		SlotAndLocality slotFromPool = availableSlots.poll(schedulingStrategy, slotProfile);
 
 		if (slotFromPool != null) {
 			allocatedSlots.add(slotRequestId, slotFromPool.getSlot());
@@ -1013,7 +1021,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				allocatedSlot.releasePayload(cause);
 			}
 			else {
-				log.debug("Outdated request to fail slot [{}] with ", allocationID, cause);
+				log.trace("Outdated request to fail slot [{}] with ", allocationID, cause);
 			}
 		}
 		// TODO: add some unit tests when the previous two are ready, the allocation may failed at any phase
@@ -1043,11 +1051,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * when we find some TaskManager becomes "dead" or "abnormal", and we decide to not using slots from it anymore.
 	 *
 	 * @param resourceId The id of the TaskManager
+	 * @param cause for the releasing of the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Exception cause) {
 		if (registeredTaskManagers.remove(resourceId)) {
-			releaseTaskManagerInternal(resourceId);
+			releaseTaskManagerInternal(resourceId, cause);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1063,9 +1072,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		removePendingRequest(slotRequestId);
 	}
 
-	private void releaseTaskManagerInternal(final ResourceID resourceId) {
-		final FlinkException cause = new FlinkException("Releasing TaskManager " + resourceId + '.');
-
+	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
 		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
 
 		for (AllocatedSlot allocatedSlot : removedSlots) {
@@ -1440,16 +1447,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		 *
 		 * @return Slot which matches the resource profile, null if we can't find a match
 		 */
-		SlotAndLocality poll(SlotProfile slotProfile) {
+		SlotAndLocality poll(SchedulingStrategy schedulingStrategy, SlotProfile slotProfile) {
 			// fast path if no slots are available
 			if (availableSlots.isEmpty()) {
 				return null;
 			}
-
-			SlotProfile.ProfileToSlotContextMatcher matcher = slotProfile.matcher();
 			Collection<SlotAndTimestamp> slotAndTimestamps = availableSlots.values();
 
-			SlotAndLocality matchingSlotAndLocality = matcher.findMatchWithLocality(
+			SlotAndLocality matchingSlotAndLocality = schedulingStrategy.findMatchWithLocality(
+				slotProfile,
 				slotAndTimestamps.stream(),
 				SlotAndTimestamp::slot,
 				(SlotAndTimestamp slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),

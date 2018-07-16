@@ -19,9 +19,10 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.descriptors.DescriptorProperties
+import org.apache.flink.table.factories.{BatchTableSourceFactory, StreamTableSourceFactory, TableFactoryService}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceSinkTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSourceFactoryService}
 import org.apache.flink.table.util.Logging
 
 /**
@@ -38,33 +39,32 @@ object ExternalTableSourceUtil extends Logging {
   def fromExternalCatalogTable(
       tableEnv: TableEnvironment,
       externalCatalogTable: ExternalCatalogTable)
-    : TableSourceTable[_] = {
-    val source = TableSourceFactoryService.findAndCreateTableSource(externalCatalogTable)
+    : TableSourceSinkTable[_, _] = {
+    val properties = new DescriptorProperties()
+    externalCatalogTable.addProperties(properties)
+    val javaMap = properties.asMap
     tableEnv match {
       // check for a batch table source in this batch environment
       case _: BatchTableEnvironment =>
-        source match {
-          case bts: BatchTableSource[_] =>
-            new BatchTableSourceTable(
-              bts,
-              new FlinkStatistic(externalCatalogTable.getTableStats))
-          case _ => throw new TableException(
-            s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
-              s"in a batch environment.")
-        }
+        val source = TableFactoryService
+          .find(classOf[BatchTableSourceFactory[_]], javaMap)
+          .createBatchTableSource(javaMap)
+        val sourceTable = new BatchTableSourceTable(
+          source,
+          new FlinkStatistic(externalCatalogTable.getTableStats))
+        new TableSourceSinkTable(Some(sourceTable), None)
+
       // check for a stream table source in this streaming environment
       case _: StreamTableEnvironment =>
-        source match {
-          case sts: StreamTableSource[_] =>
-            new StreamTableSourceTable(
-              sts,
-              new FlinkStatistic(externalCatalogTable.getTableStats))
-          case _ => throw new TableException(
-            s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
-              s"in a streaming environment.")
-        }
+        val source = TableFactoryService
+          .find(classOf[StreamTableSourceFactory[_]], javaMap)
+          .createStreamTableSource(javaMap)
+        val sourceTable = new StreamTableSourceTable(
+          source,
+          new FlinkStatistic(externalCatalogTable.getTableStats))
+        new TableSourceSinkTable(Some(sourceTable), None)
+
       case _ => throw new TableException("Unsupported table environment.")
     }
   }
-
 }

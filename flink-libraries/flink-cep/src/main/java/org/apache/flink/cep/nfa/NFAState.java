@@ -18,7 +18,10 @@
 
 package org.apache.flink.cep.nfa;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.Queue;
 
 /**
@@ -31,16 +34,33 @@ public class NFAState {
 	 * These are the "active" intermediate states that are waiting for new matching
 	 * events to transition to new valid states.
 	 */
-	private final Queue<ComputationState> computationStates;
+	private Queue<ComputationState> partialMatches;
+
+	private Queue<ComputationState> completedMatches;
 
 	/**
 	 * Flag indicating whether the matching status of the state machine has changed.
 	 */
 	private boolean stateChanged;
 
-	public NFAState(Queue<ComputationState> computationStates) {
-		this.computationStates = computationStates;
-		this.stateChanged = false;
+	public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
+		Comparator.<ComputationState>comparingLong(c ->
+				c.getStartEventID() != null ? c.getStartEventID().getTimestamp() : Long.MAX_VALUE)
+			.thenComparingInt(c ->
+				c.getStartEventID() != null ? c.getStartEventID().getId() : Integer.MAX_VALUE);
+
+	public NFAState(Iterable<ComputationState> states) {
+		this.partialMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
+		for (ComputationState startingState : states) {
+			partialMatches.add(startingState);
+		}
+
+		this.completedMatches = new PriorityQueue<>(COMPUTATION_STATE_COMPARATOR);
+	}
+
+	public NFAState(Queue<ComputationState> partialMatches, Queue<ComputationState> completedMatches) {
+		this.partialMatches = partialMatches;
+		this.completedMatches = completedMatches;
 	}
 
 	/**
@@ -66,8 +86,16 @@ public class NFAState {
 		this.stateChanged = true;
 	}
 
-	public Queue<ComputationState> getComputationStates() {
-		return computationStates;
+	public Queue<ComputationState> getPartialMatches() {
+		return partialMatches;
+	}
+
+	public Queue<ComputationState> getCompletedMatches() {
+		return completedMatches;
+	}
+
+	public void setNewPartialMatches(PriorityQueue<ComputationState> newPartialMatches) {
+		this.partialMatches = newPartialMatches;
 	}
 
 	@Override
@@ -79,18 +107,20 @@ public class NFAState {
 			return false;
 		}
 		NFAState nfaState = (NFAState) o;
-		return 	Objects.equals(computationStates, nfaState.computationStates);
+		return Arrays.equals(partialMatches.toArray(), nfaState.partialMatches.toArray()) &&
+			Arrays.equals(completedMatches.toArray(), nfaState.completedMatches.toArray());
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(computationStates, stateChanged);
+		return Objects.hash(partialMatches, completedMatches);
 	}
 
 	@Override
 	public String toString() {
 		return "NFAState{" +
-			"computationStates=" + computationStates +
+			"partialMatches=" + partialMatches +
+			", completedMatches=" + completedMatches +
 			", stateChanged=" + stateChanged +
 			'}';
 	}

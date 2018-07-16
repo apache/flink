@@ -20,7 +20,10 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -35,31 +38,20 @@ import java.net.InetAddress;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class NettyClientServerSslTest {
+/**
+ * Tests for the SSL connection between Netty Server and Client used for the
+ * data plane.
+ */
+public class NettyClientServerSslTest extends TestLogger {
 
 	/**
 	 * Verify valid ssl configuration and connection.
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
+		NettyProtocol protocol = new NoOpProtocol();
 
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
-
-		NettyConfig nettyConfig = new NettyConfig(
-			InetAddress.getLoopbackAddress(),
-			NetUtils.getAvailablePort(),
-			NettyTestUtil.DEFAULT_SEGMENT_SIZE,
-			1,
-			createSslConfig());
+		NettyConfig nettyConfig = createNettyConfig(createSslConfig());
 
 		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
@@ -77,28 +69,13 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testInvalidSslConfiguration() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
+		NettyProtocol protocol = new NoOpProtocol();
 
 		Configuration config = createSslConfig();
 		// Modify the keystore password to an incorrect one
-		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "invalidpassword");
+		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
 
-		NettyConfig nettyConfig = new NettyConfig(
-			InetAddress.getLoopbackAddress(),
-			NetUtils.getAvailablePort(),
-			NettyTestUtil.DEFAULT_SEGMENT_SIZE,
-			1,
-			config);
+		NettyConfig nettyConfig = createNettyConfig(config);
 
 		NettyTestUtil.NettyServerAndClient serverAndClient = null;
 		try {
@@ -116,29 +93,14 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testSslHandshakeError() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
+		NettyProtocol protocol = new NoOpProtocol();
 
 		Configuration config = createSslConfig();
 
 		// Use a server certificate which is not present in the truststore
-		config.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/untrusted.keystore");
+		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
-		NettyConfig nettyConfig = new NettyConfig(
-			InetAddress.getLoopbackAddress(),
-			NetUtils.getAvailablePort(),
-			NettyTestUtil.DEFAULT_SEGMENT_SIZE,
-			1,
-			config);
+		NettyConfig nettyConfig = createNettyConfig(config);
 
 		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
@@ -151,15 +113,60 @@ public class NettyClientServerSslTest {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
-	private Configuration createSslConfig() throws Exception {
+	@Test
+	public void testClientUntrustedCertificate() throws Exception {
+		final Configuration serverConfig = createSslConfig();
+		final Configuration clientConfig = createSslConfig();
 
-		Configuration flinkConfig = new Configuration();
-		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");
-		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
-		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
-		return flinkConfig;
+		// give the client a different keystore / certificate
+		clientConfig.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+
+		final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
+		final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);
+
+		final NettyBufferPool bufferPool = new NettyBufferPool(1);
+		final NettyProtocol protocol = new NoOpProtocol();
+
+		final NettyServer server = NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
+		final NettyClient client = NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
+		final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+
+		final Channel ch = NettyTestUtil.connect(serverAndClient);
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+
+		// Attempting to write data over ssl should fail
+		assertFalse(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	private static Configuration createSslConfig() {
+		return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
+	}
+
+	private static NettyConfig createNettyConfig(Configuration config) {
+		return new NettyConfig(
+				InetAddress.getLoopbackAddress(),
+				NetUtils.getAvailablePort(),
+				NettyTestUtil.DEFAULT_SEGMENT_SIZE,
+				1,
+				config);
+	}
+
+	private static final class NoOpProtocol extends NettyProtocol {
+
+		NoOpProtocol() {
+			super(null, null, true);
+		}
+
+		@Override
+		public ChannelHandler[] getServerChannelHandlers() {
+			return new ChannelHandler[0];
+		}
+
+		@Override
+		public ChannelHandler[] getClientChannelHandlers() {
+			return new ChannelHandler[0];
+		}
 	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Serializer;
 
@@ -138,7 +139,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Deprecated
 	private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
-	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration;
+	private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
+		new RestartStrategies.FallbackRestartStrategyConfiguration();
 	
 	private long taskCancellationIntervalMillis = -1;
 
@@ -390,7 +392,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setRestartStrategy(RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
-		this.restartStrategyConfiguration = restartStrategyConfiguration;
+		this.restartStrategyConfiguration = Preconditions.checkNotNull(restartStrategyConfiguration);
 	}
 
 	/**
@@ -401,14 +403,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	@SuppressWarnings("deprecation")
 	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
-		if (restartStrategyConfiguration == null) {
+		if (restartStrategyConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
 			// support the old API calls by creating a restart strategy from them
 			if (getNumberOfExecutionRetries() > 0 && getExecutionRetryDelay() >= 0) {
 				return RestartStrategies.fixedDelayRestart(getNumberOfExecutionRetries(), getExecutionRetryDelay());
 			} else if (getNumberOfExecutionRetries() == 0) {
 				return RestartStrategies.noRestart();
 			} else {
-				return null;
+				return restartStrategyConfiguration;
 			}
 		} else {
 			return restartStrategyConfiguration;

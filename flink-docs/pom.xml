@@ -54,6 +54,11 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-prometheus</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
 			<!-- necessary for loading the web-submission extension -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime-web_${scala.binary.version}</artifactId>

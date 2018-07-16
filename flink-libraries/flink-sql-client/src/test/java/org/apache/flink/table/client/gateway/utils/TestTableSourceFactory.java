@@ -26,12 +26,11 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactory;
 import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
@@ -40,7 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.client.gateway.local.DependencyTest.CONNECTOR_TEST_PROPERTY;
+import static org.apache.flink.table.client.gateway.local.DependencyTest.CONNECTOR_TYPE_VALUE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
 import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
@@ -50,35 +52,36 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
 /**
  * Table source factory for testing the classloading in {@link DependencyTest}.
  */
-public class TestTableSourceFactory implements TableSourceFactory<Row> {
+public class TestTableSourceFactory implements StreamTableSourceFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE(), "test-table-source-factory");
+		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE);
 		return context;
 	}
 
 	@Override
 	public List<String> supportedProperties() {
 		final List<String> properties = new ArrayList<>();
-		properties.add("connector.test-property");
+		properties.add(CONNECTOR_TEST_PROPERTY);
 		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
 		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
 		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
+		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
 		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
 		return properties;
 	}
 
 	@Override
-	public TableSource<Row> create(Map<String, String> properties) {
+	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties params = new DescriptorProperties(true);
 		params.putProperties(properties);
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			params.getTableSchema(SCHEMA()),
-			properties.get("connector.test-property"),
+			SchemaValidator.deriveTableSourceSchema(params),
+			properties.get(CONNECTOR_TEST_PROPERTY),
 			proctime.orElse(null),
 			rowtime);
 	}

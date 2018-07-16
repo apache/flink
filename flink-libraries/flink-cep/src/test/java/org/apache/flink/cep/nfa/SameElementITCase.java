@@ -146,8 +146,8 @@ public void testClearingBuffer() throws Exception {
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 		Lists.newArrayList(a1, b1, c1, d)
 	));
-	assertEquals(1, nfaState.getComputationStates().size());
-	assertEquals("a", nfaState.getComputationStates().peek().getCurrentStateName());
+	assertEquals(1, nfaState.getPartialMatches().size());
+	assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
 }
 
 @Test
@@ -193,8 +193,8 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 		Lists.newArrayList(a1, d1, d2),
 		Lists.newArrayList(a1, d1)
 	));
-	assertEquals(1, nfaState.getComputationStates().size());
-	assertEquals("a", nfaState.getComputationStates().peek().getCurrentStateName());
+	assertEquals(1, nfaState.getPartialMatches().size());
+	assertEquals("a", nfaState.getPartialMatches().peek().getCurrentStateName());
 }
 
 	@Test

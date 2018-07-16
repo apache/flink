@@ -27,6 +27,8 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -84,6 +86,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 	private final ExecutionConfig executionConfig;
 
+	private final TtlTimeProvider ttlTimeProvider;
+
 	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
@@ -93,7 +97,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		ClassLoader userCodeClassLoader,
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
-		ExecutionConfig executionConfig) {
+		ExecutionConfig executionConfig,
+		TtlTimeProvider ttlTimeProvider) {
 
 		this.kvStateRegistry = kvStateRegistry;
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
@@ -104,6 +109,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
 		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
 	}
 
 	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
@@ -132,21 +138,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		lastState = null;
 		keyValueStatesByName.clear();
 	}
-
-	/**
-	 * Creates and returns a new {@link State}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <SV> The type of the stored state value.
-	 * @param <S> The type of the public API state.
-	 * @param <IS> The type of internal state.
-	 */
-	public abstract <N, SV, S extends State, IS extends S> IS createState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, SV> stateDesc) throws Exception;
 
 	/**
 	 * @see KeyedStateBackend
@@ -235,40 +226,33 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	public <N, S extends State, V> S getOrCreateKeyedState(
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {
-
 		checkNotNull(namespaceSerializer, "Namespace serializer");
+		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
+				"This operation cannot use partitioned state.");
 
-		if (keySerializer == null) {
-			throw new UnsupportedOperationException(
-					"State key serializer has not been configured in the config. " +
-					"This operation cannot use partitioned state.");
+		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
+		if (kvState == null) {
+			if (!stateDescriptor.isSerializerInitialized()) {
+				stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+			}
+			kvState = TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+				namespaceSerializer, stateDescriptor, this, ttlTimeProvider);
+			keyValueStatesByName.put(stateDescriptor.getName(), kvState);
+			publishQueryableStateIfEnabled(stateDescriptor, kvState);
 		}
+		return (S) kvState;
+	}
 
-		if (!stateDescriptor.isSerializerInitialized()) {
-			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-		}
-
-		InternalKvState<K, ?, ?> existing = keyValueStatesByName.get(stateDescriptor.getName());
-		if (existing != null) {
-			@SuppressWarnings("unchecked")
-			S typedState = (S) existing;
-			return typedState;
-		}
-
-		InternalKvState<K, N, ?> kvState = createState(namespaceSerializer, stateDescriptor);
-		keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-
-		// Publish queryable state
+	private void publishQueryableStateIfEnabled(
+		StateDescriptor<?, ?> stateDescriptor,
+		InternalKvState<?, ?, ?> kvState) {
 		if (stateDescriptor.isQueryable()) {
 			if (kvStateRegistry == null) {
 				throw new IllegalStateException("State backend has not been initialized for job.");
 			}
-
 			String name = stateDescriptor.getQueryableStateName();
 			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
 		}
-
-		return (S) kvState;
 	}
 
 	/**

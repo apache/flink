@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -57,7 +58,7 @@ import static org.junit.Assert.fail;
 /**
  * This verifies that checkpointing works correctly with event time windows.
  *
- * <p>This is a version of {@link AbstractEventTimeWindowCheckpointingITCase} for All-Windows.
+ * <p>This is a version of {@link EventTimeWindowCheckpointingITCase} for All-Windows.
  */
 @SuppressWarnings("serial")
 public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
@@ -66,14 +67,15 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			PARALLELISM / 2));
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(2)
+			.setNumberSlotsPerTaskManager(PARALLELISM / 2)
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 48L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
 		config.setString(AkkaOptions.LOOKUP_TIMEOUT, "60 s");
 		config.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
 		return config;

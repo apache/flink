@@ -80,9 +80,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
-import static org.apache.flink.test.util.MiniClusterResource.CODEBASE_KEY;
-import static org.apache.flink.test.util.MiniClusterResource.NEW_CODEBASE;
-
 /**
  * This base class allows to use the MiniYARNCluster.
  * The cluster is re-used for all tests.
@@ -220,7 +217,8 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		flinkConfiguration = new org.apache.flink.configuration.Configuration(globalConfiguration);
-		isNewMode = Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY));
+
+		isNewMode = Objects.equals(TestBaseUtils.CodebaseType.NEW, TestBaseUtils.getCodebaseType());
 	}
 
 	@Nullable
@@ -536,7 +534,7 @@ public abstract class YarnTestBase extends TestLogger {
 			FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
 			globalConfiguration.setString(CoreOptions.MODE,
-				Objects.equals(NEW_CODEBASE, System.getProperty(CODEBASE_KEY)) ? CoreOptions.NEW_MODE : CoreOptions.LEGACY_MODE);
+				Objects.equals(TestBaseUtils.CodebaseType.NEW, TestBaseUtils.getCodebaseType()) ? CoreOptions.NEW_MODE : CoreOptions.LEGACY_MODE);
 
 			BootstrapTools.writeConfiguration(
 				globalConfiguration,

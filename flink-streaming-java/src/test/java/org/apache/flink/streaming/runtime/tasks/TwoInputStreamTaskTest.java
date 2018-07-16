@@ -33,6 +33,7 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
@@ -49,6 +50,8 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -465,7 +468,7 @@ public class TwoInputStreamTaskTest {
 
 		InterceptingOperatorMetricGroup headOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
-		TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
 			@Override
 			public OperatorMetricGroup addOperator(OperatorID id, String name) {
 				if (id.equals(headOperatorId)) {
@@ -489,6 +492,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.invoke(env);
 		testHarness.waitForTaskRunning();
 
+		Gauge<Long> taskInputWatermarkGauge = (Gauge<Long>) taskMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
 		Gauge<Long> headInput1WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_1_WATERMARK);
 		Gauge<Long> headInput2WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_2_WATERMARK);
 		Gauge<Long> headInputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
@@ -496,6 +500,19 @@ public class TwoInputStreamTaskTest {
 		Gauge<Long> chainedInputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
 		Gauge<Long> chainedOutputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
+		Assert.assertEquals("A metric was registered multiple times.",
+			7,
+			new HashSet<>(Arrays.asList(
+				taskInputWatermarkGauge,
+				headInput1WatermarkGauge,
+				headInput2WatermarkGauge,
+				headInputWatermarkGauge,
+				headOutputWatermarkGauge,
+				chainedInputWatermarkGauge,
+				chainedOutputWatermarkGauge))
+				.size());
+
+		Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
@@ -505,6 +522,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(1L), 0, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
@@ -514,6 +532,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(2L), 1, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());
@@ -523,6 +542,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(3L), 0, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(3L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());

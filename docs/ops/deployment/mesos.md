@@ -64,7 +64,7 @@ depends on the configuration overlay used.
 The Mesos scheduler currently resides with the JobManager but will be started
 independently of the JobManager in future versions (see
 [FLIP-6](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65147077)). The
-proposed changes will also add a Dipsatcher component which will be the central
+proposed changes will also add a Dispatcher component which will be the central
 point for job submission and monitoring.
 
 ### Startup script and configuration overlays
@@ -267,6 +267,10 @@ May be set to -1 to disable this feature.
 `mesos.resourcemanager.tasks.container.volumes`: A comma separated list of `[host_path:]`container_path`[:RO|RW]`. This allows for mounting additional volumes into your container. (**NO DEFAULT**)
 
 `mesos.resourcemanager.tasks.container.docker.parameters`: Custom parameters to be passed into docker run command when using the docker containerizer. Comma separated list of `key=value` pairs. `value` may contain '=' (**NO DEFAULT**)
+
+`mesos.resourcemanager.tasks.uris`: A comma separated list of URIs of custom artifacts to be downloaded into the sandbox of Mesos workers. (**NO DEFAULT**)
+
+`mesos.resourcemanager.tasks.container.docker.force-pull-image`: Instruct the docker containerizer to forcefully pull the image rather than reuse a cached version. (**DEFAULT**: false)
 
 `mesos.resourcemanager.tasks.hostname`: Optional value to define the TaskManager's hostname. The pattern `_TASK_` is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. `_TASK_.flink-service.mesos`) for name lookups. (**NO DEFAULT**)
 

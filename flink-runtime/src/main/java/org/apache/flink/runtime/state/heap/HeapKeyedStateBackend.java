@@ -44,13 +44,17 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -59,6 +63,8 @@ import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -102,6 +108,21 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) HeapFoldingState::create)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
+	@Nonnull
+	@Override
+	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
+		@Nonnull String stateName,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+		@Nonnull PriorityComparator<T> elementPriorityComparator,
+		@Nonnull KeyExtractorFunction<T> keyExtractor) {
+
+		return priorityQueueSetFactory.create(
+			stateName,
+			byteOrderedElementSerializer,
+			elementPriorityComparator,
+			keyExtractor);
+	}
+
 	private interface StateFactory {
 		<K, N, SV, S extends State, IS extends S> IS createState(
 			StateDescriptor<S, SV> stateDesc,
@@ -125,7 +146,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * <p>TODO this map can be removed when eager-state registration is in place.
 	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
 	 */
-	private final Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredKvStateMetaInfos;
+	private final Map<String, StateMetaInfoSnapshot> restoredKvStateMetaInfos;
 
 	/**
 	 * The configuration for local recovery.
@@ -137,6 +158,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private final HeapSnapshotStrategy snapshotStrategy;
 
+	/**
+	 * Factory for state that is organized as priority queue.
+	 */
+	private final PriorityQueueSetFactory priorityQueueSetFactory;
+
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
@@ -145,9 +171,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			KeyGroupRange keyGroupRange,
 			boolean asynchronousSnapshots,
 			ExecutionConfig executionConfig,
-			LocalRecoveryConfig localRecoveryConfig) {
+			LocalRecoveryConfig localRecoveryConfig,
+			PriorityQueueSetFactory priorityQueueSetFactory,
+			TtlTimeProvider ttlTimeProvider) {
 
-		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader,
+			numberOfKeyGroups, keyGroupRange, executionConfig, ttlTimeProvider);
 		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
 
 		SnapshotStrategySynchronicityBehavior<K> synchronicityTrait = asynchronousSnapshots ?
@@ -157,6 +186,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.snapshotStrategy = new HeapSnapshotStrategy(synchronicityTrait);
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 		this.restoredKvStateMetaInfos = new HashMap<>();
+		this.priorityQueueSetFactory = priorityQueueSetFactory;
 	}
 
 	// ------------------------------------------------------------------------
@@ -172,8 +202,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo;
 		if (stateTable != null) {
 			@SuppressWarnings("unchecked")
-			RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V> restoredMetaInfoSnapshot =
-				(RegisteredKeyedBackendStateMetaInfo.Snapshot<N, V>) restoredKvStateMetaInfos.get(stateDesc.getName());
+			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
+				restoredKvStateMetaInfos.get(stateDesc.getName());
 
 			Preconditions.checkState(
 				restoredMetaInfoSnapshot != null,
@@ -214,7 +244,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, SV, S extends State, IS extends S> IS createState(
+	public <N, SV, S extends State, IS extends S> IS createInternalState(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
@@ -306,10 +336,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					keySerializerRestored = true;
 				}
 
-				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredMetaInfos =
+				List<StateMetaInfoSnapshot> restoredMetaInfos =
 						serializationProxy.getStateMetaInfoSnapshots();
 
-				for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> restoredMetaInfo : restoredMetaInfos) {
+				for (StateMetaInfoSnapshot restoredMetaInfo : restoredMetaInfos) {
 					restoredKvStateMetaInfos.put(restoredMetaInfo.getName(), restoredMetaInfo);
 
 					StateTable<K, ?, ?> stateTable = stateTables.get(restoredMetaInfo.getName());
@@ -318,11 +348,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					if (null == stateTable) {
 
 						RegisteredKeyedBackendStateMetaInfo<?, ?> registeredKeyedBackendStateMetaInfo =
-								new RegisteredKeyedBackendStateMetaInfo<>(
-									restoredMetaInfo.getStateType(),
-									restoredMetaInfo.getName(),
-									restoredMetaInfo.getNamespaceSerializer(),
-									restoredMetaInfo.getStateSerializer());
+								new RegisteredKeyedBackendStateMetaInfo<>(restoredMetaInfo);
 
 						stateTable = snapshotStrategy.newStateTable(registeredKeyedBackendStateMetaInfo);
 						stateTables.put(restoredMetaInfo.getName(), stateTable);
@@ -532,7 +558,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				"Too many KV-States: " + stateTables.size() +
 					". Currently at most " + Short.MAX_VALUE + " states are supported");
 
-			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
+			List<StateMetaInfoSnapshot> metaInfoSnapshots =
 				new ArrayList<>(stateTables.size());
 
 			final Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());

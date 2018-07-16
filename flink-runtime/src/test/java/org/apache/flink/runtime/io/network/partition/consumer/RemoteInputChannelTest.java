@@ -33,10 +33,13 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -62,6 +65,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link RemoteInputChannel}.
+ */
 public class RemoteInputChannelTest {
 
 	@Test
@@ -324,6 +330,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
@@ -442,13 +449,10 @@ public class RemoteInputChannelTest {
 			assertEquals("There should be 0 buffers available in local pool",
 				0, bufferPool.getNumberOfAvailableMemorySegments());
 			assertTrue(inputChannel.isWaitingForFloatingBuffers());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources
-			inputChannel.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
+			cleanup(networkBufferPool, null, thrown, inputChannel);
 		}
 	}
 
@@ -466,6 +470,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
@@ -520,13 +525,10 @@ public class RemoteInputChannelTest {
 				14, inputChannel.getNumberOfRequiredBuffers());
 			assertEquals("There should be 2 buffers available in local pool",
 				2, bufferPool.getNumberOfAvailableMemorySegments());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources
-			inputChannel.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
+			cleanup(networkBufferPool, null, thrown, inputChannel);
 		}
 	}
 
@@ -544,6 +546,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
@@ -612,13 +615,10 @@ public class RemoteInputChannelTest {
 				12, inputChannel.getNumberOfRequiredBuffers());
 			assertEquals("There should be 2 buffers available in local pool",
 				2, bufferPool.getNumberOfAvailableMemorySegments());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources
-			inputChannel.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
+			cleanup(networkBufferPool, null, thrown, inputChannel);
 		}
 	}
 
@@ -640,6 +640,7 @@ public class RemoteInputChannelTest {
 		inputGate.setInputChannel(channel1.partitionId.getPartitionId(), channel1);
 		inputGate.setInputChannel(channel2.partitionId.getPartitionId(), channel2);
 		inputGate.setInputChannel(channel3.partitionId.getPartitionId(), channel3);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
@@ -683,15 +684,10 @@ public class RemoteInputChannelTest {
 			assertEquals("There should be 3 buffers available in the channel", 3, channel1.getNumberOfAvailableBuffers());
 			assertEquals("There should be 3 buffers available in the channel", 3, channel2.getNumberOfAvailableBuffers());
 			assertEquals("There should be 3 buffers available in the channel", 3, channel3.getNumberOfAvailableBuffers());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources
-			channel1.releaseAllResources();
-			channel2.releaseAllResources();
-			channel3.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
+			cleanup(networkBufferPool, null, thrown, channel1, channel2, channel3);
 		}
 	}
 
@@ -712,6 +708,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
@@ -749,17 +746,10 @@ public class RemoteInputChannelTest {
 				0, inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be 130 buffers available in local pool.",
 				130, bufferPool.getNumberOfAvailableMemorySegments() + networkBufferPool.getNumberOfAvailableMemorySegments());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources once exception
-			if (!inputChannel.isReleased()) {
-				inputChannel.releaseAllResources();
-			}
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-
-			executor.shutdown();
+			cleanup(networkBufferPool, executor, thrown, inputChannel);
 		}
 	}
 
@@ -781,6 +771,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
@@ -804,19 +795,14 @@ public class RemoteInputChannelTest {
 				recycleFloatingBufferTask(bufferPool, numFloatingBuffers),
 				requestBufferTask});
 
-			assertEquals("There should be " + inputChannel.getNumberOfRequiredBuffers() +" buffers available in channel.",
+			assertEquals("There should be " + inputChannel.getNumberOfRequiredBuffers() + " buffers available in channel.",
 				inputChannel.getNumberOfRequiredBuffers(), inputChannel.getNumberOfAvailableBuffers());
 			assertEquals("There should be no buffers available in local pool.",
 				0, bufferPool.getNumberOfAvailableMemorySegments());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources
-			inputChannel.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-
-			executor.shutdown();
+			cleanup(networkBufferPool, executor, thrown, inputChannel);
 		}
 	}
 
@@ -837,6 +823,7 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
 		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
@@ -864,17 +851,92 @@ public class RemoteInputChannelTest {
 				numFloatingBuffers, bufferPool.getNumberOfAvailableMemorySegments());
 			assertEquals("There should be " + numExclusiveSegments + " buffers available in global pool.",
 				numExclusiveSegments, networkBufferPool.getNumberOfAvailableMemorySegments());
-
+		} catch (Throwable t) {
+			thrown = t;
 		} finally {
-			// Release all the buffer resources once exception
-			if (!inputChannel.isReleased()) {
-				inputChannel.releaseAllResources();
-			}
+			cleanup(networkBufferPool, executor, thrown, inputChannel);
+		}
+	}
 
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
+	/**
+	 * Tests to verify that there is no race condition with two things running in parallel:
+	 * recycling exclusive buffers and recycling external buffers to the buffer pool while the
+	 * recycling of the exclusive buffer triggers recycling a floating buffer (FLINK-9676).
+	 */
+	@Test
+	public void testConcurrentRecycleAndRelease2() throws Exception {
+		// Setup
+		final int retries = 1_000;
+		final int numExclusiveBuffers = 2;
+		final int numFloatingBuffers = 2;
+		final int numTotalBuffers = numExclusiveBuffers + numFloatingBuffers;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(
+			numTotalBuffers, 32);
 
-			executor.shutdown();
+		final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel  = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannel(inputChannel.partitionId.getPartitionId(), inputChannel);
+		Throwable thrown = null;
+		try {
+			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputChannel.requestSubpartition(0);
+
+			final Callable<Void> bufferPoolInteractionsTask = () -> {
+				for (int i = 0; i < retries; ++i) {
+					Buffer buffer = bufferPool.requestBufferBlocking();
+					buffer.recycleBuffer();
+				}
+				return null;
+			};
+
+			final Callable<Void> channelInteractionsTask = () -> {
+				ArrayList<Buffer> exclusiveBuffers = new ArrayList<>(numExclusiveBuffers);
+				ArrayList<Buffer> floatingBuffers = new ArrayList<>(numExclusiveBuffers);
+				try {
+					for (int i = 0; i < retries; ++i) {
+						// note: we may still have a listener on the buffer pool and receive
+						// floating buffers as soon as we take exclusive ones
+						for (int j = 0; j < numTotalBuffers; ++j) {
+							Buffer buffer = inputChannel.requestBuffer();
+							if (buffer == null) {
+								break;
+							} else {
+								//noinspection ObjectEquality
+								if (buffer.getRecycler() == inputChannel) {
+									exclusiveBuffers.add(buffer);
+								} else {
+									floatingBuffers.add(buffer);
+								}
+							}
+						}
+						// recycle excess floating buffers (will go back into the channel)
+						floatingBuffers.forEach(Buffer::recycleBuffer);
+						floatingBuffers.clear();
+
+						assertEquals(numExclusiveBuffers, exclusiveBuffers.size());
+						inputChannel.onSenderBacklog(0); // trigger subscription to buffer pool
+						// note: if we got a floating buffer by increasing the backlog, it will be released again when recycling the exclusive buffer, if not, we should release it once we get it
+						exclusiveBuffers.forEach(Buffer::recycleBuffer);
+						exclusiveBuffers.clear();
+					}
+				} finally {
+					inputChannel.releaseAllResources();
+				}
+
+				return null;
+			};
+
+			// Submit tasks and wait to finish
+			submitTasksAndWaitForResults(executor,
+				new Callable[] {bufferPoolInteractionsTask, channelInteractionsTask});
+		} catch (Throwable t) {
+			thrown = t;
+		} finally {
+			cleanup(networkBufferPool, executor, thrown, inputChannel);
 		}
 	}
 
@@ -986,12 +1048,49 @@ public class RemoteInputChannelTest {
 	private void submitTasksAndWaitForResults(ExecutorService executor, Callable[] tasks) throws Exception {
 		final List<Future> results = Lists.newArrayListWithCapacity(tasks.length);
 
-		for(Callable task : tasks) {
+		for (Callable task : tasks) {
+			//noinspection unchecked
 			results.add(executor.submit(task));
 		}
 
 		for (Future result : results) {
 			result.get();
+		}
+	}
+
+	/**
+	 * Helper code to ease cleanup handling with suppressed exceptions.
+	 */
+	private void cleanup(
+			NetworkBufferPool networkBufferPool,
+			@Nullable ExecutorService executor,
+			@Nullable Throwable throwable,
+			InputChannel... inputChannels) throws Exception {
+		for (InputChannel inputChannel : inputChannels) {
+			try {
+				inputChannel.releaseAllResources();
+			} catch (Throwable tInner) {
+				throwable = ExceptionUtils.firstOrSuppressed(tInner, throwable);
+			}
+		}
+
+		try {
+			networkBufferPool.destroyAllBufferPools();
+		} catch (Throwable tInner) {
+			throwable = ExceptionUtils.firstOrSuppressed(tInner, throwable);
+		}
+
+		try {
+			networkBufferPool.destroy();
+		} catch (Throwable tInner) {
+			throwable = ExceptionUtils.firstOrSuppressed(tInner, throwable);
+		}
+
+		if (executor != null) {
+			executor.shutdown();
+		}
+		if (throwable != null) {
+			ExceptionUtils.rethrowException(throwable);
 		}
 	}
 }

@@ -278,4 +278,12 @@ public interface JobMasterGateway extends
 	 * not available (yet).
 	 */
 	CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(JobVertexID jobVertexId);
+
+	/**
+	 * Notifies that the allocation has failed.
+	 *
+	 * @param allocationID the failed allocation id.
+	 * @param cause the reason that the allocation failed
+	 */
+	void notifyAllocationFailure(AllocationID allocationID, Exception cause);
 }

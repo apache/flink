@@ -35,19 +35,36 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.Execution;
+import org.apache.flink.table.client.config.Sink;
+import org.apache.flink.table.client.config.Source;
+import org.apache.flink.table.client.config.SourceSink;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.table.factories.BatchTableSourceFactory;
+import org.apache.flink.table.factories.StreamTableSinkFactory;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.FunctionService;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -72,6 +89,8 @@ public class ExecutionContext<T> {
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
 	private final Map<String, TableSource<?>> tableSources;
+	private final Map<String, TableSink<?>> tableSinks;
+	private final Map<String, UserDefinedFunction> functions;
 	private final Configuration flinkConfig;
 	private final CommandLine commandLine;
 	private final CustomCommandLine<T> activeCommandLine;
@@ -91,14 +110,27 @@ public class ExecutionContext<T> {
 			dependencies.toArray(new URL[dependencies.size()]),
 			this.getClass().getClassLoader());
 
-		// create table sources
+		// create table sources & sinks.
 		tableSources = new HashMap<>();
+		tableSinks = new HashMap<>();
 		mergedEnv.getTables().forEach((name, descriptor) -> {
-			if (descriptor instanceof TableSourceDescriptor) {
-				TableSource<?> tableSource = TableSourceFactoryService.findAndCreateTableSource(
-						(TableSourceDescriptor) descriptor, classLoader);
-				tableSources.put(name, tableSource);
+			final DescriptorProperties properties = new DescriptorProperties(true);
+			descriptor.addProperties(properties);
+			final Map<String, String> propertyMap = properties.asMap();
+
+			if (descriptor instanceof Source || descriptor instanceof SourceSink) {
+				tableSources.put(name, createTableSource(mergedEnv.getExecution(), propertyMap, classLoader));
 			}
+			if (descriptor instanceof Sink || descriptor instanceof SourceSink) {
+				tableSinks.put(name, createTableSink(mergedEnv.getExecution(), propertyMap, classLoader));
+			}
+		});
+
+		// create user-defined functions
+		functions = new HashMap<>();
+		mergedEnv.getFunctions().forEach((name, descriptor) -> {
+			final UserDefinedFunction function = FunctionService.createFunction(descriptor, classLoader);
+			functions.put(name, function);
 		});
 
 		// convert deployment options into command line options that describe a cluster
@@ -137,6 +169,14 @@ public class ExecutionContext<T> {
 		return new EnvironmentInstance();
 	}
 
+	public Map<String, TableSource<?>> getTableSources() {
+		return tableSources;
+	}
+
+	public Map<String, TableSink<?>> getTableSinks() {
+		return tableSinks;
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static CommandLine createCommandLine(Deployment deployment, Options commandLineOptions) {
@@ -173,6 +213,32 @@ public class ExecutionContext<T> {
 		}
 	}
 
+	private static TableSource<?> createTableSource(Execution execution, Map<String, String> sourceProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSourceFactory<?> factory = (StreamTableSourceFactory<?>)
+				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createStreamTableSource(sourceProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
+				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
+			return factory.createBatchTableSource(sourceProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
+	}
+
+	private static TableSink<?> createTableSink(Execution execution, Map<String, String> sinkProperties, ClassLoader classLoader) {
+		if (execution.isStreamingExecution()) {
+			final StreamTableSinkFactory<?> factory = (StreamTableSinkFactory<?>)
+				TableFactoryService.find(StreamTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createStreamTableSink(sinkProperties);
+		} else if (execution.isBatchExecution()) {
+			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
+				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
+			return factory.createBatchTableSink(sinkProperties);
+		}
+		throw new SqlExecutionException("Unsupported execution type for sources.");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -193,10 +259,12 @@ public class ExecutionContext<T> {
 				streamExecEnv = createStreamExecutionEnvironment();
 				execEnv = null;
 				tableEnv = TableEnvironment.getTableEnvironment(streamExecEnv);
-			} else {
+			} else if (mergedEnv.getExecution().isBatchExecution()) {
 				streamExecEnv = null;
 				execEnv = createExecutionEnvironment();
 				tableEnv = TableEnvironment.getTableEnvironment(execEnv);
+			} else {
+				throw new SqlExecutionException("Unsupported execution type specified.");
 			}
 
 			// create query config
@@ -204,6 +272,38 @@ public class ExecutionContext<T> {
 
 			// register table sources
 			tableSources.forEach(tableEnv::registerTableSource);
+
+			// register table sinks
+			tableSinks.forEach(tableEnv::registerTableSink);
+
+			// register user-defined functions
+			if (tableEnv instanceof StreamTableEnvironment) {
+				StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						streamTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				});
+			} else {
+				BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
+				functions.forEach((k, v) -> {
+					if (v instanceof ScalarFunction) {
+						batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
+					} else if (v instanceof AggregateFunction) {
+						batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
+					} else if (v instanceof TableFunction) {
+						batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
+					} else {
+						throw new SqlExecutionException("Unsupported function type: " + v.getClass().getName());
+					}
+				});
+			}
 		}
 
 		public QueryConfig getQueryConfig() {
@@ -265,6 +365,9 @@ public class ExecutionContext<T> {
 			env.setParallelism(mergedEnv.getExecution().getParallelism());
 			env.setMaxParallelism(mergedEnv.getExecution().getMaxParallelism());
 			env.setStreamTimeCharacteristic(mergedEnv.getExecution().getTimeCharacteristic());
+			if (env.getStreamTimeCharacteristic() == TimeCharacteristic.EventTime) {
+				env.getConfig().setAutoWatermarkInterval(mergedEnv.getExecution().getPeriodicWatermarksInterval());
+			}
 			return env;
 		}
 

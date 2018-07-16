@@ -19,7 +19,9 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
@@ -29,6 +31,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
@@ -216,14 +219,14 @@ public class AfterMatchSkipITCase extends TestLogger{
 		Event d1 = new Event(7, "d1", 0.0);
 		Event d2 = new Event(7, "d2", 0.0);
 
-		streamEvents.add(new StreamRecord<Event>(a1));
-		streamEvents.add(new StreamRecord<Event>(a2));
-		streamEvents.add(new StreamRecord<Event>(b1));
-		streamEvents.add(new StreamRecord<Event>(b2));
-		streamEvents.add(new StreamRecord<Event>(c1));
-		streamEvents.add(new StreamRecord<Event>(c2));
-		streamEvents.add(new StreamRecord<Event>(d1));
-		streamEvents.add(new StreamRecord<Event>(d2));
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(b1));
+		streamEvents.add(new StreamRecord<>(b2));
+		streamEvents.add(new StreamRecord<>(c1));
+		streamEvents.add(new StreamRecord<>(c2));
+		streamEvents.add(new StreamRecord<>(d1));
+		streamEvents.add(new StreamRecord<>(d2));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipPastLastEvent()).where(new SimpleCondition<Event>() {
 
@@ -245,7 +248,7 @@ public class AfterMatchSkipITCase extends TestLogger{
 			public boolean filter(Event value) throws Exception {
 				return value.getName().contains("c");
 			}
-		}).followedByAny("d").where(new SimpleCondition<Event>() {
+		}).followedBy("d").where(new SimpleCondition<Event>() {
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getName().contains("d");
@@ -255,15 +258,8 @@ public class AfterMatchSkipITCase extends TestLogger{
 
 		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
 
-		compareMaps(resultingPatterns, Lists.newArrayList(
-			Lists.newArrayList(a1, b1, c1, d1),
-			Lists.newArrayList(a1, b1, c2, d1),
-			Lists.newArrayList(a1, b2, c1, d1),
-			Lists.newArrayList(a1, b2, c2, d1),
-			Lists.newArrayList(a2, b1, c1, d1),
-			Lists.newArrayList(a2, b1, c2, d1),
-			Lists.newArrayList(a2, b2, c1, d1),
-			Lists.newArrayList(a2, b2, c2, d1)
+		compareMaps(resultingPatterns, Collections.singletonList(
+			Lists.newArrayList(a1, b1, c1, d1)
 		));
 	}
 
@@ -479,6 +475,281 @@ public class AfterMatchSkipITCase extends TestLogger{
 			Lists.newArrayList(a1, b1),
 			Lists.newArrayList(a2, b2),
 			Lists.newArrayList(a3, b4)
+		));
+	}
+
+	/** Example from docs. */
+	@Test
+	public void testSkipPastLastWithOneOrMoreAtBeginning() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+		Event a2 = new Event(2, "a2", 0.0);
+		Event a3 = new Event(3, "a3", 0.0);
+		Event b1 = new Event(4, "b1", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(a3));
+		streamEvents.add(new StreamRecord<>(b1));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipPastLastEvent()
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		).oneOrMore().consecutive().greedy()
+			.next("b").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Collections.singletonList(
+			Lists.newArrayList(a1, a2, a3, b1)
+		));
+	}
+
+	/** Example from docs. */
+	@Test
+	public void testSkipToLastWithOneOrMoreAtBeginning() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+		Event a2 = new Event(2, "a2", 0.0);
+		Event a3 = new Event(3, "a3", 0.0);
+		Event b1 = new Event(4, "b1", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(a3));
+		streamEvents.add(new StreamRecord<>(b1));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipToLast("a")
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		).oneOrMore().consecutive().greedy()
+			.next("b").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Lists.newArrayList(
+			Lists.newArrayList(a1, a2, a3, b1),
+			Lists.newArrayList(a3, b1)
+		));
+	}
+
+	/** Example from docs. */
+	@Test
+	public void testSkipToFirstWithOneOrMoreAtBeginning() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+		Event a2 = new Event(2, "a2", 0.0);
+		Event a3 = new Event(3, "a3", 0.0);
+		Event b1 = new Event(4, "b1", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(a3));
+		streamEvents.add(new StreamRecord<>(b1));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipToFirst("a")
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		).oneOrMore().consecutive().greedy()
+			.next("b").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Lists.newArrayList(
+			Lists.newArrayList(a1, a2, a3, b1),
+			Lists.newArrayList(a2, a3, b1),
+			Lists.newArrayList(a3, b1)
+		));
+	}
+
+	/** Example from docs. */
+	@Test
+	public void testNoSkipWithOneOrMoreAtBeginning() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+		Event a2 = new Event(2, "a2", 0.0);
+		Event a3 = new Event(3, "a3", 0.0);
+		Event b1 = new Event(4, "b1", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(a3));
+		streamEvents.add(new StreamRecord<>(b1));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.noSkip()
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		).oneOrMore().consecutive().greedy()
+			.next("b").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b");
+				}
+			});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Lists.newArrayList(
+			Lists.newArrayList(a1, a2, a3, b1),
+			Lists.newArrayList(a2, a3, b1),
+			Lists.newArrayList(a3, b1)
+		));
+	}
+
+	/** Example from docs. */
+	@Test
+	public void testSkipToFirstDiscarding() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a = new Event(1, "a", 0.0);
+		Event b = new Event(2, "b", 0.0);
+		Event c1 = new Event(3, "c1", 0.0);
+		Event c2 = new Event(4, "c2", 0.0);
+		Event c3 = new Event(5, "c3", 0.0);
+		Event d = new Event(6, "d", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a));
+		streamEvents.add(new StreamRecord<>(b));
+		streamEvents.add(new StreamRecord<>(c1));
+		streamEvents.add(new StreamRecord<>(c2));
+		streamEvents.add(new StreamRecord<>(c3));
+		streamEvents.add(new StreamRecord<>(d));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a or c", AfterMatchSkipStrategy.skipToFirst("c*")
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a") || value.getName().contains("c");
+				}
+			}
+		).followedBy("b or c").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("b") || value.getName().contains("c");
+				}
+			}
+		).followedBy("c*").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("c");
+				}
+			}
+		).oneOrMore().greedy()
+			.followedBy("d").where(new SimpleCondition<Event>() {
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("d");
+				}
+			});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Lists.newArrayList(
+			Lists.newArrayList(a, b, c1, c2, c3, d),
+			Lists.newArrayList(c1, c2, c3, d)
+		));
+	}
+
+	@Test
+	public void testSkipBeforeOtherAlreadyCompleted() throws Exception {
+		List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+
+		Event a1 = new Event(1, "a1", 0.0);
+		Event c1 = new Event(2, "c1", 0.0);
+		Event a2 = new Event(3, "a2", 1.0);
+		Event c2 = new Event(4, "c2", 0.0);
+		Event b1 = new Event(5, "b1", 1.0);
+		Event b2 = new Event(6, "b2", 0.0);
+
+		streamEvents.add(new StreamRecord<>(a1));
+		streamEvents.add(new StreamRecord<>(c1));
+		streamEvents.add(new StreamRecord<>(a2));
+		streamEvents.add(new StreamRecord<>(c2));
+		streamEvents.add(new StreamRecord<>(b1));
+		streamEvents.add(new StreamRecord<>(b2));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("a", AfterMatchSkipStrategy.skipToFirst("c")
+		).where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("a");
+				}
+			}
+		).followedBy("c").where(new SimpleCondition<Event>() {
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("c");
+			}
+		}).followedBy("b").where(new IterativeCondition<Event>() {
+			@Override
+			public boolean filter(Event value, Context<Event> ctx) throws Exception {
+				return value.getName().contains("b") &&
+					ctx.getEventsForPattern("a").iterator().next().getPrice() == value.getPrice();
+			}
+		});
+		NFA<Event> nfa = compile(pattern, false);
+
+		List<List<Event>> resultingPatterns = feedNFA(streamEvents, nfa, pattern.getAfterMatchSkipStrategy());
+
+		compareMaps(resultingPatterns, Lists.newArrayList(
+			Lists.newArrayList(a1, c1, b2),
+			Lists.newArrayList(a2, c2, b1)
 		));
 	}
 }

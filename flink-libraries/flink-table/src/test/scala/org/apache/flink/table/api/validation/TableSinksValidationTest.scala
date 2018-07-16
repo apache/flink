@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.stream.table.TestAppendSink
-import org.apache.flink.table.utils.MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 

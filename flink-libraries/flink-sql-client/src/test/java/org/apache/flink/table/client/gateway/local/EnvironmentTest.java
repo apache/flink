@@ -51,9 +51,10 @@ public class EnvironmentTest {
 		tables.add("TableNumber1");
 		tables.add("TableNumber2");
 		tables.add("NewTable");
+		tables.add("TableSourceSink");
 
-		assertEquals(merged.getTables().keySet(), tables);
+		assertEquals(tables, merged.getTables().keySet());
 		assertTrue(merged.getExecution().isStreamingExecution());
-		assertEquals(merged.getExecution().getMaxParallelism(), 16);
+		assertEquals(16, merged.getExecution().getMaxParallelism());
 	}
 }
