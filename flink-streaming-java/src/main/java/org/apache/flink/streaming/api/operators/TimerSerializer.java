@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,8 +32,8 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * A serializer for {@link TimerHeapInternalTimer} objects that produces a serialization format that is aligned with
- * {@link InternalTimer#getTimerComparator()}.
+ * A serializer for {@link TimerHeapInternalTimer} objects that produces a serialization format that is
+ * lexicographically aligned the priority of the timers.
  *
  * @param <K> type of the timer key.
  * @param <N> type of the timer namespace.
@@ -201,13 +202,14 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 
 	@Override
 	public TypeSerializerConfigSnapshot snapshotConfiguration() {
-		throw new UnsupportedOperationException("This serializer is currently not used to write state.");
+		return new TimerSerializerConfigSnapshot<>(keySerializer, namespaceSerializer);
 	}
 
 	@Override
 	public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(
 		TypeSerializerConfigSnapshot configSnapshot) {
-		throw new UnsupportedOperationException("This serializer is currently not used to write state.");
+		//TODO this is just a mock (assuming no serializer updates) for now and needs a proper implementation! change this before release.
+		return CompatibilityResult.compatible();
 	}
 
 	@Nonnull
@@ -218,5 +220,26 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	@Nonnull
 	public TypeSerializer<N> getNamespaceSerializer() {
 		return namespaceSerializer;
+	}
+
+	/**
+	 * Snaphot of a {@link TimerSerializer}.
+	 *
+	 * @param <K> type of key.
+	 * @param <N> type of namespace.
+	 */
+	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot {
+
+		public TimerSerializerConfigSnapshot() {
+		}
+
+		public TimerSerializerConfigSnapshot(TypeSerializer<K> keySerializer, TypeSerializer<N> namespaceSerializer) {
+			super(keySerializer, namespaceSerializer);
+		}
+
+		@Override
+		public int getVersion() {
+			return 0;
+		}
 	}
 }

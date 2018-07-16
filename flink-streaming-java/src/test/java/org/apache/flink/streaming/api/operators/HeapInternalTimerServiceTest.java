@@ -910,8 +910,6 @@ public class HeapInternalTimerServiceTest {
 		PriorityQueueSetFactory priorityQueueSetFactory) {
 		return priorityQueueSetFactory.create(
 			name,
-			timerSerializer,
-			InternalTimer.getTimerComparator(),
-			InternalTimer.getKeyExtractorFunction());
+			timerSerializer);
 	}
 }

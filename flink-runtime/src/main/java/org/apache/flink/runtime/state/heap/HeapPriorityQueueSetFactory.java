@@ -21,7 +21,8 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
+import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 
@@ -29,7 +30,7 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 /**
- *
+ * Factory for {@link HeapPriorityQueueSet}.
  */
 public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
@@ -54,14 +55,13 @@ public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
 	@Nonnull
 	@Override
-	public <T extends HeapPriorityQueueElement> KeyGroupedInternalPriorityQueue<T> create(
+	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> HeapPriorityQueueSet<T> create(
 		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer,
-		@Nonnull PriorityComparator<T> elementPriorityComparator,
-		@Nonnull KeyExtractorFunction<T> keyExtractor) {
-		return new HeapPriorityQueueSet<>(
-			elementPriorityComparator,
-			keyExtractor,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+
+		return new HeapPriorityQueueSet<T>(
+			PriorityComparator.forPriorityComparableObjects(),
+			KeyExtractorFunction.forKeyedObjects(),
 			minimumCapacity,
 			keyGroupRange,
 			totalKeyGroups);

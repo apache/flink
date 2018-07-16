@@ -19,18 +19,10 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompatibilityResult;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 
 import javax.annotation.Nonnull;
-
-import java.io.IOException;
 
 /**
  * Implementation of {@link InternalTimer} to use with a {@link HeapPriorityQueueSet}.
@@ -133,119 +125,8 @@ public final class TimerHeapInternalTimer<K, N> implements InternalTimer<K, N>, 
 				'}';
 	}
 
-	/**
-	 * A {@link TypeSerializer} used to serialize/deserialize a {@link TimerHeapInternalTimer}.
-	 */
-	public static class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer<K, N>> {
-
-		private static final long serialVersionUID = 1119562170939152304L;
-
-		@Nonnull
-		private final TypeSerializer<K> keySerializer;
-
-		@Nonnull
-		private final TypeSerializer<N> namespaceSerializer;
-
-		TimerSerializer(@Nonnull TypeSerializer<K> keySerializer, @Nonnull TypeSerializer<N> namespaceSerializer) {
-			this.keySerializer = keySerializer;
-			this.namespaceSerializer = namespaceSerializer;
-		}
-
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
-
-		@Override
-		public TypeSerializer<TimerHeapInternalTimer<K, N>> duplicate() {
-
-			final TypeSerializer<K> keySerializerDuplicate = keySerializer.duplicate();
-			final TypeSerializer<N> namespaceSerializerDuplicate = namespaceSerializer.duplicate();
-
-			if (keySerializerDuplicate == keySerializer &&
-				namespaceSerializerDuplicate == namespaceSerializer) {
-				// all delegate serializers seem stateless, so this is also stateless.
-				return this;
-			} else {
-				// at least one delegate serializer seems to be stateful, so we return a new instance.
-				return new TimerSerializer<>(keySerializerDuplicate, namespaceSerializerDuplicate);
-			}
-		}
-
-		@Override
-		public TimerHeapInternalTimer<K, N> createInstance() {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from) {
-			return new TimerHeapInternalTimer<>(from.getTimestamp(), from.getKey(), from.getNamespace());
-		}
-
-		@Override
-		public TimerHeapInternalTimer<K, N> copy(TimerHeapInternalTimer<K, N> from, TimerHeapInternalTimer<K, N> reuse) {
-			return copy(from);
-		}
-
-		@Override
-		public int getLength() {
-			// we do not have fixed length
-			return -1;
-		}
-
-		@Override
-		public void serialize(TimerHeapInternalTimer<K, N> record, DataOutputView target) throws IOException {
-			keySerializer.serialize(record.getKey(), target);
-			namespaceSerializer.serialize(record.getNamespace(), target);
-			LongSerializer.INSTANCE.serialize(record.getTimestamp(), target);
-		}
-
-		@Override
-		public TimerHeapInternalTimer<K, N> deserialize(DataInputView source) throws IOException {
-			K key = keySerializer.deserialize(source);
-			N namespace = namespaceSerializer.deserialize(source);
-			Long timestamp = LongSerializer.INSTANCE.deserialize(source);
-			return new TimerHeapInternalTimer<>(timestamp, key, namespace);
-		}
-
-		@Override
-		public TimerHeapInternalTimer<K, N> deserialize(TimerHeapInternalTimer<K, N> reuse, DataInputView source) throws IOException {
-			return deserialize(source);
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			keySerializer.copy(source, target);
-			namespaceSerializer.copy(source, target);
-			LongSerializer.INSTANCE.copy(source, target);
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			return obj == this ||
-				(obj != null && obj.getClass() == getClass() &&
-					keySerializer.equals(((TimerSerializer) obj).keySerializer) &&
-					namespaceSerializer.equals(((TimerSerializer) obj).namespaceSerializer));
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return true;
-		}
-
-		@Override
-		public int hashCode() {
-			return getClass().hashCode();
-		}
-
-		@Override
-		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
-		}
-
-		@Override
-		public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			throw new UnsupportedOperationException("This serializer is not registered for managed state.");
-		}
+	@Override
+	public int comparePriorityTo(@Nonnull InternalTimer<?, ?> other) {
+		return Long.compare(timestamp, other.getTimestamp());
 	}
 }

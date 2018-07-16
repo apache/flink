@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.metainfo;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 /**
  * Generalized snapshot for meta information about one state in a state backend
- * (e.g. {@link org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo}).
+ * (e.g. {@link RegisteredKeyValueStateBackendMetaInfo}).
  */
 public class StateMetaInfoSnapshot {
 
@@ -41,7 +42,7 @@ public class StateMetaInfoSnapshot {
 		KEY_VALUE,
 		OPERATOR,
 		BROADCAST,
-		TIMER
+		PRIORITY_QUEUE
 	}
 
 	/**

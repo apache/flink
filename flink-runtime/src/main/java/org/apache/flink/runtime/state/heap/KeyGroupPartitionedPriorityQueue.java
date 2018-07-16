@@ -49,6 +49,8 @@ import java.util.function.Predicate;
 public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
 	implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
 
+	static final boolean ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION = false;
+
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
 	private final HeapPriorityQueue<PQ> heapOfkeyGroupedHeaps;
@@ -94,6 +96,22 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 	@Override
 	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
+		if (ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION) {
+			bulkPollRelaxedOrder(canConsume, consumer);
+		} else {
+			bulkPollStrictOrder(canConsume, consumer);
+		}
+	}
+
+	private void bulkPollRelaxedOrder(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
+		PQ headList = heapOfkeyGroupedHeaps.peek();
+		while (headList.peek() != null && canConsume.test(headList.peek())) {
+			headList.bulkPoll(canConsume, consumer);
+			heapOfkeyGroupedHeaps.adjustModifiedElement(headList);
+		}
+	}
+
+	private void bulkPollStrictOrder(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
 		T element;
 		while ((element = peek()) != null && canConsume.test(element)) {
 			poll();

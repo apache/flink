@@ -18,27 +18,27 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.runtime.state.heap.StateTable;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
+
 /**
- * Factory for {@link KeyGroupedInternalPriorityQueue} instances.
+ * Interface for state de-serialization into {@link StateTable}s by key-group.
  */
-public interface PriorityQueueSetFactory {
+@Internal
+public interface StateSnapshotKeyGroupReader {
 
 	/**
-	 * Creates a {@link KeyGroupedInternalPriorityQueue}.
+	 * Read the data for the specified key-group from the input.
 	 *
-	 * @param stateName                    unique name for associated with this queue.
-	 * @param byteOrderedElementSerializer a serializer that with a format that is lexicographically ordered in
-	 *                                     alignment with elementPriorityComparator.
-	 * @param <T>                          type of the stored elements.
-	 * @return the queue with the specified unique name.
+	 * @param div        the input
+	 * @param keyGroupId the key-group to write
+	 * @throws IOException on write related problems
 	 */
-	@Nonnull
-	<T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T> create(
-		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer);
+	void readMappingsInKeyGroup(@Nonnull DataInputView div, @Nonnegative int keyGroupId) throws IOException;
 }

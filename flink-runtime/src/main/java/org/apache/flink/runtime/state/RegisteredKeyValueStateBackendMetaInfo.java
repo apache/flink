@@ -35,8 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
  * state name.
@@ -44,42 +42,50 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <N> Type of namespace
  * @param <S> Type of state value
  */
-public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
+public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
 
+	@Nonnull
 	private final StateDescriptor.Type stateType;
+	@Nonnull
 	private final TypeSerializer<N> namespaceSerializer;
+	@Nonnull
 	private final TypeSerializer<S> stateSerializer;
 
-	public RegisteredKeyedBackendStateMetaInfo(
-			StateDescriptor.Type stateType,
-			String name,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<S> stateSerializer) {
+	public RegisteredKeyValueStateBackendMetaInfo(
+			@Nonnull StateDescriptor.Type stateType,
+			@Nonnull String name,
+			@Nonnull TypeSerializer<N> namespaceSerializer,
+			@Nonnull TypeSerializer<S> stateSerializer) {
 
 		super(name);
-		this.stateType = checkNotNull(stateType);
-		this.namespaceSerializer = checkNotNull(namespaceSerializer);
-		this.stateSerializer = checkNotNull(stateSerializer);
+		this.stateType = stateType;
+		this.namespaceSerializer = namespaceSerializer;
+		this.stateSerializer = stateSerializer;
 	}
 
 	@SuppressWarnings("unchecked")
-	public RegisteredKeyedBackendStateMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
+	public RegisteredKeyValueStateBackendMetaInfo(@Nonnull StateMetaInfoSnapshot snapshot) {
 		this(
 			StateDescriptor.Type.valueOf(snapshot.getOption(StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE)),
 			snapshot.getName(),
-			(TypeSerializer<N>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER),
-			(TypeSerializer<S>) snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER));
+			(TypeSerializer<N>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
+			(TypeSerializer<S>) Preconditions.checkNotNull(
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
 
+	@Nonnull
 	public StateDescriptor.Type getStateType() {
 		return stateType;
 	}
 
+	@Nonnull
 	public TypeSerializer<N> getNamespaceSerializer() {
 		return namespaceSerializer;
 	}
 
+	@Nonnull
 	public TypeSerializer<S> getStateSerializer() {
 		return stateSerializer;
 	}
@@ -94,7 +100,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 			return false;
 		}
 
-		RegisteredKeyedBackendStateMetaInfo<?, ?> that = (RegisteredKeyedBackendStateMetaInfo<?, ?>) o;
+		RegisteredKeyValueStateBackendMetaInfo<?, ?> that = (RegisteredKeyValueStateBackendMetaInfo<?, ?>) o;
 
 		if (!stateType.equals(that.stateType)) {
 			return false;
@@ -132,7 +138,8 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	 * This checks that the descriptor specifies identical names and state types, as well as
 	 * serializers that are compatible for the restored k/v state bytes.
 	 */
-	public static <N, S> RegisteredKeyedBackendStateMetaInfo<N, S> resolveKvStateCompatibility(
+	@Nonnull
+	public static <N, S> RegisteredKeyValueStateBackendMetaInfo<N, S> resolveKvStateCompatibility(
 		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
 		TypeSerializer<N> newNamespaceSerializer,
 		StateDescriptor<?, S> newStateDescriptor) throws StateMigrationException {
@@ -179,7 +186,7 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 			// TODO state migration currently isn't possible.
 			throw new StateMigrationException("State migration isn't supported, yet.");
 		} else {
-			return new RegisteredKeyedBackendStateMetaInfo<>(
+			return new RegisteredKeyValueStateBackendMetaInfo<>(
 				newStateDescriptor.getType(),
 				newStateDescriptor.getName(),
 				newNamespaceSerializer,
@@ -190,6 +197,11 @@ public class RegisteredKeyedBackendStateMetaInfo<N, S> extends RegisteredStateMe
 	@Nonnull
 	@Override
 	public StateMetaInfoSnapshot snapshot() {
+		return computeSnapshot();
+	}
+
+	@Nonnull
+	private StateMetaInfoSnapshot computeSnapshot() {
 		Map<String, String> optionsMap = Collections.singletonMap(
 			StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString(),
 			stateType.toString());

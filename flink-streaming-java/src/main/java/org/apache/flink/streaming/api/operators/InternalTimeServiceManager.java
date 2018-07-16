@@ -46,6 +46,11 @@ import java.util.Map;
 @Internal
 public class InternalTimeServiceManager<K> {
 
+	//TODO guard these constants with a test
+	private static final String TIMER_STATE_PREFIX = "_timer_state";
+	private static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
+	private static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
+
 	private final int totalKeyGroups;
 	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
@@ -55,12 +60,14 @@ public class InternalTimeServiceManager<K> {
 
 	private final Map<String, HeapInternalTimerService<K, ?>> timerServices;
 
+	private final boolean useLegacySynchronousSnapshots;
+
 	InternalTimeServiceManager(
-			int totalKeyGroups,
-			KeyGroupRange localKeyGroupRange,
-			KeyContext keyContext,
-			PriorityQueueSetFactory priorityQueueSetFactory,
-			ProcessingTimeService processingTimeService) {
+		int totalKeyGroups,
+		KeyGroupRange localKeyGroupRange,
+		KeyContext keyContext,
+		PriorityQueueSetFactory priorityQueueSetFactory,
+		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
 
 		Preconditions.checkArgument(totalKeyGroups > 0);
 		this.totalKeyGroups = totalKeyGroups;
@@ -68,6 +75,7 @@ public class InternalTimeServiceManager<K> {
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
 	}
@@ -97,8 +105,8 @@ public class InternalTimeServiceManager<K> {
 				localKeyGroupRange,
 				keyContext,
 				processingTimeService,
-				createTimerPriorityQueue("__ts_" + name + "/processing_timers", timerSerializer),
-				createTimerPriorityQueue("__ts_" + name + "/event_timers", timerSerializer));
+				createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
+				createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
 
 			timerServices.put(name, timerService);
 		}
@@ -114,9 +122,7 @@ public class InternalTimeServiceManager<K> {
 		TimerSerializer<K, N> timerSerializer) {
 		return priorityQueueSetFactory.create(
 			name,
-			timerSerializer,
-			InternalTimer.getTimerComparator(),
-			InternalTimer.getKeyExtractorFunction());
+			timerSerializer);
 	}
 
 	public void advanceWatermark(Watermark watermark) throws Exception {
@@ -128,6 +134,7 @@ public class InternalTimeServiceManager<K> {
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+		Preconditions.checkState(useLegacySynchronousSnapshots);
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
@@ -146,6 +153,10 @@ public class InternalTimeServiceManager<K> {
 				keyGroupIdx);
 
 		serializationProxy.read(stream);
+	}
+
+	public boolean isUseLegacySynchronousSnapshots() {
+		return useLegacySynchronousSnapshots;
 	}
 
 	////////////////////			Methods used ONLY IN TESTS				////////////////////

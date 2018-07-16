@@ -50,7 +50,8 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
  *
  * @param <T> type of the contained elements.
  */
-public class HeapPriorityQueue<T extends HeapPriorityQueueElement> implements InternalPriorityQueue<T> {
+public class HeapPriorityQueue<T extends HeapPriorityQueueElement>
+	implements InternalPriorityQueue<T> {
 
 	/**
 	 * The index of the head element in the array that represents the heap.
