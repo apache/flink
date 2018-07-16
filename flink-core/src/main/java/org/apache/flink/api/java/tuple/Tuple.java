@@ -115,6 +115,7 @@ public abstract class Tuple implements java.io.Serializable {
 	// GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 	public static Tuple newInstance(int arity) {
 		switch (arity) {
+			case 0: return Tuple0.INSTANCE;
 			case 1: return new Tuple1();
 			case 2: return new Tuple2();
 			case 3: return new Tuple3();
