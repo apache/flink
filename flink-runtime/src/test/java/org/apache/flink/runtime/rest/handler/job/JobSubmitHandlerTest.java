@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -39,12 +40,14 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -57,15 +60,30 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Tests for the {@link JobSubmitHandler}.
  */
+@RunWith(Parameterized.class)
 public class JobSubmitHandlerTest extends TestLogger {
+
+	@Parameterized.Parameters(name = "SSL enabled: {0}")
+	public static Iterable<Boolean> data() {
+		return Arrays.asList(true, false);
+	}
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-	private static BlobServer blobServer;
 
-	@BeforeClass
-	public static void setup() throws IOException {
-		Configuration config = new Configuration();
+	private final Configuration sslConfig;
+
+	private BlobServer blobServer;
+
+	public JobSubmitHandlerTest(boolean withSsl) {
+		this.sslConfig = withSsl
+			? SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores()
+			: new Configuration();
+	}
+
+	@Before
+	public void setup() throws IOException {
+		Configuration config = new Configuration(sslConfig);
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			TEMPORARY_FOLDER.newFolder().getAbsolutePath());
 
@@ -73,8 +91,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 		blobServer.start();
 	}
 
-	@AfterClass
-	public static void teardown() throws IOException {
+	@After
+	public void teardown() throws IOException {
 		if (blobServer != null) {
 			blobServer.close();
 		}
@@ -92,7 +110,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			sslConfig);
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -123,7 +142,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			sslConfig);
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -151,7 +171,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			sslConfig);
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -181,7 +202,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			sslConfig);
 
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
 		final Path jarFile = TEMPORARY_FOLDER.newFile().toPath();
@@ -226,7 +248,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			sslConfig);
 
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
 
