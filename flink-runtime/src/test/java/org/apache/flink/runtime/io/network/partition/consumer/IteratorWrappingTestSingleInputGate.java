@@ -25,20 +25,16 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
-import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAvailabilityProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
-import static org.mockito.Mockito.when;
 
 public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> extends TestSingleInputGate {
 
@@ -67,7 +63,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 
 		// The input iterator can produce an infinite stream. That's why we have to serialize each
 		// record on demand and cannot do it upfront.
-		final BufferAvailabilityProvider answer = new BufferAvailabilityProvider() {
+		final BufferAndAvailabilityProvider answer = new BufferAndAvailabilityProvider() {
 
 			private boolean hasData = inputIterator.next(reuse) != null;
 
@@ -84,7 +80,7 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 					// Call getCurrentBuffer to ensure size is set
 					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0));
 				} else {
-					inputChannel.getInputChannel().setReleased();
+					inputChannel.setReleased();
 
 					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE),
 						false,
@@ -93,15 +89,15 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 			}
 		};
 
-		inputChannel.getInputChannel().addBufferAndAvailability(answer);
+		inputChannel.addBufferAndAvailability(answer);
 
-		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel.getInputChannel());
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannel);
 
 		return this;
 	}
 
 	public IteratorWrappingTestSingleInputGate<T> notifyNonEmpty() {
-		inputGate.notifyChannelNonEmpty(inputChannel.getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannel);
 
 		return this;
 	}

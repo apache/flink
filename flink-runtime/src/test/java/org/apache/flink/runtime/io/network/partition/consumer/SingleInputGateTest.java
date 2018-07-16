@@ -105,10 +105,10 @@ public class SingleInputGateTest {
 		};
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
+			new IntermediateResultPartitionID(), inputChannels[0]);
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
+			new IntermediateResultPartitionID(), inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
@@ -117,8 +117,8 @@ public class SingleInputGateTest {
 		inputChannels[1].readEndOfPartitionEvent();
 		inputChannels[0].readEndOfPartitionEvent();
 
-		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
-		inputGate.notifyChannelNonEmpty(inputChannels[1].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[0]);
+		inputGate.notifyChannelNonEmpty(inputChannels[1]);
 
 		verifyBufferOrEvent(inputGate, true, 0, true);
 		verifyBufferOrEvent(inputGate, true, 1, true);
@@ -141,16 +141,16 @@ public class SingleInputGateTest {
 		};
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[0].getInputChannel());
+			new IntermediateResultPartitionID(), inputChannels[0]);
 
 		inputGate.setInputChannel(
-			new IntermediateResultPartitionID(), inputChannels[1].getInputChannel());
+			new IntermediateResultPartitionID(), inputChannels[1]);
 
 		// Test
 		inputChannels[0].readBuffer();
 		inputChannels[0].readBuffer(false);
 
-		inputGate.notifyChannelNonEmpty(inputChannels[0].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[0]);
 
 		verifyBufferOrEvent(inputGate, true, 0, true);
 		verifyBufferOrEvent(inputGate, true, 0, false);

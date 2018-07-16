@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
-import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAvailabilityProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel.BufferAndAvailabilityProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -91,7 +91,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channelIndex] = new ConcurrentLinkedQueue<InputValue<Object>>();
 			inputChannels[channelIndex] = new TestInputChannel(inputGate, i);
 
-			final BufferAvailabilityProvider answer = () -> {
+			final BufferAndAvailabilityProvider answer = () -> {
 				ConcurrentLinkedQueue<InputValue<Object>> inputQueue = inputQueues[channelIndex];
 				InputValue<Object> input;
 				boolean moreAvailable;
@@ -100,7 +100,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					moreAvailable = !inputQueue.isEmpty();
 				}
 				if (input != null && input.isStreamEnd()) {
-					inputChannels[channelIndex].getInputChannel().setReleased();
+					inputChannels[channelIndex].setReleased();
 					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), moreAvailable, 0));
 				} else if (input != null && input.isStreamRecord()) {
 					Object inputElement = input.getStreamRecord();
@@ -121,10 +121,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 				}
 			};
 
-			inputChannels[channelIndex].getInputChannel().addBufferAndAvailability(answer);
+			inputChannels[channelIndex].addBufferAndAvailability(answer);
 
 			inputGate.setInputChannel(new IntermediateResultPartitionID(),
-				inputChannels[channelIndex].getInputChannel());
+				inputChannels[channelIndex]);
 		}
 	}
 
@@ -133,7 +133,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.element(element));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel]);
 	}
 
 	public void sendEvent(AbstractEvent event, int channel) {
@@ -141,7 +141,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 			inputQueues[channel].add(InputValue.event(event));
 			inputQueues[channel].notifyAll();
 		}
-		inputGate.notifyChannelNonEmpty(inputChannels[channel].getInputChannel());
+		inputGate.notifyChannelNonEmpty(inputChannels[channel]);
 	}
 
 	public void endInput() {
@@ -150,7 +150,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 				inputQueues[i].add(InputValue.streamEnd());
 				inputQueues[i].notifyAll();
 			}
-			inputGate.notifyChannelNonEmpty(inputChannels[i].getInputChannel());
+			inputGate.notifyChannelNonEmpty(inputChannels[i]);
 		}
 	}
 
