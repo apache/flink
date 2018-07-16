@@ -61,15 +61,18 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private static final String FILE_TYPE_JAR = "Jar";
 
 	private final Executor executor;
+	private final Configuration configuration;
 
 	public JobSubmitHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
-			Executor executor) {
+			Executor executor,
+			Configuration configuration) {
 		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
 		this.executor = executor;
+		this.configuration = configuration;
 	}
 
 	@Override
@@ -96,7 +99,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
-		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles);
+		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, configuration);
 
 		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
 
@@ -136,14 +139,15 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 	private CompletableFuture<JobGraph> uploadJobGraphFiles(
 			DispatcherGateway gateway,
 			CompletableFuture<JobGraph> jobGraphFuture,
-			Collection<Path> jarFiles) {
+			Collection<Path> jarFiles,
+			Configuration configuration) {
 		CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
 		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			if (!jarFiles.isEmpty()) {
 				try {
-					final List<PermanentBlobKey> permanentBlobKeys = BlobClient.uploadJarFiles(address, new Configuration(), jobGraph.getJobID(), new ArrayList<>(jarFiles));
+					final List<PermanentBlobKey> permanentBlobKeys = BlobClient.uploadJarFiles(address, configuration, jobGraph.getJobID(), new ArrayList<>(jarFiles));
 					for (PermanentBlobKey blobKey : permanentBlobKeys) {
 						jobGraph.addBlob(blobKey);
 					}

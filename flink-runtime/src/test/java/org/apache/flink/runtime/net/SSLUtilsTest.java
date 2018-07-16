@@ -40,6 +40,13 @@ import static org.junit.Assert.assertThat;
  */
 public class SSLUtilsTest {
 
+	private static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
+	private static final String KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
+
+	private static final String TRUST_STORE_PASSWORD = "password";
+	private static final String KEY_STORE_PASSWORD = "password";
+	private static final String KEY_PASSWORD = "password";
+
 	/**
 	 * Tests if SSL Client Context is created given a valid SSL configuration.
 	 */
@@ -254,5 +261,24 @@ public class SSLUtilsTest {
 		assertThat(
 			Arrays.asList(sslEngine.getEnabledCipherSuites()),
 			containsInAnyOrder("TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
+	}
+
+	public static Configuration createInternalSslConfigWithKeyAndTrustStores() {
+		final Configuration config = new Configuration();
+		config.setBoolean(SecurityOptions.SSL_ENABLED, true);
+		addInternalKeyStoreConfig(config);
+		addInternalTrustStoreConfig(config);
+		return config;
+	}
+
+	private static void addInternalKeyStoreConfig(Configuration config) {
+		config.setString(SecurityOptions.SSL_KEYSTORE, KEY_STORE_PATH);
+		config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, KEY_STORE_PASSWORD);
+		config.setString(SecurityOptions.SSL_KEY_PASSWORD, KEY_PASSWORD);
+	}
+
+	private static void addInternalTrustStoreConfig(Configuration config) {
+		config.setString(SecurityOptions.SSL_TRUSTSTORE, TRUST_STORE_PATH);
+		config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
 	}
 }
