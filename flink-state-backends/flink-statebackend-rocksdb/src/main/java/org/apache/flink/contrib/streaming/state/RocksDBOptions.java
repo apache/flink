@@ -22,7 +22,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.HEAP;
-import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.ROCKS;
+import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 
 /**
  * Configuration options for the RocksDB backend.
@@ -43,5 +43,5 @@ public class RocksDBOptions {
 		.key("state.backend.rocksdb.timer-service.impl")
 		.defaultValue(HEAP.name())
 		.withDescription(String.format("This determines the timer service implementation. Options are either %s " +
-			"(heap-based, default) or %s for an implementation based on RocksDB.", HEAP.name(), ROCKS.name()));
+			"(heap-based, default) or %s for an implementation based on RocksDB.", HEAP.name(), ROCKSDB.name()));
 }

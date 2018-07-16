@@ -83,7 +83,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public enum PriorityQueueStateType {
 		HEAP,
-		ROCKS
+		ROCKSDB
 	}
 
 	private static final long serialVersionUID = 1L;
