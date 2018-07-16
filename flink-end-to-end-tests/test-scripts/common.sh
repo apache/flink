@@ -177,6 +177,8 @@ function set_conf_ssl {
     keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
 
     # adapt config
+    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
+    # external communication channels)
     set_conf security.ssl.enabled true
     set_conf security.ssl.keystore ${TEST_DATA_DIR}/ssl/node.keystore
     set_conf security.ssl.keystore-password password
