@@ -28,6 +28,7 @@ export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
+USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
@@ -55,6 +56,8 @@ function revert_default_config() {
     if [ -f $FLINK_DIR/conf/flink-conf.yaml.bak ]; then
         mv -f $FLINK_DIR/conf/flink-conf.yaml.bak $FLINK_DIR/conf/flink-conf.yaml
     fi
+
+    USE_SSL=OFF
 }
 
 function set_conf() {
@@ -115,6 +118,43 @@ function create_ha_config() {
 EOL
 }
 
+function set_conf_ssl {
+
+    # clean up the dir that will be used for SSL certificates and trust stores
+    if [ -e "${TEST_DATA_DIR}/ssl" ]; then
+       echo "File ${TEST_DATA_DIR}/ssl exists. Deleting it..."
+       rm -rf "${TEST_DATA_DIR}/ssl"
+    fi
+    mkdir -p "${TEST_DATA_DIR}/ssl"
+    NODENAME=`hostname -f`
+    SANSTRING="dns:${NODENAME}"
+    for NODEIP in `hostname -I | cut -d' ' -f1` ; do
+        SANSTRING="${SANSTRING},ip:${NODEIP}"
+    done
+
+    # create certificates
+    keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
+    keytool -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -exportcert > "${TEST_DATA_DIR}/ssl/ca.cer"
+    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/ca.truststore" -alias ca -storepass password -noprompt -file "${TEST_DATA_DIR}/ssl/ca.cer"
+
+    keytool -genkeypair -alias node -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -dname "CN=${NODENAME}" -ext SAN=${SANSTRING} -storepass password -keypass password -keyalg RSA
+    keytool -certreq -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -alias node -file "${TEST_DATA_DIR}/ssl/node.csr"
+    keytool -gencert -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -storepass password -alias ca -ext SAN=${SANSTRING} -infile "${TEST_DATA_DIR}/ssl/node.csr" -outfile "${TEST_DATA_DIR}/ssl/node.cer"
+    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/ca.cer" -alias ca -noprompt
+    keytool -importcert -keystore "${TEST_DATA_DIR}/ssl/node.keystore" -storepass password -file "${TEST_DATA_DIR}/ssl/node.cer" -alias node -noprompt
+
+    # adapt config
+    # (here we rely on security.ssl.enabled enabling SSL for all components and internal as well as
+    # external communication channels)
+    set_conf security.ssl.enabled true
+    set_conf security.ssl.keystore ${TEST_DATA_DIR}/ssl/node.keystore
+    set_conf security.ssl.keystore-password password
+    set_conf security.ssl.key-password password
+    set_conf security.ssl.truststore ${TEST_DATA_DIR}/ssl/ca.truststore
+    set_conf security.ssl.truststore-password password
+    USE_SSL=ON
+}
+
 function start_ha_cluster {
     create_ha_config
     start_local_zk
@@ -150,9 +190,15 @@ function start_cluster {
   "$FLINK_DIR"/bin/start-cluster.sh
 
   # wait at most 10 seconds until the dispatcher is up
+  local QUERY_URL
+  if [ "x$USE_SSL" = "xON" ]; then
+    QUERY_URL="http://localhost:8081/taskmanagers"
+  else
+    QUERY_URL="https://localhost:8081/taskmanagers"
+  fi
   for i in {1..10}; do
     # without the || true this would exit our script if the JobManager is not yet up
-    QUERY_RESULT=$(curl "http://localhost:8081/taskmanagers" 2> /dev/null || true)
+    QUERY_RESULT=$(curl "$QUERY_URL" 2> /dev/null || true)
 
     # ensure the taskmanagers field is there at all and is not empty
     if [[ ${QUERY_RESULT} =~ \{\"taskmanagers\":\[.+\]\} ]]; then
