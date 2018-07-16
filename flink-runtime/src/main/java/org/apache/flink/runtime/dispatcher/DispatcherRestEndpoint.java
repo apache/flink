@@ -92,7 +92,8 @@ public class DispatcherRestEndpoint extends WebMonitorEndpoint<DispatcherGateway
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			executor);
+			executor,
+			clusterConfiguration);
 
 		if (clusterConfiguration.getBoolean(WebOptions.SUBMIT_ENABLE)) {
 			try {

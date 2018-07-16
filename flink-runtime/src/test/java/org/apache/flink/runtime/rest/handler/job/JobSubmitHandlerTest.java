@@ -92,7 +92,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			new Configuration());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -123,7 +124,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			new Configuration());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -151,7 +153,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			new Configuration());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(jobGraphFile.getFileName().toString(), Collections.emptyList(), Collections.emptyList());
 
@@ -181,7 +184,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(dispatcherGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			new Configuration());
 
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
 		final Path jarFile = TEMPORARY_FOLDER.newFile().toPath();
@@ -226,7 +230,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 			() -> CompletableFuture.completedFuture(mockGateway),
 			RpcUtils.INF_TIMEOUT,
 			Collections.emptyMap(),
-			TestingUtils.defaultExecutor());
+			TestingUtils.defaultExecutor(),
+			new Configuration());
 
 		final Path jobGraphFile = TEMPORARY_FOLDER.newFile().toPath();
 
