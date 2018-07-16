@@ -26,8 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import static org.apache.flink.docs.util.Utils.escapeCharacters;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -36,14 +34,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Class used for generating code based documentation of configuration parameters.
@@ -56,8 +59,12 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
-		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
+		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus")
 	};
+
+	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
+		"org.apache.flink.configuration.ConfigOptions",
+		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
 
@@ -149,9 +156,13 @@ public class ConfigOptionsDocGenerator {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
 				Matcher matcher = CLASS_NAME_PATTERN.matcher(fileName);
-				if (!fileName.equals("ConfigOptions.java") && matcher.matches()) {
-					Class<?> optionsClass = Class.forName(packageName + '.' + matcher.group(CLASS_NAME_GROUP));
-					classConsumer.accept(optionsClass);
+				if (matcher.matches()) {
+					final String className = packageName + '.' + matcher.group(CLASS_NAME_GROUP);
+
+					if (!EXCLUSIONS.contains(className)) {
+						Class<?> optionsClass = Class.forName(className);
+						classConsumer.accept(optionsClass);
+					}
 				}
 			}
 		}
