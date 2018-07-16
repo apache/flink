@@ -185,5 +185,8 @@ object ScalarFunctions {
     new String(data)
   }
 
+  /**
+    * Returns the string str that is encoded as hex string of x.
+    */
   def hex(x: String): String = Hex.encodeHexString(x.getBytes)
 }
