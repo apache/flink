@@ -18,6 +18,7 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -35,6 +36,7 @@ public class TestJob {
 		final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
 		mapper.addSink(new DiscardingSink<>());
 
-		env.execute(TestJob.class.getCanonicalName());
+		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+		env.execute(TestJob.class.getCanonicalName() + "-" + parameterTool.getRequired("arg"));
 	}
 }

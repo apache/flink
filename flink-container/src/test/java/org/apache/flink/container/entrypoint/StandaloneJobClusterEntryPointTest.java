@@ -42,11 +42,12 @@ public class StandaloneJobClusterEntryPointTest extends TestLogger {
 		configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, parallelism);
 		final StandaloneJobClusterEntryPoint standaloneJobClusterEntryPoint = new StandaloneJobClusterEntryPoint(
 			configuration,
-			TestJob.class.getCanonicalName());
+			TestJob.class.getCanonicalName(),
+			new String[] {"--arg", "suffix"});
 
 		final JobGraph jobGraph = standaloneJobClusterEntryPoint.retrieveJobGraph(configuration);
 
-		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName())));
+		assertThat(jobGraph.getName(), is(equalTo(TestJob.class.getCanonicalName() + "-suffix")));
 		assertThat(jobGraph.getMaximumParallelism(), is(parallelism));
 	}
 

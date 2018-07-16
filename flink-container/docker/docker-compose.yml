@@ -24,7 +24,7 @@ services:
     image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
     ports:
       - "8081:8081"
-    command: job-cluster --job-classname ${FLINK_JOB} -Djobmanager.rpc.address=job-cluster
+    command: job-cluster --job-classname ${FLINK_JOB} -Djobmanager.rpc.address=job-cluster ${FLINK_JOB_ARGUMENTS}
 
   taskmanager:
     image: ${FLINK_DOCKER_IMAGE_NAME:-flink-job}
