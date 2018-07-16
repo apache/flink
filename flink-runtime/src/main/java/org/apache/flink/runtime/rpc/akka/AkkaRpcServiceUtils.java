@@ -130,7 +130,7 @@ public class AkkaRpcServiceUtils {
 		checkNotNull(config, "config is null");
 
 		final boolean sslEnabled = config.getBoolean(AkkaOptions.SSL_ENABLED) &&
-				SSLUtils.getSSLEnabled(config);
+				SSLUtils.isInternalSSLEnabled(config);
 
 		return getRpcUrl(
 			hostname,

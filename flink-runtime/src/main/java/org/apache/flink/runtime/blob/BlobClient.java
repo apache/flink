@@ -30,9 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSocket;
 
 import java.io.Closeable;
 import java.io.EOFException;
@@ -68,7 +65,7 @@ public final class BlobClient implements Closeable {
 	private static final Logger LOG = LoggerFactory.getLogger(BlobClient.class);
 
 	/** The socket connection to the BLOB server. */
-	private Socket socket;
+	private final Socket socket;
 
 	/**
 	 * Instantiates a new BLOB client.
@@ -82,41 +79,28 @@ public final class BlobClient implements Closeable {
 	 *         thrown if the connection to the BLOB server could not be established
 	 */
 	public BlobClient(InetSocketAddress serverAddress, Configuration clientConfig) throws IOException {
+		Socket socket = null;
 
 		try {
-			// Check if ssl is enabled
-			SSLContext clientSSLContext = null;
-			if (clientConfig != null &&
-				clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
-
-				clientSSLContext = SSLUtils.createSSLClientContext(clientConfig);
-			}
-
-			if (clientSSLContext != null) {
-
+			// create an SSL socket if configured
+			if (SSLUtils.isInternalSSLEnabled(clientConfig) && clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 				LOG.info("Using ssl connection to the blob server");
 
-				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
+				socket = SSLUtils.createSSLClientSocketFactory(clientConfig).createSocket(
 					serverAddress.getAddress(),
 					serverAddress.getPort());
-
-				// Enable hostname verification for remote SSL connections
-				if (!serverAddress.getAddress().isLoopbackAddress()) {
-					SSLParameters newSSLParameters = sslSocket.getSSLParameters();
-					SSLUtils.setSSLVerifyHostname(clientConfig, newSSLParameters);
-					sslSocket.setSSLParameters(newSSLParameters);
-				}
-				this.socket = sslSocket;
-			} else {
-				this.socket = new Socket();
-				this.socket.connect(serverAddress);
 			}
-
+			else {
+				socket = new Socket();
+				socket.connect(serverAddress);
+			}
 		}
 		catch (Exception e) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
 		}
+
+		this.socket = socket;
 	}
 
 	/**

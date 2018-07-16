@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLEngineFactory;
+
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -34,9 +36,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -52,7 +54,8 @@ class NettyClient {
 
 	private Bootstrap bootstrap;
 
-	private SSLContext clientSSLContext = null;
+	@Nullable
+	private SSLEngineFactory clientSSLFactory;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
@@ -112,7 +115,7 @@ class NettyClient {
 		}
 
 		try {
-			clientSSLContext = config.createClientSSLContext();
+			clientSSLFactory = config.createClientSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
 		}
@@ -177,18 +180,10 @@ class NettyClient {
 			public void initChannel(SocketChannel channel) throws Exception {
 
 				// SSL handler should be added first in the pipeline
-				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
+				if (clientSSLFactory != null) {
+					SSLEngine sslEngine = clientSSLFactory.createSSLEngine(
 						serverSocketAddress.getAddress().getCanonicalHostName(),
 						serverSocketAddress.getPort());
-					sslEngine.setUseClientMode(true);
-
-					// Enable hostname verification for remote SSL connections
-					if (!serverSocketAddress.getAddress().isLoopbackAddress()) {
-						SSLParameters newSSLParameters = sslEngine.getSSLParameters();
-						config.setSSLVerifyHostname(newSSLParameters);
-						sslEngine.setSSLParameters(newSSLParameters);
-					}
 
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
@@ -200,7 +195,7 @@ class NettyClient {
 			return bootstrap.connect(serverSocketAddress);
 		}
 		catch (ChannelException e) {
-			if ( (e.getCause() instanceof java.net.SocketException &&
+			if ((e.getCause() instanceof java.net.SocketException &&
 					e.getCause().getMessage().equals("Too many open files")) ||
 				(e.getCause() instanceof ChannelException &&
 						e.getCause().getCause() instanceof java.net.SocketException &&
