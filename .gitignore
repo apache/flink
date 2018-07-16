@@ -34,3 +34,4 @@ out/
 *.iws
 tools/flink
 tools/flink-*
+tools/releasing/release

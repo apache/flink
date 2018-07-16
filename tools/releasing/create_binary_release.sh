@@ -44,6 +44,12 @@ else
     SHASUM="sha512sum"
 fi
 
+cd ..
+
+FLINK_DIR=`pwd`
+RELEASE_DIR=${RELEASE_DIR}/tools/releasing/release
+mkdir -p ${RELEASE_DIR}
+
 ###########################
 
 # build maven package, create Flink distribution, generate signature
@@ -65,18 +71,17 @@ make_binary_release() {
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
 
-  cp flink-*.tgz ../../../
-  cd ../../../
+  cp flink-*.tgz ${RELEASE_DIR}
+  cd ${RELEASE_DIR}
 
   # Sign sha the tgz
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${dir_name}.tgz"
   fi
   $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha512"
+
+  cd ${FLINK_DIR}
 }
-
-cd ..
-
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
   make_binary_release "" "-DwithoutHadoop" "2.11"
