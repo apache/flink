@@ -21,18 +21,27 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.HEAP;
+import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.ROCKS;
+
 /**
  * Configuration options for the RocksDB backend.
  */
-public class RockDBBackendOptions {
+public class RocksDBOptions {
+
+	/** The local directory (on the TaskManager) where RocksDB puts its files. */
+	public static final ConfigOption<String> LOCAL_DIRECTORIES = ConfigOptions
+		.key("state.backend.rocksdb.localdir")
+		.noDefaultValue()
+		.withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
+		.withDescription("The local directory (on the TaskManager) where RocksDB puts its files.");
 
 	/**
-	 * Choice of implementation for priority queue state (e.g. timers).
+	 * Choice of timer service implementation.
 	 */
-	public static final ConfigOption<String> PRIORITY_QUEUE_STATE_TYPE = ConfigOptions
-		.key("backend.rocksdb.priority_queue_state_type")
-		.defaultValue(RocksDBStateBackend.PriorityQueueStateType.HEAP.name())
-		.withDescription("This determines the implementation for the priority queue state (e.g. timers). Options are" +
-			"either " + RocksDBStateBackend.PriorityQueueStateType.HEAP.name() + " (heap-based, default) or " +
-			RocksDBStateBackend.PriorityQueueStateType.ROCKS.name() + " for in implementation based on RocksDB.");
+	public static final ConfigOption<String> TIMER_SERVICE_IMPL = ConfigOptions
+		.key("state.backend.rocksdb.timer-service.impl")
+		.defaultValue(HEAP.name())
+		.withDescription(String.format("This determines the timer service implementation. Options are either %s " +
+			"(heap-based, default) or %s for an implementation based on RocksDB.", HEAP.name(), ROCKS.name()));
 }
