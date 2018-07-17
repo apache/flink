@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 
@@ -30,20 +29,20 @@ import java.io.Serializable;
  * A factory able to create {@link Bucket buckets} for the {@link StreamingFileSink}.
  */
 @Internal
-public interface BucketFactory<IN> extends Serializable {
+interface BucketFactory<IN, BucketID> extends Serializable {
 
-	Bucket<IN> getNewBucket(
-			RecoverableWriter fsWriter,
-			int subtaskIndex,
-			String bucketId,
-			Path bucketPath,
-			long initialPartCounter,
-			Encoder<IN> writer) throws IOException;
+	Bucket<IN, BucketID> getNewBucket(
+			final RecoverableWriter fsWriter,
+			final int subtaskIndex,
+			final BucketID bucketId,
+			final Path bucketPath,
+			final long initialPartCounter,
+			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory) throws IOException;
 
-	Bucket<IN> restoreBucket(
-			RecoverableWriter fsWriter,
-			int subtaskIndex,
-			long initialPartCounter,
-			Encoder<IN> writer,
-			BucketState bucketstate) throws IOException;
+	Bucket<IN, BucketID> restoreBucket(
+			final RecoverableWriter fsWriter,
+			final int subtaskIndex,
+			final long initialPartCounter,
+			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketState<BucketID> bucketState) throws IOException;
 }

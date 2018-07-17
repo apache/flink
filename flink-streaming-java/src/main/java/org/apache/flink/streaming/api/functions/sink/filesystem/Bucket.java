@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
@@ -30,6 +29,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A bucket is the directory organization of the output of the {@link StreamingFileSink}.
@@ -39,17 +39,17 @@ import java.util.Map;
  * queried to see in which bucket this element should be written to.
  */
 @PublicEvolving
-public class Bucket<IN> {
+public class Bucket<IN, BucketID> {
 
 	private static final String PART_PREFIX = "part";
 
-	private final String bucketId;
+	private final BucketID bucketId;
 
 	private final Path bucketPath;
 
 	private final int subtaskIndex;
 
-	private final Encoder<IN> encoder;
+	private final PartFileWriter.PartFileFactory<IN, BucketID> partFileFactory;
 
 	private final RecoverableWriter fsWriter;
 
@@ -57,7 +57,7 @@ public class Bucket<IN> {
 
 	private long partCounter;
 
-	private PartFileHandler<IN> currentPart;
+	private PartFileWriter<IN, BucketID> currentPart;
 
 	private List<RecoverableWriter.CommitRecoverable> pending;
 
@@ -68,10 +68,10 @@ public class Bucket<IN> {
 			RecoverableWriter fsWriter,
 			int subtaskIndex,
 			long initialPartCounter,
-			Encoder<IN> writer,
-			BucketState bucketstate) throws IOException {
+			PartFileWriter.PartFileFactory<IN, BucketID> partFileFactory,
+			BucketState<BucketID> bucketState) throws IOException {
 
-		this(fsWriter, subtaskIndex, bucketstate.getBucketId(), bucketstate.getBucketPath(), initialPartCounter, writer);
+		this(fsWriter, subtaskIndex, bucketState.getBucketId(), bucketState.getBucketPath(), initialPartCounter, partFileFactory);
 
 		// the constructor must have already initialized the filesystem writer
 		Preconditions.checkState(fsWriter != null);
@@ -79,15 +79,15 @@ public class Bucket<IN> {
 		// we try to resume the previous in-progress file, if the filesystem
 		// supports such operation. If not, we just commit the file and start fresh.
 
-		final RecoverableWriter.ResumeRecoverable resumable = bucketstate.getCurrentInProgress();
+		final RecoverableWriter.ResumeRecoverable resumable = bucketState.getInProgress();
 		if (resumable != null) {
-			currentPart = PartFileHandler.resumeFrom(
-					bucketId, fsWriter, resumable, bucketstate.getCreationTime());
+			currentPart = partFileFactory.resumeFrom(
+					bucketId, fsWriter, resumable, bucketState.getCreationTime());
 		}
 
 		// we commit pending files for previous checkpoints to the last successful one
 		// (from which we are recovering from)
-		for (List<RecoverableWriter.CommitRecoverable> commitables: bucketstate.getPendingPerCheckpoint().values()) {
+		for (List<RecoverableWriter.CommitRecoverable> commitables: bucketState.getPendingPerCheckpoint().values()) {
 			for (RecoverableWriter.CommitRecoverable commitable: commitables) {
 				fsWriter.recoverForCommit(commitable).commitAfterRecovery();
 			}
@@ -100,26 +100,26 @@ public class Bucket<IN> {
 	public Bucket(
 			RecoverableWriter fsWriter,
 			int subtaskIndex,
-			String bucketId,
+			BucketID bucketId,
 			Path bucketPath,
 			long initialPartCounter,
-			Encoder<IN> writer) {
+			PartFileWriter.PartFileFactory<IN, BucketID> partFileFactory) {
 
 		this.fsWriter = Preconditions.checkNotNull(fsWriter);
 		this.subtaskIndex = subtaskIndex;
 		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
 		this.partCounter = initialPartCounter;
-		this.encoder = Preconditions.checkNotNull(writer);
+		this.partFileFactory = Preconditions.checkNotNull(partFileFactory);
 
 		this.pending = new ArrayList<>();
 	}
 
-	public PartFileInfo getInProgressPartInfo() {
+	public PartFileInfo<BucketID> getInProgressPartInfo() {
 		return currentPart;
 	}
 
-	public String getBucketId() {
+	public BucketID getBucketId() {
 		return bucketId;
 	}
 
@@ -137,18 +137,18 @@ public class Bucket<IN> {
 
 	void write(IN element, long currentTime) throws IOException {
 		Preconditions.checkState(currentPart != null, "bucket has been closed");
-		currentPart.write(element, encoder, currentTime);
+		currentPart.write(element, currentTime);
 	}
 
 	void rollPartFile(final long currentTime) throws IOException {
 		closePartFile();
-		currentPart = PartFileHandler.openNew(bucketId, fsWriter, getNewPartPath(), currentTime);
+		currentPart = partFileFactory.openNew(bucketId, fsWriter, getNewPartPath(), currentTime);
 		partCounter++;
 	}
 
-	void merge(final Bucket<IN> bucket) throws IOException {
+	void merge(final Bucket<IN, BucketID> bucket) throws IOException {
 		Preconditions.checkNotNull(bucket);
-		Preconditions.checkState(bucket.getBucketPath().equals(getBucketPath()));
+		Preconditions.checkState(Objects.equals(bucket.getBucketPath(), bucketPath));
 
 		// there should be no pending files in the "to-merge" states.
 		Preconditions.checkState(bucket.pending.isEmpty());
@@ -176,7 +176,7 @@ public class Bucket<IN> {
 		}
 	}
 
-	public void commitUpToCheckpoint(long checkpointId) throws IOException {
+	public void onCheckpointAcknowledgment(long checkpointId) throws IOException {
 		Preconditions.checkNotNull(fsWriter);
 
 		Iterator<Map.Entry<Long, List<RecoverableWriter.CommitRecoverable>>> it =
@@ -193,7 +193,7 @@ public class Bucket<IN> {
 		}
 	}
 
-	public BucketState snapshot(long checkpointId) throws IOException {
+	public BucketState<BucketID> onCheckpoint(long checkpointId) throws IOException {
 		RecoverableWriter.ResumeRecoverable resumable = null;
 		long creationTime = Long.MAX_VALUE;
 
@@ -206,7 +206,7 @@ public class Bucket<IN> {
 			pendingPerCheckpoint.put(checkpointId, pending);
 			pending = new ArrayList<>();
 		}
-		return new BucketState(bucketId, bucketPath, creationTime, resumable, pendingPerCheckpoint);
+		return new BucketState<>(bucketId, bucketPath, creationTime, resumable, pendingPerCheckpoint);
 	}
 
 	private Path getNewPartPath() {

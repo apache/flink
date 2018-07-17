@@ -32,9 +32,9 @@ import java.util.Map;
  * The state of the {@link Bucket} that is to be checkpointed.
  */
 @Internal
-public class BucketState {
+public class BucketState<BucketID> {
 
-	private final String bucketId;
+	private final BucketID bucketId;
 
 	/**
 	 * The base path for the bucket, i.e. the directory where all the part files are stored.
@@ -59,10 +59,10 @@ public class BucketState {
 	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPerCheckpoint;
 
 	public BucketState(
-			final String bucketId,
+			final BucketID bucketId,
 			final Path bucketPath,
 			final long creationTime,
-			final @Nullable RecoverableWriter.ResumeRecoverable inProgress,
+			@Nullable final RecoverableWriter.ResumeRecoverable inProgress,
 			final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPerCheckpoint
 	) {
 		this.bucketId = Preconditions.checkNotNull(bucketId);
@@ -72,7 +72,7 @@ public class BucketState {
 		this.pendingPerCheckpoint = Preconditions.checkNotNull(pendingPerCheckpoint);
 	}
 
-	public String getBucketId() {
+	public BucketID getBucketId() {
 		return bucketId;
 	}
 
@@ -85,7 +85,7 @@ public class BucketState {
 	}
 
 	@Nullable
-	public RecoverableWriter.ResumeRecoverable getCurrentInProgress() {
+	public RecoverableWriter.ResumeRecoverable getInProgress() {
 		return inProgress;
 	}
 
