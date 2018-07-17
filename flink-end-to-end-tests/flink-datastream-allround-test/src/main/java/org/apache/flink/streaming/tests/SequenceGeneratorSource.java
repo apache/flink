@@ -162,7 +162,11 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 	}
 
 	private long generateEventTimeWithOutOfOrderness(Random random, long correctTime) {
-		return correctTime - maxOutOfOrder + ((random.nextLong() & Long.MAX_VALUE) % (2 * maxOutOfOrder));
+		if (maxOutOfOrder > 0) {
+			return correctTime - maxOutOfOrder + ((random.nextLong() & Long.MAX_VALUE) % (2 * maxOutOfOrder));
+		} else {
+			return correctTime;
+		}
 	}
 
 	@Override

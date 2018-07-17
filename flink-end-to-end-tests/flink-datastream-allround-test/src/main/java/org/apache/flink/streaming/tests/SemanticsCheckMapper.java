@@ -56,6 +56,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
 		if (validator.check(currentValue, nextValue)) {
 			sequenceValue.update(nextValue);
 		} else {
+			sequenceValue.update(nextValue);
 			out.collect("Alert: " + currentValue + " -> " + nextValue + " (" + event.getKey() + ")");
 		}
 	}
