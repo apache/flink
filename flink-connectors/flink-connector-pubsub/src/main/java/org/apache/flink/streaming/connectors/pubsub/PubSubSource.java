@@ -55,26 +55,28 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 
 	/**
 	 * Convenience factory method to return a PubSubSource with default application credentials based on environment variables. ({@link org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider})
-	 * @param projectSubscriptionName The google project and subscription to read from
+	 * @param projectName The name of the google project where the subscription is in
+	 * @param subscriptionName The name of the subscription to read from
 	 * @param deserializationSchema Schema to deserialize the {@link PubsubMessage}
 	 * @param <OUT> The type of messages that will be read
 	 * @return Returns a RichParallelSourceFunction which reads from a PubSub subscription
 	 * @throws Exception exception is thrown when no default application credentials can be found
 	 */
-	public static <OUT> PubSubSource<OUT> withDefaultApplicationCredentials(ProjectSubscriptionName projectSubscriptionName, DeserializationSchema<OUT> deserializationSchema) throws Exception {
-		return withCustomApplicationCredentials(projectSubscriptionName, deserializationSchema, credentialsProviderFromEnvironmentVariables());
+	public static <OUT> PubSubSource<OUT> withDefaultApplicationCredentials(String projectName, String subscriptionName, DeserializationSchema<OUT> deserializationSchema) throws Exception {
+		return withCustomApplicationCredentials(projectName, subscriptionName, deserializationSchema, credentialsProviderFromEnvironmentVariables());
 	}
 
 	/**
 	 * Factory method to return a PubSubSource.
-	 * @param projectSubscriptionName The google project and subscription to read from
+	 * @param projectName The name of the google project where the subscription is in
+	 * @param subscriptionName The name of the subscription to read from
 	 * @param deserializationSchema Schema to deserialize the {@link PubsubMessage}
 	 * @param serializableCredentialsProvider CredentialsProvider used to give the correct permissions to read from PubSub
 	 * @param <OUT> The type of messages that will be read
 	 * @return Returns a RichParallelSourceFunction which reads from a PubSub subscription
 	 */
-	public static <OUT> PubSubSource<OUT> withCustomApplicationCredentials(ProjectSubscriptionName projectSubscriptionName, DeserializationSchema<OUT> deserializationSchema, SerializableCredentialsProvider serializableCredentialsProvider) {
-		return new PubSubSource<>(new SubscriberWrapper(serializableCredentialsProvider, projectSubscriptionName), deserializationSchema);
+	public static <OUT> PubSubSource<OUT> withCustomApplicationCredentials(String projectName, String subscriptionName, DeserializationSchema<OUT> deserializationSchema, SerializableCredentialsProvider serializableCredentialsProvider) {
+		return new PubSubSource<>(new SubscriberWrapper(serializableCredentialsProvider, ProjectSubscriptionName.of(projectName, subscriptionName)), deserializationSchema);
 	}
 
 	@Override
