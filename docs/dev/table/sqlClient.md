@@ -181,6 +181,16 @@ tables:
       line-delimiter: "\n"
       comment-prefix: "#"
 
+# Define user-defined functions here.
+
+functions:
+  - name: myUDF
+    from: class
+    class: foo.bar.AggregateUDF
+    constructor:
+      - 7.6
+      - false
+
 # Execution properties allow for changing the behavior of a table program.
 
 execution:
@@ -202,6 +212,7 @@ deployment:
 This configuration:
 
 - defines an environment with a table source `MyTableName` that reads from a CSV file,
+- defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
 - runs queries in the `table` result mode.
@@ -630,6 +641,89 @@ Avro types are mapped to the corresponding SQL data types. Union types are only 
 Avro uses [Joda-Time](http://www.joda.org/joda-time/) for representing logical date and time types in specific record classes. The Joda-Time dependency is not part of Flink's SQL JAR distribution. Therefore, make sure that Joda-Time is in your classpath together with your specific record class during runtime. Avro formats specified via a schema string do not require Joda-Time to be present.
 
 Make sure to download the [Apache Avro SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
+
+{% top %}
+
+User-defined Functions
+--------------------
+The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
+
+In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+
+All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
+
+- a `name` under which the function is registered,
+- the source of the function using `from` (restricted to be `class` for now),
+- the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+
+{% highlight yaml %}
+functions:
+  - name: ...               # required: name of the function
+    from: class             # required: source of the function (can only be "class" for now)
+    class: ...              # required: fully qualified class name of the function
+    constructor:            # optimal: constructor parameters of the function class
+      - ...                 # optimal: a literal parameter with implicit type
+      - class: ...          # optimal: full class name of the parameter
+        constructor:        # optimal: constructor parameters of the parameter's class
+          - type: ...       # optimal: type of the literal parameter
+            value: ...      # optimal: value of the literal parameter
+{% endhighlight %}
+
+Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+
+### Constructor Parameters
+
+Depending on the user-defined function, it might be necessary to parameterize the implementation before using it in SQL statements.
+
+As shown in the example before, when declaring a user-defined function, a class can be configured using constructor parameters in one of the following three ways:
+
+**A literal value with implicit type:** The SQL Client will automatically derive the type according to the literal value itself. Currently, only values of `BOOLEAN`, `INT`, `DOUBLE` and `VARCHAR` are supported here.
+If the automatic derivation does not work as expected (e.g., you need a VARCHAR `false`), use explicit types instead.
+
+{% highlight yaml %}
+- true         # -> BOOLEAN (case sensitive)
+- 42           # -> INT
+- 1234.222     # -> DOUBLE
+- foo          # -> VARCHAR
+{% endhighlight %}
+
+**A literal value with explicit type:** Explicitly declare the parameter with `type` and `value` properties for type-safety.
+
+{% highlight yaml %}
+- type: DECIMAL
+  value: 11111111111111111
+{% endhighlight %}
+
+The table below illustrates the supported Java parameter types and the corresponding SQL type strings.
+
+| Java type               |  SQL type         |
+| :---------------------- | :---------------- |
+| `java.math.BigDecimal`  | `DECIMAL`         |
+| `java.lang.Boolean`     | `BOOLEAN`         |
+| `java.lang.Byte`        | `TINYINT`         |
+| `java.lang.Double`      | `DOUBLE`          |
+| `java.lang.Float`       | `REAL`, `FLOAT`   |
+| `java.lang.Integer`     | `INTEGER`, `INT`  |
+| `java.lang.Long`        | `BIGINT`          |
+| `java.lang.Short`       | `SMALLINT`        |
+| `java.lang.String`      | `VARCHAR`         |
+
+More types (e.g., `TIMESTAMP` or `ARRAY`), primitive types, and `null` are not supported yet.
+
+**A (nested) class instance:** Besides literal values, you can also create (nested) class instances for constructor parameters by specifying the `class` and `constructor` properties.
+This process can be recursively performed until all the constructor parameters are represented with literal values.
+
+{% highlight yaml %}
+- class: foo.bar.paramClass
+  constructor:
+    - StarryName
+    - class: java.lang.Integer
+      constructor:
+        - class: java.lang.String
+          constructor:
+            - type: VARCHAR
+              value: 3
+{% endhighlight %}
 
 {% top %}
 
