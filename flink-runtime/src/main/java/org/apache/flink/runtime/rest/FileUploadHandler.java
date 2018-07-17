@@ -41,6 +41,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Http
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
+import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 	private Path currentUploadDir;
 
 	public FileUploadHandler(final Path uploadDir) {
-		super(false);
+		super(true);
 		DiskFileUpload.baseDirectory = uploadDir.normalize().toAbsolutePath().toString();
 		this.uploadDir = requireNonNull(uploadDir);
 	}
@@ -93,14 +94,17 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
 				if (httpRequest.getMethod().equals(HttpMethod.POST)) {
 					if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
+						checkState(currentHttpPostRequestDecoder == null);
+						checkState(currentHttpRequest == null);
+						checkState(currentUploadDir == null);
 						currentHttpPostRequestDecoder = new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
-						currentHttpRequest = httpRequest;
+						currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
 						currentUploadDir = Files.createDirectory(uploadDir.resolve(UUID.randomUUID().toString()));
 					} else {
-						ctx.fireChannelRead(msg);
+						ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
 					}
 				} else {
-					ctx.fireChannelRead(msg);
+					ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
 				}
 			} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
 				// make sure that we still have a upload dir in case that it got deleted in the meanwhile
@@ -135,12 +139,12 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					if (currentJsonPayload != null) {
 						ctx.fireChannelRead(httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
 					} else {
-						ctx.fireChannelRead(httpContent);
+						ctx.fireChannelRead(ReferenceCountUtil.retain(httpContent));
 					}
 					reset();
 				}
 			} else {
-				ctx.fireChannelRead(msg);
+				ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
 			}
 		} catch (Exception e) {
 			handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
@@ -159,6 +163,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 			responseStatus,
 			Collections.emptyMap()
 		);
+		ReferenceCountUtil.release(tmpRequest);
 	}
 
 	private void deleteUploadedFiles() {
