@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * Internal use.
+ * A small utility class for implementing backpressure.
  */
 @Internal
 public class TimeoutLatch {
