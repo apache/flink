@@ -41,7 +41,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	public static final long DEFAULT_TIMEOUT = 10 * 60 * 1000;
 
 	/** The default minimum pause to be made between checkpoints: none. */
-	public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0;
+	public static final long DEFAULT_MIN_PAUSE_BETWEEN_SUCCESS_CHECKPOINTS = 0;
 
 	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
@@ -57,8 +57,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Maximum time checkpoint may take before being discarded. */
 	private long checkpointTimeout = DEFAULT_TIMEOUT;
 
-	/** Minimal pause between checkpointing attempts. */
-	private long minPauseBetweenCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS;
+	/** Minimal pause between successful checkpointing attempts. */
+	private long minPauseBetweenSuccessCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_SUCCESS_CHECKPOINTS;
 
 	/** Maximum number of checkpoint attempts in progress at the same time. */
 	private int maxConcurrentCheckpoints = DEFAULT_MAX_CONCURRENT_CHECKPOINTS;
@@ -105,7 +105,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Gets the interval in which checkpoints are periodically scheduled.
 	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
-	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenCheckpoints()}.
+	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenSuccessCheckpoints()}.
 	 *
 	 * @return The checkpoint interval, in milliseconds.
 	 */
@@ -117,7 +117,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Sets the interval in which checkpoints are periodically scheduled.
 	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
-	 * {@link #setMaxConcurrentCheckpoints(int)} and {@link #setMinPauseBetweenCheckpoints(long)}.
+	 * {@link #setMaxConcurrentCheckpoints(int)} and {@link #setMinPauseBetweenSuccessCheckpoints(long)}.
 	 *
 	 * @param checkpointInterval The checkpoint interval, in milliseconds.
 	 */
@@ -150,15 +150,16 @@ public class CheckpointConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Gets the minimal pause between checkpointing attempts. This setting defines how soon the
+	 * Gets the minimal pause between successful checkpointing attempts. This setting defines how soon the
 	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
-	 * another checkpoint with respect to the maximum number of concurrent checkpoints
+	 * another checkpoint with respect to the maximum number of concurrent checkpoints. If current checkpoint
+	 * is failed or expired, the minimal pause would be ignored to trigger another checkpoint.
 	 * (see {@link #getMaxConcurrentCheckpoints()}).
 	 *
 	 * @return The minimal pause before the next checkpoint is triggered.
 	 */
-	public long getMinPauseBetweenCheckpoints() {
-		return minPauseBetweenCheckpoints;
+	public long getMinPauseBetweenSuccessCheckpoints() {
+		return minPauseBetweenSuccessCheckpoints;
 	}
 
 	/**
@@ -170,13 +171,13 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
 	 * that a minimum amount of time passes where no checkpoint is in progress at all.
 	 *
-	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
+	 * @param minPauseBetweenSuccessCheckpoints The minimal pause before the next checkpoint is triggered.
 	 */
-	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
-		if (minPauseBetweenCheckpoints < 0) {
+	public void setMinPauseBetweenSuccessCheckpoints(long minPauseBetweenSuccessCheckpoints) {
+		if (minPauseBetweenSuccessCheckpoints < 0) {
 			throw new IllegalArgumentException("Pause value must be zero or positive");
 		}
-		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+		this.minPauseBetweenSuccessCheckpoints = minPauseBetweenSuccessCheckpoints;
 	}
 
 	/**

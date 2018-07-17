@@ -465,7 +465,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public void enableCheckpointing(
 			long interval,
 			long checkpointTimeout,
-			long minPauseBetweenCheckpoints,
+			long minPauseBetweenSuccessCheckpoints,
 			int maxConcurrentCheckpoints,
 			CheckpointRetentionPolicy retentionPolicy,
 			List<ExecutionJobVertex> verticesToTrigger,
@@ -495,7 +495,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			jobInformation.getJobId(),
 			interval,
 			checkpointTimeout,
-			minPauseBetweenCheckpoints,
+			minPauseBetweenSuccessCheckpoints,
 			maxConcurrentCheckpoints,
 			retentionPolicy,
 			tasksToTrigger,

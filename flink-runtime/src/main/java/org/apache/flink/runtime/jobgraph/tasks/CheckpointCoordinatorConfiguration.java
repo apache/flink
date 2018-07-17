@@ -57,20 +57,20 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 	public CheckpointCoordinatorConfiguration(
 			long checkpointInterval,
 			long checkpointTimeout,
-			long minPauseBetweenCheckpoints,
+			long minPauseBetweenSuccessCheckpoints,
 			int maxConcurrentCheckpoints,
 			CheckpointRetentionPolicy checkpointRetentionPolicy,
 			boolean isExactlyOnce) {
 
 		// sanity checks
 		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
-			minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1) {
+			minPauseBetweenSuccessCheckpoints < 0 || maxConcurrentCheckpoints < 1) {
 			throw new IllegalArgumentException();
 		}
 
 		this.checkpointInterval = checkpointInterval;
 		this.checkpointTimeout = checkpointTimeout;
-		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+		this.minPauseBetweenCheckpoints = minPauseBetweenSuccessCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
 		this.isExactlyOnce = isExactlyOnce;
