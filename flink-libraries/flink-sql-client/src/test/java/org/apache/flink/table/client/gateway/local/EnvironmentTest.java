@@ -47,8 +47,7 @@ public class EnvironmentTest {
 			DEFAULTS_ENVIRONMENT_FILE,
 			replaceVars1);
 
-		final Map<String, String> replaceVars2 = new HashMap<>();
-		replaceVars2.put("$VAR_UPDATE_MODE", "update-mode: append");
+		final Map<String, String> replaceVars2 = new HashMap<>(replaceVars1);
 		replaceVars2.put("TableNumber1", "NewTable");
 		final Environment env2 = EnvironmentFileUtil.parseModified(
 			FACTORY_ENVIRONMENT_FILE,

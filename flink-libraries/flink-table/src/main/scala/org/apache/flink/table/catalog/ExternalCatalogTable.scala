@@ -129,18 +129,6 @@ class ExternalCatalogTable(val connectorDescriptor: ConnectorDescriptor)
     }
   }
 
-  /**
-    * Internal method for properties conversion.
-    */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.addProperties(properties)
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
-    statisticsDescriptor.foreach(_.addProperties(properties))
-    metadataDescriptor.foreach(_.addProperties(properties))
-    updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
-  }
-
   // ----------------------------------------------------------------------------------------------
   // Builder methods
   // ----------------------------------------------------------------------------------------------
@@ -312,5 +300,19 @@ class ExternalCatalogTable(val connectorDescriptor: ConnectorDescriptor)
     */
   def isStreamTable: Boolean = {
     isStreaming
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Internal method for properties conversion.
+    */
+  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+    connectorDescriptor.addProperties(properties)
+    formatDescriptor.foreach(_.addProperties(properties))
+    schemaDescriptor.foreach(_.addProperties(properties))
+    statisticsDescriptor.foreach(_.addProperties(properties))
+    metadataDescriptor.foreach(_.addProperties(properties))
+    updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
   }
 }

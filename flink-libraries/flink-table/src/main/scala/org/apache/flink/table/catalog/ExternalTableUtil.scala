@@ -52,11 +52,9 @@ object ExternalTableUtil extends Logging {
     val statistics = new FlinkStatistic(externalCatalogTable.getTableStats)
 
     val source: Option[TableSourceTable[T1]] = tableEnv match {
-      // check for a batch table source in this batch environment
       case _: BatchTableEnvironment if externalCatalogTable.isBatchTable =>
         createBatchTableSource(externalCatalogTable, javaMap, statistics)
 
-      // check for a stream table source in this stream environment
       case _: StreamTableEnvironment if externalCatalogTable.isStreamTable =>
         createStreamTableSource(externalCatalogTable, javaMap, statistics)
 
@@ -66,11 +64,9 @@ object ExternalTableUtil extends Logging {
     }
 
     val sink: Option[TableSinkTable[T2]] = tableEnv match {
-      // check for a batch table sink in this batch environment
       case _: BatchTableEnvironment if externalCatalogTable.isBatchTable =>
         createBatchTableSink(externalCatalogTable, javaMap, statistics)
 
-      // check for a stream table sink in this stream environment
       case _: StreamTableEnvironment if externalCatalogTable.isStreamTable =>
         createStreamTableSink(externalCatalogTable, javaMap, statistics)
 

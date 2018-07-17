@@ -66,6 +66,7 @@ tables:
       comment-prefix: "#"
   - name: TableSourceSink
     type: both
+    $VAR_UPDATE_MODE
     schema:
       - name: BooleanField
         type: BOOLEAN

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.{BatchTableEnvironment, ValidationException}
+import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.descriptors.DescriptorUtils.validateTableDescriptorProperties
 import org.apache.flink.table.factories.{BatchTableSinkFactory, BatchTableSourceFactory, TableFactoryService}
 
 /**
@@ -33,15 +34,6 @@ class BatchTableDescriptor(
 
   private var formatDescriptor: Option[FormatDescriptor] = None
   private var schemaDescriptor: Option[Schema] = None
-
-  /**
-    * Internal method for properties conversion.
-    */
-  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.addProperties(properties)
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
-  }
 
   /**
     * Searches for the specified table source, configures it accordingly, and registers it as
@@ -104,23 +96,20 @@ class BatchTableDescriptor(
 
   // ----------------------------------------------------------------------------------------------
 
+  /**
+    * Internal method for properties conversion.
+    */
+  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+    connectorDescriptor.addProperties(properties)
+    formatDescriptor.foreach(_.addProperties(properties))
+    schemaDescriptor.foreach(_.addProperties(properties))
+  }
+
   private def getValidProperties: DescriptorProperties = {
-    val properties = new DescriptorProperties()
-    addProperties(properties)
-
-    // check for a format
-    if (connectorDescriptor.needsFormat() && formatDescriptor.isEmpty) {
-      throw new ValidationException(
-        s"The connector '$connectorDescriptor' requires a format description.")
-    } else if (!connectorDescriptor.needsFormat() && formatDescriptor.isDefined) {
-      throw new ValidationException(
-        s"The connector '$connectorDescriptor' does not require a format description " +
-          s"but '${formatDescriptor.get}' found.")
-    }
-
-    // basic validation
-    new ConnectorDescriptorValidator().validate(properties)
-
-    properties
+    validateTableDescriptorProperties(
+      isStreaming = false,
+      this,
+      connectorDescriptor,
+      formatDescriptor)
   }
 }

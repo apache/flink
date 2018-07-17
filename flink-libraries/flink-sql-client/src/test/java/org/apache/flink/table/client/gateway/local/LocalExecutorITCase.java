@@ -289,6 +289,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_2", "streaming");
 		replaceVars.put("$VAR_4", csvOutputPath);
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());

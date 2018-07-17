@@ -45,6 +45,8 @@ import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERM
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
+import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
  * Table sink factory for testing the classloading in {@link DependencyTest}.
@@ -54,6 +56,7 @@ public class TestTableSinkFactory implements StreamTableSinkFactory<Row> {
 	@Override
 	public Map<String, String> requiredContext() {
 		final Map<String, String> context = new HashMap<>();
+		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND());
 		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE);
 		return context;
 	}
