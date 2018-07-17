@@ -313,17 +313,16 @@ public class DispatcherTest extends TestLogger {
 			.setJobID(TEST_JOB_ID)
 			.setState(JobStatus.CANCELED)
 			.build();
-
-
+		
 		dispatcher.completeJobExecution(executionGraph);
 
-		assertThat(dispatcher.listJobs(TIMEOUT).get(), is(not(empty())));
+		//Assert that blob was not removed, since exception was thrown while removing the job
 		assertThat(blobServer.getFile(TEST_JOB_ID, key), notNullValue(File.class));
 
 		submittedJobGraphStore.setRemovalFailure(null);
-
 		dispatcher.completeJobExecution(executionGraph);
-		assertThat(dispatcher.listJobs(TIMEOUT).get(), is(empty()));
+		//Job removing did not throw exception now, blob should be null
+
 		expectedException.expect(NoSuchFileException.class);
 		blobServer.getFile(TEST_JOB_ID, key);
 	}
