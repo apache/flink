@@ -22,8 +22,10 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 
 /**
  * The set of configuration options relating to security.
@@ -274,8 +276,12 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_ALGORITHMS =
 		key("security.ssl.algorithms")
 			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
-			.withDescription("The comma separated list of standard SSL algorithms to be supported. Read more" +
-				" <a href=\"http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites\">here</a>.");
+			.withDescription(Description.builder()
+				.text("The comma separated list of standard SSL algorithms to be supported. Read more %s",
+					link(
+						"http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites",
+						"here"))
+				.build());
 
 	/**
 	 * Flag to enable/disable hostname verification for the ssl connections.
