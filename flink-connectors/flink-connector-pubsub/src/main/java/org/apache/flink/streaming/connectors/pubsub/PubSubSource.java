@@ -24,72 +24,49 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.source.MultipleIdsMessageAcknowledgingSourceBase;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
-import org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider;
 
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-
-import static org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider.credentialsProviderFromEnvironmentVariables;
 
 
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
  */
 public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer> implements MessageReceiver, ResultTypeQueryable<OUT> {
+	private static final Logger LOG = LoggerFactory.getLogger(PubSubSource.class);
+
 	private final DeserializationSchema<OUT> deserializationSchema;
-	private final SubscriberWrapper subscriberWrapper;
-	private boolean autoAcknowledge = true;
+	private final SubscriberWrapper          subscriberWrapper;
+	private final PubSubSourceBuilder.Mode   mode;
+	private final boolean                    autoAcknowledge;
 
-	private transient SourceContext<OUT> sourceContext = null;
+	protected transient SourceContext<OUT> sourceContext = null;
 
-	PubSubSource(SubscriberWrapper subscriberWrapper, DeserializationSchema<OUT> deserializationSchema) {
+	PubSubSource(SubscriberWrapper subscriberWrapper, DeserializationSchema<OUT> deserializationSchema, PubSubSourceBuilder.Mode mode) {
 		super(String.class);
 		this.deserializationSchema = deserializationSchema;
-		this.subscriberWrapper = subscriberWrapper;
-	}
-
-	/**
-	 * Convenience factory method to return a PubSubSource with default application credentials based on environment variables. ({@link org.apache.flink.streaming.connectors.pubsub.common.SerializableCredentialsProvider})
-	 * @param projectName The name of the google project where the subscription is in
-	 * @param subscriptionName The name of the subscription to read from
-	 * @param deserializationSchema Schema to deserialize the {@link PubsubMessage}
-	 * @param <OUT> The type of messages that will be read
-	 * @return Returns a RichParallelSourceFunction which reads from a PubSub subscription
-	 * @throws Exception exception is thrown when no default application credentials can be found
-	 */
-	public static <OUT> PubSubSource<OUT> withDefaultApplicationCredentials(String projectName, String subscriptionName, DeserializationSchema<OUT> deserializationSchema) throws Exception {
-		return withCustomApplicationCredentials(projectName, subscriptionName, deserializationSchema, credentialsProviderFromEnvironmentVariables());
-	}
-
-	/**
-	 * Factory method to return a PubSubSource.
-	 * @param projectName The name of the google project where the subscription is in
-	 * @param subscriptionName The name of the subscription to read from
-	 * @param deserializationSchema Schema to deserialize the {@link PubsubMessage}
-	 * @param serializableCredentialsProvider CredentialsProvider used to give the correct permissions to read from PubSub
-	 * @param <OUT> The type of messages that will be read
-	 * @return Returns a RichParallelSourceFunction which reads from a PubSub subscription
-	 */
-	public static <OUT> PubSubSource<OUT> withCustomApplicationCredentials(String projectName, String subscriptionName, DeserializationSchema<OUT> deserializationSchema, SerializableCredentialsProvider serializableCredentialsProvider) {
-		return new PubSubSource<>(new SubscriberWrapper(serializableCredentialsProvider, ProjectSubscriptionName.of(projectName, subscriptionName)), deserializationSchema);
+		this.subscriberWrapper     = subscriberWrapper;
+		this.mode                  = mode;
+		this.autoAcknowledge       = mode == PubSubSourceBuilder.Mode.NONE;
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		super.open(configuration);
 		subscriberWrapper.initialize(this);
-		if (hasCheckpointingEnabled(getRuntimeContext())) {
-			autoAcknowledge = false;
+		if (hasNoCheckpointingEnabled(getRuntimeContext()) && needsCheckpointing()) {
+			throw new IllegalArgumentException("Checkpointing needs to be enabled to support: " + mode);
 		}
 	}
 
-	private boolean hasCheckpointingEnabled(RuntimeContext runtimeContext) {
-		return runtimeContext instanceof StreamingRuntimeContext && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled();
+	private boolean hasNoCheckpointingEnabled(RuntimeContext runtimeContext) {
+		return !(runtimeContext instanceof StreamingRuntimeContext && ((StreamingRuntimeContext) runtimeContext).isCheckpointingEnabled());
 	}
 
 	@Override
@@ -147,5 +124,9 @@ public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase
 	@Override
 	public TypeInformation<OUT> getProducedType() {
 		return deserializationSchema.getProducedType();
+	}
+
+	private boolean needsCheckpointing() {
+		return mode == PubSubSourceBuilder.Mode.ATLEAST_ONCE || mode == PubSubSourceBuilder.Mode.EXACTLY_ONCE;
 	}
 }
