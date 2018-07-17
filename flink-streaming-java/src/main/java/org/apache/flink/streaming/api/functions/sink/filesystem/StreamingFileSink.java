@@ -20,8 +20,8 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
-import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -30,29 +30,23 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.DateTimeBucketer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
-
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.io.Serializable;
 
 /**
  * Sink that emits its input elements to {@link FileSystem} files within buckets. This is
@@ -69,7 +63,9 @@ import java.util.Map;
  * be written to inside the base directory. The {@code Bucketer} can, for example, use time or
  * a property of the element to determine the bucket directory. The default {@code Bucketer} is a
  * {@link DateTimeBucketer} which will create one new bucket every hour. You can specify
- * a custom {@code Bucketer} using {@link #setBucketer(Bucketer)}.
+ * a custom {@code Bucketer} using the {@code setBucketer(Bucketer)} method, after calling
+ * {@link StreamingFileSink#forRowFormat(Path, Encoder)} or
+ * {@link StreamingFileSink#forBulkFormat(Path, BulkWriter.Factory)}.
  *
  *
  * <p>The filenames of the part files contain the part prefix, "part-", the parallel subtask index of the sink
@@ -94,19 +90,6 @@ import java.util.Map;
  * state are transferred into the {@code finished} state while any {@code in-progress} files are rolled back, so that
  * they do not contain data that arrived after the checkpoint from which we restore.
  *
- * <p><b>NOTE:</b>
- * <ol>
- *     <li>
- *         If checkpointing is not enabled the pending files will never be moved to the finished state.
- *     </li>
- *     <li>
- *         The part files are written using an instance of {@link Encoder}. By default, a
- *         {@link SimpleStringEncoder} is used, which writes the result of {@code toString()} for
- *         every element, separated by newlines. You can configure the writer using the
- *         {@link #setEncoder(Encoder)}.
- *     </li>
- * </ol>
- *
  * @param <IN> Type of the elements emitted by this sink
  */
 @PublicEvolving
@@ -115,8 +98,6 @@ public class StreamingFileSink<IN>
 		implements CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(StreamingFileSink.class);
 
 	// -------------------------- state descriptors ---------------------------
 
@@ -128,298 +109,264 @@ public class StreamingFileSink<IN>
 
 	// ------------------------ configuration fields --------------------------
 
-	private final Path basePath;
+	private final long bucketCheckInterval;
 
-	private final BucketFactory<IN> bucketFactory;
-
-	private long bucketCheckInterval = 60L * 1000L;
-
-	private Bucketer<IN> bucketer;
-
-	private Encoder<IN> encoder;
-
-	private RollingPolicy rollingPolicy;
+	private final StreamingFileSink.BucketsBuilder<IN, ?> bucketsBuilder;
 
 	// --------------------------- runtime fields -----------------------------
 
-	private transient BucketerContext bucketerContext;
-
-	private transient RecoverableWriter fileSystemWriter;
+	private transient Buckets<IN, ?> buckets;
 
 	private transient ProcessingTimeService processingTimeService;
 
-	private transient Map<String, Bucket<IN>> activeBuckets;
+	// --------------------------- State Related Fields -----------------------------
 
-	//////////////////			State Related Fields			/////////////////////
+	private transient ListState<byte[]> bucketStates;
 
-	private transient BucketStateSerializer bucketStateSerializer;
-
-	private transient ListState<byte[]> restoredBucketStates;
-
-	private transient ListState<Long> restoredMaxCounters;
-
-	private transient long initMaxPartCounter;
-
-	private transient long maxPartCounterUsed;
+	private transient ListState<Long> maxPartCountersState;
 
 	/**
 	 * Creates a new {@code StreamingFileSink} that writes files to the given base directory.
-	 *
-	 * <p>This uses a {@link DateTimeBucketer} as {@link Bucketer} and a {@link SimpleStringEncoder} as a writer.
-	 *
-	 * @param basePath The directory to which to write the bucket files.
 	 */
-	public StreamingFileSink(Path basePath) {
-		this(basePath, new DefaultBucketFactory<>());
+	private StreamingFileSink(
+			final StreamingFileSink.BucketsBuilder<IN, ?> bucketsBuilder,
+			final long bucketCheckInterval) {
+
+		Preconditions.checkArgument(bucketCheckInterval > 0L);
+
+		this.bucketsBuilder = Preconditions.checkNotNull(bucketsBuilder);
+		this.bucketCheckInterval = bucketCheckInterval;
 	}
 
-	@VisibleForTesting
-	StreamingFileSink(Path basePath, BucketFactory<IN> bucketFactory) {
-		this.basePath = Preconditions.checkNotNull(basePath);
-		this.bucketer = new DateTimeBucketer<>();
-		this.encoder = new SimpleStringEncoder<>();
-		this.rollingPolicy = DefaultRollingPolicy.create().build();
-		this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
+	// ------------------------------------------------------------------------
+
+	// --------------------------- Sink Builders  -----------------------------
+
+	/**
+	 * Creates the builder for a {@code StreamingFileSink} with row-encoding format.
+	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
+	 * @param encoder the {@link Encoder} to be used when writing elements in the buckets.
+	 * @param <IN> the type of incoming elements
+	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
+	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
+	 */
+	public static <IN> StreamingFileSink.RowFormatBuilder<IN, String> forRowFormat(
+			final Path basePath, final Encoder<IN> encoder) {
+		return new StreamingFileSink.RowFormatBuilder<>(basePath, encoder, new DateTimeBucketer<>());
 	}
 
-	public StreamingFileSink<IN> setEncoder(Encoder<IN> encoder) {
-		this.encoder = Preconditions.checkNotNull(encoder);
-		return this;
+	/**
+	 * Creates the builder for a {@link StreamingFileSink} with row-encoding format.
+	 * @param basePath the base path where all the buckets are going to be created as sub-directories.
+	 * @param writerFactory the {@link BulkWriter.Factory} to be used when writing elements in the buckets.
+	 * @param <IN> the type of incoming elements
+	 * @return The builder where the remaining of the configuration parameters for the sink can be configured.
+	 * In order to instantiate the sink, call {@link RowFormatBuilder#build()} after specifying the desired parameters.
+	 */
+	public static <IN> StreamingFileSink.BulkFormatBuilder<IN, String> forBulkFormat(
+			final Path basePath, final BulkWriter.Factory<IN> writerFactory) {
+		return new StreamingFileSink.BulkFormatBuilder<>(basePath, writerFactory, new DateTimeBucketer<>());
 	}
 
-	public StreamingFileSink<IN> setBucketer(Bucketer<IN> bucketer) {
-		this.bucketer = Preconditions.checkNotNull(bucketer);
-		return this;
+	/**
+	 * The base abstract class for the {@link RowFormatBuilder} and {@link BulkFormatBuilder}.
+	 */
+	private abstract static class BucketsBuilder<IN, BucketID> implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		abstract Buckets<IN, BucketID> createBuckets(final int subtaskIndex) throws IOException;
 	}
 
-	public StreamingFileSink<IN> setBucketCheckInterval(long interval) {
-		this.bucketCheckInterval = interval;
-		return this;
+	/**
+	 * A builder for configuring the sink for row-wise encoding formats.
+	 */
+	@PublicEvolving
+	public static class RowFormatBuilder<IN, BucketID> extends StreamingFileSink.BucketsBuilder<IN, BucketID> {
+
+		private static final long serialVersionUID = 1L;
+
+		private long bucketCheckInterval = 60L * 1000L;
+
+		private final Path basePath;
+
+		private final Encoder<IN> encoder;
+
+		private Bucketer<IN, BucketID> bucketer;
+
+		private RollingPolicy<BucketID> rollingPolicy;
+
+		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
+
+		RowFormatBuilder(Path basePath, Encoder<IN> encoder, Bucketer<IN, BucketID> bucketer) {
+			this.basePath = Preconditions.checkNotNull(basePath);
+			this.encoder = Preconditions.checkNotNull(encoder);
+			this.bucketer = Preconditions.checkNotNull(bucketer);
+			this.rollingPolicy = DefaultRollingPolicy.create().build();
+		}
+
+		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketCheckInterval(final long interval) {
+			this.bucketCheckInterval = interval;
+			return this;
+		}
+
+		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketer(final Bucketer<IN, BucketID> bucketer) {
+			this.bucketer = Preconditions.checkNotNull(bucketer);
+			return this;
+		}
+
+		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withRollingPolicy(final RollingPolicy<BucketID> policy) {
+			this.rollingPolicy = Preconditions.checkNotNull(policy);
+			return this;
+		}
+
+		public <ID> StreamingFileSink.RowFormatBuilder<IN, ID> withBucketerAndPolicy(final Bucketer<IN, ID> bucketer, final RollingPolicy<ID> policy) {
+			@SuppressWarnings("unchecked")
+			StreamingFileSink.RowFormatBuilder<IN, ID> reInterpreted = (StreamingFileSink.RowFormatBuilder<IN, ID>) this;
+			reInterpreted.bucketer = Preconditions.checkNotNull(bucketer);
+			reInterpreted.rollingPolicy = Preconditions.checkNotNull(policy);
+			return reInterpreted;
+		}
+
+		@VisibleForTesting
+		StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketFactory(final BucketFactory<IN, BucketID> factory) {
+			this.bucketFactory = Preconditions.checkNotNull(factory);
+			return this;
+		}
+
+		/** Creates the actual sink. */
+		public StreamingFileSink<IN> build() {
+			return new StreamingFileSink<>(this, bucketCheckInterval);
+		}
+
+		@Override
+		Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
+			return new Buckets<>(
+					basePath,
+					bucketer,
+					bucketFactory,
+					new RowWisePartWriter.Factory<>(encoder),
+					rollingPolicy,
+					subtaskIndex);
+		}
 	}
 
-	public StreamingFileSink<IN> setRollingPolicy(RollingPolicy policy) {
-		this.rollingPolicy = Preconditions.checkNotNull(policy);
-		return this;
+	/**
+	 * A builder for configuring the sink for bulk-encoding formats, e.g. Parquet/ORC.
+	 */
+	@PublicEvolving
+	public static class BulkFormatBuilder<IN, BucketID> extends StreamingFileSink.BucketsBuilder<IN, BucketID> {
+
+		private static final long serialVersionUID = 1L;
+
+		private long bucketCheckInterval = 60L * 1000L;
+
+		private final Path basePath;
+
+		private final BulkWriter.Factory<IN> writerFactory;
+
+		private Bucketer<IN, BucketID> bucketer;
+
+		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
+
+		BulkFormatBuilder(Path basePath, BulkWriter.Factory<IN> writerFactory, Bucketer<IN, BucketID> bucketer) {
+			this.basePath = Preconditions.checkNotNull(basePath);
+			this.writerFactory = Preconditions.checkNotNull(writerFactory);
+			this.bucketer = Preconditions.checkNotNull(bucketer);
+		}
+
+		public StreamingFileSink.BulkFormatBuilder<IN, BucketID> withBucketCheckInterval(long interval) {
+			this.bucketCheckInterval = interval;
+			return this;
+		}
+
+		public <ID> StreamingFileSink.BulkFormatBuilder<IN, ID> withBucketer(Bucketer<IN, ID> bucketer) {
+			@SuppressWarnings("unchecked")
+			StreamingFileSink.BulkFormatBuilder<IN, ID> reInterpreted = (StreamingFileSink.BulkFormatBuilder<IN, ID>) this;
+			reInterpreted.bucketer = Preconditions.checkNotNull(bucketer);
+			return reInterpreted;
+		}
+
+		@VisibleForTesting
+		StreamingFileSink.BulkFormatBuilder<IN, BucketID> withBucketFactory(final BucketFactory<IN, BucketID> factory) {
+			this.bucketFactory = Preconditions.checkNotNull(factory);
+			return this;
+		}
+
+		/** Creates the actual sink. */
+		public StreamingFileSink<IN> build() {
+			return new StreamingFileSink<>(this, bucketCheckInterval);
+		}
+
+		@Override
+		Buckets<IN, BucketID> createBuckets(int subtaskIndex) throws IOException {
+			return new Buckets<>(
+					basePath,
+					bucketer,
+					bucketFactory,
+					new BulkPartWriter.Factory<>(writerFactory),
+					new OnCheckpointRollingPolicy<>(),
+					subtaskIndex);
+		}
+	}
+
+	// --------------------------- Sink Methods -----------------------------
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+		this.buckets = bucketsBuilder.createBuckets(subtaskIndex);
+
+		final OperatorStateStore stateStore = context.getOperatorStateStore();
+		bucketStates = stateStore.getListState(BUCKET_STATE_DESC);
+		maxPartCountersState = stateStore.getUnionListState(MAX_PART_COUNTER_STATE_DESC);
+
+		if (context.isRestored()) {
+			buckets.initializeState(bucketStates, maxPartCountersState);
+		}
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		final Iterator<Map.Entry<String, Bucket<IN>>> activeBucketIt =
-				activeBuckets.entrySet().iterator();
-
-		while (activeBucketIt.hasNext()) {
-			Bucket<IN> bucket = activeBucketIt.next().getValue();
-			bucket.commitUpToCheckpoint(checkpointId);
-
-			if (!bucket.isActive()) {
-				// We've dealt with all the pending files and the writer for this bucket is not currently open.
-				// Therefore this bucket is currently inactive and we can remove it from our state.
-				activeBucketIt.remove();
-			}
-		}
+		buckets.publishUpToCheckpoint(checkpointId);
 	}
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(
-				restoredBucketStates != null && fileSystemWriter != null && bucketStateSerializer != null,
-				"sink has not been initialized");
+		Preconditions.checkState(bucketStates != null && maxPartCountersState != null, "sink has not been initialized");
 
-		restoredBucketStates.clear();
-		for (Bucket<IN> bucket : activeBuckets.values()) {
+		bucketStates.clear();
+		maxPartCountersState.clear();
 
-			final PartFileInfo info = bucket.getInProgressPartInfo();
-			final long checkpointTimestamp = context.getCheckpointTimestamp();
-
-			if (info != null && rollingPolicy.shouldRoll(info, checkpointTimestamp)) {
-				// we also check here so that we do not have to always
-				// wait for the "next" element to arrive.
-				bucket.closePartFile();
-			}
-
-			final BucketState bucketState = bucket.snapshot(context.getCheckpointId());
-			restoredBucketStates.add(SimpleVersionedSerialization.writeVersionAndSerialize(bucketStateSerializer, bucketState));
-		}
-
-		restoredMaxCounters.clear();
-		restoredMaxCounters.add(maxPartCounterUsed);
-	}
-
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		initFileSystemWriter();
-
-		this.activeBuckets = new HashMap<>();
-
-		// When resuming after a failure:
-		// 1) we get the max part counter used before in order to make sure that we do not overwrite valid data
-		// 2) we commit any pending files for previous checkpoints (previous to the last successful one)
-		// 3) we resume writing to the previous in-progress file of each bucket, and
-		// 4) if we receive multiple states for the same bucket, we merge them.
-
-		final OperatorStateStore stateStore = context.getOperatorStateStore();
-
-		restoredBucketStates = stateStore.getListState(BUCKET_STATE_DESC);
-		restoredMaxCounters = stateStore.getUnionListState(MAX_PART_COUNTER_STATE_DESC);
-
-		if (context.isRestored()) {
-			final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-
-			LOG.info("Restoring state for the {} (taskIdx={}).", getClass().getSimpleName(), subtaskIndex);
-
-			long maxCounter = 0L;
-			for (long partCounter: restoredMaxCounters.get()) {
-				maxCounter = Math.max(partCounter, maxCounter);
-			}
-			initMaxPartCounter = maxCounter;
-
-			for (byte[] recoveredState : restoredBucketStates.get()) {
-				final BucketState bucketState = SimpleVersionedSerialization.readVersionAndDeSerialize(
-						bucketStateSerializer, recoveredState);
-
-				final String bucketId = bucketState.getBucketId();
-
-				LOG.info("Recovered bucket for {}", bucketId);
-
-				final Bucket<IN> restoredBucket = bucketFactory.restoreBucket(
-						fileSystemWriter,
-						subtaskIndex,
-						initMaxPartCounter,
-						encoder,
-						bucketState
-				);
-
-				final Bucket<IN> existingBucket = activeBuckets.get(bucketId);
-				if (existingBucket == null) {
-					activeBuckets.put(bucketId, restoredBucket);
-				} else {
-					existingBucket.merge(restoredBucket);
-				}
-
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} idx {} restored state for bucket {}", getClass().getSimpleName(),
-							subtaskIndex, assembleBucketPath(bucketId));
-				}
-			}
-		}
+		buckets.snapshotState(
+				context.getCheckpointId(),
+				context.getCheckpointTimestamp(),
+				bucketStates,
+				maxPartCountersState);
 	}
 
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		super.open(parameters);
-
-		processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
+		this.processingTimeService = ((StreamingRuntimeContext) getRuntimeContext()).getProcessingTimeService();
 		long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
 		processingTimeService.registerTimer(currentProcessingTime + bucketCheckInterval, this);
-		this.bucketerContext = new BucketerContext();
 	}
 
 	@Override
 	public void onProcessingTime(long timestamp) throws Exception {
 		final long currentTime = processingTimeService.getCurrentProcessingTime();
-		for (Bucket<IN> bucket : activeBuckets.values()) {
-			final PartFileInfo info = bucket.getInProgressPartInfo();
-			if (info != null && rollingPolicy.shouldRoll(info, currentTime)) {
-				bucket.closePartFile();
-			}
-		}
-		processingTimeService.registerTimer(timestamp + bucketCheckInterval, this);
+		buckets.onProcessingTime(currentTime);
+		processingTimeService.registerTimer(currentTime + bucketCheckInterval, this);
 	}
 
 	@Override
-	public void invoke(IN value, Context context) throws Exception {
-		final long currentProcessingTime = processingTimeService.getCurrentProcessingTime();
-		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-
-		// setting the values in the bucketer context
-		bucketerContext.update(context.timestamp(), context.currentWatermark(), currentProcessingTime);
-
-		final String bucketId = bucketer.getBucketId(value, bucketerContext);
-
-		Bucket<IN> bucket = activeBuckets.get(bucketId);
-		if (bucket == null) {
-			final Path bucketPath = assembleBucketPath(bucketId);
-			bucket = bucketFactory.getNewBucket(
-					fileSystemWriter,
-					subtaskIndex,
-					bucketId,
-					bucketPath,
-					initMaxPartCounter,
-					encoder);
-			activeBuckets.put(bucketId, bucket);
-		}
-
-		final PartFileInfo info = bucket.getInProgressPartInfo();
-		if (info == null || rollingPolicy.shouldRoll(info, currentProcessingTime)) {
-			bucket.rollPartFile(currentProcessingTime);
-		}
-		bucket.write(value, currentProcessingTime);
-
-		// we update the counter here because as buckets become inactive and
-		// get removed in the initializeState(), at the time we snapshot they
-		// may not be there to take them into account during checkpointing.
-		updateMaxPartCounter(bucket.getPartCounter());
+	public void invoke(IN value, SinkFunction.Context context) throws Exception {
+		buckets.onElement(value, context);
 	}
 
 	@Override
 	public void close() throws Exception {
-		if (activeBuckets != null) {
-			activeBuckets.values().forEach(Bucket::dispose);
-		}
-	}
-
-	private void initFileSystemWriter() throws IOException {
-		if (fileSystemWriter == null) {
-			fileSystemWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
-			bucketStateSerializer = new BucketStateSerializer(
-					fileSystemWriter.getResumeRecoverableSerializer(),
-					fileSystemWriter.getCommitRecoverableSerializer()
-			);
-		}
-	}
-
-	private void updateMaxPartCounter(long candidate) {
-		maxPartCounterUsed = Math.max(maxPartCounterUsed, candidate);
-	}
-
-	private Path assembleBucketPath(String bucketId) {
-		return new Path(basePath, bucketId);
-	}
-
-	/**
-	 * The {@link Bucketer.Context} exposed to the
-	 * {@link Bucketer#getBucketId(Object, Bucketer.Context)}
-	 * whenever a new incoming element arrives.
-	 */
-	private static class BucketerContext implements Bucketer.Context {
-
-		@Nullable
-		private Long elementTimestamp;
-
-		private long currentWatermark;
-
-		private long currentProcessingTime;
-
-		void update(@Nullable Long elementTimestamp, long currentWatermark, long currentProcessingTime) {
-			this.elementTimestamp = elementTimestamp;
-			this.currentWatermark = currentWatermark;
-			this.currentProcessingTime = currentProcessingTime;
-		}
-
-		@Override
-		public long currentProcessingTime() {
-			return currentProcessingTime;
-		}
-
-		@Override
-		public long currentWatermark() {
-			return currentWatermark;
-		}
-
-		@Override
-		@Nullable
-		public Long timestamp() {
-			return elementTimestamp;
-		}
+		buckets.close();
 	}
 }

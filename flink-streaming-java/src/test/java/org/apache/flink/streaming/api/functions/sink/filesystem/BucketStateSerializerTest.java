@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.SimpleVersionedStringSerializer;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -60,20 +61,21 @@ public class BucketStateSerializerTest {
 
 		final Path testBucket = new Path(testFolder.getPath(), "test");
 
-		final BucketState bucketState = new BucketState(
+		final BucketState<String> bucketState = new BucketState<>(
 				"test", testBucket, Long.MAX_VALUE, null, new HashMap<>());
 
-		final SimpleVersionedSerializer<BucketState> serializer =
-				new BucketStateSerializer(
+		final SimpleVersionedSerializer<BucketState<String>> serializer =
+				new BucketStateSerializer<>(
 						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer()
+						writer.getCommitRecoverableSerializer(),
+						SimpleVersionedStringSerializer.INSTANCE
 				);
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
-		final BucketState recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getCurrentInProgress());
+		Assert.assertNull(recoveredState.getInProgress());
 		Assert.assertTrue(recoveredState.getPendingPerCheckpoint().isEmpty());
 	}
 
@@ -90,13 +92,14 @@ public class BucketStateSerializerTest {
 
 		final RecoverableWriter.ResumeRecoverable current = stream.persist();
 
-		final BucketState bucketState = new BucketState(
+		final BucketState<String> bucketState = new BucketState<>(
 				"test", testBucket, Long.MAX_VALUE, current, new HashMap<>());
 
-		final SimpleVersionedSerializer<BucketState> serializer =
-				new BucketStateSerializer(
+		final SimpleVersionedSerializer<BucketState<String>> serializer =
+				new BucketStateSerializer<>(
 						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer()
+						writer.getCommitRecoverableSerializer(),
+						SimpleVersionedStringSerializer.INSTANCE
 				);
 
 		final byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
@@ -104,7 +107,7 @@ public class BucketStateSerializerTest {
 		// to simulate that everything is over for file.
 		stream.close();
 
-		final BucketState recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
 
@@ -147,18 +150,19 @@ public class BucketStateSerializerTest {
 
 		final RecoverableWriter.ResumeRecoverable current = stream.persist();
 
-		final BucketState bucketState = new BucketState(
+		final BucketState<String> bucketState = new BucketState<>(
 				"test-2", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
-		final SimpleVersionedSerializer<BucketState> serializer =
-				new BucketStateSerializer(
+		final SimpleVersionedSerializer<BucketState<String>> serializer =
+				new BucketStateSerializer<>(
 						writer.getResumeRecoverableSerializer(),
-						writer.getCommitRecoverableSerializer()
+						writer.getCommitRecoverableSerializer(),
+						SimpleVersionedStringSerializer.INSTANCE
 				);
 		stream.close();
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
 
-		final BucketState recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
 
@@ -220,20 +224,21 @@ public class BucketStateSerializerTest {
 
 		final RecoverableWriter.ResumeRecoverable current = null;
 
-		final BucketState bucketState = new BucketState(
+		final BucketState<String> bucketState = new BucketState<>(
 				"", bucketPath, Long.MAX_VALUE, current, commitRecoverables);
 
-		final SimpleVersionedSerializer<BucketState> serializer = new BucketStateSerializer(
+		final SimpleVersionedSerializer<BucketState<String>> serializer = new BucketStateSerializer<>(
 				writer.getResumeRecoverableSerializer(),
-				writer.getCommitRecoverableSerializer()
+				writer.getCommitRecoverableSerializer(),
+				SimpleVersionedStringSerializer.INSTANCE
 		);
 
 		byte[] bytes = SimpleVersionedSerialization.writeVersionAndSerialize(serializer, bucketState);
 
-		final BucketState recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
+		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getCurrentInProgress());
+		Assert.assertNull(recoveredState.getInProgress());
 
 		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getPendingPerCheckpoint();
 		Assert.assertEquals(5L, recoveredRecoverables.size());

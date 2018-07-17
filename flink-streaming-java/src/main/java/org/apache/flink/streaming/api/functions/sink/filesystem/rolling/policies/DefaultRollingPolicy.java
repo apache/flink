@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem;
+package org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -35,9 +37,9 @@ import java.io.IOException;
  * </ol>
  */
 @PublicEvolving
-public final class DefaultRollingPolicy implements RollingPolicy {
+public final class DefaultRollingPolicy<BucketID> implements RollingPolicy<BucketID> {
 
-	private static final long serialVersionUID = 1318929857047767030L;
+	private static final long serialVersionUID = 1L;
 
 	private static final long DEFAULT_INACTIVITY_INTERVAL = 60L * 1000L;
 
@@ -65,36 +67,47 @@ public final class DefaultRollingPolicy implements RollingPolicy {
 	}
 
 	@Override
-	public boolean shouldRoll(final PartFileInfo state, final long currentTime) throws IOException {
-		if (state == null) {
+	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) {
+		return false;
+	}
+
+	@Override
+	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState) throws IOException {
+		if (partFileState == null) {
 			// this means that there is no currently open part file.
 			return true;
 		}
 
-		if (state.getSize() > partSize) {
+		return partFileState.getSize() > partSize;
+	}
+
+	@Override
+	public boolean shouldRollOnProcessingTime(final PartFileInfo<BucketID> partFileState, final long currentTime) {
+		if (partFileState == null) {
+			// this means that there is no currently open part file.
 			return true;
 		}
 
-		if (currentTime - state.getCreationTime() > rolloverInterval) {
+		if (currentTime - partFileState.getCreationTime() > rolloverInterval) {
 			return true;
 		}
 
-		return currentTime - state.getLastUpdateTime() > inactivityInterval;
+		return currentTime - partFileState.getLastUpdateTime() > inactivityInterval;
 	}
 
 	/**
-	 * Initiates the instantiation of a {@link DefaultRollingPolicy}.
+	 * Initiates the instantiation of a {@code DefaultRollingPolicy}.
 	 * To finalize it and have the actual policy, call {@code .create()}.
 	 */
-	public static PolicyBuilder create() {
-		return new PolicyBuilder();
+	public static DefaultRollingPolicy.PolicyBuilder create() {
+		return new DefaultRollingPolicy.PolicyBuilder();
 	}
 
 	/**
 	 * A helper class that holds the configuration properties for the {@link DefaultRollingPolicy}.
 	 */
 	@PublicEvolving
-	public static class PolicyBuilder {
+	public static final class PolicyBuilder {
 
 		private long partSize = DEFAULT_MAX_PART_SIZE;
 
@@ -102,11 +115,13 @@ public final class DefaultRollingPolicy implements RollingPolicy {
 
 		private long inactivityInterval = DEFAULT_INACTIVITY_INTERVAL;
 
+		private PolicyBuilder() {}
+
 		/**
 		 * Sets the part size above which a part file will have to roll.
 		 * @param size the allowed part size.
 		 */
-		public PolicyBuilder withMaxPartSize(long size) {
+		public DefaultRollingPolicy.PolicyBuilder withMaxPartSize(long size) {
 			Preconditions.checkState(size > 0L);
 			this.partSize = size;
 			return this;
@@ -116,7 +131,7 @@ public final class DefaultRollingPolicy implements RollingPolicy {
 		 * Sets the interval of allowed inactivity after which a part file will have to roll.
 		 * @param interval the allowed inactivity interval.
 		 */
-		public PolicyBuilder withInactivityInterval(long interval) {
+		public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(long interval) {
 			Preconditions.checkState(interval > 0L);
 			this.inactivityInterval = interval;
 			return this;
@@ -126,7 +141,7 @@ public final class DefaultRollingPolicy implements RollingPolicy {
 		 * Sets the max time a part file can stay open before having to roll.
 		 * @param interval the desired rollover interval.
 		 */
-		public PolicyBuilder withRolloverInterval(long interval) {
+		public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(long interval) {
 			Preconditions.checkState(interval > 0L);
 			this.rolloverInterval = interval;
 			return this;
@@ -135,8 +150,8 @@ public final class DefaultRollingPolicy implements RollingPolicy {
 		/**
 		 * Creates the actual policy.
 		 */
-		public DefaultRollingPolicy build() {
-			return new DefaultRollingPolicy(partSize, rolloverInterval, inactivityInterval);
+		public <BucketID> DefaultRollingPolicy<BucketID> build() {
+			return new DefaultRollingPolicy<>(partSize, rolloverInterval, inactivityInterval);
 		}
 	}
 }

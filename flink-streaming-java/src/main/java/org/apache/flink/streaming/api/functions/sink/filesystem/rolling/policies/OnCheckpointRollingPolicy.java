@@ -16,33 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
+package org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 
 /**
- * A {@link Bucketer} that does not perform any
- * bucketing of files. All files are written to the base path.
+ * A {@link RollingPolicy} which rolls on every checkpoint.
  */
-@PublicEvolving
-public class BasePathBucketer<T> implements Bucketer<T, String> {
+public class OnCheckpointRollingPolicy<BucketID> implements RollingPolicy<BucketID> {
 
-	private static final long serialVersionUID = -6033643155550226022L;
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public String getBucketId(T element, Bucketer.Context context) {
-		return "";
+	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) {
+		return true;
 	}
 
 	@Override
-	public SimpleVersionedSerializer<String> getSerializer() {
-		// in the future this could be optimized as it is the empty string.
-		return SimpleVersionedStringSerializer.INSTANCE;
+	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState) {
+		return false;
 	}
 
 	@Override
-	public String toString() {
-		return "BasePathBucketer";
+	public boolean shouldRollOnProcessingTime(PartFileInfo<BucketID> partFileState, long currentTime) {
+		return false;
 	}
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 
@@ -29,18 +28,18 @@ import java.io.IOException;
  * A factory returning {@link Bucket buckets}.
  */
 @Internal
-public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
+class DefaultBucketFactory<IN, BucketID> implements BucketFactory<IN, BucketID> {
 
-	private static final long serialVersionUID = 3372881359208513357L;
+	private static final long serialVersionUID = 1L;
 
 	@Override
-	public Bucket<IN> getNewBucket(
-			RecoverableWriter fsWriter,
-			int subtaskIndex,
-			String bucketId,
-			Path bucketPath,
-			long initialPartCounter,
-			Encoder<IN> writer) throws IOException {
+	public Bucket<IN, BucketID> getNewBucket(
+			final RecoverableWriter fsWriter,
+			final int subtaskIndex,
+			final BucketID bucketId,
+			final Path bucketPath,
+			final long initialPartCounter,
+			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory) {
 
 		return new Bucket<>(
 				fsWriter,
@@ -48,22 +47,22 @@ public class DefaultBucketFactory<IN> implements BucketFactory<IN> {
 				bucketId,
 				bucketPath,
 				initialPartCounter,
-				writer);
+				partFileWriterFactory);
 	}
 
 	@Override
-	public Bucket<IN> restoreBucket(
-			RecoverableWriter fsWriter,
-			int subtaskIndex,
-			long initialPartCounter,
-			Encoder<IN> writer,
-			BucketState bucketState) throws IOException {
+	public Bucket<IN, BucketID> restoreBucket(
+			final RecoverableWriter fsWriter,
+			final int subtaskIndex,
+			final long initialPartCounter,
+			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
+			final BucketState<BucketID> bucketState) throws IOException {
 
 		return new Bucket<>(
 				fsWriter,
 				subtaskIndex,
 				initialPartCounter,
-				writer,
+				partFileWriterFactory,
 				bucketState);
 	}
 }

@@ -29,13 +29,13 @@ import java.io.IOException;
  * should roll the part file or not.
  */
 @PublicEvolving
-public interface PartFileInfo {
+public interface PartFileInfo<BucketID> {
 
 	/**
 	 * @return The bucket identifier of the current buffer, as returned by the
 	 * {@link Bucketer#getBucketId(Object, Bucketer.Context)}.
 	 */
-	String getBucketId();
+	BucketID getBucketId();
 
 	/**
 	 * @return The creation time (in ms) of the currently open part file.
