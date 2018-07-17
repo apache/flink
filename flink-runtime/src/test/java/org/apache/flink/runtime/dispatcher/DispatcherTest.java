@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -72,6 +73,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
@@ -83,6 +85,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
@@ -124,6 +127,9 @@ public class DispatcherTest extends TestLogger {
 
 	@Rule
 	public TestName name = new TestName();
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	private JobGraph jobGraph;
 
@@ -292,6 +298,33 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 		createdJobManagerRunnerLatch.await();
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
+	}
+
+	@Test
+	public void testBlobsAreRemovedOnlyIfJobIsRemovedProperly() throws Exception {
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+		PermanentBlobKey key = blobServer.putPermanent(TEST_JOB_ID, new byte[128]);
+		submittedJobGraphStore.setRemovalFailure(new Exception("Failed to Remove future"));
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+		ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(TEST_JOB_ID)
+			.setState(JobStatus.CANCELED)
+			.build();
+
+
+		dispatcher.completeJobExecution(executionGraph);
+
+		assertThat(dispatcher.listJobs(TIMEOUT).get(), is(not(empty())));
+		assertThat(blobServer.getFile(TEST_JOB_ID, key), notNullValue(File.class));
+
+		submittedJobGraphStore.setRemovalFailure(null);
+
+		dispatcher.completeJobExecution(executionGraph);
+		assertThat(dispatcher.listJobs(TIMEOUT).get(), is(empty()));
+		expectedException.expect(NoSuchFileException.class);
+		blobServer.getFile(TEST_JOB_ID, key);
 	}
 
 	@Test
@@ -619,8 +652,14 @@ public class DispatcherTest extends TestLogger {
 		@Nullable
 		private Exception recoveryFailure = null;
 
+		@Nullable
+		private Exception removalFailure = null;
+
 		void setRecoveryFailure(@Nullable Exception recoveryFailure) {
 			this.recoveryFailure = recoveryFailure;
+		}
+		void setRemovalFailure(@Nullable Exception removalFailure) {
+			this.removalFailure = removalFailure;
 		}
 
 		@Override
@@ -629,6 +668,15 @@ public class DispatcherTest extends TestLogger {
 				throw recoveryFailure;
 			} else {
 				return super.recoverJobGraph(jobId);
+			}
+		}
+
+		@Override
+		public synchronized void removeJobGraph(JobID jobId) throws Exception {
+			if(removalFailure != null) {
+				throw removalFailure;
+			} else {
+				super.removeJobGraph(jobId);
 			}
 		}
 	}
