@@ -21,13 +21,16 @@ source "$(dirname "$0")"/common.sh
 
 start_cluster
 
+
 TEST_PROGRAM_JAR=${TEST_INFRA_DIR}/../../flink-end-to-end-tests/flink-avro-classloading-test/target/AvroClassLoading.jar
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run -d ${TEST_PROGRAM_JAR} | awk '{print $NF}' | tail -n 1)
-expect_in_logs "switched from DEPLOYING to RUNNING." 20
+echo "Running Job ${JOB_ID} from jar ${TEST_PROGRAM_JAR}"
+
+expect_in_taskmanager_logs "switched from DEPLOYING to RUNNING." 20
 
 touch /tmp/die
-expect_in_logs "java.lang.RuntimeException: /tmp/die exists!" 20
+expect_in_taskmanager_logs "java.lang.RuntimeException: /tmp/die exists!" 20
 
 rm /tmp/die
 
