@@ -181,11 +181,18 @@ public class CoreOptions {
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
-	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+	@Documentation.OverrideDefault("'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
 			.withDeprecatedKeys("taskmanager.tmp.dirs");
+
+	/**
+	 * String key, which says if default value is used for `io.tmp.dirs` config variable.
+	 */
+	public static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS = key("internal.io.tmp.dirs.use-local-default")
+		.defaultValue(true)
+		.withDescription("key, which says if default value is used for `io.tmp.dirs` config variable.");
 
 	// ------------------------------------------------------------------------
 	//  program
