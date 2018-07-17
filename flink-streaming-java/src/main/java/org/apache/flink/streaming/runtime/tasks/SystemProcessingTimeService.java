@@ -109,7 +109,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 */
 	@Override
 	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
-		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0);
+		long delay = Math.max(timestamp - getCurrentProcessingTime(), 0) + 1;
 
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer
