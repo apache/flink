@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
@@ -366,6 +367,9 @@ public class ExecutionGraphBuilder {
 		metrics.gauge(NumberOfFullRestartsGauge.METRIC_NAME, new NumberOfFullRestartsGauge(executionGraph));
 
 		executionGraph.getFailoverStrategy().registerMetrics(metrics);
+
+		executionGraph.setUpdatePartitionInfoSendInterval(
+			jobManagerConfig.getLong(JobManagerOptions.UPDATE_PARTITION_INFO_SEND_INTERVAL));
 
 		return executionGraph;
 	}

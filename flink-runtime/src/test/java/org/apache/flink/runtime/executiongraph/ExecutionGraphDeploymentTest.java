@@ -159,7 +159,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			ExecutionGraph eg = new ExecutionGraph(
 				expectedJobInformation,
-				TestingUtils.defaultExecutor(),
+				new DirectScheduledExecutorService(),
 				TestingUtils.defaultExecutor(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),

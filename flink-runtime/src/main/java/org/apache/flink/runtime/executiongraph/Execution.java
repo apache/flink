@@ -27,18 +27,13 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -69,6 +64,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
@@ -177,6 +174,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private volatile IOMetrics ioMetrics;
 
 	// --------------------------------------------------------------------------------------------
+
+	private final Object updatePartitionLock = new Object();
+
+	private ScheduledFuture updatePartitionFuture;
 
 	/**
 	 * Creates a new Execution attempt.
@@ -588,24 +589,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-			final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);
+			executor.execute(
+				() -> {
+					final CompletableFuture<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, rpcTimeout);
 
-			submitResultFuture.whenCompleteAsync(
-				(ack, failure) -> {
-					// only respond to the failure case
-					if (failure != null) {
-						if (failure instanceof TimeoutException) {
-							String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+					submitResultFuture.whenCompleteAsync(
+						(ack, failure) -> {
+							// only respond to the failure case
+							if (failure != null) {
+								if (failure instanceof TimeoutException) {
+									String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
 
-							markFailed(new Exception(
-								"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
-									+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
-						} else {
-							markFailed(failure);
-						}
-					}
-				},
-				executor);
+									markFailed(new Exception(
+										"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
+											+ ") not responding after a rpcTimeout of " + rpcTimeout, failure));
+								} else {
+									markFailed(failure);
+								}
+							}
+						},
+						executor);
+				});
 		}
 		catch (Throwable t) {
 			markFailed(t);
@@ -759,44 +763,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// ----------------------------------------------------------------
 			else {
 				if (consumerState == RUNNING) {
-					final LogicalSlot consumerSlot = consumer.getAssignedResource();
-
-					if (consumerSlot == null) {
-						// The consumer has been reset concurrently
-						continue;
-					}
-
-					final TaskManagerLocation partitionTaskManagerLocation = partition.getProducer()
-							.getCurrentAssignedResource().getTaskManagerLocation();
-					final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
-
-					final ResourceID consumerTaskManager = consumerSlot.getTaskManagerLocation().getResourceID();
-
-					final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), attemptId);
-
-					final ResultPartitionLocation partitionLocation;
-
-					if (consumerTaskManager.equals(partitionTaskManager)) {
-						// Consuming task is deployed to the same instance as the partition => local
-						partitionLocation = ResultPartitionLocation.createLocal();
-					}
-					else {
-						// Different instances => remote
-						final ConnectionID connectionId = new ConnectionID(
-								partitionTaskManagerLocation,
-								partition.getIntermediateResult().getConnectionIndex());
-
-						partitionLocation = ResultPartitionLocation.createRemote(connectionId);
-					}
-
-					final InputChannelDeploymentDescriptor descriptor = new InputChannelDeploymentDescriptor(
-							partitionId, partitionLocation);
-
-					consumer.sendUpdatePartitionInfoRpcCall(
-						Collections.singleton(
-							new PartitionInfo(
-								partition.getIntermediateResult().getId(),
-								descriptor)));
+					// cache the partition info and trigger a timer to group them and send in batch
+					final Execution partitionExecution = partition.getProducer()
+						.getCurrentExecutionAttempt();
+					consumerVertex.cachePartitionInfo(PartialInputChannelDeploymentDescriptor.fromEdge(partition, partitionExecution));
+					consumerVertex.getCurrentExecutionAttempt().sendPartitionInfoAsync();
 				}
 				// ----------------------------------------------------------------
 				// Consumer is scheduled or deploying => cache input channel
@@ -1031,6 +1002,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	void sendPartitionInfos() {
+		synchronized (updatePartitionLock) {
+			updatePartitionFuture = null;
+		}
+
 		// check if the ExecutionVertex has already been archived and thus cleared the
 		// partial partition infos queue
 		if (partialInputChannelDeploymentDescriptors != null && !partialInputChannelDeploymentDescriptors.isEmpty()) {
@@ -1047,6 +1022,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			sendUpdatePartitionInfoRpcCall(partitionInfos);
+		}
+	}
+
+	void sendPartitionInfoAsync() {
+		synchronized (updatePartitionLock) {
+			if (updatePartitionFuture == null) {
+				updatePartitionFuture = getVertex().getExecutionGraph().getFutureExecutorService().schedule(
+					() -> {
+						sendPartitionInfos();
+					}, vertex.getExecutionGraph().getUpdatePartitionInfoSendInterval(), TimeUnit.MILLISECONDS);
+			}
 		}
 	}
 
@@ -1218,16 +1204,21 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 			final TaskManagerLocation taskManagerLocation = slot.getTaskManagerLocation();
 
-			CompletableFuture<Acknowledge> updatePartitionsResultFuture = taskManagerGateway.updatePartitions(attemptId, partitionInfos, rpcTimeout);
+			executor.execute(
+				() -> {
+					CompletableFuture<Acknowledge> updatePartitionsResultFuture =
+						taskManagerGateway.updatePartitions(attemptId, partitionInfos, rpcTimeout);
 
-			updatePartitionsResultFuture.whenCompleteAsync(
-				(ack, failure) -> {
-					// fail if there was a failure
-					if (failure != null) {
-						fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
-							" failed due to:", failure));
-					}
-				}, executor);
+					updatePartitionsResultFuture.whenCompleteAsync(
+						(ack, failure) -> {
+							// fail if there was a failure
+							if (failure != null) {
+								fail(new IllegalStateException("Update task on TaskManager " + taskManagerLocation +
+									" failed due to:", failure));
+							}
+						}, executor);
+				}
+			);
 		}
 	}
 

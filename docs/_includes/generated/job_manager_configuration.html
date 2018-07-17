@@ -43,6 +43,11 @@
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.update-partition-info.send-interval</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>The interval of send update-partition-info message.</td>
+        </tr>
+        <tr>
             <td><h5>jobstore.cache-size</h5></td>
             <td style="word-wrap: break-word;">52428800</td>
             <td>The job store cache size in bytes which is used to keep completed jobs in memory.</td>

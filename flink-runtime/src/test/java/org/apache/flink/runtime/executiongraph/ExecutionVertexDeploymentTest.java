@@ -317,6 +317,9 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			vertex.deployToSlot(slot);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 
+			// execute the deploy rpc call
+			queue.triggerNextAction();
+
 			Exception testError = new Exception("test error");
 			vertex.fail(testError);
 

@@ -290,6 +290,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * available after archiving. */
 	private CheckpointStatsTracker checkpointStatsTracker;
 
+	private long updatePartitionInfoSendInterval;
+
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
@@ -747,6 +749,15 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	/**
+	 * Returns the ExecutionContext associated with this ExecutionGraph.
+	 *
+	 * @return ExecutionContext associated with this ExecutionGraph
+	 */
+	public ScheduledExecutorService getFutureExecutorService() {
+		return futureExecutor;
+	}
+
+	/**
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
@@ -803,6 +814,15 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = aggregateUserAccumulators();
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
+
+	public long getUpdatePartitionInfoSendInterval() {
+		return updatePartitionInfoSendInterval;
+	}
+
+	public void setUpdatePartitionInfoSendInterval(long updatePartitionInfoSendInterval) {
+		this.updatePartitionInfoSendInterval = updatePartitionInfoSendInterval;
+	}
+
 
 	// --------------------------------------------------------------------------------------------
 	//  Actions

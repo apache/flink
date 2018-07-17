@@ -154,6 +154,11 @@ public class JobManagerOptions {
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
+	public static final ConfigOption<Long> UPDATE_PARTITION_INFO_SEND_INTERVAL =
+		key("jobmanager.update-partition-info.send-interval")
+		.defaultValue(10L)
+		.withDescription("The interval of send update-partition-info message.");
+
 	/**
 	 * The timeout in milliseconds for requesting a slot from Slot Pool.
 	 */
