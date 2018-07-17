@@ -697,7 +697,7 @@ public class StreamingJobGraphGenerator {
 			new CheckpointCoordinatorConfiguration(
 				interval,
 				cfg.getCheckpointTimeout(),
-				cfg.getMinPauseBetweenSuccessCheckpoints(),
+				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				retentionAfterTermination,
 				isExactlyOnce),

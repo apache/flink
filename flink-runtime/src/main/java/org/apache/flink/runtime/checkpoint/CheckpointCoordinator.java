@@ -137,7 +137,7 @@ public class CheckpointCoordinator {
 	/** The min time(in ns) to delay after a checkpoint could be triggered. Allows to
 	 * enforce minimum processing time between successful checkpoint attempts. Once a checkpoint
 	 * fails or expires, another checkpoint will be triggered at baseInterval without any pause. */
-	private final long minPauseBetweenSuccessCheckpointsNanos;
+	private final long minPauseBetweenCheckpointsNanos;
 
 	/** The maximum number of checkpoints that may be in progress at the same time */
 	private final int maxConcurrentCheckpointAttempts;
@@ -187,7 +187,7 @@ public class CheckpointCoordinator {
 			JobID job,
 			long baseInterval,
 			long checkpointTimeout,
-			long minPauseBetweenSuccessCheckpoints,
+			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
 			CheckpointRetentionPolicy retentionPolicy,
 			ExecutionVertex[] tasksToTrigger,
@@ -203,24 +203,24 @@ public class CheckpointCoordinator {
 		checkNotNull(checkpointStateBackend);
 		checkArgument(baseInterval > 0, "Checkpoint base interval must be larger than zero");
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
-		checkArgument(minPauseBetweenSuccessCheckpoints >= 0, "minPauseBetweenSuccessCheckpoints must be >= 0");
+		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
 		// max "in between duration" can be one year - this is to prevent numeric overflows
-		if (minPauseBetweenSuccessCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
-			minPauseBetweenSuccessCheckpoints = 365L * 24 * 60 * 60 * 1_000;
+		if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
+			minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
 		}
 
 		// it does not make sense to schedule checkpoints more often then the desired
 		// time between checkpoints
-		if (baseInterval < minPauseBetweenSuccessCheckpoints) {
-			baseInterval = minPauseBetweenSuccessCheckpoints;
+		if (baseInterval < minPauseBetweenCheckpoints) {
+			baseInterval = minPauseBetweenCheckpoints;
 		}
 
 		this.job = checkNotNull(job);
 		this.baseInterval = baseInterval;
 		this.checkpointTimeout = checkpointTimeout;
-		this.minPauseBetweenSuccessCheckpointsNanos = minPauseBetweenSuccessCheckpoints * 1_000_000;
+		this.minPauseBetweenCheckpointsNanos = minPauseBetweenCheckpoints * 1_000_000;
 		this.maxConcurrentCheckpointAttempts = maxConcurrentCheckpointAttempts;
 		this.tasksToTrigger = checkNotNull(tasksToTrigger);
 		this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
@@ -435,7 +435,7 @@ public class CheckpointCoordinator {
 				}
 
 				// make sure the minimum interval between checkpoints has passed
-				final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenSuccessCheckpointsNanos;
+				final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
 				final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
 
 				if (durationTillNextMillis > 0) {
@@ -572,7 +572,7 @@ public class CheckpointCoordinator {
 						}
 
 						// make sure the minimum interval between checkpoints has passed
-						final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenSuccessCheckpointsNanos;
+						final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
 						final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
 
 						if (durationTillNextMillis > 0) {
@@ -1176,7 +1176,7 @@ public class CheckpointCoordinator {
 
 			periodicScheduling = true;
 			long initialDelay = ThreadLocalRandom.current().nextLong(
-				minPauseBetweenSuccessCheckpointsNanos / 1_000_000L, baseInterval + 1L);
+				minPauseBetweenCheckpointsNanos / 1_000_000L, baseInterval + 1L);
 			currentPeriodicTrigger = timer.scheduleAtFixedRate(
 					new ScheduledTrigger(), initialDelay, baseInterval, TimeUnit.MILLISECONDS);
 		}

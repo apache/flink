@@ -74,7 +74,7 @@ public class QsStateProducer {
 		env.setStateBackend(stateBackend);
 		env.enableCheckpointing(1000L);
 		env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-		env.getCheckpointConfig().setMinPauseBetweenSuccessCheckpoints(0);
+		env.getCheckpointConfig().setMinPauseBetweenCheckpoints(0);
 
 		env.addSource(new EmailSource())
 			.keyBy(new KeySelector<Email, String>() {

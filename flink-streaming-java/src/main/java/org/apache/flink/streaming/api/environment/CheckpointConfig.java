@@ -40,8 +40,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** The default timeout of a checkpoint attempt: 10 minutes. */
 	public static final long DEFAULT_TIMEOUT = 10 * 60 * 1000;
 
-	/** The default minimum pause to be made between checkpoints: none. */
-	public static final long DEFAULT_MIN_PAUSE_BETWEEN_SUCCESS_CHECKPOINTS = 0;
+	/** The default minimum pause to be made between successful checkpoints: none. */
+	public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0;
 
 	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
@@ -58,7 +58,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	private long checkpointTimeout = DEFAULT_TIMEOUT;
 
 	/** Minimal pause between successful checkpointing attempts. */
-	private long minPauseBetweenSuccessCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_SUCCESS_CHECKPOINTS;
+	private long minPauseBetweenCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS;
 
 	/** Maximum number of checkpoint attempts in progress at the same time. */
 	private int maxConcurrentCheckpoints = DEFAULT_MAX_CONCURRENT_CHECKPOINTS;
@@ -105,7 +105,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Gets the interval in which checkpoints are periodically scheduled.
 	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
-	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenSuccessCheckpoints()}.
+	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenCheckpoints()}.
 	 *
 	 * @return The checkpoint interval, in milliseconds.
 	 */
@@ -117,7 +117,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * Sets the interval in which checkpoints are periodically scheduled.
 	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
-	 * {@link #setMaxConcurrentCheckpoints(int)} and {@link #setMinPauseBetweenSuccessCheckpoints(long)}.
+	 * {@link #setMaxConcurrentCheckpoints(int)} and {@link #setMinPauseBetweenCheckpoints(long)}.
 	 *
 	 * @param checkpointInterval The checkpoint interval, in milliseconds.
 	 */
@@ -158,8 +158,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	 *
 	 * @return The minimal pause before the next checkpoint is triggered.
 	 */
-	public long getMinPauseBetweenSuccessCheckpoints() {
-		return minPauseBetweenSuccessCheckpoints;
+	public long getMinPauseBetweenCheckpoints() {
+		return minPauseBetweenCheckpoints;
 	}
 
 	/**
@@ -171,13 +171,13 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
 	 * that a minimum amount of time passes where no checkpoint is in progress at all.
 	 *
-	 * @param minPauseBetweenSuccessCheckpoints The minimal pause before the next checkpoint is triggered.
+	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
 	 */
-	public void setMinPauseBetweenSuccessCheckpoints(long minPauseBetweenSuccessCheckpoints) {
-		if (minPauseBetweenSuccessCheckpoints < 0) {
+	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
+		if (minPauseBetweenCheckpoints < 0) {
 			throw new IllegalArgumentException("Pause value must be zero or positive");
 		}
-		this.minPauseBetweenSuccessCheckpoints = minPauseBetweenSuccessCheckpoints;
+		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 	}
 
 	/**
