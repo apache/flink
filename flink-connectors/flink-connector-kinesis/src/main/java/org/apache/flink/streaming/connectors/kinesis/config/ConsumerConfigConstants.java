@@ -135,7 +135,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final String SHARD_DISCOVERY_INTERVAL_MILLIS = "flink.shard.discovery.intervalmillis";
 
 	/** The config to turn on adaptive reads from a shard. */
-	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptive.read.records.enabled";
+	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptivereads";
 
 
 	// ------------------------------------------------------------------------
