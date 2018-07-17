@@ -592,7 +592,11 @@ public class SavepointITCase extends TestLogger {
 				latch.await();
 			}
 			savepointPath = client.triggerSavepoint(jobGraph.getJobID(), null).get();
-			source.cancel();
+
+			client.cancel(jobGraph.getJobID());
+			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
+				Thread.sleep(100);
+			}
 
 			jobGraph = streamGraph.getJobGraph();
 			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
@@ -602,7 +606,11 @@ public class SavepointITCase extends TestLogger {
 			for (OneShotLatch latch : iterTestRestoreWait) {
 				latch.await();
 			}
-			source.cancel();
+
+			client.cancel(jobGraph.getJobID());
+			while (!client.getJobStatus(jobGraph.getJobID()).get().isGloballyTerminalState()) {
+				Thread.sleep(100);
+			}
 		} finally {
 			if (null != savepointPath) {
 				client.disposeSavepoint(savepointPath);
