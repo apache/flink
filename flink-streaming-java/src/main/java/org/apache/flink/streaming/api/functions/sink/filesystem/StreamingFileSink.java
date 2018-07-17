@@ -332,7 +332,7 @@ public class StreamingFileSink<IN>
 		final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
 		// setting the values in the bucketer context
-		bucketerContext.update(context.timestamp(), currentProcessingTime, context.currentWatermark());
+		bucketerContext.update(context.timestamp(), context.currentWatermark(), currentProcessingTime);
 
 		final String bucketId = bucketer.getBucketId(value, bucketerContext);
 
