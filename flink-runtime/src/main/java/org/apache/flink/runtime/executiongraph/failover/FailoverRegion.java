@@ -61,7 +61,7 @@ public class FailoverRegion {
 
 	private final ExecutionGraph executionGraph;
 
-	private final List<ExecutionVertex> connectedExecutionVertexes;
+	private final List<ExecutionVertex> connectedExecutionVertices;
 
 	/** The executor that executes the recovery action after all vertices are in a */
 	private final Executor executor;
@@ -73,7 +73,7 @@ public class FailoverRegion {
 	public FailoverRegion(ExecutionGraph executionGraph, Executor executor, List<ExecutionVertex> connectedExecutions) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.executor = checkNotNull(executor);
-		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
+		this.connectedExecutionVertices = checkNotNull(connectedExecutions);
 
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
 	}
@@ -110,13 +110,13 @@ public class FailoverRegion {
 	}
 
 	/**
-	 * get all execution vertexes contained in this region
+	 * get all execution vertices contained in this region
 	 */
-	public List<ExecutionVertex> getAllExecutionVertexes() {
-		return connectedExecutionVertexes;
+	public List<ExecutionVertex> getAllExecutionVertices() {
+		return connectedExecutionVertices;
 	}
 
-	// Notice the region to failover, 
+	// Notice the region to failover,
 	private void failover(long globalModVersionOfFailover) {
 		if (!executionGraph.getRestartStrategy().canRestart()) {
 			executionGraph.failGlobal(new FlinkException("RestartStrategy validate fail"));
@@ -143,10 +143,10 @@ public class FailoverRegion {
 				if (transitionState(curStatus, JobStatus.CANCELLING)) {
 
 					// we build a future that is complete once all vertices have reached a terminal state
-					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
+					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertices.size());
 
 					// cancel all tasks (that still need cancelling)
-					for (ExecutionVertex vertex : connectedExecutionVertexes) {
+					for (ExecutionVertex vertex : connectedExecutionVertices) {
 						futures.add(vertex.cancel());
 					}
 
@@ -168,11 +168,11 @@ public class FailoverRegion {
 	// reset all executions in this sub graph
 	private void reset(long globalModVersionOfFailover) {
 		try {
-			// reset all connected ExecutionVertexes
+			// reset all connected ExecutionVertices
 			final Collection<CoLocationGroup> colGroups = new HashSet<>();
 			final long restartTimestamp = System.currentTimeMillis();
 
-			for (ExecutionVertex ev : connectedExecutionVertexes) {
+			for (ExecutionVertex ev : connectedExecutionVertices) {
 				CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
 				if (cgroup != null && !colGroups.contains(cgroup)){
 					cgroup.resetConstraints();
@@ -209,12 +209,12 @@ public class FailoverRegion {
 				/**
 				if (executionGraph.getCheckpointCoordinator() != null) {
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
-							connectedExecutionVertexes, false, false);
+							connectedExecutionVertices, false, false);
 				}
 				*/
 				//TODO, use restart strategy to schedule them.
-				//restart all connected ExecutionVertexes
-				for (ExecutionVertex ev : connectedExecutionVertexes) {
+				//restart all connected ExecutionVertices
+				for (ExecutionVertex ev : connectedExecutionVertices) {
 					try {
 						ev.scheduleForExecution(
 							executionGraph.getSlotProvider(),

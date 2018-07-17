@@ -35,7 +35,7 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The base class for job vertexes.
+ * The base class for job vertices.
  */
 public class JobVertex implements java.io.Serializable {
 
@@ -116,7 +116,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
-	 * 
+	 *
 	 * @param name The name of the new job vertex.
 	 */
 	public JobVertex(String name) {
@@ -125,7 +125,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Constructs a new job vertex and assigns it with the given name.
-	 * 
+	 *
 	 * @param name The name of the new job vertex.
 	 * @param id The id of the job vertex.
 	 */
@@ -159,7 +159,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the ID of this job vertex.
-	 * 
+	 *
 	 * @return The ID of this job vertex
 	 */
 	public JobVertexID getID() {
@@ -177,7 +177,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the name of the vertex.
-	 * 
+	 *
 	 * @return The name of the vertex.
 	 */
 	public String getName() {
@@ -186,7 +186,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Sets the name of the vertex
-	 * 
+	 *
 	 * @param name The new name.
 	 */
 	public void setName(String name) {
@@ -195,7 +195,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the number of produced intermediate data sets.
-	 * 
+	 *
 	 * @return The number of produced intermediate data sets.
 	 */
 	public int getNumberOfProducedIntermediateDataSets() {
@@ -204,7 +204,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the number of inputs.
-	 * 
+	 *
 	 * @return The number of inputs.
 	 */
 	public int getNumberOfInputs() {
@@ -221,7 +221,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the vertex's configuration object which can be used to pass custom settings to the task at runtime.
-	 * 
+	 *
 	 * @return the vertex's configuration object
 	 */
 	public Configuration getConfiguration() {
@@ -239,7 +239,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the name of the invokable class which represents the task of this vertex.
-	 * 
+	 *
 	 * @return The name of the invokable class, <code>null</code> if not set.
 	 */
 	public String getInvokableClassName() {
@@ -248,7 +248,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Returns the invokable class which represents the task of this vertex
-	 * 
+	 *
 	 * @param cl The classloader used to resolve user-defined classes
 	 * @return The invokable class, <code>null</code> if it is not set
 	 */
@@ -273,7 +273,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Gets the parallelism of the task.
-	 * 
+	 *
 	 * @return The parallelism of the task.
 	 */
 	public int getParallelism() {
@@ -282,7 +282,7 @@ public class JobVertex implements java.io.Serializable {
 
 	/**
 	 * Sets the parallelism for the task.
-	 * 
+	 *
 	 * @param parallelism The parallelism for the task.
 	 */
 	public void setParallelism(int parallelism) {
@@ -358,7 +358,7 @@ public class JobVertex implements java.io.Serializable {
 	/**
 	 * Associates this vertex with a slot sharing group for scheduling. Different vertices in the same
 	 * slot sharing group can run one subtask each in the same slot.
-	 * 
+	 *
 	 * @param grp The slot sharing group to associate the vertex with.
 	 */
 	public void setSlotSharingGroup(SlotSharingGroup grp) {
@@ -376,7 +376,7 @@ public class JobVertex implements java.io.Serializable {
 	 * Gets the slot sharing group that this vertex is associated with. Different vertices in the same
 	 * slot sharing group can run one subtask each in the same slot. If the vertex is not associated with
 	 * a slot sharing group, this method returns {@code null}.
-	 * 
+	 *
 	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
 	 */
 	public SlotSharingGroup getSlotSharingGroup() {
@@ -387,17 +387,17 @@ public class JobVertex implements java.io.Serializable {
 	 * Tells this vertex to strictly co locate its subtasks with the subtasks of the given vertex.
 	 * Strict co-location implies that the n'th subtask of this vertex will run on the same parallel computing
 	 * instance (TaskManager) as the n'th subtask of the given vertex.
-	 * 
+	 *
 	 * NOTE: Co-location is only possible between vertices in a slot sharing group.
-	 * 
+	 *
 	 * NOTE: This vertex must (transitively) depend on the vertex to be co-located with. That means that the
 	 * respective vertex must be a (transitive) input of this vertex.
-	 * 
+	 *
 	 * @param strictlyCoLocatedWith The vertex whose subtasks to co-locate this vertex's subtasks with.
-	 * 
+	 *
 	 * @throws IllegalArgumentException Thrown, if this vertex and the vertex to co-locate with are not in a common
 	 *                                  slot sharing group.
-	 * 
+	 *
 	 * @see #setSlotSharingGroup(SlotSharingGroup)
 	 */
 	public void setStrictlyCoLocatedWith(JobVertex strictlyCoLocatedWith) {
@@ -508,7 +508,7 @@ public class JobVertex implements java.io.Serializable {
 	/**
 	 * A hook that can be overwritten by sub classes to implement logic that is called by the
 	 * master when the job starts.
-	 * 
+	 *
 	 * @param loader The class loader for user defined code.
 	 * @throws Exception The method may throw exceptions which cause the job to fail immediately.
 	 */
@@ -517,7 +517,7 @@ public class JobVertex implements java.io.Serializable {
 	/**
 	 * A hook that can be overwritten by sub classes to implement logic that is called by the
 	 * master after the job completed.
-	 * 
+	 *
 	 * @param loader The class loader for user defined code.
 	 * @throws Exception The method may throw exceptions which cause the job to fail immediately.
 	 */

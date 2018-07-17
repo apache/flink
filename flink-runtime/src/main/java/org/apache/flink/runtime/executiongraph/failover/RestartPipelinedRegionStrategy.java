@@ -62,7 +62,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given
 	 * execution graph and uses the execution graph's future executor to call restart actions.
-	 * 
+	 *
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 */
 	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph) {
@@ -72,7 +72,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given
 	 * execution graph and uses the given executor to call restart actions.
-	 * 
+	 *
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 * @param executor  The executor used for future actions
 	 */
@@ -84,7 +84,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 
 	// ------------------------------------------------------------------------
 	//  failover implementation
-	// ------------------------------------------------------------------------ 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public void onTaskFailure(Execution taskExecution, Throwable cause) {
@@ -116,7 +116,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	}
 
 	/**
-	 * Generate all the FailoverRegion from the new added job vertexes
+	 * Generate all the FailoverRegion from the new added job vertices
  	 */
 	private void generateAllFailoverRegion(List<ExecutionJobVertex> newJobVerticesTopological) {
 		final IdentityHashMap<ExecutionVertex, ArrayList<ExecutionVertex>> vertexToRegion = new IdentityHashMap<>();
@@ -125,7 +125,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 		final IdentityHashMap<ArrayList<ExecutionVertex>, Object> distinctRegions = new IdentityHashMap<>();
 
 		// this loop will worst case iterate over every edge in the graph (complexity is O(#edges))
-		
+
 		for (ExecutionJobVertex ejv : newJobVerticesTopological) {
 
 			// currently, jobs with a co-location constraint fail as one
@@ -204,7 +204,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 			}
 		}
 
-		// now that we have all regions, create the failover region objects 
+		// now that we have all regions, create the failover region objects
 		LOG.info("Creating {} individual failover regions for job {} ({})",
 				executionGraph.getJobName(), executionGraph.getJobID());
 
