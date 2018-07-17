@@ -103,7 +103,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
@@ -313,16 +312,14 @@ public class DispatcherTest extends TestLogger {
 			.setJobID(TEST_JOB_ID)
 			.setState(JobStatus.CANCELED)
 			.build();
-		
-		dispatcher.completeJobExecution(executionGraph);
 
+		dispatcher.completeJobExecution(executionGraph);
 		//Assert that blob was not removed, since exception was thrown while removing the job
 		assertThat(blobServer.getFile(TEST_JOB_ID, key), notNullValue(File.class));
-
 		submittedJobGraphStore.setRemovalFailure(null);
 		dispatcher.completeJobExecution(executionGraph);
-		//Job removing did not throw exception now, blob should be null
 
+		//Job removing did not throw exception now, blob should be null
 		expectedException.expect(NoSuchFileException.class);
 		blobServer.getFile(TEST_JOB_ID, key);
 	}
@@ -658,6 +655,7 @@ public class DispatcherTest extends TestLogger {
 		void setRecoveryFailure(@Nullable Exception recoveryFailure) {
 			this.recoveryFailure = recoveryFailure;
 		}
+
 		void setRemovalFailure(@Nullable Exception removalFailure) {
 			this.removalFailure = removalFailure;
 		}
@@ -673,7 +671,7 @@ public class DispatcherTest extends TestLogger {
 
 		@Override
 		public synchronized void removeJobGraph(JobID jobId) throws Exception {
-			if(removalFailure != null) {
+			if (removalFailure != null) {
 				throw removalFailure;
 			} else {
 				super.removeJobGraph(jobId);
