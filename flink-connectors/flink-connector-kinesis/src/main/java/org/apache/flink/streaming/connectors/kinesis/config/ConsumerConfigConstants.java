@@ -134,6 +134,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The interval between each attempt to discover new shards. */
 	public static final String SHARD_DISCOVERY_INTERVAL_MILLIS = "flink.shard.discovery.intervalmillis";
 
+	/** The config to turn on adaptive reads from a shard. */
+	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptive.read.records.enabled";
+
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -178,6 +182,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
+
+	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured
