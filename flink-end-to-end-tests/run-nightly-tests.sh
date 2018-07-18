@@ -105,5 +105,7 @@ run_test "Avro Confluent Schema Registry nightly end-to-end test" "$END_TO_END_D
 run_test "State TTL Heap backend end-to-end test" "$END_TO_END_DIR/test-scripts/test_stream_state_ttl.sh file"
 run_test "State TTL RocksDb backend end-to-end test" "$END_TO_END_DIR/test-scripts/test_stream_state_ttl.sh rocks"
 
+run_test "Running Kerberized YARN on Docker test " "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
+
 printf "\n[PASS] All tests passed\n"
 exit 0
