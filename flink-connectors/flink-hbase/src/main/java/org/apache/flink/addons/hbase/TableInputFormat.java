@@ -23,7 +23,11 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
@@ -81,7 +85,9 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 		org.apache.hadoop.conf.Configuration hConf = HBaseConfiguration.create();
 
 		try {
-			return new HTable(hConf, getTableName());
+			Connection connection = ConnectionFactory.createConnection(hConf);
+			Table table = connection.getTable(TableName.valueOf(getTableName()));
+			return (HTable) table;
 		} catch (Exception e) {
 			LOG.error("Error instantiating a new HTable instance", e);
 		}
