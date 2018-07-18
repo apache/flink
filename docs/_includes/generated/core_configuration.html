@@ -23,11 +23,6 @@
             <td>Defines the class resolution strategy when loading classes from user code, meaning whether to first check the user code jar ("child-first") or the application classpath ("parent-first"). The default settings indicate to load classes first from the user code jar, which means that user code jars can include and load different dependencies than Flink uses (transitively).</td>
         </tr>
         <tr>
-            <td><h5>internal.io.tmp.dirs.use-local-default</h5></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>key, which says if default value is used for `io.tmp.dirs` config variable.</td>
-        </tr>
-        <tr>
             <td><h5>io.tmp.dirs</h5></td>
             <td style="word-wrap: break-word;">'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty("java.io.tmpdir") in standalone.</td>
             <td></td>

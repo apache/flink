@@ -20,9 +20,9 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -471,15 +471,12 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
 
-		Configuration taskManagerConfig = flinkConfig.clone();
-		if (flinkConfig.getBoolean(CoreOptions.USE_LOCAL_DEFAULT_TMP_DIRS)){
-			taskManagerConfig.removeConfig(CoreOptions.TMP_DIRS);
-		}
+		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
 
 		log.debug("TaskManager configuration: {}", taskManagerConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
-			taskManagerConfig,
+			flinkConfig,
 			yarnConfig,
 			env,
 			taskManagerParameters,
