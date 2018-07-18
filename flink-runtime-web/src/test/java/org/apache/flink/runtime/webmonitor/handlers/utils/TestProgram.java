@@ -16,29 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.runtime.webmonitor.handlers.utils;
 
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 /**
- * Message parameters for {@link JarDeleteHandler}.
+ * Simple test program.
  */
-public class JarDeleteMessageParameters extends MessageParameters {
-
-	public JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
-
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singletonList(jarIdPathParameter);
-	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
+public class TestProgram {
+	public static void main(String[] args) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.fromElements("hello", "world").print();
 	}
 }
