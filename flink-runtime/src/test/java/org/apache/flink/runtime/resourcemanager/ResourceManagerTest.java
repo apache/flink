@@ -68,7 +68,6 @@ public class ResourceManagerTest extends TestLogger {
 	@Test
 	public void testRequestTaskManagerInfo() throws Exception {
 		final Configuration configuration = new Configuration();
-		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
@@ -88,7 +87,6 @@ public class ResourceManagerTest extends TestLogger {
 			rpcService,
 			ResourceManager.RESOURCE_MANAGER_NAME,
 			ResourceID.generate(),
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			new HeartbeatServices(1000L, 10000L),
 			slotManager,
