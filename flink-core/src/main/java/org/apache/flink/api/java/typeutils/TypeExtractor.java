@@ -448,46 +448,16 @@ public class TypeExtractor {
 		Partitioner<T> partitioner,
 		String functionName,
 		boolean allowMissing) {
-		try {
-			final LambdaExecutable exec;
-			try {
-				exec = checkAndExtractLambda(partitioner);
-			} catch (TypeExtractionException e) {
-				throw new InvalidTypesException("Internal error occurred.", e);
-			}
-			if (exec != null) {
 
-				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
-				final int paramLen = exec.getParameterTypes().length;
-
-				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(Partitioner.class);
-				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
-				final int baseParametersLen = sam.getParameterTypes().length;
-
-				final Type keyType = TypeExtractionUtils.extractTypeFromLambda(
-					Partitioner.class,
-					exec,
-					new int[]{0},
-					paramLen,
-					baseParametersLen);
-
-				return new TypeExtractor().privateCreateTypeInfo(keyType, null, null);
-			} else {
-				return new TypeExtractor().privateCreateTypeInfo(
-					Partitioner.class,
-					partitioner.getClass(),
-					0,
-					null,
-					null);
-			}
-		} catch (InvalidTypesException e) {
-			if (allowMissing) {
-				return (TypeInformation<T>) new MissingTypeInfo(functionName != null ? functionName : partitioner.toString(), e);
-			} else {
-				throw e;
-			}
-		}
+		return getUnaryOperatorReturnType(
+			partitioner,
+			Partitioner.class,
+			-1,
+			0,
+			new int[]{0},
+			null,
+			functionName,
+			allowMissing);
 	}
 
 
@@ -519,10 +489,10 @@ public class TypeExtractor {
 	 *
 	 * @param function Function to extract the return type from
 	 * @param baseClass Base class of the function
-	 * @param inputTypeArgumentIndex Index of input type in the class specification
+	 * @param inputTypeArgumentIndex Index of input type in the class specification (ignored if inType is null)
 	 * @param outputTypeArgumentIndex Index of output type in the class specification
 	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the input type. See example.
-	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
+	 * @param inType Type of the input elements (In case of an iterable, it is the element type) or null
 	 * @param functionName Function name
 	 * @param allowMissing Can the type information be missing
 	 * @param <IN> Input type
@@ -541,7 +511,7 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 
-		Preconditions.checkArgument(inputTypeArgumentIndex >= 0, "Input type argument index was not provided");
+		Preconditions.checkArgument(inType == null || inputTypeArgumentIndex >= 0, "Input type argument index was not provided");
 		Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
 		Preconditions.checkArgument(
 			lambdaOutputTypeArgumentIndices != null,
@@ -586,7 +556,9 @@ public class TypeExtractor {
 
 				return new TypeExtractor().privateCreateTypeInfo(output, inType, null);
 			} else {
-				validateInputType(baseClass, function.getClass(), inputTypeArgumentIndex, inType);
+				if (inType != null) {
+					validateInputType(baseClass, function.getClass(), inputTypeArgumentIndex, inType);
+				}
 				return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), outputTypeArgumentIndex, inType, null);
 			}
 		}
@@ -615,8 +587,8 @@ public class TypeExtractor {
 	 *
 	 * @param function Function to extract the return type from
 	 * @param baseClass Base class of the function
-	 * @param input1TypeArgumentIndex Index of first input type in the class specification
-	 * @param input2TypeArgumentIndex Index of second input type in the class specification
+	 * @param input1TypeArgumentIndex Index of first input type in the class specification (ignored if inType is null)
+	 * @param input2TypeArgumentIndex Index of second input type in the class specification (ignored if inType is null)
 	 * @param outputTypeArgumentIndex Index of output type in the class specification
 	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the output type. See example.
 	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
@@ -642,8 +614,8 @@ public class TypeExtractor {
 		String functionName,
 		boolean allowMissing) {
 
-		Preconditions.checkArgument(input1TypeArgumentIndex >= 0, "Input 1 type argument index was not provided");
-		Preconditions.checkArgument(input2TypeArgumentIndex >= 0, "Input 2 type argument index was not provided");
+		Preconditions.checkArgument(in1Type == null || input1TypeArgumentIndex >= 0, "Input 1 type argument index was not provided");
+		Preconditions.checkArgument(in2Type == null || input2TypeArgumentIndex >= 0, "Input 2 type argument index was not provided");
 		Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
 		Preconditions.checkArgument(
 			lambdaOutputTypeArgumentIndices != null,
@@ -689,8 +661,12 @@ public class TypeExtractor {
 					in2Type);
 			}
 			else {
-				validateInputType(baseClass, function.getClass(), input1TypeArgumentIndex, in1Type);
-				validateInputType(baseClass, function.getClass(), input2TypeArgumentIndex, in2Type);
+				if (in1Type != null) {
+					validateInputType(baseClass, function.getClass(), input1TypeArgumentIndex, in1Type);
+				}
+				if (in2Type != null) {
+					validateInputType(baseClass, function.getClass(), input2TypeArgumentIndex, in2Type);
+				}
 				return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), outputTypeArgumentIndex, in1Type, in2Type);
 			}
 		}
