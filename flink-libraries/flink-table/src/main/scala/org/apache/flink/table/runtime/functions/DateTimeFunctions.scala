@@ -17,12 +17,13 @@
  */
 package org.apache.flink.table.runtime.functions
 
-import org.joda.time.format.DateTimeFormatter
-import org.joda.time.format.DateTimeFormatterBuilder
+import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
+import org.joda.time.{DateTimeZone, Days, MutableDateTime}
 
 object DateTimeFunctions {
   private val PIVOT_YEAR = 2020
 
+  private val epoch = new MutableDateTime(0, DateTimeZone.UTC)
   private val DATETIME_FORMATTER_CACHE = new ThreadLocalCache[String, DateTimeFormatter](64) {
     protected override def getNewInstance(format: String): DateTimeFormatter
     = createDateTimeFormatter(format)
@@ -31,6 +32,18 @@ object DateTimeFunctions {
   def dateFormat(ts: Long, formatString: String): String = {
     val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
     formatter.print(ts)
+  }
+
+  def strToDate(str: String, formatString: String): Int = {
+    val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
+    val formatDate = formatter.parseLocalDate(str).toDateTimeAtCurrentTime(DateTimeZone.UTC)
+    val days = Days.daysBetween(epoch, formatDate)
+    days.getDays
+  }
+
+  def strToTimestamp(str: String, formatString: String): Long = {
+    val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
+    formatter.parseDateTime(str).getMillis
   }
 
   def createDateTimeFormatter(format: String): DateTimeFormatter = {

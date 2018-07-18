@@ -19,12 +19,15 @@
 package org.apache.flink.table.expressions
 
 import java.sql.Timestamp
+import java.util.Date
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.runtime.functions.DateTimeFunctions
 import org.apache.flink.types.Row
+import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTime, DateTimeZone}
 import org.junit.Test
 
@@ -32,6 +35,21 @@ class DateTimeFunctionTest extends ExpressionTestBase {
   private val INSTANT = DateTime.parse("1990-01-02T03:04:05.678Z")
   private val LOCAL_ZONE = DateTimeZone.getDefault
   private val LOCAL_TIME = INSTANT.toDateTime(LOCAL_ZONE)
+
+  @Test
+  def testStrToDate(): Unit = {
+    val fmt = DateTimeFormat.forPattern("yyyy-MM-dd").withZone(LOCAL_ZONE)
+    testSqlApi("STR_TO_DATE('20170203', '%Y%m%d')", "2017-02-03")
+    testSqlApi("STR_TO_DATE('01,5,2013', '%d,%m,%Y')", "2013-05-01")
+    testSqlApi("STR_TO_DATE('20110303 am03:29:44', '%Y%m%d %p%h:%i:%s')", "2011-03-03")
+    testSqlApi("STR_TO_DATE('20110303 03:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
+    testSqlApi("STR_TO_DATE('20110303 14:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
+    testSqlApi("STR_TO_DATE('20110303 22:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
+    testSqlApi(
+      "STR_TO_DATE('02/03/2017', f1)",
+      fmt.parseDateTime("2017-02-03").toDateTime(DateTimeZone.UTC).toString("yyyy-MM-dd HH:mm:ss.S")
+    )
+  }
 
   @Test
   def testDateFormat(): Unit = {

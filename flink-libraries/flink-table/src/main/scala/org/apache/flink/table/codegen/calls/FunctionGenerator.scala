@@ -579,6 +579,12 @@ object FunctionGenerator {
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
   )
+
+  addSqlFunction(
+    ScalarSqlFunctions.STR_TO_DATE,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
+    new StrToDateCallGen)
+
   addSqlFunctionMethod(
     ScalarSqlFunctions.LPAD,
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
@@ -635,6 +641,12 @@ object FunctionGenerator {
     ScalarSqlFunctions.SHA2,
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
     new HashCalcCallGen("SHA-2")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.STR_TO_DATE,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
+    new StrToDateCallGen
   )
 
   // ----------------------------------------------------------------------------------------------
