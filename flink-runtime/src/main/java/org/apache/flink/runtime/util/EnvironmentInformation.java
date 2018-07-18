@@ -355,7 +355,7 @@ public class EnvironmentInformation {
 		/** The git commit date */
 		public final String commitDate;
 
-		public RevisionInformation(String commitId, String commitDate) {
+		private RevisionInformation(String commitId, String commitDate) {
 			this.commitId = commitId;
 			this.commitDate = commitDate;
 		}
