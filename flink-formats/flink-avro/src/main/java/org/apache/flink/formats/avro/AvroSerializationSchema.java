@@ -31,7 +31,6 @@ import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * Serialization schema that serializes from Avro binary format.
@@ -43,12 +42,10 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 	/**
 	 * Creates {@link AvroSerializationSchema} that produces {@link SpecificRecord} using provided schema.
 	 *
-	 * @param schemaId   id of schema registry
 	 * @return topic record in form of {@link SpecificRecord}
 	 */
-	public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(Class<T> tClass,
-																					int schemaId) {
-		return new AvroSerializationSchema<>(tClass, schemaId);
+	public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(Class<T> tClass) {
+		return new AvroSerializationSchema<>(tClass);
 	}
 
 	private static final long serialVersionUID = -8766681879020862312L;
@@ -73,23 +70,17 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 	 */
 	private transient BinaryEncoder encoder;
 
-	/**
-	 * schema id.
-	 */
-	private int schemaId;
 
 	/**
 	 * Creates Avro Serialization schema.
 	 *
 	 * @param recordClazz         class to which deserialize which is
 	 *                            {@link SpecificRecord}.
-	 * @param schemaId   id of schema registry to connect
 	 */
 
-	AvroSerializationSchema(Class<T> recordClazz, int schemaId) {
+	AvroSerializationSchema(Class<T> recordClazz) {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
 		this.recordClazz = recordClazz;
-		this.schemaId = schemaId;
 
 	}
 
@@ -105,10 +96,6 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 		return arrayOutputStream;
 	}
 
-	int getSchemaId(){
-		return schemaId;
-	}
-
 	@Override
 	public byte[] serialize(T object) {
 		checkAvroInitialized();
@@ -118,7 +105,6 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 		} else {
 			try {
 				arrayOutputStream.write(0);
-				arrayOutputStream.write(ByteBuffer.allocate(4).putInt(schemaId).array());
 				datumWriter.write(object, encoder);
 				encoder.flush();
 				byte[] bytes = arrayOutputStream.toByteArray();

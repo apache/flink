@@ -132,5 +132,10 @@ public class ConfluentRegistryAvroDeserializationSchema<T> extends RegistryAvroD
 				url,
 				identityMapCapacity));
 		}
+
+		@Override
+		public Object getSchemaId() {
+			return null;
+		}
 	}
 }

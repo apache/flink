@@ -26,7 +26,8 @@ import java.io.Serializable;
 
 /**
  * Schema coder that allows reading schema that is somehow embedded into serialized record.
- * Used by {@link RegistryAvroDeserializationSchema}.
+ * Used by {@link RegistryAvroDeserializationSchema} and {@link RegistryAvroSerializationSchema}.
+ *
  */
 public interface SchemaCoder {
 	Schema readSchema(InputStream in) throws IOException;
@@ -44,5 +45,14 @@ public interface SchemaCoder {
 		 * @return new instance {@link SchemaCoder}
 		 */
 		SchemaCoder get();
+
+		/**
+		 * Creates a new instance of {@link Object}. Each time it should create a new
+		 * instance, as it will be called on multiple nodes.
+		 *
+		 * @return new instance {@link Object}
+		 */
+		Object getSchemaId();
+
 	}
 }

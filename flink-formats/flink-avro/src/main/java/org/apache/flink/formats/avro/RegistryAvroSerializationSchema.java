@@ -34,15 +34,19 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 
 	private static final long serialVersionUID = -6766681879020862312L;
 
+	private Object schemaId;
+
 	/**
 	 * Creates Avro Serialization schema.
 	 *
 	 * @param recordClazz         class to which deserialize which is
 	 *                            {@link SpecificRecord}.
-	 * @param schemaId   id of schema registry to connect
+	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
+	 *                            schema writing
 	 */
-	public RegistryAvroSerializationSchema(Class<T> recordClazz, int schemaId) {
-		super(recordClazz, schemaId);
+	public RegistryAvroSerializationSchema(Class<T> recordClazz, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+		super(recordClazz);
+		this.schemaId = schemaCoderProvider.getSchemaId();
 	}
 
 	@Override
@@ -56,7 +60,11 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 				Encoder encoder = getEncoder();
 				ByteArrayOutputStream arrayOutputStream = getOutputStream();
 				arrayOutputStream.write(0);
-				arrayOutputStream.write(ByteBuffer.allocate(4).putInt(getSchemaId()).array());
+				if (schemaId instanceof Integer) {
+					arrayOutputStream.write(ByteBuffer.allocate(4).putInt((Integer) schemaId).array());
+				} else if (schemaId instanceof Long) {
+					arrayOutputStream.write(ByteBuffer.allocate(8).putLong((Long) schemaId).array());
+				}
 
 				getDatumWriter().write(object, encoder);
 				encoder.flush();
