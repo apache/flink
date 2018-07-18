@@ -35,11 +35,13 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -48,6 +50,7 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -123,6 +126,45 @@ public class RocksDBStateBackendConfigTest {
 			IOUtils.closeQuietly(keyedBackend);
 			keyedBackend.dispose();
 		}
+	}
+
+	@Test
+	public void testConfigureTimerService() throws Exception {
+
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
+
+		// Fix the option key string
+		Assert.assertEquals("state.backend.rocksdb.timer-service.factory", RocksDBOptions.TIMER_SERVICE_FACTORY.key());
+
+		// Fix the option value string and ensure all are covered
+		Assert.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
+		Assert.assertEquals("ROCKSDB", RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+		Assert.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+
+		// Fix the default
+		Assert.assertEquals(
+			RocksDBStateBackend.PriorityQueueStateType.HEAP.toString(),
+			RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
+
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+
+		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		keyedBackend.restore(Collections.emptyList());
+		Assert.assertEquals(HeapPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
+		keyedBackend.dispose();
+
+		Configuration conf = new Configuration();
+		conf.setString(
+			RocksDBOptions.TIMER_SERVICE_FACTORY,
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+
+		rocksDbBackend = rocksDbBackend.configure(conf);
+		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		keyedBackend.restore(Collections.emptyList());
+		Assert.assertEquals(
+			RocksDBKeyedStateBackend.RocksDBPriorityQueueSetFactory.class,
+			keyedBackend.getPriorityQueueFactory().getClass());
+		keyedBackend.dispose();
 	}
 
 	@Test
