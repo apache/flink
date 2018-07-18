@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import akka.pattern.AskTimeoutException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import akka.pattern.AskTimeoutException;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
