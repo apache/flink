@@ -21,6 +21,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -35,7 +37,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link TypeFill}.
+ * Tests for handling missing type information either by calling {@code returns()} or having an
+ * explicit type information parameter.
  */
 @SuppressWarnings("serial")
 public class TypeFillTest {
@@ -71,12 +74,35 @@ public class TypeFillTest {
 			fail();
 		} catch (Exception ignored) {}
 
+		try {
+			source.keyBy(new TestKeySelector<Long, String>()).print();
+			fail();
+		} catch (Exception ignored) {}
+
+		try {
+			source.connect(source).keyBy(new TestKeySelector<Long, String>(), new TestKeySelector<>());
+			fail();
+		} catch (Exception ignored) {}
+
+		try {
+			source.coGroup(source).where(new TestKeySelector<>()).equalTo(new TestKeySelector<>());
+			fail();
+		} catch (Exception ignored) {}
+
+		try {
+			source.join(source).where(new TestKeySelector<>()).equalTo(new TestKeySelector<>());
+			fail();
+		} catch (Exception ignored) {}
+
 		env.addSource(new TestSource<Integer>()).returns(Integer.class);
 		source.map(new TestMap<Long, Long>()).returns(Long.class).print();
 		source.flatMap(new TestFlatMap<Long, Long>()).returns(new TypeHint<Long>(){}).print();
 		source.connect(source).map(new TestCoMap<Long, Long, Integer>()).returns(BasicTypeInfo.INT_TYPE_INFO).print();
 		source.connect(source).flatMap(new TestCoFlatMap<Long, Long, Integer>())
 				.returns(BasicTypeInfo.INT_TYPE_INFO).print();
+		source.connect(source).keyBy(new TestKeySelector<>(), new TestKeySelector<>(), Types.STRING);
+		source.coGroup(source).where(new TestKeySelector<>(), Types.STRING).equalTo(new TestKeySelector<>(), Types.STRING);
+		source.join(source).where(new TestKeySelector<>(), Types.STRING).equalTo(new TestKeySelector<>(), Types.STRING);
 
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
@@ -141,5 +167,13 @@ public class TypeFillTest {
 		@Override
 		public void flatMap2(IN2 value, Collector<OUT> out) throws Exception {}
 
+	}
+
+	private static class TestKeySelector<IN, KEY> implements KeySelector<IN, KEY> {
+
+		@Override
+		public KEY getKey(IN value) throws Exception {
+			return null;
+		}
 	}
 }

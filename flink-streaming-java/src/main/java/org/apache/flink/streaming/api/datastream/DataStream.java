@@ -286,7 +286,22 @@ public class DataStream<T> {
 	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
+		Preconditions.checkNotNull(key);
 		return new KeyedStream<>(this, clean(key));
+	}
+
+	/**
+	 * It creates a new {@link KeyedStream} that uses the provided key with explicit type information
+	 * for partitioning its operator states.
+	 *
+	 * @param key The KeySelector to be used for extracting the key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 * @return The {@link DataStream} with partitioned state (i.e. KeyedStream)
+	 */
+	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key, TypeInformation<K> keyType) {
+		Preconditions.checkNotNull(key);
+		Preconditions.checkNotNull(keyType);
+		return new KeyedStream<>(this, clean(key), keyType);
 	}
 
 	/**

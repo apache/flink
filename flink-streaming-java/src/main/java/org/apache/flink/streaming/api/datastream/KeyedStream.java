@@ -478,8 +478,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	@PublicEvolving
 	public static class IntervalJoined<IN1, IN2, KEY> {
 
-		private static final String INTERVAL_JOIN_FUNC_NAME = "IntervalJoin";
-
 		private final KeyedStream<IN1, KEY> left;
 		private final KeyedStream<IN2, KEY> right;
 
@@ -545,15 +543,15 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
 				cleanedUdf,
-				ProcessJoinFunction.class,    // ProcessJoinFunction<IN1, IN2, OUT>
-				0,     //					    0    1    2
+				ProcessJoinFunction.class,
+				0,
 				1,
 				2,
-				TypeExtractor.NO_INDEX,         // output arg indices
-				left.getType(),                 // input 1 type information
-				right.getType(),                // input 2 type information
-				INTERVAL_JOIN_FUNC_NAME ,
-				false
+				TypeExtractor.NO_INDEX,
+				left.getType(),
+				right.getType(),
+				Utils.getCallLocationName(),
+				true
 			);
 
 			IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
@@ -570,7 +568,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			return left
 				.connect(right)
 				.keyBy(keySelector1, keySelector2)
-				.transform(INTERVAL_JOIN_FUNC_NAME , resultType, operator);
+				.transform("Interval Join", resultType, operator);
 
 		}
 	}

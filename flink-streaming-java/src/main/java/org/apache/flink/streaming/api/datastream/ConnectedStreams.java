@@ -192,6 +192,28 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
+	 * KeyBy operation for connected data stream. Assigns keys to the elements of
+	 * input1 and input2 using keySelector1 and keySelector2 with explicit type information
+	 * for the common key type.
+	 *
+	 * @param keySelector1
+	 *            The {@link KeySelector} used for grouping the first input
+	 * @param keySelector2
+	 *            The {@link KeySelector} used for grouping the second input
+	 * @param keyType The type information of the common key type.
+	 * @return The partitioned {@link ConnectedStreams}
+	 */
+	public <KEY> ConnectedStreams<IN1, IN2> keyBy(
+			KeySelector<IN1, KEY> keySelector1,
+			KeySelector<IN2, KEY> keySelector2,
+			TypeInformation<KEY> keyType) {
+		return new ConnectedStreams<>(
+			environment,
+			inputStream1.keyBy(keySelector1, keyType),
+			inputStream2.keyBy(keySelector2, keyType));
+	}
+
+	/**
 	 * Applies a CoMap transformation on a {@link ConnectedStreams} and maps
 	 * the output to a common type. The transformation calls a
 	 * {@link CoMapFunction#map1} for each element of the first input and

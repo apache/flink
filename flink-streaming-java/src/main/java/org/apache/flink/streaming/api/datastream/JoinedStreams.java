@@ -79,9 +79,24 @@ public class JoinedStreams<T1, T2> {
 
 	/**
 	 * Specifies a {@link KeySelector} for elements from the first input.
+	 *
+	 * @param keySelector The KeySelector to be used for extracting the key for partitioning.
 	 */
 	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector)  {
-		TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		requireNonNull(keySelector);
+		final TypeInformation<KEY> keyType = TypeExtractor.getKeySelectorTypes(keySelector, input1.getType());
+		return where(keySelector, keyType);
+	}
+
+	/**
+	 * Specifies a {@link KeySelector} for elements from the first input with explicit type information for the key type.
+	 *
+	 * @param keySelector The KeySelector to be used for extracting the first input's key for partitioning.
+	 * @param keyType The type information describing the key type.
+	 */
+	public <KEY> Where<KEY> where(KeySelector<T1, KEY> keySelector, TypeInformation<KEY> keyType)  {
+		requireNonNull(keySelector);
+		requireNonNull(keyType);
 		return new Where<>(input1.clean(keySelector), keyType);
 	}
 
@@ -105,12 +120,28 @@ public class JoinedStreams<T1, T2> {
 
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
+		 *
+		 * @param keySelector The KeySelector to be used for extracting the second input's key for partitioning.
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
-			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
-			if (!otherKey.equals(this.keyType)) {
+			requireNonNull(keySelector);
+			final TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
+			return equalTo(keySelector, otherKey);
+		}
+
+		/**
+		 * Specifies a {@link KeySelector} for elements from the second input with explicit type information for the key type.
+		 *
+		 * @param keySelector The KeySelector to be used for extracting the second input's key for partitioning.
+		 * @param keyType The type information describing the key type.
+		 */
+		public EqualTo equalTo(KeySelector<T2, KEY> keySelector, TypeInformation<KEY> keyType)  {
+			requireNonNull(keySelector);
+			requireNonNull(keyType);
+
+			if (!keyType.equals(this.keyType)) {
 				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
-						"first key = " + this.keyType + " , second key = " + otherKey);
+						"first key = " + this.keyType + " , second key = " + keyType);
 			}
 
 			return new EqualTo(input2.clean(keySelector));
