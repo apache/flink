@@ -323,38 +323,40 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 			// deploy
-			ClusterClient<ApplicationId> yarnCluster = null;
+			ClusterClient<ApplicationId> yarnClusterClient = null;
 			try {
-				yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
-			} catch (Exception e) {
-				LOG.warn("Failing test", e);
-				Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
-			}
-			GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-			for (int second = 0; second < waitTime * 2; second++) { // run "forever"
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					LOG.warn("Interrupted", e);
-				}
-				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-				if (status != null && status.equals(expectedStatus)) {
-					LOG.info("ClusterClient reached status " + status);
-					break; // all good, cluster started
-				}
-				if (second > waitTime) {
-					// we waited for 15 seconds. cluster didn't come up correctly
-					Assert.fail("The custer didn't start after " + waitTime + " seconds");
-				}
-			}
+				yarnClusterClient = clusterDescriptor.deploySessionCluster(clusterSpecification);
 
-			// use the cluster
-			Assert.assertNotNull(yarnCluster.getClusterConnectionInfo());
-			Assert.assertNotNull(yarnCluster.getWebInterfaceURL());
+				GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
+				for (int second = 0; second < waitTime * 2; second++) { // run "forever"
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						LOG.warn("Interrupted", e);
+					}
+					GetClusterStatusResponse status = yarnClusterClient.getClusterStatus();
+					if (status != null && status.equals(expectedStatus)) {
+						LOG.info("ClusterClient reached status " + status);
+						break; // all good, cluster started
+					}
+					if (second > waitTime) {
+						// we waited for 15 seconds. cluster didn't come up correctly
+						Assert.fail("The custer didn't start after " + waitTime + " seconds");
+					}
+				}
 
-			LOG.info("Shutting down cluster. All tests passed");
-			// shutdown cluster
-			yarnCluster.shutdown();
+				// use the cluster
+				Assert.assertNotNull(yarnClusterClient.getClusterConnectionInfo());
+				Assert.assertNotNull(yarnClusterClient.getWebInterfaceURL());
+				LOG.info("All tests passed.");
+			} finally {
+				if (yarnClusterClient != null) {
+					// shutdown cluster
+					LOG.info("Shutting down the Flink Yarn application.");
+					yarnClusterClient.shutDownCluster();
+					yarnClusterClient.shutdown();
+				}
+			}
 		}
 		LOG.info("Finished testJavaAPI()");
 	}
