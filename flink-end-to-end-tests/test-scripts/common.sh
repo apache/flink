@@ -31,10 +31,10 @@ echo "Flink dist directory: $FLINK_DIR"
 FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
 
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
-TEST_ROOT=`pwd`
+TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
-TEST_INFRA_DIR=`pwd`
+TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
 # used to randomize created directories
