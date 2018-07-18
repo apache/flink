@@ -236,7 +236,7 @@ public class ExecutionContext<T> {
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
 			return factory.createBatchTableSink(sinkProperties);
 		}
-		throw new SqlExecutionException("Unsupported execution type for sources.");
+		throw new SqlExecutionException("Unsupported execution type for sinks.");
 	}
 
 	// --------------------------------------------------------------------------------------------
