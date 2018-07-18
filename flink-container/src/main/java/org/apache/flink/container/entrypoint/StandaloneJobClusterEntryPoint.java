@@ -51,20 +51,23 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
  * location.
  */
 public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
-	private  static final String[] EMPTY_ARGS = new String[0];
+	private final String[] programArguments;
 
 	@Nonnull
 	private final String jobClassName;
 
-	StandaloneJobClusterEntryPoint(Configuration configuration, @Nonnull String jobClassName) {
+	StandaloneJobClusterEntryPoint(Configuration configuration, @Nonnull String jobClassName, @Nonnull String[] programArguments) {
 		super(configuration);
-		this.jobClassName = jobClassName;
+		this.programArguments = checkNotNull(programArguments);
+		this.jobClassName = checkNotNull(jobClassName);
 	}
 
 	@Override
@@ -84,7 +87,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	private PackagedProgram createPackagedProgram() throws FlinkException {
 		try {
 			final Class<?> mainClass = getClass().getClassLoader().loadClass(jobClassName);
-			return new PackagedProgram(mainClass, EMPTY_ARGS);
+			return new PackagedProgram(mainClass, programArguments);
 		} catch (ClassNotFoundException | ProgramInvocationException e) {
 			throw new FlinkException("Could not load the provied entrypoint class.", e);
 		}
@@ -148,7 +151,9 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 
 		configuration.setString(ClusterEntrypoint.EXECUTION_MODE, ExecutionMode.DETACHED.toString());
 
-		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration, clusterConfiguration.getJobClassName());
+		StandaloneJobClusterEntryPoint entrypoint = new StandaloneJobClusterEntryPoint(configuration,
+			clusterConfiguration.getJobClassName(),
+			clusterConfiguration.getArgs());
 
 		entrypoint.startCluster();
 	}
