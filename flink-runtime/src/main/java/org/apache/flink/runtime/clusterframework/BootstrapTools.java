@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -60,11 +61,19 @@ import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * Tools for starting JobManager and TaskManager processes, including the
  * Actor Systems used to run the JobManager and TaskManager actors.
  */
 public class BootstrapTools {
+	/**
+	 * Internal option which says if default value is used for {@link CoreOptions#TMP_DIRS}.
+	 */
+	private static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS = key("internal.io.tmpdirs.use-local-default")
+		.defaultValue(false);
+
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 
 	/**
@@ -235,7 +244,7 @@ public class BootstrapTools {
 				int numSlots,
 				FiniteDuration registrationTimeout) {
 
-		Configuration cfg = baseConfig.clone();
+		Configuration cfg = cloneConfiguration(baseConfig);
 
 		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
 			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
@@ -248,10 +257,6 @@ public class BootstrapTools {
 		cfg.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots);
-		}
-
-		if (baseConfig.getBoolean(CoreOptions.USE_LOCAL_DEFAULT_TMP_DIRS)){
-			cfg.removeConfig(CoreOptions.TMP_DIRS);
 		}
 
 		return cfg;
@@ -482,11 +487,28 @@ public class BootstrapTools {
 		if (configuration.contains(CoreOptions.TMP_DIRS)) {
 			LOG.info("Overriding Fink's temporary file directories with those " +
 				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
-			configuration.setBoolean(CoreOptions.USE_LOCAL_DEFAULT_TMP_DIRS, false);
 		}
 		else {
 			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
 			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
+			configuration.setBoolean(USE_LOCAL_DEFAULT_TMP_DIRS, true);
 		}
+	}
+
+	/**
+	 * Clones the given configuration and resets instance specific config options.
+	 *
+	 * @param configuration to clone
+	 * @return Cloned configuration with reset instance specific config options
+	 */
+	public static Configuration cloneConfiguration(Configuration configuration) {
+		final Configuration clonedConfiguration = new Configuration(configuration);
+
+		if (clonedConfiguration.getBoolean(USE_LOCAL_DEFAULT_TMP_DIRS)){
+			clonedConfiguration.removeConfig(CoreOptions.TMP_DIRS);
+			clonedConfiguration.removeConfig(USE_LOCAL_DEFAULT_TMP_DIRS);
+		}
+
+		return clonedConfiguration;
 	}
 }
