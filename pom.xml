@@ -1144,6 +1144,7 @@ under the License.
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/*</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>

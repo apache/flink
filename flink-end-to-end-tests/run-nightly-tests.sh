@@ -94,5 +94,7 @@ run_test "Elasticsearch (v5.1.2) sink end-to-end test" "$END_TO_END_DIR/test-scr
 
 run_test "Quickstart nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_quickstarts.sh"
 
+run_test "Running Kerberized YARN on Docker test " "$END_TO_END_DIR/test-scripts/test_yarn_kerberos_docker.sh"
+
 printf "\n[PASS] All tests passed\n"
 exit 0
