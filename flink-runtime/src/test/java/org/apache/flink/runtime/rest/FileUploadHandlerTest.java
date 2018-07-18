@@ -18,13 +18,12 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.runtime.io.network.netty.NettyLeakDetectionResource;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetector;
-import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetectorFactory;
 
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
@@ -32,8 +31,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -42,7 +39,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link FileUploadHandler}. Ensures that multipart http messages containing files and/or json are properly
@@ -55,23 +51,8 @@ public class FileUploadHandlerTest extends TestLogger {
 
 	private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
 
-	private static ResourceLeakDetectorFactory previousLeakDetector;
-	private static ResourceLeakDetector.Level previousLeakDetectorLevel;
-
-	@BeforeClass
-	public static void setLeakDetector() {
-		previousLeakDetector = ResourceLeakDetectorFactory.instance();
-		previousLeakDetectorLevel = ResourceLeakDetector.getLevel();
-
-		ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
-		ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(new FailingResourceLeakDetectorFactory());
-	}
-
-	@AfterClass
-	public static void resetLeakDetector() {
-		ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakDetector);
-		ResourceLeakDetector.setLevel(previousLeakDetectorLevel);
-	}
+	@ClassRule
+	public static final NettyLeakDetectionResource LEAK_DETECTION = new NettyLeakDetectionResource();
 
 	@After
 	public void reset() {
@@ -242,33 +223,6 @@ public class FileUploadHandlerTest extends TestLogger {
 			assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR.code(), response.code());
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
-	}
-
-	static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
-		public <T> ResourceLeakDetector<T> newResourceLeakDetector(
-				Class<T> resource, int samplingInterval, long maxActive) {
-			return new FailingResourceLeakDetector<T>(resource, samplingInterval, maxActive);
-		}
-	}
-
-	static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
-		FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
-			super(resourceType, samplingInterval, maxActive);
-		}
-
-		@Override
-		protected void reportTracedLeak(String resourceType, String records) {
-			super.reportTracedLeak(resourceType, records);
-			fail(String.format("LEAK: %s.release() was not called before it's garbage-collected.%s",
-				resourceType, records));
-		}
-
-		@Override
-		protected void reportUntracedLeak(String resourceType) {
-			super.reportUntracedLeak(resourceType);
-			fail(String.format("LEAK: %s.release() was not called before it's garbage-collected.",
-				resourceType));
-		}
 	}
 
 }
