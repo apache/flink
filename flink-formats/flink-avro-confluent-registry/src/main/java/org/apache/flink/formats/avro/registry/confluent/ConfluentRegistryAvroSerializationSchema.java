@@ -57,21 +57,21 @@ public class ConfluentRegistryAvroSerializationSchema<T> extends RegistryAvroSer
 	 *
 	 * @param tClass              class of record to be produced
 	 * @param schemaRegistryUrl   url of schema registry to connect
-	 * @param topic topic of schema registry to produce
+	 * @param subject subject of schema registry to produce
 	 * @return Serialized record
 	 */
-	public static <T extends SpecificRecord> ConfluentRegistryAvroSerializationSchema<T> forSpecific(Class<T> tClass, String topic, String schemaRegistryUrl) {
+	public static <T extends SpecificRecord> ConfluentRegistryAvroSerializationSchema<T> forSpecific(Class<T> tClass, String subject, String schemaRegistryUrl) {
 		return new ConfluentRegistryAvroSerializationSchema<>(
 			tClass,
-			getSchemaId(tClass, topic, schemaRegistryUrl)
+			getSchemaId(tClass, subject, schemaRegistryUrl)
 		);
 	}
 
-	private static int getSchemaId(Class tClass, String topic, String schemaRegistryUrl){
+	private static int getSchemaId(Class tClass, String subject, String schemaRegistryUrl){
 		CachedSchemaRegistryClient cachedSchemaRegistryClient = new CachedSchemaRegistryClient(schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY);
 		int schemaId;
 		try {
-			schemaId = cachedSchemaRegistryClient.register(topic + "-value", SpecificData.get().getSchema(tClass));
+			schemaId = cachedSchemaRegistryClient.register(subject, SpecificData.get().getSchema(tClass));
 		} catch (IOException | RestClientException e) {
 			throw new RuntimeException("Failed to serialize schema registry.", e);
 		}
