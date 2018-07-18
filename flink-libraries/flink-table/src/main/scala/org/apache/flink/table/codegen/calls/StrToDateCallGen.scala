@@ -23,6 +23,9 @@ import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotN
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.runtime.functions.DateTimeFunctions
 
+/**
+  * Generates StrToDate call based on the type of last operand.
+  */
 class StrToDateCallGen extends CallGenerator {
   override def generate(codeGenerator: CodeGenerator,
                         operands: Seq[GeneratedExpression]): GeneratedExpression = {

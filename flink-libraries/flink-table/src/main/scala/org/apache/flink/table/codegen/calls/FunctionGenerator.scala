@@ -643,12 +643,6 @@ object FunctionGenerator {
     new HashCalcCallGen("SHA-2")
   )
 
-  addSqlFunction(
-    ScalarSqlFunctions.STR_TO_DATE,
-    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
-    new StrToDateCallGen
-  )
-
   // ----------------------------------------------------------------------------------------------
 
   /**
