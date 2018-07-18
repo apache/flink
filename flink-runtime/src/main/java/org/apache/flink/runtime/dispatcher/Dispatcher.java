@@ -575,20 +575,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			() -> {
 				jobManagerMetricGroup.removeJob(jobId);
 
+				boolean cleanupHABlobs = false;
 				if (cleanupHA) {
 					try {
 						submittedJobGraphStore.removeJobGraph(jobId);
-						blobServer.cleanupJob(jobId, cleanupHA);
+
+						// only clean up the HA blobs if we could remove the job from HA storage
+						cleanupHABlobs = true;
 					} catch (Exception e) {
-						log.warn("Could not properly remove job {} from submitted job graph store.", jobId);
+						log.warn("Could not properly remove job {} from submitted job graph store.", jobId, e);
 					}
 
 					try {
 						runningJobsRegistry.clearJob(jobId);
 					} catch (IOException e) {
-						log.warn("Could not properly remove job {} from the running jobs registry.", jobId);
+						log.warn("Could not properly remove job {} from the running jobs registry.", jobId, e);
 					}
 				}
+
+				blobServer.cleanupJob(jobId, cleanupHABlobs);
 			},
 			getRpcService().getExecutor());
 	}

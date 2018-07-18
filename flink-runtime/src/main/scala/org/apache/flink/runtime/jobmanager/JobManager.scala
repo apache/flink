@@ -1725,22 +1725,31 @@ class JobManager(
    */
   private def removeJob(jobID: JobID, removeJobFromStateBackend: Boolean): Option[Future[Unit]] = {
     // Don't remove the job yet...
-    val futureOption = currentJobs.get(jobID) match {
+    val futureOption = currentJobs.remove(jobID) match {
       case Some((eg, _)) =>
-        val result = if (removeJobFromStateBackend) {
-          val futureOption = Some(future {
+        val cleanUpFuture: Future[Unit] = Future {
+          val cleanupHABlobs = if (removeJobFromStateBackend) {
             try {
               // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
               // and the ZooKeeper client is closed. Not removing the job immediately allow the
               // shutdown to release all resources.
               submittedJobGraphs.removeJobGraph(jobID)
-              val result  = blobServer.cleanupJob(jobID, removeJobFromStateBackend)
-
+              true
             } catch {
-              case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
+              case t: Throwable => {
+                log.warn(s"Could not remove submitted job graph $jobID.", t)
+                false
+              }
             }
-          }(context.dispatcher))
+          } else {
+            false
+          }
 
+          blobServer.cleanupJob(jobID, cleanupHABlobs)
+          ()
+        }(context.dispatcher)
+
+        if (removeJobFromStateBackend) {
           try {
             archive ! decorateMessage(
               ArchiveExecutionGraph(
@@ -1749,15 +1758,9 @@ class JobManager(
           } catch {
             case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
-
-          futureOption
-        } else {
-          None
         }
 
-        currentJobs.remove(jobID)
-
-        result
+        Option(cleanUpFuture)
       case None => None
     }
 
