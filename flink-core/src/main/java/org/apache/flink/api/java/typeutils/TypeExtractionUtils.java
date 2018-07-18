@@ -158,6 +158,7 @@ public class TypeExtractionUtils {
 	/**
 	 * Extracts type from given index from lambda. It supports nested types.
 	 *
+	 * @param baseClass SAM function that the lambda implements
 	 * @param exec lambda function to extract the type from
 	 * @param lambdaTypeArgumentIndices position of type to extract in type hierarchy
 	 * @param paramLen count of total parameters of the lambda (including closure parameters)
@@ -165,16 +166,17 @@ public class TypeExtractionUtils {
 	 * @return extracted type
 	 */
 	public static Type extractTypeFromLambda(
+		Class<?> baseClass,
 		LambdaExecutable exec,
 		int[] lambdaTypeArgumentIndices,
 		int paramLen,
 		int baseParametersLen) {
 		Type output = exec.getParameterTypes()[paramLen - baseParametersLen + lambdaTypeArgumentIndices[0]];
 		for (int i = 1; i < lambdaTypeArgumentIndices.length; i++) {
-			validateLambdaType(output);
+			validateLambdaType(baseClass, output);
 			output = extractTypeArgument(output, lambdaTypeArgumentIndices[i]);
 		}
-		validateLambdaType(output);
+		validateLambdaType(baseClass, output);
 		return output;
 	}
 
@@ -336,18 +338,17 @@ public class TypeExtractionUtils {
 	 *
 	 * @param t type to be validated
 	 */
-	public static void validateLambdaType(Type t) {
+	public static void validateLambdaType(Class<?> baseClass, Type t) {
 		if (!(t instanceof Class)) {
 			return;
 		}
 		final Class<?> clazz = (Class<?>) t;
 
 		if (clazz.getTypeParameters().length > 0) {
-			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
-					+ "It seems that your compiler has not stored them into the .class file. \n"
-					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
-					+ "See the documentation for more information about how to compile jobs containing lambda expressions. \n"
-					+ "An easy workaround is to use an (anonymous) class instead that implements the interface.");
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing.\n"
+				+ "In many cases lambda methods don't provide enough information for automatic type extraction when Java generics are involved.\n"
+				+ "An easy workaround is to use an (anonymous) class instead that implements the '" + baseClass.getName() + "' interface.\n"
+				+ "Otherwise the type has to be specified explicitly using type information.");
 		}
 	}
 }

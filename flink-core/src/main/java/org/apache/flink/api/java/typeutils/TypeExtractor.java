@@ -466,6 +466,7 @@ public class TypeExtractor {
 				final int baseParametersLen = sam.getParameterTypes().length;
 
 				final Type keyType = TypeExtractionUtils.extractTypeFromLambda(
+					Partitioner.class,
 					exec,
 					new int[]{0},
 					paramLen,
@@ -573,13 +574,14 @@ public class TypeExtractor {
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
 					output = TypeExtractionUtils.extractTypeFromLambda(
+						baseClass,
 						exec,
 						lambdaOutputTypeArgumentIndices,
 						paramLen,
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
-					TypeExtractionUtils.validateLambdaType(output);
+					TypeExtractionUtils.validateLambdaType(baseClass, output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(output, inType, null);
@@ -671,13 +673,14 @@ public class TypeExtractor {
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
 					output = TypeExtractionUtils.extractTypeFromLambda(
+						baseClass,
 						exec,
 						lambdaOutputTypeArgumentIndices,
 						paramLen,
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
-					TypeExtractionUtils.validateLambdaType(output);
+					TypeExtractionUtils.validateLambdaType(baseClass, output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(
@@ -857,9 +860,10 @@ public class TypeExtractor {
 					return typeInfo;
 				} else {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
-							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
-							+ "The type extraction currently supports types with generic variables only in cases where "
-							+ "all variables in the return type can be deduced from the input type(s).");
+						+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
+						+ "The type extraction currently supports types with generic variables only in cases where "
+						+ "all variables in the return type can be deduced from the input type(s).\n"
+						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			}
 		}
@@ -1107,10 +1111,11 @@ public class TypeExtractor {
 				// variable could not be determined
 				if (subTypesInfo[i] == null && !lenient) {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
-							+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
-							+ "' could not be determined. This is most likely a type erasure problem. "
-							+ "The type extraction currently supports types with generic variables only in cases where "
-							+ "all variables in the return type can be deduced from the input type(s).");
+						+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
+						+ "' could not be determined. This is most likely a type erasure problem. "
+						+ "The type extraction currently supports types with generic variables only in cases where "
+						+ "all variables in the return type can be deduced from the input type(s).\n"
+						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			} else {
 				// create the type information of the subtype or null/exception
