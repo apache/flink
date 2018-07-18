@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import java.net.URISyntaxException;
-import org.apache.commons.text.RandomStringGenerator;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -155,17 +155,11 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		String chkpointPath = originalUri.getPath();
 		String retPath = chkpointPath;
 
-		if (!entropyInjectionKey.isEmpty() && chkpointPath.contains(entropyInjectionKey)) {
-			final String randomChars = new RandomStringGenerator.Builder()
-				.withinRange('0', 'z')
-				.filteredBy(Character::isLetterOrDigit)
-				.build()
-				.generate(DEFAULT_RANDOM_ENTROPY_LENGTH);
-			retPath = chkpointPath.replaceAll(entropyInjectionKey, randomChars);
-			LOG.debug("Entropy injected checkpoint path {}", retPath);
-		} else {
-			if (entropyInjectionKey.isEmpty()) {
-				LOG.warn("Entropy inject key is empty, hence entropy not injected");
+		if (!entropyInjectionKey.isEmpty()) {
+			if (chkpointPath.contains(entropyInjectionKey)) {
+				final String randomChars = RandomStringUtils.randomAlphanumeric(DEFAULT_RANDOM_ENTROPY_LENGTH);
+				retPath = chkpointPath.replaceAll(entropyInjectionKey, randomChars);
+				LOG.debug("Entropy injected checkpoint path {}", retPath);
 			} else {
 				LOG.warn("Entropy inject key is non-empty: {} , however key is not found in checkpoint path : {}", entropyInjectionKey, chkpointPath);
 			}
