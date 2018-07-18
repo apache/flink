@@ -76,12 +76,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * This base class allows to use the MiniYARNCluster.
@@ -223,13 +223,12 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 
 		if (isAnyJobRunning) {
-			final Optional<ApplicationReport> runningApp = yarnClient.getApplications().stream()
+			final List<String> runningApps = yarnClient.getApplications().stream()
 				.filter(YarnTestBase::isApplicationRunning)
-				.findAny();
-			if (runningApp.isPresent()) {
-				final ApplicationReport app = runningApp.get();
-				Assert.fail("There is at least one application on the cluster that is not finished." +
-					"App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState());
+				.map(app -> "App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState() + '.')
+				.collect(Collectors.toList());
+			if (!runningApps.isEmpty()) {
+				Assert.fail("There is at least one application on the cluster that is not finished." + runningApps);
 			}
 		}
 	}
