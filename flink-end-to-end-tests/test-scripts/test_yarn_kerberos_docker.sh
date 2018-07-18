@@ -72,6 +72,7 @@ docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --direc
 # minimal Flink config, bebe
 docker exec -it master bash -c "echo \"security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 docker exec -it master bash -c "echo \"security.kerberos.login.principal: hadoop-user\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+docker exec -it master bash -c "echo \"slot.request.timeout: 60000\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 
 echo "Flink config:"
 docker exec -it master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
@@ -83,7 +84,7 @@ OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 start_time=$(date +%s)
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
-until docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1200 -yjm 800 -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH"; do
+until docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH"; do
     current_time=$(date +%s)
 	time_diff=$((current_time - start_time))
 
@@ -106,12 +107,22 @@ until docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath
 done
 
 docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+docker exec -it master bash -c "hdfs dfs -ls $OUTPUT_PATH"
 OUTPUT=$(docker exec -it master bash -c "hdfs dfs -cat $OUTPUT_PATH/*")
 docker exec -it master bash -c "kdestroy"
 echo "$OUTPUT"
 
 if [[ ! "$OUTPUT" =~ "consummation,1" ]]; then
     echo "Output does not contain (consummation, 1) as required"
+    mkdir -p $TEST_DATA_DIR/logs
+    echo "Hadoop logs:"
+    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
+    for f in $TEST_DATA_DIR/logs/*; do
+        echo "$f:"
+        cat $f
+    done
+    echo "Docker logs:"
+    docker logs master
     exit 1
 fi
 
