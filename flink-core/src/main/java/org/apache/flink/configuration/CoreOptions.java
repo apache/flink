@@ -187,13 +187,6 @@ public class CoreOptions {
 			.defaultValue(System.getProperty("java.io.tmpdir"))
 			.withDeprecatedKeys("taskmanager.tmp.dirs");
 
-	/**
-	 * String key, which says if default value is used for `io.tmp.dirs` config variable.
-	 */
-	public static final ConfigOption<Boolean> USE_LOCAL_DEFAULT_TMP_DIRS = key("internal.io.tmp.dirs.use-local-default")
-		.defaultValue(true)
-		.withDescription("key, which says if default value is used for `io.tmp.dirs` config variable.");
-
 	// ------------------------------------------------------------------------
 	//  program
 	// ------------------------------------------------------------------------
