@@ -35,6 +35,7 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -59,7 +60,7 @@ import java.util.stream.Collectors;
 /**
  * Tests for the parameter handling of the {@link JarRunHandler}.
  */
-public class JarRunHandlerParameterTest {
+public class JarRunHandlerParameterTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder TMP = new TemporaryFolder();
