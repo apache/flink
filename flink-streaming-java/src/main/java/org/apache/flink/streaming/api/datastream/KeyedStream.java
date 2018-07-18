@@ -305,7 +305,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);
@@ -365,7 +364,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				KeyedProcessFunction.class,
 				1,
 				2,
-				TypeExtractor.NO_INDEX,
 				TypeExtractor.NO_INDEX,
 				getType(),
 				Utils.getCallLocationName(),
@@ -551,8 +549,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				0,     //					    0    1    2
 				1,
 				2,
-				new int[]{0},                   // lambda input 1 type arg indices
-				new int[]{1},                   // lambda input 1 type arg indices
 				TypeExtractor.NO_INDEX,         // output arg indices
 				left.getType(),                 // input 1 type information
 				right.getType(),                // input 2 type information

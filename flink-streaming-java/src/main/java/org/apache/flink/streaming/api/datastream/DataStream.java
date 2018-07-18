@@ -621,7 +621,6 @@ public class DataStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);

@@ -311,7 +311,7 @@ public class LambdaExtractionTest {
 	}
 
 	@Test(expected = InvalidTypesException.class)
-	public void getSingleAbstractMethodNoAbstractMethods() {
+	public void testSingleAbstractMethodNoAbstractMethods() {
 		TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
 	}
 
@@ -320,7 +320,7 @@ public class LambdaExtractionTest {
 	}
 
 	@Test(expected = InvalidTypesException.class)
-	public void getSingleAbstractMethodNotAnInterface() {
+	public void testSingleAbstractMethodNotAnInterface() {
 		TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
 	}
 }

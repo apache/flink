@@ -167,18 +167,14 @@ public class CEPITCase extends AbstractTestBase {
 				}
 			});
 
-		DataStream<String> result = CEP.pattern(input, pattern).select(new PatternSelectFunction<Event, String>() {
+		DataStream<String> result = CEP.pattern(input, pattern).select(p -> {
+			StringBuilder builder = new StringBuilder();
 
-			@Override
-			public String select(Map<String, List<Event>> pattern) {
-				StringBuilder builder = new StringBuilder();
+			builder.append(p.get("start").get(0).getId()).append(",")
+				.append(p.get("middle").get(0).getId()).append(",")
+				.append(p.get("end").get(0).getId());
 
-				builder.append(pattern.get("start").get(0).getId()).append(",")
-					.append(pattern.get("middle").get(0).getId()).append(",")
-					.append(pattern.get("end").get(0).getId());
-
-				return builder.toString();
-			}
+			return builder.toString();
 		});
 
 		List<String> resultList = new ArrayList<>();
