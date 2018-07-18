@@ -49,7 +49,7 @@ public abstract class Formatter {
 				return formatter.finalizeFormatting();
 			}
 		).toArray(String[]::new);
-		formatText(state, element.getFormat(), inlineElements);
+		formatText(state, escapeFormatPlaceholder(element.getFormat()), inlineElements);
 	}
 
 	public void format(LineBreakElement element) {
@@ -69,7 +69,7 @@ public abstract class Formatter {
 	private String finalizeFormatting() {
 		String result = state.toString();
 		state.setLength(0);
-		return result;
+		return result.replaceAll("%%", "%");
 	}
 
 	protected abstract void formatLink(StringBuilder state, String link, String description);
@@ -81,6 +81,15 @@ public abstract class Formatter {
 	protected abstract void formatList(StringBuilder state, String[] entries);
 
 	protected abstract Formatter newInstance();
+
+	private static final String TEMPORARY_PLACEHOLDER = "randomPlaceholderForStringFormat";
+
+	private static String escapeFormatPlaceholder(String value) {
+		return value
+			.replaceAll("%s", TEMPORARY_PLACEHOLDER)
+			.replaceAll("%", "%%")
+			.replaceAll(TEMPORARY_PLACEHOLDER, "%s");
+	}
 
 }
 

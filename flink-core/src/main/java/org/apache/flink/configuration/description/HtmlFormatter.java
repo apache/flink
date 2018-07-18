@@ -53,15 +53,10 @@ public class HtmlFormatter extends Formatter {
 		return new HtmlFormatter();
 	}
 
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
-
 	private static String escapeCharacters(String value) {
 		return value
-			.replaceAll("%s", TEMPORARY_PLACEHOLDER)
-			.replaceAll("%", "%%")
 			.replaceAll("<", "&lt;")
-			.replaceAll(">", "&gt;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "%s");
+			.replaceAll(">", "&gt;");
 	}
 
 }
