@@ -19,79 +19,20 @@
 package org.apache.flink.table.descriptors
 
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.descriptors.DescriptorUtils.validateTableDescriptorProperties
 import org.apache.flink.table.descriptors.StreamTableDescriptorValidator._
-import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory, TableFactoryService}
 
 /**
   * Descriptor for specifying a table source and/or sink in a streaming environment.
   */
 class StreamTableDescriptor(
-    private val tableEnv: StreamTableEnvironment,
-    private val connectorDescriptor: ConnectorDescriptor)
-  extends TableDescriptor
-  with SchematicDescriptor
-  with RegistrableDescriptor
+    tableEnv: StreamTableEnvironment,
+    connectorDescriptor: ConnectorDescriptor)
+  extends ConnectTableDescriptor[StreamTableDescriptor](
+    tableEnv,
+    connectorDescriptor)
   with StreamableDescriptor {
 
-  private var formatDescriptor: Option[FormatDescriptor] = None
-  private var schemaDescriptor: Option[Schema] = None
   private var updateMode: Option[String] = None
-
-  /**
-    * Searches for the specified table source, configures it accordingly, and registers it as
-    * a table under the given name.
-    *
-    * @param name table name to be registered in the table environment
-    */
-  override def registerTableSource(name: String): Unit = {
-    val javaMap = getValidProperties.asMap
-    val tableSource = TableFactoryService
-      .find(classOf[StreamTableSourceFactory[_]], javaMap)
-      .createStreamTableSource(javaMap)
-    tableEnv.registerTableSource(name, tableSource)
-  }
-
-  /**
-    * Searches for the specified table sink, configures it accordingly, and registers it as
-    * a table under the given name.
-    *
-    * @param name table name to be registered in the table environment
-    */
-  override def registerTableSink(name: String): Unit = {
-    val javaMap = getValidProperties.asMap
-    val tableSink = TableFactoryService
-      .find(classOf[StreamTableSinkFactory[_]], javaMap)
-      .createStreamTableSink(javaMap)
-    tableEnv.registerTableSink(name, tableSink)
-  }
-
-  /**
-    * Searches for the specified table source and sink, configures them accordingly, and registers
-    * them as a table under the given name.
-    *
-    * @param name table name to be registered in the table environment
-    */
-  override def registerTableSourceAndSink(name: String): Unit = {
-    registerTableSource(name)
-    registerTableSink(name)
-  }
-
-  /**
-    * Specifies the format that defines how to read data from a connector.
-    */
-  override def withFormat(format: FormatDescriptor): StreamTableDescriptor = {
-    formatDescriptor = Some(format)
-    this
-  }
-
-  /**
-    * Specifies the resulting table schema.
-    */
-  override def withSchema(schema: Schema): StreamTableDescriptor = {
-    schemaDescriptor = Some(schema)
-    this
-  }
 
   /**
     * Declares how to perform the conversion between a dynamic table and an external connector.
@@ -144,27 +85,17 @@ class StreamTableDescriptor(
     this
   }
 
-  override def toString: String = {
-    getValidProperties.toString
-  }
-
   // ----------------------------------------------------------------------------------------------
 
   /**
     * Internal method for properties conversion.
     */
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.addProperties(properties)
-    formatDescriptor.foreach(_.addProperties(properties))
-    schemaDescriptor.foreach(_.addProperties(properties))
+    super.addProperties(properties)
     updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
-  }
 
-  private def getValidProperties: DescriptorProperties = {
-    validateTableDescriptorProperties(
-      isStreaming = true,
-      this,
-      connectorDescriptor,
-      formatDescriptor)
+    // this performs only basic validation
+    // more validation can only happen within a factory
+    new StreamTableDescriptorValidator().validate(properties)
   }
 }

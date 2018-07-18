@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 /**
   * A trait for descriptors that allow to convert between a dynamic table and an external connector.
   */
-trait StreamableDescriptor extends Descriptor {
+trait StreamableDescriptor extends TableDescriptor {
 
   /**
     * Declares how to perform the conversion between a dynamic table and an external connector.
