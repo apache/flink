@@ -15,12 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions;
-
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+package org.apache.flink.api.java.io;
 
 import org.junit.After;
 import org.junit.Before;
@@ -32,9 +27,9 @@ import java.io.PrintStream;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for the {@link PrintSinkFunction}.
+ * Tests for the {@link PrintingOutputFormat}.
  */
-public class PrintSinkFunctionTest {
+public class PrintingOutputFormatTest {
 
 	private final PrintStream originalSystemOut = System.out;
 	private final PrintStream originalSystemErr = System.err;
@@ -63,13 +58,11 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkStdOut() throws Exception {
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
-		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+	public void testPrintOutputFormatStdOut() throws Exception {
+		PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
+		printSink.open(0, 1);
 
-		printSink.open(new Configuration());
-
-		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+		printSink.writeRecord("hello world!");
 
 		assertEquals("Print to System.out", printSink.toString());
 		assertEquals("hello world!" + line, arrayOutputStream.toString());
@@ -77,12 +70,11 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkStdErr() throws Exception {
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>(true);
-		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-		printSink.open(new Configuration());
+	public void testPrintOutputFormatStdErr() throws Exception {
+		PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>(true);
+		printSink.open(0, 1);
 
-		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+		printSink.writeRecord("hello world!");
 
 		assertEquals("Print to System.err", printSink.toString());
 		assertEquals("hello world!" + line, arrayErrorStream.toString());
@@ -90,12 +82,11 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkWithPrefix() throws Exception {
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
-		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
-		printSink.open(new Configuration());
+	public void testPrintOutputFormatWithPrefix() throws Exception {
+		PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>();
+		printSink.open(1, 2);
 
-		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+		printSink.writeRecord("hello world!");
 
 		assertEquals("Print to System.out", printSink.toString());
 		assertEquals("2> hello world!" + line, arrayOutputStream.toString());
@@ -103,12 +94,11 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkWithIdentifierAndPrefix() throws Exception {
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
-		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
-		printSink.open(new Configuration());
+	public void testPrintOutputFormatWithIdentifierAndPrefix() throws Exception {
+		PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
+		printSink.open(1, 2);
 
-		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+		printSink.writeRecord("hello world!");
 
 		assertEquals("Print to System.out", printSink.toString());
 		assertEquals("mySink:2> hello world!" + line, arrayOutputStream.toString());
@@ -116,12 +106,11 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkWithIdentifierButNoPrefix() throws Exception {
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
-		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-		printSink.open(new Configuration());
+	public void testPrintOutputFormatWithIdentifierButNoPrefix() throws Exception {
+		PrintingOutputFormat<String> printSink = new PrintingOutputFormat<>("mySink", false);
+		printSink.open(0, 1);
 
-		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+		printSink.writeRecord("hello world!");
 
 		assertEquals("Print to System.out", printSink.toString());
 		assertEquals("mySink> hello world!" + line, arrayOutputStream.toString());

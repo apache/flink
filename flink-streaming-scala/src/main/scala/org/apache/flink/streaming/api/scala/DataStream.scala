@@ -960,6 +960,29 @@ class DataStream[T](stream: JavaStream[T]) {
   def printToErr() = stream.printToErr()
 
   /**
+    * Writes a DataStream to the standard output stream (stdout). For each
+    * element of the DataStream the result of [[AnyRef.toString()]] is
+    * written.
+    *
+    * @param sinkIdentifier The string to prefix the output with.
+    * @return The closed DataStream.
+    */
+  @PublicEvolving
+  def print(sinkIdentifier: String): DataStreamSink[T] = stream.print(sinkIdentifier)
+
+  /**
+    * Writes a DataStream to the standard output stream (stderr).
+    *
+    * For each element of the DataStream the result of
+    * [[AnyRef.toString()]] is written.
+    *
+    * @param sinkIdentifier The string to prefix the output with.
+    * @return The closed DataStream.
+    */
+  @PublicEvolving
+  def printToErr(sinkIdentifier: String) = stream.printToErr(sinkIdentifier)
+
+  /**
     * Writes a DataStream to the file specified by path in text format. For
     * every element of the DataStream the result of .toString is written.
     *
