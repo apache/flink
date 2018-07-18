@@ -65,11 +65,11 @@ public class JarRunRequestBody implements RequestBody {
 
 	@JsonCreator
 	public JarRunRequestBody(
-			@JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-			@JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
-			@JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
-			@JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE) Boolean allowNonRestoredState,
-			@JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
+			@Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
+			@Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
+			@Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
+			@Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE) Boolean allowNonRestoredState,
+			@Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
 		this.entryClassName = entryClassName;
 		this.programArguments = programArguments;
 		this.parallelism = parallelism;
