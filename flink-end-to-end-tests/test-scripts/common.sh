@@ -37,10 +37,10 @@ export EXIT_CODE=0
 echo "Flink dist directory: $FLINK_DIR"
 
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
-TEST_ROOT=`pwd`
+TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
 cd $TEST_INFRA_DIR
-TEST_INFRA_DIR=`pwd`
+TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
 function print_mem_use_osx {
