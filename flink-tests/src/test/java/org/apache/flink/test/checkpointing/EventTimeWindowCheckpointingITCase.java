@@ -32,21 +32,20 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.test.checkpointing.utils.FailingSource;
+import org.apache.flink.test.checkpointing.utils.IntType;
+import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -65,19 +64,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.FILE_ASYNC;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.MEM;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.MEM_ASYNC;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_FULLY_ASYNC;
-import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL;
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
-import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -255,20 +245,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final int numElementsPerKey = numElementsPerKey();
 		final int windowSize = windowSize();
 		final int numKeys = numKeys();
-		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
-					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
+					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(windowSize, MILLISECONDS))
@@ -299,12 +288,17 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 								sum += value.f1.value;
 								key = value.f0;
 							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+
+							final Tuple4<Long, Long, Long, IntType> result =
+								new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum));
+							out.collect(result);
 						}
 					})
-					.addSink(new ValidatingSink(numKeys, numElementsPerKey / windowSize)).setParallelism(1);
+				.addSink(new ValidatingSink<>(
+					new SinkValidatorUpdateFun(numElementsPerKey),
+					new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize))).setParallelism(1);
 
-			tryExecute(env, "Tumbling Window Test");
+			env.execute("Tumbling Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -326,7 +320,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final int numElementsPerKey = numElementsPerKey();
 		final int windowSize = windowSize();
 		final int numKeys = numKeys();
-		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -334,13 +327,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setMaxParallelism(maxParallelism);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
-					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
+					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(windowSize, MILLISECONDS))
@@ -378,9 +371,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							out.collect(new Tuple4<>(tuple.<Long>getField(0), window.getStart(), window.getEnd(), new IntType(count.value())));
 						}
 					})
-					.addSink(new CountValidatingSink(numKeys, numElementsPerKey / windowSize)).setParallelism(1);
+				.addSink(new ValidatingSink<>(
+					new CountingSinkValidatorUpdateFun(),
+					new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize))).setParallelism(1);
 
-			tryExecute(env, "Tumbling Window Test");
+			env.execute("Tumbling Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -394,7 +389,6 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final int windowSize = windowSize();
 		final int windowSlide = windowSlide();
 		final int numKeys = numKeys();
-		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -402,13 +396,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
-					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
+					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(windowSize, MILLISECONDS), Time.of(windowSlide, MILLISECONDS))
@@ -439,12 +433,16 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 								sum += value.f1.value;
 								key = value.f0;
 							}
-							out.collect(new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum)));
+							final Tuple4<Long, Long, Long, IntType> output =
+								new Tuple4<>(key, window.getStart(), window.getEnd(), new IntType(sum));
+							out.collect(output);
 						}
 					})
-					.addSink(new ValidatingSink(numKeys, numElementsPerKey / windowSlide)).setParallelism(1);
+				.addSink(new ValidatingSink<>(
+					new SinkValidatorUpdateFun(numElementsPerKey),
+					new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSlide))).setParallelism(1);
 
-			tryExecute(env, "Tumbling Window Test");
+			env.execute("Tumbling Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -457,20 +455,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final int numElementsPerKey = numElementsPerKey();
 		final int windowSize = windowSize();
 		final int numKeys = numKeys();
-		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
-					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
+					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(windowSize, MILLISECONDS))
@@ -505,16 +502,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							assertTrue(open);
 
 							for (Tuple2<Long, IntType> in: input) {
-								out.collect(new Tuple4<>(in.f0,
-										window.getStart(),
-										window.getEnd(),
-										in.f1));
+								final Tuple4<Long, Long, Long, IntType> output = new Tuple4<>(in.f0,
+									window.getStart(),
+									window.getEnd(),
+									in.f1);
+								out.collect(output);
 							}
 						}
 					})
-					.addSink(new ValidatingSink(numKeys, numElementsPerKey / windowSize)).setParallelism(1);
+				.addSink(new ValidatingSink<>(
+					new SinkValidatorUpdateFun(numElementsPerKey),
+					new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize))).setParallelism(1);
 
-			tryExecute(env, "Tumbling Window Test");
+			env.execute("Tumbling Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -528,20 +528,19 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final int windowSize = windowSize();
 		final int windowSlide = windowSlide();
 		final int numKeys = numKeys();
-		FailingSource.reset();
 
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
 			env.getConfig().disableSysoutLogging();
 			env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
-					.addSource(new FailingSource(numKeys, numElementsPerKey, numElementsPerKey / 3))
+					.addSource(new FailingSource(new KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))
 					.rebalance()
 					.keyBy(0)
 					.timeWindow(Time.of(windowSize, MILLISECONDS), Time.of(windowSlide, MILLISECONDS))
@@ -585,9 +584,11 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 							}
 						}
 					})
-					.addSink(new ValidatingSink(numKeys, numElementsPerKey / windowSlide)).setParallelism(1);
+					.addSink(new ValidatingSink<>(
+						new SinkValidatorUpdateFun(numElementsPerKey),
+						new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSlide))).setParallelism(1);
 
-			tryExecute(env, "Tumbling Window Test");
+			env.execute("Tumbling Window Test");
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -599,151 +600,42 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements ListCheckpointed<Integer>, CheckpointListener {
-		private static volatile boolean failedBefore = false;
-
-		private final int numKeys;
-		private final int numElementsToEmit;
-		private final int failureAfterNumElements;
-
-		private volatile int numElementsEmitted;
-		private volatile int numSuccessfulCheckpoints;
-		private volatile boolean running = true;
-
-		private FailingSource(int numKeys, int numElementsToEmitPerKey, int failureAfterNumElements) {
-			this.numKeys = numKeys;
-			this.numElementsToEmit = numElementsToEmitPerKey;
-			this.failureAfterNumElements = failureAfterNumElements;
-		}
+	/**
+	 * For validating the stateful window counts.
+	 */
+	static class CountingSinkValidatorUpdateFun
+		implements ValidatingSink.CountUpdater<Tuple4<Long, Long, Long, IntType>> {
 
 		@Override
-		public void open(Configuration parameters) {
-			// non-parallel source
-			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-		}
+		public void updateCount(Tuple4<Long, Long, Long, IntType> value, Map<Long, Integer> windowCounts) {
 
-		@Override
-		public void run(SourceContext<Tuple2<Long, IntType>> ctx) throws Exception {
-			// we loop longer than we have elements, to permit delayed checkpoints
-			// to still cause a failure
-			while (running) {
+			windowCounts.merge(value.f0, 1, (a, b) -> a + b);
 
-				if (!failedBefore) {
-					// delay a bit, if we have not failed before
-					Thread.sleep(1);
-					if (numSuccessfulCheckpoints >= 2 && numElementsEmitted >= failureAfterNumElements) {
-						// cause a failure if we have not failed before and have reached
-						// enough completed checkpoints and elements
-						failedBefore = true;
-						throw new Exception("Artificial Failure");
-					}
-				}
-
-				if (numElementsEmitted < numElementsToEmit &&
-						(failedBefore || numElementsEmitted <= failureAfterNumElements)) {
-					// the function failed before, or we are in the elements before the failure
-					synchronized (ctx.getCheckpointLock()) {
-						int next = numElementsEmitted++;
-						for (long i = 0; i < numKeys; i++) {
-							ctx.collectWithTimestamp(new Tuple2<Long, IntType>(i, new IntType(next)), next);
-						}
-						ctx.emitWatermark(new Watermark(next));
-					}
-				}
-				else {
-
-					// if our work is done, delay a bit to prevent busy waiting
-					Thread.sleep(1);
-				}
-			}
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
-
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			numSuccessfulCheckpoints++;
-		}
-
-		@Override
-		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(this.numElementsEmitted);
-		}
-
-		@Override
-		public void restoreState(List<Integer> state) throws Exception {
-			if (state.isEmpty() || state.size() > 1) {
-				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
-			}
-			this.numElementsEmitted = state.get(0);
-		}
-
-		public static void reset() {
-			failedBefore = false;
+			// verify the contents of that window, the contents should be:
+			// (key + num windows so far)
+			assertEquals("Window counts don't match for key " + value.f0 + ".", value.f0.intValue() + windowCounts.get(value.f0), value.f3.value);
 		}
 	}
 
-	private static class ValidatingSink extends RichSinkFunction<Tuple4<Long, Long, Long, IntType>>
-			implements ListCheckpointed<HashMap<Long, Integer>> {
+	//------------------------------------
 
-		private final HashMap<Long, Integer> windowCounts = new HashMap<>();
+	static class SinkValidatorUpdateFun implements ValidatingSink.CountUpdater<Tuple4<Long, Long, Long, IntType>> {
 
-		private final int numKeys;
-		private final int numWindowsExpected;
+		private final int elementsPerKey;
 
-		private ValidatingSink(int numKeys, int numWindowsExpected) {
-			this.numKeys = numKeys;
-			this.numWindowsExpected = numWindowsExpected;
+		SinkValidatorUpdateFun(int elementsPerKey) {
+			this.elementsPerKey = elementsPerKey;
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			// this sink can only work with DOP 1
-			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-
-			// it can happen that a checkpoint happens when the complete success state is
-			// already set. In that case we restart with the final state and would never
-			// finish because no more elements arrive.
-			if (windowCounts.size() == numKeys) {
-				boolean seenAll = true;
-				for (Integer windowCount: windowCounts.values()) {
-					if (windowCount != numWindowsExpected) {
-						seenAll = false;
-						break;
-					}
-				}
-				if (seenAll) {
-					throw new SuccessException();
-				}
-			}
-		}
-
-		@Override
-		public void close() throws Exception {
-			boolean seenAll = true;
-			if (windowCounts.size() == numKeys) {
-				for (Integer windowCount: windowCounts.values()) {
-					if (windowCount < numWindowsExpected) {
-						seenAll = false;
-						break;
-					}
-				}
-			}
-			assertTrue("The sink must see all expected windows.", seenAll);
-		}
-
-		@Override
-		public void invoke(Tuple4<Long, Long, Long, IntType> value) throws Exception {
-
+		public void updateCount(Tuple4<Long, Long, Long, IntType> value, Map<Long, Integer> windowCounts) {
 			// verify the contents of that window, Tuple4.f1 and .f2 are the window start/end
 			// the sum should be "sum (start .. end-1)"
 
 			int expectedSum = 0;
-			for (long i = value.f1; i < value.f2; i++) {
+			// we shorten the range if it goes beyond elementsPerKey, because those are "incomplete" sliding windows
+			long countUntil = Math.min(value.f2, elementsPerKey);
+			for (long i = value.f1; i < countUntil; i++) {
 				// only sum up positive vals, to filter out the negative start of the
 				// first sliding windows
 				if (i > 0) {
@@ -753,142 +645,55 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
 			assertEquals("Window start: " + value.f1 + " end: " + value.f2, expectedSum, value.f3.value);
 
-			Integer curr = windowCounts.get(value.f0);
-			if (curr != null) {
-				windowCounts.put(value.f0, curr + 1);
-			}
-			else {
-				windowCounts.put(value.f0, 1);
-			}
-
-			if (windowCounts.size() == numKeys) {
-				boolean seenAll = true;
-				for (Integer windowCount: windowCounts.values()) {
-					if (windowCount < numWindowsExpected) {
-						seenAll = false;
-						break;
-					} else if (windowCount > numWindowsExpected) {
-						fail("Window count to high: " + windowCount);
-					}
-				}
-
-				if (seenAll) {
-					// exit
-					throw new SuccessException();
-				}
-
-			}
-		}
-
-		@Override
-		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(this.windowCounts);
-		}
-
-		@Override
-		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-			if (state.isEmpty() || state.size() > 1) {
-				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
-			}
-			windowCounts.putAll(state.get(0));
+			windowCounts.merge(value.f0, 1, (val, increment) -> val + increment);
 		}
 	}
 
-	// Sink for validating the stateful window counts
-	private static class CountValidatingSink extends RichSinkFunction<Tuple4<Long, Long, Long, IntType>>
-			implements ListCheckpointed<HashMap<Long, Integer>> {
-
-		private final HashMap<Long, Integer> windowCounts = new HashMap<>();
+	static class SinkValidatorCheckFun implements ValidatingSink.ResultChecker {
 
 		private final int numKeys;
 		private final int numWindowsExpected;
 
-		private CountValidatingSink(int numKeys, int numWindowsExpected) {
+		SinkValidatorCheckFun(int numKeys, int elementsPerKey, int elementsPerWindow) {
 			this.numKeys = numKeys;
-			this.numWindowsExpected = numWindowsExpected;
+			this.numWindowsExpected = elementsPerKey / elementsPerWindow;
 		}
 
 		@Override
-		public void open(Configuration parameters) throws Exception {
-			// this sink can only work with DOP 1
-			assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
-		}
-
-		@Override
-		public void close() throws Exception {
-			boolean seenAll = true;
+		public boolean checkResult(Map<Long, Integer> windowCounts) {
 			if (windowCounts.size() == numKeys) {
-				for (Integer windowCount: windowCounts.values()) {
+				for (Integer windowCount : windowCounts.values()) {
 					if (windowCount < numWindowsExpected) {
-						seenAll = false;
-						break;
+						return false;
 					}
 				}
+				return true;
 			}
-			assertTrue("The source must see all expected windows.", seenAll);
-		}
-
-		@Override
-		public void invoke(Tuple4<Long, Long, Long, IntType> value) throws Exception {
-
-			Integer curr = windowCounts.get(value.f0);
-			if (curr != null) {
-				windowCounts.put(value.f0, curr + 1);
-			}
-			else {
-				windowCounts.put(value.f0, 1);
-			}
-
-			// verify the contents of that window, the contents should be:
-			// (key + num windows so far)
-
-			assertEquals("Window counts don't match for key " + value.f0 + ".", value.f0.intValue() + windowCounts.get(value.f0), value.f3.value);
-
-			boolean seenAll = true;
-			if (windowCounts.size() == numKeys) {
-				for (Integer windowCount: windowCounts.values()) {
-					if (windowCount < numWindowsExpected) {
-						seenAll = false;
-						break;
-					} else if (windowCount > numWindowsExpected) {
-						fail("Window count to high: " + windowCount);
-					}
-				}
-
-				if (seenAll) {
-					// exit
-					throw new SuccessException();
-				}
-
-			}
-		}
-
-		@Override
-		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(this.windowCounts);
-		}
-
-		@Override
-		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-			if (state.isEmpty() || state.size() > 1) {
-				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
-			}
-			this.windowCounts.putAll(state.get(0));
+			return false;
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+	static class KeyedEventTimeGenerator implements FailingSource.EventEmittingGenerator {
 
-	private static class IntType {
+		private final int keyUniverseSize;
+		private final int watermarkTrailing;
 
-		public int value;
+		public KeyedEventTimeGenerator(int keyUniverseSize, int numElementsPerWindow) {
+			this.keyUniverseSize = keyUniverseSize;
+			// we let the watermark a bit behind, so that there can be in-flight timers that required checkpointing
+			// to include correct timer snapshots in our testing.
+			this.watermarkTrailing = 4 * numElementsPerWindow / 3;
+		}
 
-		public IntType() {}
+		@Override
+		public void emitEvent(SourceFunction.SourceContext<Tuple2<Long, IntType>> ctx, int eventSequenceNo) {
+			final IntType intTypeNext = new IntType(eventSequenceNo);
+			for (long i = 0; i < keyUniverseSize; i++) {
+				final Tuple2<Long, IntType> generatedEvent = new Tuple2<>(i, intTypeNext);
+				ctx.collectWithTimestamp(generatedEvent, eventSequenceNo);
+			}
 
-		public IntType(int value) {
-			this.value = value;
+			ctx.emitWatermark(new Watermark(eventSequenceNo - watermarkTrailing));
 		}
 	}
 
