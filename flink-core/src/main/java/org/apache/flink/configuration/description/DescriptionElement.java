@@ -16,25 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.util;
+package org.apache.flink.configuration.description;
 
 /**
- * Contains various shared utility functions.
+ * Part of a {@link Description} that can be converted into String representation.
  */
-public enum Utils {
-	;
-
+interface DescriptionElement {
 	/**
-	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
-	 * but only something that won't show up in config options.
+	 * Transforms itself into String representation using given format.
+	 *
+	 * @param formatter formatter to use.
 	 */
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
-
-	public static String escapeCharacters(String value) {
-		return value
-			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&lt;")
-			.replaceAll(">", "&gt;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
-	}
+	void format(Formatter formatter);
 }

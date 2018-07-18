@@ -16,25 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.docs.util;
+package org.apache.flink.configuration.description;
 
 /**
- * Contains various shared utility functions.
+ * Represents a line break in the {@link Description}.
  */
-public enum Utils {
-	;
+public class LineBreakElement implements BlockElement {
 
 	/**
-	 * Placeholder that is used to prevent certain sections from being escaped. We don't need a sophisticated value
-	 * but only something that won't show up in config options.
+	 * Creates a line break in the description.
 	 */
-	private static final String TEMPORARY_PLACEHOLDER = "superRandomTemporaryPlaceholder";
+	public static LineBreakElement linebreak() {
+		return new LineBreakElement();
+	}
 
-	public static String escapeCharacters(String value) {
-		return value
-			.replaceAll("<wbr>", TEMPORARY_PLACEHOLDER)
-			.replaceAll("<", "&lt;")
-			.replaceAll(">", "&gt;")
-			.replaceAll(TEMPORARY_PLACEHOLDER, "<wbr>");
+	private LineBreakElement() {
+	}
+
+	@Override
+	public void format(Formatter formatter) {
+		formatter.format(this);
 	}
 }
