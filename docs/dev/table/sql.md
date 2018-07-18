@@ -2636,6 +2636,14 @@ SHA2(string, hashLength)
         </p>
       </td>
     </tr>
+    <tr>
+        <td>
+        {% highlight text %}
+        STR_TO_DATE(str string, format string)
+        {% endhighlight %}
+        </td>
+        <td>Returns a DATETIME string value if the format string contains both date and time parts, or a DATE string or TIME string value if the string contains only date or time parts</td>
+    </tr>
   </tbody>
 </table>
 
