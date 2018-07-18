@@ -43,7 +43,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
@@ -110,9 +109,6 @@ public class TaskExecutorITCase extends TestLogger {
 		testingHAServices.setJobMasterLeaderRetriever(jobId, new SettableLeaderRetrievalService(jmAddress, jobMasterId.toUUID()));
 
 		TestingRpcService rpcService = new TestingRpcService();
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
-			Time.milliseconds(500L),
-			Time.milliseconds(500L));
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHAServices,
 			rpcService.getScheduledExecutor(),
@@ -142,7 +138,6 @@ public class TaskExecutorITCase extends TestLogger {
 			rpcService,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
-			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,
 			slotManager,
