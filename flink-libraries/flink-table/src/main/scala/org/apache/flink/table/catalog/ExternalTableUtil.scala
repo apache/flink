@@ -82,7 +82,11 @@ object ExternalTableUtil extends Logging {
       externalCatalogTable: ExternalCatalogTable,
       javaMap: util.Map[String, String],
       statistics: FlinkStatistic)
-    : Option[TableSourceTable[T]] = if (externalCatalogTable.isTableSource) {
+    : Option[TableSourceTable[T]] = {
+
+    if (!externalCatalogTable.isTableSource) {
+      return None
+    }
     val source = TableFactoryService
       .find(classOf[BatchTableSourceFactory[T]], javaMap)
       .createBatchTableSource(javaMap)
@@ -90,15 +94,17 @@ object ExternalTableUtil extends Logging {
       source,
       statistics)
     Some(table)
-  } else {
-    None
   }
 
   private def createStreamTableSource[T](
       externalCatalogTable: ExternalCatalogTable,
       javaMap: util.Map[String, String],
       statistics: FlinkStatistic)
-    : Option[TableSourceTable[T]] = if (externalCatalogTable.isTableSource) {
+    : Option[TableSourceTable[T]] = {
+
+    if (!externalCatalogTable.isTableSource) {
+      return None
+    }
     val source = TableFactoryService
       .find(classOf[StreamTableSourceFactory[T]], javaMap)
       .createStreamTableSource(javaMap)
@@ -106,15 +112,17 @@ object ExternalTableUtil extends Logging {
       source,
       statistics)
     Some(table)
-  } else {
-    None
   }
 
   private def createStreamTableSink[T](
       externalCatalogTable: ExternalCatalogTable,
       javaMap: util.Map[String, String],
       statistics: FlinkStatistic)
-    : Option[TableSinkTable[T]] = if (externalCatalogTable.isTableSink) {
+    : Option[TableSinkTable[T]] = {
+
+    if (!externalCatalogTable.isTableSink) {
+      return None
+    }
     val sink = TableFactoryService
       .find(classOf[StreamTableSinkFactory[T]], javaMap)
       .createStreamTableSink(javaMap)
@@ -122,15 +130,17 @@ object ExternalTableUtil extends Logging {
       sink,
       statistics)
     Some(table)
-  } else {
-    None
   }
 
   private def createBatchTableSink[T](
       externalCatalogTable: ExternalCatalogTable,
       javaMap: util.Map[String, String],
       statistics: FlinkStatistic)
-    : Option[TableSinkTable[T]] = if (externalCatalogTable.isTableSink) {
+    : Option[TableSinkTable[T]] = {
+
+    if (!externalCatalogTable.isTableSink) {
+      return None
+    }
     val sink = TableFactoryService
       .find(classOf[BatchTableSinkFactory[T]], javaMap)
       .createBatchTableSink(javaMap)
@@ -138,7 +148,5 @@ object ExternalTableUtil extends Logging {
       sink,
       statistics)
     Some(table)
-  } else {
-    None
   }
 }
