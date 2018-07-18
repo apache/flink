@@ -19,6 +19,11 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
+import org.apache.flink.runtime.state.KeyExtractorFunction;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.PriorityComparator;
+
+import javax.annotation.Nonnull;
 
 /**
  * Test for {@link KeyGroupPartitionedPriorityQueue}.
@@ -34,20 +39,46 @@ public class KeyGroupPartitionedPriorityQueueTest extends InternalPriorityQueueT
 			KEY_GROUP_RANGE, KEY_GROUP_RANGE.getNumberOfKeyGroups());
 	}
 
-	protected KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<
-			TestElement, CachingInternalPriorityQueueSet<TestElement>> newFactory(int initialCapacity) {
+	private KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<
+			TestElement, KeyGroupHeapPQSet<TestElement>> newFactory(int initialCapacity) {
 
-		return (keyGroupId, numKeyGroups, elementComparator) -> {
-			CachingInternalPriorityQueueSet.OrderedSetCache<TestElement> cache =
-				new TreeOrderedSetCache<>(TEST_ELEMENT_COMPARATOR, 32);
-			CachingInternalPriorityQueueSet.OrderedSetStore<TestElement> store =
-				new TestOrderedStore<>(TEST_ELEMENT_COMPARATOR);
-			return new CachingInternalPriorityQueueSet<>(cache, store);
-		};
+		return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) ->
+			new KeyGroupHeapPQSet<>(
+				elementComparator,
+				keyExtractorFunction,
+				initialCapacity,
+				KeyGroupRange.of(keyGroupId, keyGroupId),
+				numKeyGroups);
 	}
 
 	@Override
 	protected boolean testSetSemanticsAgainstDuplicateElements() {
 		return true;
+	}
+
+	private static class KeyGroupHeapPQSet<T extends HeapPriorityQueueElement> extends HeapPriorityQueueSet<T>
+		implements HeapPriorityQueueElement {
+
+		private int internalIndex;
+
+		public KeyGroupHeapPQSet(
+			@Nonnull PriorityComparator<T> elementPriorityComparator,
+			@Nonnull KeyExtractorFunction<T> keyExtractor,
+			int minimumCapacity,
+			@Nonnull KeyGroupRange keyGroupRange,
+			int totalNumberOfKeyGroups) {
+			super(elementPriorityComparator, keyExtractor, minimumCapacity, keyGroupRange, totalNumberOfKeyGroups);
+			this.internalIndex = HeapPriorityQueueElement.NOT_CONTAINED;
+		}
+
+		@Override
+		public int getInternalIndex() {
+			return internalIndex;
+		}
+
+		@Override
+		public void setInternalIndex(int newIndex) {
+			internalIndex = newIndex;
+		}
 	}
 }

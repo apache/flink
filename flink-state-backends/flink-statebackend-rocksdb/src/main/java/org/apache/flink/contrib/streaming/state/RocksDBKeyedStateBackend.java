@@ -84,13 +84,10 @@ import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TieBreakingPriorityComparator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.heap.CachingInternalPriorityQueueSet;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
-import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
@@ -262,6 +259,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Factory for priority queue state. */
 	private final PriorityQueueSetFactory priorityQueueFactory;
 
+	/** Shared wrapper for batch writes to the RocksDB instance. */
 	private RocksDBWriteBatchWrapper writeBatchWrapper;
 
 	public RocksDBKeyedStateBackend(
@@ -458,6 +456,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return keyGroupPrefixBytes;
 	}
 
+	@VisibleForTesting
+	PriorityQueueSetFactory getPriorityQueueFactory() {
+		return priorityQueueFactory;
+	}
+
 	public WriteOptions getWriteOptions() {
 		return writeOptions;
 	}
@@ -480,6 +483,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory,
 		CheckpointOptions checkpointOptions) throws Exception {
+
+		// flush everything into db before taking a snapshot
+		writeBatchWrapper.flush();
 
 		return snapshotStrategy.performSnapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
 	}
@@ -1775,9 +1781,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
 
-			// flush everything into db before taking a snapshot
-			writeBatchWrapper.flush();
-
 			final RocksDBFullSnapshotOperation<K> snapshotOperation =
 				new RocksDBFullSnapshotOperation<>(
 					RocksDBKeyedStateBackend.this,
@@ -2643,84 +2646,80 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
 		/** Default cache size per key-group. */
-		private static final int DEFAULT_CACHES_SIZE = 1024;
+		private static final int DEFAULT_CACHES_SIZE = 128; //TODO make this configurable
 
 		/** A shared buffer to serialize elements for the priority queue. */
 		@Nonnull
 		private final ByteArrayOutputStreamWithPos elementSerializationOutStream;
 
-		/** A shared adapter wrapper around elementSerializationOutStream to become a {@link DataOutputView}. */
+		/** A shared buffer to de-serialize elements for the priority queue. */
 		@Nonnull
-		private final DataOutputViewStreamWrapper elementSerializationOutView;
+		private final ByteArrayInputStreamWithPos elementSerializationInStream;
 
 		RocksDBPriorityQueueSetFactory() {
 			this.elementSerializationOutStream = new ByteArrayOutputStreamWithPos();
-			this.elementSerializationOutView = new DataOutputViewStreamWrapper(elementSerializationOutStream);
+			this.elementSerializationInStream = new ByteArrayInputStreamWithPos();
 		}
 
 		@Nonnull
 		@Override
 		public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-		create(
-			@Nonnull String stateName,
-			@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+		create(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-			final PriorityComparator<T> priorityComparator =
-				PriorityComparator.forPriorityComparableObjects();
-
-			Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
-				kvStateInformation.get(stateName);
-
-			if (entry == null) {
-				RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
-					new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
-
-				final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
-
-				entry = new Tuple2<>(columnFamilyHandle, metaInfo);
-				kvStateInformation.put(stateName, entry);
-			}
+			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+				tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);
 
 			final ColumnFamilyHandle columnFamilyHandle = entry.f0;
 
-			@Nonnull
-			TieBreakingPriorityComparator<T> tieBreakingComparator =
-				new TieBreakingPriorityComparator<>(
-					priorityComparator,
-					byteOrderedElementSerializer,
-					elementSerializationOutStream,
-					elementSerializationOutView);
-
 			return new KeyGroupPartitionedPriorityQueue<>(
 				KeyExtractorFunction.forKeyedObjects(),
-				priorityComparator,
-				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, CachingInternalPriorityQueueSet<T>>() {
+				PriorityComparator.forPriorityComparableObjects(),
+				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, RocksDBCachingPriorityQueueSet<T>>() {
 					@Nonnull
 					@Override
-					public CachingInternalPriorityQueueSet<T> create(
+					public RocksDBCachingPriorityQueueSet<T> create(
 						int keyGroupId,
 						int numKeyGroups,
+						@Nonnull KeyExtractorFunction<T> keyExtractor,
 						@Nonnull PriorityComparator<T> elementPriorityComparator) {
-
-						CachingInternalPriorityQueueSet.OrderedSetCache<T> cache =
-							new TreeOrderedSetCache<>(tieBreakingComparator, DEFAULT_CACHES_SIZE);
-						CachingInternalPriorityQueueSet.OrderedSetStore<T> store =
-							new RocksDBOrderedSetStore<>(
-								keyGroupId,
-								keyGroupPrefixBytes,
-								db,
-								columnFamilyHandle,
-								byteOrderedElementSerializer,
-								elementSerializationOutStream,
-								elementSerializationOutView,
-								writeBatchWrapper);
-
-						return new CachingInternalPriorityQueueSet<>(cache, store);
+						TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(DEFAULT_CACHES_SIZE);
+						return new RocksDBCachingPriorityQueueSet<>(
+							keyGroupId,
+							keyGroupPrefixBytes,
+							db,
+							columnFamilyHandle,
+							byteOrderedElementSerializer,
+							elementSerializationOutStream,
+							elementSerializationInStream,
+							writeBatchWrapper,
+							orderedSetCache
+						);
 					}
 				},
 				keyGroupRange,
 				numberOfKeyGroups);
 		}
+	}
+
+	@Nonnull
+	private <T> Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tryRegisterPriorityQueueMetaInfo(
+		@Nonnull String stateName,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+
+		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+			kvStateInformation.get(stateName);
+
+		if (entry == null) {
+			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
+				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
+
+			final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
+
+			entry = new Tuple2<>(columnFamilyHandle, metaInfo);
+			kvStateInformation.put(stateName, entry);
+		}
+
+		return entry;
 	}
 
 	@Override
