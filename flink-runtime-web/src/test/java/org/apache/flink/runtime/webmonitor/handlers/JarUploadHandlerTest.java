@@ -106,7 +106,7 @@ public class JarUploadHandlerTest extends TestLogger {
 		assertThat(jarUploadResponseBody.getStatus(), equalTo(JarUploadResponseBody.UploadStatus.success));
 		final String returnedFileNameWithUUID = jarUploadResponseBody.getFilename();
 		assertThat(returnedFileNameWithUUID, containsString("_"));
-		final String returnedFileName = returnedFileNameWithUUID.substring(returnedFileNameWithUUID.indexOf("_") + 1);
+		final String returnedFileName = returnedFileNameWithUUID.substring(returnedFileNameWithUUID.lastIndexOf("_") + 1);
 		assertThat(returnedFileName, equalTo(uploadedFile.getFileName().toString()));
 	}
 
