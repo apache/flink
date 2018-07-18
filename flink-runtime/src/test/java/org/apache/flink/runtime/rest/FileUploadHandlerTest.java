@@ -224,5 +224,4 @@ public class FileUploadHandlerTest extends TestLogger {
 		}
 		MULTIPART_UPLOAD_RESOURCE.assertUploadDirectoryIsEmpty();
 	}
-
 }

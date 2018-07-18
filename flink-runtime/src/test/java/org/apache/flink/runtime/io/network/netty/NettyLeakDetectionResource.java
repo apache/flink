@@ -23,6 +23,8 @@ import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetectorFactory;
 
 import org.junit.rules.ExternalResource;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import static org.junit.Assert.fail;
 
 /**
@@ -37,32 +39,49 @@ import static org.junit.Assert.fail;
  * }</pre>
  */
 public class NettyLeakDetectionResource extends ExternalResource {
+	@GuardedBy("refCountLock")
 	private static ResourceLeakDetectorFactory previousLeakDetector;
+
+	@GuardedBy("refCountLock")
 	private static ResourceLeakDetector.Level previousLeakDetectorLevel;
+
+	private static final Object refCountLock = new Object();
+	private static int refCount = 0;
 
 	@Override
 	protected void before() {
-		previousLeakDetector = ResourceLeakDetectorFactory.instance();
-		previousLeakDetectorLevel = ResourceLeakDetector.getLevel();
+		synchronized (refCountLock) {
+			if (refCount == 0) {
+				previousLeakDetector = ResourceLeakDetectorFactory.instance();
+				previousLeakDetectorLevel = ResourceLeakDetector.getLevel();
 
-		ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
-		ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(new FailingResourceLeakDetectorFactory());
+				++refCount;
+				ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.PARANOID);
+				ResourceLeakDetectorFactory
+					.setResourceLeakDetectorFactory(new FailingResourceLeakDetectorFactory());
+			}
+		}
 	}
 
 	@Override
-	protected void after() {
-		ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakDetector);
-		ResourceLeakDetector.setLevel(previousLeakDetectorLevel);
+	protected synchronized void after() {
+		synchronized (refCountLock) {
+			--refCount;
+			if (refCount == 0) {
+				ResourceLeakDetectorFactory.setResourceLeakDetectorFactory(previousLeakDetector);
+				ResourceLeakDetector.setLevel(previousLeakDetectorLevel);
+			}
+		}
 	}
 
-	static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
+	private static class FailingResourceLeakDetectorFactory extends ResourceLeakDetectorFactory {
 		public <T> ResourceLeakDetector<T> newResourceLeakDetector(
 			Class<T> resource, int samplingInterval, long maxActive) {
 			return new FailingResourceLeakDetector<T>(resource, samplingInterval, maxActive);
 		}
 	}
 
-	static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
+	private static class FailingResourceLeakDetector<T> extends ResourceLeakDetector<T> {
 		FailingResourceLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
 			super(resourceType, samplingInterval, maxActive);
 		}
