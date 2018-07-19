@@ -32,6 +32,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -76,6 +79,8 @@ import java.util.function.Function;
  * multi task slot.
  */
 public class SlotSharingManager {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SlotSharingManager.class);
 
 	/** Lock for the internal data structures. */
 	private final Object lock = new Object();
@@ -143,6 +148,8 @@ public class SlotSharingManager {
 			slotContextFuture,
 			allocatedSlotRequestId);
 
+		LOG.debug("Create multi task slot [{}] in slot [{}].", slotRequestId, allocatedSlotRequestId);
+
 		allTaskSlots.put(slotRequestId, rootMultiTaskSlot);
 
 		synchronized (lock) {
@@ -158,6 +165,8 @@ public class SlotSharingManager {
 						final MultiTaskSlot resolvedRootNode = unresolvedRootSlots.remove(slotRequestId);
 
 						if (resolvedRootNode != null) {
+							LOG.trace("Fulfill multi task slot [{}] with slot [{}].", slotRequestId, slotContext.getAllocationId());
+
 							final Set<MultiTaskSlot> innerCollection = resolvedRootSlots.computeIfAbsent(
 								slotContext.getTaskManagerLocation(),
 								taskManagerLocation -> new HashSet<>(4));
@@ -384,6 +393,8 @@ public class SlotSharingManager {
 		MultiTaskSlot allocateMultiTaskSlot(SlotRequestId slotRequestId, AbstractID groupId) {
 			Preconditions.checkState(!super.contains(groupId));
 
+			LOG.debug("Create nested multi task slot [{}] in parent multi task slot [{}] for group [{}].", slotRequestId, getSlotRequestId(), groupId);
+
 			final MultiTaskSlot inner = new MultiTaskSlot(
 				slotRequestId,
 				groupId,
@@ -411,6 +422,8 @@ public class SlotSharingManager {
 				AbstractID groupId,
 				Locality locality) {
 			Preconditions.checkState(!super.contains(groupId));
+
+			LOG.debug("Create single task slot [{}] in multi task slot [{}] for group {}.", slotRequestId, getSlotRequestId(), groupId);
 
 			final SingleTaskSlot leaf = new SingleTaskSlot(
 				slotRequestId,
@@ -557,13 +570,15 @@ public class SlotSharingManager {
 			Preconditions.checkNotNull(locality);
 			singleLogicalSlotFuture = parent.getSlotContextFuture()
 				.thenApply(
-					(SlotContext slotContext) ->
-						new SingleLogicalSlot(
+					(SlotContext slotContext) -> {
+						LOG.trace("Fulfill single task slot [{}] with slot [{}].", slotRequestId, slotContext.getAllocationId());
+						return new SingleLogicalSlot(
 							slotRequestId,
 							slotContext,
 							slotSharingGroupId,
 							locality,
-							slotOwner));
+							slotOwner);
+					});
 		}
 
 		CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
