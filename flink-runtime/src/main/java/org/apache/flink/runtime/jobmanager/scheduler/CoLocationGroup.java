@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -42,19 +43,17 @@ public class CoLocationGroup implements java.io.Serializable {
 	private final AbstractID id = new AbstractID();
 	
 	/** The vertices participating in the co-location group */
-	private final List<JobVertex> vertices = new ArrayList<JobVertex>();
+	private final List<JobVertex> vertices = new ArrayList<>();
 	
 	/** The constraints, which hold the shared slots for the co-located operators */
-	private transient ArrayList<CoLocationConstraint> constraints;
+	private transient List<CoLocationConstraint> constraints;
 	
 	// --------------------------------------------------------------------------------------------
 	
 	public CoLocationGroup() {}
 	
 	public CoLocationGroup(JobVertex... vertices) {
-		for (JobVertex v : vertices) {
-			this.vertices.add(v);
-		}
+		Collections.addAll(this.vertices, vertices);
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -84,16 +83,19 @@ public class CoLocationGroup implements java.io.Serializable {
 	}
 	
 	private void ensureConstraints(int num) {
-		if (constraints == null) {
-			constraints = new ArrayList<CoLocationConstraint>(num);
-		} else {
-			constraints.ensureCapacity(num);
+		synchronized (this) {
+			if (constraints == null) {
+				constraints = new ArrayList<>();
+			}
 		}
-		
-		if (num > constraints.size()) {
-			constraints.ensureCapacity(num);
-			for (int i = constraints.size(); i < num; i++) {
-				constraints.add(new CoLocationConstraint(this));
+
+		while (true) {
+			synchronized (this) {
+				if (constraints.size() < num) {
+					constraints.add(new CoLocationConstraint(this));
+				} else {
+					break;
+				}
 			}
 		}
 	}
