@@ -70,6 +70,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -530,19 +531,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		}
 
 		/**
-		 * Completes the join operation with the user function that is executed for each joined pair
+		 * Completes the join operation with the given user function that is executed for each joined pair
 		 * of elements.
-		 * @param udf The user-defined function
-		 * @param <OUT> The output type
-		 * @return Returns a DataStream
+		 *
+		 * @param processJoinFunction The user-defined process join function.
+		 * @param <OUT> The output type.
+		 * @return The transformed {@link DataStream}.
 		 */
 		@PublicEvolving
-		public <OUT> DataStream<OUT> process(ProcessJoinFunction<IN1, IN2, OUT> udf) {
+		public <OUT> SingleOutputStreamOperator<OUT> process(ProcessJoinFunction<IN1, IN2, OUT> processJoinFunction) {
+			Preconditions.checkNotNull(processJoinFunction);
 
-			ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf = left.getExecutionEnvironment().clean(udf);
-
-			TypeInformation<OUT> resultType = TypeExtractor.getBinaryOperatorReturnType(
-				cleanedUdf,
+			final TypeInformation<OUT> outputType = TypeExtractor.getBinaryOperatorReturnType(
+				processJoinFunction,
 				ProcessJoinFunction.class,
 				0,
 				1,
@@ -554,7 +555,28 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				true
 			);
 
-			IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+			return process(processJoinFunction, outputType);
+		}
+
+		/**
+		 * Completes the join operation with the given user function that is executed for each joined pair
+		 * of elements. This methods allows for passing explicit type information for the output type.
+		 *
+		 * @param processJoinFunction The user-defined process join function.
+		 * @param outputType The type information for the output type.
+		 * @param <OUT> The output type.
+		 * @return The transformed {@link DataStream}.
+		 */
+		@PublicEvolving
+		public <OUT> SingleOutputStreamOperator<OUT> process(
+				ProcessJoinFunction<IN1, IN2, OUT> processJoinFunction,
+				TypeInformation<OUT> outputType) {
+			Preconditions.checkNotNull(processJoinFunction);
+			Preconditions.checkNotNull(outputType);
+
+			final ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf = left.getExecutionEnvironment().clean(processJoinFunction);
+
+			final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
 				new IntervalJoinOperator<>(
 					lowerBound,
 					upperBound,
@@ -568,8 +590,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			return left
 				.connect(right)
 				.keyBy(keySelector1, keySelector2)
-				.transform("Interval Join", resultType, operator);
-
+				.transform("Interval Join", outputType, operator);
 		}
 	}
 

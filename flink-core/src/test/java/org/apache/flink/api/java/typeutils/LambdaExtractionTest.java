@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -149,6 +150,19 @@ public class LambdaExtractionTest {
 		MapFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i) -> null;
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(f, NESTED_TUPLE_BOOLEAN_TYPE, null, true);
+		if (!(ti instanceof MissingTypeInfo)) {
+			assertTrue(ti.isTupleType());
+			assertEquals(2, ti.getArity());
+			assertTrue(((TupleTypeInfo<?>) ti).getTypeAt(0).isTupleType());
+			assertEquals(((TupleTypeInfo<?>) ti).getTypeAt(1), BasicTypeInfo.STRING_TYPE_INFO);
+		}
+	}
+
+	@Test
+	public void testFlatMapLambda() {
+		FlatMapFunction<Tuple2<Tuple1<Integer>, Boolean>, Tuple2<Tuple1<Integer>, String>> f = (i, out) -> out.collect(null);
+
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(f, NESTED_TUPLE_BOOLEAN_TYPE, null, true);
 		if (!(ti instanceof MissingTypeInfo)) {
 			assertTrue(ti.isTupleType());
 			assertEquals(2, ti.getArity());

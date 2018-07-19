@@ -28,7 +28,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -46,6 +48,7 @@ public class TypeFillTest {
 	@Test
 	public void test() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		try {
 			env.addSource(new TestSource<Integer>()).print();
@@ -94,6 +97,15 @@ public class TypeFillTest {
 			fail();
 		} catch (Exception ignored) {}
 
+		try {
+			source.keyBy((in) -> in)
+				.intervalJoin(source.keyBy((in) -> in))
+				.between(Time.milliseconds(10L), Time.milliseconds(10L))
+				.process(new TestProcessJoinFunction<>())
+				.print();
+			fail();
+		} catch (Exception ignored) {}
+
 		env.addSource(new TestSource<Integer>()).returns(Integer.class);
 		source.map(new TestMap<Long, Long>()).returns(Long.class).print();
 		source.flatMap(new TestFlatMap<Long, Long>()).returns(new TypeHint<Long>(){}).print();
@@ -103,6 +115,15 @@ public class TypeFillTest {
 		source.connect(source).keyBy(new TestKeySelector<>(), new TestKeySelector<>(), Types.STRING);
 		source.coGroup(source).where(new TestKeySelector<>(), Types.STRING).equalTo(new TestKeySelector<>(), Types.STRING);
 		source.join(source).where(new TestKeySelector<>(), Types.STRING).equalTo(new TestKeySelector<>(), Types.STRING);
+		source.keyBy((in) -> in)
+			.intervalJoin(source.keyBy((in) -> in))
+			.between(Time.milliseconds(10L), Time.milliseconds(10L))
+			.process(new TestProcessJoinFunction<Long, Long, String>())
+			.returns(Types.STRING);
+		source.keyBy((in) -> in)
+			.intervalJoin(source.keyBy((in) -> in))
+			.between(Time.milliseconds(10L), Time.milliseconds(10L))
+			.process(new TestProcessJoinFunction<>(), Types.STRING);
 
 		assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
 				source.map(new TestMap<Long, Long>()).returns(Long.class).getType());
@@ -174,6 +195,14 @@ public class TypeFillTest {
 		@Override
 		public KEY getKey(IN value) throws Exception {
 			return null;
+		}
+	}
+
+	private static class TestProcessJoinFunction<IN1, IN2, OUT> extends ProcessJoinFunction<IN1, IN2, OUT> {
+
+		@Override
+		public void processElement(IN1 left, IN2 right, Context ctx, Collector<OUT> out) throws Exception {
+			// nothing to do
 		}
 	}
 }

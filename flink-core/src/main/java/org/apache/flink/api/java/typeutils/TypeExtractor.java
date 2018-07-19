@@ -85,7 +85,6 @@ import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClas
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
  * functions.
  *
- *
  * <p>NOTES FOR USERS OF THIS CLASS:
  * Automatic type extraction is a hacky business that depends on a lot of variables such as generics,
  * compiler, interfaces, etc. The type extraction fails regularly with either {@link MissingTypeInfo} or
@@ -882,7 +881,7 @@ public class TypeExtractor {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
 						+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
 						+ "The type extraction currently supports types with generic variables only in cases where "
-						+ "all variables in the return type can be deduced from the input type(s).\n"
+						+ "all variables in the return type can be deduced from the input type(s). "
 						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			}
@@ -1134,7 +1133,7 @@ public class TypeExtractor {
 						+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
 						+ "' could not be determined. This is most likely a type erasure problem. "
 						+ "The type extraction currently supports types with generic variables only in cases where "
-						+ "all variables in the return type can be deduced from the input type(s).\n"
+						+ "all variables in the return type can be deduced from the input type(s). "
 						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			} else {

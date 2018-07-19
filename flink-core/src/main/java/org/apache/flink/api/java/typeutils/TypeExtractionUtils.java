@@ -345,9 +345,9 @@ public class TypeExtractionUtils {
 		final Class<?> clazz = (Class<?>) t;
 
 		if (clazz.getTypeParameters().length > 0) {
-			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing.\n"
-				+ "In many cases lambda methods don't provide enough information for automatic type extraction when Java generics are involved.\n"
-				+ "An easy workaround is to use an (anonymous) class instead that implements the '" + baseClass.getName() + "' interface.\n"
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. "
+				+ "In many cases lambda methods don't provide enough information for automatic type extraction when Java generics are involved. "
+				+ "An easy workaround is to use an (anonymous) class instead that implements the '" + baseClass.getName() + "' interface. "
 				+ "Otherwise the type has to be specified explicitly using type information.");
 		}
 	}
