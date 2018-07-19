@@ -139,8 +139,8 @@ public class JarSubmissionITCase extends TestLogger {
 
 	private static JarRunResponseBody runJar(JarRunHandler handler, String jarName, DispatcherGateway restfulGateway) throws Exception {
 		final JarRunMessageParameters runParameters = JarRunHeaders.getInstance().getUnresolvedMessageParameters();
-		HandlerRequest<EmptyRequestBody, JarRunMessageParameters> runRequest = new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
+		HandlerRequest<JarRunRequestBody, JarRunMessageParameters> runRequest = new HandlerRequest<>(
+			new JarRunRequestBody(),
 			runParameters,
 			Collections.singletonMap(runParameters.jarIdPathParameter.getKey(), jarName),
 			Collections.emptyMap(),

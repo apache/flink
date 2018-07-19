@@ -52,10 +52,10 @@ angular.module('flinkApp')
 
     deferred.promise
 
-  @runJob = (id, args) ->
+  @runJob = (id, request, queryParameters) ->
     deferred = $q.defer()
 
-    $http.post(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/run", {}, {params: args})
+    $http.post(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/run", request, {params: queryParameters})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
     .error (err) ->
