@@ -24,6 +24,7 @@ STATE_BACKEND_FILE_ASYNC="${2:-false}"
 TTL="${3:-1000}"
 PRECISION="${4:-5}"
 PARALLELISM="${5-3}"
+UPDATE_NUM="${6-1000}"
 
 CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
 
@@ -56,8 +57,8 @@ function job_id() {
       --state_ttl_verifier.precision_milli ${PRECISION} \
       --state_backend.checkpoint_directory ${CHECKPOINT_DIR} \
       --state_backend.file.async ${STATE_BACKEND_FILE_ASYNC} \
-      --sequence_generator_source.sleep_time 10 \
-      --sequence_generator_source.sleep_after_elements 1"
+      --update_generator_source.sleep_time 10 \
+      --update_generator_source.sleep_after_elements 1"
     echo "${CMD}"
 }
 
@@ -65,7 +66,7 @@ JOB_CMD=$(job_id)
 echo ${JOB_CMD}
 JOB=$(${JOB_CMD} | grep 'Job has been submitted with JobID' | sed 's/.* //g')
 wait_job_running ${JOB}
-wait_oper_metric_num_in_records TtlVerificationFunction.0 2000 'State TTL test job'
+wait_oper_metric_num_in_records TtlVerifyUpdateFunction.0 ${UPDATE_NUM} 'State TTL test job'
 
 SAVEPOINT_PATH=$(take_savepoint ${JOB} ${TEST_DATA_DIR} \
   | grep "Savepoint completed. Path:" | sed 's/.* //g')
@@ -76,7 +77,7 @@ JOB_CMD=$(job_id)
 echo ${JOB_CMD}
 JOB=$(${JOB_CMD} | grep 'Job has been submitted with JobID' | sed 's/.* //g')
 wait_job_running ${JOB}
-wait_oper_metric_num_in_records TtlVerificationFunction.0 2000 "State TTL test job"
+wait_oper_metric_num_in_records TtlVerifyUpdateFunction.0 ${UPDATE_NUM} "State TTL test job"
 
 # if verification fails job produces failed TTL'ed state updates,
 # output would be non-empty and the test will not pass

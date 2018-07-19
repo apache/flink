@@ -69,10 +69,10 @@ class TtlListStateVerifier extends AbstractTtlStateVerifier<
 
 	@Override
 	@Nonnull
-	List<String> expected(@Nonnull List<TtlValue<String>> updates, long currentTimestamp) {
+	List<String> expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
 		return updates.stream()
-			.filter(u -> !expired(u.getUpdateTimestamp(), currentTimestamp))
-			.map(TtlValue::getValue)
+			.filter(u -> !expired(u.getTimestampAfterUpdate(), currentTimestamp))
+			.map(ValueWithTs::getValue)
 			.collect(Collectors.toList());
 	}
 }

@@ -21,42 +21,50 @@ package org.apache.flink.streaming.tests.verify;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 
-/** User state value with update timestamp. */
-public class TtlValue<GV> implements Serializable {
-	private final GV value;
-	private final long updateTimestamp;
+/** User state value with timestamps before and after update. */
+public class ValueWithTs<V> implements Serializable {
+	private final V value;
+	private final long timestampBeforeUpdate;
+	private final long timestampAfterUpdate;
 
-	TtlValue(GV value, long updateTimestamp) {
+	public ValueWithTs(V value, long timestampBeforeUpdate, long timestampAfterUpdate) {
 		this.value = value;
-		this.updateTimestamp = updateTimestamp;
+		this.timestampBeforeUpdate = timestampBeforeUpdate;
+		this.timestampAfterUpdate = timestampAfterUpdate;
 	}
 
-	GV getValue() {
+	V getValue() {
 		return value;
 	}
 
-	long getUpdateTimestamp() {
-		return updateTimestamp;
+	public long getTimestampBeforeUpdate() {
+		return timestampBeforeUpdate;
+	}
+
+	public long getTimestampAfterUpdate() {
+		return timestampAfterUpdate;
 	}
 
 	@Override
 	public String toString() {
-		return "TtlValue{" +
+		return "ValueWithTs{" +
 			"value=" + value +
-			", updateTimestamp=" + updateTimestamp +
+			", timestampBeforeUpdate=" + timestampBeforeUpdate +
+			", timestampAfterUpdate=" + timestampAfterUpdate +
 			'}';
 	}
 
 	/** Serializer for Serializer. */
-	public static class Serializer extends CompositeSerializer<TtlValue<?>> {
+	public static class Serializer extends CompositeSerializer<ValueWithTs<?>> {
 
 		public Serializer(TypeSerializer<?> userValueSerializer) {
-			super(true, userValueSerializer, LongSerializer.INSTANCE);
+			super(true, userValueSerializer, LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -65,23 +73,32 @@ public class TtlValue<GV> implements Serializable {
 		}
 
 		@Override
-		public TtlValue<?> createInstance(@Nonnull Object ... values) {
-			return new TtlValue<>(values[0], (Long) values[1]);
+		public ValueWithTs<?> createInstance(@Nonnull Object ... values) {
+			return new ValueWithTs<>(values[0], (Long) values[1], (Long) values[2]);
 		}
 
 		@Override
-		protected void setField(@Nonnull TtlValue<?> value, int index, Object fieldValue) {
+		protected void setField(@Nonnull ValueWithTs<?> value, int index, Object fieldValue) {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		protected Object getField(@Nonnull TtlValue<?> value, int index) {
-			return index == 0 ? value.getValue() : value.getUpdateTimestamp();
+		protected Object getField(@Nonnull ValueWithTs<?> value, int index) {
+			switch (index) {
+				case 0:
+					return value.getValue();
+				case 1:
+					return value.getTimestampBeforeUpdate();
+				case 2:
+					return value.getTimestampAfterUpdate();
+				default:
+					throw new FlinkRuntimeException("Unexpected field index for ValueWithTs");
+			}
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected CompositeSerializer<TtlValue<?>> createSerializerInstance(
+		protected CompositeSerializer<ValueWithTs<?>> createSerializerInstance(
 			PrecomputedParameters precomputed,
 			TypeSerializer<?>... originalSerializers) {
 			return new Serializer(precomputed, (TypeSerializer<Object>) originalSerializers[0]);

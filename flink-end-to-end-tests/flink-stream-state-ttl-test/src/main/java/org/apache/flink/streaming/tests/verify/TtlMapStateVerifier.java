@@ -82,13 +82,13 @@ class TtlMapStateVerifier extends AbstractTtlStateVerifier<
 
 	@Override
 	@Nonnull
-	Map<String, String> expected(@Nonnull List<TtlValue<Tuple2<String, String>>> updates, long currentTimestamp) {
+	Map<String, String> expected(@Nonnull List<ValueWithTs<Tuple2<String, String>>> updates, long currentTimestamp) {
 		return updates.stream()
 			.collect(Collectors.groupingBy(u -> u.getValue().f0))
 			.entrySet().stream()
 			.map(e -> e.getValue().get(e.getValue().size() - 1))
-			.filter(u -> !expired(u.getUpdateTimestamp(), currentTimestamp))
-			.map(TtlValue::getValue)
+			.filter(u -> !expired(u.getTimestampAfterUpdate(), currentTimestamp))
+			.map(ValueWithTs::getValue)
 			.collect(Collectors.toMap(u -> u.f0, u -> u.f1));
 	}
 }

@@ -25,24 +25,47 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
-import org.apache.flink.streaming.tests.verify.TtlUpdateContext;
 
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.SEQUENCE_GENERATOR_SRC_KEYSPACE;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.SEQUENCE_GENERATOR_SRC_SLEEP_TIME;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
 /**
  * A test job for State TTL feature.
+ *
+ * <p>The test pipeline does the following:
+ * - generates random keyed state updates for each state TTL verifier (state type)
+ * - performs update of created state with TTL for each verifier
+ * - keeps previous updates in other state
+ * - verifies expected result of last update against preserved history of updates
+ *
+ * <p>Program parameters:
+ * <ul>
+ *     <li>update_generator_source.keyspace (int, default - 100): Number of different keys for updates emitted by the update generator.</li>
+ *     <li>update_generator_source.sleep_time (long, default - 0): Milliseconds to sleep after emitting updates in the update generator. Set to 0 to disable sleeping.</li>
+ *     <li>update_generator_source.sleep_after_elements (long, default - 0): Number of updates to emit before sleeping in the update generator. Set to 0 to disable sleeping.</li>
+ *     <li>state_ttl_verifier.ttl_milli (long, default - 1000): State time-to-live.</li>
+ *     <li>report_stat.after_updates_num (long, default - 200): Report state update statistics after certain number of updates (average update chain length and clashes).</li>
+ * </ul>
  */
 public class DataStreamStateTTLTestProgram {
+	private static final ConfigOption<Integer> UPDATE_GENERATOR_SRC_KEYSPACE = ConfigOptions
+		.key("update_generator_source.keyspace")
+		.defaultValue(100);
+
+	private static final ConfigOption<Long> UPDATE_GENERATOR_SRC_SLEEP_TIME = ConfigOptions
+		.key("update_generator_source.sleep_time")
+		.defaultValue(0L);
+
+	private static final ConfigOption<Long> UPDATE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS = ConfigOptions
+		.key("update_generator_source.sleep_after_elements")
+		.defaultValue(0L);
+
 	private static final ConfigOption<Long> STATE_TTL_VERIFIER_TTL_MILLI = ConfigOptions
 		.key("state_ttl_verifier.ttl_milli")
 		.defaultValue(1000L);
 
-	private static final ConfigOption<Long> STATE_TTL_VERIFIER_PRESICION_MILLI = ConfigOptions
-		.key("state_ttl_verifier.precision_milli")
-		.defaultValue(5L);
+	private static final ConfigOption<Long> REPORT_STAT_AFTER_UPDATES_NUM = ConfigOptions
+		.key("report_stat.after_updates_num")
+		.defaultValue(200L);
 
 	public static void main(String[] args) throws Exception {
 		final ParameterTool pt = ParameterTool.fromArgs(args);
@@ -51,12 +74,15 @@ public class DataStreamStateTTLTestProgram {
 
 		setupEnvironment(env, pt);
 
-		int keySpace = pt.getInt(SEQUENCE_GENERATOR_SRC_KEYSPACE.key(), SEQUENCE_GENERATOR_SRC_KEYSPACE.defaultValue());
-		int sleepAfterElements = pt.getInt(SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.key());
-		long sleepTime = pt.getLong(SEQUENCE_GENERATOR_SRC_SLEEP_TIME.key());
-
-		Time ttl = Time.milliseconds(pt.getLong(STATE_TTL_VERIFIER_TTL_MILLI.key(), STATE_TTL_VERIFIER_TTL_MILLI.defaultValue()));
-		Time precision = Time.milliseconds(pt.getLong(STATE_TTL_VERIFIER_PRESICION_MILLI.key(), STATE_TTL_VERIFIER_PRESICION_MILLI.defaultValue()));
+		int keySpace = pt.getInt(UPDATE_GENERATOR_SRC_KEYSPACE.key(), UPDATE_GENERATOR_SRC_KEYSPACE.defaultValue());
+		long sleepAfterElements = pt.getLong(UPDATE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.key(),
+			UPDATE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS.defaultValue());
+		long sleepTime = pt.getLong(UPDATE_GENERATOR_SRC_SLEEP_TIME.key(),
+			UPDATE_GENERATOR_SRC_SLEEP_TIME.defaultValue());
+		Time ttl = Time.milliseconds(pt.getLong(STATE_TTL_VERIFIER_TTL_MILLI.key(),
+			STATE_TTL_VERIFIER_TTL_MILLI.defaultValue()));
+		long reportStatAfterUpdatesNum = pt.getLong(REPORT_STAT_AFTER_UPDATES_NUM.key(),
+			REPORT_STAT_AFTER_UPDATES_NUM.defaultValue());
 
 		StateTtlConfiguration ttlConfig = StateTtlConfiguration.newBuilder(ttl).build();
 
@@ -64,11 +90,8 @@ public class DataStreamStateTTLTestProgram {
 			.addSource(new TtlStateUpdateSource(keySpace, sleepAfterElements, sleepTime))
 			.name("TtlStateUpdateSource")
 			.keyBy(TtlStateUpdate::getKey)
-			.flatMap(new TtlUpdateFunction(ttlConfig))
-			.name("TtlUpdateFunction")
-			.keyBy(TtlUpdateContext::getKey)
-			.flatMap(new TtlVerifyFunction(precision))
-			.name("TtlVerificationFunction")
+			.flatMap(new TtlVerifyUpdateFunction(ttlConfig, reportStatAfterUpdatesNum))
+			.name("TtlVerifyUpdateFunction")
 			.addSink(new PrintSinkFunction<>())
 			.name("PrintFailedVerifications");
 

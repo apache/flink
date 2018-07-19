@@ -20,7 +20,6 @@ package org.apache.flink.streaming.tests.verify;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateTtlConfiguration;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 
@@ -28,8 +27,6 @@ import javax.annotation.Nonnull;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /** TTL state verifier interface. */
 public interface TtlStateVerifier<UV, GV> {
@@ -41,9 +38,6 @@ public interface TtlStateVerifier<UV, GV> {
 		new TtlReducingStateVerifier(),
 		new TtlFoldingStateVerifier()
 	);
-
-	Map<String, TtlStateVerifier<?, ?>> VERIFIERS_BY_NAME =
-		VERIFIERS.stream().collect(Collectors.toMap(TtlStateVerifier::getId, v -> v));
 
 	@Nonnull
 	default String getId() {
@@ -62,5 +56,5 @@ public interface TtlStateVerifier<UV, GV> {
 
 	void update(@Nonnull State state, Object update) throws Exception;
 
-	boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContext, @Nonnull Time precision);
+	boolean verify(@Nonnull TtlVerificationContext<?, ?> verificationContext);
 }

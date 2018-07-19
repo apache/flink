@@ -68,18 +68,18 @@ class TtlReducingStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	@Override
-	Integer expected(@Nonnull List<TtlValue<Integer>> updates, long currentTimestamp) {
+	Integer expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
 		if (updates.isEmpty()) {
 			return null;
 		}
 		int acc = 0;
-		long lastTs = updates.get(0).getUpdateTimestamp();
-		for (TtlValue<Integer> update : updates) {
-			if (expired(lastTs, update.getUpdateTimestamp())) {
+		long lastTs = updates.get(0).getTimestampAfterUpdate();
+		for (ValueWithTs<Integer> update : updates) {
+			if (expired(lastTs, update.getTimestampAfterUpdate())) {
 				acc = 0;
 			}
 			acc += update.getValue();
-			lastTs = update.getUpdateTimestamp();
+			lastTs = update.getTimestampAfterUpdate();
 		}
 		return expired(lastTs, currentTimestamp) ? null : acc;
 	}

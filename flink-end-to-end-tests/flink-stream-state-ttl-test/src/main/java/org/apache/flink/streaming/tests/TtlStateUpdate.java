@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 import java.util.Map;
 
+/** Randomly generated keyed state updates per state type. */
 class TtlStateUpdate implements Serializable {
 	private final int key;
 

@@ -241,11 +241,11 @@ function start_cluster {
 }
 
 function start_taskmanagers {
-    let TMNUM=$1-1
-    echo "Start $TMNUM more task managers"
-    for i in `seq 1 $TMNUM`; do
+    tmnum=$1
+    echo "Start ${tmnum} more task managers"
+    for (( c=0; c<tmnum; c++ ))
+    do
         $FLINK_DIR/bin/taskmanager.sh start
-
     done
 }
 
@@ -465,18 +465,17 @@ function s3_delete {
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
 
-# This function starts the given number of task managers and monitors their processes. If a task manager process goes
-# away a replacement is started.
+# This function starts the given number of task managers and monitors their processes.
+# If a task manager process goes away a replacement is started.
 function tm_watchdog {
   local expectedTm=$1
   while true;
   do
     runningTm=`jps | grep -Eo 'TaskManagerRunner|TaskManager' | wc -l`;
     count=$((expectedTm-runningTm))
-    for (( c=0; c<count; c++ ))
-    do
-      $FLINK_DIR/bin/taskmanager.sh start > /dev/null
-    done
+    if (( count != 0 )); then
+        start_taskmanagers ${count} > /dev/null
+    fi
     sleep 5;
   done
 }

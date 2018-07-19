@@ -56,11 +56,11 @@ class TtlValueStateVerifier
 	}
 
 	@Override
-	String expected(@Nonnull List<TtlValue<String>> updates, long currentTimestamp) {
+	String expected(@Nonnull List<ValueWithTs<String>> updates, long currentTimestamp) {
 		if (updates.isEmpty()) {
 			return null;
 		}
-		TtlValue<String> lastUpdate = updates.get(updates.size() - 1);
-		return expired(lastUpdate.getUpdateTimestamp(), currentTimestamp) ? null : lastUpdate.getValue();
+		ValueWithTs<String> lastUpdate = updates.get(updates.size() - 1);
+		return expired(lastUpdate.getTimestampAfterUpdate(), currentTimestamp) ? null : lastUpdate.getValue();
 	}
 }

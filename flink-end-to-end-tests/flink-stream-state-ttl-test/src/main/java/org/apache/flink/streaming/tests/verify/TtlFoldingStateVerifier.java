@@ -69,18 +69,18 @@ class TtlFoldingStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	@Override
-	Long expected(@Nonnull List<TtlValue<Integer>> updates, long currentTimestamp) {
+	Long expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
 		if (updates.isEmpty()) {
 			return null;
 		}
 		long acc = INIT_VAL;
-		long lastTs = updates.get(0).getUpdateTimestamp();
-		for (TtlValue<Integer> update : updates) {
-			if (expired(lastTs, update.getUpdateTimestamp())) {
+		long lastTs = updates.get(0).getTimestampAfterUpdate();
+		for (ValueWithTs<Integer> update : updates) {
+			if (expired(lastTs, update.getTimestampAfterUpdate())) {
 				acc = INIT_VAL;
 			}
 			acc += update.getValue();
-			lastTs = update.getUpdateTimestamp();
+			lastTs = update.getTimestampAfterUpdate();
 		}
 		return expired(lastTs, currentTimestamp) ? null : acc;
 	}

@@ -25,15 +25,22 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+/**
+ * Source of randomly generated keyed state updates.
+ *
+ * <p>Internal loop generates {@code sleepAfterElements} state updates
+ * for each verifier from {@link TtlStateVerifier#VERIFIERS} using {@link TtlStateVerifier#generateRandomUpdate}
+ * and waits for {@code sleepTime} to continue generation.
+ */
 class TtlStateUpdateSource extends RichParallelSourceFunction<TtlStateUpdate> {
 	private final int maxKey;
-	private final int sleepAfterElements;
+	private final long sleepAfterElements;
 	private final long sleepTime;
 
 	/** Flag that determines if this source is running, i.e. generating events. */
 	private volatile boolean running = true;
 
-	TtlStateUpdateSource(int maxKey, int sleepAfterElements, long sleepTime) {
+	TtlStateUpdateSource(int maxKey, long sleepAfterElements, long sleepTime) {
 		this.maxKey = maxKey;
 		this.sleepAfterElements = sleepAfterElements;
 		this.sleepTime = sleepTime;

@@ -22,26 +22,33 @@ import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /** Data to verify state update with TTL. */
 public class TtlVerificationContext<UV, GV> implements Serializable {
-	private final List<TtlValue<UV>> prevUpdates;
+	private final int key;
+	@Nonnull
+	private final String  verifierId;
+	@Nonnull
+	private final List<ValueWithTs<UV>> prevUpdates;
+	@Nonnull
 	private final TtlUpdateContext<UV, GV> updateContext;
 
 	@SuppressWarnings("unchecked")
 	public TtlVerificationContext(
-		List<TtlValue<?>> prevUpdates,
+		int key,
+		@Nonnull String verifierId,
+		@Nonnull List<ValueWithTs<?>> prevUpdates,
 		@Nonnull TtlUpdateContext<?, ?> updateContext) {
-		prevUpdates = prevUpdates == null ? Collections.emptyList() : prevUpdates;
+		this.key = key;
+		this.verifierId = verifierId;
 		this.prevUpdates = new ArrayList<>();
-		prevUpdates.forEach(pu -> this.prevUpdates.add((TtlValue<UV>) pu));
+		prevUpdates.forEach(pu -> this.prevUpdates.add((ValueWithTs<UV>) pu));
 		this.updateContext = (TtlUpdateContext<UV, GV>) updateContext;
 	}
 
 	@Nonnull
-	List<TtlValue<UV>> getPrevUpdates() {
+	List<ValueWithTs<UV>> getPrevUpdates() {
 		return prevUpdates;
 	}
 
@@ -53,7 +60,9 @@ public class TtlVerificationContext<UV, GV> implements Serializable {
 	@Override
 	public String toString() {
 		return "TtlVerificationContext{" +
-			"prevUpdates=" + prevUpdates +
+			"key=" + key +
+			", verifierId='" + verifierId + '\'' +
+			", prevUpdates=" + prevUpdates +
 			", updateContext=" + updateContext +
 			'}';
 	}

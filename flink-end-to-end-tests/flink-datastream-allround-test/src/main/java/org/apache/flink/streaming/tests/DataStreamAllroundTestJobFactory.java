@@ -166,7 +166,7 @@ class DataStreamAllroundTestJobFactory {
 		.defaultValue(true)
 		.withDescription("Activate or deactivate asynchronous snapshots if FileStateBackend is selected.");
 
-	static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_KEYSPACE = ConfigOptions
+	private static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_KEYSPACE = ConfigOptions
 		.key("sequence_generator_source.keyspace")
 		.defaultValue(200);
 
@@ -174,11 +174,11 @@ class DataStreamAllroundTestJobFactory {
 		.key("sequence_generator_source.payload_size")
 		.defaultValue(20);
 
-	static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_TIME = ConfigOptions
+	private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_TIME = ConfigOptions
 		.key("sequence_generator_source.sleep_time")
 		.defaultValue(0L);
 
-	static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS = ConfigOptions
+	private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS = ConfigOptions
 		.key("sequence_generator_source.sleep_after_elements")
 		.defaultValue(0L);
 

@@ -56,7 +56,6 @@ class TtlAggregatingStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	@Override
-	@Nonnull
 	String getInternal(@Nonnull AggregatingState<Integer, String> state) throws Exception {
 		return state.get();
 	}
@@ -67,18 +66,18 @@ class TtlAggregatingStateVerifier extends AbstractTtlStateVerifier<
 	}
 
 	@Override
-	String expected(@Nonnull List<TtlValue<Integer>> updates, long currentTimestamp) {
+	String expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
 		if (updates.isEmpty()) {
 			return null;
 		}
 		long acc = AGG_FUNC.createAccumulator();
-		long lastTs = updates.get(0).getUpdateTimestamp();
-		for (TtlValue<Integer> update : updates) {
-			if (expired(lastTs, update.getUpdateTimestamp())) {
+		long lastTs = updates.get(0).getTimestampAfterUpdate();
+		for (ValueWithTs<Integer> update : updates) {
+			if (expired(lastTs, update.getTimestampAfterUpdate())) {
 				acc = AGG_FUNC.createAccumulator();
 			}
 			acc = AGG_FUNC.add(update.getValue(), acc);
-			lastTs = update.getUpdateTimestamp();
+			lastTs = update.getTimestampAfterUpdate();
 		}
 		return expired(lastTs, currentTimestamp) ? null : AGG_FUNC.getResult(acc);
 	}

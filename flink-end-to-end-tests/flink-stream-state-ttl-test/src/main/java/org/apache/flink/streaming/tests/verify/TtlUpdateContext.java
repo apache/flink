@@ -22,40 +22,27 @@ import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 
-/** Contains relevant for state TTL update data. */
+/** Contains context relevant for state update with TTL. */
 public class TtlUpdateContext<UV, GV> implements Serializable {
-	private final int key;
-
-	@Nonnull
-	private final String verifierId;
-
+	private final long timestampBeforeUpdate;
 	private final GV valueBeforeUpdate;
 	private final UV update;
 	private final GV updatedValue;
+	private final long timestampAfterUpdate;
 
-	private final long timestamp;
-
-	public TtlUpdateContext(int key, @Nonnull String verifierId, GV valueBeforeUpdate, UV update, GV updatedValue) {
-		this(key, verifierId, valueBeforeUpdate, update, updatedValue, System.currentTimeMillis());
-	}
-
-	private TtlUpdateContext(
-		int key, @Nonnull String verifierId, GV valueBeforeUpdate, UV update, GV updatedValue, long timestamp) {
-		this.key = key;
-		this.verifierId = verifierId;
+	public TtlUpdateContext(
+		long timestampBeforeUpdate,
+		GV valueBeforeUpdate, UV update, GV updatedValue,
+		long timestampAfterUpdate) {
 		this.valueBeforeUpdate = valueBeforeUpdate;
 		this.update = update;
 		this.updatedValue = updatedValue;
-		this.timestamp = timestamp;
+		this.timestampBeforeUpdate = timestampBeforeUpdate;
+		this.timestampAfterUpdate = timestampAfterUpdate;
 	}
 
-	public int getKey() {
-		return key;
-	}
-
-	@Nonnull
-	public String getVerifierId() {
-		return verifierId;
+	long getTimestampBeforeUpdate() {
+		return timestampBeforeUpdate;
 	}
 
 	GV getValueBeforeUpdate() {
@@ -63,27 +50,22 @@ public class TtlUpdateContext<UV, GV> implements Serializable {
 	}
 
 	@Nonnull
-	public TtlValue<UV> getUpdateWithTs() {
-		return new TtlValue<>(update, timestamp);
+	public ValueWithTs<UV> getUpdateWithTs() {
+		return new ValueWithTs<>(update, timestampBeforeUpdate, timestampAfterUpdate);
 	}
 
 	GV getUpdatedValue() {
 		return updatedValue;
 	}
 
-	long getTimestamp() {
-		return timestamp;
-	}
-
 	@Override
 	public String toString() {
 		return "TtlUpdateContext{" +
-			"key=" + key +
-			", verifierId='" + verifierId + '\'' +
+			"timestampBeforeUpdate=" + timestampBeforeUpdate +
 			", valueBeforeUpdate=" + valueBeforeUpdate +
 			", update=" + update +
 			", updatedValue=" + updatedValue +
-			", timestamp=" + timestamp +
+			", timestampAfterUpdate=" + timestampAfterUpdate +
 			'}';
 	}
 }
