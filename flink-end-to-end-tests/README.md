@@ -31,6 +31,10 @@ You can also run tests individually via
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh arg1 arg2
 ```
 
+### Kubernetes test
+
+Kubernetes test (test_kubernetes_embedded_job.sh) assumes a running minikube cluster.
+
 ## Writing Tests
 
 ### Examples
