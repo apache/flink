@@ -1150,6 +1150,8 @@ under the License.
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
+						<!-- artifacts created during release process -->
+						<exclude>tools/releasing/release/**</exclude>
 						<!-- manually installed version on travis -->
 						<exclude>apache-maven-3.2.5/**</exclude>
 						<!-- PyCharm -->
