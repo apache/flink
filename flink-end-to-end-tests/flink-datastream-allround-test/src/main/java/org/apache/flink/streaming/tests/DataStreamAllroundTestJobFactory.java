@@ -196,7 +196,7 @@ class DataStreamAllroundTestJobFactory {
 		.defaultValue(100L);
 
 	private static final ConfigOption<Long> TUMBLING_WINDOW_OPERATOR_NUM_EVENTS = ConfigOptions
-		.key("sliding_window_operator.num_events")
+		.key("tumbling_window_operator.num_events")
 		.defaultValue(20L);
 
 	static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt) throws Exception {
