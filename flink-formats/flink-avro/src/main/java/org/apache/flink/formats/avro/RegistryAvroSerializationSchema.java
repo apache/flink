@@ -21,9 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.specific.SpecificRecord;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 /**
  * Serialization schema that serializes from Avro binary format.
@@ -34,19 +32,25 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 
 	private static final long serialVersionUID = -6766681879020862312L;
 
-	private Object schemaId;
+	/** Provider for schema coder. Used for initializing in each task. */
+	private final SchemaCoder.SchemaCoderProvider schemaCoderProvider;
+
+	/** Class to serialize to. */
+	private final Class<T> recordClazz;
 
 	/**
 	 * Creates Avro Serialization schema.
 	 *
-	 * @param recordClazz         class to which deserialize which is
+	 * @param recordClazz         class to which serialize which is
 	 *                            {@link SpecificRecord}.
 	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
 	 *                            schema writing
 	 */
 	public RegistryAvroSerializationSchema(Class<T> recordClazz, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz);
-		this.schemaId = schemaCoderProvider.getSchemaId();
+		this.schemaCoderProvider = schemaCoderProvider;
+		this.recordClazz = recordClazz;
+
 	}
 
 	@Override
@@ -58,19 +62,11 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 		} else {
 			try {
 				Encoder encoder = getEncoder();
-				ByteArrayOutputStream arrayOutputStream = getOutputStream();
-				arrayOutputStream.write(0);
-				if (schemaId instanceof Integer) {
-					arrayOutputStream.write(ByteBuffer.allocate(4).putInt((Integer) schemaId).array());
-				} else if (schemaId instanceof Long) {
-					arrayOutputStream.write(ByteBuffer.allocate(8).putLong((Long) schemaId).array());
-				}
-
+				byte[] bytes = schemaCoderProvider.get()
+					.writeSchema(recordClazz, getOutputStream());
 				getDatumWriter().write(object, encoder);
 				encoder.flush();
 
-				byte[] bytes = arrayOutputStream.toByteArray();
-				arrayOutputStream.close();
 				return bytes;
 			} catch (RuntimeException | IOException e) {
 				throw new RuntimeException("Failed to serialize schema registry.", e);

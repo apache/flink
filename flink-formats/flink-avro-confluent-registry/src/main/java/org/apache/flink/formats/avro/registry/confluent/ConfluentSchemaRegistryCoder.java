@@ -23,19 +23,36 @@ import org.apache.flink.formats.avro.SchemaCoder;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
+import org.apache.avro.specific.SpecificData;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+
 
 import static java.lang.String.format;
 
 /**
- * Reads schema using Confluent Schema Registry protocol.
+ * Reads and Writes schema using Confluent Schema Registry protocol.
  */
 public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
 	private final SchemaRegistryClient schemaRegistryClient;
+	private String subject;
+
+	/**
+	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
+	 * schema registry.
+	 *
+	 * @param schemaRegistryClient client to connect schema registry
+	 * @param subject              subject of schema registry to produce
+	 */
+	public ConfluentSchemaRegistryCoder(String subject, SchemaRegistryClient schemaRegistryClient) {
+		this.schemaRegistryClient = schemaRegistryClient;
+		this.subject = subject;
+	}
 
 	/**
 	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
@@ -62,6 +79,21 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 				throw new IOException(format("Could not find schema with id %s in registry", schemaId), e);
 			}
 		}
+	}
+
+	@Override
+	public byte[] writeSchema(Class tClass, ByteArrayOutputStream out) throws IOException {
+		byte[] bytes;
+		try {
+			int schemaId = schemaRegistryClient.register(subject, SpecificData.get().getSchema(tClass));
+			out.write(0);
+			out.write(ByteBuffer.allocate(4).putInt(schemaId).array());
+			bytes = out.toByteArray();
+			out.close();
+		} catch (RestClientException e) {
+			throw new RuntimeException("Failed to serialize schema registry.", e);
+		}
+		return bytes;
 	}
 
 }

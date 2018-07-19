@@ -23,11 +23,7 @@ import org.apache.flink.formats.avro.RegistryAvroSerializationSchema;
 import org.apache.flink.formats.avro.SchemaCoder;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
-
-import java.io.IOException;
 
 /**
  * Serialization schema that serializes from Avro binary format that uses
@@ -44,10 +40,9 @@ public class ConfluentRegistryAvroSerializationSchema<T> extends RegistryAvroSer
 	/**
 	 * Creates a Avro Serialization schema.
 	 *
-	 * @param recordClazz         class to which Serialize which is
+	 * @param recordClazz         class to which serialize which is
 	 *                            {@link SpecificRecord}.
-	 * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
-	 *                            schema writing
+	 * @param schemaCoderProvider  provider for schema coder that writes schema from Confluent Schema Registry
 	 */
 	private ConfluentRegistryAvroSerializationSchema(Class<T> recordClazz, SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
 		super(recordClazz, schemaCoderProvider);
@@ -58,49 +53,36 @@ public class ConfluentRegistryAvroSerializationSchema<T> extends RegistryAvroSer
 	 * schema and looks up writer schema in Confluent Schema Registry.
 	 *
 	 * @param tClass              class of record to be produced
+	 * @param subject             subject of schema registry to produce
 	 * @param schemaRegistryUrl   url of schema registry to connect
-	 * @param subject subject of schema registry to produce
+	 *
 	 * @return Serialized record
 	 */
 	public static <T extends SpecificRecord> ConfluentRegistryAvroSerializationSchema<T> forSpecific(Class<T> tClass, String subject, String schemaRegistryUrl) {
 		return new ConfluentRegistryAvroSerializationSchema<>(
 			tClass,
-			new CachedSchemaCoderProvider(tClass, subject, schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY)
+			new CachedSchemaCoderProvider(subject, schemaRegistryUrl, DEFAULT_IDENTITY_MAP_CAPACITY)
 		);
 	}
 
 	private static class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
 
 		private static final long serialVersionUID = 4023134423033312666L;
+		private final String subject;
 		private final String url;
 		private final int identityMapCapacity;
-		private final Class tClass;
-		private final String subject;
 
-		CachedSchemaCoderProvider(Class tClass, String subject, String url, int identityMapCapacity) {
+		CachedSchemaCoderProvider(String subject, String url, int identityMapCapacity) {
+			this.subject = subject;
 			this.url = url;
 			this.identityMapCapacity = identityMapCapacity;
-			this.tClass = tClass;
-			this.subject = subject;
 		}
 
 		@Override
 		public SchemaCoder get() {
-			return new ConfluentSchemaRegistryCoder(new CachedSchemaRegistryClient(
+			return new ConfluentSchemaRegistryCoder(subject, new CachedSchemaRegistryClient(
 				url,
 				identityMapCapacity));
-		}
-
-		@Override
-		public Object getSchemaId() {
-			CachedSchemaRegistryClient cachedSchemaRegistryClient = new CachedSchemaRegistryClient(url, identityMapCapacity);
-			int schemaId;
-			try {
-				schemaId = cachedSchemaRegistryClient.register(subject, SpecificData.get().getSchema(tClass));
-			} catch (IOException | RestClientException e) {
-				throw new RuntimeException("Failed to serialize schema registry.", e);
-			}
-			return schemaId;
 		}
 
 	}

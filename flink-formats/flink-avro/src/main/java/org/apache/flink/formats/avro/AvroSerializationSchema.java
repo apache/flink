@@ -42,6 +42,7 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 	/**
 	 * Creates {@link AvroSerializationSchema} that produces {@link SpecificRecord} using provided schema.
 	 *
+	 * @param tClass class of record to be produced
 	 * @return topic record in form of {@link SpecificRecord}
 	 */
 	public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(Class<T> tClass) {
@@ -66,15 +67,14 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 	private transient ByteArrayOutputStream arrayOutputStream;
 
 	/**
-	 * Avro decoder that decodes binary data.
+	 * Avro encoder that encodes binary data.
 	 */
 	private transient BinaryEncoder encoder;
-
 
 	/**
 	 * Creates Avro Serialization schema.
 	 *
-	 * @param recordClazz         class to which deserialize which is
+	 * @param recordClazz         class to which serialize which is
 	 *                            {@link SpecificRecord}.
 	 */
 

@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.avro.Schema;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -31,6 +32,8 @@ import java.io.Serializable;
  */
 public interface SchemaCoder {
 	Schema readSchema(InputStream in) throws IOException;
+
+	byte[] writeSchema(Class recordClazz, ByteArrayOutputStream out) throws IOException;
 
 	/**
 	 * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in
@@ -45,14 +48,5 @@ public interface SchemaCoder {
 		 * @return new instance {@link SchemaCoder}
 		 */
 		SchemaCoder get();
-
-		/**
-		 * Creates a new instance of {@link Object}. Each time it should create a new
-		 * instance, as it will be called on multiple nodes.
-		 *
-		 * @return new instance {@link Object}
-		 */
-		Object getSchemaId();
-
 	}
 }
