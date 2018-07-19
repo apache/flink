@@ -147,4 +147,9 @@ class HeapAggregatingState<K, N, IN, ACC, OUT>
 			stateDesc.getDefaultValue(),
 			((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction());
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.AGGREGATING;
+	}
 }

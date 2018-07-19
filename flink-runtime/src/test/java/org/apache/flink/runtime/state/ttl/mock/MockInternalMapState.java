@@ -92,4 +92,9 @@ public class MockInternalMapState<K, N, UK, UV>
 		StateDescriptor<S, T> stateDesc) {
 		return (IS) new MockInternalMapState<>();
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.MAP;
+	}
 }

@@ -64,8 +64,9 @@ public class MessageSerializerTest {
 		long requestId = Integer.MAX_VALUE + 1337L;
 		KvStateID kvStateId = new KvStateID();
 		byte[] serializedKeyAndNamespace = randomByteArray(1024);
+		byte[] serializedStateDescriptor = randomByteArray(1024);
 
-		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace, serializedStateDescriptor);
 		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
 				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
 
@@ -91,8 +92,9 @@ public class MessageSerializerTest {
 		long requestId = Integer.MAX_VALUE + 1337L;
 		KvStateID kvStateId = new KvStateID();
 		byte[] serializedKeyAndNamespace = new byte[0];
+		byte[] serializedStateDescriptor = new byte[0];
 
-		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace);
+		final KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, serializedKeyAndNamespace, serializedStateDescriptor);
 		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
 				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
 
@@ -115,7 +117,16 @@ public class MessageSerializerTest {
 	 */
 	@Test(expected = NullPointerException.class)
 	public void testNullPointerExceptionOnNullSerializedKeyAndNamepsace() throws Exception {
-		new KvStateInternalRequest(new KvStateID(), null);
+		new KvStateInternalRequest(new KvStateID(), null, new byte[0]);
+	}
+
+	/**
+	 * Tests that we don't try to be smart about <code>null</code> stateDescriptor.
+	 * They should be treated explicityly.
+	 */
+	@Test(expected = NullPointerException.class)
+	public void testNullPointerExceptionOnNullSerializedStateDescriptor() throws Exception {
+		new KvStateInternalRequest(new KvStateID(), new byte[0], null);
 	}
 
 	/**

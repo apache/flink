@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
@@ -50,5 +51,10 @@ class TtlValueState<K, N, T>
 	@Override
 	public void update(T value) throws IOException {
 		original.update(wrapWithTs(value));
+	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.VALUE;
 	}
 }

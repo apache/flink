@@ -145,6 +145,7 @@ public class KvStateServerTest {
 					IntSerializer.INSTANCE,
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE);
+			byte[] serializedStateDescriptor = KvStateSerializer.serializedStateDescriptor(desc);
 
 			// Connect to the server
 			final BlockingQueue<ByteBuf> responses = new LinkedBlockingQueue<>();
@@ -167,7 +168,8 @@ public class KvStateServerTest {
 
 			final KvStateInternalRequest request = new KvStateInternalRequest(
 					registryListener.kvStateId,
-					serializedKeyAndNamespace);
+					serializedKeyAndNamespace,
+					serializedStateDescriptor);
 
 			ByteBuf serializeRequest = MessageSerializer.serializeRequest(
 					channel.alloc(),

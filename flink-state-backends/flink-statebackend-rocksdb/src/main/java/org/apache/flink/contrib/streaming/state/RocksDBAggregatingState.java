@@ -187,4 +187,9 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 			((AggregatingStateDescriptor<?, SV, ?>) stateDesc).getAggregateFunction(),
 			backend);
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.AGGREGATING;
+	}
 }

@@ -197,4 +197,9 @@ class HeapListState<K, N, V>
 			stateTable.getNamespaceSerializer(),
 			(List<E>) stateDesc.getDefaultValue());
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.LIST;
+	}
 }

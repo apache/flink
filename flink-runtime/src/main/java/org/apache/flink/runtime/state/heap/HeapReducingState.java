@@ -140,4 +140,9 @@ class HeapReducingState<K, N, V>
 			stateDesc.getDefaultValue(),
 			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.REDUCING;
+	}
 }

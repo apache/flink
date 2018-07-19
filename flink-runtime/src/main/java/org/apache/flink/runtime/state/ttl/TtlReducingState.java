@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.ttl;
 
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
@@ -70,5 +71,10 @@ class TtlReducingState<K, N, T>
 	@Override
 	public void updateInternal(T valueToStore) throws Exception {
 		original.updateInternal(wrapWithTs(valueToStore));
+	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.REDUCING;
 	}
 }

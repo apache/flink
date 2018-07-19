@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
@@ -325,6 +326,11 @@ public class KvStateRegistryTest extends TestLogger {
 		@Override
 		public void clear() {
 			// noop
+		}
+
+		@Override
+		public StateDescriptor.Type getStateType() {
+			return StateDescriptor.Type.UNKNOWN;
 		}
 	}
 

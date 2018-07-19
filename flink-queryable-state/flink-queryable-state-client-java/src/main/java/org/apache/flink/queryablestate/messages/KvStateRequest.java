@@ -41,17 +41,20 @@ public class KvStateRequest extends MessageBody {
 	private final String stateName;
 	private final int keyHashCode;
 	private final byte[] serializedKeyAndNamespace;
+	private final byte[] serializedStateDescriptor;
 
 	public KvStateRequest(
 			final JobID jobId,
 			final String stateName,
 			final int keyHashCode,
-			final byte[] serializedKeyAndNamespace) {
+			final byte[] serializedKeyAndNamespace,
+			final byte[] serializedStateDescriptor) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 		this.stateName = Preconditions.checkNotNull(stateName);
 		this.keyHashCode = keyHashCode;
 		this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
+		this.serializedStateDescriptor = serializedStateDescriptor;
 	}
 
 	public JobID getJobId() {
@@ -70,17 +73,23 @@ public class KvStateRequest extends MessageBody {
 		return serializedKeyAndNamespace;
 	}
 
+	public byte[] getSerializedStateDescriptor() {
+		return serializedStateDescriptor;
+	}
+
 	@Override
 	public byte[] serialize() {
 
 		byte[] serializedStateName = stateName.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		// JobID + stateName + sizeOf(stateName) + hashCode + keyAndNamespace + sizeOf(keyAndNamespace)
+		// + stateDescriptor + sizeOf(stateDescriptor)
 		final int size =
 				JobID.SIZE +
 				serializedStateName.length + Integer.BYTES +
 				Integer.BYTES +
-				serializedKeyAndNamespace.length + Integer.BYTES;
+				serializedKeyAndNamespace.length + Integer.BYTES
+				+ serializedStateDescriptor.length + Integer.BYTES;
 
 		return ByteBuffer.allocate(size)
 				.putLong(jobId.getLowerPart())
@@ -90,6 +99,8 @@ public class KvStateRequest extends MessageBody {
 				.putInt(keyHashCode)
 				.putInt(serializedKeyAndNamespace.length)
 				.put(serializedKeyAndNamespace)
+				.putInt(serializedStateDescriptor.length)
+				.put(serializedStateDescriptor)
 				.array();
 	}
 
@@ -135,7 +146,17 @@ public class KvStateRequest extends MessageBody {
 			if (knamespaceLength > 0) {
 				buf.readBytes(serializedKeyAndNamespace);
 			}
-			return new KvStateRequest(jobId, stateName, keyHashCode, serializedKeyAndNamespace);
+
+			int descriptorLength = buf.readInt();
+			Preconditions.checkArgument(descriptorLength >= 0,
+				"Negative length for stateDescriptor. " +
+				"This indicates a serialization error.");
+
+			byte[] serializedStateDescriptor = new byte[descriptorLength];
+			if (descriptorLength > 0) {
+				buf.readBytes(serializedStateDescriptor);
+			}
+			return new KvStateRequest(jobId, stateName, keyHashCode, serializedKeyAndNamespace, serializedStateDescriptor);
 		}
 	}
 }

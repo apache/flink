@@ -182,4 +182,9 @@ class RocksDBReducingState<K, N, V>
 			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction(),
 			backend);
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.REDUCING;
+	}
 }

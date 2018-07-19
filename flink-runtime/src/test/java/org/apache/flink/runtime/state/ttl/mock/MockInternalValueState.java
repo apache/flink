@@ -43,4 +43,9 @@ class MockInternalValueState<K, N, T>
 		StateDescriptor<S, T> stateDesc) {
 		return (IS) new MockInternalValueState<>();
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.VALUE;
+	}
 }

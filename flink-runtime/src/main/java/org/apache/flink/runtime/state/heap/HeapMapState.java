@@ -202,4 +202,9 @@ class HeapMapState<K, N, UK, UV>
 			stateTable.getNamespaceSerializer(),
 			(Map<UK, UV>) stateDesc.getDefaultValue());
 	}
+
+	@Override
+	public StateDescriptor.Type getStateType() {
+		return StateDescriptor.Type.MAP;
+	}
 }
