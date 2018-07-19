@@ -52,9 +52,13 @@ import java.util.concurrent.Future;
 
 import scala.Tuple2;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -452,7 +456,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, null, thrown, inputChannel);
+			cleanup(networkBufferPool, null, null, thrown, inputChannel);
 		}
 	}
 
@@ -528,7 +532,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, null, thrown, inputChannel);
+			cleanup(networkBufferPool, null, null, thrown, inputChannel);
 		}
 	}
 
@@ -618,7 +622,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, null, thrown, inputChannel);
+			cleanup(networkBufferPool, null, null, thrown, inputChannel);
 		}
 	}
 
@@ -687,7 +691,72 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, null, thrown, channel1, channel2, channel3);
+			cleanup(networkBufferPool, null, null, thrown, channel1, channel2, channel3);
+		}
+	}
+
+	/**
+	 * Tests that failures are propagated correctly if
+	 * {@link RemoteInputChannel#notifyBufferAvailable(Buffer)} throws an exception. Also tests that
+	 * a second listener will be notified in this case.
+	 */
+	@Test
+	public void testFailureInNotifyBufferAvailable() throws Exception {
+		// Setup
+		final int numExclusiveBuffers = 0;
+		final int numFloatingBuffers = 1;
+		final int numTotalBuffers = numExclusiveBuffers + numFloatingBuffers;
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(
+			numTotalBuffers, 32);
+
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel successfulRemoteIC = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannel(successfulRemoteIC.partitionId.getPartitionId(), successfulRemoteIC);
+
+		successfulRemoteIC.requestSubpartition(0);
+
+		// late creation -> no exclusive buffers, also no requested subpartition in successfulRemoteIC
+		// (to trigger a failure in RemoteInputChannel#notifyBufferAvailable())
+		final RemoteInputChannel failingRemoteIC = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannel(failingRemoteIC.partitionId.getPartitionId(), failingRemoteIC);
+
+		Buffer buffer = null;
+		Throwable thrown = null;
+		try {
+			final BufferPool bufferPool =
+				networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+			inputGate.setBufferPool(bufferPool);
+
+			buffer = bufferPool.requestBufferBlocking();
+
+			// trigger subscription to buffer pool
+			failingRemoteIC.onSenderBacklog(1);
+			successfulRemoteIC.onSenderBacklog(numExclusiveBuffers + 1);
+			// recycling will call RemoteInputChannel#notifyBufferAvailable() which will fail and
+			// this exception will be swallowed and set as an error in failingRemoteIC
+			buffer.recycleBuffer();
+			buffer = null;
+			try {
+				failingRemoteIC.checkError();
+				fail("The input channel should have an error based on the failure in RemoteInputChannel#notifyBufferAvailable()");
+			} catch (IOException e) {
+				assertThat(e, hasProperty("cause", isA(IllegalStateException.class)));
+			}
+			// currently, the buffer is still enqueued in the bufferQueue of failingRemoteIC
+			assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
+			buffer = successfulRemoteIC.requestBuffer();
+			assertNull("buffer should still remain in failingRemoteIC", buffer);
+
+			// releasing resources in failingRemoteIC should free the buffer again and immediately
+			// recycle it into successfulRemoteIC
+			failingRemoteIC.releaseAllResources();
+			assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
+			buffer = successfulRemoteIC.requestBuffer();
+			assertNotNull("no buffer given to successfulRemoteIC", buffer);
+		} catch (Throwable t) {
+			thrown = t;
+		} finally {
+			cleanup(networkBufferPool, null, buffer, thrown, failingRemoteIC, successfulRemoteIC);
 		}
 	}
 
@@ -749,7 +818,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, executor, thrown, inputChannel);
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
 		}
 	}
 
@@ -802,7 +871,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, executor, thrown, inputChannel);
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
 		}
 	}
 
@@ -854,7 +923,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, executor, thrown, inputChannel);
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
 		}
 	}
 
@@ -936,7 +1005,7 @@ public class RemoteInputChannelTest {
 		} catch (Throwable t) {
 			thrown = t;
 		} finally {
-			cleanup(networkBufferPool, executor, thrown, inputChannel);
+			cleanup(networkBufferPool, executor, null, thrown, inputChannel);
 		}
 	}
 
@@ -1064,6 +1133,7 @@ public class RemoteInputChannelTest {
 	private void cleanup(
 			NetworkBufferPool networkBufferPool,
 			@Nullable ExecutorService executor,
+			@Nullable Buffer buffer,
 			@Nullable Throwable throwable,
 			InputChannel... inputChannels) throws Exception {
 		for (InputChannel inputChannel : inputChannels) {
@@ -1072,6 +1142,10 @@ public class RemoteInputChannelTest {
 			} catch (Throwable tInner) {
 				throwable = ExceptionUtils.firstOrSuppressed(tInner, throwable);
 			}
+		}
+
+		if (buffer != null && !buffer.isRecycled()) {
+			buffer.recycleBuffer();
 		}
 
 		try {
