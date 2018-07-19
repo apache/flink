@@ -44,7 +44,6 @@ import org.apache.flink.util.Collector
 class NonWindowLeftRightJoinWithNonEquiPredicates(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -52,7 +51,6 @@ class NonWindowLeftRightJoinWithNonEquiPredicates(
   extends NonWindowOuterJoinWithNonEquiPredicates(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,

@@ -111,7 +111,6 @@ class DataStreamJoinToCoProcessTranslator(
         new NonWindowInnerJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
           queryConfig)
@@ -119,7 +118,6 @@ class DataStreamJoinToCoProcessTranslator(
         new NonWindowLeftRightJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
@@ -128,7 +126,6 @@ class DataStreamJoinToCoProcessTranslator(
         new NonWindowLeftRightJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
           joinType == JoinRelType.LEFT,
@@ -137,7 +134,6 @@ class DataStreamJoinToCoProcessTranslator(
         new NonWindowFullJoin(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
           queryConfig)
@@ -145,7 +141,6 @@ class DataStreamJoinToCoProcessTranslator(
         new NonWindowFullJoinWithNonEquiPredicates(
           leftSchema.typeInfo,
           rightSchema.typeInfo,
-          CRowTypeInfo(returnType),
           genFunction.name,
           genFunction.code,
           queryConfig)
