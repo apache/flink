@@ -861,7 +861,6 @@ class JoinHarnessTest extends HarnessTestBase {
     val joinProcessFunc = new NonWindowInnerJoin(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCode,
       queryConfig)
@@ -953,18 +952,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowInnerJoinWithRetract() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowInnerJoin(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCode,
       queryConfig)
@@ -1053,18 +1043,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowLeftJoinWithoutNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowLeftRightJoin(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCode,
       true,
@@ -1170,18 +1151,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowLeftJoinWithNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowLeftRightJoinWithNonEquiPredicates(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred,
       true,
@@ -1309,18 +1281,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowRightJoinWithoutNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowLeftRightJoin(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCode,
       false,
@@ -1426,18 +1389,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowRightJoinWithNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowLeftRightJoinWithNonEquiPredicates(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
       false,
@@ -1565,18 +1519,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowFullJoinWithoutNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowFullJoin(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCode,
       queryConfig)
@@ -1743,18 +1688,9 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testNonWindowFullJoinWithNonEqualPred() {
 
-    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
-      Array[TypeInformation[_]](
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO,
-        INT_TYPE_INFO,
-        STRING_TYPE_INFO),
-      Array("a", "b", "c", "d")))
-
     val joinProcessFunc = new NonWindowFullJoinWithNonEquiPredicates(
       rowType,
       rowType,
-      joinReturnType,
       "TestJoinFunction",
       funcCodeWithNonEqualPred2,
       queryConfig)

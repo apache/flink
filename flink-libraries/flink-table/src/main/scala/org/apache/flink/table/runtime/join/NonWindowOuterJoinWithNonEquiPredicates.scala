@@ -32,7 +32,6 @@ import org.apache.flink.types.Row
   *
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param resultType      the output type of join
   * @param genJoinFuncName the function code of other non-equi condition
   * @param genJoinFuncCode the function name of other non-equi condition
   * @param isLeftJoin      the type of join, whether it is the type of left join
@@ -41,7 +40,6 @@ import org.apache.flink.types.Row
   abstract class NonWindowOuterJoinWithNonEquiPredicates(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     isLeftJoin: Boolean,
@@ -49,7 +47,6 @@ import org.apache.flink.types.Row
   extends NonWindowOuterJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     isLeftJoin,
@@ -64,8 +61,9 @@ import org.apache.flink.types.Row
   override def open(parameters: Configuration): Unit = {
     super.open(parameters)
 
-    leftResultRow = new Row(resultType.getArity)
-    rightResultRow = new Row(resultType.getArity)
+    val arity = leftType.getArity + rightType.getArity
+    leftResultRow = new Row(arity)
+    rightResultRow = new Row(arity)
 
     joinCntState = new Array[MapState[Row, Long]](2)
     val leftJoinCntStateDescriptor = new MapStateDescriptor[Row, Long](

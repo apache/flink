@@ -32,7 +32,6 @@ import org.apache.flink.util.Collector
   *
   * @param leftType          the input type of left stream
   * @param rightType         the input type of right stream
-  * @param resultType        the output type of join
   * @param genJoinFuncName   the function code of other non-equi condition
   * @param genJoinFuncCode   the function name of other non-equi condition
   * @param queryConfig       the configuration for the query to generate
@@ -40,14 +39,12 @@ import org.apache.flink.util.Collector
 class NonWindowInnerJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
-    resultType: TypeInformation[CRow],
     genJoinFuncName: String,
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
   extends NonWindowJoin(
     leftType,
     rightType,
-    resultType,
     genJoinFuncName,
     genJoinFuncCode,
     queryConfig) {
