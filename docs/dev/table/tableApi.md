@@ -506,7 +506,7 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 
     <tr>
       <td>
-        <strong>Outer Joins</strong><br>
+        <strong>Outer Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
         <span class="label label-info">Result Updating</span>
@@ -521,6 +521,7 @@ Table leftOuterResult = left.leftOuterJoin(right, "a = d").select("a, b, e");
 Table rightOuterResult = left.rightOuterJoin(right, "a = d").select("a, b, e");
 Table fullOuterResult = left.fullOuterJoin(right, "a = d").select("a, b, e");
 {% endhighlight %}
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -612,6 +613,7 @@ Table result = orders
       <td>
         <strong>Inner Join</strong><br>
         <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
       </td>
       <td>
         <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
@@ -620,12 +622,15 @@ val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'd, 'e, 'f)
 val result = left.join(right).where('a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
       <td>
-        <strong>Outer Joins</strong><br>
+        <strong>Outer Join</strong><br>
         <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
@@ -637,6 +642,7 @@ val leftOuterResult = left.leftOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 val rightOuterResult = left.rightOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
 {% endhighlight %}
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
     <tr>
