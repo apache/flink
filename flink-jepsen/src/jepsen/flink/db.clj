@@ -56,7 +56,7 @@
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
    :slotmanager.taskmanager-timeout    10000
-   :state.backend.local-recovery       "true"
+   :state.backend.local-recovery       "false"
    :taskmanager.registration.timeout   "30 s"})
 
 (defn master-nodes
