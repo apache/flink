@@ -30,7 +30,7 @@ class StreamTableDescriptor(
   extends ConnectTableDescriptor[StreamTableDescriptor](
     tableEnv,
     connectorDescriptor)
-  with StreamableDescriptor {
+  with StreamableDescriptor[StreamTableDescriptor] {
 
   private var updateMode: Option[String] = None
 

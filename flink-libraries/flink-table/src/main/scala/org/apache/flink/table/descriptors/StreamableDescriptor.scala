@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 /**
   * A trait for descriptors that allow to convert between a dynamic table and an external connector.
   */
-trait StreamableDescriptor extends TableDescriptor {
+trait StreamableDescriptor[D <: StreamableDescriptor[D]] extends TableDescriptor {
 
   /**
     * Declares how to perform the conversion between a dynamic table and an external connector.
@@ -30,7 +30,7 @@ trait StreamableDescriptor extends TableDescriptor {
     *
     * @see See also [[inRetractMode()]] and [[inUpsertMode()]].
     */
-  def inAppendMode(): StreamableDescriptor
+  def inAppendMode(): D
 
   /**
     * Declares how to perform the conversion between a dynamic table and an external connector.
@@ -46,7 +46,7 @@ trait StreamableDescriptor extends TableDescriptor {
     *
     * @see See also [[inAppendMode()]] and [[inUpsertMode()]].
     */
-  def inRetractMode(): StreamableDescriptor
+  def inRetractMode(): D
 
   /**
     * Declares how to perform the conversion between a dynamic table and an external connector.
@@ -63,5 +63,5 @@ trait StreamableDescriptor extends TableDescriptor {
     *
     * @see See also [[inAppendMode()]] and [[inRetractMode()]].
     */
-  def inUpsertMode(): StreamableDescriptor
+  def inUpsertMode(): D
 }

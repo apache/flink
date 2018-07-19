@@ -62,10 +62,10 @@ import scala.collection.JavaConverters._
   *
   * @param connectorDescriptor describes the system to connect to
   */
-class ExternalCatalogTable(val connectorDescriptor: ConnectorDescriptor)
+class ExternalCatalogTable(private val connectorDescriptor: ConnectorDescriptor)
   extends TableDescriptor
-  with SchematicDescriptor
-  with StreamableDescriptor {
+  with SchematicDescriptor[ExternalCatalogTable]
+  with StreamableDescriptor[ExternalCatalogTable] {
 
   // for backwards-compatibility a table is a source by default
   private var isSource: Boolean = true

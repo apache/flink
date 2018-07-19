@@ -84,6 +84,8 @@ object TableFactoryUtil {
     }
   }
 
+  // ----------------------------------------------------------------------------------------------
+
   private def asJavaMap(descriptor: Descriptor): util.Map[String, String] = {
     val descriptorProperties = new DescriptorProperties()
     descriptor.addProperties(descriptorProperties)

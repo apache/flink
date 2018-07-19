@@ -21,12 +21,15 @@ package org.apache.flink.table.descriptors
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.factories.TableFactoryUtil
 
-class ConnectTableDescriptor[D >: ConnectTableDescriptor[D]](
+/**
+  * Common class for table's created with [[TableEnvironment.connect(ConnectorDescriptor)]].
+  */
+abstract class ConnectTableDescriptor[D <: ConnectTableDescriptor[D]](
     private val tableEnv: TableEnvironment,
     private val connectorDescriptor: ConnectorDescriptor)
   extends TableDescriptor
-  with SchematicDescriptor
-  with RegistrableDescriptor {
+  with SchematicDescriptor[D]
+  with RegistrableDescriptor { this: D =>
 
   private var formatDescriptor: Option[FormatDescriptor] = None
   private var schemaDescriptor: Option[Schema] = None
