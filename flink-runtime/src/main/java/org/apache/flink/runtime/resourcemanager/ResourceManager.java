@@ -1012,7 +1012,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 			validateRunsInMainThread();
-			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
 
 			JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 			if (jobManagerRegistration != null) {
