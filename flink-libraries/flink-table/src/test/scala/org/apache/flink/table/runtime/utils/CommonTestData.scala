@@ -80,11 +80,12 @@ object CommonTestData {
       .field("a", Types.INT)
       .field("b", Types.LONG)
       .field("c", Types.STRING)
-    val externalCatalogTable1 = new ExternalCatalogTable(
-      connDesc1, Some(formatDesc1), Some(schemaDesc1), None, None)
+    val externalTableBuilder1 = ExternalCatalogTable.builder(connDesc1)
+      .withFormat(formatDesc1)
+      .withSchema(schemaDesc1)
 
     if (isStreaming) {
-      externalCatalogTable1.inAppendMode()
+      externalTableBuilder1.inAppendMode()
     }
 
     val csvRecord2 = Seq(
@@ -120,11 +121,12 @@ object CommonTestData {
       .field("f", Types.INT)
       .field("g", Types.STRING)
       .field("h", Types.LONG)
-    val externalCatalogTable2 = new ExternalCatalogTable(
-      connDesc2, Some(formatDesc2), Some(schemaDesc2), None, None)
+    val externalTableBuilder2 = ExternalCatalogTable.builder(connDesc2)
+      .withFormat(formatDesc2)
+      .withSchema(schemaDesc2)
 
     if (isStreaming) {
-      externalCatalogTable2.inAppendMode()
+      externalTableBuilder2.inAppendMode()
     }
 
     val catalog = new InMemoryExternalCatalog("test")
@@ -134,9 +136,9 @@ object CommonTestData {
     catalog.createSubCatalog("db2", db2, ignoreIfExists = false)
 
     // Register the table with both catalogs
-    catalog.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
-    db1.createTable("tb1", externalCatalogTable1, ignoreIfExists = false)
-    db2.createTable("tb2", externalCatalogTable2, ignoreIfExists = false)
+    catalog.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
+    db1.createTable("tb1", externalTableBuilder1.asTableSource(), ignoreIfExists = false)
+    db2.createTable("tb2", externalTableBuilder2.asTableSource(), ignoreIfExists = false)
     catalog
   }
 

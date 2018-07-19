@@ -1287,6 +1287,12 @@ object DescriptorProperties {
       .mkString("\n")
   }
 
+  def toJavaMap(descriptor: Descriptor): util.Map[String, String] = {
+    val descriptorProperties = new DescriptorProperties()
+    descriptor.addProperties(descriptorProperties)
+    descriptorProperties.asMap
+  }
+
   // the following methods help for Scala <-> Java interfaces
   // most of these methods are not necessary once we upgraded to Scala 2.12
 

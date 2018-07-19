@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.factories
 
-import java.util
-
 import org.apache.flink.table.api.{BatchTableEnvironment, StreamTableEnvironment, TableEnvironment, TableException}
 import org.apache.flink.table.descriptors.{Descriptor, DescriptorProperties}
 import org.apache.flink.table.sinks.TableSink
@@ -38,7 +36,7 @@ object TableFactoryUtil {
       descriptor: Descriptor)
     : TableSource[T] = {
 
-    val javaMap = asJavaMap(descriptor)
+    val javaMap = DescriptorProperties.toJavaMap(descriptor)
 
     tableEnvironment match {
       case _: BatchTableEnvironment =>
@@ -47,7 +45,6 @@ object TableFactoryUtil {
           .createBatchTableSource(javaMap)
 
       case _: StreamTableEnvironment =>
-        val javaMap = asJavaMap(descriptor)
         TableFactoryService
           .find(classOf[StreamTableSourceFactory[T]], javaMap)
           .createStreamTableSource(javaMap)
@@ -65,7 +62,7 @@ object TableFactoryUtil {
       descriptor: Descriptor)
     : TableSink[T] = {
 
-    val javaMap = asJavaMap(descriptor)
+    val javaMap = DescriptorProperties.toJavaMap(descriptor)
 
     tableEnvironment match {
       case _: BatchTableEnvironment =>
@@ -74,7 +71,6 @@ object TableFactoryUtil {
           .createBatchTableSink(javaMap)
 
       case _: StreamTableEnvironment =>
-        val javaMap = asJavaMap(descriptor)
         TableFactoryService
           .find(classOf[StreamTableSinkFactory[T]], javaMap)
           .createStreamTableSink(javaMap)
@@ -82,13 +78,5 @@ object TableFactoryUtil {
       case e@_ =>
         throw new TableException(s"Unsupported table environment: ${e.getClass.getName}")
     }
-  }
-
-  // ----------------------------------------------------------------------------------------------
-
-  private def asJavaMap(descriptor: Descriptor): util.Map[String, String] = {
-    val descriptorProperties = new DescriptorProperties()
-    descriptor.addProperties(descriptorProperties)
-    descriptorProperties.asMap
   }
 }

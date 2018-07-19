@@ -87,8 +87,8 @@ abstract class DescriptorTestBase {
 
 class TestTableDescriptor(connector: ConnectorDescriptor)
   extends TableDescriptor
-  with SchematicDescriptor
-  with StreamableDescriptor {
+  with SchematicDescriptor[TestTableDescriptor]
+  with StreamableDescriptor[TestTableDescriptor] {
 
   private var formatDescriptor: Option[FormatDescriptor] = None
   private var schemaDescriptor: Option[Schema] = None
