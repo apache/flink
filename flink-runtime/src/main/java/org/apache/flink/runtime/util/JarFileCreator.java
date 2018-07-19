@@ -23,9 +23,10 @@ import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
 import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -190,7 +191,7 @@ public class JarFileCreator {
 			this.outputFile.delete();
 		}
 
-		try ( FileOutputStream fos = new FileOutputStream(this.outputFile); JarOutputStream jos = new JarOutputStream(fos, new Manifest())) {
+		try (OutputStream fos = Files.newOutputStream(this.outputFile.toPath()); JarOutputStream jos = new JarOutputStream(fos, new Manifest())) {
 			final Iterator<Class<?>> it = this.classSet.iterator();
 			while (it.hasNext()) {
 

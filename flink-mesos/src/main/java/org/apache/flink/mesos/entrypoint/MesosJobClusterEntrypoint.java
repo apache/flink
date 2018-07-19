@@ -55,10 +55,11 @@ import org.apache.commons.cli.PosixParser;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.nio.file.Files;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -154,7 +155,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 		String jobGraphFile = configuration.getString(JOB_GRAPH_FILE_PATH, "job.graph");
 		File fp = new File(jobGraphFile);
 
-		try (FileInputStream input = new FileInputStream(fp);
+		try (InputStream input = Files.newInputStream(fp.toPath());
 			ObjectInputStream obInput = new ObjectInputStream(input)) {
 
 			return (JobGraph) obInput.readObject();

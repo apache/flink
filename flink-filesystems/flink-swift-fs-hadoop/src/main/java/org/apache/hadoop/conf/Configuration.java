@@ -57,6 +57,7 @@ import java.net.InetSocketAddress;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -2564,7 +2565,7 @@ public class Configuration implements Iterable<Entry<String,String>>,
             LOG.debug("parsing File " + file);
           }
           doc = parse(builder, new BufferedInputStream(
-              new FileInputStream(file)), ((Path)resource).toString());
+			  Files.newInputStream(file.toPath())), ((Path)resource).toString());
         }
       } else if (resource instanceof InputStream) {
         doc = parse(builder, (InputStream) resource, null);

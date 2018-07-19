@@ -36,8 +36,9 @@ import org.apache.flink.util.Preconditions;
 import org.junit.Test;
 
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
+import java.io.File;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 			final Integer namespace3 = 3;
 
 			final SnapshotResult<KeyedStateHandle> stateHandles;
-			try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
+			try (BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(new File(resource.getFile()).toPath()))) {
 				stateHandles = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
 			}
 
@@ -226,7 +227,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 
 		try (final HeapKeyedStateBackend<String> keyedBackend = createKeyedBackend()) {
 			final KeyGroupsStateHandle stateHandle;
-			try (BufferedInputStream bis = new BufferedInputStream((new FileInputStream(resource.getFile())))) {
+			try (BufferedInputStream bis = new BufferedInputStream((Files.newInputStream(new File(resource.getFile()).toPath())))) {
 				stateHandle = InstantiationUtil.deserializeObject(bis, Thread.currentThread().getContextClassLoader());
 			}
 			keyedBackend.restore(StateObjectCollection.singleton(stateHandle));

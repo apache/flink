@@ -18,7 +18,8 @@
 
 package org.apache.flink.api.scala
 
-import java.io.{BufferedReader, File, FileOutputStream}
+import java.io.{BufferedReader, File}
+import java.nio.file.Files
 
 import org.apache.flink.api.java.{JarHelper, ScalaShellRemoteEnvironment, ScalaShellRemoteStreamEnvironment}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -179,7 +180,7 @@ class FlinkILoop(
 
           // compiled classes for commands from shell
           val writeFile = new File(lineDir.getAbsolutePath, f.name)
-          val outputStream = new FileOutputStream(writeFile)
+          val outputStream = Files.newOutputStream(writeFile.toPath)
           val inputStream = f.input
 
           // copy file contents

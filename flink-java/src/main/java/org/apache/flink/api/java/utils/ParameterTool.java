@@ -27,14 +27,13 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.lang3.math.NumberUtils;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -172,7 +171,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		if (!file.exists()) {
 			throw new FileNotFoundException("Properties file " + file.getAbsolutePath() + " does not exist");
 		}
-		try (FileInputStream fis = new FileInputStream(file)) {
+		try (InputStream fis = Files.newInputStream(file.toPath())) {
 			return fromPropertiesFile(fis);
 		}
 	}
@@ -569,7 +568,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		}
 		Properties defaultProps = new Properties();
 		defaultProps.putAll(this.defaultData);
-		try (final OutputStream out = new FileOutputStream(file)) {
+		try (final OutputStream out = Files.newOutputStream(file.toPath())) {
 			defaultProps.store(out, "Default file created by Flink's ParameterUtil.createPropertiesFile()");
 		}
 	}

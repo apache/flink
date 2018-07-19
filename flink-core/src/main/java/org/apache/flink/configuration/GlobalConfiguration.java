@@ -28,9 +28,9 @@ import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration
@@ -160,7 +160,7 @@ public final class GlobalConfiguration {
 	private static Configuration loadYAMLResource(File file) {
 		final Configuration config = new Configuration();
 
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(file.toPath())))){
 
 			String line;
 			int lineNo = 0;

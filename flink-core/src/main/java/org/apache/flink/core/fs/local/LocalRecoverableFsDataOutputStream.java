@@ -25,7 +25,6 @@ import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
@@ -170,8 +169,8 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 				if (src.length() > expectedLength) {
 					// can happen if we co from persist to recovering for commit directly
 					// truncate the trailing junk away
-					try (FileOutputStream fos = new FileOutputStream(src, true)) {
-						fos.getChannel().truncate(expectedLength);
+					try (FileChannel channel = FileChannel.open(src.toPath(), StandardOpenOption.APPEND)) {
+						channel.truncate(expectedLength);
 					}
 				} else if (src.length() < expectedLength) {
 					throw new IOException("Missing data in tmp file: " + src);

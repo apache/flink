@@ -37,8 +37,9 @@ import org.junit.rules.ExpectedException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.File;
+import java.nio.file.Files;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -165,8 +166,8 @@ public class KryoSerializerCompatibilityTest {
 				new KryoSerializer<>(FakeAvroClass.class, executionConfig);
 
 			try (
-				FileInputStream f = new FileInputStream("src/test/resources/type-with-avro-serialized-using-kryo");
-				DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
+				InputStream inputStream = Files.newInputStream(new File("src/test/resources/type-with-avro-serialized-using-kryo").toPath());
+				DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream)) {
 
 				thrown.expectMessage("Could not find required Avro dependency");
 				kryoSerializer.deserialize(inputView);
@@ -217,8 +218,8 @@ public class KryoSerializerCompatibilityTest {
 				new KryoSerializer<>(FakeClass.class, executionConfig);
 
 			try (
-				FileInputStream f = new FileInputStream("src/test/resources/type-without-avro-serialized-using-kryo");
-				DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
+				InputStream inputStream = Files.newInputStream(new File("src/test/resources/type-without-avro-serialized-using-kryo").toPath());
+				DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream)) {
 
 				FakeClass myTestClass = kryoSerializer.deserialize(inputView);
 

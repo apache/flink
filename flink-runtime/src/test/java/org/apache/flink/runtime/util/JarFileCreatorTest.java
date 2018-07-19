@@ -36,8 +36,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.jar.JarInputStream;
@@ -261,7 +261,7 @@ public class JarFileCreatorTest {
 
 	private boolean validate(Set<String> expected, File out) throws IOException {
 		int count = expected.size();
-		try (JarInputStream jis = new JarInputStream(new FileInputStream(out))) {
+		try (JarInputStream jis = new JarInputStream(Files.newInputStream(out.toPath()))) {
 			ZipEntry ze;
 			while ((ze = jis.getNextEntry()) != null) {
 				count--;

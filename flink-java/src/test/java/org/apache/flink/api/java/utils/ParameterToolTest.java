@@ -26,12 +26,13 @@ import org.junit.rules.ExpectedException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -140,7 +141,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		Assert.assertEquals(2, parameter.getNumberOfParameters());
 		validate(parameter);
 
-		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+		try (InputStream fis = Files.newInputStream(propertiesFile.toPath())) {
 			parameter = ParameterTool.fromPropertiesFile(fis);
 		}
 		Assert.assertEquals(2, parameter.getNumberOfParameters());

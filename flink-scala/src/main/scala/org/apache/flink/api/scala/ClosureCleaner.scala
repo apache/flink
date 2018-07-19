@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala
 
 import java.io._
+import java.nio.channels.{Channels, FileChannel}
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
@@ -26,7 +27,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
-
 import org.apache.flink.shaded.asm5.org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
 import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes._
 
@@ -196,8 +196,8 @@ object ClosureCleaner {
     try {
       if (in.isInstanceOf[FileInputStream] && out.isInstanceOf[FileOutputStream]) {
         // When both streams are File stream, use transferTo to improve copy performance.
-        val inChannel = in.asInstanceOf[FileInputStream].getChannel()
-        val outChannel = out.asInstanceOf[FileOutputStream].getChannel()
+        val inChannel = Channels.newChannel(in).asInstanceOf[FileChannel]
+        val outChannel = Channels.newChannel(out).asInstanceOf[FileChannel]
         val size = inChannel.size()
 
         // In case transferTo method transferred less data than we have required.

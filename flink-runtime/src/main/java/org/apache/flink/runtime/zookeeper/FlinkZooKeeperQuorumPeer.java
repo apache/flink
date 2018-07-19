@@ -33,10 +33,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
@@ -97,7 +97,7 @@ public class FlinkZooKeeperQuorumPeer {
 
 		Properties zkProps = new Properties();
 
-		try (InputStream inStream = new FileInputStream(new File(zkConfigFile))) {
+		try (InputStream inStream = Files.newInputStream(new File(zkConfigFile).toPath())) {
 			zkProps.load(inStream);
 		}
 

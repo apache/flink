@@ -109,9 +109,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -829,8 +830,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			if (file.exists()) {
 				final TransientBlobCache transientBlobService = blobCacheService.getTransientBlobService();
 				final TransientBlobKey transientBlobKey;
-				try (FileInputStream fileInputStream = new FileInputStream(file)) {
-					transientBlobKey = transientBlobService.putTransient(fileInputStream);
+				try (InputStream inputStream = Files.newInputStream(file.toPath())) {
+					transientBlobKey = transientBlobService.putTransient(inputStream);
 				} catch (IOException e) {
 					log.debug("Could not upload file {}.", fileType, e);
 					return FutureUtils.completedExceptionally(new FlinkException("Could not upload file " + fileType + '.', e));

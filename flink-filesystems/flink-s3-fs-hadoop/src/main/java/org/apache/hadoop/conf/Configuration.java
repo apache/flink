@@ -61,7 +61,6 @@ import java.io.BufferedInputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -74,6 +73,7 @@ import java.net.InetSocketAddress;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -2596,7 +2596,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
             LOG.debug("parsing File " + file);
           }
           doc = parse(builder, new BufferedInputStream(
-              new FileInputStream(file)), ((Path)resource).toString());
+			  Files.newInputStream(file.toPath())), ((Path)resource).toString());
         }
       } else if (resource instanceof InputStream) {
         doc = parse(builder, (InputStream) resource, null);

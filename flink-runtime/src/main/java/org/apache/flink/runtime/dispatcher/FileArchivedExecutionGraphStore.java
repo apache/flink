@@ -45,10 +45,11 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -230,8 +231,8 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 		final File archivedExecutionGraphFile = getExecutionGraphFile(jobId);
 
 		if (archivedExecutionGraphFile.exists()) {
-			try (FileInputStream fileInputStream = new FileInputStream(archivedExecutionGraphFile)) {
-				return InstantiationUtil.deserializeObject(fileInputStream, getClass().getClassLoader());
+			try (InputStream inputStream = Files.newInputStream(archivedExecutionGraphFile.toPath())) {
+				return InstantiationUtil.deserializeObject(inputStream, getClass().getClassLoader());
 			}
 		} else {
 			throw new FileNotFoundException("Could not find file for archived execution graph " + jobId +
@@ -242,8 +243,8 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
 	private void storeArchivedExecutionGraph(ArchivedExecutionGraph archivedExecutionGraph) throws IOException {
 		final File archivedExecutionGraphFile = getExecutionGraphFile(archivedExecutionGraph.getJobID());
 
-		try (FileOutputStream fileOutputStream = new FileOutputStream(archivedExecutionGraphFile)) {
-			InstantiationUtil.serializeObject(fileOutputStream, archivedExecutionGraph);
+		try (OutputStream outputStream = Files.newOutputStream(archivedExecutionGraphFile.toPath())) {
+			InstantiationUtil.serializeObject(outputStream, archivedExecutionGraph);
 		}
 	}
 

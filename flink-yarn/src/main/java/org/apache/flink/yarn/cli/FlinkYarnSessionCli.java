@@ -64,8 +64,6 @@ import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -73,6 +71,7 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -235,7 +234,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		if (yarnPropertiesLocation.exists()) {
 			LOG.info("Found Yarn properties file under {}.", yarnPropertiesLocation.getAbsolutePath());
 
-			try (InputStream is = new FileInputStream(yarnPropertiesLocation)) {
+			try (InputStream is = Files.newInputStream(yarnPropertiesLocation.toPath())) {
 				yarnPropertiesFile.load(is);
 			} catch (IOException ioe) {
 				throw new FlinkException("Could not read the Yarn properties file " + yarnPropertiesLocation +
@@ -932,7 +931,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	private static void writeYarnProperties(Properties properties, File propertiesFile) {
-		try (final OutputStream out = new FileOutputStream(propertiesFile)) {
+		try (final OutputStream out = Files.newOutputStream(propertiesFile.toPath())) {
 			properties.store(out, "Generated YARN properties file");
 		} catch (IOException e) {
 			throw new RuntimeException("Error writing the properties file", e);

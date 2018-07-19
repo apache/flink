@@ -43,10 +43,10 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.StringUtils;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -91,7 +91,7 @@ public class PlanJSONDumpGenerator {
 	public void dumpOptimizerPlanAsJSON(OptimizedPlan plan, File toFile) throws IOException {
 		PrintWriter pw = null;
 		try {
-			pw = new PrintWriter(new FileOutputStream(toFile), false);
+			pw = new PrintWriter(Files.newOutputStream(toFile.toPath()), false);
 			dumpOptimizerPlanAsJSON(plan, pw);
 			pw.flush();
 		} finally {

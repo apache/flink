@@ -26,13 +26,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -253,7 +252,7 @@ class BlobServerConnection extends Thread {
 				int blobLen = (int) blobFile.length();
 				writeLength(blobLen, outputStream);
 
-				try (FileInputStream fis = new FileInputStream(blobFile)) {
+				try (InputStream fis = Files.newInputStream(blobFile.toPath())) {
 					int bytesRemaining = blobLen;
 					while (bytesRemaining > 0) {
 						int read = fis.read(buf);
@@ -398,7 +397,7 @@ class BlobServerConnection extends Thread {
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
-		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
+		try (OutputStream fos = Files.newOutputStream(incomingFile.toPath())) {
 			while (true) {
 				final int bytesExpected = readLength(inputStream);
 				if (bytesExpected == -1) {

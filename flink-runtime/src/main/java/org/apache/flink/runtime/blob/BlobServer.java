@@ -40,8 +40,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -631,7 +633,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		File incomingFile = createTemporaryFilename();
 		MessageDigest md = BlobUtils.createMessageDigest();
 		BlobKey blobKey = null;
-		try (FileOutputStream fos = new FileOutputStream(incomingFile)) {
+		try (OutputStream fos = Files.newOutputStream(incomingFile.toPath())) {
 			// read stream
 			byte[] buf = new byte[BUFFER_SIZE];
 			while (true) {

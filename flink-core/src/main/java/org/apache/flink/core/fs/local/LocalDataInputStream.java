@@ -24,9 +24,10 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 
 /**
  * The <code>LocalDataInputStream</code> class is a wrapper class for a data
@@ -36,7 +37,7 @@ import java.nio.channels.FileChannel;
 public class LocalDataInputStream extends FSDataInputStream {
 
 	/** The file input stream used to read data from.*/
-	private final FileInputStream fis;
+	private final InputStream fis;
 	private final FileChannel fileChannel;
 
 	/**
@@ -47,8 +48,8 @@ public class LocalDataInputStream extends FSDataInputStream {
 	 * @throws IOException Thrown if the data input stream cannot be created.
 	 */
 	public LocalDataInputStream(File file) throws IOException {
-		this.fis = new FileInputStream(file);
-		this.fileChannel = fis.getChannel();
+		this.fis = Files.newInputStream(file.toPath());
+		this.fileChannel = FileChannel.open(file.toPath());
 	}
 
 	@Override

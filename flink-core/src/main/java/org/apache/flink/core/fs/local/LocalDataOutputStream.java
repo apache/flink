@@ -22,8 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 /**
  * The <code>LocalDataOutputStream</code> class is a wrapper class for a data
@@ -33,7 +36,10 @@ import java.io.IOException;
 public class LocalDataOutputStream extends FSDataOutputStream {
 
 	/** The file output stream used to write data.*/
-	private final FileOutputStream fos;
+	private final OutputStream fos;
+
+	/** The file channel used to manipulate file.*/
+	private final FileChannel fileChannel;
 
 	/**
 	 * Constructs a new <code>LocalDataOutputStream</code> object from a given {@link File} object.
@@ -44,7 +50,8 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 	 *         thrown if the data output stream cannot be created
 	 */
 	public LocalDataOutputStream(final File file) throws IOException {
-		this.fos = new FileOutputStream(file);
+		this.fos = Files.newOutputStream(file.toPath());
+		fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.SYNC);
 	}
 
 	@Override
@@ -69,11 +76,11 @@ public class LocalDataOutputStream extends FSDataOutputStream {
 
 	@Override
 	public void sync() throws IOException {
-		fos.getFD().sync();
+
 	}
 
 	@Override
 	public long getPos() throws IOException {
-		return fos.getChannel().position();
+		return fileChannel.position();
 	}
 }

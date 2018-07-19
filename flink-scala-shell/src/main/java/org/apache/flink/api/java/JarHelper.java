@@ -20,10 +20,10 @@ package org.apache.flink.api.java;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
@@ -76,7 +76,7 @@ public class JarHelper {
 		}
 
 		mDestJarName = destJar.getCanonicalPath();
-		FileOutputStream fout = new FileOutputStream(destJar);
+		OutputStream fout = Files.newOutputStream(destJar.toPath());
 		JarOutputStream jout = new JarOutputStream(fout);
 		//jout.setLevel(0);
 		try {
@@ -94,7 +94,7 @@ public class JarHelper {
 	 */
 	public void unjarDir(File jarFile, File destDir) throws IOException {
 		BufferedOutputStream dest = null;
-		FileInputStream fis = new FileInputStream(jarFile);
+		InputStream fis = Files.newInputStream(jarFile.toPath());
 		unjar(fis, destDir);
 	}
 
@@ -122,7 +122,7 @@ public class JarHelper {
 				System.out.println("unjarring " + destFile +
 					" from " + entry.getName());
 			}
-			FileOutputStream fos = new FileOutputStream(destFile);
+			OutputStream fos = Files.newOutputStream(destFile.toPath());
 			dest = new BufferedOutputStream(fos, BUFFER_SIZE);
 			try {
 				while ((count = jis.read(data, 0, BUFFER_SIZE)) != -1) {
@@ -181,7 +181,7 @@ public class JarHelper {
 			if (mVerbose) {
 				System.out.println("adding " + dirOrFile2jar.getPath());
 			}
-			FileInputStream fis = new FileInputStream(dirOrFile2jar);
+			InputStream fis = Files.newInputStream(dirOrFile2jar.toPath());
 			try {
 				JarEntry entry = new JarEntry(path + dirOrFile2jar.getName());
 				entry.setTime(dirOrFile2jar.lastModified());

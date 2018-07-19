@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -100,7 +99,7 @@ public class FileSystemBlobStore implements BlobStoreService {
 
 		boolean success = false;
 		try (InputStream is = fileSystem.open(fromPath);
-			FileOutputStream fos = new FileOutputStream(toFile)) {
+			OutputStream fos = java.nio.file.Files.newOutputStream(toFile.toPath())) {
 			LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
 
 			// not using IOUtils.copyBytes(is, fos) here to be able to create a hash on-the-fly

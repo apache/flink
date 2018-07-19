@@ -41,8 +41,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -173,7 +173,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 			din = new DataInputStream(
 				new BufferedInputStream(
-					new FileInputStream(allPartitions.get(subtaskIdx))));
+					Files.newInputStream(allPartitions.get(subtaskIdx).toPath())));
 		}
 
 		@Override

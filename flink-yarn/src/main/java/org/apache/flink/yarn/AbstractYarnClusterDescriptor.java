@@ -77,9 +77,9 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -889,8 +889,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
 				fp.deleteOnExit();
-				try (FileOutputStream output = new FileOutputStream(fp);
-					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
+				try (OutputStream output = Files.newOutputStream(fp.toPath());
+					ObjectOutputStream obOutput = new ObjectOutputStream(output)){
 					obOutput.writeObject(jobGraph);
 				}
 
