@@ -83,13 +83,13 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 			} else {
 				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
 
-				StateDescriptor stateDescriptor = KvStateSerializer.deserializeStateDescriptor(request.getSerializedStateDescriptor());
-				InternalKvState state = kvState.getState();
+				StateDescriptor<?, ?> requestStateDescriptor = KvStateSerializer.deserializeStateDescriptor(request.getSerializedStateDescriptor());
+				StateDescriptor<?, ?> registStateDescriptor = kvState.getStateDescriptor();
 
-				Preconditions.checkArgument(stateDescriptor.getType().equals(state.getStateType()),
-					"State type mismatch, need[" + state.getStateType() + "] gotten[" + stateDescriptor.getType() + "]");
-				Preconditions.checkArgument(stateDescriptor.getSerializer().equals(state.getValueSerializer()),
-					"State value serializer mismatch, need [" + state.getValueSerializer() + "] gotten[" + stateDescriptor.getSerializer() + "]");
+				Preconditions.checkArgument(requestStateDescriptor.getType().equals(registStateDescriptor.getType()),
+					"State type mismatch, need[" + registStateDescriptor.getType() + "] gotten[" + requestStateDescriptor.getType() + "]");
+				Preconditions.checkArgument(requestStateDescriptor.getSerializer().equals(registStateDescriptor.getSerializer()),
+					"State value serializer mismatch, need [" + registStateDescriptor.getSerializer() + "] gotten[" + requestStateDescriptor.getSerializer() + "]");
 
 				byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
 				if (serializedResult != null) {

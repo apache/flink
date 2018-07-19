@@ -20,7 +20,6 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -307,15 +306,16 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		// Failing KvState
 		InternalKvState<Integer, VoidNamespace, Long> kvState = getFailingState();
+		ValueStateDescriptor<Long> descriptor = new ValueStateDescriptor("test", LongSerializer.INSTANCE);
 
 		KvStateID kvStateId = registry.registerKvState(
 				new JobID(),
 				new JobVertexID(),
 				new KeyGroupRange(0, 0),
 				"vanilla",
-				kvState);
+				kvState,
+				descriptor);
 
-		ValueStateDescriptor<Long> descriptor = new ValueStateDescriptor("test", LongSerializer.INSTANCE);
 		KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0], KvStateSerializer.serializedStateDescriptor(descriptor));
 		ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), 282872L, request);
 
@@ -348,16 +348,18 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		// Failing KvState
 		InternalKvState<Integer, VoidNamespace, Long> kvState = getFailingState();
+		ValueStateDescriptor<Long> registDescriptor = new ValueStateDescriptor("regist", LongSerializer.INSTANCE);
 
 		KvStateID kvStateId = registry.registerKvState(
 			new JobID(),
 			new JobVertexID(),
 			new KeyGroupRange(0, 0),
 			"vanilla",
-			kvState);
+			kvState,
+			registDescriptor);
 
-		ListStateDescriptor<Long> descriptor = new ListStateDescriptor("test", LongSerializer.INSTANCE);
-		KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0], KvStateSerializer.serializedStateDescriptor(descriptor));
+		ListStateDescriptor<Long> requestdescriptor = new ListStateDescriptor("test", LongSerializer.INSTANCE);
+		KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0], KvStateSerializer.serializedStateDescriptor(requestdescriptor));
 		ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), 282872L, request);
 
 		// Write the request and wait for the response
@@ -390,15 +392,17 @@ public class KvStateServerHandlerTest extends TestLogger {
 		// Failing KvState
 		InternalKvState<Integer, VoidNamespace, Long> kvState = getFailingState();
 
+		ValueStateDescriptor<Long> registDescriptor = new ValueStateDescriptor("test", LongSerializer.INSTANCE);
 		KvStateID kvStateId = registry.registerKvState(
 			new JobID(),
 			new JobVertexID(),
 			new KeyGroupRange(0, 0),
 			"vanilla",
-			kvState);
+			kvState,
+			registDescriptor);
 
-		ValueStateDescriptor<Long> descriptor = new ValueStateDescriptor("test", IntSerializer.INSTANCE);
-		KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0], KvStateSerializer.serializedStateDescriptor(descriptor));
+		ValueStateDescriptor<Long> requestDescriptor = new ValueStateDescriptor("test", IntSerializer.INSTANCE);
+		KvStateInternalRequest request = new KvStateInternalRequest(kvStateId, new byte[0], KvStateSerializer.serializedStateDescriptor(requestDescriptor));
 		ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), 282872L, request);
 
 		// Write the request and wait for the response
@@ -860,11 +864,6 @@ public class KvStateServerHandlerTest extends TestLogger {
 				@Override
 				public void clear() {
 
-				}
-
-				@Override
-				public StateDescriptor.Type getStateType() {
-					return StateDescriptor.Type.VALUE;
 				}
 			};
 		return kvState;

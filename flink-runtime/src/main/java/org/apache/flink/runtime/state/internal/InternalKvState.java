@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
@@ -106,6 +105,4 @@ public interface InternalKvState<K, N, V> extends State {
 			final TypeSerializer<K> safeKeySerializer,
 			final TypeSerializer<N> safeNamespaceSerializer,
 			final TypeSerializer<V> safeValueSerializer) throws Exception;
-
-	StateDescriptor.Type getStateType();
 }

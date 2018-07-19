@@ -23,8 +23,6 @@ USAGE="Usage: standalone-job.sh ((start|start-foreground))|stop"
 STARTSTOP=$1
 ENTRY_POINT_NAME="standalonejob"
 
-ARGS=("${@:2}")
-
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] || [[ -z JOB_CLASSNAME ]]; then
   echo $USAGE
   exit 1
@@ -34,6 +32,9 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
+
+# Startup parameters
+ARGS=("--configDir" "${FLINK_CONF_DIR}" "${@:2}")
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     if [ ! -z "${FLINK_JM_HEAP_MB}" ] && [ "${FLINK_JM_HEAP}" == 0 ]; then
@@ -54,9 +55,6 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # Add cluster entry point specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
-
-    # Startup parameters
-    ARGS+=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then

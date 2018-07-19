@@ -102,9 +102,4 @@ class HeapValueState<K, N, V>
 			stateTable.getNamespaceSerializer(),
 			stateDesc.getDefaultValue());
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.VALUE;
-	}
 }

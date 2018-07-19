@@ -277,7 +277,7 @@ public final class KvStateSerializer {
 	 * @return The serialized values
 	 * @throws IOException On failure during serialization
 	 */
-	public static byte[] serializedStateDescriptor(StateDescriptor stateDescriptor) throws IOException {
+	public static byte[] serializedStateDescriptor(StateDescriptor<?, ?> stateDescriptor) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		ObjectOutputStream out = new ObjectOutputStream(bos);
 		out.writeObject(stateDescriptor);
@@ -295,15 +295,13 @@ public final class KvStateSerializer {
 	 * @throws IOException On failure during deserialization
 	 * @throws ClassNotFoundException on failure during deserialization
 	 */
-	public static StateDescriptor deserializeStateDescriptor(byte[] serializedValue) throws IOException, ClassNotFoundException {
+	public static StateDescriptor<?, ?> deserializeStateDescriptor(byte[] serializedValue) throws IOException, ClassNotFoundException {
 		if (serializedValue == null) {
 			return null;
 		}
 
 		ByteArrayInputStream bis = new ByteArrayInputStream(serializedValue);
 		ObjectInputStream in = new ObjectInputStream(bis);
-		StateDescriptor descriptor = (StateDescriptor) in.readObject();
-
-		return descriptor;
+		return (StateDescriptor<?, ?>) in.readObject();
 	}
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -81,15 +82,16 @@ public class KvStateRegistry {
 	 * @return Assigned KvStateID
 	 */
 	public KvStateID registerKvState(
-			JobID jobId,
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName,
-			InternalKvState<?, ?, ?> kvState) {
+		JobID jobId,
+		JobVertexID jobVertexId,
+		KeyGroupRange keyGroupRange,
+		String registrationName,
+		InternalKvState<?, ?, ?> kvState,
+		StateDescriptor<?, ?> stateDescriptor) {
 
 		KvStateID kvStateId = new KvStateID();
 
-		if (registeredKvStates.putIfAbsent(kvStateId, new KvStateEntry<>(kvState)) == null) {
+		if (registeredKvStates.putIfAbsent(kvStateId, new KvStateEntry(kvState, stateDescriptor)) == null) {
 			final KvStateRegistryListener listener = getKvStateRegistryListener(jobId);
 
 			if (listener != null) {

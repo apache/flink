@@ -57,9 +57,4 @@ class MockInternalAggregatingState<K, N, IN, ACC, OUT>
 			(AggregatingStateDescriptor<IN, ACC, OUT>) stateDesc;
 		return (IS) new MockInternalAggregatingState<>(aggregatingStateDesc.getAggregateFunction());
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.AGGREGATING;
-	}
 }

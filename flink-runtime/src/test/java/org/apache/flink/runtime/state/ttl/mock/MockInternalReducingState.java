@@ -56,9 +56,4 @@ class MockInternalReducingState<K, N, T>
 		ReducingStateDescriptor<T> reducingStateDesc = (ReducingStateDescriptor<T>) stateDesc;
 		return (IS) new MockInternalReducingState<>(reducingStateDesc.getReduceFunction());
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.REDUCING;
-	}
 }

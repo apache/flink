@@ -134,9 +134,4 @@ class HeapFoldingState<K, N, T, ACC>
 			stateDesc.getDefaultValue(),
 			((FoldingStateDescriptor<SV, SV>) stateDesc).getFoldFunction());
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.FOLDING;
-	}
 }

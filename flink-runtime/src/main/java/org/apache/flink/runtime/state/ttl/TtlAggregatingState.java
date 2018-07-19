@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfiguration;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -78,10 +77,5 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 	@Override
 	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
 		original.mergeNamespaces(target, sources);
-	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.AGGREGATING;
 	}
 }

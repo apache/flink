@@ -60,7 +60,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -76,7 +75,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -129,7 +127,7 @@ public class DispatcherTest extends TestLogger {
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
-	private FailableSubmittedJobGraphStore submittedJobGraphStore;
+	private FaultySubmittedJobGraphStore submittedJobGraphStore;
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
 
@@ -169,7 +167,7 @@ public class DispatcherTest extends TestLogger {
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
-		submittedJobGraphStore = new FailableSubmittedJobGraphStore();
+		submittedJobGraphStore = new FaultySubmittedJobGraphStore();
 
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		jobMasterLeaderElectionService = new TestingLeaderElectionService();
@@ -614,22 +612,4 @@ public class DispatcherTest extends TestLogger {
 		}
 	}
 
-	private static final class FailableSubmittedJobGraphStore extends InMemorySubmittedJobGraphStore {
-
-		@Nullable
-		private Exception recoveryFailure = null;
-
-		void setRecoveryFailure(@Nullable Exception recoveryFailure) {
-			this.recoveryFailure = recoveryFailure;
-		}
-
-		@Override
-		public synchronized SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
-			if (recoveryFailure != null) {
-				throw recoveryFailure;
-			} else {
-				return super.recoverJobGraph(jobId);
-			}
-		}
-	}
 }

@@ -52,9 +52,4 @@ class MockInternalFoldingState<K, N, T, ACC>
 		FoldingStateDescriptor<T, ACC> foldingStateDesc = (FoldingStateDescriptor<T, ACC>) stateDesc;
 		return (IS) new MockInternalFoldingState<>(foldingStateDesc.getFoldFunction());
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.FOLDING;
-	}
 }

@@ -625,9 +625,4 @@ class RocksDBMapState<K, N, UK, UV>
 			(Map<UK, UV>) stateDesc.getDefaultValue(),
 			backend);
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.MAP;
-	}
 }

@@ -267,9 +267,4 @@ class RocksDBListState<K, N, V>
 			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
 			backend);
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.LIST;
-	}
 }

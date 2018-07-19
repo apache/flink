@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.query;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.queryablestate.KvStateID;
@@ -78,7 +79,8 @@ public class KvStateRegistryTest extends TestLogger {
 				jobVertexId,
 				keyGroupRange,
 				registrationName,
-				new DummyKvState()
+				new DummyKvState(),
+				getDummyStateDescriptor()
 		);
 
 		final AtomicReference<Throwable> exceptionHolder = new AtomicReference<>();
@@ -174,7 +176,8 @@ public class KvStateRegistryTest extends TestLogger {
 			jobVertexId,
 			keyGroupRange,
 			registrationName,
-			new DummyKvState());
+			new DummyKvState(),
+			getDummyStateDescriptor());
 
 		assertThat(registeredNotifications1.poll(), equalTo(jobId1));
 		assertThat(registeredNotifications2.isEmpty(), is(true));
@@ -187,7 +190,8 @@ public class KvStateRegistryTest extends TestLogger {
 			jobVertexId2,
 			keyGroupRange2,
 			registrationName2,
-			new DummyKvState());
+			new DummyKvState(),
+			getDummyStateDescriptor());
 
 		assertThat(registeredNotifications2.poll(), equalTo(jobId2));
 		assertThat(registeredNotifications1.isEmpty(), is(true));
@@ -245,7 +249,8 @@ public class KvStateRegistryTest extends TestLogger {
 			jobVertexId,
 			keyGroupRange,
 			registrationName,
-			new DummyKvState());
+			new DummyKvState(),
+			getDummyStateDescriptor());
 
 		assertThat(stateRegistrationNotifications.poll(), equalTo(jobId));
 		// another listener should not have received any notifications
@@ -326,11 +331,6 @@ public class KvStateRegistryTest extends TestLogger {
 		@Override
 		public void clear() {
 			// noop
-		}
-
-		@Override
-		public StateDescriptor.Type getStateType() {
-			return StateDescriptor.Type.UNKNOWN;
 		}
 	}
 
@@ -415,5 +415,10 @@ public class KvStateRegistryTest extends TestLogger {
 		public CompatibilityResult<String> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
 			return null;
 		}
+	}
+
+	private ValueStateDescriptor<String> getDummyStateDescriptor() {
+		ValueStateDescriptor<String> dummyDescriptor = new ValueStateDescriptor<String>("desriptor", StringSerializer.INSTANCE);
+		return dummyDescriptor;
 	}
 }

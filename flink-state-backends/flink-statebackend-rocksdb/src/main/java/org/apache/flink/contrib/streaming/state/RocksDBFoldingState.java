@@ -113,9 +113,4 @@ class RocksDBFoldingState<K, N, T, ACC>
 			((FoldingStateDescriptor<?, SV>) stateDesc).getFoldFunction(),
 			backend);
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.FOLDING;
-	}
 }

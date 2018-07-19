@@ -125,9 +125,4 @@ class RocksDBValueState<K, N, V>
 			stateDesc.getDefaultValue(),
 			backend);
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.VALUE;
-	}
 }

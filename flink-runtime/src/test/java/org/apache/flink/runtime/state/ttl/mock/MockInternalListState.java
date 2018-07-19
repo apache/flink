@@ -73,9 +73,4 @@ class MockInternalListState<K, N, T>
 		StateDescriptor<S, T> stateDesc) {
 		return (IS) new MockInternalListState<>();
 	}
-
-	@Override
-	public StateDescriptor.Type getStateType() {
-		return StateDescriptor.Type.LIST;
-	}
 }
