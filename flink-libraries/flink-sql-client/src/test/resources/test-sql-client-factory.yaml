@@ -26,6 +26,7 @@
 tables:
   - name: TableNumber1
     type: both
+    update-mode: append
     schema:
       - name: IntegerField1
         type: INT

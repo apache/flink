@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * Common class for all descriptors describing a table source and sink together.
  */
-public class SourceSink extends TableDescriptor {
+public class SourceSink implements TableDescriptor {
 
 	private String name;
 	private Map<String, String> properties;

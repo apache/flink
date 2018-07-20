@@ -50,9 +50,7 @@ object TableFactoryService extends Logging {
   def find[T](factoryClass: Class[T], descriptor: Descriptor): T = {
     Preconditions.checkNotNull(descriptor)
 
-    val descriptorProperties = new DescriptorProperties()
-    descriptor.addProperties(descriptorProperties)
-    findInternal(factoryClass, descriptorProperties.asMap, None)
+    findInternal(factoryClass, DescriptorProperties.toJavaMap(descriptor), None)
   }
 
   /**
@@ -68,9 +66,7 @@ object TableFactoryService extends Logging {
     Preconditions.checkNotNull(descriptor)
     Preconditions.checkNotNull(classLoader)
 
-    val descriptorProperties = new DescriptorProperties()
-    descriptor.addProperties(descriptorProperties)
-    findInternal(factoryClass, descriptorProperties.asMap, Some(classLoader))
+    findInternal(factoryClass, DescriptorProperties.toJavaMap(descriptor), Some(classLoader))
   }
 
   /**

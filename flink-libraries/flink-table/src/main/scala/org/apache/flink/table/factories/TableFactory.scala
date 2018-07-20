@@ -29,6 +29,12 @@ import java.util
   * Classes that implement this interface can be added to the
   * "META_INF/services/org.apache.flink.table.factories.TableFactory" file of a JAR file in
   * the current classpath to be found.
+  *
+  * @see [[BatchTableSourceFactory]]
+  * @see [[BatchTableSinkFactory]]
+  * @see [[StreamTableSourceFactory]]
+  * @see [[StreamTableSinkFactory]]
+  * @see [[TableFormatFactory]]
   */
 trait TableFactory {
 

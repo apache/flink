@@ -136,13 +136,12 @@ public class LocalExecutorITCase extends TestLogger {
 		executor.getSessionProperties(session);
 
 		// modify defaults
-		session.setSessionProperty("execution.type", "streaming");
 		session.setSessionProperty("execution.result-mode", "table");
 
 		final Map<String, String> actualProperties = executor.getSessionProperties(session);
 
 		final Map<String, String> expectedProperties = new HashMap<>();
-		expectedProperties.put("execution.type", "streaming");
+		expectedProperties.put("execution.type", "batch");
 		expectedProperties.put("execution.time-characteristic", "event-time");
 		expectedProperties.put("execution.periodic-watermarks-interval", "99");
 		expectedProperties.put("execution.parallelism", "1");
@@ -178,6 +177,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "streaming");
 		replaceVars.put("$VAR_3", "changelog");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -216,6 +216,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "streaming");
 		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -253,6 +254,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_1", "/");
 		replaceVars.put("$VAR_2", "batch");
 		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -287,6 +289,7 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_0", url.getPath());
 		replaceVars.put("$VAR_2", "streaming");
 		replaceVars.put("$VAR_4", csvOutputPath);
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 
 		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -333,8 +336,11 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_2", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, Collections.singletonMap("$VAR_2", "batch")),
+			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));
