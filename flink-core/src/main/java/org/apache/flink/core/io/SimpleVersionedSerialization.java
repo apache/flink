@@ -110,7 +110,7 @@ public class SimpleVersionedSerialization {
 		checkNotNull(datum, "datum");
 
 		final byte[] data = serializer.serialize(datum);
-		final byte[] versionAndData = new byte[data.length + 4];
+		final byte[] versionAndData = new byte[data.length + 8];
 
 		final int version = serializer.getVersion();
 		versionAndData[0] = (byte) (version >> 24);
@@ -118,8 +118,14 @@ public class SimpleVersionedSerialization {
 		versionAndData[2] = (byte) (version >>  8);
 		versionAndData[3] = (byte)  version;
 
+		final int length = data.length;
+		versionAndData[4] = (byte) (length >> 24);
+		versionAndData[5] = (byte) (length >> 16);
+		versionAndData[6] = (byte) (length >>  8);
+		versionAndData[7] = (byte)  length;
+
 		// move the data to the array
-		System.arraycopy(data, 0, versionAndData, 4, data.length);
+		System.arraycopy(data, 0, versionAndData, 8, data.length);
 
 		return versionAndData;
 	}
@@ -142,14 +148,25 @@ public class SimpleVersionedSerialization {
 		checkNotNull(bytes, "bytes");
 		checkArgument(bytes.length >= 4, "byte array below minimum length (4 bytes)");
 
-		final byte[] dataOnly = Arrays.copyOfRange(bytes, 4, bytes.length);
+		final byte[] dataOnly = Arrays.copyOfRange(bytes, 8, bytes.length);
 		final int version =
 				((bytes[0] & 0xff) << 24) |
-						((bytes[1] & 0xff) << 16) |
-						((bytes[2] & 0xff) <<  8) |
-						(bytes[3] & 0xff);
+				((bytes[1] & 0xff) << 16) |
+				((bytes[2] & 0xff) <<  8) |
+				(bytes[3] & 0xff);
 
-		return serializer.deserialize(version, dataOnly);
+		final int length =
+				((bytes[4] & 0xff) << 24) |
+				((bytes[5] & 0xff) << 16) |
+				((bytes[6] & 0xff) <<  8) |
+				(bytes[7] & 0xff);
+
+		if (length == dataOnly.length) {
+			return serializer.deserialize(version, dataOnly);
+		}
+		else {
+			throw new IOException("Corrupt data, conflicting lengths. Length fields: " + length + ", data: " + dataOnly.length);
+		}
 	}
 
 	// ------------------------------------------------------------------------
