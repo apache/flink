@@ -25,6 +25,8 @@ import java.util
   * also [[TableFactory]] for more information.
   *
   * @tparam T record type that the format produces or consumes
+  * @see [[DeserializationSchemaFactory]]
+  * @see [[SerializationSchemaFactory]]
   */
 trait TableFormatFactory[T] extends TableFactory {
 

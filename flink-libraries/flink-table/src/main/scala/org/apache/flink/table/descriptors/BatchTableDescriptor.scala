@@ -16,38 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
+package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
-
-import java.util.Map;
+import org.apache.flink.table.api.BatchTableEnvironment
 
 /**
- * Configuration of a table source.
- */
-public class Source implements TableDescriptor {
-
-	private String name;
-	private Map<String, String> properties;
-
-	protected Source(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
-	}
-}
+  * Descriptor for specifying a table source and/or sink in a batch environment.
+  */
+class BatchTableDescriptor(
+    tableEnv: BatchTableEnvironment,
+    connectorDescriptor: ConnectorDescriptor)
+  extends ConnectTableDescriptor[BatchTableDescriptor](
+    tableEnv,
+    connectorDescriptor)

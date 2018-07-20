@@ -26,6 +26,7 @@
 tables:
   - name: TableNumber1
     type: source
+    $VAR_UPDATE_MODE
     schema:
       - name: IntegerField1
         type: INT
@@ -45,6 +46,7 @@ tables:
       comment-prefix: "#"
   - name: TableNumber2
     type: source
+    $VAR_UPDATE_MODE
     schema:
       - name: IntegerField2
         type: INT
@@ -64,6 +66,7 @@ tables:
       comment-prefix: "#"
   - name: TableSourceSink
     type: both
+    $VAR_UPDATE_MODE
     schema:
       - name: BooleanField
         type: BOOLEAN

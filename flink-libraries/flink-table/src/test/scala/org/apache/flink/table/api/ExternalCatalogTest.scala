@@ -39,7 +39,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val table1 = tableEnv.scan("test", "db1", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")
@@ -69,7 +71,9 @@ class ExternalCatalogTest extends TableTestBase {
   def testBatchSQL(): Unit = {
     val util = batchTestUtil()
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val sqlQuery = "SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 UNION ALL " +
         "(SELECT a * 2, b, c FROM test.db1.tb1)"
@@ -96,7 +100,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = true))
 
     val table1 = tableEnv.scan("test", "db1", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")
@@ -128,7 +134,9 @@ class ExternalCatalogTest extends TableTestBase {
   def testStreamSQL(): Unit = {
     val util = streamTestUtil()
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = true))
 
     val sqlQuery = "SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 UNION ALL " +
         "(SELECT a * 2, b, c FROM test.db1.tb1)"
@@ -155,7 +163,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val table1 = tableEnv.scan("test", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")

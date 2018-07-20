@@ -26,9 +26,9 @@ import org.junit.Test
 import scala.collection.JavaConverters._
 
 /**
-  * Tests for [[TableSourceDescriptor]].
+  * Tests for [[TableDescriptor]].
   */
-class TableSourceDescriptorTest extends TableTestBase {
+class TableDescriptorTest extends TableTestBase {
 
   @Test
   def testStreamTableSourceDescriptor(): Unit = {
@@ -45,9 +45,10 @@ class TableSourceDescriptorTest extends TableTestBase {
     val schema = Schema()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
-    if (isStreaming) {
-      schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
-    }
+    // CSV table source does not support proctime yet
+    //if (isStreaming) {
+    //  schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
+    //}
 
     val connector = FileSystem()
       .path("/path/to/csv")
@@ -55,24 +56,23 @@ class TableSourceDescriptorTest extends TableTestBase {
     val format = Csv()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
-      .quoteCharacter(';')
       .fieldDelimiter("#")
-      .lineDelimiter("\r\n")
-      .commentPrefix("%%")
-      .ignoreFirstLine()
-      .ignoreParseErrors()
 
-    val descriptor = if (isStreaming) {
+    val descriptor: RegistrableDescriptor = if (isStreaming) {
       streamTestUtil().tableEnv
-        .from(connector)
+        .connect(connector)
         .withFormat(format)
         .withSchema(schema)
+        .inAppendMode()
     } else {
       batchTestUtil().tableEnv
-        .from(connector)
+        .connect(connector)
         .withFormat(format)
         .withSchema(schema)
     }
+
+    // tests the table factory discovery and thus validates the result automatically
+    descriptor.registerTableSourceAndSink("MyTable")
 
     val expectedCommonProperties = Seq(
       "connector.property-version" -> "1",
@@ -84,12 +84,7 @@ class TableSourceDescriptorTest extends TableTestBase {
       "format.fields.0.type" -> "VARCHAR",
       "format.fields.1.name" -> "myfield2",
       "format.fields.1.type" -> "INT",
-      "format.quote-character" -> ";",
       "format.field-delimiter" -> "#",
-      "format.line-delimiter" -> "\r\n",
-      "format.comment-prefix" -> "%%",
-      "format.ignore-first-line" -> "true",
-      "format.ignore-parse-errors" -> "true",
       "schema.0.name" -> "myfield",
       "schema.0.type" -> "VARCHAR",
       "schema.1.name" -> "myfield2",
@@ -98,9 +93,10 @@ class TableSourceDescriptorTest extends TableTestBase {
 
     val expectedProperties = if (isStreaming) {
       expectedCommonProperties ++ Seq(
-        "schema.2.name" -> "proctime",
-        "schema.2.type" -> "TIMESTAMP",
-        "schema.2.proctime" -> "true"
+        //"schema.2.name" -> "proctime",
+        //"schema.2.type" -> "TIMESTAMP",
+        //"schema.2.proctime" -> "true",
+        "update-mode" -> "append"
       )
     } else {
       expectedCommonProperties

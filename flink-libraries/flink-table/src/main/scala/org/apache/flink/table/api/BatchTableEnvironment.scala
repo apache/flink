@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.descriptors.{BatchTableSourceDescriptor, ConnectorDescriptor}
+import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -126,7 +126,7 @@ abstract class BatchTableEnvironment(
           }
 
           // no table is registered
-          case None =>
+          case _ =>
             val newTable = new TableSourceSinkTable(
               Some(new BatchTableSourceTable(batchTableSource)),
               None)
@@ -141,26 +141,21 @@ abstract class BatchTableEnvironment(
   }
 
   /**
-    * Creates a table from a descriptor that describes the source connector, the source format,
-    * the resulting table schema, and other properties.
+    * Creates a table source and/or table sink from a descriptor.
     *
-    * Descriptors allow for declaring communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
-    * are configured accordingly.
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
     *
-    * The following example shows how to read from a Kafka connector using a JSON format and
-    * creating a table:
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
     *
     * {{{
     *
     * tableEnv
-    *   .from(
-    *     new Kafka()
-    *       .version("0.11")
-    *       .topic("clicks")
-    *       .property("zookeeper.connect", "localhost")
-    *       .property("group.id", "click-group")
-    *       .startFromEarliest())
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
     *   .withFormat(
     *     new Json()
     *       .jsonSchema("{...}")
@@ -169,14 +164,13 @@ abstract class BatchTableEnvironment(
     *     new Schema()
     *       .field("user-name", "VARCHAR").from("u_name")
     *       .field("count", "DECIMAL")
-    *       .field("proc-time", "TIMESTAMP").proctime())
-    *   .toTable()
+    *   .registerSource("MyTable")
     * }}}
     *
-    * @param connectorDescriptor connector descriptor describing the source of the table
+    * @param connectorDescriptor connector descriptor describing the external system
     */
-  def from(connectorDescriptor: ConnectorDescriptor): BatchTableSourceDescriptor = {
-    new BatchTableSourceDescriptor(this, connectorDescriptor)
+  def connect(connectorDescriptor: ConnectorDescriptor): BatchTableDescriptor = {
+    new BatchTableDescriptor(this, connectorDescriptor)
   }
 
   /**

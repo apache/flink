@@ -16,38 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
+package org.apache.flink.table.sources
 
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
+import java.util
 
-import java.util.Map;
+import org.apache.flink.table.factories.BatchTableSourceFactory
+import org.apache.flink.types.Row
 
 /**
- * Configuration of a table source.
- */
-public class Source implements TableDescriptor {
+  * Factory for creating configured instances of [[CsvTableSource]] in a batch environment.
+  */
+class CsvBatchTableSourceFactory
+  extends CsvTableSourceFactoryBase
+  with BatchTableSourceFactory[Row] {
 
-	private String name;
-	private Map<String, String> properties;
-
-	protected Source(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
-	}
+  override def createBatchTableSource(
+      properties: util.Map[String, String])
+    : BatchTableSource[Row] = {
+    createTableSource(isStreaming = false, properties)
+  }
 }
