@@ -29,7 +29,7 @@ You can simply define these variables in the `docker-compose.yml`.
 Run image
 ---------
 
-Clone the [Github project](https://github.com/aljoscha/docker-hadoop-secure-cluster) and run
+Clone the [project](https://git-wip-us.apache.org/repos/asf/flink.git) and run
 
 ```
 docker-compose up
