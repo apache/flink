@@ -32,19 +32,20 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka010TableSource} created by {@link Kafka010TableSourceFactory}.
+ * Test for {@link Kafka09TableSource} and {@link Kafka09TableSink} created
+ * by {@link Kafka09TableSourceSinkFactory}.
  */
-public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestBase {
+public class Kafka09TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
 
 	@Override
 	protected String getKafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_010;
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_09;
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
-		return (Class) FlinkKafkaConsumer010.class;
+		return (Class) FlinkKafkaConsumer09.class;
 	}
 
 	@Override
@@ -59,7 +60,7 @@ public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka010TableSource(
+		return new Kafka09TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,

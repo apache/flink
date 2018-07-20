@@ -32,22 +32,24 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Factory for creating configured instances of {@link Kafka09TableSource}.
+ * Test for {@link Kafka011TableSource} and {@link Kafka011TableSink} created
+ * by {@link Kafka011TableSourceSinkFactory}.
  */
-public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
+public class Kafka011TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
 
 	@Override
-	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_09;
+	protected String getKafkaVersion() {
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
 	}
 
 	@Override
-	protected boolean supportsKafkaTimestamps() {
-		return false;
+	@SuppressWarnings("unchecked")
+	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
+		return (Class) FlinkKafkaConsumer011.class;
 	}
 
 	@Override
-	protected KafkaTableSource createKafkaTableSource(
+	protected KafkaTableSource getExpectedKafkaTableSource(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -58,7 +60,7 @@ public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka09TableSource(
+		return new Kafka011TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
@@ -67,6 +69,7 @@ public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets);
+			specificStartupOffsets
+		);
 	}
 }

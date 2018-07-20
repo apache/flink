@@ -56,9 +56,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Abstract test base for {@link KafkaTableSourceFactory}.
+ * Abstract test base for {@link KafkaTableSourceSinkFactoryBase}.
  */
-public abstract class KafkaTableSourceFactoryTestBase extends TestLogger {
+public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 	private static final String TOPIC = "myTopic";
 	private static final int PARTITION_0 = 0;

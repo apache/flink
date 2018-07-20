@@ -32,18 +32,18 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Factory for creating configured instances of {@link Kafka08TableSource}.
+ * Factory for creating configured instances of {@link Kafka010TableSource}.
  */
-public class Kafka08TableSourceFactory extends KafkaTableSourceFactory {
+public class Kafka010TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
 	@Override
 	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_08;
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_010;
 	}
 
 	@Override
 	protected boolean supportsKafkaTimestamps() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public class Kafka08TableSourceFactory extends KafkaTableSourceFactory {
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka08TableSource(
+		return new Kafka010TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,

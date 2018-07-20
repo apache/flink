@@ -27,6 +27,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -73,7 +74,9 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 /**
  * Factory for creating configured instances of {@link KafkaTableSource}.
  */
-public abstract class KafkaTableSourceFactory implements StreamTableSourceFactory<Row> {
+public abstract class KafkaTableSourceSinkFactoryBase implements
+		StreamTableSourceFactory<Row>,
+		StreamTableSinkFactory<Row> {
 
 	@Override
 	public Map<String, String> requiredContext() {
