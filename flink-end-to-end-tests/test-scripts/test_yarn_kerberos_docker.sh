@@ -67,7 +67,8 @@ done
 # now, at least the container is ready
 docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --directory /home/hadoop-user/"
 
-docker exec -it master bash -c "echo \"security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+# minimal Flink config, bebe
+docker exec -it master bash -c "echo \"security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 docker exec -it master bash -c "echo \"security.kerberos.login.principal: hadoop-user\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 
 echo "Flink config:"
@@ -86,6 +87,7 @@ done
 
 docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
 OUTPUT=$(docker exec -it master bash -c "hdfs dfs -cat $OUTPUT_PATH/*")
+docker exec -it master bash -c "kdestroy"
 echo "$OUTPUT"
 
 if [[ ! "$OUTPUT" =~ "consummation,1" ]]; then
@@ -100,5 +102,16 @@ fi
 
 if [[ ! "$OUTPUT" =~ "calamity,1" ]]; then
     echo "Output does not contain (calamity, 1) as required"
+    exit 1
+fi
+
+echo "Running Job without configured keytab, the exception you see below is expected"
+docker exec -it master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+# verify that it doesn't work if we don't configure a keytab
+OUTPUT=$(docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1200 -yjm 800 -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH")
+echo "$OUTPUT"
+
+if [[ ! "$OUTPUT" =~ "Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials" ]]; then
+    echo "Output does not contain the Kerberos error message as required"
     exit 1
 fi
