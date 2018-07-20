@@ -54,17 +54,22 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	private DatadogHttpClient client;
 	private List<String> configTags;
+	private String overrideHostname;
+	private boolean removeValueGroups;
 
 	public static final String API_KEY = "apikey";
+	public static final String OVERRIDE_HOSTNAME = "override-hostname";
 	public static final String TAGS = "tags";
+	public static final String REMOVE_VALUE_GROUPS = "remove-value-groups";
 
 	@Override
 	public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-		final String name = group.getMetricIdentifier(metricName);
+		final String name = buildMetricName(group, metricName);
+		LOGGER.debug("new metric {}, scopes: {}", name, Arrays.toString(group.getScopeComponents()));
 
 		List<String> tags = new ArrayList<>(configTags);
 		tags.addAll(getTagsFromMetricGroup(group));
-		String host = getHostFromMetricGroup(group);
+		String host = getHostName(group);
 
 		if (metric instanceof Counter) {
 			Counter c = (Counter) metric;
@@ -102,7 +107,11 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 
 	@Override
 	public void open(MetricConfig config) {
-		client = new DatadogHttpClient(config.getString(API_KEY, null));
+		client = buildClient(config);
+		if (config.getBoolean(OVERRIDE_HOSTNAME, false)) {
+			overrideHostname = System.getenv("HOSTNAME");
+		}
+		removeValueGroups = config.getBoolean(REMOVE_VALUE_GROUPS, false);
 		LOGGER.info("Configured DatadogHttpReporter");
 
 		configTags = getTagsFromConfig(config.getString(TAGS, ""));
@@ -179,8 +188,67 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		return tags;
 	}
 
-	private String getHostFromMetricGroup(MetricGroup metricGroup) {
-		return metricGroup.getAllVariables().get(HOST_VARIABLE);
+	/**
+	 * Returns either the returned hostname, or uses the overriden hostname
+	 * from the `HOSTNAME` env var.
+	 * @param metricGroup the metric group hostname
+	 * @return a hostname
+	 */
+	String getHostName(MetricGroup metricGroup) {
+		if (overrideHostname != null) {
+			return overrideHostname;
+		} else {
+			return metricGroup.getAllVariables().get(HOST_VARIABLE);
+		}
+	}
+
+	/**
+	 * This attempts to build a metric name devoid of any "value" type
+	 * metricGroups. Currently, the metricGroup API does not give a nice
+	 * way of traversing the scopes with any information about whether those
+	 * metrics groups or keys are values.
+	 *
+	 * <p>For a system like datadog, it is important that we strip any elements
+	 * that are values from the metricName, as it makes it hard
+	 * to group by in datadog. Instead, those values are turned into
+	 * tags via the "variables"
+	 *
+	 * <p>This works by looking through the scopes and assumes that for any
+	 * element of scopes, if the previous scope is a key, then the current
+	 * element will be the "value" in the variables hash with the previous element
+	 * as the key. Other other elements are added
+	 * @param group the metric group for the new metric
+	 * @return the metric name
+	 */
+	String buildMetricName(MetricGroup group, String name) {
+		if (!removeValueGroups) {
+			return group.getMetricIdentifier(name);
+		} else {
+			return stripValueGroups(group, name);
+		}
+	}
+
+	DatadogHttpClient buildClient(MetricConfig config) {
+		return new DatadogHttpClient(config.getString(API_KEY, null));
+	}
+
+	private String stripValueGroups(MetricGroup group, String name) {
+		String[] components = group.getScopeComponents();
+		Map<String, String>	 vars = group.getAllVariables();
+		ArrayList<String> parts = new ArrayList<>();
+		for (int i = 0; i < components.length; i++) {
+			String component = components[i];
+			if (i > 0 && vars.containsKey(wrapVariableName(components[i - 1]))) {
+				if (!vars.get(wrapVariableName(components[i - 1])).equals(component)) {
+					parts.add(component);
+				}
+			} else {
+				parts.add(component);
+			}
+		}
+		parts.add(name);
+
+		return String.join(".", parts);
 	}
 
 	/**
@@ -188,6 +256,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 	 */
 	private String getVariableName(String str) {
 		return str.substring(1, str.length() - 1);
+	}
+
+	/**
+	 * Add angle brackets to be proper variable.
+	 */
+	private String wrapVariableName(String str) {
+		return "<" + str + ">";
 	}
 
 	/**
