@@ -76,7 +76,7 @@ class InMemoryTableFactory(terminationCount: Int)
       supportsSourceTimestamps = true,
       supportsSourceWatermarks = true).validate(params)
 
-    val tableSchema = SchemaValidator.deriveTableSourceSchema(params)
+    val tableSchema = params.getTableSchema(SCHEMA)
 
     // proctime
     val proctimeAttributeOpt = SchemaValidator.deriveProctimeAttribute(params)

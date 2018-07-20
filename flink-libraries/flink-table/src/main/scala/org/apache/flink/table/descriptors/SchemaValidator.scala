@@ -175,17 +175,14 @@ object SchemaValidator {
   }
 
   /**
-    * Derives the table schema for a table source. A table source can directly use "name" and
-    * "type" and needs no special handling for time attributes or aliasing.
-    */
-  def deriveTableSourceSchema(properties: DescriptorProperties): TableSchema = {
-    properties.getTableSchema(SCHEMA)
-  }
-
-  /**
     * Derives the table schema for a table sink. A sink ignores a proctime attribute and
     * needs to track the origin of a rowtime field.
+    *
+    * @deprecated This method combines two separate concepts of table schema and field mapping.
+    *             This should be split into two methods once we have support for
+    *             the corresponding interfaces (see FLINK-9870).
     */
+  @deprecated
   def deriveTableSinkSchema(properties: DescriptorProperties): TableSchema = {
     val builder = TableSchema.builder()
 
