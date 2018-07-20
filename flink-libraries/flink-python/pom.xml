@@ -48,7 +48,9 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptor>src/assembly/python.xml</descriptor>
+					<descriptors>
+						<descriptor>src/assembly/python.xml</descriptor>
+					</descriptors>
 					<finalName>python-source</finalName>
 					<appendAssemblyId>false</appendAssemblyId>
 				</configuration>
