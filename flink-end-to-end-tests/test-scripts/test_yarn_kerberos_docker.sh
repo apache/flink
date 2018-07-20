@@ -35,7 +35,7 @@ mkdir -p $FLINK_TARBALL_DIR
 tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
 
 echo "Building Hadoop Docker container"
-until docker build -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile -t flink/docker-hadoop-secure-cluster:latest $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/; do
+until docker build --build-arg HADOOP_VERSION=2.8.4 -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile -t flink/docker-hadoop-secure-cluster:latest $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/; do
     # with all the downloading and ubuntu updating a lot of flakiness can happen, make sure
     # we don't immediately fail
     echo "Something went wrong while building the Docker image, retrying ..."
