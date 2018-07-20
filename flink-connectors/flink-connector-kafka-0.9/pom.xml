@@ -191,12 +191,12 @@ under the License.
 	</dependencies>
 
 	<profiles>
+		<!-- Create SQL Client uber jars by default -->
 		<profile>
-			<!-- Create SQL Client uber jars for releases -->
-			<id>release</id>
+			<id>sql-jars</id>
 			<activation>
 				<property>
-					<name>release</name>
+					<name>!skipSqlJars</name>
 				</property>
 			</activation>
 			<build>
