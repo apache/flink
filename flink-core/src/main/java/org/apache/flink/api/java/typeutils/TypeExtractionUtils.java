@@ -158,6 +158,7 @@ public class TypeExtractionUtils {
 	/**
 	 * Extracts type from given index from lambda. It supports nested types.
 	 *
+	 * @param baseClass SAM function that the lambda implements
 	 * @param exec lambda function to extract the type from
 	 * @param lambdaTypeArgumentIndices position of type to extract in type hierarchy
 	 * @param paramLen count of total parameters of the lambda (including closure parameters)
@@ -165,14 +166,17 @@ public class TypeExtractionUtils {
 	 * @return extracted type
 	 */
 	public static Type extractTypeFromLambda(
+		Class<?> baseClass,
 		LambdaExecutable exec,
 		int[] lambdaTypeArgumentIndices,
 		int paramLen,
 		int baseParametersLen) {
 		Type output = exec.getParameterTypes()[paramLen - baseParametersLen + lambdaTypeArgumentIndices[0]];
 		for (int i = 1; i < lambdaTypeArgumentIndices.length; i++) {
+			validateLambdaType(baseClass, output);
 			output = extractTypeArgument(output, lambdaTypeArgumentIndices[i]);
 		}
+		validateLambdaType(baseClass, output);
 		return output;
 	}
 
@@ -327,5 +331,24 @@ public class TypeExtractionUtils {
 			return Array.newInstance(getRawClass(component), 0).getClass();
 		}
 		return Object.class;
+	}
+
+	/**
+	 * Checks whether the given type has the generic parameters declared in the class definition.
+	 *
+	 * @param t type to be validated
+	 */
+	public static void validateLambdaType(Class<?> baseClass, Type t) {
+		if (!(t instanceof Class)) {
+			return;
+		}
+		final Class<?> clazz = (Class<?>) t;
+
+		if (clazz.getTypeParameters().length > 0) {
+			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. "
+				+ "In many cases lambda methods don't provide enough information for automatic type extraction when Java generics are involved. "
+				+ "An easy workaround is to use an (anonymous) class instead that implements the '" + baseClass.getName() + "' interface. "
+				+ "Otherwise the type has to be specified explicitly using type information.");
+		}
 	}
 }
