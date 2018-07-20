@@ -51,7 +51,7 @@ public class TestUtils {
 			long inactivityInterval,
 			long partMaxSize) throws Exception {
 
-		final RollingPolicy<String> rollingPolicy =
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy =
 				DefaultRollingPolicy
 						.create()
 						.withMaxPartSize(partMaxSize)
@@ -84,7 +84,7 @@ public class TestUtils {
 			final long bucketCheckInterval,
 			final Bucketer<Tuple2<String, Integer>, String> bucketer,
 			final Encoder<Tuple2<String, Integer>> writer,
-			final RollingPolicy<String> rollingPolicy,
+			final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy,
 			final BucketFactory<Tuple2<String, Integer>, String> bucketFactory) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink

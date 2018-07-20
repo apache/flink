@@ -61,7 +61,7 @@ public class Buckets<IN, BucketID> {
 
 	private final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory;
 
-	private final RollingPolicy<BucketID> rollingPolicy;
+	private final RollingPolicy<IN, BucketID> rollingPolicy;
 
 	// --------------------------- runtime fields -----------------------------
 
@@ -95,7 +95,7 @@ public class Buckets<IN, BucketID> {
 			final Bucketer<IN, BucketID> bucketer,
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
-			final RollingPolicy<BucketID> rollingPolicy,
+			final RollingPolicy<IN, BucketID> rollingPolicy,
 			final int subtaskIndex) throws IOException {
 
 		this.basePath = Preconditions.checkNotNull(basePath);
@@ -189,7 +189,6 @@ public class Buckets<IN, BucketID> {
 
 	void snapshotState(
 			final long checkpointId,
-			final long checkpointTimestamp,
 			final ListState<byte[]> bucketStates,
 			final ListState<Long> partCounterState) throws Exception {
 
@@ -201,11 +200,7 @@ public class Buckets<IN, BucketID> {
 		for (Bucket<IN, BucketID> bucket : activeBuckets.values()) {
 			final PartFileInfo<BucketID> info = bucket.getInProgressPartInfo();
 
-			if (info != null &&
-					(rollingPolicy.shouldRollOnCheckpoint(info) ||
-					rollingPolicy.shouldRollOnEvent(info) ||
-					rollingPolicy.shouldRollOnProcessingTime(info, checkpointTimestamp))
-			) {
+			if (info != null && rollingPolicy.shouldRollOnCheckpoint(info)) {
 				// we also check here so that we do not have to always
 				// wait for the "next" element to arrive.
 				bucket.closePartFile();
@@ -249,7 +244,7 @@ public class Buckets<IN, BucketID> {
 		}
 
 		final PartFileInfo<BucketID> info = bucket.getInProgressPartInfo();
-		if (info == null || rollingPolicy.shouldRollOnEvent(info)) {
+		if (info == null || rollingPolicy.shouldRollOnEvent(info, value)) {
 			bucket.rollPartFile(currentProcessingTime);
 		}
 		bucket.write(value, currentProcessingTime);
