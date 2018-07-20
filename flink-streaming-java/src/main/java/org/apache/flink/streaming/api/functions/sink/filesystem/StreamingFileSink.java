@@ -194,7 +194,7 @@ public class StreamingFileSink<IN>
 
 		private Bucketer<IN, BucketID> bucketer;
 
-		private RollingPolicy<BucketID> rollingPolicy;
+		private RollingPolicy<IN, BucketID> rollingPolicy;
 
 		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
 
@@ -215,12 +215,12 @@ public class StreamingFileSink<IN>
 			return this;
 		}
 
-		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withRollingPolicy(final RollingPolicy<BucketID> policy) {
+		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withRollingPolicy(final RollingPolicy<IN, BucketID> policy) {
 			this.rollingPolicy = Preconditions.checkNotNull(policy);
 			return this;
 		}
 
-		public <ID> StreamingFileSink.RowFormatBuilder<IN, ID> withBucketerAndPolicy(final Bucketer<IN, ID> bucketer, final RollingPolicy<ID> policy) {
+		public <ID> StreamingFileSink.RowFormatBuilder<IN, ID> withBucketerAndPolicy(final Bucketer<IN, ID> bucketer, final RollingPolicy<IN, ID> policy) {
 			@SuppressWarnings("unchecked")
 			StreamingFileSink.RowFormatBuilder<IN, ID> reInterpreted = (StreamingFileSink.RowFormatBuilder<IN, ID>) this;
 			reInterpreted.bucketer = Preconditions.checkNotNull(bucketer);
@@ -340,7 +340,6 @@ public class StreamingFileSink<IN>
 
 		buckets.snapshotState(
 				context.getCheckpointId(),
-				context.getCheckpointTimestamp(),
 				bucketStates,
 				maxPartCountersState);
 	}

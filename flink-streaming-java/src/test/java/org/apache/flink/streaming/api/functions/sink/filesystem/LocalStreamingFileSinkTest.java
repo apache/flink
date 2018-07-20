@@ -494,7 +494,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 		final TestBucketFactory first = new TestBucketFactory();
 		final TestBucketFactory second = new TestBucketFactory();
 
-		final RollingPolicy<String> rollingPolicy = DefaultRollingPolicy
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
 				.create()
 				.withMaxPartSize(2L)
 				.withRolloverInterval(100L)

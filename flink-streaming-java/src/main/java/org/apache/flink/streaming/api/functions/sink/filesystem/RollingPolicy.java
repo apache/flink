@@ -28,7 +28,7 @@ import java.io.Serializable;
  * rolls its currently open part file and opens a new one.
  */
 @PublicEvolving
-public interface RollingPolicy<BucketID> extends Serializable {
+public interface RollingPolicy<IN, BucketID> extends Serializable {
 
 	/**
 	 * Determines if the in-progress part file for a bucket should roll on every checkpoint.
@@ -39,10 +39,11 @@ public interface RollingPolicy<BucketID> extends Serializable {
 
 	/**
 	 * Determines if the in-progress part file for a bucket should roll based on its current state, e.g. its size.
+	 * @param element the element being processed.
 	 * @param partFileState the state of the currently open part file of the bucket.
 	 * @return {@code True} if the part file should roll, {@link false} otherwise.
 	 */
-	boolean shouldRollOnEvent(final PartFileInfo<BucketID> partFileState) throws IOException;
+	boolean shouldRollOnEvent(final PartFileInfo<BucketID> partFileState, IN element) throws IOException;
 
 	/**
 	 * Determines if the in-progress part file for a bucket should roll based on a time condition.

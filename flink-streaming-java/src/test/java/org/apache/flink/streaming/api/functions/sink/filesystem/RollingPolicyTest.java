@@ -44,7 +44,7 @@ public class RollingPolicyTest {
 	public void testDefaultRollingPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
-		final RollingPolicy<String> rollingPolicy = DefaultRollingPolicy
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
 				.create()
 				.withMaxPartSize(10L)
 				.withInactivityInterval(4L)
@@ -104,7 +104,7 @@ public class RollingPolicyTest {
 	public void testRollOnCheckpointPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
-		final RollingPolicy<String> rollingPolicy = new OnCheckpointRollingPolicy<>();
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = new OnCheckpointRollingPolicy<>();
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createCustomRescalingTestSink(
@@ -159,7 +159,7 @@ public class RollingPolicyTest {
 	public void testCustomRollingPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
-		final RollingPolicy<String> rollingPolicy = new RollingPolicy<String>() {
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = new RollingPolicy<Tuple2<String, Integer>, String>() {
 
 			private static final long serialVersionUID = 1L;
 
@@ -169,7 +169,7 @@ public class RollingPolicyTest {
 			}
 
 			@Override
-			public boolean shouldRollOnEvent(PartFileInfo<String> partFileState) throws IOException {
+			public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, Tuple2<String, Integer> element) throws IOException {
 				// this means that 2 elements will close the part file.
 				return partFileState.getSize() > 12L;
 			}
