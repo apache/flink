@@ -266,6 +266,92 @@ a `ValueState`. Once the count reaches 2 it will emit the average and clear the 
 we start over from `0`. Note that this would keep a different state value for each different input
 key if we had tuples with different values in the first field.
 
+### State time-to-live (TTL)
+
+A time-to-live (TTL) can be assigned to the keyed state value. 
+In this case it will expire after the configured TTL
+and its stored value will be cleaned up based on the best effort.
+Depending on configuration, the expired state can become unavailable for read access
+even if it is not cleaned up yet. In this case it behaves as if it does not exist any more.
+
+The collection types of state support TTL on entry level: 
+separate list elements and map entries expire independently. 
+
+The behaviour of state with TTL firstly should be configured by building `StateTtlConfiguration`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StateTtlConfiguration ttlConfig = StateTtlConfiguration
+    .newBuilder(Time.seconds(1))
+    .setTtlUpdateType(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired)
+    .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val ttlConfig = StateTtlConfiguration
+    .newBuilder(Time.seconds(1))
+    .setTtlUpdateType(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired)
+    .build()
+{% endhighlight %}
+</div>
+</div>
+
+It has several options to consider. 
+The first parameter of `newBuilder` method is mandatory, it is a value of time-to-live itself.
+
+The update type configures when the time-to-live of state value is prolonged (default `OnCreateAndWrite`):
+
+ - `StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite` - only on creation and write access,
+ - `StateTtlConfiguration.TtlUpdateType.OnReadAndWrite` - also on read access.
+ 
+The state visibility configures whether the expired value is returned on read access 
+if it is not cleaned up yet (default `NeverReturnExpired`):
+
+ - `StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired` - expired value is never returned,
+ - `StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available.
+
+The TTL can be enabled in descriptor for any type of state:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+StateTtlConfiguration ttlConfig = StateTtlConfiguration.newBuilder(Time.seconds(1)).build();
+ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("text state", String.class);
+stateDescriptor.enableTimeToLive(ttlConfig);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val ttlConfig = StateTtlConfiguration.newBuilder(Time.seconds(1)).build()
+val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[String])
+stateDescriptor.enableTimeToLive(ttlConfig)
+{% endhighlight %}
+</div>
+</div>
+
+**Notes:** 
+
+- The state backends store the timestamp of last modification along with the user value, 
+which means that enabling this feature increases consumption of state storage.
+
+- As of current implementation the state storage is cleaned up of expired value 
+only on its explicit read access per key, e.g. calling `ValueState.value()`. 
+This might change in future releases, e.g. additional strategies might be added in background to speed up cleanup.
+
+- Only *processing time* scale is currently supported for TTL.
+
+- Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
+will lead to compatibility failure.
+
+- The TTL configuration is not part of check- or savepoint 
+but rather a way how Flink treats it in the currently running job.
+
 ### State in the Scala DataStream API
 
 In addition to the interface described above, the Scala API has shortcuts for stateful
