@@ -34,6 +34,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.aggfunctions.{IntSumWithRetractAggFunction, LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks}
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 class HarnessTestBase {
@@ -316,6 +317,14 @@ class HarnessTestBase {
     keySelector: KeySelector[IN, KEY],
     keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
     new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)
+  }
+
+  def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
+    verify(expected, actual, new RowResultSortComparator)
+  }
+
+  def verifyWithWatermarks(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
+    verify(expected, actual, new RowResultSortComparatorWithWatermarks, true)
   }
 
   def verify(

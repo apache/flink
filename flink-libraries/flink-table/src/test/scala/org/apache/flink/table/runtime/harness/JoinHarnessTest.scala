@@ -231,7 +231,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(2L: JLong, "2a33", 2L: JLong, "2b33"), 33))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -313,7 +313,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(1L: JLong, "1a3", 1L: JLong, "1b12"), 12))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -409,11 +409,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(41))
 
     val result = testHarness.getOutput
-    verify(
-      expectedOutput,
-      result,
-      new RowResultSortComparatorWithWatermarks(),
-      checkWaterMark = true)
+    verifyWithWatermarks(expectedOutput, result)
     testHarness.close()
   }
 
@@ -491,11 +487,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(8))
 
     val result = testHarness.getOutput
-    verify(
-      expectedOutput,
-      result,
-      new RowResultSortComparatorWithWatermarks(),
-      checkWaterMark = true)
+    verifyWithWatermarks(expectedOutput, result)
     testHarness.close()
   }
 
@@ -605,11 +597,7 @@ class JoinHarnessTest extends HarnessTestBase {
 
 
     val result = testHarness.getOutput
-    verify(
-      expectedOutput,
-      result,
-      new RowResultSortComparatorWithWatermarks(),
-      checkWaterMark = true)
+    verifyWithWatermarks(expectedOutput, result)
     testHarness.close()
   }
 
@@ -718,11 +706,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(91))
 
     val result = testHarness.getOutput
-    verify(
-      expectedOutput,
-      result,
-      new RowResultSortComparatorWithWatermarks(),
-      checkWaterMark = true)
+    verifyWithWatermarks(expectedOutput, result)
     testHarness.close()
   }
 
@@ -839,11 +823,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(91))
 
     val result = testHarness.getOutput
-    verify(
-      expectedOutput,
-      result,
-      new RowResultSortComparatorWithWatermarks(),
-      checkWaterMark = true)
+    verifyWithWatermarks(expectedOutput, result)
     testHarness.close()
   }
 
@@ -944,7 +924,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(2: JInt, "bbb", 2: JInt, "Hello1")))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1035,7 +1015,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(2: JInt, "bbb", 2: JInt, "Hello1")))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1143,7 +1123,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(false, 1: JInt, "aaa", null: JInt, null)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1273,7 +1253,7 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "bbb", 1: JInt, "Hi1")))
     expectedOutput.add(new StreamRecord(
       CRow(1: JInt, "bbb", null: JInt, null)))
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1381,7 +1361,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(false, null: JInt, null, 1: JInt, "aaa")))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1511,7 +1491,7 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(false, 1: JInt, "Hi1", 1: JInt, "bbb")))
     expectedOutput.add(new StreamRecord(
       CRow(null: JInt, null, 1: JInt, "bbb")))
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -1681,7 +1661,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(null: JInt, null, 2: JInt, "bbb")))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 
@@ -1836,7 +1816,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(null: JInt, null, 2: JInt, "bbb")))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 }

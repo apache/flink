@@ -91,7 +91,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(9L: JLong, 18: JInt), 1))
     expectedOutput.add(new StreamRecord(CRow(10L: JLong, 3: JInt), 1))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -150,7 +150,7 @@ class NonWindowHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(CRow(false, 10L: JLong, 2: JInt), 10))
     expectedOutput.add(new StreamRecord(CRow(10L: JLong, 5: JInt), 10))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }

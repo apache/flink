@@ -130,7 +130,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(2L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -261,7 +261,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(0L: JLong, "ccc", 20L: JLong, 10L: JLong, 20L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
 
     testHarness.close()
   }
@@ -351,7 +351,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 
@@ -504,7 +504,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 
@@ -649,7 +649,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(20011L: JLong, "ccc", 3L: JLong, 3L: JLong, 3L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 
@@ -788,7 +788,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 
@@ -923,7 +923,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
     expectedOutput.add(new StreamRecord(
       CRow(20002L: JLong, "ccc", 2L: JLong, 1L: JLong, 2L: JLong)))
 
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(expectedOutput, result)
     testHarness.close()
   }
 }
