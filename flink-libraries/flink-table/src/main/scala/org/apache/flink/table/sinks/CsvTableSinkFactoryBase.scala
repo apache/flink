@@ -28,16 +28,12 @@ import org.apache.flink.table.descriptors.FileSystemValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
 import org.apache.flink.table.descriptors.SchemaValidator._
 import org.apache.flink.table.descriptors._
-import org.apache.flink.table.factories.{BatchTableSinkFactory, StreamTableSinkFactory, TableFactory}
-import org.apache.flink.types.Row
+import org.apache.flink.table.factories.TableFactory
 
 /**
-  * Factory for creating configured instances of [[CsvTableSink]].
+  * Factory base for creating configured instances of [[CsvTableSink]].
   */
-class CsvTableSinkFactory
-  extends TableFactory
-  with StreamTableSinkFactory[Row]
-  with BatchTableSinkFactory[Row] {
+abstract class CsvTableSinkFactoryBase extends TableFactory {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -63,19 +59,7 @@ class CsvTableSinkFactory
     properties
   }
 
-  override def createStreamTableSink(
-      properties: util.Map[String, String])
-    : StreamTableSink[Row] = {
-    createTableSink(isStreaming = true, properties)
-  }
-
-  override def createBatchTableSink(
-      properties: util.Map[String, String])
-    : BatchTableSink[Row] = {
-    createTableSink(isStreaming = false, properties)
-  }
-
-  private def createTableSink(
+  protected def createTableSink(
       isStreaming: Boolean,
       properties: util.Map[String, String])
     : CsvTableSink = {

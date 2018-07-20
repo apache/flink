@@ -1064,6 +1064,10 @@ class DescriptorProperties(normalizeKeys: Boolean = true) {
     properties.toMap.asJava
   }
 
+  override def toString: String = {
+    DescriptorProperties.toString(properties.toMap)
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   /**
@@ -1281,6 +1285,12 @@ object DescriptorProperties {
       .toSeq
       .sorted
       .mkString("\n")
+  }
+
+  def toJavaMap(descriptor: Descriptor): util.Map[String, String] = {
+    val descriptorProperties = new DescriptorProperties()
+    descriptor.addProperties(descriptorProperties)
+    descriptorProperties.asMap
   }
 
   // the following methods help for Scala <-> Java interfaces

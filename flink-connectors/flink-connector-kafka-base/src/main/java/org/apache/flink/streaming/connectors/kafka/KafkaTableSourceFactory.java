@@ -67,6 +67,8 @@ import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME;
 import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
+import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
  * Factory for creating configured instances of {@link KafkaTableSource}.
@@ -76,6 +78,7 @@ public abstract class KafkaTableSourceFactory implements StreamTableSourceFactor
 	@Override
 	public Map<String, String> requiredContext() {
 		Map<String, String> context = new HashMap<>();
+		context.put(UPDATE_MODE(), UPDATE_MODE_VALUE_APPEND()); // append mode
 		context.put(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA); // kafka
 		context.put(CONNECTOR_VERSION(), kafkaVersion()); // version
 		context.put(CONNECTOR_PROPERTY_VERSION(), "1"); // backwards compatibility

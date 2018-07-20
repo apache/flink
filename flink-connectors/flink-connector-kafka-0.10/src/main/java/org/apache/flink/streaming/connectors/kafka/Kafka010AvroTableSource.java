@@ -39,7 +39,7 @@ import java.util.Properties;
  * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
  *             with descriptors for schema and format instead. Descriptors allow for
  *             implementation-agnostic definition of tables. See also
- *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+ *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
  */
 @Deprecated
 public class Kafka010AvroTableSource extends KafkaAvroTableSource {
@@ -120,7 +120,7 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
-	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
 	public static Builder builder() {
@@ -133,7 +133,7 @@ public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
-	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
 	public static class Builder extends KafkaAvroTableSource.Builder<Kafka010AvroTableSource, Kafka010AvroTableSource.Builder> {

@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableSourceDescriptor}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -145,7 +145,7 @@ abstract class StreamTableEnvironment(
           }
 
           // no table is registered
-          case None =>
+          case _ =>
             val newTable = new TableSourceSinkTable(
               Some(new StreamTableSourceTable(streamTableSource)),
               None)
@@ -160,20 +160,19 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Creates a table from a descriptor that describes the source connector, the source format,
-    * the resulting table schema, and other properties.
+    * Creates a table source and/or table sink from a descriptor.
     *
-    * Descriptors allow for declaring communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
-    * are configured accordingly.
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
     *
     * The following example shows how to read from a Kafka connector using a JSON format and
-    * creating a table:
+    * registering a table source "MyTable" in append mode:
     *
     * {{{
     *
     * tableEnv
-    *   .from(
+    *   .connect(
     *     new Kafka()
     *       .version("0.11")
     *       .topic("clicks")
@@ -189,13 +188,14 @@ abstract class StreamTableEnvironment(
     *       .field("user-name", "VARCHAR").from("u_name")
     *       .field("count", "DECIMAL")
     *       .field("proc-time", "TIMESTAMP").proctime())
-    *   .toTable()
+    *   .inAppendMode()
+    *   .registerSource("MyTable")
     * }}}
     *
-    * @param connectorDescriptor connector descriptor describing the source of the table
+    * @param connectorDescriptor connector descriptor describing the external system
     */
-  def from(connectorDescriptor: ConnectorDescriptor): StreamTableSourceDescriptor = {
-    new StreamTableSourceDescriptor(this, connectorDescriptor)
+  def connect(connectorDescriptor: ConnectorDescriptor): StreamTableDescriptor = {
+    new StreamTableDescriptor(this, connectorDescriptor)
   }
 
   /**

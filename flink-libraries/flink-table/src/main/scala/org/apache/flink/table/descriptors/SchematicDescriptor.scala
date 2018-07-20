@@ -16,38 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.config;
-
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
-
-import java.util.Map;
+package org.apache.flink.table.descriptors
 
 /**
- * Configuration of a table source.
- */
-public class Source implements TableDescriptor {
+  * A trait for descriptors that allow to define a format and schema.
+  */
+trait SchematicDescriptor[D <: SchematicDescriptor[D]] extends TableDescriptor {
 
-	private String name;
-	private Map<String, String> properties;
+  /**
+    * Specifies the format that defines how to read data from a connector.
+    */
+  def withFormat(format: FormatDescriptor): D
 
-	protected Source(String name, Map<String, String> properties) {
-		this.name = name;
-		this.properties = properties;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public Map<String, String> getProperties() {
-		return properties;
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	@Override
-	public void addProperties(DescriptorProperties properties) {
-		this.properties.forEach(properties::putString);
-	}
+  /**
+    * Specifies the resulting table schema.
+    */
+  def withSchema(schema: Schema): D
 }

@@ -406,7 +406,7 @@ public abstract class KafkaTableSource implements
 	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 	 *             with descriptors for schema and format instead. Descriptors allow for
 	 *             implementation-agnostic definition of tables. See also
-	 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
 	@Deprecated
 	protected abstract static class Builder<T extends KafkaTableSource, B extends KafkaTableSource.Builder> {
@@ -676,7 +676,7 @@ public abstract class KafkaTableSource implements
 		 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
 		 *             with descriptors for schema and format instead. Descriptors allow for
 		 *             implementation-agnostic definition of tables. See also
-		 *             {@link org.apache.flink.table.api.TableEnvironment#from(ConnectorDescriptor)}.
+		 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 		 */
 		@Deprecated
 		protected abstract B builder();

@@ -49,7 +49,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableSourceDescriptor}
+import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -523,26 +523,21 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Creates a table from a descriptor that describes the source connector, the source format,
-    * the resulting table schema, and other properties.
+    * Creates a table source and/or table sink from a descriptor.
     *
-    * Descriptors allow for declaring communication to external systems in an
-    * implementation-agnostic way. The classpath is scanned for connectors and matching connectors
-    * are configured accordingly.
+    * Descriptors allow for declaring the communication to external systems in an
+    * implementation-agnostic way. The classpath is scanned for suitable table factories that match
+    * the desired configuration.
     *
-    * The following example shows how to read from a Kafka connector using a JSON format and
-    * creating table:
+    * The following example shows how to read from a connector using a JSON format and
+    * registering a table source as "MyTable":
     *
     * {{{
     *
     * tableEnv
-    *   .from(
-    *     new Kafka()
-    *       .version("0.11")
-    *       .topic("clicks")
-    *       .property("zookeeper.connect", "localhost")
-    *       .property("group.id", "click-group")
-    *       .startFromEarliest())
+    *   .connect(
+    *     new ExternalSystemXYZ()
+    *       .version("0.11"))
     *   .withFormat(
     *     new Json()
     *       .jsonSchema("{...}")
@@ -551,13 +546,12 @@ abstract class TableEnvironment(val config: TableConfig) {
     *     new Schema()
     *       .field("user-name", "VARCHAR").from("u_name")
     *       .field("count", "DECIMAL")
-    *       .field("proc-time", "TIMESTAMP").proctime())
-    *   .toTable()
+    *   .registerSource("MyTable")
     * }}}
     *
-    * @param connectorDescriptor connector descriptor describing the source of the table
+    * @param connectorDescriptor connector descriptor describing the external system
     */
-  def from(connectorDescriptor: ConnectorDescriptor): TableSourceDescriptor
+  def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[Table] = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
