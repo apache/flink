@@ -98,12 +98,11 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
 
 		// we loop longer than we have elements, to permit delayed checkpoints
 		// to still cause a failure
-		while (running) {
+		while (running && emitCallCount < expectedEmitCalls) {
 
 			// the function failed before, or we are in the elements before the failure
 			synchronized (ctx.getCheckpointLock()) {
 				eventEmittingGenerator.emitEvent(ctx, emitCallCount++);
-				running &= (emitCallCount < expectedEmitCalls);
 			}
 
 			if (emitCallCount < failureAfterNumElements) {
