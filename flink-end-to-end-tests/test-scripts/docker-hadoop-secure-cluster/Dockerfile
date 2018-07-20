@@ -69,7 +69,6 @@ RUN cp /UnlimitedJCEPolicyJDK8/local_policy.jar /UnlimitedJCEPolicyJDK8/US_expor
 
 ENV HADOOP_VERSION=2.8.4
 
-# ENV HADOOP_URL https://www.apache.org/dist/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz
 ENV HADOOP_URL http://archive.apache.org/dist/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz
 RUN set -x \
     && curl -fSL "$HADOOP_URL" -o /tmp/hadoop.tar.gz \
