@@ -262,8 +262,7 @@ class LocalBufferPool implements BufferPool {
 			if (isDestroyed || numberOfRequestedMemorySegments > currentPoolSize) {
 				returnMemorySegment(segment);
 				return;
-			}
-			else {
+			} else {
 				listener = registeredListeners.poll();
 
 				if (listener == null) {
@@ -277,37 +276,18 @@ class LocalBufferPool implements BufferPool {
 		// We do not know which locks have been acquired before the recycle() or are needed in the
 		// notification and which other threads also access them.
 		// -> call notifyBufferAvailable() outside of the synchronized block to avoid a deadlock (FLINK-9676)
-		boolean success = false;
-		boolean needMoreBuffers = false;
-		try {
-			needMoreBuffers = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
-			success = true;
-		} catch (Throwable ignored) {
-			// handled below, under the lock
-		}
+		// Note that in case of any exceptions notifyBufferAvailable() should recycle the buffer
+		// (either directly or later during error handling) and therefore eventually end up in this
+		// method again.
+		boolean needMoreBuffers = listener.notifyBufferAvailable(new NetworkBuffer(segment, this));
 
-		if (!success || needMoreBuffers) {
+		if (needMoreBuffers) {
 			synchronized (availableMemorySegments) {
 				if (isDestroyed) {
 					// cleanup tasks how they would have been done if we only had one synchronized block
-					if (needMoreBuffers) {
-						listener.notifyBufferDestroyed();
-					}
-					if (!success) {
-						returnMemorySegment(segment);
-					}
+					listener.notifyBufferDestroyed();
 				} else {
-					if (needMoreBuffers) {
-						registeredListeners.add(listener);
-					}
-					if (!success) {
-						if (numberOfRequestedMemorySegments > currentPoolSize) {
-							returnMemorySegment(segment);
-						} else {
-							availableMemorySegments.add(segment);
-							availableMemorySegments.notify();
-						}
-					}
+					registeredListeners.add(listener);
 				}
 			}
 		}

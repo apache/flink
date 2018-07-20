@@ -515,4 +515,38 @@ public class MapITCase extends MultipleProgramsTestBase {
 			return value;
 		}
 	}
+
+	@Test
+	public void testMapWithLambdas() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+		DataSet<Integer> stringDs = env.fromElements(11, 12, 13, 14);
+		DataSet<String> mappedDs = stringDs
+			.map(Object::toString)
+			.map(s -> s.replace("1", "2"))
+			.map(Trade::new)
+			.map(Trade::toString);
+		List<String> result = mappedDs.collect();
+
+		String expected = "22\n" +
+			"22\n" +
+			"23\n" +
+			"24\n";
+
+		compareResultAsText(result, expected);
+	}
+
+	private static class Trade {
+
+		public String v;
+
+		public Trade(String v) {
+			this.v = v;
+		}
+
+		@Override
+		public String toString() {
+			return v;
+		}
+	}
 }

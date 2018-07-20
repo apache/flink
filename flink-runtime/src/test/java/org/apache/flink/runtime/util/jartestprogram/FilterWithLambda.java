@@ -16,41 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.runtime.util.jartestprogram;
 
+import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda flatmap functions.
+ * Filter with lambda that is directly passed to {@link DataSet#filter(FilterFunction)}.
  */
-public class FlatMapITCase extends JavaProgramTestBase {
+public class FilterWithLambda {
 
-	private static final String EXPECTED_RESULT = "bb\n" +
-			"bb\n" +
-			"bc\n" +
-			"bd\n";
+	@SuppressWarnings("Convert2MethodRef")
+	public static void main(String[] args) throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		DataSet<String> input = env.fromElements("Please filter", "the words", "but not this");
 
-	private String resultPath;
+		DataSet<String> output = input.filter((v) -> WordFilter.filter(v));
+		output.print();
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> flatMappedDs = stringDs.flatMap((s, out) -> out.collect(s.replace("a", "b")));
-		flatMappedDs.writeAsText(resultPath);
 		env.execute();
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(EXPECTED_RESULT, resultPath);
 	}
 }

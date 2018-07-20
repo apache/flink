@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -472,14 +473,16 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				taskManagerParameters.taskManagerHeapSizeMB(),
 				taskManagerParameters.taskManagerDirectMemoryLimitMB());
 
-		log.debug("TaskManager configuration: {}", flinkConfig);
+		Configuration taskManagerConfig = BootstrapTools.cloneConfiguration(flinkConfig);
+
+		log.debug("TaskManager configuration: {}", taskManagerConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
 			flinkConfig,
 			yarnConfig,
 			env,
 			taskManagerParameters,
-			flinkConfig,
+			taskManagerConfig,
 			currDir,
 			YarnTaskExecutorRunner.class,
 			log);
