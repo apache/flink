@@ -34,7 +34,7 @@ trait Compiler[T] {
     } catch {
       case t: Throwable =>
         throw new InvalidProgramException("Table program cannot be compiled. " +
-          "This is a bug. Please file an issue.", t)
+          "This might be a bug. Please file an issue.", t)
     }
     compiler.getClassLoader.loadClass(name).asInstanceOf[Class[T]]
   }
