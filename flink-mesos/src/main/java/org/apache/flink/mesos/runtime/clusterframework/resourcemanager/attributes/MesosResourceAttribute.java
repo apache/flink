@@ -26,6 +26,8 @@ import java.util.Map;
 
 /**
  * Mesos resource attribute implementation.
+ *
+ * A mesos resource attribute consists of a key-value map.
  */
 public class MesosResourceAttribute implements ResourceAttribute {
 	private final Map<String, String> attributes;
@@ -38,6 +40,9 @@ public class MesosResourceAttribute implements ResourceAttribute {
 		return new Builder();
 	}
 
+	/**
+	 * Builder for mesos resource attribute.
+	 */
 	public static class Builder {
 		private final Map<String, String> attributes = new HashMap<>();
 
