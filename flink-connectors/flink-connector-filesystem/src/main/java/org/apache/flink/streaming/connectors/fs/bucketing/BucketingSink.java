@@ -45,7 +45,9 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +61,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +166,7 @@ import java.util.UUID;
  */
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
-		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
+		implements BucketReady, InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
 
 	private static final long serialVersionUID = 1L;
 
@@ -681,6 +684,7 @@ public class BucketingSink<T>
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		synchronized (state.bucketStates) {
 
+			Set<Path> partitionPaths = new HashSet<>();
 			Iterator<Map.Entry<String, BucketState<T>>> bucketStatesIt = state.bucketStates.entrySet().iterator();
 			while (bucketStatesIt.hasNext()) {
 				BucketState<T> bucketState = bucketStatesIt.next().getValue();
@@ -707,6 +711,7 @@ public class BucketingSink<T>
 									"Moving pending file {} to final location having completed checkpoint {}.",
 									pendingPath,
 									pastCheckpointId);
+								partitionPaths.add(finalPath.getParent());
 							}
 							pendingCheckpointsIt.remove();
 						}
@@ -722,7 +727,28 @@ public class BucketingSink<T>
 					}
 				}
 			}
+			isBucketReady(partitionPaths);
 		}
+	}
+
+	@Override
+	public boolean isBucketReady(Set<Path> bucketPathes) {
+		for (Path path : bucketPathes) {
+			try {
+				RemoteIterator<LocatedFileStatus> files = fs.listFiles(path, false);
+				while (files.hasNext()) {
+					LocatedFileStatus fileStatus = files.next();
+					if (fileStatus.getPath().getName().endsWith(pendingSuffix) ||
+						fileStatus.getPath().getName().endsWith(inProgressSuffix)) {
+						return false;
+					}
+				}
+			} catch (IOException e) {
+				LOG.warn("Failed to access hdfs location {}.", path, e);
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
