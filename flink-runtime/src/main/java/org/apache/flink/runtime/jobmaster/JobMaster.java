@@ -983,7 +983,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		slotPool.failAllocation(allocationID, cause);
+		slotPoolGateway.failAllocation(allocationID, cause);
 	}
 
 	//----------------------------------------------------------------------------------------------
