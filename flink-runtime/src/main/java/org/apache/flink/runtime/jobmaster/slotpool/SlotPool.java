@@ -50,6 +50,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -1001,30 +1002,48 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * and decided to take it back.
 	 *
 	 * @param allocationID Represents the allocation which should be failed
-	 * @param cause        The cause of the failure
+	 * @param cause The cause of the failure
+	 * @return Optional task executor if it has no more slots registered
 	 */
 	@Override
-	public void failAllocation(final AllocationID allocationID, final Exception cause) {
+	public CompletableFuture<SerializableOptional<ResourceID>> failAllocation(final AllocationID allocationID, final Exception cause) {
 		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
 		if (pendingRequest != null) {
 			// request was still pending
 			failPendingRequest(pendingRequest, cause);
-		}
-		else if (availableSlots.tryRemove(allocationID)) {
-			log.debug("Failed available slot [{}].", allocationID, cause);
+			return CompletableFuture.completedFuture(SerializableOptional.empty());
 		}
 		else {
-			AllocatedSlot allocatedSlot = allocatedSlots.remove(allocationID);
-			if (allocatedSlot != null) {
-				// release the slot.
-				// since it is not in 'allocatedSlots' any more, it will be dropped o return'
-				allocatedSlot.releasePayload(cause);
-			}
-			else {
-				log.trace("Outdated request to fail slot [{}].", allocationID, cause);
+			return tryFailingAllocatedSlot(allocationID, cause);
+		}
+
+		// TODO: add some unit tests when the previous two are ready, the allocation may failed at any phase
+	}
+
+	private CompletableFuture<SerializableOptional<ResourceID>> tryFailingAllocatedSlot(AllocationID allocationID, Exception cause) {
+		AllocatedSlot allocatedSlot = availableSlots.tryRemove(allocationID);
+
+		if (allocatedSlot == null) {
+			allocatedSlot = allocatedSlots.remove(allocationID);
+		}
+
+		if (allocatedSlot != null) {
+			log.debug("Failed allocated slot [{}]: {}", allocationID, cause.getMessage());
+
+			// notify TaskExecutor about the failure
+			allocatedSlot.getTaskManagerGateway().freeSlot(allocationID, cause, rpcTimeout);
+			// release the slot.
+			// since it is not in 'allocatedSlots' any more, it will be dropped o return'
+			allocatedSlot.releasePayload(cause);
+
+			final ResourceID taskManagerId = allocatedSlot.getTaskManagerId();
+
+			if (!availableSlots.containsTaskManager(taskManagerId) && !allocatedSlots.containResource(taskManagerId)) {
+				return CompletableFuture.completedFuture(SerializableOptional.of(taskManagerId));
 			}
 		}
-		// TODO: add some unit tests when the previous two are ready, the allocation may failed at any phase
+
+		return CompletableFuture.completedFuture(SerializableOptional.empty());
 	}
 
 	// ------------------------------------------------------------------------
@@ -1107,7 +1126,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		for (AllocatedSlot expiredSlot : expiredSlots) {
 			final AllocationID allocationID = expiredSlot.getAllocationId();
-			if (availableSlots.tryRemove(allocationID)) {
+			if (availableSlots.tryRemove(allocationID) != null) {
 
 				log.info("Releasing idle slot [{}].", allocationID);
 				final CompletableFuture<Acknowledge> freeSlotFuture = expiredSlot.getTaskManagerGateway().freeSlot(
@@ -1502,7 +1521,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			}
 		}
 
-		boolean tryRemove(AllocationID slotId) {
+		AllocatedSlot tryRemove(AllocationID slotId) {
 			final SlotAndTimestamp sat = availableSlots.remove(slotId);
 			if (sat != null) {
 				final AllocatedSlot slot = sat.slot();
@@ -1522,15 +1541,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 					availableSlotsByHost.remove(host);
 				}
 
-				return true;
+				return slot;
 			}
 			else {
-				return false;
+				return null;
 			}
 		}
 
 		private void remove(AllocationID slotId) throws IllegalStateException {
-			if (!tryRemove(slotId)) {
+			if (tryRemove(slotId) == null) {
 				throw new IllegalStateException("slot not contained");
 			}
 		}
