@@ -311,14 +311,12 @@ public class TaskExecutorTest extends TestLogger {
 		TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway(
 			rmLeaderId,
 			rmResourceId,
-			heartbeatInterval,
 			rmAddress,
 			rmAddress);
 
 		final TaskExecutorRegistrationSuccess registrationResponse = new TaskExecutorRegistrationSuccess(
 			new InstanceID(),
 			rmResourceId,
-			heartbeatInterval,
 			new ClusterInformation("localhost", 1234));
 
 		final CompletableFuture<ResourceID> taskExecutorRegistrationFuture = new CompletableFuture<>();
@@ -436,7 +434,6 @@ public class TaskExecutorTest extends TestLogger {
 			new TaskExecutorRegistrationSuccess(
 				new InstanceID(),
 				rmResourceId,
-				10L,
 				new ClusterInformation("localhost", 1234)));
 
 		rmGateway.setRegisterTaskExecutorFunction(stringResourceIDIntegerHardwareDescriptionTuple4 -> {
@@ -556,7 +553,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(rmGateway.registerTaskExecutor(
 					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
-				new InstanceID(), resourceManagerResourceId, 10L, new ClusterInformation("localhost", 1234))));
+				new InstanceID(), resourceManagerResourceId, new ClusterInformation("localhost", 1234))));
 
 		rpc.registerGateway(resourceManagerAddress, rmGateway);
 
@@ -620,11 +617,11 @@ public class TaskExecutorTest extends TestLogger {
 		when(rmGateway1.registerTaskExecutor(
 					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, 10L, new ClusterInformation("localhost", 1234))));
+				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, new ClusterInformation("localhost", 1234))));
 		when(rmGateway2.registerTaskExecutor(
 					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, 10L, new ClusterInformation("localhost", 1234))));
+				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, new ClusterInformation("localhost", 1234))));
 
 		rpc.registerGateway(address1, rmGateway1);
 		rpc.registerGateway(address2, rmGateway2);
@@ -938,7 +935,7 @@ public class TaskExecutorTest extends TestLogger {
 		resourceManagerGateway.setRegisterTaskExecutorFunction(
 			stringResourceIDIntegerHardwareDescriptionTuple4 -> {
                 registrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
-                return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234)));
+                return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, new ClusterInformation("localhost", 1234)));
             }
 		);
 
@@ -1271,7 +1268,6 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway(
 			ResourceManagerId.generate(),
 			rmResourceID,
-			heartbeatInterval,
 			rmAddress,
 			rmAddress);
 
@@ -1458,7 +1454,6 @@ public class TaskExecutorTest extends TestLogger {
 						return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
 							new InstanceID(),
 							testingResourceManagerGateway.getOwnResourceId(),
-							heartbeatInterval,
 							new ClusterInformation("localhost", 1234)));
 					} else {
 						secondRegistration.trigger();
@@ -1558,7 +1553,7 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
 			final ClusterInformation clusterInformation = new ClusterInformation("foobar", 1234);
-			final CompletableFuture<RegistrationResponse> registrationResponseFuture = CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), heartbeatInterval, clusterInformation));
+			final CompletableFuture<RegistrationResponse> registrationResponseFuture = CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), clusterInformation));
 			final BlockingQueue<ResourceID> registrationQueue = new ArrayBlockingQueue<>(1);
 
 			testingResourceManagerGateway.setRegisterTaskExecutorFunction(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5 -> {
@@ -1657,7 +1652,6 @@ public class TaskExecutorTest extends TestLogger {
 				new TaskExecutorRegistrationSuccess(
 					new InstanceID(),
 					testingResourceManagerGateway.getOwnResourceId(),
-					1000L,
 					new ClusterInformation("foobar", 1234)	));
 
 			final CountDownLatch numberRegistrations = new CountDownLatch(2);

@@ -41,7 +41,6 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -154,7 +153,6 @@ public class YarnResourceManagerTest extends TestLogger {
 				ResourceID resourceId,
 				Configuration flinkConfig,
 				Map<String, String> env,
-				ResourceManagerConfiguration resourceManagerConfiguration,
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
 				SlotManager slotManager,
@@ -171,7 +169,6 @@ public class YarnResourceManagerTest extends TestLogger {
 				resourceId,
 				flinkConfig,
 				env,
-				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
@@ -220,7 +217,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		final MockResourceManagerRuntimeServices rmServices;
 
 		// RM
-		final ResourceManagerConfiguration rmConfiguration;
 		final ResourceID rmResourceID;
 		static final String RM_ADDRESS = "resourceManager";
 		final TestingYarnResourceManager resourceManager;
@@ -248,9 +244,6 @@ public class YarnResourceManagerTest extends TestLogger {
 			rmServices = new MockResourceManagerRuntimeServices();
 
 			// resource manager
-			rmConfiguration = new ResourceManagerConfiguration(
-					Time.seconds(5L),
-					Time.seconds(5L));
 			rmResourceID = ResourceID.generate();
 			resourceManager =
 					new TestingYarnResourceManager(
@@ -259,7 +252,6 @@ public class YarnResourceManagerTest extends TestLogger {
 							rmResourceID,
 							flinkConfig,
 							env,
-							rmConfiguration,
 							rmServices.highAvailabilityServices,
 							rmServices.heartbeatServices,
 							rmServices.slotManager,
