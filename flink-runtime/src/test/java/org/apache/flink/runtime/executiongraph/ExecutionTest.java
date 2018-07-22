@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -50,6 +51,8 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -417,6 +420,78 @@ public class ExecutionTest extends TestLogger {
 		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY).get();
 
 		assertThat(execution.getTaskRestore(), is(nullValue()));
+	}
+
+	@Test
+	public void testEagerSchedulingFailureReturnsSlot() throws Exception {
+		final JobVertex jobVertex = createNoOpJobVertex();
+		final JobVertexID jobVertexId = jobVertex.getID();
+
+		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
+
+		final CompletableFuture<SlotRequestId> slotRequestIdFuture = new CompletableFuture<>();
+		final CompletableFuture<SlotRequestId> returnedSlotFuture = new CompletableFuture<>();
+
+		final TestingSlotProvider slotProvider = new TestingSlotProvider(
+			(SlotRequestId slotRequestId) -> {
+				slotRequestIdFuture.complete(slotRequestId);
+				return new CompletableFuture<>();
+			});
+
+		slotProvider.setSlotCanceller(returnedSlotFuture::complete);
+		slotOwner.getReturnedSlotFuture().thenAccept(
+			(LogicalSlot logicalSlot) -> returnedSlotFuture.complete(logicalSlot.getSlotRequestId()));
+
+		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			jobVertex);
+
+		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
+
+		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
+
+		final Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+		taskManagerGateway.setCancelConsumer(
+			executionAttemptID -> {
+				if (execution.getAttemptId().equals(executionAttemptID)) {
+					execution.cancelingComplete();
+				}
+			}
+		);
+
+		final ExecutorService executorService = Executors.newFixedThreadPool(1);
+
+		try {
+			slotRequestIdFuture.thenAcceptAsync(
+				(SlotRequestId slotRequestId) -> {
+					final SingleLogicalSlot singleLogicalSlot = ExecutionGraphSchedulingTest.createSingleLogicalSlot(
+						slotOwner,
+						taskManagerGateway,
+						slotRequestId);
+					slotProvider.complete(slotRequestId, singleLogicalSlot);
+				},
+				executorService);
+
+			final CompletableFuture<Void> schedulingFuture = execution.scheduleForExecution(
+				slotProvider,
+				false,
+				LocationPreferenceConstraint.ANY);
+
+			try {
+				schedulingFuture.get();
+				// cancel the execution in case we could schedule the execution
+				execution.cancel();
+			} catch (ExecutionException ignored) {
+			}
+
+			assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
+		} finally {
+			executorService.shutdownNow();
+		}
 	}
 
 	@Nonnull
