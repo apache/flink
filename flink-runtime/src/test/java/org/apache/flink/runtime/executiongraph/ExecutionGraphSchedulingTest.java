@@ -658,7 +658,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 	}
 
 	@Nonnull
-	private SingleLogicalSlot createSingleLogicalSlot(TestingSlotOwner slotOwner, SimpleAckingTaskManagerGateway taskManagerGateway, SlotRequestId slotRequestId) {
+	static SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner, TaskManagerGateway taskManagerGateway, SlotRequestId slotRequestId) {
 		TaskManagerLocation location = new TaskManagerLocation(
 			ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
 
