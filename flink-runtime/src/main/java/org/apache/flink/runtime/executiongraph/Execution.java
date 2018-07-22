@@ -280,15 +280,19 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		// only allow to set the assigned resource in state SCHEDULED or CREATED
 		// note: we also accept resource assignment when being in state CREATED for testing purposes
 		if (state == SCHEDULED || state == CREATED) {
-			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, logicalSlot) && logicalSlot.tryAssignPayload(this)) {
-				// check for concurrent modification (e.g. cancelling call)
-				if (state == SCHEDULED || state == CREATED) {
-					checkState(!taskManagerLocationFuture.isDone(), "The TaskManagerLocationFuture should not be set if we haven't assigned a resource yet.");
-					taskManagerLocationFuture.complete(logicalSlot.getTaskManagerLocation());
-					assignedAllocationID = logicalSlot.getAllocationId();
-					return true;
+			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, logicalSlot)) {
+				if (logicalSlot.tryAssignPayload(this)) {
+					// check for concurrent modification (e.g. cancelling call)
+					if ((state == SCHEDULED || state == CREATED) && !taskManagerLocationFuture.isDone()) {
+						taskManagerLocationFuture.complete(logicalSlot.getTaskManagerLocation());
+						assignedAllocationID = logicalSlot.getAllocationId();
+						return true;
+					} else {
+						// free assigned resource and return false
+						ASSIGNED_SLOT_UPDATER.set(this, null);
+						return false;
+					}
 				} else {
-					// free assigned resource and return false
 					ASSIGNED_SLOT_UPDATER.set(this, null);
 					return false;
 				}
