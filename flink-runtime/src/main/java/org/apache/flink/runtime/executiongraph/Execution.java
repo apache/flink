@@ -179,7 +179,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	/**
 	 * Creates a new Execution attempt.
-	 * 
+	 *
 	 * @param executor
 	 *             The executor used to dispatch callbacks from futures and asynchronous RPC calls.
 	 * @param vertex
@@ -250,7 +250,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	/**
 	 * Gets the global modification version of the execution graph when this execution was created.
-	 * 
+	 *
 	 * <p>This version is bumped in the ExecutionGraph whenever a global failover happens. It is used
 	 * to resolve conflicts between concurrent modification by global and local failover actions.
 	 */
@@ -391,7 +391,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * NOTE: This method only throws exceptions if it is in an illegal state to be scheduled, or if the tasks needs
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
 	 *       error sets the vertex state to failed and triggers the recovery logic.
-	 * 
+	 *
 	 * @param slotProvider The slot provider to use to allocate slot for this execution attempt.
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
@@ -773,11 +773,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					final TaskManagerLocation partitionTaskManagerLocation = partition.getProducer()
 							.getCurrentAssignedResource().getTaskManagerLocation();
 					final ResourceID partitionTaskManager = partitionTaskManagerLocation.getResourceID();
-					
+
 					final ResourceID consumerTaskManager = consumerSlot.getTaskManagerLocation().getResourceID();
 
 					final ResultPartitionID partitionId = new ResultPartitionID(partition.getPartitionId(), attemptId);
-					
 
 					final ResultPartitionLocation partitionLocation;
 
@@ -986,7 +985,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	void cancelingComplete() {
 		cancelingComplete(null, null);
 	}
-	
+
 	void cancelingComplete(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
@@ -1148,7 +1147,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (currentState == CANCELING || currentState == FAILED) {
 				if (LOG.isDebugEnabled()) {
 					// this log statement is guarded because the 'getVertexWithAttempt()' method
-					// performs string concatenations 
+					// performs string concatenations
 					LOG.debug("Concurrent canceling/failing of {} while deployment was in progress.", getVertexWithAttempt());
 				}
 				sendCancelRpcCall();
@@ -1175,7 +1174,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	/**
 	 * This method sends a CancelTask message to the instance of the assigned slot.
 	 *
-	 * The sending is tried up to NUM_CANCEL_CALL_TRIES times.
+	 * <p>The sending is tried up to NUM_CANCEL_CALL_TRIES times.
 	 */
 	private void sendCancelRpcCall() {
 		final LogicalSlot slot = assignedResource;
@@ -1238,9 +1237,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	/**
 	 * Releases the assigned resource and completes the release future
-	 * once the assigned resource has been successfully released
+	 * once the assigned resource has been successfully released.
 	 *
-	 * @param cause for the resource release, null if none 	 
+	 * @param cause for the resource release, null if none
 	 */
 	private void releaseAssignedResource(@Nullable Throwable cause) {
 		final LogicalSlot slot = assignedResource;
@@ -1357,7 +1356,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// ------------------------------------------------------------------------
 	//  Accumulators
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Update accumulators (discarded when the Execution has already been terminated).
 	 * @param userAccumulators the user accumulators
@@ -1369,7 +1368,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 		}
 	}
-	
+
 	public Map<String, Accumulator<?, ?>> getUserAccumulators() {
 		return userAccumulators;
 	}
@@ -1389,7 +1388,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public int getParallelSubtaskIndex() {
 		return getVertex().getParallelSubtaskIndex();
 	}
-		
+
 	@Override
 	public IOMetrics getIOMetrics() {
 		return ioMetrics;
@@ -1409,7 +1408,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// ------------------------------------------------------------------------
 	//  Standard utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		final LogicalSlot slot = assignedResource;
