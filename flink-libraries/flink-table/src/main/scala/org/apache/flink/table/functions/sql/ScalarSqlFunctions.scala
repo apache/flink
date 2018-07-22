@@ -149,6 +149,15 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val CRC32 = new SqlFunction(
+    "CRC32",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.BIGINT), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
   val DATE_FORMAT = new SqlFunction(
     "DATE_FORMAT",
     SqlKind.OTHER_FUNCTION,

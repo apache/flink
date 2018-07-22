@@ -589,6 +589,12 @@ object FunctionGenerator {
     new HashCalcCallGen("SHA-2")
   )
 
+  addSqlFunction(
+    ScalarSqlFunctions.CRC32,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("CRC32")
+  )
+
   // ----------------------------------------------------------------------------------------------
 
   /**

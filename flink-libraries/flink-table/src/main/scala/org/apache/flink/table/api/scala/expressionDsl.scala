@@ -810,6 +810,14 @@ trait ImplicitExpressionOperations {
   def sha2(hashLength: Expression) = Sha2(expr, hashLength)
 
   /**
+    * returns the cyclic redundancy check value of a given string as a 32-bit unsigned value;
+    * null if string is null.
+    *
+    * @return 32-bit unsigned value or null
+    */
+  def crc32() = Crc32(expr)
+
+  /**
     * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
     * False otherwise. The parameters must be numeric types or identical comparable types.
     *
