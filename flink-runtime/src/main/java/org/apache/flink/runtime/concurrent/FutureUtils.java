@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -786,7 +785,7 @@ public class FutureUtils {
 		private final CompletableFuture<?> future;
 
 		private Timeout(CompletableFuture<?> future) {
-			this.future = Preconditions.checkNotNull(future);
+			this.future = checkNotNull(future);
 		}
 
 		@Override
@@ -800,8 +799,9 @@ public class FutureUtils {
 	 *
 	 * <p>This class creates a singleton scheduler used to run the provided actions.
 	 */
-	private static final class Delayer {
-		static final ScheduledThreadPoolExecutor delayer = new ScheduledThreadPoolExecutor(
+	private enum Delayer {
+		;
+		static final ScheduledThreadPoolExecutor DELAYER = new ScheduledThreadPoolExecutor(
 			1,
 			new ExecutorThreadFactory("FlinkCompletableFutureDelayScheduler"));
 
@@ -814,10 +814,10 @@ public class FutureUtils {
 		 * @return Future of the scheduled action
 		 */
 		private static ScheduledFuture<?> delay(Runnable runnable, long delay, TimeUnit timeUnit) {
-			Preconditions.checkNotNull(runnable);
-			Preconditions.checkNotNull(timeUnit);
+			checkNotNull(runnable);
+			checkNotNull(timeUnit);
 
-			return delayer.schedule(runnable, delay, timeUnit);
+			return DELAYER.schedule(runnable, delay, timeUnit);
 		}
 	}
 }
