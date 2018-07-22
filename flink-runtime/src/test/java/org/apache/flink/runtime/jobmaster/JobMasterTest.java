@@ -550,20 +550,6 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
-	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
-		final JobVertex jobVertex = new JobVertex("Test vertex");
-		jobVertex.setInvokableClass(NoOpInvokable.class);
-
-		final ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
-
-		final JobGraph jobGraph = new JobGraph(jobVertex);
-		jobGraph.setAllowQueuedScheduling(true);
-		jobGraph.setExecutionConfig(executionConfig);
-
-		return jobGraph;
-	}
-
 	/**
 	 * Tests that we can close an unestablished ResourceManager connection.
 	 */
@@ -975,6 +961,72 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the TaskExecutor is released if all of its slots have been freed.
+	 */
+	@Test
+	public void testReleasingTaskExecutorIfNoMoreSlotsRegistered() throws Exception {
+		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
+
+		final JobGraph jobGraph = createSingleVertexJobWithRestartStrategy();
+
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices,
+			heartbeatServices);
+
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+		rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+
+		testingResourceManagerGateway.setRequestSlotConsumer(
+			slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+
+		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
+		final CompletableFuture<AllocationID> freedSlotFuture = new CompletableFuture<>();
+		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+			.setFreeSlotFunction(
+				(allocationID, throwable) -> {
+					freedSlotFuture.complete(allocationID);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
+			.createTestingTaskExecutorGateway();
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
+
+		try {
+			jobMaster.start(jobMasterId, testingTimeout).get();
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final AllocationID allocationId = allocationIdFuture.get();
+
+			jobMasterGateway.registerTaskManager(testingTaskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
+
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+			final CompletableFuture<Collection<SlotOffer>> acceptedSlotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout);
+
+			final Collection<SlotOffer> slotOffers = acceptedSlotOffers.get();
+
+			// check that we accepted the offered slot
+			assertThat(slotOffers, hasSize(1));
+
+			// now fail the allocation and check that we close the connection to the TaskExecutor
+			jobMasterGateway.notifyAllocationFailure(allocationId, new FlinkException("Fail alloction test exception"));
+
+			// we should free the slot and then disconnect from the TaskExecutor because we use no longer slots from it
+			assertThat(freedSlotFuture.get(), equalTo(allocationId));
+			assertThat(disconnectTaskExecutorFuture.get(), equalTo(jobGraph.getJobID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
 	private JobGraph producerConsumerJobGraph() {
 		final JobVertex producer = new JobVertex("Producer");
 		producer.setInvokableClass(NoOpInvokable.class);
@@ -1062,6 +1114,20 @@ public class JobMasterTest extends TestLogger {
 			new NoOpOnCompletionActions(),
 			testingFatalErrorHandler,
 			JobMasterTest.class.getClassLoader());
+	}
+
+	private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
+		final JobVertex jobVertex = new JobVertex("Test vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+
+		final ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setExecutionConfig(executionConfig);
+
+		return jobGraph;
 	}
 
 	/**

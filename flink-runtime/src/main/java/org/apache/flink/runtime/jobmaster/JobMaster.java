@@ -103,6 +103,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
@@ -833,11 +834,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Exception cause) {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
-			slotPoolGateway.failAllocation(allocationId, cause);
+			internalFailAllocation(allocationId, cause);
 		} else {
 			log.warn("Cannot fail slot " + allocationId + " because the TaskManager " +
 			taskManagerId + " is unknown.");
 		}
+	}
+
+	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
+		final CompletableFuture<SerializableOptional<ResourceID>> emptyTaskExecutorFuture = slotPoolGateway.failAllocation(allocationId, cause);
+
+		emptyTaskExecutorFuture.thenAcceptAsync(
+			resourceIdOptional -> resourceIdOptional.ifPresent(this::releaseEmptyTaskManager),
+			getMainThreadExecutor());
+	}
+
+	private CompletableFuture<Acknowledge> releaseEmptyTaskManager(ResourceID resourceId) {
+		return disconnectTaskManager(resourceId, new FlinkException(String.format("No more slots registered at JobMaster %s.", resourceId)));
 	}
 
 	@Override
@@ -982,7 +995,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
-		slotPoolGateway.failAllocation(allocationID, cause);
+		internalFailAllocation(allocationID, cause);
 	}
 
 	//----------------------------------------------------------------------------------------------
