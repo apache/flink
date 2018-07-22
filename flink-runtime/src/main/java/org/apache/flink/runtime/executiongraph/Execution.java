@@ -54,6 +54,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
+import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.slf4j.Logger;
 
@@ -413,24 +414,19 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
 			// necessary for immediate deployment.
-			final CompletableFuture<Void> deploymentFuture = allocationFuture.handle(
-				(Execution ignored, Throwable throwable) -> {
-					if (throwable != null) {
-						markFailed(ExceptionUtils.stripCompletionException(throwable));
-					} else {
-						try {
-							deploy();
-						} catch (Throwable t) {
-							markFailed(ExceptionUtils.stripCompletionException(t));
-						}
+			final CompletableFuture<Void> deploymentFuture = allocationFuture.thenAccept(
+				(FutureConsumerWithException<Execution, Exception>) value -> deploy());
+
+			deploymentFuture.whenComplete(
+				(Void ignored, Throwable failure) -> {
+					if (failure != null) {
+						markFailed(ExceptionUtils.stripCompletionException(failure));
 					}
-					return null;
-				}
-			);
+				});
 
 			// if tasks have to scheduled immediately check that the task has been deployed
 			if (!queued && !deploymentFuture.isDone()) {
-				allocationFuture.completeExceptionally(new IllegalArgumentException("The slot allocation future has not been completed yet."));
+				deploymentFuture.completeExceptionally(new IllegalArgumentException("The slot allocation future has not been completed yet."));
 			}
 
 			return deploymentFuture;
