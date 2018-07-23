@@ -19,7 +19,6 @@ version: '3.5'
 
 networks:
   docker-hadoop-cluster-network:
-    driver: bridge
     name: docker-hadoop-cluster-network
 
 services:
