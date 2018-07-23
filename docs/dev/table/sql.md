@@ -1828,6 +1828,16 @@ RPAD(text string, len integer, pad string)
         <p>Returns the string text right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code>, <code>RPAD('hi',1,'??')</code> returns <code>h</code>.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+FROM_BASE64(text string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the base string decoded with base64, if text is NULL, returns NULL. E.g. <code>FROM_BASE64('aGVsbG8gd29ybGQ=')</code> returns <code>hello world</code>.</p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
