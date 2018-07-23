@@ -31,7 +31,10 @@ import org.apache.flink.runtime.util.jartestprogram.AnonymousInNonStaticMethod2;
 import org.apache.flink.runtime.util.jartestprogram.NestedAnonymousInnerClass;
 import org.junit.Assert;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,10 +45,13 @@ import java.util.zip.ZipEntry;
 
 public class JarFileCreatorTest {
 
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
 	//anonymous inner class in static method accessing a local variable in its closure.
 	@Test
 	public void TestAnonymousInnerClassTrick1() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(AnonymousInStaticMethod.class)
 			.createJarFile();
@@ -63,7 +69,7 @@ public class JarFileCreatorTest {
 	//anonymous inner class in non static method accessing a local variable in its closure.
 	@Test
 	public void TestAnonymousInnerClassTrick2() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(AnonymousInNonStaticMethod.class)
 			.createJarFile();
@@ -81,7 +87,7 @@ public class JarFileCreatorTest {
 	//anonymous inner class in non static method accessing a field of its enclosing class.
 	@Test
 	public void TestAnonymousInnerClassTrick3() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(AnonymousInNonStaticMethod2.class)
 			.createJarFile();
@@ -99,7 +105,7 @@ public class JarFileCreatorTest {
 	//anonymous inner class in an anonymous inner class accessing a field of the outermost enclosing class.
 	@Test
 	public void TestAnonymousInnerClassTrick4() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(NestedAnonymousInnerClass.class)
 			.createJarFile();
@@ -118,7 +124,7 @@ public class JarFileCreatorTest {
 	@Ignore // this is currently not supported (see FLINK-9520)
 	@Test
 	public void testFilterWithMethodReference() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterWithMethodReference.class)
 			.createJarFile();
@@ -133,7 +139,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void testFilterWithLambda() throws Exception{
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterWithLambda.class)
 			.createJarFile();
@@ -148,7 +154,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void testFilterWithIndirection() throws Exception {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(FilterWithIndirection.class)
 			.createJarFile();
@@ -167,7 +173,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void TestExternalClass() throws IOException {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithExternalClass.class)
 			.createJarFile();
@@ -184,7 +190,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void TestInnerClass() throws IOException {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithInnerClass.class)
 			.createJarFile();
@@ -201,7 +207,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void TestAnonymousClass() throws IOException {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithAnonymousClass.class)
 			.createJarFile();
@@ -218,7 +224,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void TestExtendIdentifier() throws IOException {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithExternalClass2.class)
 			.createJarFile();
@@ -236,7 +242,7 @@ public class JarFileCreatorTest {
 
 	@Test
 	public void TestUDFPackage() throws IOException {
-		File out = new File(System.getProperty("java.io.tmpdir"), "jarcreatortest.jar");
+		File out = tempFolder.newFile("jarcreatortest.jar");
 		JarFileCreator jfc = new JarFileCreator(out);
 		jfc.addClass(WordCountWithInnerClass.class)
 			.addPackage("org.apache.flink.util")
