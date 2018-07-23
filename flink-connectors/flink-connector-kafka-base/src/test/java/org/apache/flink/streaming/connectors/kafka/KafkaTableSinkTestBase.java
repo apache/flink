@@ -44,7 +44,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * Abstract test base for all Kafka table sink tests.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sinks.
  */
+@Deprecated
 public abstract class KafkaTableSinkTestBase {
 
 	private static final String TOPIC = "testTopic";
@@ -94,7 +98,8 @@ public abstract class KafkaTableSinkTestBase {
 	protected abstract Class<? extends FlinkKafkaProducerBase> getProducerClass();
 
 	private KafkaTableSink createTableSink() {
-		return createTableSink(TOPIC, PROPERTIES, PARTITIONER);
+		KafkaTableSink sink = createTableSink(TOPIC, PROPERTIES, PARTITIONER);
+		return sink.configure(FIELD_NAMES, FIELD_TYPES);
 	}
 
 	private static Properties createSinkProperties() {

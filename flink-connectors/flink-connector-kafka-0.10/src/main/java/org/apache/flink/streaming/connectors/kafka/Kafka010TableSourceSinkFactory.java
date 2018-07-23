@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,18 +34,18 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Factory for creating configured instances of {@link Kafka09TableSource}.
+ * Factory for creating configured instances of {@link Kafka010TableSource}.
  */
-public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
+public class Kafka010TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
 	@Override
 	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_09;
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_010;
 	}
 
 	@Override
 	protected boolean supportsKafkaTimestamps() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -58,7 +60,7 @@ public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka09TableSource(
+		return new Kafka010TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
@@ -68,5 +70,21 @@ public class Kafka09TableSourceFactory extends KafkaTableSourceFactory {
 			deserializationSchema,
 			startupMode,
 			specificStartupOffsets);
+	}
+
+	@Override
+	protected KafkaTableSink createKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka010TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema);
 	}
 }

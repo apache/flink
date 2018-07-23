@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,23 +34,22 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka011TableSource} created by {@link Kafka011TableSourceFactory}.
+ * Factory for creating configured instances of {@link Kafka09TableSource}.
  */
-public class Kafka011TableSourceFactoryTest extends KafkaTableSourceFactoryTestBase {
+public class Kafka09TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
 	@Override
-	protected String getKafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
+	protected String kafkaVersion() {
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_09;
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
-		return (Class) FlinkKafkaConsumer011.class;
+	protected boolean supportsKafkaTimestamps() {
+		return false;
 	}
 
 	@Override
-	protected KafkaTableSource getExpectedKafkaTableSource(
+	protected KafkaTableSource createKafkaTableSource(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -59,7 +60,7 @@ public class Kafka011TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka011TableSource(
+		return new Kafka09TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
@@ -68,7 +69,22 @@ public class Kafka011TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets
-		);
+			specificStartupOffsets);
+	}
+
+	@Override
+	protected KafkaTableSink createKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka09TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema);
 	}
 }
