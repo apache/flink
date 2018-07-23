@@ -63,11 +63,17 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 	/** This determines after how many generated events we sleep. A value < 1 deactivates sleeping. */
 	private final long sleepAfterElements;
 
+	/** The current event time progress of this source; will start from 0. */
+	private long monotonousEventTime;
+
 	/** This holds the key ranges for which this source generates events. */
 	private transient List<KeyRangeStates> keyRanges;
 
 	/** This is used to snapshot the state of this source, one entry per key range. */
 	private transient ListState<KeyRangeStates> snapshotKeyRanges;
+
+	/** This is used to snapshot the event time progress of the sources. */
+	private transient ListState<Long> lastEventTimes;
 
 	/** Flag that determines if this source is running, i.e. generating events. */
 	private volatile boolean running;
@@ -102,7 +108,6 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 		Random random = new Random();
 
 		// this holds the current event time, from which generated events can up to +/- (maxOutOfOrder).
-		long monotonousEventTime = 0L;
 		long elementsBeforeSleep = sleepAfterElements;
 
 		while (running) {
@@ -177,6 +182,9 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
 		snapshotKeyRanges.update(keyRanges);
+
+		lastEventTimes.clear();
+		lastEventTimes.add(monotonousEventTime);
 	}
 
 	@Override
@@ -185,6 +193,11 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 		final int subtaskIdx = runtimeContext.getIndexOfThisSubtask();
 		final int parallelism = runtimeContext.getNumberOfParallelSubtasks();
 		final int maxParallelism = runtimeContext.getMaxNumberOfParallelSubtasks();
+
+		ListStateDescriptor<Long> unionWatermarksStateDescriptor =
+			new ListStateDescriptor<>("watermarks", Long.class);
+
+		lastEventTimes = context.getOperatorStateStore().getUnionListState(unionWatermarksStateDescriptor);
 
 		ListStateDescriptor<KeyRangeStates> stateDescriptor =
 			new ListStateDescriptor<>("keyRanges", KeyRangeStates.class);
@@ -196,6 +209,11 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 			// restore key ranges from the snapshot
 			for (KeyRangeStates keyRange : snapshotKeyRanges.get()) {
 				keyRanges.add(keyRange);
+			}
+
+			// let event time start from the max of all event time progress across subtasks in the last execution
+			for (Long lastEventTime : lastEventTimes.get()) {
+				monotonousEventTime = Math.max(monotonousEventTime, lastEventTime);
 			}
 		} else {
 			// determine the key ranges that belong to the subtask
@@ -211,6 +229,9 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event> i
 					keyRanges.add(new KeyRangeStates(start, end));
 				}
 			}
+
+			// fresh run; start from event time o
+			monotonousEventTime = 0L;
 		}
 	}
 
