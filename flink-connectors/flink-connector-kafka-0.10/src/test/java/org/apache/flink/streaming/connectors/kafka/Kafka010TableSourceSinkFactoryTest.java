@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,9 +34,10 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka010TableSource} created by {@link Kafka010TableSourceFactory}.
+ * Test for {@link Kafka010TableSource} and {@link Kafka010TableSink} created
+ * by {@link Kafka010TableSourceSinkFactory}.
  */
-public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestBase {
+public class Kafka010TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
 
 	@Override
 	protected String getKafkaVersion() {
@@ -45,6 +48,11 @@ public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 	@SuppressWarnings("unchecked")
 	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
 		return (Class) FlinkKafkaConsumer010.class;
+	}
+
+	@Override
+	protected Class<?> getExpectedFlinkKafkaProducer() {
+		return FlinkKafkaProducer010.class;
 	}
 
 	@Override
@@ -69,6 +77,23 @@ public class Kafka010TableSourceFactoryTest extends KafkaTableSourceFactoryTestB
 			deserializationSchema,
 			startupMode,
 			specificStartupOffsets
+		);
+	}
+
+	@Override
+	protected KafkaTableSink getExpectedKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka010TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema
 		);
 	}
 }

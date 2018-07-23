@@ -20,9 +20,9 @@ package org.apache.flink.table.factories.utils
 
 import java.util
 
-import org.apache.flink.api.common.serialization.DeserializationSchema
+import org.apache.flink.api.common.serialization.{DeserializationSchema, SerializationSchema}
 import org.apache.flink.table.descriptors.{DescriptorProperties, FormatDescriptorValidator, SchemaValidator}
-import org.apache.flink.table.factories.{DeserializationSchemaFactory, TableFormatFactoryServiceTest}
+import org.apache.flink.table.factories.{DeserializationSchemaFactory, SerializationSchemaFactory, TableFormatFactoryServiceTest}
 import org.apache.flink.types.Row
 
 /**
@@ -31,7 +31,9 @@ import org.apache.flink.types.Row
   * It has the same context as [[TestAmbiguousTableFormatFactory]] and both support COMMON_PATH.
   * This format does not support SPECIAL_PATH but supports schema derivation.
   */
-class TestTableFormatFactory extends DeserializationSchemaFactory[Row] {
+class TestTableFormatFactory
+  extends DeserializationSchemaFactory[Row]
+  with SerializationSchemaFactory[Row] {
 
   override def requiredContext(): util.Map[String, String] = {
     val context = new util.HashMap[String, String]()
@@ -61,5 +63,15 @@ class TestTableFormatFactory extends DeserializationSchemaFactory[Row] {
     props.putProperties(properties)
     val schema = SchemaValidator.deriveFormatFields(props)
     new TestDeserializationSchema(schema.toRowType)
+  }
+
+  override def createSerializationSchema(
+      properties: util.Map[String, String])
+    : SerializationSchema[Row] = {
+
+    val props = new DescriptorProperties(true)
+    props.putProperties(properties)
+    val schema = SchemaValidator.deriveFormatFields(props)
+    new TestSerializationSchema(schema.toRowType)
   }
 }

@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,9 +34,10 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Test for {@link Kafka09TableSource} created by {@link Kafka09TableSourceFactory}.
+ * Test for {@link Kafka09TableSource} and {@link Kafka09TableSink} created
+ * by {@link Kafka09TableSourceSinkFactory}.
  */
-public class Kafka09TableSourceFactoryTest extends KafkaTableSourceFactoryTestBase {
+public class Kafka09TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
 
 	@Override
 	protected String getKafkaVersion() {
@@ -45,6 +48,11 @@ public class Kafka09TableSourceFactoryTest extends KafkaTableSourceFactoryTestBa
 	@SuppressWarnings("unchecked")
 	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
 		return (Class) FlinkKafkaConsumer09.class;
+	}
+
+	@Override
+	protected Class<?> getExpectedFlinkKafkaProducer() {
+		return FlinkKafkaProducer09.class;
 	}
 
 	@Override
@@ -69,6 +77,23 @@ public class Kafka09TableSourceFactoryTest extends KafkaTableSourceFactoryTestBa
 			deserializationSchema,
 			startupMode,
 			specificStartupOffsets
+		);
+	}
+
+	@Override
+	protected KafkaTableSink getExpectedKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka09TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema
 		);
 	}
 }

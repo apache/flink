@@ -20,37 +20,42 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.formats.json.JsonRowSerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
 import java.util.Properties;
 
 /**
- * Base class for {@link KafkaTableSink} that serializes data in JSON format.
- *
- * @deprecated Use table descriptors instead of implementation-specific classes.
+ * Kafka 0.9 table sink for writing data into Kafka.
  */
-@Deprecated
 @Internal
-public abstract class KafkaJsonTableSink extends KafkaTableSink {
+public class Kafka09TableSink extends KafkaTableSink {
 
-	/**
-	 * Creates KafkaJsonTableSink.
-	 *
-	 * @param topic topic in Kafka to which table is written
-	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafka partitioner
-	 * @deprecated Use table descriptors instead of implementation-specific classes.
-	 */
-	@Deprecated
-	public KafkaJsonTableSink(String topic, Properties properties, FlinkKafkaPartitioner<Row> partitioner) {
-		super(topic, properties, partitioner);
+	public Kafka09TableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+		super(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema);
 	}
 
 	@Override
-	protected SerializationSchema<Row> createSerializationSchema(RowTypeInfo rowSchema) {
-		return new JsonRowSerializationSchema(rowSchema);
+	protected FlinkKafkaProducerBase<Row> createKafkaProducer(
+			String topic,
+			Properties properties,
+			SerializationSchema<Row> serializationSchema,
+			FlinkKafkaPartitioner<Row> partitioner) {
+		return new FlinkKafkaProducer09<>(
+			topic,
+			serializationSchema,
+			properties,
+			partitioner);
 	}
 }

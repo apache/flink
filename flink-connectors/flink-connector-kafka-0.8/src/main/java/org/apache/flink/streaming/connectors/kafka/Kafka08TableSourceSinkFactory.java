@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,18 +34,18 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Factory for creating configured instances of {@link Kafka010TableSource}.
+ * Factory for creating configured instances of {@link Kafka08TableSource}.
  */
-public class Kafka010TableSourceFactory extends KafkaTableSourceFactory {
+public class Kafka08TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBase {
 
 	@Override
 	protected String kafkaVersion() {
-		return KafkaValidator.CONNECTOR_VERSION_VALUE_010;
+		return KafkaValidator.CONNECTOR_VERSION_VALUE_08;
 	}
 
 	@Override
 	protected boolean supportsKafkaTimestamps() {
-		return true;
+		return false;
 	}
 
 	@Override
@@ -58,7 +60,7 @@ public class Kafka010TableSourceFactory extends KafkaTableSourceFactory {
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
-		return new Kafka010TableSource(
+		return new Kafka08TableSource(
 			schema,
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
@@ -68,5 +70,21 @@ public class Kafka010TableSourceFactory extends KafkaTableSourceFactory {
 			deserializationSchema,
 			startupMode,
 			specificStartupOffsets);
+	}
+
+	@Override
+	protected KafkaTableSink createKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka08TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema);
 	}
 }
