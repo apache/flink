@@ -117,7 +117,6 @@ ADD config/yarn-site.xml $HADOOP_HOME/etc/hadoop/yarn-site.xml
 ADD config/container-executor.cfg $HADOOP_HOME/etc/hadoop/container-executor.cfg
 RUN chmod 400 $HADOOP_HOME/etc/hadoop/container-executor.cfg
 RUN chown root:yarn $HADOOP_HOME/etc/hadoop/container-executor.cfg
-# ADD config/log4j.properties $HADOOP_HOME/etc/hadoop/log4j.properties
 ADD config/krb5.conf /etc/krb5.conf
 ADD config/ssl-server.xml $HADOOP_HOME/etc/hadoop/ssl-server.xml
 ADD config/ssl-client.xml $HADOOP_HOME/etc/hadoop/ssl-client.xml
