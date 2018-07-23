@@ -30,8 +30,6 @@
 FROM sequenceiq/pam:ubuntu-14.04
 MAINTAINER aljoscha
 
-USER root
-
 RUN set -x \
     && addgroup hadoop \
     && useradd -d /home/hdfs -ms /bin/bash -G hadoop -p hdfs hdfs \
