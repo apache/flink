@@ -46,6 +46,7 @@ download_url: "http://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-master
+stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 
 # Flag whether this is a stable version or not. Used for the quickstart page.
 is_stable: false
