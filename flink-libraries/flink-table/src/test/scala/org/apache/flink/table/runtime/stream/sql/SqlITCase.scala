@@ -239,6 +239,32 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testDistinctGroupBy(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val sqlQuery =
+      "SELECT b, " +
+      "  SUM(DISTINCT (a / 3)), " +
+      "  COUNT(DISTINCT SUBSTRING(c FROM 1 FOR 2))," +
+      "  COUNT(DISTINCT c) " +
+      "FROM MyTable " +
+      "GROUP BY b"
+
+    val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = List("1,0,1,1", "2,1,1,2", "3,3,3,3", "4,5,1,4", "5,12,1,5", "6,18,1,6")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
   def testUnboundedGroupByCollect(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
