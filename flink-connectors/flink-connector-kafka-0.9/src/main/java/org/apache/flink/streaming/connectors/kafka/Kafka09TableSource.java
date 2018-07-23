@@ -58,7 +58,8 @@ public class Kafka09TableSource extends KafkaTableSource {
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Optional<Map<String, String>> fieldMapping,
-			String topic, Properties properties,
+			String topic,
+			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
