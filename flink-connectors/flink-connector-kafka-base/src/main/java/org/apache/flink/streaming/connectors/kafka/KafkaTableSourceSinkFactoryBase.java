@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
@@ -135,8 +134,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
-		final Tuple2<StartupMode, Map<KafkaTopicPartition, Long>> startupOptions =
-			getStartupOptions(descriptorProperties, topic);
+		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
 			schema,
@@ -146,8 +144,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			topic,
 			getKafkaProperties(descriptorProperties),
 			getDeserializationSchema(properties),
-			startupOptions.f0,
-			startupOptions.f1);
+			startupOptions.startupMode,
+			startupOptions.specificOffsets);
 	}
 
 	@Override
@@ -276,7 +274,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		return kafkaProperties;
 	}
 
-	private Tuple2<StartupMode, Map<KafkaTopicPartition, Long>> getStartupOptions(
+	private StartupOptions getStartupOptions(
 			DescriptorProperties descriptorProperties,
 			String topic) {
 		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
@@ -308,7 +306,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 						throw new TableException("Unsupported startup mode. Validator should have checked that.");
 				}
 			}).orElse(StartupMode.GROUP_OFFSETS);
-		return Tuple2.of(startupMode, specificOffsets);
+		final StartupOptions options = new StartupOptions();
+		options.startupMode = startupMode;
+		options.specificOffsets = specificOffsets;
+		return options;
 	}
 
 	private FlinkKafkaPartitioner<Row> getFlinkKafkaPartitioner() {
@@ -320,5 +321,10 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(descriptorProperties, Optional.of(schema));
 		return fieldMapping.size() != schema.getColumnNames().length ||
 			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
+	}
+
+	private static class StartupOptions {
+		private StartupMode startupMode;
+		private Map<KafkaTopicPartition, Long> specificOffsets;
 	}
 }

@@ -61,13 +61,10 @@ public class Kafka09TableSink extends KafkaTableSink {
 			Properties properties,
 			SerializationSchema<Row> serializationSchema,
 			FlinkKafkaPartitioner<Row> partitioner) {
-		final FlinkKafkaProducerBase<Row> kafkaProducer = new FlinkKafkaProducer09<>(
+		return new FlinkKafkaProducer09<>(
 			topic,
 			serializationSchema,
 			properties,
 			partitioner);
-		// always enable flush on checkpoint to achieve at-least-once if query runs with checkpointing enabled.
-		kafkaProducer.setFlushOnCheckpoint(true);
-		return kafkaProducer;
 	}
 }

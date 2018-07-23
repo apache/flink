@@ -174,8 +174,8 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 
 	@Override
 	public KafkaTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		// a fixed schema is defined so reconfiguration is not supported
 		if (schema.isPresent()) {
+			// a fixed schema is defined so reconfiguration is not supported
 			throw new UnsupportedOperationException("Reconfiguration of this sink is not supported.");
 		}
 
