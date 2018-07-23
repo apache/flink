@@ -2496,6 +2496,19 @@ STRING.fromBase64()
         <p>Returns the base string decoded with base64, if string is null, returns null. E.g. "aGVsbG8gd29ybGQ=".fromBase64() returns "hello world".</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.toBase64()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns the base64-encoded result of <i>STRING</i>; retruns NULL if <i>STRING</i> is NULL.</p>
+         <p>E.g., <code>"hello world".toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -4033,6 +4046,19 @@ STRING.initCap()
 
       <td>
         <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.toBase64()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns the base64-encoded result of <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p>
+        <p>E.g., <code>"hello world".toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
 
