@@ -115,7 +115,5 @@ elif [ "$1" == "worker" ]; then
     nohup sudo -E -u hdfs $HADOOP_PREFIX/bin/hdfs datanode 2>> /var/log/hadoop/datanode.err >> /var/log/hadoop/datanode.out &
     nohup sudo -E -u yarn $HADOOP_PREFIX/bin/yarn nodemanager 2>> /var/log/hadoop/nodemanager.err >> /var/log/hadoop/nodemanager.out &
     while true; do sleep 1000; done
-elif [ $1 == "bash" ]; then
-    /bin/bash
 fi
 
