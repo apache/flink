@@ -39,6 +39,8 @@ jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
+stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
+
 # Setup quickstart uses this => to be changed
 FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.3/flink-1.0.3-bin-hadoop1-scala_2.10.tgz"
 FLINK_DOWNLOAD_URL_HADOOP2_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.3/flink-1.0.3-bin-hadoop2-scala_2.10.tgz"
