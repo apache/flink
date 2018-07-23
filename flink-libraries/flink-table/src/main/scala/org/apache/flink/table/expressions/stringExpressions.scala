@@ -357,3 +357,25 @@ case class Rpad(text: Expression, len: Expression, pad: Expression)
     relBuilder.call(ScalarSqlFunctions.RPAD, children.map(_.toRexNode))
   }
 }
+
+case class FromBase64(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"FromBase64 operator requires String input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.FROM_BASE64, children.map(_.toRexNode))
+  }
+
+  override def toString: String = s"($child).fromBase64"
+}

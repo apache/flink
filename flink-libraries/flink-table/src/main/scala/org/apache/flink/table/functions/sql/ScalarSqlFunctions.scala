@@ -157,4 +157,15 @@ object ScalarSqlFunctions {
     OperandTypes.sequence("'(TIMESTAMP, FORMAT)'", OperandTypes.DATETIME, OperandTypes.STRING),
     SqlFunctionCategory.TIMEDATE
   )
+
+  val FROM_BASE64 = new SqlFunction(
+    "FROM_BASE64",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING),
+    SqlFunctionCategory.STRING
+  )
+
 }
