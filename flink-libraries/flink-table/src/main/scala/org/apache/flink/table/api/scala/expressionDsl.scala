@@ -549,6 +549,11 @@ trait ImplicitExpressionOperations {
     */
   def fromBase64() = FromBase64(expr)
 
+  /**
+    * Returns a string's representation that encoded as base64.
+    */
+  def toBase64() = ToBase64(expr)
+
   // Temporal operations
 
   /**

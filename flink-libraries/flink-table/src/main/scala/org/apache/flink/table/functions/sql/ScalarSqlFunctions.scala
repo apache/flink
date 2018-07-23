@@ -177,4 +177,13 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val TO_BASE64 = new SqlFunction(
+    "TO_BASE64",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING),
+    SqlFunctionCategory.STRING
+  )
+
 }

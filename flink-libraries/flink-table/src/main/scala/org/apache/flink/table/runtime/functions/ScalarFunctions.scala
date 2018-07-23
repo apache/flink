@@ -201,4 +201,9 @@ object ScalarFunctions {
     */
   def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
 
+  /**
+    * Returns a string's representation that encoded as base64.
+    */
+  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
+
 }
