@@ -20,9 +20,17 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-OLD_VERSION=${OLD_VERSION:-1.4-SNAPSHOT}
-NEW_VERSION=${NEW_VERSION:-1.5-SNAPSHOT}
 MVN=${MVN:-mvn}
+
+if [ -z "${OLD_VERSION}" ]; then
+    echo "OLD_VERSION was not set."
+    exit 1
+fi
+
+if [ -z "${NEW_VERSION}" ]; then
+    echo "NEW_VERSION was not set."
+    exit 1
+fi
 
 # fail immediately
 set -o errexit
