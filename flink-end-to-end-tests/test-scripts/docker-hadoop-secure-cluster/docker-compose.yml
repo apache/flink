@@ -37,12 +37,6 @@ services:
     command: master
     depends_on:
       - kdc
-    ports:
-      - "50070:50070"
-      - "50470:50470"
-      - "8088:8088"
-      - "19888:19888"
-      - "8188:8188"
     container_name: "master"
     hostname: master.docker-hadoop-cluster-network
     networks:
@@ -59,9 +53,6 @@ services:
       - master
     container_name: "slave1"
     hostname: slave1.docker-hadoop-cluster-network
-    ports:
-      - "9901:9864"
-      - "8041:8042"
     networks:
       - docker-hadoop-cluster-network
     environment:
@@ -76,9 +67,6 @@ services:
       - master
     container_name: "slave2"
     hostname: slave2.docker-hadoop-cluster-network
-    ports:
-      - "9902:9864"
-      - "8042:8042"
     networks:
       - docker-hadoop-cluster-network
     environment:
