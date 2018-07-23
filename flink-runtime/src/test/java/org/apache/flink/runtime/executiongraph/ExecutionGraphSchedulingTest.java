@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
@@ -46,6 +48,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -62,9 +65,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.InetAddress;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -504,6 +512,107 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		assertThat(executionGraph.getTerminationFuture().get(), is(JobStatus.FAILED));
 	}
 
+	/**
+	 * Tests that all slots are being returned to the {@link SlotOwner} if the
+	 * {@link ExecutionGraph} is being cancelled. See FLINK-9908
+	 */
+	@Test
+	public void testCancellationOfIncompleteScheduling() throws Exception {
+		final int parallelism = 10;
+
+		final JobVertex jobVertex = new JobVertex("Test job vertex");
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+		jobVertex.setParallelism(parallelism);
+
+		final JobGraph jobGraph = new JobGraph(jobVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+
+		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+
+		final ConcurrentMap<SlotRequestId, Integer> slotRequestIds = new ConcurrentHashMap<>(parallelism);
+		final CountDownLatch requestedSlotsLatch = new CountDownLatch(parallelism);
+
+		final TestingSlotProvider slotProvider = new TestingSlotProvider(
+			(SlotRequestId slotRequestId) -> {
+				slotRequestIds.put(slotRequestId, 1);
+				requestedSlotsLatch.countDown();
+				return new CompletableFuture<>();
+			});
+
+
+		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph, slotProvider);
+
+		executionGraph.scheduleForExecution();
+
+		// wait until we have requested all slots
+		requestedSlotsLatch.await();
+
+		final ExpectedSlotRequestIds expectedSlotRequestIds = new ExpectedSlotRequestIds(slotRequestIds.keySet());
+		slotOwner.setReturnAllocatedSlotConsumer(logicalSlot -> expectedSlotRequestIds.notifySlotRequestId(logicalSlot.getSlotRequestId()));
+		slotProvider.setSlotCanceller(expectedSlotRequestIds::notifySlotRequestId);
+
+		final OneShotLatch slotRequestsBeingFulfilled = new OneShotLatch();
+
+		// start completing the slot requests asynchronously
+		executor.execute(
+			() -> {
+				slotRequestsBeingFulfilled.trigger();
+
+				for (SlotRequestId slotRequestId : slotRequestIds.keySet()) {
+					final SingleLogicalSlot singleLogicalSlot = createSingleLogicalSlot(slotOwner, taskManagerGateway, slotRequestId);
+					slotProvider.complete(slotRequestId, singleLogicalSlot);
+				}
+			});
+
+		// make sure that we complete cancellations of deployed tasks
+		taskManagerGateway.setCancelConsumer(
+			(ExecutionAttemptID executionAttemptId) -> {
+				final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttemptId);
+
+				// if the execution was cancelled in state SCHEDULING, then it might already have been removed
+				if (execution != null) {
+					execution.cancelingComplete();
+				}
+			}
+		);
+
+		slotRequestsBeingFulfilled.await();
+
+		executionGraph.cancel();
+
+		expectedSlotRequestIds.waitForAllSlotRequestIds();
+	}
+
+	private static final class ExpectedSlotRequestIds {
+		private final Object waitLock = new Object();
+
+		private final Set<SlotRequestId> expectedSlotRequestIds;
+
+		ExpectedSlotRequestIds(Set<SlotRequestId> slotRequestIds) {
+			expectedSlotRequestIds = new HashSet<>(slotRequestIds);
+		}
+
+		void notifySlotRequestId(SlotRequestId slotRequestId) {
+			synchronized (waitLock) {
+				expectedSlotRequestIds.remove(slotRequestId);
+
+				if (expectedSlotRequestIds.isEmpty()) {
+					waitLock.notifyAll();
+				}
+			}
+		}
+
+		void waitForAllSlotRequestIds() throws InterruptedException {
+			synchronized (waitLock) {
+				while (!expectedSlotRequestIds.isEmpty()) {
+					waitLock.wait();
+				}
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -548,11 +657,29 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		return new SimpleSlot(slot, slotOwner, 0);
 	}
 
+	@Nonnull
+	static SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner, TaskManagerGateway taskManagerGateway, SlotRequestId slotRequestId) {
+		TaskManagerLocation location = new TaskManagerLocation(
+			ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
+
+		SimpleSlotContext slotContext = new SimpleSlotContext(
+			new AllocationID(),
+			location,
+			0,
+			taskManagerGateway);
+
+		return new SingleLogicalSlot(
+			slotRequestId,
+			slotContext,
+			null,
+			Locality.LOCAL,
+			slotOwner);
+	}
+
 	private static TaskManagerGateway createTaskManager() {
 		TaskManagerGateway tm = mock(TaskManagerGateway.class);
 		when(tm.submitTask(any(TaskDeploymentDescriptor.class), any(Time.class)))
 				.thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
-
 		return tm;
 	}
 
