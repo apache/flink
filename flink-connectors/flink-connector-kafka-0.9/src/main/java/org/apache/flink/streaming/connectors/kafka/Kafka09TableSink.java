@@ -32,15 +32,6 @@ import java.util.Properties;
 @Internal
 public class Kafka09TableSink extends KafkaTableSink {
 
-	/**
-	 * Creates a Kafka 0.11 table sink.
-	 *
-	 * @param schema              The schema of the table.
-	 * @param topic               Kafka topic to write to.
-	 * @param properties          Properties for the Kafka producer.
-	 * @param partitioner         Partitioner to select Kafka partition for each item.
-	 * @param serializationSchema Serialization schema for encoding records to Kafka.
-	 */
 	public Kafka09TableSink(
 			TableSchema schema,
 			String topic,

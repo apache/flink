@@ -66,15 +66,6 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	protected String[] fieldNames;
 	protected TypeInformation[] fieldTypes;
 
-	/**
-	 * Creates a Kafka table sink.
-	 *
-	 * @param schema              The schema of the table.
-	 * @param topic               Kafka topic to write to.
-	 * @param properties          Properties for the Kafka producer.
-	 * @param partitioner         Partitioner to select Kafka partition for each item.
-	 * @param serializationSchema Serialization schema for encoding records to Kafka.
-	 */
 	protected KafkaTableSink(
 			TableSchema schema,
 			String topic,
