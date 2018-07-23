@@ -34,6 +34,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
@@ -52,6 +54,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -121,14 +125,21 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 						final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
 						fileUpload.renameTo(dest.toFile());
-					} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+					}
+					else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
 						final Attribute request = (Attribute) data;
 						// this could also be implemented by using the first found Attribute as the payload
 						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 							currentJsonPayload = request.get();
-						} else {
-							handleError(ctx, "Received unknown attribute " + data.getName() + '.', HttpResponseStatus.BAD_REQUEST, null);
-							return;
+						}
+						else {
+							QueryStringDecoder decoder = new QueryStringDecoder(currentHttpRequest.getUri());
+							Map<String, List<String>> currentParams = decoder.parameters();
+
+							QueryStringEncoder encoder = new QueryStringEncoder(decoder.path());
+							currentParams.entrySet().forEach(param -> encoder.addParam(param.getKey(), param.getValue().get(0)));
+							encoder.addParam(request.getName(), request.getValue());
+							currentHttpRequest.setUri(encoder.toString());
 						}
 					}
 				}

@@ -44,6 +44,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.QueryStringEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DiskFileUpload;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpDataFactory;
@@ -55,6 +56,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Inte
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -146,6 +149,23 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 								currentRequest.setUri(encoder.toString());
 							}
 						}
+						else if (data.getHttpDataType() == HttpDataType.Attribute) {
+							Attribute attribute = (Attribute) data;
+							QueryStringDecoder decoder = new QueryStringDecoder(currentRequest.getUri());
+							Map<String, List<String>> currentParams = decoder.parameters();
+
+							QueryStringEncoder encoder = new QueryStringEncoder(currentRequestPath);
+							for (String currentParam : currentParams.keySet()) {
+								encoder.addParam(currentParam, currentParams.get(currentParam).get(0));
+							}
+							encoder.addParam(attribute.getName(), attribute.getValue());
+							currentRequest.setUri(encoder.toString());
+						}
+						else {
+							throw new IOException("Unsupported HTTP data type: " + data.getHttpDataType().name());
+						}
+
+						data.release();
 					}
 				}
 				catch (EndOfDataDecoderException ignored) {}

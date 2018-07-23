@@ -42,6 +42,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
 
 import org.slf4j.Logger;
@@ -112,6 +114,7 @@ public class HttpTestClient implements AutoCloseable {
 						ChannelPipeline p = ch.pipeline();
 						p.addLast(new HttpClientCodec());
 						p.addLast(new HttpContentDecompressor());
+						p.addLast(new ChunkedWriteHandler());
 						p.addLast(new ClientHandler(responses));
 					}
 				});
@@ -202,6 +205,33 @@ public class HttpTestClient implements AutoCloseable {
 		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
 		sendRequest(getRequest, timeout);
+	}
+
+	/**
+	 * Sends a POST request to the server.
+	 *
+	 * @param request The POST {@link HttpRequest} to send to the server
+	 * @param encoder The {@link HttpPostRequestEncoder} used to construct the request
+	 */
+	public void sendPostRequest(HttpRequest request, HttpPostRequestEncoder encoder, FiniteDuration timeout) throws InterruptedException, TimeoutException {
+		LOG.debug("Writing post request {}.", request);
+
+		// Make the connection attempt.
+		ChannelFuture connect = bootstrap.connect(host, port);
+
+		Channel channel;
+		if (connect.await(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+			channel = connect.channel();
+		}
+		else {
+			throw new TimeoutException("Connection failed");
+		}
+
+		channel.write(request);
+		if (encoder.isChunked()) {
+			channel.write(encoder);
+		}
+		channel.flush();
 	}
 
 	/**
