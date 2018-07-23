@@ -87,7 +87,7 @@ curl -s https://lv.binarybabel.org/catalog-api/java/jdk8.json
 
 ### Java Keystore
 
-If the Keystroe has been expired, then create a new `keystore.jks`:
+If the Keystore has been expired, then create a new `keystore.jks`:
 
 1. create private key
 
