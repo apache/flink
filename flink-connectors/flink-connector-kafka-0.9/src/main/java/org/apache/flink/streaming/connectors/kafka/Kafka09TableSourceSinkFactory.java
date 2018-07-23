@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -68,5 +70,21 @@ public class Kafka09TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBa
 			deserializationSchema,
 			startupMode,
 			specificStartupOffsets);
+	}
+
+	@Override
+	protected KafkaTableSink createKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka09TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema);
 	}
 }

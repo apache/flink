@@ -19,12 +19,26 @@
 package org.apache.flink.table.factories.utils
 
 import org.apache.flink.api.common.serialization.SerializationSchema
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.types.Row
 
 /**
   * Serialization schema for testing purposes.
   */
-class TestSerializationSchema extends SerializationSchema[Row] {
+class TestSerializationSchema(val typeInfo: TypeInformation[Row]) extends SerializationSchema[Row] {
 
   override def serialize(element: Row): Array[Byte] = throw new UnsupportedOperationException()
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[TestSerializationSchema]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: TestSerializationSchema =>
+      (that canEqual this) &&
+        typeInfo == that.typeInfo
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    31 * typeInfo.hashCode()
+  }
 }

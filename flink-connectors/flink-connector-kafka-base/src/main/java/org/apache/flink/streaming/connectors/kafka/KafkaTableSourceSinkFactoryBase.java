@@ -19,17 +19,23 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
+import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
@@ -125,89 +131,47 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	@Override
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-		final DescriptorProperties params = new DescriptorProperties(true);
-		params.putProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		// validate
-		// allow Kafka timestamps to be used, watermarks can not be received from source
-		new SchemaValidator(true, supportsKafkaTimestamps(), false).validate(params);
-		new KafkaValidator().validate(params);
-
-		// deserialization schema using format discovery
-		final DeserializationSchemaFactory<?> formatFactory = TableFactoryService.find(
-			DeserializationSchemaFactory.class,
-			properties,
-			this.getClass().getClassLoader());
-		@SuppressWarnings("unchecked")
-		final DeserializationSchema<Row> deserializationSchema = (DeserializationSchema<Row>) formatFactory
-			.createDeserializationSchema(properties);
-
-		// schema
-		final TableSchema schema = params.getTableSchema(SCHEMA());
-
-		// proctime
-		final Optional<String> proctimeAttribute = SchemaValidator.deriveProctimeAttribute(params);
-
-		// rowtime
-		final List<RowtimeAttributeDescriptor> rowtimeAttributes = SchemaValidator.deriveRowtimeAttributes(params);
-
-		// field mapping
-		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(params, Optional.of(schema));
-
-		// properties
-		final Properties kafkaProperties = new Properties();
-		final List<Map<String, String>> propsList = params.getFixedIndexedProperties(
-			CONNECTOR_PROPERTIES,
-			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
-		propsList.forEach(kv -> kafkaProperties.put(
-			params.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
-			params.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
-		));
-
-		// topic
-		final String topic = params.getString(CONNECTOR_TOPIC);
-
-		// startup mode
-		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
-		final StartupMode startupMode = params
-			.getOptionalString(CONNECTOR_STARTUP_MODE)
-			.map(modeString -> {
-				switch (modeString) {
-					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_EARLIEST:
-						return StartupMode.EARLIEST;
-
-					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_LATEST:
-						return StartupMode.LATEST;
-
-					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS:
-						return StartupMode.GROUP_OFFSETS;
-
-					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
-						final List<Map<String, String>> offsetList = params.getFixedIndexedProperties(
-							CONNECTOR_SPECIFIC_OFFSETS,
-							Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-						offsetList.forEach(kv -> {
-							final int partition = params.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
-							final long offset = params.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
-							final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
-							specificOffsets.put(topicPartition, offset);
-						});
-						return StartupMode.SPECIFIC_OFFSETS;
-					default:
-						throw new TableException("Unsupported startup mode. Validator should have checked that.");
-				}
-			}).orElse(StartupMode.GROUP_OFFSETS);
+		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
+		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
+		final Tuple2<StartupMode, Map<KafkaTopicPartition, Long>> startupOptions =
+			getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
 			schema,
-			proctimeAttribute,
-			rowtimeAttributes,
-			fieldMapping,
+			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
+			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
+			SchemaValidator.deriveFieldMapping(descriptorProperties, Optional.of(schema)),
 			topic,
-			kafkaProperties,
-			deserializationSchema,
-			startupMode,
-			specificOffsets);
+			getKafkaProperties(descriptorProperties),
+			getDeserializationSchema(properties),
+			startupOptions.f0,
+			startupOptions.f1);
+	}
+
+	@Override
+	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+
+		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
+		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
+		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(descriptorProperties);
+		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors =
+			SchemaValidator.deriveRowtimeAttributes(descriptorProperties);
+
+		// see also FLINK-9870
+		if (proctime.isPresent() || !rowtimeAttributeDescriptors.isEmpty() ||
+				checkForCustomFieldMapping(descriptorProperties, schema)) {
+			throw new TableException("Time attributes and custom field mappings are not supported yet.");
+		}
+
+		return createKafkaTableSink(
+			schema,
+			topic,
+			getKafkaProperties(descriptorProperties),
+			getFlinkKafkaPartitioner(),
+			getSerializationSchema(properties));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -246,9 +210,115 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Map<String, String> fieldMapping,
-		String topic, Properties properties,
+		String topic,
+		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
 		Map<KafkaTopicPartition, Long> specificStartupOffsets);
 
+	/**
+	 * Constructs the version-specific Kafka table sink.
+	 *
+	 * @param schema      Schema of the produced table.
+	 * @param topic       Kafka topic to consume.
+	 * @param properties  Properties for the Kafka consumer.
+	 * @param partitioner Partitioner to select Kafka partition for each item.
+	 */
+	protected abstract KafkaTableSink createKafkaTableSink(
+		TableSchema schema,
+		String topic,
+		Properties properties,
+		FlinkKafkaPartitioner<Row> partitioner,
+		SerializationSchema<Row> serializationSchema);
+
+	// --------------------------------------------------------------------------------------------
+	// Helper methods
+	// --------------------------------------------------------------------------------------------
+
+	private DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+		final DescriptorProperties descriptorProperties = new DescriptorProperties(true);
+		descriptorProperties.putProperties(properties);
+
+		// allow Kafka timestamps to be used, watermarks can not be received from source
+		new SchemaValidator(true, supportsKafkaTimestamps(), false).validate(descriptorProperties);
+		new KafkaValidator().validate(descriptorProperties);
+
+		return descriptorProperties;
+	}
+
+	private DeserializationSchema<Row> getDeserializationSchema(Map<String, String> properties) {
+		@SuppressWarnings("unchecked")
+		final DeserializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
+			DeserializationSchemaFactory.class,
+			properties,
+			this.getClass().getClassLoader());
+		return formatFactory.createDeserializationSchema(properties);
+	}
+
+	private SerializationSchema<Row> getSerializationSchema(Map<String, String> properties) {
+		@SuppressWarnings("unchecked")
+		final SerializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
+			SerializationSchemaFactory.class,
+			properties,
+			this.getClass().getClassLoader());
+		return formatFactory.createSerializationSchema(properties);
+	}
+
+	private Properties getKafkaProperties(DescriptorProperties descriptorProperties) {
+		final Properties kafkaProperties = new Properties();
+		final List<Map<String, String>> propsList = descriptorProperties.getFixedIndexedProperties(
+			CONNECTOR_PROPERTIES,
+			Arrays.asList(CONNECTOR_PROPERTIES_KEY, CONNECTOR_PROPERTIES_VALUE));
+		propsList.forEach(kv -> kafkaProperties.put(
+			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_KEY)),
+			descriptorProperties.getString(kv.get(CONNECTOR_PROPERTIES_VALUE))
+		));
+		return kafkaProperties;
+	}
+
+	private Tuple2<StartupMode, Map<KafkaTopicPartition, Long>> getStartupOptions(
+			DescriptorProperties descriptorProperties,
+			String topic) {
+		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
+		final StartupMode startupMode = descriptorProperties
+			.getOptionalString(CONNECTOR_STARTUP_MODE)
+			.map(modeString -> {
+				switch (modeString) {
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_EARLIEST:
+						return StartupMode.EARLIEST;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_LATEST:
+						return StartupMode.LATEST;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_GROUP_OFFSETS:
+						return StartupMode.GROUP_OFFSETS;
+
+					case KafkaValidator.CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS:
+						final List<Map<String, String>> offsetList = descriptorProperties.getFixedIndexedProperties(
+							CONNECTOR_SPECIFIC_OFFSETS,
+							Arrays.asList(CONNECTOR_SPECIFIC_OFFSETS_PARTITION, CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+						offsetList.forEach(kv -> {
+							final int partition = descriptorProperties.getInt(kv.get(CONNECTOR_SPECIFIC_OFFSETS_PARTITION));
+							final long offset = descriptorProperties.getLong(kv.get(CONNECTOR_SPECIFIC_OFFSETS_OFFSET));
+							final KafkaTopicPartition topicPartition = new KafkaTopicPartition(topic, partition);
+							specificOffsets.put(topicPartition, offset);
+						});
+						return StartupMode.SPECIFIC_OFFSETS;
+					default:
+						throw new TableException("Unsupported startup mode. Validator should have checked that.");
+				}
+			}).orElse(StartupMode.GROUP_OFFSETS);
+		return Tuple2.of(startupMode, specificOffsets);
+	}
+
+	private FlinkKafkaPartitioner<Row> getFlinkKafkaPartitioner() {
+		// we don't support custom partitioner so far
+		return new FlinkFixedPartitioner<>();
+	}
+
+	private boolean checkForCustomFieldMapping(DescriptorProperties descriptorProperties, TableSchema schema) {
+		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(descriptorProperties, Optional.of(schema));
+		return fieldMapping.size() != schema.getColumnNames().length ||
+			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
+	}
 }
