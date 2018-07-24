@@ -2222,7 +2222,7 @@ COUNT(value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the number of input rows for which <i>value</i> is not null.</p>
+        <p>Returns the number of input rows for which <i>value</i> is not null. Use <code>COUNT(DISTINCT value)</code> for the number of unique values in the column or expression.</p>
       </td>
     </tr>
 
@@ -2255,7 +2255,7 @@ SUM(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of <i>numeric</i> across all input values.</p>
+        <p>Returns the sum of <i>numeric</i> across all input values. Use <code>SUM(DISTINCT value)</code> for the sum of unique values in the column or expression.</p>
       </td>
     </tr>
 
