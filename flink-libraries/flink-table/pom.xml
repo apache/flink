@@ -32,29 +32,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Common dependency of calcite-core and flink-test-utils -->
-			<dependency>
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>19.0</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and janino -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>commons-compiler</artifactId>
-				<version>3.0.7</version>
-			</dependency>
-			<!-- Common dependency of calcite-core and flink-table -->
-			<dependency>
-				<groupId>org.codehaus.janino</groupId>
-				<artifactId>janino</artifactId>
-				<version>3.0.7</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -76,18 +53,28 @@ under the License.
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
+			<!-- managed version -->
 		</dependency>
 
 		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
+			<!-- managed version -->
 		</dependency>
 
 		<!-- Used for code generation -->
 		<dependency>
 			<groupId>org.codehaus.janino</groupId>
 			<artifactId>janino</artifactId>
+			<version>3.0.7</version>
+		</dependency>
+
+		<!-- Used by Calcite -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
 		</dependency>
 
 		<!-- Used for translation of table programs -->
@@ -130,6 +117,19 @@ under the License.
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
+				<!-- Dependencies that would conflict with Flink's dependencies -->
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>janino</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.janino</groupId>
+					<artifactId>commons-compiler</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -137,6 +137,7 @@ under the License.
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
+			<!-- managed version -->
 		</dependency>
 
 		<!-- test dependencies -->
@@ -146,6 +147,12 @@ under the License.
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
