@@ -26,6 +26,8 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetUnion
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalUnion
 
+import scala.collection.JavaConverters._
+
 class DataSetUnionRule
   extends ConverterRule(
     classOf[FlinkLogicalUnion],
@@ -46,14 +48,17 @@ class DataSetUnionRule
   def convert(rel: RelNode): RelNode = {
     val union: FlinkLogicalUnion = rel.asInstanceOf[FlinkLogicalUnion]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
-    val convLeft: RelNode = RelOptRule.convert(union.getInput(0), FlinkConventions.DATASET)
-    val convRight: RelNode = RelOptRule.convert(union.getInput(1), FlinkConventions.DATASET)
+
+    val newInputs = union
+      .getInputs
+      .asScala
+      .map(input => RelOptRule.convert(input, FlinkConventions.DATASET))
+      .asJava
 
     new DataSetUnion(
       rel.getCluster,
       traitSet,
-      convLeft,
-      convRight,
+      newInputs,
       rel.getRowType)
   }
 }
