@@ -21,15 +21,22 @@ package org.apache.flink.table.expressions.utils
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.lang3.StringUtils
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
+import java.util
+
+import org.apache.flink.api.common.functions.InvalidTypesException
 
 import scala.annotation.varargs
 import scala.collection.mutable
 import scala.io.Source
+import scala.collection.JavaConversions._
+
+
 
 case class SimplePojo(name: String, age: Int)
 
@@ -304,6 +311,50 @@ class Func20 extends ScalarFunction {
 
   override def close(): Unit = {
     permitted = false
+  }
+}
+
+object Func21 extends ScalarFunction {
+  def eval(map: util.Map[String, String]): util.Map[String, String] = map
+
+  override def inferResultType(
+      parameterType: Array[TypeInformation[_]]): TypeInformation[_] = {
+    if (parameterType.length != 1) {
+      throw new InvalidTypesException("Cannot infer return type based on given parameter type:"
+          + parameterType)
+    }
+    val mapTypeInfo = parameterType(0).asInstanceOf[MapTypeInfo[_, _]]
+    if (!BasicTypeInfo.STRING_TYPE_INFO.equals(mapTypeInfo.getKeyTypeInfo) ||
+        !BasicTypeInfo.STRING_TYPE_INFO.equals(mapTypeInfo.getValueTypeInfo)) {
+      throw new InvalidTypesException("Cannot determine return type based on given parameter " +
+        "type:" + parameterType + "! key & value types has to be both string!")
+    }
+    mapTypeInfo
+  }
+}
+
+object Func22 extends ScalarFunction {
+  def eval(row: Row): Row = Row.of(
+    Integer.valueOf(row.getField(0).asInstanceOf[Integer] * 2),
+    row.getField(1).asInstanceOf[String] + row.getField(1).asInstanceOf[String])
+
+  override def inferResultType(
+      parameterType: Array[TypeInformation[_]]): TypeInformation[_] = {
+    if (parameterType.length < 1) {
+      throw new InvalidTypesException("Cannot infer return type based on given parameter type:"
+        + parameterType)
+    }
+    val rowTypeInfo = parameterType(0).asInstanceOf[RowTypeInfo]
+    if (rowTypeInfo.getArity < 2) {
+      throw new InvalidTypesException("Cannot infer return type based on given row type info:"
+        + rowTypeInfo)
+    }
+    if (!BasicTypeInfo.INT_TYPE_INFO.equals(rowTypeInfo.getFieldTypes()(0)) ||
+        !BasicTypeInfo.STRING_TYPE_INFO.equals(rowTypeInfo.getFieldTypes()(1))) {
+      throw new InvalidTypesException("Cannot determine return type based on given parameterType:"
+        + parameterType + "! 1st and 2nd field type has to be int and string !")
+    }
+    Types.ROW(Types.INT, Types.STRING)
   }
 }
 

@@ -95,4 +95,9 @@ abstract class ScalarFunction extends UserDefinedFunction {
       }
     }
   }
+
+  @throws[InvalidTypesException]
+  def inferResultType(parameterTypeInfo: Array[TypeInformation[_]]): TypeInformation[_] = {
+    null
+  }
 }

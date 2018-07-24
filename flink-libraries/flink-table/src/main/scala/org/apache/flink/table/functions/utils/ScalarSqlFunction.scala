@@ -22,6 +22,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
@@ -87,7 +89,8 @@ object ScalarSqlFunction {
               s"Actual: ${signatureToString(parameters)} \n" +
               s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
-        val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
+        val resultType = getResultTypeOfScalarFunction(
+          scalarFunction, foundSignature.get, parameters.toArray)
         typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
       }
     }

@@ -33,7 +33,7 @@ import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataview._
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -90,7 +90,6 @@ object UserDefinedFunctionUtils {
       function: UserDefinedFunction,
       signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
-
     getUserDefinedMethod(function, "eval", typeInfoToClass(signature)).map(_.getParameterTypes)
   }
 
@@ -109,21 +108,6 @@ object UserDefinedFunctionUtils {
       function,
       "accumulate",
       typeInfoToClass(input)).map(_.getParameterTypes)
-  }
-
-  def getParameterTypes(
-      function: UserDefinedFunction,
-      signature: Array[Class[_]]): Array[TypeInformation[_]] = {
-    signature.map { c =>
-      try {
-        TypeExtractor.getForClass(c)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new ValidationException(
-            s"Parameter types of function '${function.getClass.getCanonicalName}' cannot be " +
-              s"automatically determined. Please provide type information manually.")
-      }
-    }
   }
 
   /**
@@ -426,7 +410,7 @@ object UserDefinedFunctionUtils {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Utilities for user-defined functions
+  // Utilities for user-defined aggregate functions
   // ----------------------------------------------------------------------------------------------
 
   /**
@@ -618,27 +602,44 @@ object UserDefinedFunctionUtils {
       parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
 
+  // ----------------------------------------------------------------------------------------------
+  // Utilities for user-defined scalar functions
+  // ----------------------------------------------------------------------------------------------
+
   /**
     * Internal method of [[ScalarFunction#getResultType()]] that does some pre-checking and uses
     * [[TypeExtractor]] as default return type inference.
     */
   def getResultTypeOfScalarFunction(
       function: ScalarFunction,
-      signature: Array[Class[_]])
+      signature: Array[Class[_]],
+      parameterTypes: Array[TypeInformation[_]])
     : TypeInformation[_] = {
-
-    val userDefinedTypeInfo = function.getResultType(signature)
-    if (userDefinedTypeInfo != null) {
-      userDefinedTypeInfo
-    } else {
-      try {
-        TypeExtractor.getForClass(getResultTypeClassOfScalarFunction(function, signature))
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new ValidationException(
-            s"Return type of scalar function '${function.getClass.getCanonicalName}' cannot be " +
-              s"automatically determined. Please provide type information manually.")
+    try {
+      val inferredResultTypeInfo = function.inferResultType(parameterTypes)
+      if (inferredResultTypeInfo != null) {
+        inferredResultTypeInfo
+      } else {
+        val userDefinedTypeInfo = function.getResultType(signature)
+        if (userDefinedTypeInfo != null) {
+          userDefinedTypeInfo
+        } else {
+          try {
+            TypeExtractor.getForClass(getResultTypeClassOfScalarFunction(function, signature))
+          } catch {
+            case ite: InvalidTypesException =>
+              throw new ValidationException(
+                s"Return type of scalar function '${function.getClass.getCanonicalName}' cannot " +
+                  s"be automatically determined. Please provide type information manually.")
+          }
+        }
       }
+    } catch {
+      case ite: InvalidTypesException =>
+        throw new ValidationException(
+          s"Return type of scalar function '${function.getClass.getCanonicalName}' cannot be " +
+            s"determined via operand type '$parameterTypes'. This means the scalar function " +
+            s"does not support such operand type information!", ite)
     }
   }
 
@@ -654,6 +655,43 @@ object UserDefinedFunctionUtils {
       .find(m => signature.sameElements(m.getParameterTypes))
       .getOrElse(throw new IllegalArgumentException("Given signature is invalid."))
     evalMethod.getReturnType
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Utilities for user-defined table functions
+  // ----------------------------------------------------------------------------------------------
+
+  /**
+    * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
+    *
+    * @param tableEnv The table environment to lookup the function.
+    * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
+    * @return A LogicalTableFunctionCall.
+    */
+  def createLogicalFunctionCall(
+      tableEnv: TableEnvironment,
+      udtf: String): LogicalTableFunctionCall = {
+
+    var alias: Option[Seq[String]] = None
+
+    // unwrap an Expression until we get a TableFunctionCall
+    def unwrap(expr: Expression): TableFunctionCall = expr match {
+      case Alias(child, name, extraNames) =>
+        alias = Some(Seq(name) ++ extraNames)
+        unwrap(child)
+      case Call(name, args) =>
+        val function = tableEnv.functionCatalog.lookupFunction(name, args)
+        unwrap(function)
+      case c: TableFunctionCall => c
+      case _ =>
+        throw new TableException(
+          "Table(TableEnv, String) constructor only accept String that " +
+            "define table function followed by some Alias.")
+    }
+
+    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
+      .as(alias).toLogicalTableFunctionCall(child = null)
+    functionCall
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -744,39 +782,6 @@ object UserDefinedFunctionUtils {
     val byteData = Base64.decodeBase64(data)
     InstantiationUtil
       .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
-  }
-
-  /**
-    * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
-    *
-    * @param tableEnv The table environment to lookup the function.
-    * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
-    * @return A LogicalTableFunctionCall.
-    */
-  def createLogicalFunctionCall(
-      tableEnv: TableEnvironment,
-      udtf: String): LogicalTableFunctionCall = {
-
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: Expression): TableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case Call(name, args) =>
-        val function = tableEnv.functionCatalog.lookupFunction(name, args)
-        unwrap(function)
-      case c: TableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "Table(TableEnv, String) constructor only accept String that " +
-            "define table function followed by some Alias.")
-    }
-
-    val functionCall: LogicalTableFunctionCall = unwrap(ExpressionParser.parseExpression(udtf))
-      .as(alias).toLogicalTableFunctionCall(child = null)
-    functionCall
   }
 
   def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {

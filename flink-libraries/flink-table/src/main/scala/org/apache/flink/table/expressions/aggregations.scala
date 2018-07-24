@@ -381,6 +381,7 @@ case class AggFunctionCall(
                               .map(signatureToString)
                               .mkString(", ")}")
     } else {
+      // Add additional validation
       ValidationSuccess
     }
   }

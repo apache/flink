@@ -31,8 +31,42 @@ import org.apache.flink.table.expressions.utils.{ExpressionTestBase, _}
 import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
 import java.lang.{Boolean => JBoolean}
+import java.util
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
+
+  @Test
+  def testCompositeTypeMatching(): Unit = {
+    val JavaFunc5 = new JavaFunc5
+    val JavaFunc6 = new JavaFunc6
+    // test java matching
+    testAllApis(
+      JavaFunc5('f15),
+      "JavaFunc5(f15)",
+      "JavaFunc5(f15)",
+      "{a=b}"
+    )
+    testAllApis(
+      JavaFunc6('f14),
+      "JavaFunc6(f14)",
+      "JavaFunc6(f14)",
+      "24"
+    )
+
+    // test scala matching
+    testAllApis(
+      Func21('f15),
+      "Func21(f15)",
+      "Func21(f15)",
+      "{a=b}"
+    )
+    testAllApis(
+      Func22('f16),
+      "Func22(f16)",
+      "Func22(f16)",
+      "2,aa"
+    )
+  }
 
   @Test
   def testParameters(): Unit = {
@@ -377,7 +411,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(15)
+    val testData = new Row(17)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -397,6 +431,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       true.asInstanceOf[JBoolean],
       Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer]))
     )
+    testData.setField(15, util.Collections.singletonMap("a", "b"))
+    testData.setField(16, Row.of(1.asInstanceOf[Integer], "a"))
     testData
   }
 
@@ -416,7 +452,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.BYTE,
       Types.SHORT,
       Types.FLOAT,
-      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)),
+      Types.MAP(Types.STRING, Types.STRING),
+      Types.ROW(Types.INT, Types.STRING)
     ).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -443,11 +481,15 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func16" -> Func16,
     "Func17" -> Func17,
     "Func19" -> Func19,
+    "Func21" -> Func21,
+    "Func22" -> Func22,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,
     "JavaFunc3" -> new JavaFunc3,
     "JavaFunc4" -> new JavaFunc4,
+    "JavaFunc5" -> new JavaFunc5,
+    "JavaFunc6" -> new JavaFunc6,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
     "RichFunc2" -> new RichFunc2

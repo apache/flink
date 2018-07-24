@@ -28,10 +28,12 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction
+import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo._
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
@@ -94,6 +96,21 @@ object AggSqlFunction {
       accType,
       typeFactory,
       requiresOver)
+  }
+
+  private[flink] def getParameterTypes(
+      function: UserDefinedFunction,
+      signature: Array[Class[_]]): Array[TypeInformation[_]] = {
+    signature.map { c =>
+      try {
+        TypeExtractor.getForClass(c)
+      } catch {
+        case ite: InvalidTypesException =>
+          throw new ValidationException(
+            s"Parameter types of function '${function.getClass.getCanonicalName}' cannot be " +
+              s"automatically determined. Please provide type information manually.")
+      }
+    }
   }
 
   private[flink] def createOperandTypeInference(

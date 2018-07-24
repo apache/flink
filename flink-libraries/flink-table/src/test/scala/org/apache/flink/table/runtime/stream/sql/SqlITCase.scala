@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
+import java.util.Collections
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{RowTypeInfo}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
@@ -28,11 +30,10 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.descriptors.{DescriptorProperties, Rowtime, Schema}
-import org.apache.flink.table.expressions.utils.SplitUDF
-import org.apache.flink.table.expressions.utils.Func15
+import org.apache.flink.table.expressions.utils.{Func15, Func21, Func22}
 import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
+import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
 import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
 import org.junit.Assert._
@@ -52,6 +53,109 @@ class SqlITCase extends StreamingWithStateTestBase {
     (7000L, "7", "Hello World"),
     (8000L, "8", "Hello World"),
     (20000L, "20", "Hello World"))
+
+  @Test
+  def testMapTypeUDFDiscovery(): Unit = {
+    val data = List(Collections.singletonMap("a", "b"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    StreamITCase.clear
+    val stream = env.fromCollection(data)(Types.MAP(Types.STRING, Types.STRING))
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("fun", Func21)
+    val table = stream.toTable(tEnv, 'a)
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery = "SELECT fun(a) FROM MyTable"
+
+    val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq("{a=b}")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowTypeUDFDiscovery(): Unit = {
+    val data = List(Row.of(Row.of(Integer.valueOf(2), "a")))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    StreamITCase.clear
+    val stream = env.fromCollection(data)(Types.ROW(Types.ROW(Types.INT, Types.STRING)))
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("fun", Func22)
+    val table = stream.toTable(tEnv, 'a)
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery = "SELECT fun(a) FROM MyTable"
+
+    val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq("4,aa")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMapTypeUDFResultTypeInference(): Unit = {
+    val data = List(
+      Row.of(Collections.singletonMap("a", "b"), Integer.valueOf(1)),
+      Row.of(Collections.singletonMap("a", "c"), Integer.valueOf(2))
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    StreamITCase.clear
+    val stream = env.fromCollection(data)(
+      Types.ROW(Types.MAP(Types.STRING, Types.STRING), Types.INT))
+
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("fun", Func21)
+    val table = stream.toTable(tEnv, 'a, 'b)
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery = "SELECT fun(a)['a'] FROM MyTable"
+
+    val results = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq("b","c")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowTypeUDFResultTypeInference(): Unit = {
+    val data = List(
+      Row.of(Row.of(Integer.valueOf(1), "b"), "a"),
+      Row.of(Row.of(Integer.valueOf(2), "a"), "b")
+    )
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    StreamITCase.clear
+    val stream = env.fromCollection(data)(
+      Types.ROW(Types.ROW(Types.INT, Types.STRING), Types.STRING))
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("fun", Func22)
+    val table = stream.toTable(tEnv, 'a, 'b)
+
+    tEnv.registerTable("MyTable", table)
+
+    val sql1 = "SELECT fun(a) AS myRow FROM MyTable"
+    val tempTable = tEnv.sqlQuery(sql1)
+    tEnv.registerTable("TempTable", tempTable)
+
+    val sql2 = "SELECT myRow.f1 FROM TempTable"
+    val results = tEnv.sqlQuery(sql2).toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq("bb", "aa")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 
   @Test
   def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {

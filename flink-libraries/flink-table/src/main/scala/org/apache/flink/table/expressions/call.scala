@@ -284,7 +284,8 @@ case class ScalarFunctionCall(
   override private[flink] def resultType =
     getResultTypeOfScalarFunction(
       scalarFunction,
-      foundSignature.get)
+      foundSignature.get,
+      parameters.map(_.resultType).toArray)
 
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)
@@ -295,6 +296,7 @@ case class ScalarFunctionCall(
         s"Actual: ${signatureToString(signature)} \n" +
         s"Expected: ${signaturesToString(scalarFunction, "eval")}")
     } else {
+      // Add additional validation
       ValidationSuccess
     }
   }
@@ -317,6 +319,8 @@ case class TableFunctionCall(
   extends Expression {
 
   private var aliases: Option[Seq[String]] = None
+
+  private var foundSignature: Option[Array[Class[_]]] = None
 
   override private[flink] def children: Seq[Expression] = parameters
 
@@ -361,6 +365,20 @@ case class TableFunctionCall(
       resultType,
       fieldNames,
       child)
+  }
+
+  override private[flink] def validateInput(): ValidationResult = {
+    val signature = children.map(_.resultType)
+    // look for a signature that matches the input types
+    foundSignature = getEvalMethodSignature(tableFunction, signature)
+    if (foundSignature.isEmpty) {
+      ValidationFailure(s"Given parameters do not match any signature. \n" +
+        s"Actual: ${signatureToString(signature)} \n" +
+        s"Expected: ${signaturesToString(tableFunction, "eval")}")
+    } else {
+      // Add additional validation
+      ValidationSuccess
+    }
   }
 
   override def toString =

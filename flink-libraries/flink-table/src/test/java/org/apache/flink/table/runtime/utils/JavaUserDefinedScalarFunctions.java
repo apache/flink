@@ -19,8 +19,10 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.types.Row;
 
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Test scalar functions.
@@ -80,4 +82,21 @@ public class JavaUserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Map Function.
+	 */
+	public static class JavaFunc5 extends ScalarFunction {
+		public Map<String, String> eval(Map<String, String> map) {
+			return map;
+		}
+	}
+
+	/**
+	 * Row Function.
+	 */
+	public static class JavaFunc6 extends ScalarFunction {
+		public Row eval(Row row) {
+			return Row.of(((Integer) row.getField(0)) * 2);
+		}
+	}
 }
