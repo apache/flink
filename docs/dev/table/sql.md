@@ -2645,7 +2645,6 @@ The following functions are not supported yet:
 
 - Binary string operators and functions
 - System functions
-- Distinct aggregate functions like COUNT DISTINCT
 
 {% top %}
 
