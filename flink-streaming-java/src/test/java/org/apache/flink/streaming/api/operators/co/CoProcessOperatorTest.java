@@ -36,6 +36,29 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class CoProcessOperatorTest extends TestLogger {
 
 	@Test
+	public void testProcessWatermark() throws Exception {
+
+		try (TwoInputStreamOperatorTestHarness<Integer, String, String> testHarness =
+			new TwoInputStreamOperatorTestHarness<>(new CoProcessOperator<>(new OutputProcessWatermarkArguments()))) {
+
+			testHarness.setup();
+			testHarness.open();
+
+			ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+			testHarness.processWatermark1(new Watermark(42));
+			expectedOutput.add(new StreamRecord<>("W1_42", Long.MIN_VALUE));
+
+			testHarness.processWatermark2(new Watermark(44));
+			expectedOutput.add(new StreamRecord<>("W2_44", Long.MIN_VALUE));
+			expectedOutput.add(new StreamRecord<>("W_42", 42L));
+			expectedOutput.add(new Watermark(42L));
+
+			TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+		}
+	}
+
+	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
 
 		CoProcessOperator<Integer, String, String> operator =
@@ -136,6 +159,31 @@ public class CoProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+		}
+	}
+
+	private static class OutputProcessWatermarkArguments<IN1, IN2> extends CoProcessFunction<IN1, IN2, String> {
+		@Override
+		public void processElement1(IN1 value, Context ctx, Collector<String> out) throws Exception {
+		}
+
+		@Override
+		public void processElement2(IN2 value, Context ctx, Collector<String> out) throws Exception {
+		}
+
+		@Override
+		public void processWatermark(Watermark mark, Collector<String> out) {
+			out.collect("W_" + mark.getTimestamp());
+		}
+
+		@Override
+		public void processWatermark1(Watermark mark, Collector<String> out) {
+			out.collect("W1_" + mark.getTimestamp());
+		}
+
+		@Override
+		public void processWatermark2(Watermark mark, Collector<String> out) {
+			out.collect("W2_" + mark.getTimestamp());
 		}
 	}
 }

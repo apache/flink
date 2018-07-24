@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -97,6 +98,39 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	 *                   to fail and may trigger recovery.
 	 */
 	public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception {}
+
+	/**
+	 * Called when combined watermark of both inputs has advanced.
+	 *
+	 * @param mark The {@link Watermark} that triggered this call
+	 * @param out The collector to emit resulting elements to
+	 */
+	public void processWatermark(Watermark mark, Collector<OUT> out) throws Exception {
+	}
+
+	/**
+	 * Called when watermark of the first input has advanced. If this update will trigger an update
+	 * of the combined watermark, this call will be followed by {@link #processWatermark(Watermark, Collector)}
+	 * call.
+	 *
+	 * @param mark The {@link Watermark} that triggered this call
+	 * @param out The collector to emit resulting elements to. Results emitted will have a timestamp
+	 *            set to the value before advancing combined watermark.
+	 */
+	public void processWatermark1(Watermark mark, Collector<OUT> out) throws Exception {
+	}
+
+	/**
+	 * Called when watermark of the second input has advanced. If this update will trigger an update
+	 * of the combined watermark, this call will be followed by {@link #processWatermark(Watermark, Collector)}
+	 * call.
+	 *
+	 * @param mark The {@link Watermark} that triggered this call
+	 * @param out The collector to emit resulting elements to. Results emitted will have a timestamp
+	 *            set to the value before advancing combined watermark.
+	 */
+	public void processWatermark2(Watermark mark, Collector<OUT> out) throws Exception {
+	}
 
 	/**
 	 * Information available in an invocation of {@link #processElement1(Object, Context, Collector)}/

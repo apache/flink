@@ -43,6 +43,28 @@ public class ProcessOperatorTest extends TestLogger {
 	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
+	public void testProcessWatermark() throws Exception {
+		try (OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+				 new OneInputStreamOperatorTestHarness<>(new ProcessOperator<>(new OutputProcessWatermarkArguments()))) {
+
+			testHarness.setup();
+			testHarness.open();
+
+			ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+			testHarness.processWatermark(new Watermark(42));
+			expectedOutput.add(new StreamRecord<>("W_42", 42L));
+			expectedOutput.add(new Watermark(42L));
+
+			testHarness.processWatermark(new Watermark(44));
+			expectedOutput.add(new StreamRecord<>("W_44", 44L));
+			expectedOutput.add(new Watermark(44L));
+
+			TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+		}
+	}
+
+	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
 
 		ProcessOperator<Integer, String> operator =
@@ -207,6 +229,17 @@ public class ProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+		}
+	}
+
+	private static class OutputProcessWatermarkArguments<IN> extends ProcessFunction<IN, String> {
+		@Override
+		public void processElement(IN value, Context ctx, Collector<String> out) throws Exception {
+		}
+
+		@Override
+		public void processWatermark(Watermark mark, Collector<String> out) throws Exception {
+			out.collect("W_" + mark.getTimestamp());
 		}
 	}
 }

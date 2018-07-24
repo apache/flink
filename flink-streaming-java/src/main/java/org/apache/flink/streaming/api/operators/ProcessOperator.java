@@ -69,6 +69,8 @@ public class ProcessOperator<IN, OUT>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		collector.setAbsoluteTimestamp(mark.getTimestamp());
+		userFunction.processWatermark(mark, collector);
 		super.processWatermark(mark);
 		this.currentWatermark = mark.getTimestamp();
 	}
