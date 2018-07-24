@@ -32,6 +32,7 @@ import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 
@@ -101,7 +102,9 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 
 		final Map<String, String> tableJsonMapping = new HashMap<>();
 		tableJsonMapping.put("fruit-name", "name");
+		tableJsonMapping.put("name", "name");
 		tableJsonMapping.put("count", "count");
+		tableJsonMapping.put("time", "time");
 
 		final Properties props = new Properties();
 		props.put("group.id", "test-group");
@@ -128,6 +131,8 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 				.withProctimeAttribute("proc-time")
 				.withRowtimeAttribute("event-time", new ExistingField("time"), new AscendingTimestamps())
 				.build();
+
+		TableSourceUtil.validateTableSource(builderSource);
 
 		// construct table source using descriptors and table source factory
 

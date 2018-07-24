@@ -21,6 +21,8 @@ package org.apache.flink.table.descriptors
 import java.util
 import java.util.Optional
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, TableSchema, ValidationException}
 import org.apache.flink.table.descriptors.DescriptorProperties.{toJava, toScala}
 import org.apache.flink.table.descriptors.RowtimeValidator._
@@ -222,22 +224,27 @@ object SchemaValidator {
 
   /**
     * Finds a table source field mapping.
+    *
+    * @param properties The properties describing a schema.
+    * @param inputType  The input type that a connector and/or format produces. This parameter
+    *                   can be used to resolve a rowtime field against an input field.
     */
   def deriveFieldMapping(
       properties: DescriptorProperties,
-      sourceSchema: Optional[TableSchema])
+      inputType: Optional[TypeInformation[_]])
     : util.Map[String, String] = {
 
     val mapping = mutable.Map[String, String]()
 
     val schema = properties.getTableSchema(SCHEMA)
 
-    // add all source fields first because rowtime might reference one of them
-    toScala(sourceSchema).map(_.getColumnNames).foreach { names =>
-      names.foreach { name =>
-        mapping.put(name, name)
-      }
+    val columnNames = toScala(inputType) match {
+      case Some(composite: CompositeType[_]) => composite.getFieldNames.toSeq
+      case _ => Seq[String]()
     }
+
+    // add all source fields first because rowtime might reference one of them
+    columnNames.foreach(name => mapping.put(name, name))
 
     // add all schema fields first for implicit mappings
     schema.getColumnNames.foreach { name =>
@@ -266,7 +273,7 @@ object SchemaValidator {
             mapping.remove(name)
           }
           // check for invalid fields
-          else if (toScala(sourceSchema).forall(s => !s.getColumnNames.contains(name))) {
+          else if (!columnNames.contains(name)) {
             throw new ValidationException(s"Could not map the schema field '$name' to a field " +
               s"from source. Please specify the source field from which it can be derived.")
           }
