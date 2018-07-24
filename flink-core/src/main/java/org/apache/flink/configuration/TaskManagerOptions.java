@@ -323,7 +323,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 			key("taskmanager.network.request-backoff.max")
-			.defaultValue(10000)
+			.defaultValue(30000)
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
 			.withDescription("Maximum backoff for partition requests of input channels.");
 
