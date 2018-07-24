@@ -47,6 +47,7 @@ ORIGINAL_DOP=$1
 NEW_DOP=$2
 STATE_BACKEND_TYPE=${3:-file}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
+STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-heap}
 
 if (( $ORIGINAL_DOP >= $NEW_DOP )); then
   NUM_SLOTS=$ORIGINAL_DOP
@@ -56,6 +57,11 @@ fi
 
 backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
+
+if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
+  set_conf "state.backend.rocksdb.timer-service.impl" "rocksdb"
+fi
+
 setup_flink_slf4j_metric_reporter
 
 start_cluster
