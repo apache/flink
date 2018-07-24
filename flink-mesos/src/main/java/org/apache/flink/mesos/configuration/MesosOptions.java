@@ -72,7 +72,7 @@ public class MesosOptions {
 	 */
 	public static final ConfigOption<Integer> FAILOVER_TIMEOUT_SECONDS =
 		key("mesos.failover-timeout")
-			.defaultValue(600)
+			.defaultValue(60 * 60 * 24 * 7)
 			.withDescription("The failover timeout in seconds for the Mesos scheduler, after which running tasks are" +
 				" automatically shut down.");
 
