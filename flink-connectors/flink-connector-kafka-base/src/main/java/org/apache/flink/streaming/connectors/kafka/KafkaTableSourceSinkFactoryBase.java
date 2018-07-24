@@ -132,18 +132,20 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
+		final DeserializationSchema<Row> deserializationSchema = getDeserializationSchema(properties);
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
-			schema,
+			descriptorProperties.getTableSchema(SCHEMA()),
 			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
-			SchemaValidator.deriveFieldMapping(descriptorProperties, Optional.of(schema)),
+			SchemaValidator.deriveFieldMapping(
+				descriptorProperties,
+				Optional.of(deserializationSchema.getProducedType())),
 			topic,
 			getKafkaProperties(descriptorProperties),
-			getDeserializationSchema(properties),
+			deserializationSchema,
 			startupOptions.startupMode,
 			startupOptions.specificOffsets);
 	}
@@ -318,7 +320,9 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	}
 
 	private boolean checkForCustomFieldMapping(DescriptorProperties descriptorProperties, TableSchema schema) {
-		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(descriptorProperties, Optional.of(schema));
+		final Map<String, String> fieldMapping = SchemaValidator.deriveFieldMapping(
+			descriptorProperties,
+			Optional.of(schema.toRowType())); // until FLINK-9870 is fixed we assume that the table schema is the output type
 		return fieldMapping.size() != schema.getColumnNames().length ||
 			!fieldMapping.entrySet().stream().allMatch(mapping -> mapping.getKey().equals(mapping.getValue()));
 	}
