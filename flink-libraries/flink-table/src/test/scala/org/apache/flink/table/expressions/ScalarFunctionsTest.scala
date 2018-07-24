@@ -554,6 +554,37 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testLog2(): Unit = {
+    testAllApis(
+      'f6.log2(),
+      "f6.log2",
+      "LOG2(f6)",
+      (math.log(4.6) / math.log(2)).toString
+    )
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log2(),
+      "(f6 - f6 + 100).log2()",
+      "LOG2(f6 - f6 + 100)",
+      (math.log(100.0) / math.log(2)).toString
+    )
+
+    testAllApis(
+      ('f6 + 20).log2(),
+      "(f6+20).log2",
+      "LOG2(f6+20)",
+      (math.log(24.6) / math.log(2)).toString
+    )
+
+    testAllApis(
+      10.log2(),
+      "10.log2",
+      "LOG2(10)",
+      (math.log(10.0) / math.log(2)).toString
+    )
+  }
+
+  @Test
   def testPower(): Unit = {
     // f7: int , f4: long, f6: double
     testAllApis(

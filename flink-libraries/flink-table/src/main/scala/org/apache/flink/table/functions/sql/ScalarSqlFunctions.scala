@@ -67,6 +67,15 @@ object ScalarSqlFunctions {
       OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
     SqlFunctionCategory.NUMERIC)
 
+  val LOG2 = new SqlFunction(
+    "LOG2",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC
+  )
+
   val LPAD = new SqlFunction(
     "LPAD",
     SqlKind.OTHER_FUNCTION,

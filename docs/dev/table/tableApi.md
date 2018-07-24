@@ -2070,6 +2070,17 @@ NUMERIC.log10()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.log2()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 2 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 numeric1.log()
 numeric1.log(numeric2)
 {% endhighlight %}

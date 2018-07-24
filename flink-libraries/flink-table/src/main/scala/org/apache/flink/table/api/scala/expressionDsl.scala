@@ -301,6 +301,11 @@ trait ImplicitExpressionOperations {
   def log10() = Log10(expr)
 
   /**
+    * Calculates the base 2 logarithm of the given value.
+    */
+  def log2() = Log2(expr)
+
+  /**
     * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)

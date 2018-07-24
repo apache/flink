@@ -109,6 +109,17 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the logarithm of "x" with base 2.
+    */
+  def log2(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log2(x)' must be > 0, but x = $x")
+    } else {
+      Math.log(x) / Math.log(2)
+    }
+  }
+
+  /**
     * Returns the string str left-padded with the string pad to a length of len characters.
     * If str is longer than len, the return value is shortened to len characters.
     */
