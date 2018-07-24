@@ -163,6 +163,12 @@ object FunctionGenerator {
     BuiltInMethods.LOG10)
 
   addSqlFunctionMethod(
+    LOG2,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG2)
+
+  addSqlFunctionMethod(
     LN,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
