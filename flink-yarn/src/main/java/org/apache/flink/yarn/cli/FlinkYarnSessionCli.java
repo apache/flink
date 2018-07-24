@@ -148,7 +148,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
 	 * <tt> -Dfs.overwrite-files=true  -Dtaskmanager.network.memory.min=536346624</tt>.
 	 */
-	private final Option dynamicproperties;
+	private final Option dynamicProperties;
 
 	private final boolean acceptInteractiveInput;
 
@@ -195,7 +195,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		tmMemory = new Option(shortPrefix + "tm", longPrefix + "taskManagerMemory", true, "Memory per TaskManager Container with optional unit (default: MB)");
 		container = new Option(shortPrefix + "n", longPrefix + "container", true, "Number of YARN container to allocate (=Number of Task Managers)");
 		slots = new Option(shortPrefix + "s", longPrefix + "slots", true, "Number of slots per TaskManager");
-		dynamicproperties = Option.builder(shortPrefix + "D")
+		dynamicProperties = Option.builder(shortPrefix + "D")
 			.argName("property=value")
 			.numberOfArgs(2)
 			.valueSeparator()
@@ -216,7 +216,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(query);
 		allOptions.addOption(shipPath);
 		allOptions.addOption(slots);
-		allOptions.addOption(dynamicproperties);
+		allOptions.addOption(dynamicProperties);
 		allOptions.addOption(DETACHED_OPTION);
 		allOptions.addOption(YARN_DETACHED_OPTION);
 		allOptions.addOption(streaming);
@@ -330,7 +330,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
 
-		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
+		final Properties properties = cmd.getOptionProperties(dynamicProperties.getOpt());
 
 		String[] dynamicProperties = properties.stringPropertyNames().stream()
 			.flatMap(
@@ -338,7 +338,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 					final String value = properties.getProperty(key);
 
 					if (value != null) {
-						return Stream.of(key + dynamicproperties.getValueSeparator() + value);
+						return Stream.of(key + this.dynamicProperties.getValueSeparator() + value);
 					} else {
 						return Stream.empty();
 					}
