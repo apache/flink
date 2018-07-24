@@ -35,18 +35,15 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
@@ -54,35 +51,23 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
-
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
 						<id>QsStateProducer</id>
 						<phase>package</phase>
 						<goals>
-							<goal>jar</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<classifier>QsStateProducer</classifier>
-							<archive>
-								<manifestEntries>
-									<program-class>
-										org.apache.flink.streaming.tests.queryablestate.QsStateProducer
-									</program-class>
-								</manifestEntries>
-							</archive>
+							<finalName>QsStateProducer</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.tests.queryablestate.QsStateProducer</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-
 					<execution>
 						<id>QsStateClient</id>
 						<phase>package</phase>
@@ -90,41 +75,12 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<finalName>QsStateClient</finalName>
 							<transformers>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>
-										org.apache.flink.streaming.tests.queryablestate.QsStateClient
-									</mainClass>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.tests.queryablestate.QsStateClient</mainClass>
 								</transformer>
 							</transformers>
-							<finalName>QsStateClient</finalName>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!--simplify the name of the testing JARs for referring to them in the end-to-end test scripts-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<copy
-									file="${project.basedir}/target/flink-queryable-state-test_${scala.binary.version}-${project.version}-QsStateProducer.jar"
-									tofile="${project.basedir}/target/QsStateProducer.jar"/>
-							</target>
 						</configuration>
 					</execution>
 				</executions>
