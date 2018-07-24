@@ -67,7 +67,7 @@ class SchemaValidatorTest {
       "myField" -> "myField").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
 
     // test field format
     val formatSchema = SchemaValidator.deriveFormatFields(props)
@@ -148,7 +148,7 @@ class SchemaValidatorTest {
       "myTime" -> "myTime").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
 
     // test field format
     val formatSchema = SchemaValidator.deriveFormatFields(props)

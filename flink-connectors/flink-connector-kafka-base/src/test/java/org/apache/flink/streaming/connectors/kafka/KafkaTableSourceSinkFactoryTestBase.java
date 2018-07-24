@@ -50,6 +50,7 @@ import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
@@ -115,7 +116,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 
 		final Map<String, String> fieldMapping = new HashMap<>();
 		fieldMapping.put(FRUIT_NAME, NAME);
+		fieldMapping.put(NAME, NAME);
 		fieldMapping.put(COUNT, COUNT);
+		fieldMapping.put(TIME, TIME);
 
 		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
@@ -140,6 +143,8 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			deserializationSchema,
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
+
+		TableSourceUtil.validateTableSource(expected);
 
 		// construct table source using descriptors and table source factory
 
