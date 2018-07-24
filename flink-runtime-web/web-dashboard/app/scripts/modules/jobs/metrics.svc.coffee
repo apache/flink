@@ -189,12 +189,15 @@ angular.module('flinkApp')
 
     deferred.promise
 
-  @getMetrics = (jobid, nodeid, metricIds) ->
+  @getMetrics = (jobid, nodeid, metricIds, subtasks) ->
     deferred = $q.defer()
 
     ids = metricIds.join(",")
+    path = "jobs/" + jobid + "/vertices/" + nodeid + "/metrics?get=" + ids
+    if subtasks != undefined && subtasks != null
+      path = path + "&&subtasks=" + subtasks
 
-    $http.get flinkConfig.jobServer + "jobs/" + jobid + "/vertices/" + nodeid + "/metrics?get=" + ids
+    $http.get flinkConfig.jobServer + path
     .success (data) =>
       result = {}
       angular.forEach data, (v, k) ->

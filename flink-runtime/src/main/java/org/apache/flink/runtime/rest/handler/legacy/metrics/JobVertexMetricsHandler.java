@@ -18,7 +18,14 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
+import org.apache.flink.util.UnionIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Executor;
 
 /**
@@ -28,7 +35,7 @@ import java.util.concurrent.Executor;
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
  * <p>If the query parameters do contain a "get" parameter, a comma-separated list of metric names is expected as a value.
- * {@code /metrics?get=X,Y}
+ * {@code /metrics?get=X,Y OR /metrics?get=X,Y&&subtasks=0-4,7-10}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  *
@@ -36,7 +43,13 @@ import java.util.concurrent.Executor;
  */
 @Deprecated
 public class JobVertexMetricsHandler extends AbstractMetricsHandler {
+	private final Logger log = LoggerFactory.getLogger(getClass());
+
 	public static final String PARAMETER_VERTEX_ID = "vertexid";
+	public static final String SUB_TASKS = "subtasks";
+	public static final String METRICS_SEPARATE_FLAG = ",";
+	public static final String METRIC_NAME_SEPARATE_FLAG = ".";
+
 	private static final String JOB_VERTEX_METRICS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/metrics";
 
 	public JobVertexMetricsHandler(Executor executor, MetricFetcher fetcher) {
@@ -57,4 +70,77 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 			? task.metrics
 			: null;
 	}
+
+	@Override
+	protected String getRequestMetricsList(Map<String, String> queryParams) {
+		String metricRequestsList = queryParams.get(PARAMETER_METRICS);
+		String subtasksList = queryParams.get(SUB_TASKS);
+		if (subtasksList == null || subtasksList.isEmpty()) {
+			return queryParams.get(PARAMETER_METRICS);
+		} else {
+			StringBuilder sb = new StringBuilder();
+			Iterable<Integer> subtasks = getIntegerRangeFromString(subtasksList);
+			String[] metricNames = metricRequestsList.split(METRICS_SEPARATE_FLAG);
+			for (int subtask : subtasks) {
+				for(String metricName : metricNames) {
+					sb.append(subtask);
+					sb.append(METRIC_NAME_SEPARATE_FLAG);
+					sb.append(metricName);
+					sb.append(METRICS_SEPARATE_FLAG);
+				}
+			}
+			return sb.toString();
+		}
+
+	}
+
+	private Iterable<Integer> getIntegerRangeFromString(String rangeDefinition) {
+		final String[] ranges = rangeDefinition.trim().split(",");
+
+		UnionIterator<Integer> iterators = new UnionIterator<>();
+
+		for (String rawRange : ranges) {
+			try {
+				Iterator<Integer> rangeIterator;
+				String range = rawRange.trim();
+				int dashIdx = range.indexOf('-');
+				if (dashIdx == -1) {
+					// only one value in range:
+					rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
+				} else {
+					// evaluate range
+					final int start = Integer.valueOf(range.substring(0, dashIdx));
+					final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
+					rangeIterator = new Iterator<Integer>() {
+						int i = start;
+
+						@Override
+						public boolean hasNext() {
+							return i <= end;
+						}
+
+						@Override
+						public Integer next() {
+							if (hasNext()) {
+								return i++;
+							} else {
+								throw new NoSuchElementException();
+							}
+						}
+
+						@Override
+						public void remove() {
+							throw new UnsupportedOperationException("Remove not supported");
+						}
+					};
+				}
+				iterators.add(rangeIterator);
+			} catch (NumberFormatException nfe) {
+				log.warn("Invalid value {} specified for integer range. Not a number.", rawRange, nfe);
+			}
+		}
+
+		return iterators;
+	}
+
 }

@@ -60,7 +60,7 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 		return CompletableFuture.supplyAsync(
 			() -> {
 				fetcher.update();
-				String requestedMetricsList = queryParams.get(PARAMETER_METRICS);
+				String requestedMetricsList = getRequestMetricsList(queryParams);
 				try {
 					return requestedMetricsList != null
 						? getMetricsValues(pathParams, requestedMetricsList)
@@ -71,6 +71,10 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 			},
 			executor);
 
+	}
+
+	protected String getRequestMetricsList(Map<String, String> queryParams) {
+		return queryParams.get(PARAMETER_METRICS);
 	}
 
 	/**
