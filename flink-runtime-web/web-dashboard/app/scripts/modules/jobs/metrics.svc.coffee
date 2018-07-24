@@ -195,7 +195,7 @@ angular.module('flinkApp')
     ids = metricIds.join(",")
     path = "jobs/" + jobid + "/vertices/" + nodeid + "/metrics?get=" + ids
     if subtasks != undefined && subtasks != null
-      path = path + "&&subtasks=" + subtasks
+      path = path + "&subtasks=" + subtasks
 
     $http.get flinkConfig.jobServer + path
     .success (data) =>

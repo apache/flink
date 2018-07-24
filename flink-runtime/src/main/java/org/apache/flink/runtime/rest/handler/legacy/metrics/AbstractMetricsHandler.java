@@ -25,6 +25,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -45,6 +47,7 @@ import java.util.concurrent.Executor;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler {
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	public static final String PARAMETER_METRICS = "get";
 

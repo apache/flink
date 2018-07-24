@@ -19,9 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.util.UnionIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -35,7 +32,7 @@ import java.util.concurrent.Executor;
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
  * <p>If the query parameters do contain a "get" parameter, a comma-separated list of metric names is expected as a value.
- * {@code /metrics?get=X,Y OR /metrics?get=X,Y&&subtasks=0-4,7-10}
+ * {@code /metrics?get=X,Y OR /metrics?get=X,Y&subtasks=0-4,7-10}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  *
@@ -43,7 +40,6 @@ import java.util.concurrent.Executor;
  */
 @Deprecated
 public class JobVertexMetricsHandler extends AbstractMetricsHandler {
-	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	public static final String PARAMETER_VERTEX_ID = "vertexid";
 	public static final String SUB_TASKS = "subtasks";
@@ -76,7 +72,7 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 		String metricRequestsList = queryParams.get(PARAMETER_METRICS);
 		String subtasksList = queryParams.get(SUB_TASKS);
 		if (subtasksList == null || subtasksList.isEmpty()) {
-			return queryParams.get(PARAMETER_METRICS);
+			return super.getRequestMetricsList(queryParams);
 		} else {
 			StringBuilder sb = new StringBuilder();
 			Iterable<Integer> subtasks = getIntegerRangeFromString(subtasksList);
