@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
@@ -382,13 +384,38 @@ class DataStreamAllroundTestJobFactory {
 	static <IN, OUT, STATE> ArtificialKeyedStateMapper<IN, OUT> createArtificialKeyedStateMapper(
 		MapFunction<IN, OUT> mapFunction,
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
-		List<TypeSerializer<STATE>> stateSerializers) {
+		List<TypeSerializer<STATE>> stateSerializers,
+		List<Class<STATE>> stateClasses) {
 
 		List<ArtificialStateBuilder<IN>> artificialStateBuilders = new ArrayList<>(stateSerializers.size());
 		for (TypeSerializer<STATE> typeSerializer : stateSerializers) {
-			artificialStateBuilders.add(createValueStateBuilder(inputAndOldStateToNewState, typeSerializer));
-			artificialStateBuilders.add(createListStateBuilder(inputAndOldStateToNewState, typeSerializer));
+			artificialStateBuilders.add(createValueStateBuilder(
+				inputAndOldStateToNewState,
+				new ValueStateDescriptor<>(
+					"valueState-" + typeSerializer.getClass().getSimpleName(),
+					typeSerializer)));
+
+			artificialStateBuilders.add(createListStateBuilder(
+				inputAndOldStateToNewState,
+				new ListStateDescriptor<>(
+					"listState-" + typeSerializer.getClass().getSimpleName(),
+					typeSerializer)));
 		}
+
+		for (Class<STATE> stateClass : stateClasses) {
+			artificialStateBuilders.add(createValueStateBuilder(
+				inputAndOldStateToNewState,
+				new ValueStateDescriptor<>(
+					"valueState-" + stateClass.getSimpleName(),
+					stateClass)));
+
+			artificialStateBuilders.add(createListStateBuilder(
+				inputAndOldStateToNewState,
+				new ListStateDescriptor<>(
+					"listState-" + stateClass.getSimpleName(),
+					stateClass)));
+		}
+
 		return new ArtificialKeyedStateMapper<>(mapFunction, artificialStateBuilders);
 	}
 
@@ -400,17 +427,17 @@ class DataStreamAllroundTestJobFactory {
 
 	static <IN, STATE> ArtificialStateBuilder<IN> createValueStateBuilder(
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
-		TypeSerializer<STATE> typeSerializer) {
+		ValueStateDescriptor<STATE> valueStateDescriptor) {
 
 		return new ArtificialValueStateBuilder<>(
-			"valueState-" + typeSerializer.getClass().getSimpleName(),
+			valueStateDescriptor.getName(),
 			inputAndOldStateToNewState,
-			typeSerializer);
+			valueStateDescriptor);
 	}
 
 	static <IN, STATE> ArtificialStateBuilder<IN> createListStateBuilder(
 		JoinFunction<IN, STATE, STATE> inputAndOldStateToNewState,
-		TypeSerializer<STATE> typeSerializer) {
+		ListStateDescriptor<STATE> listStateDescriptor) {
 
 		JoinFunction<IN, Iterable<STATE>, List<STATE>> listStateGenerator = (first, second) -> {
 			List<STATE> newState = new ArrayList<>();
@@ -421,9 +448,9 @@ class DataStreamAllroundTestJobFactory {
 		};
 
 		return new ArtificialListStateBuilder<>(
-			"listState-" + typeSerializer.getClass().getSimpleName(),
+			listStateDescriptor.getName(),
 			listStateGenerator,
 			listStateGenerator,
-			typeSerializer);
+			listStateDescriptor);
 	}
 }
