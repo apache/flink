@@ -29,6 +29,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Random;
@@ -59,6 +60,11 @@ public class RegistryAvroDeserializationSchemaTest {
 				public Schema readSchema(InputStream in) {
 					return Address.getClassSchema();
 				}
+
+				@Override
+				public byte[] writeSchema(Class recordClazz, ByteArrayOutputStream out) {
+					return new byte[0];
+				}
 			}
 		);
 
@@ -86,7 +92,17 @@ public class RegistryAvroDeserializationSchemaTest {
 		RegistryAvroDeserializationSchema<SimpleRecord> deserializer = new RegistryAvroDeserializationSchema<>(
 			SimpleRecord.class,
 			null,
-			() -> in -> smallerUserSchema
+			() -> new SchemaCoder() {
+				@Override
+				public Schema readSchema(InputStream in) {
+					return smallerUserSchema;
+				}
+
+				@Override
+				public byte[] writeSchema(Class recordClazz, ByteArrayOutputStream out) {
+					return new byte[0];
+				}
+			}
 		);
 
 		GenericData.Record smallUser = new GenericRecordBuilder(smallerUserSchema)
