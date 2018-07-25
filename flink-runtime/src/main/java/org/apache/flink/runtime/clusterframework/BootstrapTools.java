@@ -46,6 +46,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -480,12 +482,13 @@ public class BootstrapTools {
 	 * @param configuration flink config to patch
 	 * @param defaultDirs in case no tmp directories is set, next directories will be applied
 	 */
-	public static void updateTmpDirectoriesInConfiguration(Configuration configuration, String defaultDirs){
+	public static void updateTmpDirectoriesInConfiguration(
+			Configuration configuration,
+			@Nullable String defaultDirs) {
 		if (configuration.contains(CoreOptions.TMP_DIRS)) {
 			LOG.info("Overriding Fink's temporary file directories with those " +
 				"specified in the Flink config: {}", configuration.getValue(CoreOptions.TMP_DIRS));
-		}
-		else {
+		} else if (defaultDirs != null) {
 			LOG.info("Setting directories for temporary files to: {}", defaultDirs);
 			configuration.setString(CoreOptions.TMP_DIRS, defaultDirs);
 			configuration.setBoolean(USE_LOCAL_DEFAULT_TMP_DIRS, true);
