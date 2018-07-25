@@ -21,7 +21,6 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSinkITCase;
 
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.InternalSettingsPreparer;
 import org.elasticsearch.node.Node;
@@ -44,11 +43,9 @@ public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElastic
 		if (node == null) {
 			Settings settings = Settings.builder()
 				.put("cluster.name", clusterName)
-				.put("http.enabled", false)
+				.put("http.enabled", true)
 				.put("path.home", tmpDataFolder.getParent())
 				.put("path.data", tmpDataFolder.getAbsolutePath())
-				.put(NetworkModule.HTTP_TYPE_KEY, Netty4Plugin.NETTY_HTTP_TRANSPORT_NAME)
-				.put(NetworkModule.TRANSPORT_TYPE_KEY, Netty4Plugin.NETTY_TRANSPORT_NAME)
 				.build();
 
 			node = new PluginNode(settings);

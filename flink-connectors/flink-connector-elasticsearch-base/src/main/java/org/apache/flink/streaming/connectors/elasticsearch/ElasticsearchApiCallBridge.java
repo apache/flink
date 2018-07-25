@@ -25,6 +25,7 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -36,9 +37,11 @@ import java.util.Map;
  * <p>Implementations are allowed to be stateful. For example, for Elasticsearch 1.x, since connecting via an embedded node
  * is allowed, the call bridge will hold reference to the created embedded node. Each instance of the sink will hold
  * exactly one instance of the call bridge, and state cleanup is performed when the sink is closed.
+ *
+ * @param <C> The Elasticsearch client, that implements {@link AutoCloseable}.
  */
 @Internal
-public abstract class ElasticsearchApiCallBridge implements Serializable {
+public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Serializable {
 
 	/**
 	 * Creates an Elasticsearch client implementing {@link AutoCloseable}.
@@ -46,9 +49,16 @@ public abstract class ElasticsearchApiCallBridge implements Serializable {
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
-	public abstract AutoCloseable createClient(Map<String, String> clientConfig);
+	C createClient(Map<String, String> clientConfig) throws IOException;
 
-	public abstract BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener);
+	/**
+	 * Creates a {@link BulkProcessor.Builder} for creating the bulk processor.
+	 *
+	 * @param client the Elasticsearch client.
+	 * @param listener the bulk processor listender.
+	 * @return the bulk processor builder.
+	 */
+	BulkProcessor.Builder createBulkProcessorBuilder(C client, BulkProcessor.Listener listener);
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.
@@ -56,7 +66,7 @@ public abstract class ElasticsearchApiCallBridge implements Serializable {
 	 * @param bulkItemResponse the bulk item response to extract cause of failure
 	 * @return the extracted {@link Throwable} from the response ({@code null} is the response is successful).
 	 */
-	public abstract @Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
+	@Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
 
 	/**
 	 * Set backoff-related configurations on the provided {@link BulkProcessor.Builder}.
@@ -65,14 +75,14 @@ public abstract class ElasticsearchApiCallBridge implements Serializable {
 	 * @param builder the {@link BulkProcessor.Builder} to configure.
 	 * @param flushBackoffPolicy user-provided backoff retry settings ({@code null} if the user disabled backoff retries).
 	 */
-	public abstract void configureBulkProcessorBackoff(
+	void configureBulkProcessorBackoff(
 		BulkProcessor.Builder builder,
 		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
 
 	/**
 	 * Perform any necessary state cleanup.
 	 */
-	public void cleanup() {
+	default void cleanup() {
 		// nothing to cleanup by default
 	}
 
