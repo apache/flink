@@ -31,7 +31,7 @@ import javax.annotation.Nonnull;
  */
 public class SavepointDisposalRequest implements RequestBody {
 
-	private static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
+	public static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
 
 	@JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
 	private final String savepointPath;

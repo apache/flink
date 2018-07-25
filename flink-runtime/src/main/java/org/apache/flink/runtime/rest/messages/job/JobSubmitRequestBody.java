@@ -24,6 +24,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -34,7 +35,7 @@ import java.util.Objects;
  */
 public final class JobSubmitRequestBody implements RequestBody {
 
-	private static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
+	public static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
 	private static final String FIELD_NAME_JOB_JARS = "jobJarFileNames";
 	private static final String FIELD_NAME_JOB_ARTIFACTS = "jobArtifactFileNames";
 
@@ -53,8 +54,16 @@ public final class JobSubmitRequestBody implements RequestBody {
 			@JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
 			@JsonProperty(FIELD_NAME_JOB_ARTIFACTS) Collection<DistributedCacheFile> artifactFileNames) {
 		this.jobGraphFileName = jobGraphFileName;
-		this.jarFileNames = jarFileNames;
-		this.artifactFileNames = artifactFileNames;
+		if (jarFileNames == null) {
+			this.jarFileNames = Collections.emptyList();
+		} else {
+			this.jarFileNames = jarFileNames;
+		}
+		if (artifactFileNames == null) {
+			this.artifactFileNames = Collections.emptyList();
+		} else {
+			this.artifactFileNames = artifactFileNames;
+		}
 	}
 
 	@Override
