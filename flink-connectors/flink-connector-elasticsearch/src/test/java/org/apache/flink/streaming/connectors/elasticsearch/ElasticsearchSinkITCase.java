@@ -42,26 +42,26 @@ import java.util.Map;
 /**
  * IT Cases for the {@link ElasticsearchSink}.
  */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
+public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Client, InetSocketAddress> {
 
 	@Test
-	public void testTransportClient() throws Exception {
-		runTransportClientTest();
+	public void testElasticsearchSink() throws Exception {
+		runElasticsearchSinkTest();
 	}
 
 	@Test
-	public void testNullTransportClient() throws Exception {
-		runNullTransportClientTest();
+	public void testNullAddresses() throws Exception {
+		runNullAddressesTest();
 	}
 
 	@Test
-	public void testEmptyTransportClient() throws Exception {
-		runEmptyTransportClientTest();
+	public void testEmptyAddresses() throws Exception {
+		runEmptyAddressesTest();
 	}
 
 	@Test
-	public void testTransportClientFails() throws Exception{
-		runTransportClientFailsTest();
+	public void testInvalidElasticsearchCluster() throws Exception{
+		runInvalidElasticsearchClusterTest();
 	}
 
 	// -- Tests specific to Elasticsearch 1.x --
@@ -102,15 +102,17 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
-																List<InetSocketAddress> transportAddresses,
-																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSink(
+			Map<String, String> userConfig,
+			List<InetSocketAddress> transportAddresses,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 		return new ElasticsearchSink<>(userConfig, ElasticsearchUtils.convertInetSocketAddresses(transportAddresses), elasticsearchSinkFunction);
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSinkForEmbeddedNode(
-		Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) throws Exception {
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSinkForEmbeddedNode(
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
 		// Elasticsearch 1.x requires this setting when using
 		// LocalTransportAddress to connect to a local embedded node

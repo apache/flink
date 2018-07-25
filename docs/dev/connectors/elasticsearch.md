@@ -243,7 +243,7 @@ input.addSink(new ElasticsearchSink(httpHosts, new ElasticsearchSinkFunction[Str
 </div>
 </div>
 
-Note how `TransportClient` based version use a `Map` of `String`s is used to configure the `ElasticsearchSink`.
+Note how `TransportClient` based versions use a `Map` of `String`s to configure the `ElasticsearchSink`.
 The configuration keys are documented in the Elasticsearch documentation
 [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html).
 Especially important is the `cluster.name` parameter that must correspond to

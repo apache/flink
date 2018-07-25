@@ -39,7 +39,7 @@ import java.util.Map;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions.
  */
-public class Elasticsearch6ApiCallBridge extends ElasticsearchApiCallBridge {
+public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<RestHighLevelClient> {
 
 	private static final long serialVersionUID = -5222683870097809633L;
 
@@ -56,7 +56,7 @@ public class Elasticsearch6ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public AutoCloseable createClient(Map<String, String> clientConfig) {
+	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
 		RestHighLevelClient rhlClient =
 			new RestHighLevelClient(RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()])));
 
@@ -68,9 +68,8 @@ public class Elasticsearch6ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
-		RestHighLevelClient rhlClient = (RestHighLevelClient) client;
-		return BulkProcessor.builder(rhlClient::bulkAsync, listener);
+	public BulkProcessor.Builder createBulkProcessorBuilder(RestHighLevelClient client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder(client::bulkAsync, listener);
 	}
 
 	@Override

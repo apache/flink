@@ -61,9 +61,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * for example, to create a Elasticsearch {@link Client} or {@RestHighLevelClient}, handle failed item responses, etc.
  *
  * @param <T> Type of the elements handled by this sink
+ * @param <C> Type of the Elasticsearch client, which implements {@link AutoCloseable}
  */
 @Internal
-public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> implements CheckpointedFunction {
+public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends RichSinkFunction<T> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -1007596293618451942L;
 
@@ -161,7 +162,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	// ------------------------------------------------------------------------
 
 	/** Call bridge for different version-specific. */
-	private final ElasticsearchApiCallBridge callBridge;
+	private final ElasticsearchApiCallBridge<C> callBridge;
 
 	/**
 	 * Number of pending action requests not yet acknowledged by Elasticsearch.
@@ -175,7 +176,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	private AtomicLong numPendingRequests = new AtomicLong(0);
 
 	/** Elasticsearch client created using the call bridge. */
-	private transient AutoCloseable client;
+	private transient C client;
 
 	/** Bulk processor to buffer and send requests to Elasticsearch, created using the client. */
 	private transient BulkProcessor bulkProcessor;
