@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 
@@ -62,19 +61,17 @@ public class Elasticsearch6SinkExample {
 				}
 			});
 
-		Map<String, String> userConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-
 		List<HttpHost> httpHosts = new ArrayList<>();
 		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 
-		source.addSink(new ElasticsearchSink<>(userConfig, httpHosts, new ElasticsearchSinkFunction<String>() {
-			@Override
-			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-				indexer.add(createIndexRequest(element, parameterTool));
-			}
-		}));
+		ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
+			httpHosts,
+			(String element, RuntimeContext ctx, RequestIndexer indexer) -> indexer.add(createIndexRequest(element, parameterTool)));
+
+		// this instructs the sink to emit after every element, otherwise they would be buffered
+		esSinkBuilder.setBulkFlushMaxActions(1);
+
+		source.addSink(esSinkBuilder.build());
 
 		env.execute("Elasticsearch 6.x end to end sink test example");
 	}

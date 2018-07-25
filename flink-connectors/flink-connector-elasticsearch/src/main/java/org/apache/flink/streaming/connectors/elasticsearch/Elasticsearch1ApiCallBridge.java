@@ -42,7 +42,7 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 1.x.
  */
 @Internal
-public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
+public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge<Client> {
 
 	private static final long serialVersionUID = -2632363720584123682L;
 
@@ -70,7 +70,7 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public AutoCloseable createClient(Map<String, String> clientConfig) {
+	public Client createClient(Map<String, String> clientConfig) {
 		if (transportAddresses == null) {
 
 			// Make sure that we disable http access to our embedded node
@@ -85,7 +85,7 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 				.data(false)
 				.node();
 
-			AutoCloseable client = node.client();
+			Client client = node.client();
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info("Created Elasticsearch client from embedded node");
@@ -116,8 +116,8 @@ public class Elasticsearch1ApiCallBridge extends ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public BulkProcessor.Builder createBulkProcessorBuilder(AutoCloseable client, BulkProcessor.Listener listener) {
-		return BulkProcessor.builder((Client) client, listener);
+	public BulkProcessor.Builder createBulkProcessorBuilder(Client client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder(client, listener);
 	}
 
 	@Override
