@@ -67,13 +67,13 @@ public class DataSetAllroundTestProgram {
 
 		int numKeys = loadFactor * 128 * 1024;
 		DataSet<Tuple2<String, Integer>> x1Keys;
-		DataSet<Tuple2<String, Integer>> x2Keys = env.createInput(new Generator(numKeys * 32, 2)).setParallelism(4);
-		DataSet<Tuple2<String, Integer>> x8Keys = env.createInput(new Generator(numKeys, 8)).setParallelism(4);
+		DataSet<Tuple2<String, Integer>> x2Keys = env.createInput(Generator.generate(numKeys * 32, 2)).setParallelism(4);
+		DataSet<Tuple2<String, Integer>> x8Keys = env.createInput(Generator.generate(numKeys, 8)).setParallelism(4);
 
 		if (infinite) {
-			x1Keys = env.createInput(Generator.infinite()).setParallelism(4).filter(t -> t.f1 >= 0);
+			x1Keys = env.createInput(Generator.generateInfinitely(numKeys)).setParallelism(4);
 		} else {
-			x1Keys = env.createInput(new Generator(numKeys, 1)).setParallelism(4);
+			x1Keys = env.createInput(Generator.generate(numKeys, 1)).setParallelism(4);
 		}
 
 		DataSet<Tuple2<String, Integer>> joined = x2Keys

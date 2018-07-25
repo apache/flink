@@ -35,8 +35,6 @@ import java.io.IOException;
  *     <li>String: key, can be repeated.</li>
  *     <li>Integer: uniformly distributed int between 0 and 127</li>
  * </ul>
- *
- * <p>If control path was provided, as long as this file is empty dummy elements with value equal to -1 will be emitted.
  */
 public class Generator implements InputFormat<Tuple2<String, Integer>, GenericInputSplit> {
 
@@ -58,22 +56,27 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 
 	private final boolean infinite;
 
-	public Generator(long numKeys, int recordsPerKey) {
-		this(numKeys, recordsPerKey, false);
+	public static Generator generate(long numKeys, int recordsPerKey) {
+		return new Generator(numKeys, recordsPerKey, false);
+	}
+
+	public static Generator generateInfinitely(long numKeys) {
+		return new Generator(numKeys, 0, true);
 	}
 
 	private Generator(long numKeys, int recordsPerKey, boolean infinite) {
 		this.numKeys = numKeys;
-		this.numRecords = numKeys * recordsPerKey;
+		if (infinite) {
+			this.numRecords = Long.MAX_VALUE;
+		} else {
+			this.numRecords = numKeys * recordsPerKey;
+		}
 		this.infinite = infinite;
 	}
 
-	public static Generator infinite() {
-		return new Generator(Long.MAX_VALUE, 1, true);
-	}
-
 	@Override
-	public void configure(Configuration parameters) { }
+	public void configure(Configuration parameters) {
+	}
 
 	@Override
 	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
@@ -117,21 +120,18 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 
 	@Override
 	public boolean reachedEnd() {
-		return this.recordCnt >= this.recordsPerPartition;
+		return !infinite && this.recordCnt >= this.recordsPerPartition;
 	}
 
 	@Override
 	public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) throws IOException {
-
-		if (infinite) {
-			return Tuple2.of("dummy", -1);
-		}
 
 		// build key from partition id and count per partition
 		String key = String.format(
 			"%d-%d",
 			this.partitionId,
 			this.recordCnt % this.keysPerPartition);
+
 		// 128 values to filter on
 		int filterVal = (int) this.recordCnt % 128;
 
@@ -143,5 +143,6 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 	}
 
 	@Override
-	public void close() { }
+	public void close() {
+	}
 }
