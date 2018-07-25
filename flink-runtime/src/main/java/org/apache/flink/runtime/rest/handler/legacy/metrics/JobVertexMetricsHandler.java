@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.util.UnionIterator;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -78,7 +79,7 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 			Iterable<Integer> subtasks = getIntegerRangeFromString(subtasksList);
 			String[] metricNames = metricRequestsList.split(METRICS_SEPARATE_FLAG);
 			for (int subtask : subtasks) {
-				for(String metricName : metricNames) {
+				for (String metricName : metricNames) {
 					sb.append(subtask);
 					sb.append(METRIC_NAME_SEPARATE_FLAG);
 					sb.append(metricName);
