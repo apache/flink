@@ -118,7 +118,7 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException("Current status is " + eg.getState() + ", excepted status is " + status);
 		}
 	}
 
