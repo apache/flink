@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -60,8 +61,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
 
-	private final String tempTestFileName = getClass().getName() + "-dst_test";
-
 	@Test
 	public void testDataSinkTask() {
 		FileReader fr = null;
@@ -75,7 +74,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 			DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-			File tempTestFile = tempFolder.newFile(tempTestFileName);
+			File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 			super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
 
 			testTask.invoke();
@@ -136,12 +135,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-		} catch (IOException ex) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
 
 		try {
@@ -224,12 +218,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-		} catch (IOException ex) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());;
 		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
 
 		try {
@@ -300,12 +289,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-		} catch (IOException ex) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString());
 
 		boolean stubFailed = false;
@@ -345,12 +329,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-		} catch (IOException ex) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString());
 
 		boolean stubFailed = false;
@@ -376,7 +355,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
-		File tempTestFile = tempFolder.newFile(tempTestFileName);
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 
 		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
 
@@ -432,12 +411,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-		} catch (IOException ex) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
 		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString());
 
 		Thread taskRunner = new Thread() {

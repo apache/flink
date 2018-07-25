@@ -108,7 +108,7 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setDbStoragePaths(testDir1, testDir2);
 		assertArrayEquals(new String[] { testDir1, testDir2 }, rocksDbBackend.getDbStoragePaths());
 
-		final Environment env = getMockEnvironment(new File[] { tempFolder.newFolder() });
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
 		final RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 
 		try {
@@ -171,7 +171,7 @@ public class RocksDBStateBackendConfigTest {
 		final RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
 		rocksDbBackend.setDbStoragePath(configuredPath);
 
-		final Environment env = getMockEnvironment(new File[] { tempFolder.newFolder() });
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
 		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 
 		try {
@@ -229,11 +229,9 @@ public class RocksDBStateBackendConfigTest {
 		File dir1 = tempFolder.newFolder();
 		File dir2 = tempFolder.newFolder();
 
-		File[] tempDirs = new File[] { dir1, dir2 };
-
 		assertNull(rocksDbBackend.getDbStoragePaths());
 
-		Environment env = getMockEnvironment(tempDirs);
+		Environment env = getMockEnvironment(dir1, dir2);
 		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
 				createKeyedStateBackend(
 						env,
@@ -273,7 +271,7 @@ public class RocksDBStateBackendConfigTest {
 
 			boolean hasFailure = false;
 			try {
-				Environment env = getMockEnvironment(new File[] { tempFolder.newFolder() });
+				Environment env = getMockEnvironment(tempFolder.newFolder());
 				rocksDbBackend.createKeyedStateBackend(
 						env,
 						env.getJobID(),
@@ -314,7 +312,7 @@ public class RocksDBStateBackendConfigTest {
 			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 
 			try {
-				Environment env = getMockEnvironment(new File[] { tempFolder.newFolder() });
+				Environment env = getMockEnvironment(tempFolder.newFolder());
 				AbstractKeyedStateBackend<Integer> keyedStateBackend = rocksDbBackend.createKeyedStateBackend(
 					env,
 					env.getJobID(),
@@ -479,7 +477,7 @@ public class RocksDBStateBackendConfigTest {
 						env.getTaskKvStateRegistry());
 	}
 
-	static Environment getMockEnvironment(File[] tempDirs) {
+	static Environment getMockEnvironment(File... tempDirs) {
 		final String[] tempDirStrings = new String[tempDirs.length];
 		for (int i = 0; i < tempDirs.length; i++) {
 			tempDirStrings[i] = tempDirs[i].getAbsolutePath();

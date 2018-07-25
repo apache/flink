@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 public class DataSourceTaskTest extends TaskTestBase {
 
@@ -54,24 +55,16 @@ public class DataSourceTaskTest extends TaskTestBase {
 	private static final int NETWORK_BUFFER_SIZE = 1024;
 
 	private List<Record> outList;
-
-	private final String tempTestFileName = getClass().getName() + "-dst_test";
 	
 	@Test
-	public void testDataSourceTask() {
+	public void testDataSourceTask() throws IOException {
 		int keyCnt = 100;
 		int valCnt = 20;
 		
 		this.outList = new ArrayList<Record>();
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
-				tempTestFile, true);
-		} catch (IOException e1) {
-			System.err.println(e1);
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, true);
 		
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
@@ -126,19 +119,14 @@ public class DataSourceTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testFailingDataSourceTask() {
+	public void testFailingDataSourceTask() throws IOException {
 		int keyCnt = 20;
 		int valCnt = 10;
 		
 		this.outList = new NirvanaOutputList();
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
-				tempTestFile, false);
-		} catch (IOException e1) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, false);
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(this.outList);
@@ -162,20 +150,15 @@ public class DataSourceTaskTest extends TaskTestBase {
 	}
 	
 	@Test
-	public void testCancelDataSourceTask() {
+	public void testCancelDataSourceTask() throws IOException {
 		int keyCnt = 20;
 		int valCnt = 4;
 
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addOutput(new NirvanaOutputList());
-		File tempTestFile = null;
-		try {
-			tempTestFile = tempFolder.newFile(tempTestFileName);
-			InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false), 
-				tempTestFile, false);
-		} catch (IOException e1) {
-			Assert.fail("Unable to set-up test input file");
-		}
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		InputFilePreparator.prepareInputFile(new UniformRecordGenerator(keyCnt, valCnt, false),
+			tempTestFile, false);
 		
 		final DataSourceTask<Record> testTask = new DataSourceTask<>(this.mockEnv);
 

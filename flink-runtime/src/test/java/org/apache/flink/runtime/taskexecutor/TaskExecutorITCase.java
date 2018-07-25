@@ -132,7 +132,7 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime());
 
 		final File[] taskExecutorLocalStateRootDirs =
-			new File[]{ tempFolder.newFolder("localRecovery") };
+			new File[]{ new File(tempFolder.getRoot(),"localRecovery") };
 
 		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager(
 			false,

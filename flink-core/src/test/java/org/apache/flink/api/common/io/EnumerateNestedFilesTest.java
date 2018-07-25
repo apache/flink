@@ -217,7 +217,8 @@ public class EnumerateNestedFilesTest {
 			File insideNestedDir = nestedNestedDir.getParentFile();
 			File nestedDir = insideNestedDir.getParentFile();
 			File insideNestedDirFiltered = tempFolder.newFolder(firstLevelDir, secondLevelFilterDir);
-			new File(nestedDir, "_IWillBeFiltered");
+			File filteredFile = new File(nestedDir, "_IWillBeFiltered");
+			filteredFile.createNewFile();
 
 			// create a file in the first-level, two files in the second level and one in the third level
 			TestFileUtils.createTempFileInDirectory(nestedDir.getAbsolutePath(), "paella");
@@ -283,7 +284,7 @@ public class EnumerateNestedFilesTest {
 			File insideNestedDir2 = tempFolder.newFolder(firstLevelDir, secondLevelDir2);
 			File nestedDir = insideNestedDir.getParentFile();
 
-				// create a file in the first-level and two files in the nested dir
+			// create a file in the first-level and two files in the nested dir
 			TestFileUtils.createTempFileInDirectory(nestedDir.getAbsolutePath(), SIZE1);
 			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), SIZE2);
 			TestFileUtils.createTempFileInDirectory(insideNestedDir.getAbsolutePath(), SIZE3);
