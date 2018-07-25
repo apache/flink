@@ -21,9 +21,6 @@ package org.apache.flink.batch.tests;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -34,11 +31,7 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.util.Preconditions;
 
 /**
  * Program to test a large chunk of DataSet API operators and primitives:
@@ -66,13 +59,20 @@ public class DataSetAllroundTestProgram {
 		ParameterTool params = ParameterTool.fromArgs(args);
 		int loadFactor = Integer.parseInt(params.getRequired("loadFactor"));
 		String outputPath = params.getRequired("outputPath");
+		String source = params.get("source", null);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		int numKeys = loadFactor * 128 * 1024;
-		DataSet<Tuple2<String, Integer>> x1Keys = env.createInput(new Generator(numKeys, 1)).setParallelism(4);
+		DataSet<Tuple2<String, Integer>> x1Keys;
 		DataSet<Tuple2<String, Integer>> x2Keys = env.createInput(new Generator(numKeys * 32, 2)).setParallelism(4);
 		DataSet<Tuple2<String, Integer>> x8Keys = env.createInput(new Generator(numKeys, 8)).setParallelism(4);
+
+		if (source == null) {
+			x1Keys = env.createInput(new Generator(numKeys, 1)).setParallelism(4);
+		} else {
+			x1Keys = env.createInput(new Generator(numKeys, 1, source)).setParallelism(4).filter(t -> t.f1 >= 0);
+		}
 
 		DataSet<Tuple2<String, Integer>> joined = x2Keys
 			// shift keys (check for correct handling of key positions)
@@ -177,107 +177,6 @@ public class DataSetAllroundTestProgram {
 			.writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE).setParallelism(1);
 
 		env.execute();
-	}
-
-	/**
-	 * InputFormat that generates a deterministic DataSet of Tuple2(String, Integer)
-	 * <ul>
-	 *     <li>String: key, can be repeated.</li>
-	 *     <li>Integer: uniformly distributed int between 0 and 127</li>
-	 * </ul>
-	 */
-	public static class Generator implements InputFormat<Tuple2<String, Integer>, GenericInputSplit> {
-
-		// total number of records
-		private final long numRecords;
-		// total number of keys
-		private final long numKeys;
-
-		// records emitted per partition
-		private long recordsPerPartition;
-		// number of keys per partition
-		private long keysPerPartition;
-
-		// number of currently emitted records
-		private long recordCnt;
-
-		// id of current partition
-		private int partitionId;
-		// total number of partitions
-		private int numPartitions;
-
-		public Generator(long numKeys, int recordsPerKey) {
-			this.numKeys = numKeys;
-			this.numRecords = numKeys * recordsPerKey;
-		}
-
-		@Override
-		public void configure(Configuration parameters) { }
-
-		@Override
-		public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
-			return null;
-		}
-
-		@Override
-		public GenericInputSplit[] createInputSplits(int minNumSplits) {
-
-			GenericInputSplit[] splits = new GenericInputSplit[minNumSplits];
-			for (int i = 0; i < minNumSplits; i++) {
-				splits[i] = new GenericInputSplit(i, minNumSplits);
-			}
-			return splits;
-		}
-
-		@Override
-		public InputSplitAssigner getInputSplitAssigner(GenericInputSplit[] inputSplits) {
-			return new DefaultInputSplitAssigner(inputSplits);
-		}
-
-		@Override
-		public void open(GenericInputSplit split) {
-			this.partitionId = split.getSplitNumber();
-			this.numPartitions = split.getTotalNumberOfSplits();
-
-			// ensure even distribution of records and keys
-			Preconditions.checkArgument(
-				numRecords % numPartitions == 0,
-				"Records cannot be evenly distributed among partitions");
-			Preconditions.checkArgument(
-				numKeys % numPartitions == 0,
-				"Keys cannot be evenly distributed among partitions");
-
-			this.recordsPerPartition = numRecords / numPartitions;
-			this.keysPerPartition = numKeys / numPartitions;
-
-			this.recordCnt = 0;
-		}
-
-		@Override
-		public boolean reachedEnd() {
-			return this.recordCnt >= this.recordsPerPartition;
-		}
-
-		@Override
-		public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) {
-
-			// build key from partition id and count per partition
-			String key = String.format(
-				"%d-%d",
-				this.partitionId,
-				this.recordCnt % this.keysPerPartition);
-			// 128 values to filter on
-			int filterVal = (int) this.recordCnt % 128;
-
-			this.recordCnt++;
-
-			reuse.f0 = key;
-			reuse.f1 = filterVal;
-			return reuse;
-		}
-
-		@Override
-		public void close() { }
 	}
 
 }
