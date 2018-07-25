@@ -757,15 +757,15 @@ abstract class CodeGenerator(
         o.accept(this)
     }
 
-    generateCallExpression(call.getOperator, operands, resultType)
+    generateCallExpression(call, operands, resultType)
   }
 
   def generateCallExpression(
-      operator: SqlOperator,
+      call: RexCall,
       operands: Seq[GeneratedExpression],
       resultType: TypeInformation[_])
     : GeneratedExpression = {
-    operator match {
+    call.getOperator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head

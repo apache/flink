@@ -211,9 +211,17 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
   private def convertMatch(`match`: Match): LogicalMatch = {
     val rowType = `match`.getInput.getRowType
 
+    val materializer = new RexTimeIndicatorMaterializer(
+      rexBuilder,
+      rowType.getFieldList.map(_.getType))
+
+    val patternDefinitions =
+      `match`.getPatternDefinitions.foldLeft(mutable.Map[String, RexNode]()) {
+        case (m, (k, v)) => m += k -> v.accept(materializer)
+      }
+
     val measures = `match`.getMeasures.foldLeft(mutable.Map[String, RexNode]()) {
-      case (m, (k, v)) =>
-        m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
+      case (m, (k, v)) => m += k -> v.accept(materializer)
     }
 
     val outputTypeBuilder = rexBuilder
@@ -232,7 +240,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       `match`.getPattern,
       `match`.isStrictStart,
       `match`.isStrictEnd,
-      `match`.getPatternDefinitions,
+      patternDefinitions,
       measures,
       `match`.getAfter,
       `match`.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
