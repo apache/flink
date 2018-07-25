@@ -86,7 +86,8 @@ public class DataStreamAllroundTestProgram {
 							return new ComplexPayload(first, KEYED_STATE_OPER_NAME);
 						},
 					Collections.singletonList(
-						new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
+						new KryoSerializer<>(ComplexPayload.class, env.getConfig())), // custom KryoSerializer
+					Collections.singletonList(ComplexPayload.class) // KryoSerializer via type extraction
 				)
 			)
 			.name(KEYED_STATE_OPER_NAME)
