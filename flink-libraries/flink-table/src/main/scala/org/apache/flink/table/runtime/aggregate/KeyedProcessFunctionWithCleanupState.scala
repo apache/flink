@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.{Long => JLong}
 import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
 import org.apache.flink.streaming.api.TimeDomain
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 
 abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: StreamQueryConfig)
