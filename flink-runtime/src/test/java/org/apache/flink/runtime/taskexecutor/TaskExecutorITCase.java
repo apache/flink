@@ -59,7 +59,9 @@ import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -83,6 +85,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class TaskExecutorITCase extends TestLogger {
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private final Time timeout = Time.seconds(10L);
 
@@ -127,7 +132,7 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime());
 
 		final File[] taskExecutorLocalStateRootDirs =
-			new File[]{new File(System.getProperty("java.io.tmpdir"), "localRecovery")};
+			new File[]{ new File(tempFolder.getRoot(),"localRecovery") };
 
 		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager(
 			false,
