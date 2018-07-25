@@ -25,10 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -58,18 +56,20 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 	// id of current partition
 	private int partitionId;
 
-	private final String path;
-
-	private boolean hasStarted = true;
+	private final boolean infinite;
 
 	public Generator(long numKeys, int recordsPerKey) {
-		this(numKeys, recordsPerKey, null);
+		this(numKeys, recordsPerKey, false);
 	}
 
-	public Generator(long numKeys, int recordsPerKey, String controlPath) {
+	private Generator(long numKeys, int recordsPerKey, boolean infinite) {
 		this.numKeys = numKeys;
 		this.numRecords = numKeys * recordsPerKey;
-		this.path = controlPath;
+		this.infinite = infinite;
+	}
+
+	public static Generator infinite() {
+		return new Generator(Long.MAX_VALUE, 1, true);
 	}
 
 	@Override
@@ -113,10 +113,6 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 		this.keysPerPartition = numKeys / numPartitions;
 
 		this.recordCnt = 0;
-
-		if (this.path != null) {
-			this.hasStarted = false;
-		}
 	}
 
 	@Override
@@ -127,8 +123,7 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 	@Override
 	public Tuple2<String, Integer> nextRecord(Tuple2<String, Integer> reuse) throws IOException {
 
-		if (!hasStarted) {
-			checkExternallyIfStarted();
+		if (infinite) {
 			return Tuple2.of("dummy", -1);
 		}
 
@@ -145,20 +140,6 @@ public class Generator implements InputFormat<Tuple2<String, Integer>, GenericIn
 		reuse.f0 = key;
 		reuse.f1 = filterVal;
 		return reuse;
-	}
-
-	@SuppressWarnings("ConstantConditions")
-	private void checkExternallyIfStarted() throws IOException {
-		if (FileUtils.readFileUtf8(new File(path)).isEmpty()) {
-			hasStarted = true;
-		} else {
-			//backoff a little
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-		}
 	}
 
 	@Override

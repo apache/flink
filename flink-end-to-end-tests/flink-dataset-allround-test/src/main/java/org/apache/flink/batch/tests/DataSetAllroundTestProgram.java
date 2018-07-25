@@ -48,6 +48,8 @@ import org.apache.flink.core.fs.FileSystem;
  * <ul>
  *     <li>loadFactor (int): controls generated data volume. Does not affect result.</li>
  *     <li>outputPath (String): path to write the result</li>
+ *     <li>infinite (Boolean): if set to true one of the sources will be infinite. The job will never end.
+ *     (default: false(</li>
  * </ul>
  */
 public class DataSetAllroundTestProgram {
@@ -59,7 +61,7 @@ public class DataSetAllroundTestProgram {
 		ParameterTool params = ParameterTool.fromArgs(args);
 		int loadFactor = Integer.parseInt(params.getRequired("loadFactor"));
 		String outputPath = params.getRequired("outputPath");
-		String source = params.get("source", null);
+		boolean infinite = params.getBoolean("infinite", false);
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -68,10 +70,10 @@ public class DataSetAllroundTestProgram {
 		DataSet<Tuple2<String, Integer>> x2Keys = env.createInput(new Generator(numKeys * 32, 2)).setParallelism(4);
 		DataSet<Tuple2<String, Integer>> x8Keys = env.createInput(new Generator(numKeys, 8)).setParallelism(4);
 
-		if (source == null) {
-			x1Keys = env.createInput(new Generator(numKeys, 1)).setParallelism(4);
+		if (infinite) {
+			x1Keys = env.createInput(Generator.infinite()).setParallelism(4).filter(t -> t.f1 >= 0);
 		} else {
-			x1Keys = env.createInput(new Generator(numKeys, 1, source)).setParallelism(4).filter(t -> t.f1 >= 0);
+			x1Keys = env.createInput(new Generator(numKeys, 1)).setParallelism(4);
 		}
 
 		DataSet<Tuple2<String, Integer>> joined = x2Keys
