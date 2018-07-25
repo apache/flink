@@ -88,6 +88,7 @@
 (defn teardown-flink!
   []
   (info "Tearing down Flink")
+  (cu/grepkill! "flink")
   (meh (c/exec :rm :-rf install-dir))
   (meh (c/exec :rm :-rf (c/lit "/tmp/.yarn-properties*"))))
 
