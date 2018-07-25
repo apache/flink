@@ -73,12 +73,10 @@ import org.apache.flink.util.Collector
   *
   * @param namePrefix
   * @param queryConfig
-  * @param cleanupTimeDomain
   */
 class QueryableTableSink(
     private val namePrefix: String,
-    private val queryConfig: StreamQueryConfig,
-    private val cleanupTimeDomain: Option[TimeDomain])
+    private val queryConfig: StreamQueryConfig)
   extends UpsertStreamTableSink[Row]
     with TableSinkBase[JTuple2[JBool, Row]] {
   private var keys: Array[String] = _
@@ -110,28 +108,14 @@ class QueryableTableSink(
       queryConfig,
       keys,
       getFieldNames,
-      getFieldTypes,
-      calculateCleanupTimeDomain(dataStream.getExecutionEnvironment.getStreamTimeCharacteristic))
+      getFieldTypes)
 
     dataStream.keyBy(new RowKeySelector(keyIndices, keySelectorType))
       .process(processFunction)
   }
 
-  private def calculateCleanupTimeDomain(timeCharacteristic: TimeCharacteristic): TimeDomain = {
-    val timeDomainFromTimeCharacteristic = {
-      timeCharacteristic match {
-        case TimeCharacteristic.IngestionTime | TimeCharacteristic.ProcessingTime =>
-          TimeDomain.PROCESSING_TIME
-        case TimeCharacteristic.EventTime =>
-          TimeDomain.EVENT_TIME
-      }
-    }
-
-    cleanupTimeDomain.getOrElse(timeDomainFromTimeCharacteristic)
-  }
-
   override protected def copy: TableSinkBase[JTuple2[JBool, Row]] = {
-    new QueryableTableSink(this.namePrefix, this.queryConfig, this.cleanupTimeDomain)
+    new QueryableTableSink(this.namePrefix, this.queryConfig)
   }
 }
 
@@ -164,8 +148,7 @@ class QueryableStateProcessFunction(
     private val queryConfig: StreamQueryConfig,
     private val keyNames: Array[String],
     private val fieldNames: Array[String],
-    private val fieldTypes: Array[TypeInformation[_]],
-    private val cleanupTimeDomain: TimeDomain)
+    private val fieldTypes: Array[TypeInformation[_]])
   extends KeyedProcessFunctionWithCleanupState[Row, JTuple2[JBool, Row], Void](queryConfig) {
 
   @transient private var states = Array[ValueState[AnyRef]]()
@@ -201,12 +184,8 @@ class QueryableStateProcessFunction(
         states(i).update(value.f1.getField(nonKeyIndices(i)))
       }
 
-      val currentTime: Long = cleanupTimeDomain match{
-        case TimeDomain.EVENT_TIME => ctx.timestamp()
-        case TimeDomain.PROCESSING_TIME => ctx.timerService().currentProcessingTime()
-      }
-
-      registerCleanupTimer(ctx, currentTime, cleanupTimeDomain)
+      val currentTime: Long = ctx.timestamp()
+      registerProcessingCleanupTimer(ctx, currentTime)
     } else {
       cleanupState(states: _*)
     }

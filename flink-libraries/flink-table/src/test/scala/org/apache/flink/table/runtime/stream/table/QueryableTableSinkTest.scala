@@ -50,7 +50,7 @@ class QueryableTableSinkTest extends HarnessTestBase {
   @Test
   def testProcessFunction(): Unit = {
     val queryConfig = new StreamQueryConfig()
-      .withIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(10))
+      .withIdleStateRetentionTime(Time.milliseconds(2), Time.milliseconds(300004))
 
     val keys = Array("id")
     val keyType = new RowTypeInfo(TypeInformation.of(classOf[String]))
@@ -64,8 +64,7 @@ class QueryableTableSinkTest extends HarnessTestBase {
       queryConfig,
       keys,
       fieldNames,
-      fieldTypes,
-      TimeDomain.PROCESSING_TIME)
+      fieldTypes)
 
     val operator = new KeyedProcessOperator[Row, JTuple2[JBool, Row], Void](func)
 
