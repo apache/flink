@@ -299,4 +299,10 @@ public class BootstrapToolsTest {
 		assertEquals(config.getString(CoreOptions.TMP_DIRS), "");
 	}
 
+	@Test
+	public void testShouldNotUpdateTmpDirectoriesInConfigurationIfNoValueConfigured() {
+		Configuration config = new Configuration();
+		BootstrapTools.updateTmpDirectoriesInConfiguration(config, null);
+		assertEquals(config.getString(CoreOptions.TMP_DIRS), CoreOptions.TMP_DIRS.defaultValue());
+	}
 }
