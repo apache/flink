@@ -23,7 +23,11 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -34,27 +38,38 @@ import java.util.Objects;
  */
 public final class JobSubmitRequestBody implements RequestBody {
 
-	private static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
+	public static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
 	private static final String FIELD_NAME_JOB_JARS = "jobJarFileNames";
 	private static final String FIELD_NAME_JOB_ARTIFACTS = "jobArtifactFileNames";
 
 	@JsonProperty(FIELD_NAME_JOB_GRAPH)
+	@Nullable
 	public final String jobGraphFileName;
 
 	@JsonProperty(FIELD_NAME_JOB_JARS)
+	@Nonnull
 	public final Collection<String> jarFileNames;
 
 	@JsonProperty(FIELD_NAME_JOB_ARTIFACTS)
+	@Nonnull
 	public final Collection<DistributedCacheFile> artifactFileNames;
 
 	@JsonCreator
 	public JobSubmitRequestBody(
-			@JsonProperty(FIELD_NAME_JOB_GRAPH) String jobGraphFileName,
-			@JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
-			@JsonProperty(FIELD_NAME_JOB_ARTIFACTS) Collection<DistributedCacheFile> artifactFileNames) {
+			@Nullable @JsonProperty(FIELD_NAME_JOB_GRAPH) String jobGraphFileName,
+			@Nullable @JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
+			@Nullable @JsonProperty(FIELD_NAME_JOB_ARTIFACTS) Collection<DistributedCacheFile> artifactFileNames) {
 		this.jobGraphFileName = jobGraphFileName;
-		this.jarFileNames = jarFileNames;
-		this.artifactFileNames = artifactFileNames;
+		if (jarFileNames == null) {
+			this.jarFileNames = Collections.emptyList();
+		} else {
+			this.jarFileNames = jarFileNames;
+		}
+		if (artifactFileNames == null) {
+			this.artifactFileNames = Collections.emptyList();
+		} else {
+			this.artifactFileNames = artifactFileNames;
+		}
 	}
 
 	@Override
