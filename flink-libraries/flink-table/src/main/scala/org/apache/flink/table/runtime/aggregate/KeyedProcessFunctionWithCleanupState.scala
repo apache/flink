@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.{Long => JLong}
+
 import org.apache.flink.api.common.state.{State, ValueState, ValueStateDescriptor}
 import org.apache.flink.streaming.api.TimeDomain
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
@@ -44,8 +45,20 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
   protected def registerProcessingCleanupTimer(
     ctx: KeyedProcessFunction[K, I, O]#Context,
     currentTime: Long): Unit = {
-    if (stateCleaningEnabled) {
+    registerCleanupTimer(ctx, currentTime, TimeDomain.PROCESSING_TIME)
+  }
 
+  protected def registerEventCleanupTimer(
+    ctx: KeyedProcessFunction[K, I, O]#Context,
+    currentTime: Long): Unit = {
+    registerCleanupTimer(ctx, currentTime, TimeDomain.EVENT_TIME)
+  }
+
+  protected def registerCleanupTimer(
+    ctx: KeyedProcessFunction[K, I, O]#Context,
+    currentTime: Long,
+    timeDomain: TimeDomain): Unit = {
+    if (stateCleaningEnabled) {
       // last registered timer
       val curCleanupTime = cleanupTimeState.value()
 
@@ -55,7 +68,12 @@ abstract class KeyedProcessFunctionWithCleanupState[K, I, O](queryConfig: Stream
         // we need to register a new (later) timer
         val cleanupTime = currentTime + maxRetentionTime
         // register timer and remember clean-up time
-        ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        timeDomain match {
+          case TimeDomain.EVENT_TIME =>
+            ctx.timerService().registerEventTimeTimer(cleanupTime)
+          case TimeDomain.PROCESSING_TIME =>
+            ctx.timerService().registerProcessingTimeTimer(cleanupTime)
+        }
         cleanupTimeState.update(cleanupTime)
       }
     }
