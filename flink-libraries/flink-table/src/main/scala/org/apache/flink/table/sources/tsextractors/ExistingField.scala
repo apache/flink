@@ -23,8 +23,9 @@ import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
 
 /**
-  * Converts an existing [[Long]] or [[java.sql.Timestamp]], or
-  * ISO date formatted [[java.lang.String]] field into a rowtime attribute.
+  * Converts an existing [[Long]], [[java.sql.Timestamp]], or
+  * timestamp formatted [[java.lang.String]] field (e.g., "2018-05-28 12:34:56.000") into
+  * a rowtime attribute.
   *
   * @param field The field to convert into a rowtime attribute.
   */
@@ -47,8 +48,9 @@ final class ExistingField(val field: String) extends TimestampExtractor {
   }
 
   /**
-    * Returns an [[Expression]] that casts a [[Long]] or [[java.sql.Timestamp]], or
-    * ISO date formatted [[java.lang.String]] field into a rowtime attribute.
+    * Returns an [[Expression]] that casts a [[Long]], [[java.sql.Timestamp]], or
+    * timestamp formatted [[java.lang.String]] field (e.g., "2018-05-28 12:34:56.000")
+    * into a rowtime attribute.
     */
   override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
     val fieldAccess: Expression = fieldAccesses(0)
