@@ -80,9 +80,9 @@
 						<configuration>
 							<finalName>QsStateProducer</finalName>
 							<artifactSet>
-								<excludes>
-									<exclude>org.apache.flink:*</exclude>
-								</excludes>
+								<includes>
+									<include>org.apache.flink:flink-queryable-state-test*</include>
+								</includes>
 							</artifactSet>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
@@ -99,6 +99,11 @@
 						</goals>
 						<configuration>
 							<finalName>QsStateClient</finalName>
+							<artifactSet>
+								<excludes combine.self="override">
+									<!-- not a Flink application so we have to bundle all dependencies -->
+								</excludes>
+							</artifactSet>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>org.apache.flink.streaming.tests.queryablestate.QsStateClient</mainClass>
