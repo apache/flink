@@ -31,6 +31,7 @@ import akka.pattern.ask
 import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.core.io.InputSplitAssigner
@@ -72,6 +73,7 @@ import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, 
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
 import org.apache.flink.runtime.messages.{Acknowledge, FlinkJobNotFoundException, StackTrace}
+import org.apache.flink.runtime.metrics.dump.MetricQueryService
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl, MetricRegistry => FlinkMetricRegistry}
@@ -1050,6 +1052,21 @@ class JobManager(
           instanceManager.getAllRegisteredInstances.asScala
         )
       )
+
+    case RequestTaskManagerMetricQueryServicePaths =>
+      val instances = instanceManager.getAllRegisteredInstances
+      val paths = instances.asScala map {
+        instance => {
+          val taskManagerAddress = instance.getTaskManagerGateway.getAddress
+          val queryServicePath =
+            taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
+            MetricQueryService.METRIC_QUERY_SERVICE_NAME +
+            '_' + instance.getTaskManagerID.getResourceIdString
+          Tuple2.of(instance.getTaskManagerID, queryServicePath)
+        }
+      }
+      sender ! decorateMessage(TaskManagerMetricQueryServicePaths(paths))
+
 
     case RequestTaskManagerInstance(resourceId) =>
       sender ! decorateMessage(
