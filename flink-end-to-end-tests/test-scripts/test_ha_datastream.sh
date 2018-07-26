@@ -72,8 +72,10 @@ function run_ha_test() {
         # kill the JM and wait for watchdog to
         # create a new one which will take over
         kill_jm
-        wait_job_running ${JOB_ID}
+        # let the job start and take some checkpoints
+        sleep 60
     done
+
 
     # verify checkpoints in the logs
     verify_logs ${JM_KILLS} true
