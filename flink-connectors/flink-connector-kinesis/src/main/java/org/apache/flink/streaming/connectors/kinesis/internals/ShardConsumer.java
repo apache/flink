@@ -24,7 +24,6 @@ import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporte
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
@@ -87,28 +86,15 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param kinesis the proxy instance to interact with Kinesis
 	 * @param shardMetricsReporter the reporter to report metrics to
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
 						StreamShardHandle subscribedShard,
 						SequenceNumber lastSequenceNum,
+						KinesisProxyInterface kinesis,
 						ShardMetricsReporter shardMetricsReporter) {
-		this(fetcherRef,
-			subscribedShardStateIndex,
-			subscribedShard,
-			lastSequenceNum,
-			KinesisProxy.create(fetcherRef.getConsumerConfiguration()),
-			shardMetricsReporter);
-	}
-
-	/** This constructor is exposed for testing purposes. */
-	protected ShardConsumer(KinesisDataFetcher<T> fetcherRef,
-							Integer subscribedShardStateIndex,
-							StreamShardHandle subscribedShard,
-							SequenceNumber lastSequenceNum,
-							KinesisProxyInterface kinesis,
-							ShardMetricsReporter shardMetricsReporter) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
@@ -152,62 +138,73 @@ public class ShardConsumer<T> implements Runnable {
 		}
 	}
 
+	/**
+	 * Find the initial shard iterator to start getting records from.
+	 * @return shard iterator
+	 * @throws Exception
+	 */
+	protected String getInitialShardIterator() throws Exception {
+		String nextShardItr;
+
+		// before infinitely looping, we set the initial nextShardItr appropriately
+
+		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
+			// if the shard is already closed, there will be no latest next record to get for this shard
+			if (subscribedShard.isClosed()) {
+				nextShardItr = null;
+			} else {
+				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
+			}
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
+			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
+			nextShardItr = null;
+		} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+			nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
+		} else {
+			// we will be starting from an actual sequence number (due to restore from failure).
+			// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
+			// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
+
+			if (lastSequenceNum.isAggregated()) {
+				String itrForLastAggregatedRecord =
+					kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+
+				// get only the last aggregated record
+				GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
+
+				List<UserRecord> fetchedRecords = deaggregateRecords(
+					getRecordsResult.getRecords(),
+					subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
+					subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
+
+				long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
+				for (UserRecord record : fetchedRecords) {
+					// we have found a dangling sub-record if it has a larger subsequence number
+					// than our last sequence number; if so, collect the record and update state
+					if (record.getSubSequenceNumber() > lastSubSequenceNum) {
+						deserializeRecordForCollectionAndUpdateState(record);
+					}
+				}
+
+				// set the nextShardItr so we can continue iterating in the next while loop
+				nextShardItr = getRecordsResult.getNextShardIterator();
+			} else {
+				// the last record was non-aggregated, so we can simply start from the next record
+				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+			}
+		}
+		return nextShardItr;
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
-		String nextShardItr;
-
 		try {
-			// before infinitely looping, we set the initial nextShardItr appropriately
-
-			if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
-				// if the shard is already closed, there will be no latest next record to get for this shard
-				if (subscribedShard.isClosed()) {
-					nextShardItr = null;
-				} else {
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
-				}
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
-				nextShardItr = null;
-			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
-			} else {
-				// we will be starting from an actual sequence number (due to restore from failure).
-				// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
-				// from the last aggregated record; otherwise, we can simply start iterating from the record right after.
-
-				if (lastSequenceNum.isAggregated()) {
-					String itrForLastAggregatedRecord =
-						kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-
-					// get only the last aggregated record
-					GetRecordsResult getRecordsResult = getRecords(itrForLastAggregatedRecord, 1);
-
-					List<UserRecord> fetchedRecords = deaggregateRecords(
-						getRecordsResult.getRecords(),
-						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
-						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
-
-					long lastSubSequenceNum = lastSequenceNum.getSubSequenceNumber();
-					for (UserRecord record : fetchedRecords) {
-						// we have found a dangling sub-record if it has a larger subsequence number
-						// than our last sequence number; if so, collect the record and update state
-						if (record.getSubSequenceNumber() > lastSubSequenceNum) {
-							deserializeRecordForCollectionAndUpdateState(record);
-						}
-					}
-
-					// set the nextShardItr so we can continue iterating in the next while loop
-					nextShardItr = getRecordsResult.getNextShardIterator();
-				} else {
-					// the last record was non-aggregated, so we can simply start from the next record
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-				}
-			}
+			String nextShardItr = getInitialShardIterator();
 
 			long processingStartTimeNanos = System.nanoTime();
+
 			while (isRunning()) {
 				if (nextShardItr == null) {
 					fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
