@@ -121,6 +121,7 @@ under the License.
 									<include>com.google.code.findbugs:*</include>
 									<include>asm:asm</include>
 									<include>io.netty:netty:*</include>
+									<include>io.netty:netty-all:*</include>
 									<include>org.apache.curator:*</include>
 									<include>org.apache.hadoop:*</include>
 									<include>org.htrace:htrace-core</include>
@@ -151,6 +152,10 @@ under the License.
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.io.netty</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.curator</pattern>

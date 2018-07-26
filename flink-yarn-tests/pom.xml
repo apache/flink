@@ -227,6 +227,10 @@ under the License.
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.jboss.netty</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.io.netty</shadedPattern>
+								</relocation>
 							</relocations>
 						</configuration>
 					</execution>
