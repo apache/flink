@@ -2496,6 +2496,17 @@ concat_ws(separator, string1, string2,...)
         <p>Returns the string that results from concatenating the arguments using a separator. The separator is added between the strings to be concatenated. Returns NULL If the separator is NULL. concat_ws() does not skip empty strings. However, it does skip any NULL argument. E.g. <code>concat_ws("~", "AA", "BB", "", "CC")</code> returns <code>AA~BB~~CC</code></p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+INTEGER.chr()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns string contains a character which converts from a ASCII integer. If the ASCII less then 0 or greater than 255, return null. E.g. <code>97.chr()</code> returns <code>a</code></p>
+      </td>
+    </tr>
 
   </tbody>
 </table>

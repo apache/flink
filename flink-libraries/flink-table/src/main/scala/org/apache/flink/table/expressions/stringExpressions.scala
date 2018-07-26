@@ -383,3 +383,25 @@ case class FromBase64(child: Expression) extends UnaryExpression with InputTypeS
 
   override def toString: String = s"($child).fromBase64"
 }
+
+case class Chr(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(INT_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == INT_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Chr operator requires Integer input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.CHR, child.toRexNode)
+  }
+
+  override def toString = s"chr($child)"
+}

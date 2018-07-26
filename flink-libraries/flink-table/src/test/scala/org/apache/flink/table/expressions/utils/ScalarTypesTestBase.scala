@@ -28,7 +28,7 @@ import org.apache.flink.types.Row
 class ScalarTypesTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(36)
+    val testData = new Row(39)
     testData.setField(0, "This is a test String.")
     testData.setField(1, true)
     testData.setField(2, 42.toByte)
@@ -65,6 +65,9 @@ class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(33, null)
     testData.setField(34, 256)
     testData.setField(35, "aGVsbG8gd29ybGQ=")
+    testData.setField(36, 65)
+    testData.setField(37, 97)
+    testData.setField(38, 255)
     testData
   }
 
@@ -105,6 +108,9 @@ class ScalarTypesTestBase extends ExpressionTestBase {
       Types.INT,
       Types.STRING,
       Types.INT,
-      Types.STRING).asInstanceOf[TypeInformation[Any]]
+      Types.STRING,
+      Types.INT,
+      Types.INT,
+      Types.INT).asInstanceOf[TypeInformation[Any]]
   }
 }
