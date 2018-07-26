@@ -48,12 +48,12 @@ Some notes on semantics:
 
 In the following section we are going to give an overview over how different kinds of windows can be used for a window join and what the results of those joins would look like using examplary scenarios.
 
-## Tumbling Window
-When performing a tumbling window join, all elements with a common key and a common tumbling window are joined as pairwise combinations and passed on to the user-defined function. Because this behaves like an inner join, elements of one stream that do not have elements from another stream in their tumbling window are not emitted!
+## Tumbling Window Join
+When performing a tumbling window join, all elements with a common key and a common tumbling window are joined as pairwise combinations and passed on to a `JoinFunction` or `FlatJoinFunction`. Because this behaves like an inner join, elements of one stream that do not have elements from another stream in their tumbling window are not emitted!
 
 <img src="{{ site.baseurl }}/fig/tumbling-window-join.svg" class="center" style="width: 80%;" />
 
-In our example we are defining a tumbling window with the size of 2 milliseconds, which results in windows of the form `[0,1], [2,3], ...`. The image shows the pairwise combinations of all elements in each window which will be passed on to the user-defined function. You can also see how in the tumbling window `[6,7]` nothing is emitted because no elements from the green stream exist to be joined with the orange elements ⑥ and ⑦.
+In our example we are defining a tumbling window with the size of 2 milliseconds, which results in windows of the form `[0,1], [2,3], ...`. The image shows the pairwise combinations of all elements in each window which will be passed on to the `JoinFunction`. You can also see how in the tumbling window `[6,7]` nothing is emitted because no elements from the green stream exist to be joined with the orange elements ⑥ and ⑦.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -101,7 +101,7 @@ orangeStream.join(greenStream)
 </div>
 
 ## Sliding Window Join
-When performing a sliding window join, all elements with a common key and common sliding window are joined are pairwise combinations and passed on to the user-defined function. Elements of one stream that do not have elements from the other stream in the current sliding window are not emitted! Note that some elements might be joined in one sliding window but not in another!
+When performing a sliding window join, all elements with a common key and common sliding window are joined are pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Elements of one stream that do not have elements from the other stream in the current sliding window are not emitted! Note that some elements might be joined in one sliding window but not in another!
 
 <img src="{{ site.baseurl }}/fig/sliding-window-join.svg" class="center" style="width: 80%;" />
 
@@ -153,11 +153,11 @@ orangeStream.join(greenStream)
 </div>
 
 ## Session Window Join
-When performing a session window join, all elements with the same key that when _"combined"_ fulfill the session criteria are joined in pairwise combinations and passed on to the user-defined function. Again this performs an inner join, so if there is a session window that only contains elements from one stream, no output will be emitted!
+When performing a session window join, all elements with the same key that when _"combined"_ fulfill the session criteria are joined in pairwise combinations and passed on to the `JoinFunction` or `FlatJoinFunction`. Again this performs an inner join, so if there is a session window that only contains elements from one stream, no output will be emitted!
 
 <img src="{{ site.baseurl }}/fig/session-window-join.svg" class="center" style="width: 80%;" />
 
-Here we define a session window join where each session is divided by a gap of at least 1ms. There are three sessions, and in the first two sessions the joined elements from both streams are passed to the user-defined function. In the third session there are no elements in the green stream, so ⑧ and ⑨ are not joined!
+Here we define a session window join where each session is divided by a gap of at least 1ms. There are three sessions, and in the first two sessions the joined elements from both streams are passed to the `JoinFunction`. In the third session there are no elements in the green stream, so ⑧ and ⑨ are not joined!
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
