@@ -450,6 +450,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1111111111111111111111111111111111111111111111111111111111111111")
   }
 
+  @Test
+  def testFromBase64(): Unit = {
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "from_base64(f35)",
+      "hello world")
+
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "FROM_BASE64(f35)",
+      "hello world")
+
+    //null test
+    testAllApis(
+      'f33.fromBase64(),
+      "f33.fromBase64()",
+      "FROM_BASE64(f33)",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------

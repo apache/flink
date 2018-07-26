@@ -21,6 +21,8 @@ import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
 import java.lang.StringBuilder
 
+import org.apache.commons.codec.binary.Base64
+
 /**
   * Built-in scalar runtime functions.
   */
@@ -182,4 +184,10 @@ object ScalarFunctions {
 
     new String(data)
   }
+
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+
 }
