@@ -182,7 +182,7 @@ object ScalarSqlFunctions {
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     InferTypes.RETURN_TYPE,
-    OperandTypes.family(SqlTypeFamily.STRING),
+    OperandTypes.STRING,
     SqlFunctionCategory.STRING
   )
 

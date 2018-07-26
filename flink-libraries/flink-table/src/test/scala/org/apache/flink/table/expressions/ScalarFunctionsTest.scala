@@ -486,23 +486,17 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "TO_BASE64(f8)",
       "IFRoaXMgaXMgYSB0ZXN0IFN0cmluZy4g")
 
-    //null test
-    testAllApis(
-      'f33.toBase64(),
-      "f33.toBase64()",
-      "TO_BASE64(f33)",
-      "null")
-
     testAllApis(
       "".toBase64(),
       "''.toBase64()",
       "TO_BASE64('')",
       "")
 
+    //null test
     testAllApis(
       'f33.toBase64(),
       "f33.toBase64()",
-      "to_base64(f33)",
+      "TO_BASE64(f33)",
       "null")
   }
 

@@ -1853,11 +1853,11 @@ FROM_BASE64(text string)
     <tr>
       <td>
         {% highlight text %}
-TO_BASE64(text string)
+TO_BASE64(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the string text encoded with BASE64, if string is null, returns null. E.g. <code>TO_BASE64('hello world')</code> returns <code>aGVsbG8gd29ybGQ=</code>.</p>
+        <p>Returns the base64-encoded result of the input string. If the input is NULL, returns NULL. E.g. <code>TO_BASE64('hello world')</code> returns <code>aGVsbG8gd29ybGQ=</code>.</p>
       </td>
     </tr>
 

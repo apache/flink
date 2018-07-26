@@ -386,8 +386,7 @@ case class FromBase64(child: Expression) extends UnaryExpression with InputTypeS
 }
 
 /**
-  * Returns the string encoded with base64.
-  * Returns NULL If the input string is NULL.
+  * Returns the base64-encoded result of the input string.
   */
 case class ToBase64(child: Expression) extends UnaryExpression with InputTypeSpec {
 
@@ -399,7 +398,7 @@ case class ToBase64(child: Expression) extends UnaryExpression with InputTypeSpe
     if (child.resultType == STRING_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"ToBase64 operator requires String input, " +
+      ValidationFailure(s"ToBase64 operator requires a String input, " +
         s"but $child is of type ${child.resultType}")
     }
   }
