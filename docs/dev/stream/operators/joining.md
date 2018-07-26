@@ -28,11 +28,11 @@ under the License.
 {:toc}
 
 # Window Join
-A window join will join the elements of two streams that share a common key and lie in the same window. These windows can be defined by using a [window assigner]({{ site.baseurl}}/dev/stream/operators/windows.html#window-assigners) and are evaluated on a union of both streams. This is especially important for session window joins, which will be demonstrated below.
+A window join joins the elements of two streams that share a common key and lie in the same window. These windows can be defined by using a [window assigner]({{ site.baseurl}}/dev/stream/operators/windows.html#window-assigners) and are evaluated on elements from both of the streams.
 
-The joined elements are then passed to a user-defined `JoinFunction` or `FlatJoinFunction` where the user can perform transformations on the joined elements.
+The elements from both sides are then passed to a user-defined `JoinFunction` or `FlatJoinFunction` where the user can emit results that meet the join criteria.
 
-The general usage always looks like the followning:
+The general can be summarized as follows:
 
 {% highlight java %}
 stream.join(otherStream)
@@ -51,7 +51,6 @@ In the following section we are going to give an overview over how different kin
 ## Tumbling Window
 When performing a tumbling window join, all elements with a common key and a common tumbling window are joined as pairwise combinations and passed on to the user-defined function. Because this behaves like an inner join, elements of one stream that do not have elements from another stream in their tumbling window are not emitted!
 
-### Example
 <img src="{{ site.baseurl }}/fig/tumbling-window-join.svg" class="center" style="width: 80%;" />
 
 In our example we are defining a tumbling window with the size of 2 milliseconds, which results in windows of the form `[0,1], [2,3], ...`. The image shows the pairwise combinations of all elements in each window which will be passed on to the user-defined function. You can also see how in the tumbling window `[6,7]` nothing is emitted because no elements from the green stream exist to be joined with the orange elements ⑥ and ⑦.
@@ -106,7 +105,7 @@ When performing a sliding window join, all elements with a common key and common
 
 <img src="{{ site.baseurl }}/fig/sliding-window-join.svg" class="center" style="width: 80%;" />
 
-In this example we are using sliding windows with a duration of two milliseconds and slide them by one millisecond, resulting in the sliding windows `[-1, 0],[0,1],[1,2],[2,3], …`.<!-- TODO: Can -1 actually exist?--> The joined elements below the x-axis are the ones that are passed to the user-defined function for each sliding window. Here you can also see how for example the orange ② is joined with the green ③ in the window `[2,3]`, but is not joined with anything in the window `[1,2]`.
+In this example we are using sliding windows with a size of two milliseconds and slide them by one millisecond, resulting in the sliding windows `[-1, 0],[0,1],[1,2],[2,3], …`.<!-- TODO: Can -1 actually exist?--> The joined elements below the x-axis are the ones that are passed to the `JoinFunction` for each sliding window. Here you can also see how for example the orange ② is joined with the green ③ in the window `[2,3]`, but is not joined with anything in the window `[1,2]`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -215,15 +214,15 @@ This can also expressed a little more formally as
 
 where a and b are elements of A and B that share a common key.
 
-The interval join currently only performs inner joins, meaning that if an element from one stream has no element from the other stream to be joined with, it will not be passed to the user-defined function. 
+The interval join currently only performs inner joins.
 
-When joined elements are passed to the user-defined function they have the maximum timestamp of either one of the two elements. The timestamps of either one of those elements can also be accessed via the `ProcessJoinFunction.Context`
+When a pair of elements are passed to the `ProcessJoinFunction`, they will be assigned with the larger timestamp (which can be accessed via the `ProcessJoinFunction.Context`) of the two elements.
 
-Note: The interval join currently only supports event time.
+<span class="label label-info">Note</span> The interval join currently only supports event time.
 
 <img src="{{ site.baseurl }}/fig/interval-join.svg" class="center" style="width: 80%;" />
 
-In this example we are joining two streams 'orange' and 'green' with a lower bound of minus two milliseconds and an upper bound of one millisecond. By default those boundaries are inclusive, but `.lowerBoundExclusive()` and / or `.upperBoundExclusive()` can be used to specify different behaviour.
+In the example above, we join two streams 'orange' and 'green' with a lower bound of -2 milliseconds and an upper bound of +1 millisecond. Be default, these boundaries are inclusive, but `.lowerBoundExclusive()` and `.upperBoundExclusive` can be applied to change the behaviour.
 
 Using the more formal notation again this will translate to 
 
