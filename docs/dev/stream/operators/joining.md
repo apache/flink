@@ -32,7 +32,7 @@ A window join joins the elements of two streams that share a common key and lie 
 
 The elements from both sides are then passed to a user-defined `JoinFunction` or `FlatJoinFunction` where the user can emit results that meet the join criteria.
 
-The general can be summarized as follows:
+The general usage can be summarized as follows:
 
 {% highlight java %}
 stream.join(otherStream)
@@ -44,7 +44,7 @@ stream.join(otherStream)
 
 Some notes on semantics:
 - The creation of pairwise combinations of elements of the two streams behaves like an inner-join, meaning elements from one stream will not be emitted if they don't have a corresponding element from the other stream to be joined with.
-- Those elements that do get joined will have as their timestamp the largest timestamp that still lies in the respective window. For example a window with `[5, 10)` as its boundaries would result in the joined elements having nine as their timestamp.
+- Those elements that do get joined will have as their timestamp the largest timestamp that still lies in the respective window. For example a window with `[5, 10)` as its boundaries would result in the joined elements having 9 as their timestamp.
 
 In the following section we are going to give an overview over how different kinds of window joins behave using some exemplary scenarios.
 
