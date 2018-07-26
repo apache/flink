@@ -129,6 +129,10 @@ and the [test set here](http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/b
 This is an astroparticle binary classification dataset, used by Hsu et al. [[3]](#hsu) in their
 practical Support Vector Machine (SVM) guide. It contains 4 numerical features, and the class label.
 
+Before importing the traning and test dataset, Flink SVM only supports threshold binary values of 
+`+1.0` and `-1.0`. Thus a conversion is needed upon downloading the svmguide1 dataset since it is 
+labelled using `1`s and `0`s.
+
 We can simply import the dataset then using:
 
 {% highlight scala %}
