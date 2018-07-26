@@ -63,5 +63,33 @@ under the License.
 				</configuration>
 			</plugin>
 		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
+	
 </project>

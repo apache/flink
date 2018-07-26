@@ -36,20 +36,15 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-statebackend-rocksdb_2.11</artifactId>
+			<artifactId>flink-statebackend-rocksdb_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -62,24 +57,21 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- DataStreamAllroundTestProgram -->
 					<execution>
 						<id>DataStreamAllroundTestProgram</id>
 						<phase>package</phase>
 						<goals>
-							<goal>jar</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
 							<finalName>DataStreamAllroundTestProgram</finalName>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.tests.DataStreamAllroundTestProgram</program-class>
-								</manifestEntries>
-							</archive>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.tests.DataStreamAllroundTestProgram</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>
