@@ -36,6 +36,8 @@ export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
+FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/[[:blank:]]\+<version>\([a-zA-Z0-9\.-]\+\)<\/version>/\1/p')
+
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
