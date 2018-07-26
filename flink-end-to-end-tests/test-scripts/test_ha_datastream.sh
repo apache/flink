@@ -76,7 +76,6 @@ function run_ha_test() {
         sleep 60
     done
 
-
     # verify checkpoints in the logs
     verify_logs ${JM_KILLS} true
 
