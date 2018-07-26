@@ -34,13 +34,13 @@ The joined elements are then passed to a user-defined `JoinFunction` or `FlatJoi
 
 The general usage always looks like the followning:
 
-```java
+{% highlight java %}
 stream.join(otherStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(<WindowAssigner>)
     .apply(<JoinFunction>)
-```
+{% endhighlight %}
 
 Some notes on semantics:
 - The creation of pairwise combinations of elements of the two streams behaves like an inner-join, meaning elements from one stream will not be emitted if they don't have a corresponding element from the other stream to be joined with.
@@ -58,8 +58,7 @@ In our example we are defining a tumbling window with the size of 2 milliseconds
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
-
-```java
+{% highlight java %}
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -79,11 +78,11 @@ orangeStream.join(greenStream)
             return first + "," + second;
         }
     });
-```
+ {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
-```scala
+{% highlight scala %}
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -97,7 +96,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
     .apply { (e1, e2) => e1 + "," + e2 }
-```
+ {% endhighlight %}
 
 </div>
 </div>
@@ -112,7 +111,7 @@ In this example we are using sliding windows with a duration of two milliseconds
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-```java
+{% highlight java %}
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -132,11 +131,11 @@ orangeStream.join(greenStream)
             return first + "," + second;
         }
     });
-```
+ {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
-```scala
+{% highlight scala %}
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -150,7 +149,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(SlidingEventTimeWindows.of(Time.milliseconds(2) /* size */, Time.milliseconds(1) /* slide */))
     .apply { (e1, e2) => e1 + "," + e2 }
-```
+ {% endhighlight %}
 </div>
 </div>
 
@@ -164,7 +163,7 @@ Here we define a session window join where each session is divided by a gap of a
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-```java
+{% highlight java %}
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -184,11 +183,11 @@ orangeStream.join(greenStream)
             return first + "," + second;
         }
     });
-```
+ {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
-```scala
+{% highlight scala %}
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
  
@@ -202,7 +201,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(EventTimeSessionWindows.withGap(Time.milliseconds(1)))
     .apply { (e1, e2) => e1 + "," + e2 }
-```
+ {% endhighlight %}
 
 </div>
 </div>
@@ -235,7 +234,7 @@ as indicated by the triangles.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-```java
+{% highlight java %}
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -256,12 +255,12 @@ orangeStream
             out.collect(first + "," + second);
         }
     });
-```
+ {% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
 
-```scala
+{% highlight scala %}
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -280,7 +279,7 @@ orangeStream
         }
       });
     });
-```
+ {% endhighlight %}
 
 </div>
 </div>
