@@ -72,7 +72,7 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 			thrownErrorUnderTest,
 			subscribedShardsStateUnderTest,
 			subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
-			fakeKinesis);
+			(properties) -> fakeKinesis);
 
 		this.runWaiter = new OneShotLatch();
 		this.initialDiscoveryWaiter = new OneShotLatch();
