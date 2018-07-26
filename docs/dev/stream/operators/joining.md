@@ -2,8 +2,8 @@
 title: "Joining"
 nav-id: streaming_joins
 nav-show_overview: true
-nav-parent_id: streaming
-nav-pos: 10
+nav-parent_id: streaming_operators
+nav-pos: 11
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
