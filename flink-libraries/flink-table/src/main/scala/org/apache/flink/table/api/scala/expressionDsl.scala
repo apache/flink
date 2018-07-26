@@ -607,6 +607,11 @@ trait ImplicitExpressionOperations {
     RegexpExtract(expr, regex, null)
 
   /**
+    * Returns the ASCII code value of the the leftmost character of the string.
+    */
+  def ascii() = Ascii(expr)
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64() = FromBase64(expr)
@@ -630,6 +635,11 @@ trait ImplicitExpressionOperations {
     * Returns a string that repeats the base string n times.
     */
   def repeat(n: Expression) = Repeat(expr, n)
+
+  /**
+    * Returns a character corresponding to the input integer ASCII code.
+    */
+  def chr() = Chr(expr)
 
   // Temporal operations
 

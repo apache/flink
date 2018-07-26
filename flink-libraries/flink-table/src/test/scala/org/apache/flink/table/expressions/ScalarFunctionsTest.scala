@@ -700,6 +700,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testAscii(): Unit = {
+    testAllApis(
+      'f0.ascii(),
+      "f0.ascii()",
+      "ASCII(f0)",
+      "84")
+
+    testAllApis(
+      'f35.ascii(),
+      "f35.ascii()",
+      "ASCII(f35)",
+      "97")
+
+    testAllApis(
+      "".ascii(),
+      "''.ascii()",
+      "ASCII('')",
+      "0")
+
+    testAllApis(
+      'f33.ascii(),
+      "f33.ascii()",
+      "ASCII(f33)",
+      "null")
+
+    testAllApis(
+      "我".ascii(),
+      "'我'.ascii()",
+      "ASCII('我')",
+      "0")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testAllApis(
       'f35.fromBase64(),
@@ -887,6 +920,51 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "''.repeat(1)",
       "REPEAT('', 2)",
       "")
+  }
+
+  @Test
+  def testChr(): Unit = {
+    testAllApis(
+      'f14.chr(),
+      "f14.chr()",
+      "CHR(f14)",
+      "null")
+
+    testAllApis(
+      'f34.chr(),
+      "f34.chr()",
+      "CHR(f34)",
+      "null")
+
+    testAllApis(
+      'f36.chr(),
+      "f36.chr()",
+      "CHR(f36)",
+      "A")
+
+    testAllApis(
+      'f37.chr(),
+      "f37.chr()",
+      "CHR(f37)",
+      "ÿ")
+
+    testAllApis(
+      'f36.chr(),
+      "f36.chr()",
+      "CHR(CAST(f36 AS SMALLINT))",
+      "A")
+
+    testAllApis(
+      'f36.chr(),
+      "f36.chr()",
+      "CHR(CAST(f36 AS TINYINT))",
+      "A")
+
+    testAllApis(
+      'f36.chr(),
+      "f36.chr()",
+      "CHR(CAST(f36 AS BIGINT))",
+      "A")
   }
 
   // ----------------------------------------------------------------------------------------------

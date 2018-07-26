@@ -204,6 +204,7 @@ object FunctionCatalog {
     "lpad" -> classOf[Lpad],
     "rpad" -> classOf[Rpad],
     "regexpExtract" -> classOf[RegexpExtract],
+    "ascii" -> classOf[Ascii],
     "fromBase64" -> classOf[FromBase64],
     "toBase64" -> classOf[ToBase64],
     "uuid" -> classOf[UUID],
@@ -211,6 +212,7 @@ object FunctionCatalog {
     "rtrim" -> classOf[RTrim],
     "repeat" -> classOf[Repeat],
     "regexpReplace" -> classOf[RegexpReplace],
+    "chr" -> classOf[Chr],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -468,6 +470,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.SHA512,
     ScalarSqlFunctions.SHA2,
     ScalarSqlFunctions.REGEXP_EXTRACT,
+    ScalarSqlFunctions.ASCII,
     ScalarSqlFunctions.FROM_BASE64,
     ScalarSqlFunctions.TO_BASE64,
     ScalarSqlFunctions.UUID,
@@ -475,6 +478,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RTRIM,
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
+    ScalarSqlFunctions.CHR,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

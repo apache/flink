@@ -422,6 +422,31 @@ object RegexpExtract {
 }
 
 /**
+  * Returns the ASCII code value value of the leftmost character of the string str.
+  */
+case class Ascii(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Ascii operator requires a String input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.ASCII, child.toRexNode)
+  }
+
+  override def toString: String = s"($child).ascii"
+}
+
+/**
   * Returns the base string decoded with base64.
   * Returns NULL If the input string is NULL.
   */
@@ -573,4 +598,29 @@ case class Replace(str: Expression,
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.REPLACE, children.map(_.toRexNode))
   }
+}
+
+/**
+  * Returns a character corresponding to the input integer ASCII code.
+  */
+case class Chr(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(LONG_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == LONG_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Chr operator requires a Long input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.CHR, child.toRexNode)
+  }
+
+  override def toString = s"chr($child)"
 }

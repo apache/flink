@@ -172,6 +172,12 @@ object FunctionGenerator {
     BuiltInMethods.REGEXP_EXTRACT_WITHOUT_INDEX)
 
   addSqlFunctionMethod(
+    ASCII,
+    Seq(STRING_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.ASCII)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,
@@ -206,6 +212,12 @@ object FunctionGenerator {
     Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
     STRING_TYPE_INFO,
     BuiltInMethods.REPEAT)
+
+  addSqlFunctionMethod(
+    CHR,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.CHR)
 
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions

@@ -233,6 +233,15 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val ASCII = new SqlFunction(
+    "ASCII",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.explicit(SqlTypeName.INTEGER),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
   val FROM_BASE64 = new SqlFunction(
     "FROM_BASE64",
     SqlKind.OTHER_FUNCTION,
@@ -275,5 +284,14 @@ object ScalarSqlFunctions {
     InferTypes.RETURN_TYPE,
     OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.STRING)
+
+  val CHR = new SqlFunction(
+    "CHR",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.STRING
+  )
 
 }

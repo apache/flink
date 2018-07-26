@@ -26,6 +26,8 @@ import java.util.regex.Pattern
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.apache.commons.lang3.StringUtils
 
+import org.apache.flink.shaded.guava18.com.google.common.base.CharMatcher
+
 import scala.annotation.varargs
 
 /**
@@ -267,6 +269,21 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the ASCII code value of the leftmost character of the string str.
+    */
+  def ascii(str: String): Integer = {
+    if (str == null || str.equals("")) {
+      0
+    } else {
+      if (CharMatcher.ASCII.matches(str.charAt(0))) {
+        str.charAt(0).toByte.toInt
+      } else {
+        0
+      }
+    }
+  }
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64(str: String): String =
@@ -298,5 +315,16 @@ object ScalarFunctions {
     * Returns a string that repeats the base string n times.
     */
   def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
+
+  /**
+    * Returns a character corresponding to the input integer ASCII code.
+    */
+  def chr(ascii: Long): String = {
+    if (ascii == null || ascii < 0 || ascii > 255) {
+      return null
+    }
+
+    return ascii.toChar.toString
+  }
 
 }

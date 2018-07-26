@@ -162,6 +162,8 @@ object BuiltInMethods {
     classOf[String],
     classOf[String])
 
+  val ASCII = Types.lookupMethod(classOf[ScalarFunctions], "ascii", classOf[String])
+
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 
   val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
@@ -176,4 +178,7 @@ object BuiltInMethods {
     "repeat",
     classOf[String],
     classOf[Int])
+
+  val CHR = Types.lookupMethod(classOf[ScalarFunctions], "chr", classOf[Long])
+
 }

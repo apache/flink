@@ -2524,6 +2524,33 @@ REPEAT(string, integer)
     <tr>
       <td>
         {% highlight text %}
+ASCII(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII code value of the <i>string</i>.</p> 
+        <p>The return type is <i>INTEGER</i>.</p>
+        <p>E.g. <code>ASCII('THIS')</code> returns 84.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CHR(integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a character corresponding to the input <i>integer</i> ASCII code.</p> 
+        <p><b>Note:</b> If the input <i>integer</i> exceeding the range (1 - 255), returns NULL.</p>
+        <p>The return type is <i>STRING</i>.</p>
+        <p>E.g. <code>CHR(65)</code> returns "A".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 REGEXP_REPLACE(string1, string2, string3)
 {% endhighlight %}
       </td>
@@ -2781,6 +2808,33 @@ STRING.repeat(INT)
       <td>
         <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
         <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.ascii()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII code value of the <i>STRING</i>.</p> 
+        <p>The return type is <i>INTEGER</i>.</p>
+        <p>E.g. <code>'THIS'.ascii()</code> returns 84.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+INTEGER.chr()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a character corresponding to the input <i>INTEGER</i> ASCII code.</p> 
+        <p><b>Note:</b> If the input <i>INTEGER</i> exceeding the range (1 - 255), returns NULL.</p>
+        <p>The return type is <i>STRING</i>.</p>
+        <p>E.g. <code>65.chr()</code> returns "A".</p>
       </td>
     </tr>    
 
@@ -3045,6 +3099,33 @@ STRING.repeat(INT)
       <td>
         <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
         <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.ascii()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII code value of the <i>STRING</i>.</p> 
+        <p>The return type is <i>INTEGER</i>.</p>
+        <p>E.g. <code>"THIS".ascii()</code> returns 84.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+INTEGER.chr()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a character corresponding to the input <i>INTEGER</i> ASCII code.</p> 
+        <p><b>Note:</b> If the input <i>INTEGER</i> exceeding the range (1 - 255), returns NULL.</p>
+        <p>The return type is <i>STRING</i>.</p>
+        <p>E.g. <code>65.chr()</code> returns "A".</p>
       </td>
     </tr> 
 
