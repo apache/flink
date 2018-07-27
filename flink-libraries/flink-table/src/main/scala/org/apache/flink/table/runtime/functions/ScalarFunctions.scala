@@ -201,4 +201,16 @@ object ScalarFunctions {
     */
   def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
 
+  /**
+    * Returns string contains a character which converts from a ASCII integer.
+    * If the ASCII less then 0 or greater than 255, return null.
+    */
+  def chr(ascii: Integer): String = {
+    if (ascii < 0 || ascii > 255) {
+      return null
+    }
+
+    return ascii.toChar.toString
+  }
+
 }

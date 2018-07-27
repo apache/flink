@@ -472,6 +472,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
   }
 
+  @Test
+  def testChr(): Unit = {
+    testAllApis(
+      'f14.chr(),
+      "f14.chr()",
+      "CHR(f14)",
+      "null")
+
+    testAllApis(
+      'f34.chr(),
+      "f34.chr()",
+      "CHR(f34)",
+      "null")
+
+    testAllApis(
+      'f34.chr(),
+      "f34.chr()",
+      "CHR(f34)",
+      "null")
+
+    testAllApis(
+      'f36.chr(),
+      "f36.chr()",
+      "CHR(f36)",
+      "A")
+
+    testAllApis(
+      'f37.chr(),
+      "f37.chr()",
+      "CHR(f37)",
+      "a")
+
+    testAllApis(
+      'f38.chr(),
+      "f38.chr()",
+      "CHR(f38)",
+      "ÿ")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------

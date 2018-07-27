@@ -549,6 +549,12 @@ trait ImplicitExpressionOperations {
     */
   def fromBase64() = FromBase64(expr)
 
+  /*
+    * Returns string contains a character which converts from a ASCII integer.
+    * If the ASCII less then 0 or greater than 255, return null.
+    */
+  def chr() = Chr(expr)
+
   // Temporal operations
 
   /**

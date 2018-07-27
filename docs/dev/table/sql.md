@@ -1850,6 +1850,17 @@ FROM_BASE64(text string)
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight text %}
+CHR(ascii integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns string contains a character which converts from a ASCII integer. If the ASCII less then 0 or greater than 255, return null. E.g. <code>CHR(65)</code> returns <code>A</code>, <code>CHR(97)</code> returns <code>a</code>.</p>
+      </td>
+    </tr>
+
   </tbody>
 </table>
 

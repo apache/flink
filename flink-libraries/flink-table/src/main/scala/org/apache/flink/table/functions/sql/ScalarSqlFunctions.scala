@@ -177,4 +177,12 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val CHR = new SqlFunction(
+    "CHR",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.STRING
+  )
 }
