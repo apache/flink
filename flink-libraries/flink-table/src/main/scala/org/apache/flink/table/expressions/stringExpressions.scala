@@ -394,7 +394,7 @@ case class Chr(child: Expression) extends UnaryExpression with InputTypeSpec {
     if (child.resultType == INT_TYPE_INFO) {
       ValidationSuccess
     } else {
-      ValidationFailure(s"Chr operator requires Integer input, " +
+      ValidationFailure(s"Chr operator requires a Integer input, " +
         s"but $child is of type ${child.resultType}")
     }
   }
