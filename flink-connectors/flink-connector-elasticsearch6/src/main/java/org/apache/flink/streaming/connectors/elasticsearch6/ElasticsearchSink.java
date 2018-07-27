@@ -23,11 +23,13 @@ import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 
+import org.apache.flink.util.Preconditions;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.RestHighLevelClient;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,62 +64,51 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
 	 *
-	 * <p>This constructor uses the default configurations of the {@link RestHighLevelClient}. For custom
-	 * configuration, please use the {@link #ElasticsearchSink(Map, List, ElasticsearchSinkFunction, RestClientFactory)}
-	 * constructor.
-	 *
-	 * @param userConfig user configuration to configure bulk flushing behaviour.
-	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
-	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
-	 */
-	public ElasticsearchSink(Map<String, String> userConfig, List<HttpHost> httpHosts, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-
-		this(
-			userConfig,
-			httpHosts,
-			elasticsearchSinkFunction,
-			restClientBuilder -> {} // a no-op rest client factory, that uses the default configurations
-		);
-	}
-
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
-	 *
-	 * @param userConfig user configuration to configure bulk flushing behaviour.
-	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
-	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
-	 * @param restClientFactory the factory that configures the rest client.
-	 */
-	public ElasticsearchSink(
-		Map<String, String> userConfig,
-		List<HttpHost> httpHosts,
-		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
-		RestClientFactory restClientFactory) {
-
-		this(
-			userConfig,
-			httpHosts,
-			elasticsearchSinkFunction,
-			new NoOpFailureHandler(),
-			restClientFactory);
-	}
-
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
-	 *
-	 * @param userConfig user configuration to configure bulk flushing behaviour.
+	 * @param bulkRequestsConfig user configuration to configure bulk flushing behaviour.
 	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
 	 * @param failureHandler This is used to handle failed {@link ActionRequest}.
 	 * @param restClientFactory the factory that configures the rest client.
 	 */
-	public ElasticsearchSink(
-		Map<String, String> userConfig,
+	private ElasticsearchSink(
+		Map<String, String> bulkRequestsConfig,
 		List<HttpHost> httpHosts,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
 		ActionRequestFailureHandler failureHandler,
 		RestClientFactory restClientFactory) {
 
-		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  userConfig, elasticsearchSinkFunction, failureHandler);
+		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  bulkRequestsConfig, elasticsearchSinkFunction, failureHandler);
+	}
+
+	@PublicEvolving
+	public static class Builder<T> {
+
+		private final List<HttpHost> httpHosts;
+		private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
+
+		private Map<String, String> bulkRequestsConfig = new HashMap<>();
+		private ActionRequestFailureHandler failureHandler = new NoOpFailureHandler();
+		private RestClientFactory restClientFactory = restClientBuilder -> {};
+
+		public Builder(List<HttpHost> httpHosts, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+			this.httpHosts = Preconditions.checkNotNull(httpHosts);
+			this.elasticsearchSinkFunction = Preconditions.checkNotNull(elasticsearchSinkFunction);
+		}
+
+		public void setBulkRequestsConfig(Map<String, String> bulkRequestsConfig) {
+			this.bulkRequestsConfig = bulkRequestsConfig;
+		}
+
+		public void setFailureHandler(ActionRequestFailureHandler failureHandler) {
+			this.failureHandler = failureHandler;
+		}
+
+		public void setRestClientFactory(RestClientFactory restClientFactory) {
+			this.restClientFactory = restClientFactory;
+		}
+
+		public ElasticsearchSink<T> build() {
+			return new ElasticsearchSink<>(bulkRequestsConfig, httpHosts, elasticsearchSinkFunction, failureHandler, restClientFactory);
+		}
 	}
 }

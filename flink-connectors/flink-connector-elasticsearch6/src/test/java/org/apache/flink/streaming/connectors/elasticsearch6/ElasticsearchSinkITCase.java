@@ -62,7 +62,10 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 			List<HttpHost> httpHosts,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		return new ElasticsearchSink<>(userConfig, httpHosts, elasticsearchSinkFunction);
+		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+		builder.setBulkRequestsConfig(userConfig);
+
+		return builder.build();
 	}
 
 	@Override
@@ -72,6 +75,10 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 
 		ArrayList<HttpHost> httpHosts = new ArrayList<>();
 		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
-		return new ElasticsearchSink<>(userConfig, httpHosts, elasticsearchSinkFunction);
+
+		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
+		builder.setBulkRequestsConfig(userConfig);
+
+		return builder.build();
 	}
 }
