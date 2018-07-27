@@ -35,7 +35,7 @@ import java.util.Objects;
  * A bucket is the directory organization of the output of the {@link StreamingFileSink}.
  *
  * <p>For each incoming  element in the {@code BucketingSink}, the user-specified
- * {@link org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer Bucketer} is
+ * {@link Bucketer Bucketer} is
  * queried to see in which bucket this element should be written to.
  */
 @PublicEvolving
