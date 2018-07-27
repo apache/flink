@@ -146,7 +146,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	/**
 	 * The config map that contains configuration for the bulk flushing behaviours.
 	 *
-	 * For {@link org.elasticsearch.client.transport.TransportClient} based implementations, this config
+	 * <p>For {@link org.elasticsearch.client.transport.TransportClient} based implementations, this config
 	 * map would also contain Elasticsearch-shipped configuration, and therefore this config map
 	 * would also be forwarded when creating the Elasticsearch client.
 	 */
