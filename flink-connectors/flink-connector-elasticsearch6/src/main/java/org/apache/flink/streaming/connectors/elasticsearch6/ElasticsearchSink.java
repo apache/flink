@@ -62,29 +62,62 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
 	 *
+	 * <p>This constructor uses the default configurations of the {@link RestHighLevelClient}. For custom
+	 * configuration, please use the {@link #ElasticsearchSink(Map, List, ElasticsearchSinkFunction, RestClientFactory)}
+	 * constructor.
+	 *
 	 * @param userConfig user configuration to configure bulk flushing behaviour.
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, List<HttpHost> httpHosts, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 
-		this(userConfig, httpHosts, elasticsearchSinkFunction, new NoOpFailureHandler());
+		this(
+			userConfig,
+			httpHosts,
+			elasticsearchSinkFunction,
+			restClientBuilder -> {} // a no-op rest client factory, that uses the default configurations
+		);
 	}
 
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
 	 *
 	 * @param userConfig user configuration to configure bulk flushing behaviour.
-	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
-	 * @param failureHandler This is used to handle failed {@link ActionRequest}
 	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
+	 * @param restClientFactory the factory that configures the rest client.
 	 */
 	public ElasticsearchSink(
 		Map<String, String> userConfig,
 		List<HttpHost> httpHosts,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
-		ActionRequestFailureHandler failureHandler) {
+		RestClientFactory restClientFactory) {
 
-		super(new Elasticsearch6ApiCallBridge(httpHosts),  userConfig, elasticsearchSinkFunction, failureHandler);
+		this(
+			userConfig,
+			httpHosts,
+			elasticsearchSinkFunction,
+			new NoOpFailureHandler(),
+			restClientFactory);
+	}
+
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
+	 *
+	 * @param userConfig user configuration to configure bulk flushing behaviour.
+	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
+	 * @param failureHandler This is used to handle failed {@link ActionRequest}.
+	 * @param restClientFactory the factory that configures the rest client.
+	 */
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		List<HttpHost> httpHosts,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler,
+		RestClientFactory restClientFactory) {
+
+		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  userConfig, elasticsearchSinkFunction, failureHandler);
 	}
 }

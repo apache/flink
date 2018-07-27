@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch6;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.util.Preconditions;
@@ -40,6 +41,7 @@ import java.util.Map;
 /**
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 6 and later versions.
  */
+@Internal
 public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<RestHighLevelClient> {
 
 	private static final long serialVersionUID = -5222683870097809633L;
@@ -51,29 +53,29 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 	 */
 	private final List<HttpHost> httpHosts;
 
-	Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts) {
+	/**
+	 * The factory to configure the rest client.
+	 */
+	private final RestClientFactory restClientFactory;
+
+	Elasticsearch6ApiCallBridge(List<HttpHost> httpHosts, RestClientFactory restClientFactory) {
 		Preconditions.checkArgument(httpHosts != null && !httpHosts.isEmpty());
 		this.httpHosts = httpHosts;
+		this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
 	}
 
 	@Override
 	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
-		RestHighLevelClient rhlClient = new RestHighLevelClient(createRestClientBuilder());
+		RestClientBuilder builder = RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
+		restClientFactory.configureRestClientBuilder(builder);
+
+		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
 		}
 
 		return rhlClient;
-	}
-
-	/**
-	 * Users can override this method to have custom configuration for the rest client.
-	 *
-	 * @return the builder for a {@link RestHighLevelClient}.
-	 */
-	protected RestClientBuilder createRestClientBuilder() {
-		return RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
 	}
 
 	@Override
