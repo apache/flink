@@ -39,7 +39,7 @@ public class Kafka011TableSink extends KafkaTableSink {
 			TableSchema schema,
 			String topic,
 			Properties properties,
-			FlinkKafkaPartitioner<Row> partitioner,
+			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
 		super(
 			schema,
@@ -54,11 +54,11 @@ public class Kafka011TableSink extends KafkaTableSink {
 			String topic,
 			Properties properties,
 			SerializationSchema<Row> serializationSchema,
-			FlinkKafkaPartitioner<Row> partitioner) {
+			Optional<FlinkKafkaPartitioner<Row>> partitioner) {
 		return new FlinkKafkaProducer011<>(
 			topic,
 			new KeyedSerializationSchemaWrapper<>(serializationSchema),
 			properties,
-			Optional.of(partitioner));
+			partitioner);
 	}
 }

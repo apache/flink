@@ -77,7 +77,7 @@ public class Kafka011TableSourceSinkFactory extends KafkaTableSourceSinkFactoryB
 			TableSchema schema,
 			String topic,
 			Properties properties,
-			FlinkKafkaPartitioner<Row> partitioner,
+			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
 
 		return new Kafka011TableSink(
