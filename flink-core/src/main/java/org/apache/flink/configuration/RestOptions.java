@@ -34,6 +34,7 @@ public class RestOptions {
 	public static final ConfigOption<String> BIND_ADDRESS =
 		key("rest.bind-address")
 			.noDefaultValue()
+			.withDeprecatedKeys(WebOptions.ADDRESS.key(), "jobmanager.web.address")
 			.withDescription("The address that the server binds itself.");
 
 	/**
