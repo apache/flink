@@ -26,6 +26,7 @@ import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
@@ -57,14 +58,22 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 
 	@Override
 	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
-		RestHighLevelClient rhlClient =
-			new RestHighLevelClient(RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()])));
+		RestHighLevelClient rhlClient = new RestHighLevelClient(createRestClientBuilder());
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
 		}
 
 		return rhlClient;
+	}
+
+	/**
+	 * Users can override this method to have custom configuration for the rest client.
+	 *
+	 * @return the builder for a {@link RestHighLevelClient}.
+	 */
+	protected RestClientBuilder createRestClientBuilder() {
+		return RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
 	}
 
 	@Override
