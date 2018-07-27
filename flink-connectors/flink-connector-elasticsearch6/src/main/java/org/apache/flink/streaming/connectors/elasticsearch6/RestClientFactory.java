@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch6;
 
 import org.apache.flink.annotation.PublicEvolving;
+
 import org.elasticsearch.client.RestClientBuilder;
 
 import java.io.Serializable;

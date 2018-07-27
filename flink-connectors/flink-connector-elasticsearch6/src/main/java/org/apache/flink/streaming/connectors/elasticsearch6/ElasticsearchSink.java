@@ -22,8 +22,8 @@ import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureH
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
-
 import org.apache.flink.util.Preconditions;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -80,6 +80,11 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		super(new Elasticsearch6ApiCallBridge(httpHosts, restClientFactory),  bulkRequestsConfig, elasticsearchSinkFunction, failureHandler);
 	}
 
+	/**
+	 * A builder for creating an {@link ElasticsearchSink}.
+	 *
+	 * @param <T> Type of the elements handled by the sink this builder creates.
+	 */
 	@PublicEvolving
 	public static class Builder<T> {
 
