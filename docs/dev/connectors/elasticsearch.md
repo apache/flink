@@ -151,22 +151,47 @@ List<HttpHost> httpHost = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
-input.addSink(new ElasticsearchSink<>(httpHosts, new ElasticsearchSinkFunction<String>() {
-    public IndexRequest createIndexRequest(String element) {
-        Map<String, String> json = new HashMap<>();
-        json.put("data", element);
-    
-        return Requests.indexRequest()
-                .index("my-index")
-                .type("my-type")
-                .source(json);
+Map<String, String> bulkRequestsConfig = new HashMap<>();
+// This instructs the sink to emit after every element, otherwise they would be buffered
+bulkRequestsConfig.put("bulk.flush.max.actions", "1");
+
+// use a ElasticsearchSink.Builder to create an ElasticsearchSink
+ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
+    httpHosts,
+    new ElasticsearchSinkFunction<String>() {
+        public IndexRequest createIndexRequest(String element) {
+            Map<String, String> json = new HashMap<>();
+            json.put("data", element);
+        
+            return Requests.indexRequest()
+                    .index("my-index")
+                    .type("my-type")
+                    .source(json);
+        }
+        
+        @Override
+        public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
+            indexer.add(createIndexRequest(element));
+        }
     }
-    
-    @Override
-    public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-        indexer.add(createIndexRequest(element));
-    }
-}));{% endhighlight %}
+);
+
+// configuration for the bulk requests
+builder.setBulkRequestsConfig(bulkRequestsConfig);
+
+// provide a RestClientFactory for custom configuration on the internally created REST client
+builder.setRestClientBuilder(
+  restClientBuilder -> {
+    restClientBuilder.setDefaultHeaders(...)
+    restClientBuilder.setMaxRetryTimeoutMillis(...)
+    restClientBuilder.setPathPrefix(...)
+    restClientBuilder.setHttpClientConfigCallback(...)
+  }
+);
+
+// finally, build and add the sink to the job's pipeline
+input.addSink(esSinkBuilder.build());
+{% endhighlight %}
 </div>
 <div data-lang="scala, Elasticsearch 1.x" markdown="1">
 {% highlight scala %}
@@ -228,26 +253,57 @@ val httpHosts = new java.util.ArrayList[HttpHost]
 httpHosts.add(new HttpHost("127.0.0.1", 9300, "http"))
 httpHosts.add(new HttpHost("10.2.3.1", 9300, "http"))
 
-input.addSink(new ElasticsearchSink(httpHosts, new ElasticsearchSinkFunction[String] {
-  def createIndexRequest(element: String): IndexRequest = {
-    val json = new java.util.HashMap[String, String]
-    json.put("data", element)
-    
-    return Requests.indexRequest()
-            .index("my-index")
-            .type("my-type")
-            .source(json)
+val bulkRequestsConfig = new java.util.HashMap[String, String]
+// This instructs the sink to emit after every element, otherwise they would be buffered
+bulkRequestsConfig.put("bulk.flush.max.actions", "1")
+
+val esSinkBuilder = new ElasticsearchSink.Builer[String](
+  httpHosts,
+  new ElasticsearchSinkFunction[String] {
+    def createIndexRequest(element: String): IndexRequest = {
+      val json = new java.util.HashMap[String, String]
+      json.put("data", element)
+      
+      return Requests.indexRequest()
+              .index("my-index")
+              .type("my-type")
+              .source(json)
+    }
   }
-}))
+)
+
+// configuration for the bulk requests
+builder.setBulkRequestsConfig(bulkRequestsConfig)
+
+// provide a RestClientFactory for custom configuration on the internally created REST client
+builder.setRestClientBuilder(
+  restClientBuilder -> {
+    restClientBuilder.setDefaultHeaders(...)
+    restClientBuilder.setMaxRetryTimeoutMillis(...)
+    restClientBuilder.setPathPrefix(...)
+    restClientBuilder.setHttpClientConfigCallback(...)
+  }
+)
+
+// finally, build and add the sink to the job's pipeline
+input.addSink(esSinkBuilder.build)
 {% endhighlight %}
 </div>
 </div>
 
-Note how `TransportClient` based versions use a `Map` of `String`s to configure the `ElasticsearchSink`.
+For Elasticsearch versions that still uses the now deprecated `TransportClient` to communicate
+with the Elasticsearch cluster (i.e., versions equal or below 5.x), note how a `Map` of `String`s
+is used to configure the `ElasticsearchSink`. This config map will be directly
+forwarded when creating the internally used `TransportClient`.
 The configuration keys are documented in the Elasticsearch documentation
 [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html).
 Especially important is the `cluster.name` parameter that must correspond to
 the name of your cluster.
+
+For Elasticsearch 6.x and above, internally, the `RestHighLevelClient` is used for cluster communication.
+By default, the connector uses the default configurations for the REST client. To have custom
+configuration for the REST client, users can provide a `RestClientFactory` implementation when 
+setting up the `ElasticsearchClient.Builder` that builds the sink.
 
 Also note that the example only demonstrates performing a single index
 request for each incoming element. Generally, the `ElasticsearchSinkFunction`
