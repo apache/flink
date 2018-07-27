@@ -38,6 +38,7 @@ import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +55,11 @@ import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMA
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
@@ -105,6 +111,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(CONNECTOR_STARTUP_MODE);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_PARTITION);
 		properties.add(CONNECTOR_SPECIFIC_OFFSETS + ".#." + CONNECTOR_SPECIFIC_OFFSETS_OFFSET);
+		properties.add(CONNECTOR_SINK_PARTITIONER);
+		properties.add(CONNECTOR_SINK_PARTITIONER_CLASS);
 
 		// schema
 		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
@@ -170,7 +178,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			schema,
 			topic,
 			getKafkaProperties(descriptorProperties),
-			getFlinkKafkaPartitioner(),
+			getFlinkKafkaPartitioner(descriptorProperties),
 			getSerializationSchema(properties));
 	}
 
@@ -228,7 +236,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		TableSchema schema,
 		String topic,
 		Properties properties,
-		FlinkKafkaPartitioner<Row> partitioner,
+		Optional<FlinkKafkaPartitioner<Row>> partitioner,
 		SerializationSchema<Row> serializationSchema);
 
 	// --------------------------------------------------------------------------------------------
@@ -314,9 +322,24 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		return options;
 	}
 
-	private FlinkKafkaPartitioner<Row> getFlinkKafkaPartitioner() {
-		// we don't support custom partitioner so far
-		return new FlinkFixedPartitioner<>();
+	@SuppressWarnings("unchecked")
+	private Optional<FlinkKafkaPartitioner<Row>> getFlinkKafkaPartitioner(DescriptorProperties descriptorProperties) {
+		return descriptorProperties
+			.getOptionalString(CONNECTOR_SINK_PARTITIONER)
+			.flatMap((String partitionerString) -> {
+				switch (partitionerString) {
+					case CONNECTOR_SINK_PARTITIONER_VALUE_FIXED:
+						return Optional.of(new FlinkFixedPartitioner<>());
+					case CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN:
+						return Optional.empty();
+					case CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM:
+						final Class<? extends FlinkKafkaPartitioner> partitionerClass =
+							descriptorProperties.getClass(CONNECTOR_SINK_PARTITIONER_CLASS, FlinkKafkaPartitioner.class);
+						return Optional.of(InstantiationUtil.instantiate(partitionerClass));
+					default:
+						throw new TableException("Unsupported sink partitioner. Validator should have checked that.");
+				}
+			});
 	}
 
 	private boolean checkForCustomFieldMapping(DescriptorProperties descriptorProperties, TableSchema schema) {
