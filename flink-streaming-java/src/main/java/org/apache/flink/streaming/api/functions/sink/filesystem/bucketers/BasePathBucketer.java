@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.Bucketer;
 
 /**
  * A {@link Bucketer} that does not perform any
