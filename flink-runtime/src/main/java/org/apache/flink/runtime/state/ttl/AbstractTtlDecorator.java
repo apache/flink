@@ -24,8 +24,6 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import javax.annotation.Nonnull;
-
 /**
  * Base class for TTL logic wrappers.
  *
@@ -68,21 +66,11 @@ abstract class AbstractTtlDecorator<T> {
 	}
 
 	<V> boolean expired(TtlValue<V> ttlValue) {
-		return ttlValue != null && getExpirationTimestamp(ttlValue) <= timeProvider.currentTimestamp();
-	}
-
-	private long getExpirationTimestamp(@Nonnull TtlValue<?> ttlValue) {
-		long ts = ttlValue.getLastAccessTimestamp();
-		long ttlWithoutOverflow = ts > 0 ? Math.min(Long.MAX_VALUE - ts, ttl) : ttl;
-		return ts + ttlWithoutOverflow;
+		return TtlUtils.expired(ttlValue, ttl, timeProvider);
 	}
 
 	<V> TtlValue<V> wrapWithTs(V value) {
-		return wrapWithTs(value, timeProvider.currentTimestamp());
-	}
-
-	static <V> TtlValue<V> wrapWithTs(V value, long ts) {
-		return value == null ? null : new TtlValue<>(value, ts);
+		return TtlUtils.wrapWithTs(value, timeProvider.currentTimestamp());
 	}
 
 	<V> TtlValue<V> rewrapWithNewTs(TtlValue<V> ttlValue) {

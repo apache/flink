@@ -98,11 +98,18 @@ public abstract class TtlStateTestBase {
 		StateTtlConfiguration.TtlUpdateType updateType,
 		StateTtlConfiguration.TtlStateVisibility visibility,
 		long ttl) throws Exception {
-		ttlConfig = StateTtlConfiguration
-			.newBuilder(Time.milliseconds(ttl))
+		initTest(getConfBuilder(ttl)
 			.setTtlUpdateType(updateType)
 			.setStateVisibility(visibility)
-			.build();
+			.build());
+	}
+
+	private static StateTtlConfiguration.Builder getConfBuilder(long ttl) {
+		return StateTtlConfiguration.newBuilder(Time.milliseconds(ttl));
+	}
+
+	private void initTest(StateTtlConfiguration ttlConfig) throws Exception {
+		this.ttlConfig = ttlConfig;
 		sbetc.createAndRestoreKeyedStateBackend();
 		sbetc.restoreSnapshot(null);
 		createState();
@@ -275,16 +282,26 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testMultipleKeys() throws Exception {
-		testMultipleStateIds(id -> sbetc.setCurrentKey(id));
+		testMultipleStateIdsWithSnapshotCleanup(id -> sbetc.setCurrentKey(id));
 	}
 
 	@Test
 	public void testMultipleNamespaces() throws Exception {
-		testMultipleStateIds(id -> ctx().ttlState.setCurrentNamespace(id));
+		testMultipleStateIdsWithSnapshotCleanup(id -> ctx().ttlState.setCurrentNamespace(id));
 	}
 
-	private void testMultipleStateIds(Consumer<String> idChanger) throws Exception {
+	private void testMultipleStateIdsWithSnapshotCleanup(Consumer<String> idChanger) throws Exception {
 		initTest();
+		testMultipleStateIds(idChanger, false);
+
+		initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
+		// set time back after restore to see entry unexpired if it was not cleaned up in snapshot properly
+		testMultipleStateIds(idChanger, true);
+	}
+
+	private void testMultipleStateIds(Consumer<String> idChanger, boolean timeBackAfterRestore) throws Exception {
+		// test empty storage snapshot/restore
+		takeAndRestoreSnapshot();
 
 		timeProvider.time = 0;
 		idChanger.accept("id2");
@@ -298,9 +315,9 @@ public abstract class TtlStateTestBase {
 		idChanger.accept("id2");
 		ctx().update(ctx().updateUnexpired);
 
+		timeProvider.time = 120;
 		takeAndRestoreSnapshot();
 
-		timeProvider.time = 120;
 		idChanger.accept("id1");
 		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
 		idChanger.accept("id2");
@@ -312,17 +329,19 @@ public abstract class TtlStateTestBase {
 		idChanger.accept("id2");
 		ctx().update(ctx().updateExpired);
 
+		timeProvider.time = 230;
 		takeAndRestoreSnapshot();
 
-		timeProvider.time = 230;
+		timeProvider.time = timeBackAfterRestore ? 170 : timeProvider.time;
 		idChanger.accept("id1");
 		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
 		idChanger.accept("id2");
 		assertEquals("Unexpired state should be available after update", ctx().getUpdateExpired, ctx().get());
 
+		timeProvider.time = 300;
 		takeAndRestoreSnapshot();
 
-		timeProvider.time = 300;
+		timeProvider.time = timeBackAfterRestore ? 230 : timeProvider.time;
 		idChanger.accept("id1");
 		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
 		idChanger.accept("id2");

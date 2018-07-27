@@ -24,18 +24,21 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.StateSnapshotFilter;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing. Besides
  * holding the {@link CopyOnWriteStateTable}s internal entries at the time of the snapshot, this class is also responsible for
  * preparing and writing the state in the process of checkpointing.
- * <p>
- * IMPORTANT: Please notice that snapshot integrity of entries in this class rely on proper copy-on-write semantics
+ *
+ * <p>IMPORTANT: Please notice that snapshot integrity of entries in this class rely on proper copy-on-write semantics
  * through the {@link CopyOnWriteStateTable} that created the snapshot object, but all objects in this snapshot must be considered
  * as READ-ONLY!. The reason is that the objects held by this class may or may not be deep copies of original objects
  * that may still used in the {@link CopyOnWriteStateTable}. This depends for each entry on whether or not it was subject to
@@ -105,7 +108,6 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		this.snapshotVersion = owningStateTable.getStateTableVersion();
 		this.numberOfEntriesInSnapshotData = owningStateTable.size();
 
-
 		// We create duplicates of the serializers for the async snapshot, because TypeSerializer
 		// might be stateful and shared with the event processing thread.
 		this.localKeySerializer = owningStateTable.keyContext.getKeySerializer().duplicate();
@@ -128,8 +130,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * into key-groups. Then, the histogram is accumulated to obtain the boundaries of each key-group in an array.
 	 * Last, we use the accumulated counts as write position pointers for the key-group's bins when reordering the
 	 * entries by key-group. This operation is lazily performed before the first writing of a key-group.
-	 * <p>
-	 * As a possible future optimization, we could perform the repartitioning in-place, using a scheme similar to the
+	 *
+	 * <p>As a possible future optimization, we could perform the repartitioning in-place, using a scheme similar to the
 	 * cuckoo cycles in cuckoo hashing. This can trade some performance for a smaller memory footprint.
 	 */
 	@Nonnull
@@ -152,7 +154,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 					localNamespaceSerializer.serialize(element.namespace, dov);
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
-				});
+				},
+				owningStateTable.getSnapshotFilter());
 
 			partitionedStateTableSnapshot = keyGroupPartitioner.partitionByKeyGroup();
 		}
@@ -190,6 +193,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	@VisibleForTesting
 	protected static final class StateTableKeyGroupPartitioner<K, N, S>
 		extends KeyGroupPartitioner<CopyOnWriteStateTable.StateTableEntry<K, N, S>> {
+		private final StateSnapshotFilter<S> stateSnapshotFilter;
 
 		@SuppressWarnings("unchecked")
 		StateTableKeyGroupPartitioner(
@@ -197,7 +201,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			@Nonnegative int stateTableSize,
 			@Nonnull KeyGroupRange keyGroupRange,
 			@Nonnegative int totalKeyGroups,
-			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction) {
+			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction,
+			@Nonnull StateSnapshotFilter<S> stateSnapshotFilter) {
 
 			super(
 				new CopyOnWriteStateTable.StateTableEntry[stateTableSize],
@@ -209,6 +214,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 				totalKeyGroups,
 				CopyOnWriteStateTable.StateTableEntry::getKey,
 				elementWriterFunction);
+			this.stateSnapshotFilter = stateSnapshotFilter;
 		}
 
 		@Override
@@ -217,12 +223,29 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			int flattenIndex = 0;
 			for (CopyOnWriteStateTable.StateTableEntry<K, N, S> entry : partitioningDestination) {
 				while (null != entry) {
-					final int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(entry.key, totalKeyGroups);
-					reportKeyGroupOfElementAtIndex(flattenIndex, keyGroup);
-					partitioningSource[flattenIndex++] = entry;
+					CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = filterEntry(entry);
+					if (filteredEntry != null) {
+						final int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(entry.key, totalKeyGroups);
+						reportKeyGroupOfElementAtIndex(flattenIndex, keyGroup);
+						partitioningSource[flattenIndex++] = filteredEntry;
+					}
 					entry = entry.next;
 				}
 			}
+		}
+
+		private CopyOnWriteStateTable.StateTableEntry<K, N, S> filterEntry(
+			CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
+			Optional<S> filteredValue = stateSnapshotFilter.filter(entry.state);
+			if (filteredValue.isPresent()) {
+				CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = entry;
+				if (filteredValue.get() != entry.state) {
+					filteredEntry = new CopyOnWriteStateTable.StateTableEntry<>(entry, entry.entryVersion);
+					filteredEntry.state = filteredValue.get();
+				}
+				return filteredEntry;
+			}
+			return null;
 		}
 	}
 }

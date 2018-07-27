@@ -23,8 +23,11 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 
+import javax.annotation.Nonnull;
+
 /** This factory produces concrete internal state objects. */
 public interface KeyedStateFactory {
+
 	/**
 	 * Creates and returns a new {@link InternalKvState}.
 	 *
@@ -36,7 +39,28 @@ public interface KeyedStateFactory {
 	 * @param <S> The type of the public API state.
 	 * @param <IS> The type of internal state.
 	 */
+	@Nonnull
+	default <N, SV, S extends State, IS extends S> IS createInternalState(
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull StateDescriptor<S, SV> stateDesc) throws Exception {
+		return createInternalState(namespaceSerializer, stateDesc, StateSnapshotFilter.snapshotAll());
+	}
+
+	/**
+	 * Creates and returns a new {@link InternalKvState}.
+	 *
+	 * @param namespaceSerializer TypeSerializer for the state namespace.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 * @param snapshotFilter Filter of state entries to modify them and decide whether to include them into snapshot.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <SV> The type of the stored state value.
+	 * @param <S> The type of the public API state.
+	 * @param <IS> The type of internal state.
+	 */
+	@Nonnull
 	<N, SV, S extends State, IS extends S> IS createInternalState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, SV> stateDesc) throws Exception;
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull StateDescriptor<S, SV> stateDesc,
+		@Nonnull StateSnapshotFilter<SV> snapshotFilter) throws Exception;
 }

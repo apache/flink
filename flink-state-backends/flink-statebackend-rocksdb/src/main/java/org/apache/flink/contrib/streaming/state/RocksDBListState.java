@@ -24,9 +24,11 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshotFilter;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -34,11 +36,14 @@ import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
+import javax.annotation.Nonnull;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * {@link ListState} implementation that stores state in RocksDB.
@@ -111,25 +116,29 @@ class RocksDBListState<K, N, V>
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
-
-			if (valueBytes == null) {
-				return null;
-			}
-
-			ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-
-			List<V> result = new ArrayList<>();
-			while (in.available() > 0) {
-				result.add(elementSerializer.deserialize(in));
-				if (in.available() > 0) {
-					in.readByte();
-				}
-			}
-			return result;
+			return deserializeList(valueBytes, elementSerializer);
 		} catch (IOException | RocksDBException e) {
 			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
 		}
+	}
+
+	private static <V> List<V> deserializeList(
+		byte[] valueBytes, TypeSerializer<V> elementSerializer) throws IOException {
+		if (valueBytes == null) {
+			return null;
+		}
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
+		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+
+		List<V> result = new ArrayList<>();
+		while (in.available() > 0) {
+			result.add(elementSerializer.deserialize(in));
+			if (in.available() > 0) {
+				in.readByte();
+			}
+		}
+		return result;
 	}
 
 	@Override
@@ -203,7 +212,7 @@ class RocksDBListState<K, N, V>
 				writeCurrentKeyWithGroupAndNamespace();
 				byte[] key = keySerializationStream.toByteArray();
 
-				byte[] premerge = getPreMergedValue(values);
+				byte[] premerge = getPreMergedValue(values, elementSerializer, keySerializationStream);
 				if (premerge != null) {
 					backend.db.put(columnFamily, writeOptions, key, premerge);
 				} else {
@@ -224,7 +233,7 @@ class RocksDBListState<K, N, V>
 				writeCurrentKeyWithGroupAndNamespace();
 				byte[] key = keySerializationStream.toByteArray();
 
-				byte[] premerge = getPreMergedValue(values);
+				byte[] premerge = getPreMergedValue(values, elementSerializer, keySerializationStream);
 				if (premerge != null) {
 					backend.db.merge(columnFamily, writeOptions, key, premerge);
 				} else {
@@ -236,7 +245,10 @@ class RocksDBListState<K, N, V>
 		}
 	}
 
-	private byte[] getPreMergedValue(List<V> values) throws IOException {
+	private static <V> byte[] getPreMergedValue(
+		List<V> values,
+		TypeSerializer<V> elementSerializer,
+		ByteArrayOutputStreamWithPos keySerializationStream) throws IOException {
 		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 
 		keySerializationStream.reset();
@@ -266,5 +278,34 @@ class RocksDBListState<K, N, V>
 			(List<E>) stateDesc.getDefaultValue(),
 			((ListStateDescriptor<E>) stateDesc).getElementSerializer(),
 			backend);
+	}
+
+	static class StateSnapshotFilterWrapper<T> implements StateSnapshotFilter<List<T>> {
+		private final StateSnapshotFilter<List<T>> originalFilter;
+		private final TypeSerializer<T> elementSerializer;
+		private final ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(128);
+
+		StateSnapshotFilterWrapper(StateSnapshotFilter<List<T>> originalFilter, TypeSerializer<T> elementSerializer) {
+			this.originalFilter = originalFilter;
+			this.elementSerializer = elementSerializer;
+		}
+
+		@Override
+		@Nonnull
+		public Optional<List<T>> filter(@Nonnull List<T> value) {
+			return originalFilter.filter(value);
+		}
+
+		@Override
+		@Nonnull
+		public Optional<byte[]> filterSerialized(@Nonnull byte[] value) {
+			try {
+				Optional<List<T>> filteredValue = filter(deserializeList(value, elementSerializer));
+				return filteredValue.isPresent() ?
+					Optional.of(getPreMergedValue(filteredValue.get(), elementSerializer, out)) : Optional.empty();
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Unexpected list deserialization failure");
+			}
+		}
 	}
 }
