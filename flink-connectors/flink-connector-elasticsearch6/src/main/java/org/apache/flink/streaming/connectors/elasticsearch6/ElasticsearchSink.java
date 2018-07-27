@@ -62,6 +62,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
 	 *
+	 * @param userConfig user configuration to configure bulk flushing behaviour.
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
 	 */
@@ -73,6 +74,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
 	 *
+	 * @param userConfig user configuration to configure bulk flushing behaviour.
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 * @param failureHandler This is used to handle failed {@link ActionRequest}
 	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.

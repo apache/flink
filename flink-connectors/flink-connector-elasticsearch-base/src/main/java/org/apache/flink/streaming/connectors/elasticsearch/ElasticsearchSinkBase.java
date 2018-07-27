@@ -32,6 +32,7 @@ import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -58,7 +59,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The version specific API calls for different Elasticsearch versions should be defined by a concrete implementation of
  * a {@link ElasticsearchApiCallBridge}, which is provided to the constructor of this class. This call bridge is used,
- * for example, to create a Elasticsearch {@link Client} or {@RestHighLevelClient}, handle failed item responses, etc.
+ * for example, to create a Elasticsearch {@link Client}, handle failed item responses, etc.
  *
  * @param <T> Type of the elements handled by this sink
  * @param <C> Type of the Elasticsearch client, which implements {@link AutoCloseable}
@@ -142,7 +143,13 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	//  User-facing API and configuration
 	// ------------------------------------------------------------------------
 
-	/** The user specified config map that we forward to Elasticsearch when we create the {@link Client}. */
+	/**
+	 * The config map that contains configuration for the bulk flushing behaviours.
+	 *
+	 * For {@link org.elasticsearch.client.transport.TransportClient} based implementations, this config
+	 * map would also contain Elasticsearch-shipped configuration, and therefore this config map
+	 * would also be forwarded when creating the Elasticsearch client.
+	 */
 	private final Map<String, String> userConfig;
 
 	/** The function that is used to construct multiple {@link ActionRequest ActionRequests} from each incoming element. */
