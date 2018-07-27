@@ -50,12 +50,12 @@ public class ClassLoaderTestProgram {
 			.fromElements("Hello")
 			.map((MapFunction<String, String>) value -> {
 
-				String gitUrl;
+				String gitCommitId;
 
 				try (InputStream propFile = ClassLoaderTestProgram.class.getClassLoader().getResourceAsStream(".version.properties")) {
 					Properties properties = new Properties();
 					properties.load(propFile);
-					gitUrl = properties.getProperty("git.remote.origin.url");
+					gitCommitId = properties.getProperty("git.commit.id.abbrev");
 				}
 
 				Enumeration<URL> resources = ClassLoaderTestProgram.class.getClassLoader().getResources(
@@ -67,7 +67,7 @@ public class ClassLoaderTestProgram {
 					try (InputStream in = url.openStream()) {
 						Properties properties = new Properties();
 						properties.load(in);
-						String orderedGitUrl = properties.getProperty("git.remote.origin.url");
+						String orderedGitUrl = properties.getProperty("git.commit.id.abbrev");
 						sortedProperties.append(orderedGitUrl);
 					}
 				}
@@ -84,13 +84,13 @@ public class ClassLoaderTestProgram {
 					} catch (NoSuchMethodError e) {
 						// expected
 					}
-					return "NoSuchMethodError:" + gitUrl + ":" + sortedProperties;
+					return "NoSuchMethodError:" + gitCommitId + ":" + sortedProperties;
 				} else if (resolveOrder.equals("child-first")) {
 					String message = TaskManager.getMessage();
 					if (!message.equals("Hello, World!")) {
 						throw new RuntimeException("Wrong message from fake TaskManager.");
 					}
-					return message + ":" + gitUrl + ":" + sortedProperties;
+					return message + ":" + gitCommitId + ":" + sortedProperties;
 				} else {
 					throw new RuntimeException("Unknown resolve order: " + resolveOrder);
 				}
