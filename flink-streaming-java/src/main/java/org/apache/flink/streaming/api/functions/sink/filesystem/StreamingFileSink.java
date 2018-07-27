@@ -205,33 +205,40 @@ public class StreamingFileSink<IN>
 			this.rollingPolicy = DefaultRollingPolicy.create().build();
 		}
 
+		RowFormatBuilder(
+				Path basePath,
+				Encoder<IN> encoder,
+				Bucketer<IN, BucketID> bucketer,
+				RollingPolicy<IN, BucketID> rollingPolicy,
+				long bucketCheckInterval,
+				BucketFactory<IN, BucketID> bucketFactory) {
+			this.basePath = Preconditions.checkNotNull(basePath);
+			this.encoder = Preconditions.checkNotNull(encoder);
+			this.bucketer = Preconditions.checkNotNull(bucketer);
+			this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
+			this.bucketCheckInterval = bucketCheckInterval;
+			this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
+		}
+
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketCheckInterval(final long interval) {
-			this.bucketCheckInterval = interval;
-			return this;
+			return new RowFormatBuilder<>(basePath, encoder, bucketer, rollingPolicy, interval, bucketFactory);
 		}
 
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketer(final Bucketer<IN, BucketID> bucketer) {
-			this.bucketer = Preconditions.checkNotNull(bucketer);
-			return this;
+			return new RowFormatBuilder<>(basePath, encoder, Preconditions.checkNotNull(bucketer), rollingPolicy, bucketCheckInterval, bucketFactory);
 		}
 
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withRollingPolicy(final RollingPolicy<IN, BucketID> policy) {
-			this.rollingPolicy = Preconditions.checkNotNull(policy);
-			return this;
+			return new RowFormatBuilder<>(basePath, encoder, bucketer, Preconditions.checkNotNull(policy), bucketCheckInterval, bucketFactory);
 		}
 
 		public <ID> StreamingFileSink.RowFormatBuilder<IN, ID> withBucketerAndPolicy(final Bucketer<IN, ID> bucketer, final RollingPolicy<IN, ID> policy) {
-			@SuppressWarnings("unchecked")
-			StreamingFileSink.RowFormatBuilder<IN, ID> reInterpreted = (StreamingFileSink.RowFormatBuilder<IN, ID>) this;
-			reInterpreted.bucketer = Preconditions.checkNotNull(bucketer);
-			reInterpreted.rollingPolicy = Preconditions.checkNotNull(policy);
-			return reInterpreted;
+			return new RowFormatBuilder<>(basePath, encoder, Preconditions.checkNotNull(bucketer), Preconditions.checkNotNull(policy), bucketCheckInterval, new DefaultBucketFactory<>());
 		}
 
 		@VisibleForTesting
 		StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketFactory(final BucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = Preconditions.checkNotNull(factory);
-			return this;
+			return new RowFormatBuilder<>(basePath, encoder, bucketer, rollingPolicy, bucketCheckInterval, Preconditions.checkNotNull(factory));
 		}
 
 		/** Creates the actual sink. */
@@ -275,22 +282,30 @@ public class StreamingFileSink<IN>
 			this.bucketer = Preconditions.checkNotNull(bucketer);
 		}
 
+		BulkFormatBuilder(
+				Path basePath,
+				BulkWriter.Factory<IN> writerFactory,
+				Bucketer<IN, BucketID> bucketer,
+				long bucketCheckInterval,
+				BucketFactory<IN, BucketID> bucketFactory) {
+			this.basePath = Preconditions.checkNotNull(basePath);
+			this.writerFactory = writerFactory;
+			this.bucketer = Preconditions.checkNotNull(bucketer);
+			this.bucketCheckInterval = bucketCheckInterval;
+			this.bucketFactory = Preconditions.checkNotNull(bucketFactory);
+		}
+
 		public StreamingFileSink.BulkFormatBuilder<IN, BucketID> withBucketCheckInterval(long interval) {
-			this.bucketCheckInterval = interval;
-			return this;
+			return new BulkFormatBuilder<>(basePath, writerFactory, bucketer, interval, bucketFactory);
 		}
 
 		public <ID> StreamingFileSink.BulkFormatBuilder<IN, ID> withBucketer(Bucketer<IN, ID> bucketer) {
-			@SuppressWarnings("unchecked")
-			StreamingFileSink.BulkFormatBuilder<IN, ID> reInterpreted = (StreamingFileSink.BulkFormatBuilder<IN, ID>) this;
-			reInterpreted.bucketer = Preconditions.checkNotNull(bucketer);
-			return reInterpreted;
+			return new BulkFormatBuilder<>(basePath, writerFactory, Preconditions.checkNotNull(bucketer), bucketCheckInterval, new DefaultBucketFactory<>());
 		}
 
 		@VisibleForTesting
 		StreamingFileSink.BulkFormatBuilder<IN, BucketID> withBucketFactory(final BucketFactory<IN, BucketID> factory) {
-			this.bucketFactory = Preconditions.checkNotNull(factory);
-			return this;
+			return new BulkFormatBuilder<>(basePath, writerFactory, bucketer, bucketCheckInterval, Preconditions.checkNotNull(factory));
 		}
 
 		/** Creates the actual sink. */
