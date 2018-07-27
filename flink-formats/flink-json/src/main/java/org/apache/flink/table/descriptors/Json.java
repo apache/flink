@@ -96,8 +96,8 @@ public class Json extends FormatDescriptor {
 	 * <p>This allows for defining schema information only once.
 	 *
 	 * <p>The names, types, and field order of the format are determined by the table's
-	 * schema. Time attributes are ignored. A "from" definition is interpreted as a field renaming
-	 * in the format.
+	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
+	 * is interpreted as a field renaming in the format.
 	 */
 	public Json deriveSchema() {
 		this.deriveSchema = true;
