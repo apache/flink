@@ -59,7 +59,7 @@ public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-		return new HeapPriorityQueueSet<T>(
+		return new HeapPriorityQueueSet<>(
 			PriorityComparator.forPriorityComparableObjects(),
 			KeyExtractorFunction.forKeyedObjects(),
 			minimumCapacity,

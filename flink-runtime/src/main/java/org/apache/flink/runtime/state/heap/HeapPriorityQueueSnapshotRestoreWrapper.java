@@ -89,4 +89,26 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 	public HeapPriorityQueueSet<T> getPriorityQueue() {
 		return priorityQueue;
 	}
+
+	@Nonnull
+	public RegisteredPriorityQueueStateBackendMetaInfo<T> getMetaInfo() {
+		return metaInfo;
+	}
+
+	/**
+	 * Returns a deep copy of the snapshot, where the serializer is changed to the given serializer.
+	 */
+	public HeapPriorityQueueSnapshotRestoreWrapper<T> forUpdatedSerializer(
+		@Nonnull TypeSerializer<T> updatedSerializer) {
+
+		RegisteredPriorityQueueStateBackendMetaInfo<T> updatedMetaInfo =
+			new RegisteredPriorityQueueStateBackendMetaInfo<>(metaInfo.getName(), updatedSerializer);
+
+		return new HeapPriorityQueueSnapshotRestoreWrapper<>(
+			priorityQueue,
+			updatedMetaInfo,
+			keyExtractorFunction,
+			localKeyGroupRange,
+			totalKeyGroups);
+	}
 }

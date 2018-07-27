@@ -46,12 +46,13 @@ import java.util.Map;
 @Internal
 public class InternalTimeServiceManager<K> {
 
-	//TODO guard these constants with a test
-	private static final String TIMER_STATE_PREFIX = "_timer_state";
-	private static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
-	private static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
+	@VisibleForTesting
+	static final String TIMER_STATE_PREFIX = "_timer_state";
+	@VisibleForTesting
+	static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
+	@VisibleForTesting
+	static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
-	private final int totalKeyGroups;
 	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
 
@@ -63,14 +64,11 @@ public class InternalTimeServiceManager<K> {
 	private final boolean useLegacySynchronousSnapshots;
 
 	InternalTimeServiceManager(
-		int totalKeyGroups,
 		KeyGroupRange localKeyGroupRange,
 		KeyContext keyContext,
 		PriorityQueueSetFactory priorityQueueSetFactory,
 		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
 
-		Preconditions.checkArgument(totalKeyGroups > 0);
-		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
 		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
@@ -153,10 +151,6 @@ public class InternalTimeServiceManager<K> {
 				keyGroupIdx);
 
 		serializationProxy.read(stream);
-	}
-
-	public boolean isUseLegacySynchronousSnapshots() {
-		return useLegacySynchronousSnapshots;
 	}
 
 	////////////////////			Methods used ONLY IN TESTS				////////////////////
