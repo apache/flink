@@ -26,16 +26,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /** This class lazily loads hadoop configuration from resettable Flink's configuration. */
 public class HadoopConfigLoader {
 	private static final Logger LOG = LoggerFactory.getLogger(HadoopConfigLoader.class);
-
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE =
-		new HashSet<>(Collections.singletonList("com.amazonaws."));
 
 	/** The prefixes that Flink adds to the Hadoop fs config. */
 	private final String[] flinkConfigPrefixes;
@@ -47,6 +42,7 @@ public class HadoopConfigLoader {
 	/** Hadoop config prefix to replace Flink prefix. */
 	private final String hadoopConfigPrefix;
 
+	private final Set<String> packagePrefixesToShade;
 	private final Set<String> configKeysToShade;
 	private final String flinkShadingPrefix;
 
@@ -60,11 +56,13 @@ public class HadoopConfigLoader {
 		@Nonnull String[] flinkConfigPrefixes,
 		@Nonnull String[][] mirroredConfigKeys,
 		@Nonnull String hadoopConfigPrefix,
+		Set<String> packagePrefixesToShade,
 		@Nonnull Set<String> configKeysToShade,
 		@Nonnull String flinkShadingPrefix) {
 		this.flinkConfigPrefixes = flinkConfigPrefixes;
 		this.mirroredConfigKeys = mirroredConfigKeys;
 		this.hadoopConfigPrefix = hadoopConfigPrefix;
+		this.packagePrefixesToShade = packagePrefixesToShade;
 		this.configKeysToShade = configKeysToShade;
 		this.flinkShadingPrefix = flinkShadingPrefix;
 	}
@@ -79,10 +77,10 @@ public class HadoopConfigLoader {
 		org.apache.hadoop.conf.Configuration hadoopConfig = this.hadoopConfig;
 		if (hadoopConfig == null) {
 			if (flinkConfig != null) {
-				hadoopConfig = mirrorCertianHadoopConfig(loadHadoopConfigFromFlink());
+				hadoopConfig = mirrorCertainHadoopConfig(loadHadoopConfigFromFlink());
 			}
 			else {
-				LOG.warn("The factory has not been configured prior to loading the S3 file system."
+				LOG.warn("Flink configuration is not set prior to loading this configuration."
 					+ " Using Hadoop configuration from the classpath.");
 				hadoopConfig = new org.apache.hadoop.conf.Configuration();
 			}
@@ -111,7 +109,7 @@ public class HadoopConfigLoader {
 
 	// mirror certain keys to make use more uniform across implementations
 	// with different keys
-	private org.apache.hadoop.conf.Configuration mirrorCertianHadoopConfig(
+	private org.apache.hadoop.conf.Configuration mirrorCertainHadoopConfig(
 		org.apache.hadoop.conf.Configuration hadoopConfig) {
 		for (String[] mirrored : mirroredConfigKeys) {
 			String value = hadoopConfig.get(mirrored[0], null);
@@ -124,11 +122,11 @@ public class HadoopConfigLoader {
 
 	private String fixHadoopConfig(String key, String value) {
 		return key != null && configKeysToShade.contains(key) ?
-			shadeAwsClassConfig(value) : value;
+			shadeClassConfig(value) : value;
 	}
 
-	private String shadeAwsClassConfig(String awsCredProvider) {
-		return PACKAGE_PREFIXES_TO_SHADE.stream().anyMatch(awsCredProvider::startsWith) ?
-			flinkShadingPrefix + awsCredProvider : awsCredProvider;
+	private String shadeClassConfig(String classConfig) {
+		return packagePrefixesToShade.stream().anyMatch(classConfig::startsWith) ?
+			flinkShadingPrefix + classConfig : classConfig;
 	}
 }

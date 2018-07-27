@@ -28,23 +28,18 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 
-/** Base class for S3 file system factories. */
-public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractS3FileSystemFactory.class);
+/** Base class for Hadoop file system factories. */
+public abstract class AbstractFileSystemFactory implements FileSystemFactory {
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileSystemFactory.class);
 
 	/** Name of this factory for logging. */
 	private final String name;
 
 	private final HadoopConfigLoader hadoopConfigLoader;
 
-	protected AbstractS3FileSystemFactory(String name, HadoopConfigLoader hadoopConfigLoader) {
+	protected AbstractFileSystemFactory(String name, HadoopConfigLoader hadoopConfigLoader) {
 		this.name = name;
 		this.hadoopConfigLoader = hadoopConfigLoader;
-	}
-
-	@Override
-	public String getScheme() {
-		return "s3";
 	}
 
 	@Override
@@ -54,7 +49,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
 
 	@Override
 	public FileSystem create(URI fsUri) throws IOException {
-		LOG.debug("Creating S3 file system (backed by " + name + ")");
+		LOG.debug("Creating Hadoop file system (backed by " + name + ")");
 		LOG.debug("Loading Hadoop configuration for " + name);
 		org.apache.hadoop.conf.Configuration hadoopConfig = hadoopConfigLoader.getOrLoadHadoopConfig();
 		org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();

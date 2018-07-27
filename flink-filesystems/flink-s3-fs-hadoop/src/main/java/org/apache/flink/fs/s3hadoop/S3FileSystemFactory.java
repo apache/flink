@@ -19,7 +19,7 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.fs.hdfs.AbstractS3FileSystemFactory;
+import org.apache.flink.runtime.fs.hdfs.AbstractFileSystemFactory;
 import org.apache.flink.runtime.fs.hdfs.HadoopConfigLoader;
 
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
@@ -34,8 +34,11 @@ import java.util.Set;
 /**
  * Simple factory for the S3 file system.
  */
-public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
+public class S3FileSystemFactory extends AbstractFileSystemFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
+
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE =
+		new HashSet<>(Collections.singletonList("com.amazonaws."));
 
 	private static final Set<String> CONFIG_KEYS_TO_SHADE =
 		Collections.unmodifiableSet(new HashSet<>(Collections.singleton("fs.s3a.aws.credentials.provider")));
@@ -53,10 +56,15 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 		super("Hadoop s3a file system", createHadoopConfigLoader());
 	}
 
+	@Override
+	public String getScheme() {
+		return "s3";
+	}
+
 	@VisibleForTesting
 	static HadoopConfigLoader createHadoopConfigLoader() {
 		return new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
-			"fs.s3a.", CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
+			"fs.s3a.", PACKAGE_PREFIXES_TO_SHADE, CONFIG_KEYS_TO_SHADE, FLINK_SHADING_PREFIX);
 	}
 
 	@Override
