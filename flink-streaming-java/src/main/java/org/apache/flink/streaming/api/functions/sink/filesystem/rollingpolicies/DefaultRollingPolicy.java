@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies;
+package org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
