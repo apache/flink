@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
+public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
 
 	private final ProcessingTimeService processingTimeService;
 
@@ -95,7 +95,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/** The restored timers snapshot, if any. */
 	private InternalTimersSnapshot<K, N> restoredTimersSnapshot;
 
-	HeapInternalTimerService(
+	InternalTimerServiceImpl(
 		KeyGroupRange localKeyGroupRange,
 		KeyContext keyContext,
 		ProcessingTimeService processingTimeService,
@@ -117,7 +117,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	/**
-	 * Starts the local {@link HeapInternalTimerService} by:
+	 * Starts the local {@link InternalTimerServiceImpl} by:
 	 * <ol>
 	 *     <li>Setting the {@code keySerialized} and {@code namespaceSerializer} for the timers it will contain.</li>
 	 *     <li>Setting the {@code triggerTarget} which contains the action to be performed when a timer fires.</li>
