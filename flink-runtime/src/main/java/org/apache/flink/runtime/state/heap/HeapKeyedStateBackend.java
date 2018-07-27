@@ -28,6 +28,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -128,7 +129,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * <p>TODO this map can be removed when eager-state registration is in place.
 	 * TODO we currently need this cached to check state migration strategies when new serializers are registered.
 	 */
-	private final Map<String, StateMetaInfoSnapshot> restoredKvStateMetaInfos;
+	private final Map<StateUID, StateMetaInfoSnapshot> restoredStateMetaInfo;
 
 	/**
 	 * The configuration for local recovery.
@@ -170,7 +171,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		this.snapshotStrategy = new HeapSnapshotStrategy(synchronicityTrait);
 		LOG.info("Initializing heap keyed state backend with stream factory.");
-		this.restoredKvStateMetaInfos = new HashMap<>();
+		this.restoredStateMetaInfo = new HashMap<>();
 		this.priorityQueueSetFactory = priorityQueueSetFactory;
 	}
 
@@ -188,6 +189,34 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final HeapPriorityQueueSnapshotRestoreWrapper existingState = registeredPQStates.get(stateName);
 
 		if (existingState != null) {
+			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
+			// because this should be reworked in FLINK-9376 and then we should have a common algorithm over
+			// StateMetaInfoSnapshot that avoids this code duplication.
+			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
+				restoredStateMetaInfo.get(StateUID.of(stateName, StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE));
+
+			Preconditions.checkState(
+				restoredMetaInfoSnapshot != null,
+				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+					" but its corresponding restored snapshot cannot be found.");
+
+			StateMetaInfoSnapshot.CommonSerializerKeys serializerKey =
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
+
+			CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+				restoredMetaInfoSnapshot.getTypeSerializer(serializerKey),
+				null,
+				restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
+				byteOrderedElementSerializer);
+
+			if (compatibilityResult.isRequiresMigration()) {
+				throw new FlinkRuntimeException(new StateMigrationException("State migreation is currently not supported!"));
+			} else {
+				registeredPQStates.put(
+					stateName,
+					existingState.forUpdatedSerializer(byteOrderedElementSerializer));
+			}
+
 			return existingState.getPriorityQueue();
 		} else {
 			final RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
@@ -227,7 +256,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (stateTable != null) {
 			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot =
-				restoredKvStateMetaInfos.get(stateDesc.getName());
+				restoredStateMetaInfo.get(
+					StateUID.of(stateDesc.getName(), StateMetaInfoSnapshot.BackendStateType.KEY_VALUE));
 
 			Preconditions.checkState(
 				restoredMetaInfoSnapshot != null,
@@ -459,7 +489,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		Map<Integer, StateMetaInfoSnapshot> kvStatesById) {
 
 		for (StateMetaInfoSnapshot metaInfoSnapshot : restoredMetaInfo) {
-			restoredKvStateMetaInfos.put(metaInfoSnapshot.getName(), metaInfoSnapshot);
+			restoredStateMetaInfo.put(
+				StateUID.of(metaInfoSnapshot.getName(), metaInfoSnapshot.getBackendStateType()),
+				metaInfoSnapshot);
 
 			final StateSnapshotRestore registeredState;
 
@@ -649,9 +681,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					". Currently at most " + Short.MAX_VALUE + " states are supported");
 
 			final List<StateMetaInfoSnapshot> metaInfoSnapshots = new ArrayList<>(numStates);
-			final Map<Tuple2<String, StateMetaInfoSnapshot.BackendStateType>, Integer> stateNamesToId =
+			final Map<StateUID, Integer> stateNamesToId =
 				new HashMap<>(numStates);
-			final Map<Tuple2<String, StateMetaInfoSnapshot.BackendStateType>, StateSnapshot> cowStateStableSnapshots =
+			final Map<StateUID, StateSnapshot> cowStateStableSnapshots =
 				new HashMap<>(numStates);
 
 			processSnapshotMetaInfoForAllStates(
@@ -745,7 +777,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
 							outView.writeInt(keyGroupId);
 
-							for (Map.Entry<Tuple2<String, StateMetaInfoSnapshot.BackendStateType>, StateSnapshot> stateSnapshot :
+							for (Map.Entry<StateUID, StateSnapshot> stateSnapshot :
 								cowStateStableSnapshots.entrySet()) {
 								StateSnapshot.StateKeyGroupWriter partitionedSnapshot =
 
@@ -804,21 +836,19 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void processSnapshotMetaInfoForAllStates(
 			List<StateMetaInfoSnapshot> metaInfoSnapshots,
-			Map<Tuple2<String, StateMetaInfoSnapshot.BackendStateType>, StateSnapshot> cowStateStableSnapshots,
-			Map<Tuple2<String, StateMetaInfoSnapshot.BackendStateType>, Integer> stateNamesToId,
+			Map<StateUID, StateSnapshot> cowStateStableSnapshots,
+			Map<StateUID, Integer> stateNamesToId,
 			Map<String, ? extends StateSnapshotRestore> registeredStates,
 			StateMetaInfoSnapshot.BackendStateType stateType) {
 
 			for (Map.Entry<String, ? extends StateSnapshotRestore> kvState : registeredStates.entrySet()) {
-				final Tuple2<String, StateMetaInfoSnapshot.BackendStateType> stateDesc =
-					new Tuple2<>(kvState.getKey(), stateType);
-
-				stateNamesToId.put(stateDesc, stateNamesToId.size());
+				final StateUID stateUid = StateUID.of(kvState.getKey(), stateType);
+				stateNamesToId.put(stateUid, stateNamesToId.size());
 				StateSnapshotRestore state = kvState.getValue();
 				if (null != state) {
 					final StateSnapshot stateSnapshot = state.stateSnapshot();
 					metaInfoSnapshots.add(stateSnapshot.getMetaInfoSnapshot());
-					cowStateStableSnapshots.put(stateDesc, stateSnapshot);
+					cowStateStableSnapshots.put(stateUid, stateSnapshot);
 				}
 			}
 		}
@@ -829,5 +859,54 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			StateDescriptor<S, SV> stateDesc,
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer) throws Exception;
+	}
+
+	/**
+	 * Unique identifier for registered state in this backend.
+	 */
+	private static final class StateUID {
+
+		@Nonnull
+		private final String stateName;
+
+		@Nonnull
+		private final StateMetaInfoSnapshot.BackendStateType stateType;
+
+		StateUID(@Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
+			this.stateName = stateName;
+			this.stateType = stateType;
+		}
+
+		@Nonnull
+		public String getStateName() {
+			return stateName;
+		}
+
+		@Nonnull
+		public StateMetaInfoSnapshot.BackendStateType getStateType() {
+			return stateType;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			StateUID uid = (StateUID) o;
+			return Objects.equals(getStateName(), uid.getStateName()) &&
+				getStateType() == uid.getStateType();
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(getStateName(), getStateType());
+		}
+
+		public static StateUID of(@Nonnull String stateName, @Nonnull StateMetaInfoSnapshot.BackendStateType stateType) {
+			return new StateUID(stateName, stateType);
+		}
 	}
 }

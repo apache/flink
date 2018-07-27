@@ -144,6 +144,12 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		TypeSerializer<N> newNamespaceSerializer,
 		StateDescriptor<?, S> newStateDescriptor) throws StateMigrationException {
 
+		Preconditions.checkState(restoredStateMetaInfoSnapshot.getBackendStateType()
+				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+			"Incompatible state types. " +
+				"Was [" + restoredStateMetaInfoSnapshot.getBackendStateType() + "], " +
+				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
+
 		Preconditions.checkState(
 			Objects.equals(newStateDescriptor.getName(), restoredStateMetaInfoSnapshot.getName()),
 			"Incompatible state names. " +
@@ -160,7 +166,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 			Preconditions.checkState(
 				newStateDescriptor.getType() == restoredType,
-				"Incompatible state types. " +
+				"Incompatible key/value state types. " +
 					"Was [" + restoredType + "], " +
 					"registered with [" + newStateDescriptor.getType() + "].");
 		}
