@@ -70,7 +70,8 @@ rsync -a \
 
 tar czf ${RELEASE_DIR}/flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
 gpg --armor --detach-sig ${RELEASE_DIR}/flink-$RELEASE_VERSION-src.tgz
-$SHASUM ${RELEASE_DIR}/flink-$RELEASE_VERSION-src.tgz > ${RELEASE_DIR}/flink-$RELEASE_VERSION-src.tgz.sha512
+cd ${RELEASE_DIR}
+$SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha512
 
 cd ${CURR_DIR}
 rm -rf ${CLONE_DIR}
