@@ -205,7 +205,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		final KeyGroupRange keyGroupRange = keyedStatedBackend.getKeyGroupRange();
 
 		final InternalTimeServiceManager<K> timeServiceManager = new InternalTimeServiceManager<>(
-			keyedStatedBackend.getNumberOfKeyGroups(),
 			keyGroupRange,
 			keyContext,
 			keyedStatedBackend,

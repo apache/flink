@@ -347,7 +347,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 	/**
 	 * Payload for usage in the test.
 	 */
-	protected static class TestElement implements HeapPriorityQueueElement {
+	protected static class TestElement implements HeapPriorityQueueElement, Keyed<Long>, PriorityComparable<TestElement> {
 
 		private final long key;
 		private final long priority;
@@ -359,7 +359,12 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 			this.internalIndex = NOT_CONTAINED;
 		}
 
-		public long getKey() {
+		@Override
+		public int comparePriorityTo(@Nonnull TestElement other) {
+			return Long.compare(priority, other.priority);
+		}
+
+		public Long getKey() {
 			return key;
 		}
 
@@ -386,8 +391,8 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 				return false;
 			}
 			TestElement that = (TestElement) o;
-			return getKey() == that.getKey() &&
-				getPriority() == that.getPriority();
+			return key == that.key &&
+				priority == that.priority;
 		}
 
 		@Override
@@ -414,9 +419,11 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 	 */
 	protected static class TestElementSerializer extends TypeSerializer<TestElement> {
 
+		private static final int REVISION = 1;
+
 		public static final TestElementSerializer INSTANCE = new TestElementSerializer();
 
-		private TestElementSerializer() {
+		protected TestElementSerializer() {
 		}
 
 		@Override
@@ -489,14 +496,62 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 			return 4711;
 		}
 
+		protected int getRevision() {
+			return REVISION;
+		}
+
 		@Override
 		public TypeSerializerConfigSnapshot snapshotConfiguration() {
-			throw new UnsupportedOperationException();
+			return new Snapshot(getRevision());
 		}
 
 		@Override
 		public CompatibilityResult<TestElement> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-			throw new UnsupportedOperationException();
+			return (configSnapshot instanceof Snapshot) && ((Snapshot) configSnapshot).revision <= getRevision() ?
+				CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
+		}
+
+		public static class Snapshot extends TypeSerializerConfigSnapshot {
+
+			private int revision;
+
+			public Snapshot() {
+			}
+
+			public Snapshot(int revision) {
+				this.revision = revision;
+			}
+
+			@Override
+			public boolean equals(Object obj) {
+				return obj instanceof Snapshot && revision == ((Snapshot) obj).revision;
+			}
+
+			@Override
+			public int hashCode() {
+				return revision;
+			}
+
+			@Override
+			public int getVersion() {
+				return 0;
+			}
+
+			public int getRevision() {
+				return revision;
+			}
+
+			@Override
+			public void write(DataOutputView out) throws IOException {
+				super.write(out);
+				out.writeInt(revision);
+			}
+
+			@Override
+			public void read(DataInputView in) throws IOException {
+				super.read(in);
+				this.revision = in.readInt();
+			}
 		}
 	}
 

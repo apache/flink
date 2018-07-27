@@ -260,7 +260,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// the new serializer; we're deliberately failing here for now to have equal functionality with
 				// the RocksDB backend to avoid confusion for users.
 
-				throw new StateMigrationException("State migration isn't supported, yet.");
+				throw StateMigrationException.notSupported();
 			}
 		}
 
@@ -781,7 +781,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// the new serializer; we're deliberately failing here for now to have equal functionality with
 				// the RocksDB backend to avoid confusion for users.
 
-				throw new StateMigrationException("State migration isn't supported, yet.");
+				throw StateMigrationException.notSupported();
 			}
 		}
 

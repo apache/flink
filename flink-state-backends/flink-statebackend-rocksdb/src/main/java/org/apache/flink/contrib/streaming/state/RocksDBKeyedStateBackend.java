@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -1319,7 +1320,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RegisteredKeyValueStateBackendMetaInfo<N, S> newMetaInfo;
 		if (stateInfo != null) {
 
-			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
 
 			Preconditions.checkState(
@@ -1398,7 +1398,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@VisibleForTesting
 	@SuppressWarnings("unchecked")
 	@Override
-	public int numStateEntries() {
+	public int numKeyValueStateEntries() {
 		int count = 0;
 
 		for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> column : kvStateInformation.values()) {
@@ -2668,10 +2668,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
 		create(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfoTuple =
 				tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);
 
-			final ColumnFamilyHandle columnFamilyHandle = entry.f0;
+			final ColumnFamilyHandle columnFamilyHandle = metaInfoTuple.f0;
 
 			return new KeyGroupPartitionedPriorityQueue<>(
 				KeyExtractorFunction.forKeyedObjects(),
@@ -2708,20 +2708,51 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfoTuple =
 			kvStateInformation.get(stateName);
 
-		if (entry == null) {
+		if (metaInfoTuple == null) {
+			final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
+
 			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
 				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
 
-			final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
+			metaInfoTuple = new Tuple2<>(columnFamilyHandle, metaInfo);
+			kvStateInformation.put(stateName, metaInfoTuple);
+		} else {
+			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
+			// because this should be reworked in FLINK-9376 and then we should have a common algorithm over
+			// StateMetaInfoSnapshot that avoids this code duplication.
+			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateName);
 
-			entry = new Tuple2<>(columnFamilyHandle, metaInfo);
-			kvStateInformation.put(stateName, entry);
+			Preconditions.checkState(
+				restoredMetaInfoSnapshot != null,
+				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+					" but its corresponding restored snapshot cannot be found.");
+
+			StateMetaInfoSnapshot.CommonSerializerKeys serializerKey =
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
+
+			TypeSerializer<?> metaInfoTypeSerializer = restoredMetaInfoSnapshot.getTypeSerializer(serializerKey);
+
+			if (metaInfoTypeSerializer != byteOrderedElementSerializer) {
+				CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					metaInfoTypeSerializer,
+					null,
+					restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
+					byteOrderedElementSerializer);
+
+				if (compatibilityResult.isRequiresMigration()) {
+					throw new FlinkRuntimeException(StateMigrationException.notSupported());
+				}
+
+				// update meta info with new serializer
+				metaInfoTuple.f1 =
+					new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
+			}
 		}
 
-		return entry;
+		return metaInfoTuple;
 	}
 
 	@Override
