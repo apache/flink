@@ -557,17 +557,17 @@ trait ImplicitExpressionOperations {
   // Temporal operations
 
   /**
-    * Parses a date string in the form "yy-mm-dd" to a SQL Date.
+    * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
   def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
 
   /**
-    * Parses a time string in the form "hh:mm:ss" to a SQL Time.
+    * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
   /**
-    * Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
 
