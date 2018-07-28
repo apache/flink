@@ -57,10 +57,12 @@ public class MetricUtils {
 
 	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
 			final MetricRegistry metricRegistry,
-			final String hostname) {
+			final String hostname,
+			final String jobManagerId) {
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
-			hostname);
+			hostname,
+			jobManagerId);
 
 		MetricGroup statusGroup = jobManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 

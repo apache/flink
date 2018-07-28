@@ -294,7 +294,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				// bring up the ResourceManager(s)
 				LOG.info("Starting ResourceManger");
+				final ResourceID resourceManagerID = ResourceID.generate();
 				resourceManagerRunner = startResourceManager(
+					resourceManagerID,
 					configuration,
 					haServices,
 					heartbeatServices,
@@ -354,7 +356,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for JobManger");
 
-				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost");
+				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost", resourceManagerID.getResourceIdString());
 
 				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, dispatcherRestEndpoint);
 
@@ -737,6 +739,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	protected ResourceManagerRunner startResourceManager(
+		    ResourceID resourceId,
 			Configuration configuration,
 			HighAvailabilityServices haServices,
 			HeartbeatServices heartbeatServices,
@@ -745,7 +748,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			ClusterInformation clusterInformation) throws Exception {
 
 		final ResourceManagerRunner resourceManagerRunner = new ResourceManagerRunner(
-			ResourceID.generate(),
+			resourceId,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME + '_' + UUID.randomUUID(),
 			configuration,
 			resourceManagerRpcService,

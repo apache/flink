@@ -335,9 +335,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			LOG.debug("Starting Dispatcher REST endpoint.");
 			webMonitorEndpoint.start();
 
+			final ResourceID resourceManagerID = ResourceID.generate();
 			resourceManager = createResourceManager(
 				configuration,
-				ResourceID.generate(),
+				resourceManagerID,
 				rpcService,
 				highAvailabilityServices,
 				heartbeatServices,
@@ -346,7 +347,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				clusterInformation,
 				webMonitorEndpoint.getRestBaseUrl());
 
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
+			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress(), resourceManagerID.getResourceIdString());
 
 			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
 
