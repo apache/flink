@@ -2065,12 +2065,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testCrc32(): Unit = {
-    val expectedCrc32 = "3632233996"
     testAllApis(
       "test".crc32(),
-      "crc32('test')",
+      "'test'.crc32()",
       "CRC32('test')",
-      expectedCrc32)
+      "3632233996")
+
+    testAllApis(
+      'f0.crc32(),
+      "f0.crc32()",
+      "CRC32(f0)",
+      "4060186824"
+    )
 
     testAllApis(
       'f33.crc32(),

@@ -2636,6 +2636,18 @@ SHA2(string, hashLength)
         </p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+CRC32(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>returns the cyclic redundancy check value of a given <i>string</i> as a 32-bit unsigned value. Return <i>null</i> if <i>string</i> is <i>null</i>.
+        </p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
