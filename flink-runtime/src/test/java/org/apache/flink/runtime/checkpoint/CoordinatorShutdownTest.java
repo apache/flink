@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -40,13 +42,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -68,7 +70,10 @@ public class CoordinatorShutdownTest extends TestLogger {
 			JobVertex vertex = new JobVertex("Test Vertex");
 			vertex.setInvokableClass(FailingBlockingInvokable.class);
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
-			
+
+			final ExecutionConfig executionConfig = new ExecutionConfig();
+			executionConfig.setRestartStrategy(RestartStrategies.noRestart());
+
 			JobGraph testGraph = new JobGraph("test job", vertex);
 			testGraph.setSnapshotSettings(
 				new JobCheckpointingSettings(
@@ -83,7 +88,9 @@ public class CoordinatorShutdownTest extends TestLogger {
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null));
-			
+			testGraph.setExecutionConfig(executionConfig);
+
+
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 			FiniteDuration timeout = new FiniteDuration(60, TimeUnit.SECONDS);

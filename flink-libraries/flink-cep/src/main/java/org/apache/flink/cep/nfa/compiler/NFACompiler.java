@@ -19,11 +19,11 @@
 package org.apache.flink.cep.nfa.compiler;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
+import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.GroupPattern;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
@@ -136,15 +136,15 @@ public class NFACompiler {
 		 * Check pattern after match skip strategy.
 		 */
 		private void checkPatternSkipStrategy() {
-			if (afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_FIRST ||
-				afterMatchSkipStrategy.getStrategy() == AfterMatchSkipStrategy.SkipStrategy.SKIP_TO_LAST) {
+			if (afterMatchSkipStrategy.getPatternName().isPresent()) {
+				String patternName = afterMatchSkipStrategy.getPatternName().get();
 				Pattern<T, ?> pattern = currentPattern;
-				while (pattern.getPrevious() != null && !pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+				while (pattern.getPrevious() != null && !pattern.getName().equals(patternName)) {
 					pattern = pattern.getPrevious();
 				}
 
 				// pattern name match check.
-				if (!pattern.getName().equals(afterMatchSkipStrategy.getPatternName())) {
+				if (!pattern.getName().equals(patternName)) {
 					throw new MalformedPatternException("The pattern name specified in AfterMatchSkipStrategy " +
 						"can not be found in the given Pattern");
 				}

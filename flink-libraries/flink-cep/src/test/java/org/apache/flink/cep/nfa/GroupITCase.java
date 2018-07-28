@@ -1084,8 +1084,8 @@ public class GroupITCase extends TestLogger {
 			Lists.newArrayList(c, a1, b1, a2, b2, d)
 		));
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 }

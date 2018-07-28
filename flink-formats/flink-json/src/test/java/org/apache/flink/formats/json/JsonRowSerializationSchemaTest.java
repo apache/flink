@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -112,7 +111,7 @@ public class JsonRowSerializationSchemaTest {
 
 	@Test
 	public void testSchema() throws IOException {
-		final TypeInformation<Row> rowSchema = JsonSchemaConverter.convert(
+		final TypeInformation<Row> rowSchema = JsonRowSchemaConverter.convert(
 			"{" +
 			"    type: 'object'," +
 			"    properties: {" +
@@ -137,7 +136,7 @@ public class JsonRowSerializationSchemaTest {
 			"}");
 
 		final Row row = new Row(11);
-		row.setField(0, BigInteger.valueOf(-333));
+		row.setField(0, BigDecimal.valueOf(-333));
 		row.setField(1, BigDecimal.valueOf(12.2222));
 		row.setField(2, null);
 		row.setField(3, "");
@@ -148,8 +147,8 @@ public class JsonRowSerializationSchemaTest {
 		final byte[] bytes = new byte[1024];
 		ThreadLocalRandom.current().nextBytes(bytes);
 		row.setField(7, bytes);
-		final BigInteger[] numbers = new BigInteger[] {
-			BigInteger.valueOf(1), BigInteger.valueOf(2), BigInteger.valueOf(3)};
+		final BigDecimal[] numbers = new BigDecimal[] {
+			BigDecimal.valueOf(1), BigDecimal.valueOf(2), BigDecimal.valueOf(3)};
 		row.setField(8, numbers);
 		final String[] strings = new String[] {"one", "two", "three"};
 		row.setField(9, strings);

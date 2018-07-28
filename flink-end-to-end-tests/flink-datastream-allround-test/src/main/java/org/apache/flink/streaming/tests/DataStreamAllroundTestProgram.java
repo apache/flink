@@ -25,10 +25,14 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
+import org.apache.flink.util.Collector;
 
 import java.util.Collections;
 
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialOperatorStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
@@ -57,6 +61,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 public class DataStreamAllroundTestProgram {
 	private static final String KEYED_STATE_OPER_NAME = "ArtificalKeyedStateMapper";
 	private static final String OPERATOR_STATE_OPER_NAME = "ArtificalOperatorStateMapper";
+	private static final String TIME_WINDOW_OPER_NAME = "TumblingWindowOperator";
 	private static final String SEMANTICS_CHECK_MAPPER_NAME = "SemanticsCheckMapper";
 	private static final String FAILURE_MAPPER_NAME = "ExceptionThrowingFailureMapper";
 
@@ -92,14 +97,26 @@ public class DataStreamAllroundTestProgram {
 			.name(OPERATOR_STATE_OPER_NAME)
 			.returns(Event.class);
 
+		// apply a tumbling window that simply passes forward window elements;
+		// this allows the job to cover timers state
+		DataStream<Event> eventStream3 = applyTumblingWindows(eventStream2.keyBy(Event::getKey), pt)
+			.apply(new WindowFunction<Event, Event, Integer, TimeWindow>() {
+				@Override
+				public void apply(Integer integer, TimeWindow window, Iterable<Event> input, Collector<Event> out) throws Exception {
+					for (Event e : input) {
+						out.collect(e);
+					}
+				}
+			}).name(TIME_WINDOW_OPER_NAME);
+
 		if (isSimulateFailures(pt)) {
-			eventStream2 = eventStream2
+			eventStream3 = eventStream3
 				.map(createExceptionThrowingFailureMapper(pt))
 				.setParallelism(1)
 				.name(FAILURE_MAPPER_NAME);
 		}
 
-		eventStream2.keyBy(Event::getKey)
+		eventStream3.keyBy(Event::getKey)
 			.flatMap(createSemanticsCheckMapper(pt))
 			.name(SEMANTICS_CHECK_MAPPER_NAME)
 			.addSink(new PrintSinkFunction<>());

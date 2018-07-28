@@ -22,9 +22,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
@@ -69,7 +71,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param keyContext the key context.
 	 * @param metaInfo the meta information for this state table.
 	 */
-	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyedBackendStateMetaInfo<N, S> metaInfo) {
+	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
 		super(keyContext, metaInfo);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 
@@ -175,7 +177,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Override
 	public Stream<K> getKeys(N namespace) {
 		return Arrays.stream(state)
-			.filter(namespaces -> namespaces != null)
+			.filter(Objects::nonNull)
 			.map(namespaces -> namespaces.getOrDefault(namespace, Collections.emptyMap()))
 			.flatMap(namespaceSate -> namespaceSate.keySet().stream());
 	}
@@ -232,12 +234,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 			setMapForKeyGroup(keyGroupIndex, namespaceMap);
 		}
 
-		Map<K, S> keyedMap = namespaceMap.get(namespace);
-
-		if (keyedMap == null) {
-			keyedMap = new HashMap<>();
-			namespaceMap.put(namespace, keyedMap);
-		}
+		Map<K, S> keyedMap = namespaceMap.computeIfAbsent(namespace, k -> new HashMap<>());
 
 		return keyedMap.put(key, value);
 	}
@@ -302,13 +299,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 			setMapForKeyGroup(keyGroupIndex, namespaceMap);
 		}
 
-		Map<K, S> keyedMap = namespaceMap.get(namespace);
-
-		if (keyedMap == null) {
-			keyedMap = new HashMap<>();
-			namespaceMap.put(namespace, keyedMap);
-		}
-
+		Map<K, S> keyedMap = namespaceMap.computeIfAbsent(namespace, k -> new HashMap<>());
 		keyedMap.put(key, transformation.apply(keyedMap.get(key), value));
 	}
 
@@ -323,8 +314,9 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		return count;
 	}
 
+	@Nonnull
 	@Override
-	public NestedMapsStateTableSnapshot<K, N, S> createSnapshot() {
+	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
 		return new NestedMapsStateTableSnapshot<>(this);
 	}
 
@@ -337,7 +329,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 */
 	static class NestedMapsStateTableSnapshot<K, N, S>
 			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>>
-			implements StateSnapshot.KeyGroupPartitionedSnapshot {
+			implements StateSnapshot.StateKeyGroupWriter {
 
 		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable) {
 			super(owningTable);
@@ -345,8 +337,14 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 		@Nonnull
 		@Override
-		public KeyGroupPartitionedSnapshot partitionByKeyGroup() {
+		public StateKeyGroupWriter getKeyGroupWriter() {
 			return this;
+		}
+
+		@Nonnull
+		@Override
+		public StateMetaInfoSnapshot getMetaInfoSnapshot() {
+			return owningStateTable.metaInfo.snapshot();
 		}
 
 		/**
@@ -359,7 +357,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		 * implementations).
 		 */
 		@Override
-		public void writeMappingsInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
+		public void writeStateInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 			final Map<N, Map<K, S>> keyGroupMap = owningStateTable.getMapForKeyGroup(keyGroupId);
 			if (null != keyGroupMap) {
 				TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();

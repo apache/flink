@@ -22,9 +22,10 @@ import java.io._
 
 import org.apache.flink.configuration.{Configuration, CoreOptions}
 import org.apache.flink.runtime.clusterframework.BootstrapTools
+import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.util.TestLogger
-import org.junit.{Assert, Rule, Test}
 import org.junit.rules.TemporaryFolder
+import org.junit.{Assert, Rule, Test}
 
 class ScalaShellLocalStartupITCase extends TestLogger {
 
@@ -85,7 +86,12 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     System.setOut(new PrintStream(baos))
 
     val configuration = new Configuration()
-    configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
+    val mode = if (TestBaseUtils.isNewCodebase()) {
+      CoreOptions.NEW_MODE
+    } else {
+      CoreOptions.LEGACY_MODE
+    }
+    configuration.setString(CoreOptions.MODE, mode)
 
     val dir = temporaryFolder.newFolder()
     BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))
@@ -93,7 +99,7 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     val args: Array[String] = Array("local", "--configDir", dir.getAbsolutePath)
 
     //start flink scala shell
-    FlinkShell.bufferedReader = Some(in);
+    FlinkShell.bufferedReader = Some(in)
     FlinkShell.main(args)
 
     baos.flush()

@@ -35,7 +35,7 @@
         <tr>
             <td><h5>taskmanager.data.ssl.enabled</h5></td>
             <td style="word-wrap: break-word;">true</td>
-            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global ssl flag security.ssl.enabled is set to true</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
         </tr>
         <tr>
             <td><h5>taskmanager.debug.memory.log</h5></td>
@@ -53,9 +53,9 @@
             <td>Whether the quarantine monitor for task managers shall be started. The quarantine monitor shuts down the actor system if it detects that it has quarantined another actor system or if it has been quarantined by another actor system.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.heap.mb</h5></td>
-            <td style="word-wrap: break-word;">1024</td>
-            <td>JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
+            <td><h5>taskmanager.heap.size</h5></td>
+            <td style="word-wrap: break-word;">"1024m"</td>
+            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.host</h5></td>
@@ -84,13 +84,13 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.segment-size</h5></td>
-            <td style="word-wrap: break-word;">32768</td>
-            <td>Size of memory buffers used by the network stack and the memory manager (in bytes).</td>
+            <td style="word-wrap: break-word;">"32768"</td>
+            <td>Size of memory buffers used by the network stack and the memory manager.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.size</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Amount of memory to be allocated by the task manager's memory manager (in megabytes). If not set, a relative fraction will be allocated.</td>
+            <td style="word-wrap: break-word;">"0"</td>
+            <td>Amount of memory to be allocated by the task manager's memory manager. If not set, a relative fraction will be allocated.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.detailed-metrics</h5></td>
@@ -114,13 +114,13 @@
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.max</h5></td>
-            <td style="word-wrap: break-word;">1073741824</td>
-            <td>Maximum memory size for network buffers (in bytes).</td>
+            <td style="word-wrap: break-word;">"1073741824"</td>
+            <td>Maximum memory size for network buffers.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.min</h5></td>
-            <td style="word-wrap: break-word;">67108864</td>
-            <td>Minimum memory size for network buffers (in bytes).</td>
+            <td style="word-wrap: break-word;">"67108864"</td>
+            <td>Minimum memory size for network buffers.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>

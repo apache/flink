@@ -301,6 +301,11 @@ trait ImplicitExpressionOperations {
   def log10() = Log10(expr)
 
   /**
+    * Calculates the base 2 logarithm of the given value.
+    */
+  def log2() = Log2(expr)
+
+  /**
     * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)
@@ -545,6 +550,11 @@ trait ImplicitExpressionOperations {
     */
   def overlay(newString: Expression, starting: Expression, length: Expression) =
     Overlay(expr, newString, starting, length)
+
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64() = FromBase64(expr)
 
   // Temporal operations
 

@@ -507,7 +507,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // obtain query configuration from TableEnvironment
 StreamQueryConfig qConfig = tableEnv.queryConfig();
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12));
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 // define query
 Table result = ...
@@ -531,7 +531,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // obtain query configuration from TableEnvironment
 val qConfig: StreamQueryConfig = tableEnv.queryConfig
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12))
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 // define query
 val result: Table = ???
@@ -579,10 +579,8 @@ The parameters are specified as follows:
 
 StreamQueryConfig qConfig = ...
 
-// set idle state retention time: min = 12 hour, max = 16 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(16));
-// set idle state retention time. min = max = 12 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12);
+// set idle state retention time: min = 12 hours, max = 24 hours
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 {% endhighlight %}
 </div>
@@ -591,16 +589,14 @@ qConfig.withIdleStateRetentionTime(Time.hours(12);
 
 val qConfig: StreamQueryConfig = ???
 
-// set idle state retention time: min = 12 hour, max = 16 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(16))
-// set idle state retention time. min = max = 12 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12)
+// set idle state retention time: min = 12 hours, max = 24 hours
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 {% endhighlight %}
 </div>
 </div>
 
-Configuring different minimum and maximum idle state retention times is more efficient because it reduces the internal book-keeping of a query for when to remove state.
+Cleaning up state requires additional bookkeeping which becomes less expensive for larger differences of `minTime` and `maxTime`. The difference between `minTime` and `maxTime` must be at least 5 minutes.
 
 {% top %}
 

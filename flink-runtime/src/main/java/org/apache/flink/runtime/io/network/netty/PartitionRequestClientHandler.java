@@ -164,7 +164,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter impleme
 								+ "that the remote task manager was lost.", remoteAddr, cause);
 			}
 			else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				SocketAddress localAddr = ctx.channel().localAddress();
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
+					localAddr,
+					cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);

@@ -82,14 +82,14 @@ public class RocksDBStateBackendFactoryTest {
 		config1.setString(backendKey, "rocksdb");
 		config1.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config1.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		config1.setString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES, localDirs);
+		config1.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
 		config1.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
 		final Configuration config2 = new Configuration();
 		config2.setString(backendKey, RocksDBStateBackendFactory.class.getName());
 		config2.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
 		config2.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
-		config2.setString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES, localDirs);
+		config2.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
 		config2.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
 		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
@@ -143,7 +143,7 @@ public class RocksDBStateBackendFactoryTest {
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir); // this should not be picked up
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		config.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, !incremental);  // this should not be picked up
-		config.setString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES, localDir3 + ":" + localDir4);  // this should not be picked up
+		config.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDir3 + ":" + localDir4);  // this should not be picked up
 
 		final StateBackend loadedBackend =
 				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);

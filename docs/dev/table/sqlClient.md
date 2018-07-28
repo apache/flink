@@ -30,7 +30,7 @@ The *SQL Client* aims to provide an easy way of writing, debugging, and submitti
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
 
-<span class="label label-danger">Attention</span> The SQL Client is in an early developement phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
+<span class="label label-danger">Attention</span> The SQL Client is in an early development phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
 
 * This will be replaced by the TOC
 {:toc}
@@ -48,7 +48,7 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 
 ### Starting the SQL Client CLI
 
-The SQL Client scripts are also located in the binary directory of Flink. [In the future](sqlClient.html#limitations--future), a user will have two possiblities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported. You can start the CLI by calling:
+The SQL Client scripts are also located in the binary directory of Flink. [In the future](sqlClient.html#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported. You can start the CLI by calling:
 
 {% highlight bash %}
 ./bin/sql-client.sh embedded
@@ -185,12 +185,13 @@ tables:
 
 execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
+  result-mode: table                # required: either 'table' or 'changelog'
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
+  periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
   max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
-  result-mode: table                # required: either 'table' or 'changelog'
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
@@ -228,6 +229,8 @@ The SQL Client does not require to setup a Java project using Maven or SBT. Inst
 | Name              | Version       | Download               |
 | :---------------- | :------------ | :--------------------- |
 | Filesystem        |               | Built-in               |
+| Apache Kafka      | 0.9           | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
+| Apache Kafka      | 0.10          | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 | Apache Kafka      | 0.11          | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 
 #### Formats
@@ -236,6 +239,7 @@ The SQL Client does not require to setup a Java project using Maven or SBT. Inst
 | :---------------- | :--------------------- |
 | CSV               | Built-in               |
 | JSON              | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
+| Apache Avro       | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
 
 {% endif %}
 
@@ -463,7 +467,7 @@ format:
       type: VARCHAR
     - name: field2
       type: TIMESTAMP
-  field-deleimiter: ","      # optional: string delimiter "," by default 
+  field-delimiter: ","      # optional: string delimiter "," by default 
   line-delimiter: "\n"       # optional: string delimiter "\n" by default 
   quote-character: '"'       # optional: single character for string values, empty by default
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
@@ -475,7 +479,7 @@ The CSV format is included in Flink and does not require an additional JAR file.
 
 #### JSON Format
 
-The JSON format allows to read JSON data that corresponds to a given format schema. The format schema can be defined either as a Flink [type string](sqlClient.html#type-strings), as a JSON schema, or derived from the desired table schema. A type string enables a more SQL-like definition and mapping to the corresponding SQL data types. The JSON schema allows for more complex and nested structures.
+The JSON format allows to read and write JSON data that corresponds to a given format schema. The format schema can be defined either as a Flink [type string](sqlClient.html#type-strings), as a JSON schema, or derived from the desired table schema. A type string enables a more SQL-like definition and mapping to the corresponding SQL data types. The JSON schema allows for more complex and nested structures.
 
 If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and field order of the format are determined by the table's schema. Time attributes are ignored. A `from` definition in the table schema is interpreted as a field renaming in the format.
 
@@ -505,6 +509,23 @@ format:
   # or use the tables schema
   derive-schema: true
 {% endhighlight %}
+
+The following table shows the mapping of JSON schema types to Flink SQL types:
+
+| JSON schema                       | Flink SQL               |
+| :-------------------------------- | :---------------------- |
+| `object`                          | `ROW`                   |
+| `boolean`                         | `BOOLEAN`               |
+| `array`                           | `ARRAY[_]`              |
+| `number`                          | `DECIMAL`               |
+| `integer`                         | `DECIMAL`               |
+| `string`                          | `VARCHAR`               |
+| `string` with `format: date-time` | `TIMESTAMP`             |
+| `string` with `format: date`      | `DATE`                  |
+| `string` with `format: time`      | `TIME`                  |
+| `string` with `encoding: base64`  | `ARRAY[TINYINT]`        |
+| `null`                            | `NULL` (unsupported yet)|
+
 
 Currently, Flink supports only a subset of the [JSON schema specification](http://json-schema.org/) `draft-07`. Union types (as well as `allOf`, `anyOf`, `not`) are not supported yet. `oneOf` and arrays of types are only supported for specifying nullability.
 
@@ -556,6 +577,59 @@ Simple references that link to a common definition in the document are supported
 {% endhighlight %}
 
 Make sure to download the [JSON SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
+
+#### Apache Avro Format
+
+The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro data that corresponds to a given format schema. The format schema can be defined either as a fully qualified class name of an Avro specific record or as an Avro schema string. If a class name is used, the class must be available in the classpath during runtime.
+
+{% highlight yaml %}
+format:
+  type: avro
+
+  # required: define the schema either by using an Avro specific record class
+  record-class: "org.organization.types.User"
+
+  # or by using an Avro schema
+  avro-schema: >
+    {
+      "type": "record",
+      "name": "test",
+      "fields" : [
+        {"name": "a", "type": "long"},
+        {"name": "b", "type": "string"}
+      ]
+    }
+{% endhighlight %}
+
+Avro types are mapped to the corresponding SQL data types. Union types are only supported for specifying nullability otherwise they are converted to an `ANY` type. The following table shows the mapping:
+
+| Avro schema                                 | Flink SQL               |
+| :------------------------------------------ | :---------------------- |
+| `record`                                    | `ROW`                   |
+| `enum`                                      | `VARCHAR`               |
+| `array`                                     | `ARRAY[_]`              |
+| `map`                                       | `MAP[VARCHAR, _]`       |
+| `union`                                     | non-null type or `ANY`  |
+| `fixed`                                     | `ARRAY[TINYINT]`        |
+| `string`                                    | `VARCHAR`               |
+| `bytes`                                     | `ARRAY[TINYINT]`        |
+| `int`                                       | `INT`                   |
+| `long`                                      | `BIGINT`                |
+| `float`                                     | `FLOAT`                 |
+| `double`                                    | `DOUBLE`                |
+| `boolean`                                   | `BOOLEAN`               |
+| `int` with `logicalType: date`              | `DATE`                  |
+| `int` with `logicalType: time-millis`       | `TIME`                  |
+| `int` with `logicalType: time-micros`       | `INT`                   |
+| `long` with `logicalType: timestamp-millis` | `TIMESTAMP`             |
+| `long` with `logicalType: timestamp-micros` | `BIGINT`                |
+| `bytes` with `logicalType: decimal`         | `DECIMAL`               |
+| `fixed` with `logicalType: decimal`         | `DECIMAL`               |
+| `null`                                      | `NULL` (unsupported yet)|
+
+Avro uses [Joda-Time](http://www.joda.org/joda-time/) for representing logical date and time types in specific record classes. The Joda-Time dependency is not part of Flink's SQL JAR distribution. Therefore, make sure that Joda-Time is in your classpath together with your specific record class during runtime. Avro formats specified via a schema string do not require Joda-Time to be present.
+
+Make sure to download the [Apache Avro SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
 
 {% top %}
 

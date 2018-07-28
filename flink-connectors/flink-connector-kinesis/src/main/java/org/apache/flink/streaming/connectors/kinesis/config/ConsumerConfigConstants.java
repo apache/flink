@@ -65,14 +65,41 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
+	/**
+	 * Deprecated key.
+	 *
+	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_BASE} instead
+	 **/
+	@Deprecated
 	/** The base backoff time between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
+	/**
+	 * Deprecated key.
+	 *
+	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_MAX} instead
+	 **/
+	@Deprecated
 	/** The maximum backoff time between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
+	/**
+	 * Deprecated key.
+	 *
+	 * @deprecated Use {@link ConsumerConfigConstants#LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT} instead
+	 **/
+	@Deprecated
 	/** The power constant for exponential backoff between each describeStream attempt. */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
+
+	/** The base backoff time between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_BASE = "flink.list.shards.backoff.base";
+
+	/** The maximum backoff time between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_MAX = "flink.list.shards.backoff.max";
+
+	/** The power constant for exponential backoff between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.list.shards.backoff.expconst";
 
 	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */
 	public static final String SHARD_GETRECORDS_MAX = "flink.shard.getrecords.maxrecordcount";
@@ -107,6 +134,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The interval between each attempt to discover new shards. */
 	public static final String SHARD_DISCOVERY_INTERVAL_MILLIS = "flink.shard.discovery.intervalmillis";
 
+	/** The config to turn on adaptive reads from a shard. */
+	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptivereads";
+
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -115,11 +146,20 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
 
+	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 
+	@Deprecated
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
+	@Deprecated
 	public static final double DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final long DEFAULT_LIST_SHARDS_BACKOFF_BASE = 1000L;
+
+	public static final long DEFAULT_LIST_SHARDS_BACKOFF_MAX = 5000L;
+
+	public static final double DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final int DEFAULT_SHARD_GETRECORDS_MAX = 10000;
 
@@ -142,6 +182,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
+
+	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

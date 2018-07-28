@@ -19,19 +19,22 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.formats.json.JsonSchemaConverter;
+import org.apache.flink.formats.json.JsonRowSchemaConverter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.Json;
 import org.apache.flink.table.descriptors.Kafka;
 import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.descriptors.TestTableSourceDescriptor;
+import org.apache.flink.table.descriptors.TestTableDescriptor;
+import org.apache.flink.table.factories.StreamTableSourceFactory;
+import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceFactoryService;
+import org.apache.flink.table.sources.TableSourceUtil;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
-import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks;
+import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 
 import org.junit.Test;
 
@@ -42,8 +45,12 @@ import java.util.Properties;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link KafkaJsonTableSourceFactory}.
+ * Tests for legacy KafkaJsonTableSourceFactory.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
+@Deprecated
 public abstract class KafkaJsonTableSourceFactoryTestBase {
 
 	private static final String JSON_SCHEMA =
@@ -94,8 +101,8 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		// construct table source using a builder
 
 		final Map<String, String> tableJsonMapping = new HashMap<>();
-		tableJsonMapping.put("name", "name");
 		tableJsonMapping.put("fruit-name", "name");
+		tableJsonMapping.put("name", "name");
 		tableJsonMapping.put("count", "count");
 		tableJsonMapping.put("time", "time");
 
@@ -108,7 +115,7 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, 1), 123L);
 
 		final KafkaTableSource builderSource = builder()
-				.forJsonSchema(TableSchema.fromTypeInfo(JsonSchemaConverter.convert(JSON_SCHEMA)))
+				.forJsonSchema(TableSchema.fromTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA)))
 				.failOnMissingField(true)
 				.withTableToJsonMapping(tableJsonMapping)
 				.withKafkaProperties(props)
@@ -117,13 +124,15 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 				.withSchema(
 					TableSchema.builder()
 						.field("fruit-name", Types.STRING)
-						.field("count", Types.BIG_INT)
+						.field("count", Types.BIG_DEC)
 						.field("event-time", Types.SQL_TIMESTAMP)
 						.field("proc-time", Types.SQL_TIMESTAMP)
 						.build())
 				.withProctimeAttribute("proc-time")
-				.withRowtimeAttribute("event-time", new ExistingField("time"), PreserveWatermarks.INSTANCE())
+				.withRowtimeAttribute("event-time", new ExistingField("time"), new AscendingTimestamps())
 				.build();
+
+		TableSourceUtil.validateTableSource(builderSource);
 
 		// construct table source using descriptors and table source factory
 
@@ -131,22 +140,27 @@ public abstract class KafkaJsonTableSourceFactoryTestBase {
 		offsets.put(0, 100L);
 		offsets.put(1, 123L);
 
-		final TestTableSourceDescriptor testDesc = new TestTableSourceDescriptor(
+		final TestTableDescriptor testDesc = new TestTableDescriptor(
 				new Kafka()
 					.version(version())
 					.topic(TOPIC)
 					.properties(props)
 					.startFromSpecificOffsets(offsets))
-			.addFormat(format)
-			.addSchema(
+			.withFormat(format)
+			.withSchema(
 				new Schema()
 						.field("fruit-name", Types.STRING).from("name")
-						.field("count", Types.BIG_INT) // no from so it must match with the input
+						.field("count", Types.BIG_DEC) // no from so it must match with the input
 						.field("event-time", Types.SQL_TIMESTAMP).rowtime(
-							new Rowtime().timestampsFromField("time").watermarksFromSource())
-						.field("proc-time", Types.SQL_TIMESTAMP).proctime());
+							new Rowtime().timestampsFromField("time").watermarksPeriodicAscending())
+						.field("proc-time", Types.SQL_TIMESTAMP).proctime())
+			.inAppendMode();
 
-		final TableSource<?> factorySource = TableSourceFactoryService.findAndCreateTableSource(testDesc);
+		DescriptorProperties properties = new DescriptorProperties(true);
+		testDesc.addProperties(properties);
+		final TableSource<?> factorySource =
+				TableFactoryService.find(StreamTableSourceFactory.class, testDesc)
+						.createStreamTableSource(properties.asMap());
 
 		assertEquals(builderSource, factorySource);
 	}

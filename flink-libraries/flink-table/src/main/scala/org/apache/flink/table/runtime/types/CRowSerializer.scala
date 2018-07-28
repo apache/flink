@@ -115,12 +115,8 @@ class CRowSerializer(val rowSerializer: TypeSerializer[Row]) extends TypeSeriali
 
 object CRowSerializer {
 
-  class CRowSerializerConfigSnapshot(
-      private val rowSerializer: TypeSerializer[Row])
-    extends CompositeTypeSerializerConfigSnapshot(rowSerializer) {
-
-    /** This empty nullary constructor is required for deserializing the configuration. */
-    def this() = this(null)
+  class CRowSerializerConfigSnapshot(rowSerializers: TypeSerializer[Row]*)
+    extends CompositeTypeSerializerConfigSnapshot(rowSerializers: _*) {
 
     override def getVersion: Int = CRowSerializerConfigSnapshot.VERSION
   }

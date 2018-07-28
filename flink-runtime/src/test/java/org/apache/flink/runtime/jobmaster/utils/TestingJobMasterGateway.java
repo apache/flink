@@ -166,6 +166,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 	}
 
 	@Override
+	public void notifyAllocationFailure(AllocationID allocationID, Exception cause) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
 		throw new UnsupportedOperationException();
 	}

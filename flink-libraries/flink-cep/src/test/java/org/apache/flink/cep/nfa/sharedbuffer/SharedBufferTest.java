@@ -26,8 +26,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -107,33 +105,34 @@ public class SharedBufferTest extends TestLogger {
 		NodeId aLoop5 = sharedBuffer.put("a[]", eventIds[6], aLoop4, DeweyNumber.fromString("1.1"));
 		NodeId b3 = sharedBuffer.put("b", eventIds[7], aLoop5, DeweyNumber.fromString("1.1.0"));
 
-		Collection<Map<String, List<Event>>> patterns3 = sharedBuffer.extractPatterns(b3,
+		List<Map<String, List<EventId>>> patterns3 = sharedBuffer.extractPatterns(b3,
 			DeweyNumber.fromString("1.1.0"));
+		assertEquals(1L, patterns3.size());
+		assertEquals(expectedPattern3, sharedBuffer.materializeMatch(patterns3.get(0)));
 		sharedBuffer.releaseNode(b3);
-		Collection<Map<String, List<Event>>> patterns4 = sharedBuffer.extractPatterns(b3,
-			DeweyNumber.fromString("1.1.0"));
 
-		Collection<Map<String, List<Event>>> patterns1 = sharedBuffer.extractPatterns(b1,
+		List<Map<String, List<EventId>>> patterns4 = sharedBuffer.extractPatterns(b3,
+			DeweyNumber.fromString("1.1.0"));
+		assertEquals(0L, patterns4.size());
+		assertTrue(patterns4.isEmpty());
+
+		List<Map<String, List<EventId>>> patterns1 = sharedBuffer.extractPatterns(b1,
 			DeweyNumber.fromString("2.0.0"));
-		Collection<Map<String, List<Event>>> patterns2 = sharedBuffer.extractPatterns(b0,
+		assertEquals(1L, patterns1.size());
+		assertEquals(expectedPattern1, sharedBuffer.materializeMatch(patterns1.get(0)));
+
+		List<Map<String, List<EventId>>> patterns2 = sharedBuffer.extractPatterns(b0,
 			DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.releaseNode(b0);
+		assertEquals(1L, patterns2.size());
+		assertEquals(expectedPattern2, sharedBuffer.materializeMatch(patterns2.get(0)));
 		sharedBuffer.releaseNode(b1);
+		sharedBuffer.releaseNode(b0);
 
 		for (EventId eventId : eventIds) {
 			sharedBuffer.releaseEvent(eventId);
 		}
 
-		assertEquals(1L, patterns3.size());
-		assertEquals(0L, patterns4.size());
-		assertEquals(1L, patterns1.size());
-		assertEquals(1L, patterns2.size());
-
 		assertTrue(sharedBuffer.isEmpty());
-		assertTrue(patterns4.isEmpty());
-		assertEquals(Collections.singletonList(expectedPattern1), patterns1);
-		assertEquals(Collections.singletonList(expectedPattern2), patterns2);
-		assertEquals(Collections.singletonList(expectedPattern3), patterns3);
 	}
 
 	@Test
@@ -200,8 +199,8 @@ public class SharedBufferTest extends TestLogger {
 		NodeId bb = sharedBuffer.put("bb", eventIds[3], aa, DeweyNumber.fromString("1.0.0.0"));
 		NodeId c = sharedBuffer.put("c", eventIds[4], bb, DeweyNumber.fromString("1.0.0.0.0"));
 
-		Collection<Map<String, List<Event>>> patternsResult = sharedBuffer.extractPatterns(c,
-			DeweyNumber.fromString("1.0.0.0.0"));
+		Map<String, List<Event>> patternsResult = sharedBuffer.materializeMatch(sharedBuffer.extractPatterns(c,
+			DeweyNumber.fromString("1.0.0.0.0")).get(0));
 
 		List<String> expectedOrder = new ArrayList<>();
 		expectedOrder.add("a");
@@ -214,7 +213,7 @@ public class SharedBufferTest extends TestLogger {
 			sharedBuffer.releaseEvent(eventId);
 		}
 
-		List<String> resultOrder = new ArrayList<>(patternsResult.iterator().next().keySet());
+		List<String> resultOrder = new ArrayList<>(patternsResult.keySet());
 		assertEquals(expectedOrder, resultOrder);
 	}
 

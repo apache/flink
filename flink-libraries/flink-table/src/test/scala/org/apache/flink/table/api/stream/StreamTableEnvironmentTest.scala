@@ -60,6 +60,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
       "DataStreamUnion",
       streamTableNode(1),
       streamTableNode(0),
+      term("all", "true"),
       term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)

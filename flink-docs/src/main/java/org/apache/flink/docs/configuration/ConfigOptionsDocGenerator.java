@@ -24,9 +24,9 @@ import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.util.function.ThrowingConsumer;
-
-import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -36,14 +36,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Class used for generating code based documentation of configuration parameters.
@@ -56,7 +61,13 @@ public class ConfigOptionsDocGenerator {
 		new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
 		new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
+		new OptionsClassLocation("flink-metrics/flink-metrics-prometheus", "org.apache.flink.metrics.prometheus"),
+		new OptionsClassLocation("flink-state-backends/flink-statebackend-rocksdb", "org.apache.flink.contrib.streaming.state")
 	};
+
+	static final Set<String> EXCLUSIONS = new HashSet<>(Arrays.asList(
+		"org.apache.flink.configuration.ConfigOptions",
+		"org.apache.flink.contrib.streaming.state.PredefinedOptions"));
 
 	static final String DEFAULT_PATH_PREFIX = "src/main/java";
 
@@ -67,6 +78,7 @@ public class ConfigOptionsDocGenerator {
 	private static final String CLASS_PREFIX_GROUP = "classPrefix";
 	private static final Pattern CLASS_NAME_PATTERN = Pattern.compile("(?<" + CLASS_NAME_GROUP + ">(?<" + CLASS_PREFIX_GROUP + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
 
+	private static final Formatter formatter = new HtmlFormatter();
 	/**
 	 * This method generates html tables from set of classes containing {@link ConfigOption ConfigOptions}.
 	 *
@@ -148,9 +160,13 @@ public class ConfigOptionsDocGenerator {
 			for (Path entry : stream) {
 				String fileName = entry.getFileName().toString();
 				Matcher matcher = CLASS_NAME_PATTERN.matcher(fileName);
-				if (!fileName.equals("ConfigOptions.java") && matcher.matches()) {
-					Class<?> optionsClass = Class.forName(packageName + '.' + matcher.group(CLASS_NAME_GROUP));
-					classConsumer.accept(optionsClass);
+				if (matcher.matches()) {
+					final String className = packageName + '.' + matcher.group(CLASS_NAME_GROUP);
+
+					if (!EXCLUSIONS.contains(className)) {
+						Class<?> optionsClass = Class.forName(className);
+						classConsumer.accept(optionsClass);
+					}
 				}
 			}
 		}
@@ -240,7 +256,7 @@ public class ConfigOptionsDocGenerator {
 			"        <tr>\n" +
 			"            <td><h5>" + escapeCharacters(option.key()) + "</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + escapeCharacters(addWordBreakOpportunities(defaultValue)) + "</td>\n" +
-			"            <td>" + escapeCharacters(option.description()) + "</td>\n" +
+			"            <td>" + formatter.format(option.description()) + "</td>\n" +
 			"        </tr>\n";
 	}
 

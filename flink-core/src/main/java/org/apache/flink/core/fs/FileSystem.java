@@ -229,9 +229,7 @@ public abstract class FileSystem {
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
-	//CHECKSTYLE.OFF: StaticVariableName
-	private static URI DEFAULT_SCHEME;
-	//CHECKSTYLE.ON: StaticVariableName
+	private static URI defaultScheme;
 
 	// ------------------------------------------------------------------------
 	//  Initialization
@@ -275,11 +273,11 @@ public abstract class FileSystem {
 			// also read the default file system scheme
 			final String stringifiedUri = config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
 			if (stringifiedUri == null) {
-				DEFAULT_SCHEME = null;
+				defaultScheme = null;
 			}
 			else {
 				try {
-					DEFAULT_SCHEME = new URI(stringifiedUri);
+					defaultScheme = new URI(stringifiedUri);
 				}
 				catch (URISyntaxException e) {
 					throw new IllegalConfigurationException("The default file system scheme ('" +
@@ -427,7 +425,7 @@ public abstract class FileSystem {
 	 * @return The default file system URI
 	 */
 	public static URI getDefaultFsUri() {
-		return DEFAULT_SCHEME != null ? DEFAULT_SCHEME : LocalFileSystem.getLocalFsURI();
+		return defaultScheme != null ? defaultScheme : LocalFileSystem.getLocalFsURI();
 	}
 
 	// ------------------------------------------------------------------------
@@ -494,6 +492,24 @@ public abstract class FileSystem {
 	 *        the file to open
 	 */
 	public abstract FSDataInputStream open(Path f) throws IOException;
+
+	/**
+	 * Creates a new {@link RecoverableWriter}. A recoverable writer creates streams that can
+	 * persist and recover their intermediate state.
+	 * Persisting and recovering intermediate state is a core building block for writing to
+	 * files that span multiple checkpoints.
+	 *
+	 * <p>The returned object can act as a shared factory to open and recover multiple streams.
+	 *
+	 * <p>This method is optional on file systems and various file system implementations may
+	 * not support this method, throwing an {@code UnsupportedOperationException}.
+	 *
+	 * @return A RecoverableWriter for this file system.
+	 * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
+	 */
+	public RecoverableWriter createRecoverableWriter() throws IOException {
+		throw new UnsupportedOperationException("This file system does not support recoverable writers.");
+	}
 
 	/**
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.

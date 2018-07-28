@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
@@ -91,6 +92,14 @@ public class FakeKinesisBehavioursFactory {
 			final long millisBehindLatest) {
 		return new SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis(
 			numOfRecords, numOfGetRecordsCall, orderOfCallToExpire, millisBehindLatest);
+	}
+
+	public static KinesisProxyInterface initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(
+			final int numOfRecords,
+			final int numOfGetRecordsCalls,
+			final long millisBehindLatest) {
+		return new SingleShardEmittingAdaptiveNumOfRecordsKinesis(numOfRecords, numOfGetRecordsCalls,
+				millisBehindLatest);
 	}
 
 	private static class SingleShardEmittingFixNumOfRecordsWithExpiredIteratorKinesis extends SingleShardEmittingFixNumOfRecordsKinesis {
@@ -223,6 +232,104 @@ public class FakeKinesisBehavioursFactory {
 						.withSequenceNumber(String.valueOf(i)));
 			}
 			return batch;
+		}
+
+	}
+
+	private static class SingleShardEmittingAdaptiveNumOfRecordsKinesis implements
+			KinesisProxyInterface {
+
+		protected final int totalNumOfGetRecordsCalls;
+
+		protected final int totalNumOfRecords;
+
+		private final long millisBehindLatest;
+
+		protected final Map<String, List<Record>> shardItrToRecordBatch;
+
+		protected static long averageRecordSizeBytes;
+
+		private static final long KINESIS_SHARD_BYTES_PER_SECOND_LIMIT = 2 * 1024L * 1024L;
+
+		public SingleShardEmittingAdaptiveNumOfRecordsKinesis(final int numOfRecords,
+				final int numOfGetRecordsCalls,
+				final long millisBehindLatest) {
+			this.totalNumOfRecords = numOfRecords;
+			this.totalNumOfGetRecordsCalls = numOfGetRecordsCalls;
+			this.millisBehindLatest = millisBehindLatest;
+			this.averageRecordSizeBytes = 0L;
+
+			// initialize the record batches that we will be fetched
+			this.shardItrToRecordBatch = new HashMap<>();
+
+			int numOfAlreadyPartitionedRecords = 0;
+			int numOfRecordsPerBatch = numOfRecords;
+			for (int batch = 0; batch < totalNumOfGetRecordsCalls; batch++) {
+					shardItrToRecordBatch.put(
+							String.valueOf(batch),
+							createRecordBatchWithRange(
+									numOfAlreadyPartitionedRecords,
+									numOfAlreadyPartitionedRecords + numOfRecordsPerBatch));
+					numOfAlreadyPartitionedRecords += numOfRecordsPerBatch;
+
+				numOfRecordsPerBatch = (int) (KINESIS_SHARD_BYTES_PER_SECOND_LIMIT /
+						(averageRecordSizeBytes * 1000L / ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS));
+			}
+		}
+
+		@Override
+		public GetRecordsResult getRecords(String shardIterator, int maxRecordsToGet) {
+			// assuming that the maxRecordsToGet is always large enough
+			return new GetRecordsResult()
+					.withRecords(shardItrToRecordBatch.get(shardIterator))
+					.withMillisBehindLatest(millisBehindLatest)
+					.withNextShardIterator(
+							(Integer.valueOf(shardIterator) == totalNumOfGetRecordsCalls - 1)
+									? null : String
+									.valueOf(Integer.valueOf(shardIterator) + 1)); // last next shard iterator is null
+		}
+
+		@Override
+		public String getShardIterator(StreamShardHandle shard, String shardIteratorType,
+				Object startingMarker) {
+			// this will be called only one time per ShardConsumer;
+			// so, simply return the iterator of the first batch of records
+			return "0";
+		}
+
+		@Override
+		public GetShardListResult getShardList(Map<String, String> streamNamesWithLastSeenShardIds) {
+			return null;
+		}
+
+		public static List<Record> createRecordBatchWithRange(int min, int max) {
+			List<Record> batch = new LinkedList<>();
+			long	sumRecordBatchBytes = 0L;
+			// Create record of size 10Kb
+			String data = createDataSize(10 * 1024L);
+
+			for (int i = min; i < max; i++) {
+				Record record = new Record()
+								.withData(
+										ByteBuffer.wrap(String.valueOf(data).getBytes(ConfigConstants.DEFAULT_CHARSET)))
+								.withPartitionKey(UUID.randomUUID().toString())
+								.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
+								.withSequenceNumber(String.valueOf(i));
+				batch.add(record);
+				sumRecordBatchBytes += record.getData().remaining();
+
+			}
+			if (batch.size() != 0) {
+				averageRecordSizeBytes = sumRecordBatchBytes / batch.size();
+			}
+
+			return batch;
+		}
+
+		private static String createDataSize(long msgSize) {
+			char[] data = new char[(int) msgSize];
+			return new String(data);
+
 		}
 
 	}

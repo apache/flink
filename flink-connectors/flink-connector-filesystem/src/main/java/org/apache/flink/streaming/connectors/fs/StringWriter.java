@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
-import java.util.Objects;
 
 /**
  * A {@link Writer} that uses {@code toString()} on the input elements and writes them to
@@ -87,29 +86,11 @@ public class StringWriter<T> extends StreamWriterBase<T> {
 	}
 
 	@Override
-	public Writer<T> duplicate() {
+	public StringWriter<T> duplicate() {
 		return new StringWriter<>(this);
 	}
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), charsetName);
-	}
-
-	@Override
-	public boolean equals(Object other) {
-		if (this == other) {
-			return true;
-		}
-		if (other == null) {
-			return false;
-		}
-		if (getClass() != other.getClass()) {
-			return false;
-		}
-		StringWriter<T> writer = (StringWriter<T>) other;
-		// field comparison
-		return Objects.equals(charsetName, writer.charsetName)
-			&& super.equals(other);
+	String getCharsetName() {
+		return charsetName;
 	}
 }

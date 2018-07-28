@@ -32,7 +32,7 @@ class StreamTableSourceTable[T](
 
   TableSourceUtil.validateTableSource(tableSource)
 
-  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+  def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     TableSourceUtil.getRelDataType(
       tableSource,
       None,

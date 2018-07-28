@@ -46,6 +46,9 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -61,6 +64,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -109,6 +113,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link JobMaster}.
@@ -212,9 +218,12 @@ public class JobMasterTest extends TestLogger {
 		rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -255,7 +264,6 @@ public class JobMasterTest extends TestLogger {
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway(
 			resourceManagerId,
 			rmResourceId,
-			fastHeartbeatInterval,
 			resourceManagerAddress,
 			"localhost");
 
@@ -277,9 +285,12 @@ public class JobMasterTest extends TestLogger {
 		rpcService.registerGateway(resourceManagerAddress, resourceManagerGateway);
 
 		final JobManagerSharedServices jobManagerSharedServices = new TestingJobManagerSharedServicesBuilder().build();
-		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
 
-		final JobMaster jobMaster = createJobMaster(jobMasterConfiguration, jobGraph, haServices, jobManagerSharedServices);
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			jobGraph,
+			haServices,
+			jobManagerSharedServices);
 
 		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -333,7 +344,7 @@ public class JobMasterTest extends TestLogger {
 		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -348,6 +359,42 @@ public class JobMasterTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	/**
+	 * Tests that in a streaming use case where checkpointing is enabled, a
+	 * fixed delay with Integer.MAX_VALUE retries is instantiated if no other restart
+	 * strategy has been specified.
+	 */
+	@Test
+	public void testAutomaticRestartingWhenCheckpointing() throws Exception {
+		// create savepoint data
+		final long savepointId = 42L;
+		final File savepointFile = createSavepoint(savepointId);
+
+		// set savepoint settings
+		final SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.forPath(
+			savepointFile.getAbsolutePath(),
+			true);
+		final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+
+		final StandaloneCompletedCheckpointStore completedCheckpointStore = new StandaloneCompletedCheckpointStore(1);
+		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(
+			completedCheckpointStore,
+			new StandaloneCheckpointIDCounter());
+		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+		final JobMaster jobMaster = createJobMaster(
+			new Configuration(),
+			jobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder()
+				.setRestartStrategyFactory(RestartStrategyFactory.createRestartStrategyFactory(configuration))
+				.build());
+
+		RestartStrategy restartStrategy = jobMaster.getRestartStrategy();
+
+		assertNotNull(restartStrategy);
+		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 	}
 
 	/**
@@ -382,8 +429,9 @@ public class JobMasterTest extends TestLogger {
 		completedCheckpointStore.addCheckpoint(completedCheckpoint);
 		final TestingCheckpointRecoveryFactory testingCheckpointRecoveryFactory = new TestingCheckpointRecoveryFactory(completedCheckpointStore, new StandaloneCheckpointIDCounter());
 		haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
+
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -412,7 +460,7 @@ public class JobMasterTest extends TestLogger {
 		configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
 
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			restartingJobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
@@ -496,7 +544,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testCloseUnestablishedResourceManagerConnection() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -544,7 +592,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testReconnectionAfterDisconnect() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -588,7 +636,7 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testResourceManagerConnectionAfterRegainingLeadership() throws Exception {
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			jobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build());
@@ -633,7 +681,7 @@ public class JobMasterTest extends TestLogger {
 	public void testRequestPartitionState() throws Exception {
 		final JobGraph producerConsumerJobGraph = producerConsumerJobGraph();
 		final JobMaster jobMaster = createJobMaster(
-			JobMasterConfiguration.fromConfiguration(configuration),
+			configuration,
 			producerConsumerJobGraph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
@@ -746,12 +794,12 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-			JobMasterConfiguration jobMasterConfiguration,
+			Configuration configuration,
 			JobGraph jobGraph,
 			HighAvailabilityServices highAvailabilityServices,
 			JobManagerSharedServices jobManagerSharedServices) throws Exception {
 		return createJobMaster(
-			jobMasterConfiguration,
+			configuration,
 			jobGraph,
 			highAvailabilityServices,
 			jobManagerSharedServices,
@@ -760,17 +808,21 @@ public class JobMasterTest extends TestLogger {
 
 	@Nonnull
 	private JobMaster createJobMaster(
-		JobMasterConfiguration jobMasterConfiguration,
-		JobGraph jobGraph,
-		HighAvailabilityServices highAvailabilityServices,
-		JobManagerSharedServices jobManagerSharedServices,
-		HeartbeatServices heartbeatServices) throws Exception {
+			Configuration configuration,
+			JobGraph jobGraph,
+			HighAvailabilityServices highAvailabilityServices,
+			JobManagerSharedServices jobManagerSharedServices,
+			HeartbeatServices heartbeatServices) throws Exception {
+
+		final JobMasterConfiguration jobMasterConfiguration = JobMasterConfiguration.fromConfiguration(configuration);
+
 		return new JobMaster(
 			rpcService,
 			jobMasterConfiguration,
 			jmResourceId,
 			jobGraph,
 			highAvailabilityServices,
+			DefaultSlotPoolFactory.fromConfiguration(configuration, rpcService),
 			jobManagerSharedServices,
 			heartbeatServices,
 			blobServer,

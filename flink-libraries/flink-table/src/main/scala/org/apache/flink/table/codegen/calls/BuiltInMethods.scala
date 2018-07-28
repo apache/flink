@@ -33,6 +33,8 @@ object BuiltInMethods {
 
   val LOG10 = Types.lookupMethod(classOf[Math], "log10", classOf[Double])
 
+  val LOG2 = Types.lookupMethod(classOf[ScalarFunctions], "log2", classOf[Double])
+
   val EXP = Types.lookupMethod(classOf[Math], "exp", classOf[Double])
 
   val POWER = Types.lookupMethod(classOf[Math], "pow", classOf[Double], classOf[Double])
@@ -115,4 +117,6 @@ object BuiltInMethods {
 
   val HEX_STRING =
     Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
+
+  val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 }

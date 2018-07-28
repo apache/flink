@@ -138,7 +138,9 @@ class InMemoryExternalCatalogTest {
     val schemaDesc = new Schema()
       .field("first", BasicTypeInfo.STRING_TYPE_INFO)
       .field("second", BasicTypeInfo.INT_TYPE_INFO)
-    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
   }
 
   private def createTableInstance(
@@ -149,7 +151,9 @@ class InMemoryExternalCatalogTest {
     fieldNames.zipWithIndex.foreach { case (fieldName, index) =>
       schemaDesc.field(fieldName, fieldTypes(index))
     }
-    new ExternalCatalogTable(connDesc, None, Some(schemaDesc), None, None)
+    ExternalCatalogTable.builder(connDesc)
+      .withSchema(schemaDesc)
+      .asTableSource()
   }
 
   class TestConnectorDesc extends ConnectorDescriptor("test", version = 1, formatNeeded = false) {

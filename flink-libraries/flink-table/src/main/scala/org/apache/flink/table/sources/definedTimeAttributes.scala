@@ -20,6 +20,7 @@ package org.apache.flink.table.sources
 
 import java.util
 import java.util.Objects
+import javax.annotation.Nullable
 
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.api.Types
@@ -38,6 +39,7 @@ trait DefinedProctimeAttribute {
     * The referenced attribute must be present in the [[TableSchema]] of the [[TableSource]] and of
     * type [[Types.SQL_TIMESTAMP]].
     */
+  @Nullable
   def getProctimeAttribute: String
 }
 

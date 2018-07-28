@@ -175,7 +175,7 @@ Starts Flink scala shell connecting to a yarn cluster
   -n arg | --container arg
         Number of YARN container to allocate (= Number of TaskManagers)
   -jm arg | --jobManagerMemory arg
-        Memory for JobManager container [in MB]
+        Memory for JobManager container with optional unit (default: MB)
   -nm <value> | --name <value>
         Set a custom name for the application on YARN
   -qu <arg> | --queue <arg>
@@ -183,7 +183,7 @@ Starts Flink scala shell connecting to a yarn cluster
   -s <arg> | --slots <arg>
         Number of slots per TaskManager
   -tm <arg> | --taskManagerMemory <arg>
-        Memory per TaskManager container [in MB]
+        Memory per TaskManager container with optional unit (default: MB)
   -a <path/to/jar> | --addclasspath <path/to/jar>
         Specifies additional jars to be used in Flink
   --configDir <value>

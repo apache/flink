@@ -56,6 +56,7 @@ class GroupingSetsTest extends TableTestBase {
         ),
         term("select", "null AS b", "c", "a", "2 AS g")
       ),
+      term("all", "true"),
       term("union", "b", "c", "a", "g")
     )
 
@@ -130,12 +131,15 @@ class GroupingSetsTest extends TableTestBase {
           "DataSetUnion",
           group1,
           group2,
+          term("all", "true"),
           term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
         ),
         group3,
+        term("all", "true"),
         term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
       ),
       group4,
+      term("all", "true"),
       term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
     )
 
@@ -195,9 +199,11 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetUnion",
         group1,
         group2,
+        term("all", "true"),
         term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
       ),
       group3,
+      term("all", "true"),
       term("union", "b", "c", "a", "g", "gb", "gc", "gib", "gic", "gid")
     )
 

@@ -32,9 +32,11 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -185,22 +187,24 @@ public class KvStateRequestSerializerTest {
 	@Test
 	public void testListSerialization() throws Exception {
 		final long key = 0L;
-
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
 		// objects for heap state list serialisation
 		final HeapKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new HeapKeyedStateBackend<>(
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1,
-				new KeyGroupRange(0, 0),
+				keyGroupRange.getNumberOfKeyGroups(),
+				keyGroupRange,
 				async,
 				new ExecutionConfig(),
-				TestLocalRecoveryConfig.disabled()
+				TestLocalRecoveryConfig.disabled(),
+				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
+				TtlTimeProvider.DEFAULT
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createState(
+		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(
 			VoidNamespaceSerializer.INSTANCE,
 			new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
@@ -292,18 +296,20 @@ public class KvStateRequestSerializerTest {
 	@Test
 	public void testMapSerialization() throws Exception {
 		final long key = 0L;
-
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
 		// objects for heap state list serialisation
 		final HeapKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new HeapKeyedStateBackend<>(
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1,
-				new KeyGroupRange(0, 0),
+				keyGroupRange.getNumberOfKeyGroups(),
+				keyGroupRange,
 				async,
 				new ExecutionConfig(),
-				TestLocalRecoveryConfig.disabled()
+				TestLocalRecoveryConfig.disabled(),
+				new HeapPriorityQueueSetFactory(keyGroupRange, keyGroupRange.getNumberOfKeyGroups(), 128),
+				TtlTimeProvider.DEFAULT
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

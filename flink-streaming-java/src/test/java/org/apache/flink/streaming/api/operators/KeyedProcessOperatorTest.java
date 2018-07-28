@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
@@ -43,6 +44,7 @@ import org.junit.rules.ExpectedException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests {@link KeyedProcessOperator}.
@@ -51,6 +53,48 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
+
+	@Test
+	public void testKeyQuerying() throws Exception {
+
+		class KeyQueryingProcessFunction extends KeyedProcessFunction<Integer, Tuple2<Integer, String>, String> {
+
+			@Override
+			public void processElement(
+				Tuple2<Integer, String> value,
+				Context ctx,
+				Collector<String> out) throws Exception {
+
+				assertTrue("Did not get expected key.", ctx.getCurrentKey().equals(value.f0));
+
+				// we check that we receive this output, to ensure that the assert was actually checked
+				out.collect(value.f1);
+			}
+		}
+
+		KeyedProcessOperator<Integer, Tuple2<Integer, String>, String> operator =
+			new KeyedProcessOperator<>(new KeyQueryingProcessFunction());
+
+		try (
+			OneInputStreamOperatorTestHarness<Tuple2<Integer, String>, String> testHarness =
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, (in) -> in.f0 , BasicTypeInfo.INT_TYPE_INFO)) {
+
+			testHarness.setup();
+			testHarness.open();
+
+			testHarness.processElement(new StreamRecord<>(Tuple2.of(5, "5"), 12L));
+			testHarness.processElement(new StreamRecord<>(Tuple2.of(42, "42"), 13L));
+
+			ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+			expectedOutput.add(new StreamRecord<>("5", 12L));
+			expectedOutput.add(new StreamRecord<>("42", 13L));
+
+			TestHarnessUtil.assertOutputEquals(
+				"Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
+		}
+	}
 
 	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {

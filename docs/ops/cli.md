@@ -272,8 +272,8 @@ Action "run" compiles and runs a program.
      -yh,--yarnhelp                       Help for the Yarn session CLI.
      -yid,--yarnapplicationId <arg>       Attach to running YARN session
      -yj,--yarnjar <arg>                  Path to Flink jar file
-     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container [in
-                                          MB]
+     -yjm,--yarnjobManagerMemory <arg>    Memory for JobManager Container
+                                          with optional unit (default: MB)
      -yn,--yarncontainer <arg>            Number of YARN container to allocate
                                           (=Number of Task Managers)
      -ynm,--yarnname <arg>                Set a custom name for the application
@@ -285,8 +285,8 @@ Action "run" compiles and runs a program.
      -yst,--yarnstreaming                 Start Flink in streaming mode
      -yt,--yarnship <arg>                 Ship files in the specified directory
                                           (t for transfer)
-     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container [in
-                                          MB]
+     -ytm,--yarntaskManagerMemory <arg>   Memory per TaskManager Container
+                                          with optional unit (default: MB)
      -yz,--yarnzookeeperNamespace <arg>   Namespace to create the Zookeeper
                                           sub-paths for high availability mode
      -ynl,--yarnnodeLabel <arg>           Specify YARN node label for 

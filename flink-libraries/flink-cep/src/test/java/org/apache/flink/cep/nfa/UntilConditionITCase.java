@@ -100,8 +100,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -151,8 +151,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent3, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -200,8 +200,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, middleEvent2, breaking),
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -250,8 +250,8 @@ public class UntilConditionITCase {
 		compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
 			Lists.newArrayList(startEvent, middleEvent1, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -300,8 +300,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -352,8 +352,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -402,8 +402,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1, breaking),
 			Lists.newArrayList(startEvent, breaking)
 		));
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -534,8 +534,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1)
 		));
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -588,8 +588,8 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent, middleEvent1)
 		));
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 
 	@Test
@@ -643,7 +643,7 @@ public class UntilConditionITCase {
 			Lists.newArrayList(startEvent)
 		));
 
-		assertEquals(1, nfaState.getComputationStates().size());
-		assertEquals("start", nfaState.getComputationStates().peek().getCurrentStateName());
+		assertEquals(1, nfaState.getPartialMatches().size());
+		assertEquals("start", nfaState.getPartialMatches().peek().getCurrentStateName());
 	}
 }

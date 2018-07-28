@@ -46,7 +46,7 @@ ARTIFACT_VERSION=0.1
 mvn archetype:generate                                   \
     -DarchetypeGroupId=org.apache.flink                  \
     -DarchetypeArtifactId=flink-quickstart-${TEST_TYPE}  \
-    -DarchetypeVersion=1.6-SNAPSHOT                      \
+    -DarchetypeVersion=1.7-SNAPSHOT                      \
     -DgroupId=org.apache.flink.quickstart                \
     -DartifactId=${ARTIFACT_ID}                          \
     -Dversion=${ARTIFACT_VERSION}                        \
