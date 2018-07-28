@@ -321,11 +321,11 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 			}
 
 			if (taskManagerSystem != null) {
-				taskManagerSystem.shutdown();
+				taskManagerSystem.terminate();
 			}
 
 			if (testSystem != null) {
-				testSystem.shutdown();
+				testSystem.terminate();
 			}
 
 			highAvailabilityServices.closeAndCleanupAllData();

@@ -125,7 +125,7 @@ public class MemoryLogger extends Thread {
 	@Override
 	public void run() {
 		try {
-			while (running && (monitored == null || !monitored.isTerminated())) {
+			while (running && (monitored == null || !monitored.whenTerminated().isCompleted())) {
 				logger.info(getMemoryUsageStatsAsString(memoryBean));
 				logger.info(getDirectMemoryStatsAsString(directBufferBean));
 				logger.info(getMemoryPoolStatsAsString(poolBeans));

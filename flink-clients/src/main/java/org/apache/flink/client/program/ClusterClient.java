@@ -90,6 +90,7 @@ import java.util.concurrent.TimeUnit;
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -249,8 +250,8 @@ public abstract class ClusterClient<T> {
 		@Override
 		public void close() throws Exception {
 			if (isLoaded()) {
-				actorSystem.shutdown();
-				actorSystem.awaitTermination();
+				actorSystem.terminate();
+				Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 				actorSystem = null;
 			}
 		}
