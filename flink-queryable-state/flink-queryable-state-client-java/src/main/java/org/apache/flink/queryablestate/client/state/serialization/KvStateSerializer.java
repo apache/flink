@@ -279,9 +279,9 @@ public final class KvStateSerializer {
 	 */
 	public static byte[] serializedStateDescriptor(StateDescriptor<?, ?> stateDescriptor) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		ObjectOutputStream out = new ObjectOutputStream(bos);
-		out.writeObject(stateDescriptor);
-		out.close();
+		try (ObjectOutputStream out = new ObjectOutputStream(bos)) {
+			out.writeObject(stateDescriptor);
+		}
 
 		byte[] buf = bos.toByteArray();
 		return buf;

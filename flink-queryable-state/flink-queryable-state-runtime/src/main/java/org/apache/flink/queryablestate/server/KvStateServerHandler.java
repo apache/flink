@@ -87,9 +87,9 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 				StateDescriptor<?, ?> registStateDescriptor = kvState.getStateDescriptor();
 
 				Preconditions.checkArgument(requestStateDescriptor.getType().equals(registStateDescriptor.getType()),
-					"State type mismatch, need[" + registStateDescriptor.getType() + "] gotten[" + requestStateDescriptor.getType() + "]");
+					"State type mismatch, need[%s] gotten[%s]", registStateDescriptor.getType(), requestStateDescriptor.getType());
 				Preconditions.checkArgument(requestStateDescriptor.getSerializer().equals(registStateDescriptor.getSerializer()),
-					"State value serializer mismatch, need [" + registStateDescriptor.getSerializer() + "] gotten[" + requestStateDescriptor.getSerializer() + "]");
+					"State value serializer mismatch, need [%s] gotten[%s]" , registStateDescriptor.getSerializer(), requestStateDescriptor.getSerializer());
 
 				byte[] serializedResult = getSerializedValue(kvState, serializedKeyAndNamespace);
 				if (serializedResult != null) {

@@ -88,8 +88,8 @@ public class KvStateRequest extends MessageBody {
 				JobID.SIZE +
 				serializedStateName.length + Integer.BYTES +
 				Integer.BYTES +
-				serializedKeyAndNamespace.length + Integer.BYTES
-				+ serializedStateDescriptor.length + Integer.BYTES;
+				serializedKeyAndNamespace.length + Integer.BYTES +
+				serializedStateDescriptor.length + Integer.BYTES;
 
 		return ByteBuffer.allocate(size)
 				.putLong(jobId.getLowerPart())

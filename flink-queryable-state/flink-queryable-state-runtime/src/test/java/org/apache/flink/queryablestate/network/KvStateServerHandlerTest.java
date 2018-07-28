@@ -267,9 +267,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		assertTrue(registryListener.registrationName.equals("vanilla"));
 
-		KvStateInternalRequest request = new KvStateInternalRequest(registryListener.kvStateId,
-																	serializedKeyAndNamespace,
-																	serializedStateDescriptor);
+		KvStateInternalRequest request = new KvStateInternalRequest(registryListener.kvStateId, serializedKeyAndNamespace, serializedStateDescriptor);
 		ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), requestId, request);
 
 		// Write the request and wait for the response
@@ -742,9 +740,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		assertTrue(registryListener.registrationName.equals("vanilla"));
 
-		KvStateInternalRequest request = new KvStateInternalRequest(registryListener.kvStateId,
-																	serializedKeyAndNamespace,
-																	serializedStateDescriptor);
+		KvStateInternalRequest request = new KvStateInternalRequest(registryListener.kvStateId, serializedKeyAndNamespace, serializedStateDescriptor);
 		ByteBuf serRequest = MessageSerializer.serializeRequest(channel.alloc(), requestId, request);
 
 		// Write the request and wait for the response
