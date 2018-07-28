@@ -65,8 +65,6 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 		Preconditions.checkNotNull(heartbeatServices);
 		Preconditions.checkNotNull(metricRegistry);
 
-		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
-
 		final ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 
 		resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
@@ -78,7 +76,6 @@ public class ResourceManagerRunner implements FatalErrorHandler, AutoCloseableAs
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			resourceManagerRuntimeServices.getSlotManager(),

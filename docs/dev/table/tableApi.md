@@ -2070,6 +2070,17 @@ NUMERIC.log10()
     <tr>
       <td>
         {% highlight java %}
+NUMERIC.log2()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 2 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 numeric1.log()
 numeric1.log(numeric2)
 {% endhighlight %}
@@ -2461,6 +2472,17 @@ STRING.rpad(len INT, pad STRING)
 
       <td>
         <p>Returns a string right-padded with the given pad string to a length of len characters. If the string is longer than len, the return value is shortened to len characters. E.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h".</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.fromBase64()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns the base string decoded with base64, if string is null, returns null. E.g. "aGVsbG8gd29ybGQ=".fromBase64() returns "hello world".</p>
       </td>
     </tr>
 

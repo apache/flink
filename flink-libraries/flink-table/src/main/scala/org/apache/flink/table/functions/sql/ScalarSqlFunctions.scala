@@ -67,6 +67,15 @@ object ScalarSqlFunctions {
       OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
     SqlFunctionCategory.NUMERIC)
 
+  val LOG2 = new SqlFunction(
+    "LOG2",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.DOUBLE_NULLABLE,
+    null,
+    OperandTypes.NUMERIC,
+    SqlFunctionCategory.NUMERIC
+  )
+
   val LPAD = new SqlFunction(
     "LPAD",
     SqlKind.OTHER_FUNCTION,
@@ -166,4 +175,15 @@ object ScalarSqlFunctions {
     OperandTypes.sequence("'(TIMESTAMP, FORMAT)'", OperandTypes.DATETIME, OperandTypes.STRING),
     SqlFunctionCategory.TIMEDATE
   )
+
+  val FROM_BASE64 = new SqlFunction(
+    "FROM_BASE64",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING),
+    SqlFunctionCategory.STRING
+  )
+
 }

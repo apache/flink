@@ -96,6 +96,13 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 		final JobSubmitRequestBody requestBody = request.getRequestBody();
 
+		if (requestBody.jobGraphFileName == null) {
+			throw new RestHandlerException(
+				String.format("The %s field must not be omitted or be null.",
+					JobSubmitRequestBody.FIELD_NAME_JOB_GRAPH),
+				HttpResponseStatus.BAD_REQUEST);
+		}
+
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
 		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);

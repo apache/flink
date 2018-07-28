@@ -55,6 +55,7 @@ class SetOperatorsTest extends TableTestBase {
               term("select", "a", "b", "c"),
               term("where", ">(a, 0)")
             ),
+            term("all", "true"),
             term("union all", "a", "b", "c")
           ),
           term("groupBy", "b"),
@@ -88,6 +89,7 @@ class SetOperatorsTest extends TableTestBase {
         streamTableNode(1),
         term("select", "b", "c")
       ),
+      term("all", "true"),
       term("union all", "b", "c")
     )
 

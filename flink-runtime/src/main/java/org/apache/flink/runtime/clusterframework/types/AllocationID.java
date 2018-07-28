@@ -52,4 +52,9 @@ public class AllocationID extends AbstractID {
 	public AllocationID(long lowerPart, long upperPart) {
 		super(lowerPart, upperPart);
 	}
+
+	@Override
+	public String toString() {
+		return "AllocationID{" + super.toString() + '}';
+	}
 }

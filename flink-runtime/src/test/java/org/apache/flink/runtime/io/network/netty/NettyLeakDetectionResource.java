@@ -21,7 +21,9 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetector;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetectorFactory;
 
+import org.junit.Assert;
 import org.junit.rules.ExternalResource;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -47,6 +49,12 @@ public class NettyLeakDetectionResource extends ExternalResource {
 
 	private static final Object refCountLock = new Object();
 	private static int refCount = 0;
+
+	public NettyLeakDetectionResource() {
+		Assert.assertTrue(
+			"Error logging must be enabled for the ResourceLeakDetector.",
+			LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
+	}
 
 	@Override
 	protected void before() {

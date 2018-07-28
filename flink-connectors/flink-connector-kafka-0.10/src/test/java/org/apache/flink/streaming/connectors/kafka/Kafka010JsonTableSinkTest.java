@@ -27,7 +27,11 @@ import java.util.Properties;
 
 /**
  * Tests for the {@link Kafka010JsonTableSink}.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sinks.
  */
+@Deprecated
 public class Kafka010JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override

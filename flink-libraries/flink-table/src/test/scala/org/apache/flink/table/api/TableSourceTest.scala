@@ -60,6 +60,7 @@ class TableSourceTest extends TableTestBase {
         "table2",
         Array("name", "id", "amount", "price"),
         "'amount > 2"),
+      term("all", "true"),
       term("union", "name, id, amount, price")
     )
     util.verifyTable(result, expected)

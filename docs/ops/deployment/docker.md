@@ -24,43 +24,32 @@ under the License.
 -->
 
 [Docker](https://www.docker.com) is a popular container runtime. There are
-official Docker images for Apache Flink available on Docker Hub which can be
-used directly or extended to better integrate into a production environment.
+Docker images for Apache Flink available on Docker Hub which can be used
+directly or extended to better integrate into a production environment.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Official Docker Images
+## Docker Images
 
-The [official Docker repository](https://hub.docker.com/_/flink/) is
-hosted on Docker Hub and serves images of Flink version 1.2.1 and later.
+The [Flink Docker repository](https://hub.docker.com/_/flink/) is hosted on
+Docker Hub and serves images of Flink version 1.2.1 and later.
 
 Images for each supported combination of Hadoop and Scala are available, and
 tag aliases are provided for convenience.
 
-For example, the following aliases can be used: *(`1.2.y` indicates the latest
-release of Flink 1.2)*
+Beginning with Flink 1.5, image tags that omit a Hadoop version (e.g.
+`-hadoop28`) correspond to Hadoop-free releases of Flink that do not include a
+bundled Hadoop distribution.
 
-* `flink:latest` →
-`flink:<latest-flink>-hadoop<latest-hadoop>-scala_<latest-scala>`
-* `flink:1.2` → `flink:1.2.y-hadoop27-scala_2.11`
-* `flink:1.2.1-scala_2.10` → `flink:1.2.1-hadoop27-scala_2.10`
-* `flink:1.2-hadoop26` → `flink:1.2.y-hadoop26-scala_2.11`
+For example, the following aliases can be used: *(`1.5.y` indicates the latest
+release of Flink 1.5)*
 
-<!-- NOTE: uncomment when docker-flink/docker-flink/issues/14 is resolved. -->
-<!--
-Additionally, images based on Alpine Linux are available. Reference them by
-appending `-alpine` to the tag. For the Alpine version of `flink:latest`, use
-`flink:alpine`.
+* `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
+* `flink:1.5` → `flink:1.5.y-scala_2.11`
+* `flink:1.5-hadoop27` → `flink:1.5.y-hadoop27-scala_2.11`
 
-For example:
-
-* `flink:alpine`
-* `flink:1.2.1-alpine`
-* `flink:1.2-scala_2.10-alpine`
--->
-
-**Note:** The docker images are provided as a community project by individuals
+**Note:** The Docker images are provided as a community project by individuals
 on a best-effort basis. They are not official releases by the Apache Flink PMC.
 
 ## Flink with Docker Compose

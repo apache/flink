@@ -264,7 +264,6 @@ public class JobMasterTest extends TestLogger {
 		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway(
 			resourceManagerId,
 			rmResourceId,
-			fastHeartbeatInterval,
 			resourceManagerAddress,
 			"localhost");
 

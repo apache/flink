@@ -56,7 +56,7 @@
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
    :slotmanager.taskmanager-timeout    10000
-   :state.backend.local-recovery       "true"
+   :state.backend.local-recovery       "false"
    :taskmanager.registration.timeout   "30 s"})
 
 (defn master-nodes
@@ -88,6 +88,7 @@
 (defn teardown-flink!
   []
   (info "Tearing down Flink")
+  (cu/grepkill! "flink")
   (meh (c/exec :rm :-rf install-dir))
   (meh (c/exec :rm :-rf (c/lit "/tmp/.yarn-properties*"))))
 

@@ -118,7 +118,7 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException("The job did not reach status " + status + " in time. Current status is " + eg.getState() + '.');
 		}
 	}
 

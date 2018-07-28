@@ -83,7 +83,7 @@ public class TestTableSourceFactory implements StreamTableSourceFactory<Row> {
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(params);
 		final List<RowtimeAttributeDescriptor> rowtime = SchemaValidator.deriveRowtimeAttributes(params);
 		return new TestTableSource(
-			SchemaValidator.deriveTableSourceSchema(params),
+			params.getTableSchema(SCHEMA()),
 			properties.get(CONNECTOR_TEST_PROPERTY),
 			proctime.orElse(null),
 			rowtime);

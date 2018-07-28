@@ -170,4 +170,37 @@ class SetOperatorsTest extends TableTestBase {
 
     streamUtil.verifySql(sqlQuery, expected)
   }
+
+  @Test
+  def testValuesWithCast(): Unit = {
+    val util = batchTestUtil()
+
+    val expected = naryNode(
+      "DataSetUnion",
+      List(
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
+        unaryNode("DataSetCalc",
+          values("DataSetValues",
+            tuples(List("0")),
+            "values=[ZERO]"),
+          term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
+      ),
+      term("all", "true"),
+      term("union", "EXPR$0, EXPR$1")
+    )
+
+    util.verifySql(
+      "VALUES (1, cast(1 as BIGINT) ),(2, cast(2 as BIGINT)),(3, cast(3 as BIGINT))",
+      expected
+    )
+  }
 }

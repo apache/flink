@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -32,22 +34,29 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Factory for creating configured instances of {@link Kafka011TableSource}.
+ * Test for {@link Kafka011TableSource} and {@link Kafka011TableSink} created
+ * by {@link Kafka011TableSourceSinkFactory}.
  */
-public class Kafka011TableSourceFactory extends KafkaTableSourceFactory {
+public class Kafka011TableSourceSinkFactoryTest extends KafkaTableSourceSinkFactoryTestBase {
 
 	@Override
-	protected String kafkaVersion() {
+	protected String getKafkaVersion() {
 		return KafkaValidator.CONNECTOR_VERSION_VALUE_011;
 	}
 
 	@Override
-	protected boolean supportsKafkaTimestamps() {
-		return true;
+	@SuppressWarnings("unchecked")
+	protected Class<FlinkKafkaConsumerBase<Row>> getExpectedFlinkKafkaConsumer() {
+		return (Class) FlinkKafkaConsumer011.class;
 	}
 
 	@Override
-	protected KafkaTableSource createKafkaTableSource(
+	protected Class<?> getExpectedFlinkKafkaProducer() {
+		return FlinkKafkaProducer011.class;
+	}
+
+	@Override
+	protected KafkaTableSource getExpectedKafkaTableSource(
 			TableSchema schema,
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
@@ -67,6 +76,24 @@ public class Kafka011TableSourceFactory extends KafkaTableSourceFactory {
 			properties,
 			deserializationSchema,
 			startupMode,
-			specificStartupOffsets);
+			specificStartupOffsets
+		);
+	}
+
+	@Override
+	protected KafkaTableSink getExpectedKafkaTableSink(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			FlinkKafkaPartitioner<Row> partitioner,
+			SerializationSchema<Row> serializationSchema) {
+
+		return new Kafka011TableSink(
+			schema,
+			topic,
+			properties,
+			partitioner,
+			serializationSchema
+		);
 	}
 }

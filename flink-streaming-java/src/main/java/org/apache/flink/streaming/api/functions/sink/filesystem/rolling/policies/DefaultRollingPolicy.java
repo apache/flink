@@ -37,7 +37,7 @@ import java.io.IOException;
  * </ol>
  */
 @PublicEvolving
-public final class DefaultRollingPolicy<BucketID> implements RollingPolicy<BucketID> {
+public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<IN, BucketID> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -67,32 +67,19 @@ public final class DefaultRollingPolicy<BucketID> implements RollingPolicy<Bucke
 	}
 
 	@Override
-	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) {
-		return false;
+	public boolean shouldRollOnCheckpoint(PartFileInfo<BucketID> partFileState) throws IOException {
+		return partFileState.getSize() > partSize;
 	}
 
 	@Override
-	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState) throws IOException {
-		if (partFileState == null) {
-			// this means that there is no currently open part file.
-			return true;
-		}
-
+	public boolean shouldRollOnEvent(PartFileInfo<BucketID> partFileState, IN element) throws IOException {
 		return partFileState.getSize() > partSize;
 	}
 
 	@Override
 	public boolean shouldRollOnProcessingTime(final PartFileInfo<BucketID> partFileState, final long currentTime) {
-		if (partFileState == null) {
-			// this means that there is no currently open part file.
-			return true;
-		}
-
-		if (currentTime - partFileState.getCreationTime() > rolloverInterval) {
-			return true;
-		}
-
-		return currentTime - partFileState.getLastUpdateTime() > inactivityInterval;
+		return currentTime - partFileState.getCreationTime() > rolloverInterval ||
+				currentTime - partFileState.getLastUpdateTime() > inactivityInterval;
 	}
 
 	/**
@@ -150,7 +137,7 @@ public final class DefaultRollingPolicy<BucketID> implements RollingPolicy<Bucke
 		/**
 		 * Creates the actual policy.
 		 */
-		public <BucketID> DefaultRollingPolicy<BucketID> build() {
+		public <IN, BucketID> DefaultRollingPolicy<IN, BucketID> build() {
 			return new DefaultRollingPolicy<>(partSize, rolloverInterval, inactivityInterval);
 		}
 	}

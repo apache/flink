@@ -1411,6 +1411,17 @@ LOG10(numeric)
 
     <tr>
       <td>
+        {% highlight text %}
+LOG2(numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the base 2 logarithm of <i>numeric</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
        {% highlight text %}
 LOG(x numeric)
 LOG(b numeric, x numeric)
@@ -1828,6 +1839,16 @@ RPAD(text string, len integer, pad string)
         <p>Returns the string text right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code>, <code>RPAD('hi',1,'??')</code> returns <code>h</code>.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        {% highlight text %}
+FROM_BASE64(text string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the base string decoded with base64, if text is NULL, returns NULL. E.g. <code>FROM_BASE64('aGVsbG8gd29ybGQ=')</code> returns <code>hello world</code>.</p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
@@ -2222,7 +2243,7 @@ COUNT(value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the number of input rows for which <i>value</i> is not null.</p>
+        <p>Returns the number of input rows for which <i>value</i> is not null. Use <code>COUNT(DISTINCT value)</code> for the number of unique values in the column or expression.</p>
       </td>
     </tr>
 
@@ -2255,7 +2276,7 @@ SUM(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the sum of <i>numeric</i> across all input values.</p>
+        <p>Returns the sum of <i>numeric</i> across all input values. Use <code>SUM(DISTINCT value)</code> for the sum of unique values in the column or expression.</p>
       </td>
     </tr>
 
@@ -2657,7 +2678,6 @@ The following functions are not supported yet:
 
 - Binary string operators and functions
 - System functions
-- Distinct aggregate functions like COUNT DISTINCT
 
 {% top %}
 

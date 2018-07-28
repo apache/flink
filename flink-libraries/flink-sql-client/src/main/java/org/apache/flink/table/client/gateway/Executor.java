@@ -83,7 +83,8 @@ public interface Executor {
 	List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException;
 
 	/**
-	 * Cancels a table program and stops the result retrieval.
+	 * Cancels a table program and stops the result retrieval. Blocking until cancellation command has
+	 * been sent to cluster.
 	 */
 	void cancelQuery(SessionContext session, String resultId) throws SqlExecutionException;
 

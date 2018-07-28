@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -29,27 +30,30 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
+/**
+ * Tests for {@link BootstrapToolsTest}.
+ */
 public class BootstrapToolsTest {
 
 	@Test
 	public void testSubstituteConfigKey() {
-		String deprecatedKey1 ="deprecated-key";
-		String deprecatedKey2 ="another-out_of-date_key";
-		String deprecatedKey3 ="yet-one-more";
+		String deprecatedKey1 = "deprecated-key";
+		String deprecatedKey2 = "another-out_of-date_key";
+		String deprecatedKey3 = "yet-one-more";
 
-		String designatedKey1 ="newkey1";
-		String designatedKey2 ="newKey2";
-		String designatedKey3 ="newKey3";
+		String designatedKey1 = "newkey1";
+		String designatedKey2 = "newKey2";
+		String designatedKey3 = "newKey3";
 
 		String value1 = "value1";
-		String value2_designated = "designated-value2";
-		String value2_deprecated = "deprecated-value2";
+		String value2Designated = "designated-value2";
+		String value2Deprecated = "deprecated-value2";
 
 		// config contains only deprecated key 1, and for key 2 both deprecated and designated
 		Configuration cfg = new Configuration();
 		cfg.setString(deprecatedKey1, value1);
-		cfg.setString(deprecatedKey2, value2_deprecated);
-		cfg.setString(designatedKey2, value2_designated);
+		cfg.setString(deprecatedKey2, value2Deprecated);
+		cfg.setString(designatedKey2, value2Designated);
 
 		BootstrapTools.substituteDeprecatedConfigKey(cfg, deprecatedKey1, designatedKey1);
 		BootstrapTools.substituteDeprecatedConfigKey(cfg, deprecatedKey2, designatedKey2);
@@ -59,7 +63,7 @@ public class BootstrapToolsTest {
 		assertEquals(value1, cfg.getString(designatedKey1, null));
 
 		// value 2 should not have been set, since it had a value already
-		assertEquals(value2_designated, cfg.getString(designatedKey2, null));
+		assertEquals(value2Designated, cfg.getString(designatedKey2, null));
 
 		// nothing should be in there for key 3
 		assertNull(cfg.getString(designatedKey3, null));
@@ -68,13 +72,13 @@ public class BootstrapToolsTest {
 
 	@Test
 	public void testSubstituteConfigKeyPrefix() {
-		String deprecatedPrefix1 ="deprecated-prefix";
-		String deprecatedPrefix2 ="-prefix-2";
-		String deprecatedPrefix3 ="prefix-3";
+		String deprecatedPrefix1 = "deprecated-prefix";
+		String deprecatedPrefix2 = "-prefix-2";
+		String deprecatedPrefix3 = "prefix-3";
 
-		String designatedPrefix1 ="p1";
-		String designatedPrefix2 ="ppp";
-		String designatedPrefix3 ="zzz";
+		String designatedPrefix1 = "p1";
+		String designatedPrefix2 = "ppp";
+		String designatedPrefix3 = "zzz";
 
 		String depr1 = deprecatedPrefix1 + "var";
 		String depr2 = deprecatedPrefix2 + "env";
@@ -86,15 +90,15 @@ public class BootstrapToolsTest {
 
 		String val1 = "1";
 		String val2 = "2";
-		String val3_depr = "3-";
-		String val3_desig = "3+";
+		String val3Depr = "3-";
+		String val3Desig = "3+";
 
 		// config contains only deprecated key 1, and for key 2 both deprecated and designated
 		Configuration cfg = new Configuration();
 		cfg.setString(depr1, val1);
 		cfg.setString(depr2, val2);
-		cfg.setString(depr3, val3_depr);
-		cfg.setString(desig3, val3_desig);
+		cfg.setString(depr3, val3Depr);
+		cfg.setString(desig3, val3Desig);
 
 		BootstrapTools.substituteDeprecatedConfigPrefix(cfg, deprecatedPrefix1, designatedPrefix1);
 		BootstrapTools.substituteDeprecatedConfigPrefix(cfg, deprecatedPrefix2, designatedPrefix2);
@@ -102,7 +106,7 @@ public class BootstrapToolsTest {
 
 		assertEquals(val1, cfg.getString(desig1, null));
 		assertEquals(val2, cfg.getString(desig2, null));
-		assertEquals(val3_desig, cfg.getString(desig3, null));
+		assertEquals(val3Desig, cfg.getString(desig3, null));
 
 		// check that nothing with prefix 3 is contained
 		for (String key : cfg.keySet()) {
@@ -278,7 +282,7 @@ public class BootstrapToolsTest {
 	}
 
 	@Test
-	public void testUpdateTmpDirectoriesInConfiguration(){
+	public void testUpdateTmpDirectoriesInConfiguration() {
 		Configuration config = new Configuration();
 
 		// test that default value is taken
@@ -295,4 +299,10 @@ public class BootstrapToolsTest {
 		assertEquals(config.getString(CoreOptions.TMP_DIRS), "");
 	}
 
+	@Test
+	public void testShouldNotUpdateTmpDirectoriesInConfigurationIfNoValueConfigured() {
+		Configuration config = new Configuration();
+		BootstrapTools.updateTmpDirectoriesInConfiguration(config, null);
+		assertEquals(config.getString(CoreOptions.TMP_DIRS), CoreOptions.TMP_DIRS.defaultValue());
+	}
 }

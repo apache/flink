@@ -24,21 +24,22 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Request body for a savepoint disposal call.
  */
 public class SavepointDisposalRequest implements RequestBody {
 
-	private static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
+	public static final String FIELD_NAME_SAVEPOINT_PATH = "savepoint-path";
 
 	@JsonProperty(FIELD_NAME_SAVEPOINT_PATH)
+	@Nullable
 	private final String savepointPath;
 
 	@JsonCreator
 	public SavepointDisposalRequest(
-		@JsonProperty(FIELD_NAME_SAVEPOINT_PATH) @Nonnull String savepointPath) {
+			@Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
 		this.savepointPath = savepointPath;
 	}
 

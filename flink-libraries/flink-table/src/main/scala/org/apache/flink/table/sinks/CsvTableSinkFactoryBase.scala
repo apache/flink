@@ -77,7 +77,7 @@ abstract class CsvTableSinkFactoryBase extends TableFactory {
 
     // build
     val formatSchema = params.getTableSchema(FORMAT_FIELDS)
-    val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
+    val tableSchema = params.getTableSchema(SCHEMA)
 
     if (!formatSchema.equals(tableSchema)) {
       throw new TableException(

@@ -450,6 +450,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1111111111111111111111111111111111111111111111111111111111111111")
   }
 
+  @Test
+  def testFromBase64(): Unit = {
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "from_base64(f35)",
+      "hello world")
+
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "FROM_BASE64(f35)",
+      "hello world")
+
+    //null test
+    testAllApis(
+      'f33.fromBase64(),
+      "f33.fromBase64()",
+      "FROM_BASE64(f33)",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -551,6 +573,33 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f6.log10()",
       "LOG10(f6)",
       math.log10(4.6).toString)
+  }
+
+  @Test
+  def testLog2(): Unit = {
+    testAllApis(
+      'f6.log2(),
+      "f6.log2",
+      "LOG2(f6)",
+     "2.2016338611696504")
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log2(),
+      "(f6 - f6 + 100).log2()",
+      "LOG2(f6 - f6 + 100)",
+      "6.643856189774725")
+
+    testAllApis(
+      ('f6 + 20).log2(),
+      "(f6+20).log2",
+      "LOG2(f6+20)",
+      "4.620586410451877")
+
+    testAllApis(
+      10.log2(),
+      "10.log2",
+      "LOG2(10)",
+      "3.3219280948873626")
   }
 
   @Test
