@@ -21,12 +21,15 @@ package org.apache.flink.table.plan.rules.common
 import java.util
 
 import org.apache.calcite.plan.RelOptRule
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+
+import scala.collection.JavaConversions._
 
 /**
   * Rule to convert complex aggregation functions into simpler ones.
@@ -57,17 +60,17 @@ class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctionsRule(
 
   override def newCalcRel(
       relBuilder: RelBuilder,
-      oldAgg: Aggregate,
+      rowType: RelDataType,
       exprs: util.List[RexNode]): Unit = {
-
+    val numExprs = exprs.size()
     // add all named properties of the window to the selection
-    val oldWindowAgg = oldAgg.asInstanceOf[LogicalWindowAggregate]
-    oldWindowAgg.getNamedProperties.foreach(np => exprs.add(relBuilder.field(np.name)))
-
+    rowType
+      .getFieldList
+      .subList(numExprs, rowType.getFieldCount).toList
+      .foreach(f => exprs.add(relBuilder.field(f.getName)))
     // create a LogicalCalc that computes the complex aggregates and forwards the window properties
-    relBuilder.project(exprs, oldAgg.getRowType.getFieldNames)
+    relBuilder.project(exprs, rowType.getFieldNames)
   }
-
 }
 
 object WindowAggregateReduceFunctionsRule {
