@@ -58,7 +58,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "InnerJoin")
         ),
@@ -189,7 +189,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -261,7 +261,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "RightOuterJoin")
         ),
@@ -333,7 +333,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "FullOuterJoin")
         ),
@@ -403,7 +403,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           // Since we filter on attributes of the left table after the join, the left outer join
           // will be automatically optimized to inner join.
