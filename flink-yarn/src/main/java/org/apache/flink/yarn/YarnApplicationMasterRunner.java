@@ -57,6 +57,8 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
+import akka.actor.Terminated;
+import akka.dispatch.OnComplete;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -71,9 +73,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import scala.Option;
 import scala.Some;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.yarn.Utils.require;
@@ -401,11 +406,14 @@ public class YarnApplicationMasterRunner {
 			}
 
 			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
+				actorSystem.terminate().onComplete(
+					new OnComplete<Terminated>() {
+						public void onComplete(Throwable failure, Terminated result) {
+							if (failure != null) {
+								LOG.error("Error shutting down actor system", failure);
+							}
+						}
+					}, org.apache.flink.runtime.concurrent.Executors.directExecutionContext());
 			}
 
 			futureExecutor.shutdownNow();
@@ -418,7 +426,11 @@ public class YarnApplicationMasterRunner {
 		LOG.info("YARN Application Master started");
 
 		// wait until everything is done
-		actorSystem.awaitTermination();
+		try {
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
+		} catch (InterruptedException | TimeoutException e) {
+			LOG.error("Error shutting down actor system", e);
+		}
 
 		// if we get here, everything work out jolly all right, and we even exited smoothly
 		if (webMonitor != null) {

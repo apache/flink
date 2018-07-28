@@ -1867,7 +1867,10 @@ class JobManager(
       FiniteDuration(10, SECONDS)).start()
 
     // Shutdown and discard all queued messages
-    context.system.shutdown()
+    context.system.terminate().onComplete {
+      case scala.util.Success(_) =>
+      case scala.util.Failure(t) => log.warn("Could not cleanly shut down actor system", t)
+    }(org.apache.flink.runtime.concurrent.Executors.directExecutionContext())
   }
 
   private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
@@ -2046,7 +2049,7 @@ object JobManager {
     }
 
     // block until everything is shut down
-    jobManagerSystem.awaitTermination()
+    Await.ready(jobManagerSystem.whenTerminated, Duration.Inf)
 
     webMonitorOption.foreach{
       webMonitor =>
@@ -2288,11 +2291,10 @@ object JobManager {
     catch {
       case t: Throwable =>
         LOG.error("Error while starting up JobManager", t)
-        try {
-          jobManagerSystem.shutdown()
-        } catch {
-          case tt: Throwable => LOG.warn("Could not cleanly shut down actor system", tt)
-        }
+        jobManagerSystem.terminate().onComplete {
+          case scala.util.Success(_) =>
+          case scala.util.Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
+        }(org.apache.flink.runtime.concurrent.Executors.directExecutionContext())
         throw t
     }
   }

@@ -43,11 +43,13 @@ import akka.pattern.Patterns;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -154,8 +156,12 @@ public class StandaloneMiniCluster implements AutoCloseableAsync {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		actorSystem.shutdown();
-		actorSystem.awaitTermination();
+		actorSystem.terminate();
+		try {
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
+		} catch (InterruptedException | TimeoutException e) {
+			exception = e;
+		}
 
 		try {
 			highAvailabilityServices.closeAndCleanupAllData();
