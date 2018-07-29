@@ -565,6 +565,13 @@ trait ImplicitExpressionOperations {
     Overlay(expr, newString, starting, length)
 
   /**
+    * Returns a string with all substrings that match the regular expression consecutively
+    * being replaced.
+    */
+  def regexpReplace(regex: Expression, replacement: Expression) =
+    RegexpReplace(expr, regex, replacement)
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64() = FromBase64(expr)

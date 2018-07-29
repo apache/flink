@@ -551,6 +551,70 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testRegexpReplace(): Unit = {
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", "abc"),
+      "'foobar'.regexpReplace('oo|ar', 'abc')",
+      "regexp_replace('foobar', 'oo|ar', 'abc')",
+      "fabcbabc")
+
+    testAllApis(
+      "foofar".regexpReplace("^f", ""),
+      "'foofar'.regexpReplace('^f', '')",
+      "regexp_replace('foofar', '^f', '')",
+      "oofar")
+
+    testAllApis(
+      "foobar".regexpReplace("^f*.*r$", ""),
+      "'foobar'.regexpReplace('^f*.*r$', '')",
+      "regexp_replace('foobar', '^f*.*r$', '')",
+      "")
+
+    testAllApis(
+      "foo1bar2".regexpReplace("\\d", ""),
+      "'foo1bar2'.regexpReplace('\\d', '')",
+      "regexp_replace('foobar', '\\d', '')",
+      "foobar")
+
+    testAllApis(
+      "foobar".regexpReplace("\\w", ""),
+      "'foobar'.regexpReplace('\\w', '')",
+      "regexp_replace('foobar', '\\w', '')",
+      "")
+
+    testAllApis(
+      "fooobar".regexpReplace("oo", "$"),
+      "'fooobar'.regexpReplace('oo', '$')",
+      "regexp_replace('fooobar', 'oo', '$')",
+      "f$obar")
+
+    testAllApis(
+      "foobar".regexpReplace("oo", "\\"),
+      "'foobar'.regexpReplace('oo', '\\')",
+      "regexp_replace('foobar', 'oo', '\\')",
+      "f\\bar")
+
+    testAllApis(
+      'f33.regexpReplace("oo|ar", ""),
+      "f33.regexpReplace('oo|ar', '')",
+      "REGEXP_REPLACE(f33, 'oo|ar', '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace('f33, ""),
+      "'foobar'.regexpReplace(f33, '')",
+      "REGEXP_REPLACE('foobar', f33, '')",
+      "null")
+
+    testAllApis(
+      "foobar".regexpReplace("oo|ar", 'f33),
+      "'foobar'.regexpReplace('oo|ar', f33)",
+      "REGEXP_REPLACE('foobar', 'oo|ar', f33)",
+      "null")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testAllApis(
       'f35.fromBase64(),

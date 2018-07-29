@@ -147,6 +147,12 @@ object FunctionGenerator {
     BuiltInMethod.OVERLAY.method)
 
   addSqlFunctionMethod(
+    REGEXP_REPLACE,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REGEXP_REPLACE)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,

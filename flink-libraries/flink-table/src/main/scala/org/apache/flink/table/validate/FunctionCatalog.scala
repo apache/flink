@@ -208,6 +208,7 @@ object FunctionCatalog {
     "ltrim" -> classOf[LTrim],
     "rtrim" -> classOf[RTrim],
     "repeat" -> classOf[Repeat],
+    "regexpReplace" -> classOf[RegexpReplace],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -461,6 +462,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.LTRIM,
     ScalarSqlFunctions.RTRIM,
     ScalarSqlFunctions.REPEAT,
+    ScalarSqlFunctions.REGEXP_REPLACE,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
