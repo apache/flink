@@ -187,6 +187,16 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.TIMEDATE
   )
 
+  val REGEXP_REPLACE = new SqlFunction(
+    "REGEXP_REPLACE",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(
+      ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING_STRING_STRING,
+    SqlFunctionCategory.STRING
+  )
+
   val FROM_BASE64 = new SqlFunction(
     "FROM_BASE64",
     SqlKind.OTHER_FUNCTION,
