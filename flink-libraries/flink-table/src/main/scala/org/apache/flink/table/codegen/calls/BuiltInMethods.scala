@@ -143,6 +143,19 @@ object BuiltInMethods {
     classOf[String],
     classOf[String])
 
+  val REGEXP_EXTRACT = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
+    classOf[String],
+    classOf[String],
+    classOf[Integer])
+
+  val REGEXP_EXTRACT_WITHOUT_INDEX = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "regexp_extract",
+    classOf[String],
+    classOf[String])
+
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 
   val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
