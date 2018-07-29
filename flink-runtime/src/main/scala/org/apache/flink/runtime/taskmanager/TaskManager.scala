@@ -1905,7 +1905,7 @@ object TaskManager {
         taskManagerSystem.terminate().onComplete {
           case Success(_) =>
           case Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
-        }(org.apache.flink.runtime.concurrent.Executors.directExecutionContext())
+        }(Executors.directExecutionContext())
         throw t
     }
 
