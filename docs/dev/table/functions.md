@@ -2499,6 +2499,19 @@ REPLACE(string1, string2, string3)
     <tr>
       <td>
         {% highlight text %}
+REGEXP_EXTRACT(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>string1</i> which extracted with a specified regular expression <i>string2</i> and a regex match group index <i>integer</i>.</p> 
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, The regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 INITCAP(string)
 {% endhighlight %}
       </td>
@@ -2751,6 +2764,19 @@ STRING1.replace(STRING2, STRING3)
     <tr>
       <td>
         {% highlight java %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, The regex match group index should not exceed the number of the defined groups.</p> 
+        <p>E.g. <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)"</code> returns "bar".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 STRING.initCap()
 {% endhighlight %}
       </td>
@@ -2996,6 +3022,19 @@ STRING1.replace(STRING2, STRING3)
       <td>
         <p>Returns a new string which replaces all the occurrences of <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
         <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING1.regexpExtract(STRING2[, INTEGER1])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, The regex match group index should not exceed the number of the defined groups.</p>
+        <p>E.g. <code>"foothebar".regexpExtract("foo(.*?)(bar)", 2)"</code> returns "bar".</p>
       </td>
     </tr>
 

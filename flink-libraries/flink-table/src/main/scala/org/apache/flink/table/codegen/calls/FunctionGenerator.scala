@@ -160,6 +160,18 @@ object FunctionGenerator {
     BuiltInMethod.REPLACE.method)
 
   addSqlFunctionMethod(
+    REGEXP_EXTRACT,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, INT_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REGEXP_EXTRACT)
+
+  addSqlFunctionMethod(
+    REGEXP_EXTRACT,
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REGEXP_EXTRACT_WITHOUT_INDEX)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,
