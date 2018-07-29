@@ -81,6 +81,7 @@ import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.runtime.concurrent.Executors.directExecutionContext;
 import static org.apache.flink.yarn.Utils.require;
 
 /**
@@ -413,7 +414,7 @@ public class YarnApplicationMasterRunner {
 								LOG.error("Error shutting down actor system", failure);
 							}
 						}
-					}, org.apache.flink.runtime.concurrent.Executors.directExecutionContext());
+					}, directExecutionContext());
 			}
 
 			futureExecutor.shutdownNow();

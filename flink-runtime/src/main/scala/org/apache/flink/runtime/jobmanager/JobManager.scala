@@ -44,6 +44,7 @@ import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
+import org.apache.flink.runtime.concurrent.Executors.directExecutionContext
 import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
@@ -1870,7 +1871,7 @@ class JobManager(
     context.system.terminate().onComplete {
       case scala.util.Success(_) =>
       case scala.util.Failure(t) => log.warn("Could not cleanly shut down actor system", t)
-    }(org.apache.flink.runtime.concurrent.Executors.directExecutionContext())
+    }(directExecutionContext())
   }
 
   private def instantiateMetrics(jobManagerMetricGroup: MetricGroup) : Unit = {
@@ -2294,7 +2295,7 @@ object JobManager {
         jobManagerSystem.terminate().onComplete {
           case scala.util.Success(_) =>
           case scala.util.Failure(tt) => LOG.warn("Could not cleanly shut down actor system", tt)
-        }(org.apache.flink.runtime.concurrent.Executors.directExecutionContext())
+        }(directExecutionContext())
         throw t
     }
   }
