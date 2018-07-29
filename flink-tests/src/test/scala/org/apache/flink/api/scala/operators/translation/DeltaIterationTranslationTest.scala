@@ -39,6 +39,21 @@ import org.apache.flink.api.scala._
 class DeltaIterationTranslationTest {
 
   @Test
+  def testIterateDelta(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val ds1 = env.fromElements((1, 1), (2, 2), (3, 3)).name("ds1")
+    val ds2 = env.fromElements((1, 1), (2, 2), (3, 3)).name("ds2")
+    val result = ds1.iterateDelta(ds2, 1, Array(0)) {
+      (s, ws) =>
+        (
+          s.join(ws).where(0).equalTo(0).name("join1").map(_._1).name("map1"),
+          s.join(ws).where(0).equalTo(0).name("join2").map(_._1).name("map2")
+        )
+    }
+    result.name("result").print()
+  }
+
+  @Test
   def testCorrectTranslation(): Unit = {
     try {
       val JOB_NAME = "Test JobName"

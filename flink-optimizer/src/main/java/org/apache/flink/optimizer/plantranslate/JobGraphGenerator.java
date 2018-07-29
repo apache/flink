@@ -391,6 +391,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				// we adjust the joins / cogroups that go into the solution set here
 				for (Channel c : node.getOutgoingChannels()) {
 					DualInputPlanNode target = (DualInputPlanNode) c.getTarget();
+					target.accept(this);
 					JobVertex accessingVertex = this.vertices.get(target);
 					TaskConfig conf = new TaskConfig(accessingVertex.getConfiguration());
 					int inputNum = c == target.getInput1() ? 0 : c == target.getInput2() ? 1 : -1;
@@ -401,6 +402,14 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 					}
 					
 					// adjust the driver
+					if (conf.getDriver().equals(JoinWithSolutionSetFirstDriver.class) ||
+						conf.getDriver().equals(JoinWithSolutionSetSecondDriver.class)) {
+						continue;
+					}
+					if (conf.getDriver().equals(CoGroupWithSolutionSetFirstDriver.class) ||
+						conf.getDriver().equals(CoGroupWithSolutionSetSecondDriver.class)) {
+						continue;
+					}
 					if (conf.getDriver().equals(JoinDriver.class)) {
 						conf.setDriver(inputNum == 0 ? JoinWithSolutionSetFirstDriver.class : JoinWithSolutionSetSecondDriver.class);
 					}
