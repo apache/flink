@@ -52,7 +52,7 @@ public class AkkaRpcServiceUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
 
 	private static final String AKKA_TCP = "akka.tcp";
-	private static final String AkKA_SSL_TCP = "akka.ssl.tcp";
+	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
 	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
@@ -162,7 +162,7 @@ public class AkkaRpcServiceUtils {
 		checkNotNull(endpointName, "endpointName is null");
 		checkArgument(port > 0 && port <= 65535, "port must be in [1, 65535]");
 
-		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AkKA_SSL_TCP : AKKA_TCP;
+		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
 
 		if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
 			// Fail fast if the hostname cannot be resolved
