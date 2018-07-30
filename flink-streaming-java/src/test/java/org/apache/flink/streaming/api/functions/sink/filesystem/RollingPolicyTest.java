@@ -67,7 +67,7 @@ public class RollingPolicyTest {
 						new TestUtils.TupleToStringBucketer(),
 						new SimpleStringEncoder<>(),
 						rollingPolicy,
-						new DefaultBucketFactory<>())
+						new DefaultBucketFactoryImpl<>())
 		) {
 			testHarness.setup();
 			testHarness.open();
@@ -111,7 +111,7 @@ public class RollingPolicyTest {
 	public void testRollOnCheckpointPolicy() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 
-		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = new OnCheckpointRollingPolicy<>();
+		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = OnCheckpointRollingPolicy.build();
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness = TestUtils.createCustomRescalingTestSink(
@@ -122,7 +122,7 @@ public class RollingPolicyTest {
 						new TestUtils.TupleToStringBucketer(),
 						new SimpleStringEncoder<>(),
 						rollingPolicy,
-						new DefaultBucketFactory<>())
+						new DefaultBucketFactoryImpl<>())
 		) {
 			testHarness.setup();
 			testHarness.open();
@@ -246,7 +246,7 @@ public class RollingPolicyTest {
 						new TestUtils.TupleToStringBucketer(),
 						new SimpleStringEncoder<>(),
 						rollingPolicy,
-						new DefaultBucketFactory<>())
+						new DefaultBucketFactoryImpl<>())
 		) {
 			testHarness.setup();
 			testHarness.open();

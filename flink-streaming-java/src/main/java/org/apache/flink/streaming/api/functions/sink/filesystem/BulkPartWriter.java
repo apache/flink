@@ -66,7 +66,7 @@ final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 	/**
 	 * A factory that creates {@link BulkPartWriter BulkPartWriters}.
 	 * @param <IN> The type of input elements.
-	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link Bucketer}.
+	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
 	static class Factory<IN, BucketID> implements PartFileWriter.PartFileFactory<IN, BucketID> {
 

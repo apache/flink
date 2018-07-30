@@ -87,7 +87,10 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 	 * To finalize it and have the actual policy, call {@code .create()}.
 	 */
 	public static DefaultRollingPolicy.PolicyBuilder create() {
-		return new DefaultRollingPolicy.PolicyBuilder();
+		return new DefaultRollingPolicy.PolicyBuilder(
+				DEFAULT_MAX_PART_SIZE,
+				DEFAULT_ROLLOVER_INTERVAL,
+				DEFAULT_INACTIVITY_INTERVAL);
 	}
 
 	/**
@@ -96,42 +99,46 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 	@PublicEvolving
 	public static final class PolicyBuilder {
 
-		private long partSize = DEFAULT_MAX_PART_SIZE;
+		private final long partSize;
 
-		private long rolloverInterval = DEFAULT_ROLLOVER_INTERVAL;
+		private final long rolloverInterval;
 
-		private long inactivityInterval = DEFAULT_INACTIVITY_INTERVAL;
+		private final long inactivityInterval;
 
-		private PolicyBuilder() {}
+		private PolicyBuilder(
+				final long partSize,
+				final long rolloverInterval,
+				final long inactivityInterval) {
+			this.partSize = partSize;
+			this.rolloverInterval = rolloverInterval;
+			this.inactivityInterval = inactivityInterval;
+		}
 
 		/**
 		 * Sets the part size above which a part file will have to roll.
 		 * @param size the allowed part size.
 		 */
-		public DefaultRollingPolicy.PolicyBuilder withMaxPartSize(long size) {
+		public DefaultRollingPolicy.PolicyBuilder withMaxPartSize(final long size) {
 			Preconditions.checkState(size > 0L);
-			this.partSize = size;
-			return this;
+			return new PolicyBuilder(size, rolloverInterval, inactivityInterval);
 		}
 
 		/**
 		 * Sets the interval of allowed inactivity after which a part file will have to roll.
 		 * @param interval the allowed inactivity interval.
 		 */
-		public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(long interval) {
+		public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(final long interval) {
 			Preconditions.checkState(interval > 0L);
-			this.inactivityInterval = interval;
-			return this;
+			return new PolicyBuilder(partSize, rolloverInterval, interval);
 		}
 
 		/**
 		 * Sets the max time a part file can stay open before having to roll.
 		 * @param interval the desired rollover interval.
 		 */
-		public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(long interval) {
+		public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(final long interval) {
 			Preconditions.checkState(interval > 0L);
-			this.rolloverInterval = interval;
-			return this;
+			return new PolicyBuilder(partSize, interval, inactivityInterval);
 		}
 
 		/**
