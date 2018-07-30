@@ -16,17 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
+package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Bucketer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * A {@link Bucketer} that assigns to buckets based on current system time.
+ * A {@link BucketAssigner} that assigns to buckets based on current system time.
  *
  *
  * <p>The {@code DateTimeBucketer} will create directories of the following form:
@@ -52,7 +52,7 @@ import java.util.Date;
  *
  */
 @PublicEvolving
-public class DateTimeBucketer<IN> implements Bucketer<IN, String> {
+public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -65,7 +65,7 @@ public class DateTimeBucketer<IN> implements Bucketer<IN, String> {
 	/**
 	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"}.
 	 */
-	public DateTimeBucketer() {
+	public DateTimeBucketAssigner() {
 		this(DEFAULT_FORMAT_STRING);
 	}
 
@@ -75,12 +75,12 @@ public class DateTimeBucketer<IN> implements Bucketer<IN, String> {
 	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
 	 *                     the bucket path.
 	 */
-	public DateTimeBucketer(String formatString) {
+	public DateTimeBucketAssigner(String formatString) {
 		this.formatString = formatString;
 	}
 
 	@Override
-	public String getBucketId(IN element, Bucketer.Context context) {
+	public String getBucketId(IN element, BucketAssigner.Context context) {
 		if (dateFormatter == null) {
 			dateFormatter = new SimpleDateFormat(formatString);
 		}
@@ -94,8 +94,6 @@ public class DateTimeBucketer<IN> implements Bucketer<IN, String> {
 
 	@Override
 	public String toString() {
-		return "DateTimeBucketer{" +
-				"formatString='" + formatString + '\'' +
-				'}';
+		return "DateTimeBucketAssigner{formatString='" + formatString + '\'' + '}';
 	}
 }

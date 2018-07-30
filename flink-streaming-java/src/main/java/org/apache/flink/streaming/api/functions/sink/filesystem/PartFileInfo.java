@@ -32,7 +32,7 @@ public interface PartFileInfo<BucketID> {
 
 	/**
 	 * @return The bucket identifier of the current buffer, as returned by the
-	 * {@link Bucketer#getBucketId(Object, Bucketer.Context)}.
+	 * {@link BucketAssigner#getBucketId(Object, BucketAssigner.Context)}.
 	 */
 	BucketID getBucketId();
 

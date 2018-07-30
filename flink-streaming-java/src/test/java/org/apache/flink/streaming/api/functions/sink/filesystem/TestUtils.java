@@ -23,7 +23,7 @@ import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -58,7 +58,7 @@ public class TestUtils {
 						.withInactivityInterval(inactivityInterval)
 						.build();
 
-		final Bucketer<Tuple2<String, Integer>, String> bucketer = new TupleToStringBucketer();
+		final BucketAssigner<Tuple2<String, Integer>, String> bucketer = new TupleToStringBucketer();
 
 		final Encoder<Tuple2<String, Integer>> encoder = (element, stream) -> {
 			stream.write((element.f0 + '@' + element.f1).getBytes(StandardCharsets.UTF_8));
@@ -73,7 +73,7 @@ public class TestUtils {
 				bucketer,
 				encoder,
 				rollingPolicy,
-				new DefaultBucketFactory<>());
+				new DefaultBucketFactoryImpl<>());
 	}
 
 	static OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> createCustomRescalingTestSink(
@@ -81,14 +81,14 @@ public class TestUtils {
 			final int totalParallelism,
 			final int taskIdx,
 			final long bucketCheckInterval,
-			final Bucketer<Tuple2<String, Integer>, String> bucketer,
+			final BucketAssigner<Tuple2<String, Integer>, String> bucketer,
 			final Encoder<Tuple2<String, Integer>> writer,
 			final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy,
 			final BucketFactory<Tuple2<String, Integer>, String> bucketFactory) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forRowFormat(new Path(outDir.toURI()), writer)
-				.withBucketer(bucketer)
+				.withBucketAssigner(bucketer)
 				.withRollingPolicy(rollingPolicy)
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
@@ -102,13 +102,13 @@ public class TestUtils {
 			final int totalParallelism,
 			final int taskIdx,
 			final long bucketCheckInterval,
-			final Bucketer<Tuple2<String, Integer>, String> bucketer,
+			final BucketAssigner<Tuple2<String, Integer>, String> bucketer,
 			final BulkWriter.Factory<Tuple2<String, Integer>> writer,
 			final BucketFactory<Tuple2<String, Integer>, String> bucketFactory) throws Exception {
 
 		StreamingFileSink<Tuple2<String, Integer>> sink = StreamingFileSink
 				.forBulkFormat(new Path(outDir.toURI()), writer)
-				.withBucketer(bucketer)
+				.withBucketAssigner(bucketer)
 				.withBucketCheckInterval(bucketCheckInterval)
 				.withBucketFactory(bucketFactory)
 				.build();
@@ -146,7 +146,7 @@ public class TestUtils {
 		return contents;
 	}
 
-	static class TupleToStringBucketer implements Bucketer<Tuple2<String, Integer>, String> {
+	static class TupleToStringBucketer implements BucketAssigner<Tuple2<String, Integer>, String> {
 
 		private static final long serialVersionUID = 1L;
 
