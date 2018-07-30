@@ -199,10 +199,7 @@ public class StreamingFileSink<IN>
 		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
 
 		RowFormatBuilder(Path basePath, Encoder<IN> encoder, Bucketer<IN, BucketID> bucketer) {
-			this.basePath = Preconditions.checkNotNull(basePath);
-			this.encoder = Preconditions.checkNotNull(encoder);
-			this.bucketer = Preconditions.checkNotNull(bucketer);
-			this.rollingPolicy = DefaultRollingPolicy.create().build();
+			this(basePath, encoder, bucketer, DefaultRollingPolicy.create().build(), 60L * 1000L, new DefaultBucketFactory<>());
 		}
 
 		private RowFormatBuilder(
@@ -277,9 +274,7 @@ public class StreamingFileSink<IN>
 		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
 
 		BulkFormatBuilder(Path basePath, BulkWriter.Factory<IN> writerFactory, Bucketer<IN, BucketID> bucketer) {
-			this.basePath = Preconditions.checkNotNull(basePath);
-			this.writerFactory = Preconditions.checkNotNull(writerFactory);
-			this.bucketer = Preconditions.checkNotNull(bucketer);
+			this(basePath, writerFactory, bucketer, 60L * 1000L, new DefaultBucketFactory<>());
 		}
 
 		private BulkFormatBuilder(
