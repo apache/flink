@@ -186,17 +186,17 @@ public class StreamingFileSink<IN>
 
 		private static final long serialVersionUID = 1L;
 
-		private long bucketCheckInterval = 60L * 1000L;
+		private final long bucketCheckInterval;
 
 		private final Path basePath;
 
 		private final Encoder<IN> encoder;
 
-		private Bucketer<IN, BucketID> bucketer;
+		private final Bucketer<IN, BucketID> bucketer;
 
-		private RollingPolicy<IN, BucketID> rollingPolicy;
+		private final RollingPolicy<IN, BucketID> rollingPolicy;
 
-		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
+		private final BucketFactory<IN, BucketID> bucketFactory;
 
 		RowFormatBuilder(Path basePath, Encoder<IN> encoder, Bucketer<IN, BucketID> bucketer) {
 			this(basePath, encoder, bucketer, DefaultRollingPolicy.create().build(), 60L * 1000L, new DefaultBucketFactory<>());
@@ -263,15 +263,15 @@ public class StreamingFileSink<IN>
 
 		private static final long serialVersionUID = 1L;
 
-		private long bucketCheckInterval = 60L * 1000L;
+		private final long bucketCheckInterval;
 
 		private final Path basePath;
 
 		private final BulkWriter.Factory<IN> writerFactory;
 
-		private Bucketer<IN, BucketID> bucketer;
+		private final Bucketer<IN, BucketID> bucketer;
 
-		private BucketFactory<IN, BucketID> bucketFactory = new DefaultBucketFactory<>();
+		private final BucketFactory<IN, BucketID> bucketFactory;
 
 		BulkFormatBuilder(Path basePath, BulkWriter.Factory<IN> writerFactory, Bucketer<IN, BucketID> bucketer) {
 			this(basePath, writerFactory, bucketer, 60L * 1000L, new DefaultBucketFactory<>());
