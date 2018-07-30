@@ -104,14 +104,7 @@ public class BootstrapTools {
 		while (portsIterator.hasNext()) {
 			// first, we check if the port is available by opening a socket
 			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
-				portsIterator,
-				new NetUtils.SocketFactory() {
-					@Override
-					public ServerSocket createSocket(int port) throws IOException {
-						return new ServerSocket(port);
-					}
-				});
+			ServerSocket availableSocket = NetUtils.createSocketFromPorts(portsIterator, ServerSocket::new);
 
 			int port;
 			if (availableSocket == null) {
