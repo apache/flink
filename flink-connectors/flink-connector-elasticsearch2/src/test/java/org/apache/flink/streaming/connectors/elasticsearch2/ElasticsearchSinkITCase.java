@@ -70,8 +70,17 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Transport
 			Map<String, String> userConfig,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
+		return createElasticsearchSinkForNode(userConfig, elasticsearchSinkFunction, "127.0.0.1");
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception {
+
 		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
 
 		return new ElasticsearchSink<>(userConfig, transports, elasticsearchSinkFunction);
 	}

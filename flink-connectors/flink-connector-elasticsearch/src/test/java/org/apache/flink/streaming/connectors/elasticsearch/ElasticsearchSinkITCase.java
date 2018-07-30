@@ -28,10 +28,12 @@ import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUti
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Test;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -121,6 +123,21 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Client, I
 
 		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new LocalTransportAddress("1"));
+
+		return new ElasticsearchSink<>(
+			Collections.unmodifiableMap(userConfig),
+			transports,
+			elasticsearchSinkFunction);
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSinkForNode(
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception {
+
+		List<TransportAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketTransportAddress(InetAddress.getByName(ipAddress), 9300));
 
 		return new ElasticsearchSink<>(
 			Collections.unmodifiableMap(userConfig),

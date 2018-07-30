@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -65,11 +66,15 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 	}
 
 	@Override
-	public RestHighLevelClient createClient(Map<String, String> clientConfig) {
+	public RestHighLevelClient createClient(Map<String, String> clientConfig) throws IOException {
 		RestClientBuilder builder = RestClient.builder(httpHosts.toArray(new HttpHost[httpHosts.size()]));
 		restClientFactory.configureRestClientBuilder(builder);
 
 		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
+
+		if (!rhlClient.ping()) {
+			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
+		}
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());

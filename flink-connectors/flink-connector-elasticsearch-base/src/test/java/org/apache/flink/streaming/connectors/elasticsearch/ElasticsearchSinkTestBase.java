@@ -88,7 +88,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * Tests that the Elasticsearch sink works properly.
 	 */
 	public void runElasticsearchSinkTest() throws Exception {
-		final String index = "transport-client-test-index";
+		final String index = "elasticsearch-sink-test-index";
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -102,7 +102,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
 			userConfig, new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index)));
 
-		env.execute("Elasticsearch TransportClient Test");
+		env.execute("Elasticsearch Sink Test");
 
 		// verify the results
 		Client client = embeddedNodeEnv.getClient();
@@ -117,11 +117,11 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	public void runNullAddressesTest() throws Exception {
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", "my-transport-client-cluster");
+		userConfig.put("cluster.name", CLUSTER_NAME);
 
 		try {
 			createElasticsearchSink(userConfig, null, new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
-		} catch (IllegalArgumentException expectedException) {
+		} catch (IllegalArgumentException | NullPointerException expectedException) {
 			// test passes
 			return;
 		}
@@ -135,7 +135,7 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	public void runEmptyAddressesTest() throws Exception {
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", "my-transport-client-cluster");
+		userConfig.put("cluster.name", CLUSTER_NAME);
 
 		try {
 			createElasticsearchSink(
@@ -160,15 +160,17 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", "my-transport-client-cluster");
+		userConfig.put("cluster.name", "invalid-cluster-name");
 
-		source.addSink(createElasticsearchSinkForEmbeddedNode(
-			Collections.unmodifiableMap(userConfig), new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test")));
+		source.addSink(createElasticsearchSinkForNode(
+			Collections.unmodifiableMap(userConfig),
+			new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"),
+			"123.123.123.123")); // incorrect ip address
 
 		try {
-			env.execute("Elasticsearch Transport Client Test");
+			env.execute("Elasticsearch Sink Test");
 		} catch (JobExecutionException expectedException) {
-			expectedException.printStackTrace();
+			// test passes
 			return;
 		}
 
@@ -189,4 +191,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForEmbeddedNode(
 		Map<String, String> userConfig, ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
+
+	/**
+	 * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
+	 */
+	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForNode(
+		Map<String, String> userConfig, ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction, String ipAddress) throws Exception;
 }

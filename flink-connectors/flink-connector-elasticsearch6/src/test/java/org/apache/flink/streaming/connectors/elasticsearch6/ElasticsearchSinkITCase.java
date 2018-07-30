@@ -73,8 +73,17 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 			Map<String, String> userConfig,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
+		return createElasticsearchSinkForNode(userConfig, elasticsearchSinkFunction, "127.0.0.1");
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception {
+
 		ArrayList<HttpHost> httpHosts = new ArrayList<>();
-		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
 
 		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
 		builder.setBulkRequestsConfig(userConfig);
