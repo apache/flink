@@ -235,7 +235,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
 
 			InternalListState<String, Integer, Long> state = keyedBackend.createInternalState(IntSerializer.INSTANCE, stateDescr);
 
-			assertEquals(7, keyedBackend.numStateEntries());
+			assertEquals(7, keyedBackend.numKeyValueStateEntries());
 
 			keyedBackend.setCurrentKey("abc");
 			state.setCurrentNamespace(namespace1);

@@ -109,7 +109,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public int numStateEntries() {
+	public int numKeyValueStateEntries() {
 		int count = 0;
 		for (String state : stateValues.keySet()) {
 			for (K key : stateValues.get(state).keySet()) {

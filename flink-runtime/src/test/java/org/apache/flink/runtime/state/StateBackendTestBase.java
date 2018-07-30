@@ -1908,7 +1908,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.clear();
 
 			// make sure all lists / maps are cleared
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		} finally {
 			keyedBackend.close();
 			keyedBackend.dispose();
@@ -2022,7 +2022,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2176,7 +2176,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.clear();
 
 			// make sure all lists / maps are cleared
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2294,7 +2294,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2349,7 +2349,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.clear();
 
 			// make sure all lists / maps are cleared
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2467,7 +2467,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2522,7 +2522,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.clear();
 
 			// make sure all lists / maps are cleared
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -2640,7 +2640,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			assertThat("State backend is not empty.", keyedBackend.numStateEntries(), is(0));
+			assertThat("State backend is not empty.", keyedBackend.numKeyValueStateEntries(), is(0));
 		}
 		finally {
 			keyedBackend.close();
@@ -3683,7 +3683,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
-		assertEquals(0, backend.numStateEntries());
+		assertEquals(0, backend.numKeyValueStateEntries());
 
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -3691,22 +3691,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		state.update("hello");
 		state.update("ciao");
 
-		assertEquals(1, backend.numStateEntries());
+		assertEquals(1, backend.numKeyValueStateEntries());
 
 		backend.setCurrentKey(42);
 		state.update("foo");
 
-		assertEquals(2, backend.numStateEntries());
+		assertEquals(2, backend.numKeyValueStateEntries());
 
 		backend.setCurrentKey(0);
 		state.clear();
 
-		assertEquals(1, backend.numStateEntries());
+		assertEquals(1, backend.numKeyValueStateEntries());
 
 		backend.setCurrentKey(42);
 		state.clear();
 
-		assertEquals(0, backend.numStateEntries());
+		assertEquals(0, backend.numKeyValueStateEntries());
 
 		backend.dispose();
 	}

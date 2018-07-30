@@ -564,7 +564,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@VisibleForTesting
 	@SuppressWarnings("unchecked")
 	@Override
-	public int numStateEntries() {
+	public int numKeyValueStateEntries() {
 		int sum = 0;
 		for (StateSnapshotRestore state : registeredKVStates.values()) {
 			sum += ((StateTable<?, ?, ?>) state).size();
@@ -576,7 +576,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Returns the total number of state entries across all keys for the given namespace.
 	 */
 	@VisibleForTesting
-	public int numStateEntries(Object namespace) {
+	public int numKeyValueStateEntries(Object namespace) {
 		int sum = 0;
 		for (StateTable<?, ?, ?> state : registeredKVStates.values()) {
 			sum += state.sizeOfNamespace(namespace);

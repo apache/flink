@@ -163,7 +163,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		HeapKeyedStateBackend<Integer> heapBackend = (HeapKeyedStateBackend<Integer>) backend;
 
-		assertEquals(0, heapBackend.numStateEntries());
+		assertEquals(0, heapBackend.numKeyValueStateEntries());
 
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
