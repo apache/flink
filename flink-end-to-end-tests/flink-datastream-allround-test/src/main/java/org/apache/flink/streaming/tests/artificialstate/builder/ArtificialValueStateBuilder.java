@@ -21,8 +21,8 @@ package org.apache.flink.streaming.tests.artificialstate.builder;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.util.Preconditions;
 
 /**
  * An {@link ArtificialStateBuilder} for user {@link ValueState}s.
@@ -32,16 +32,16 @@ public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialStateBuild
 	private static final long serialVersionUID = -1205814329756790916L;
 
 	private transient ValueState<STATE> valueState;
-	private final TypeSerializer<STATE> typeSerializer;
+	private final ValueStateDescriptor<STATE> valueStateDescriptor;
 	private final JoinFunction<IN, STATE, STATE> stateValueGenerator;
 
 	public ArtificialValueStateBuilder(
 		String stateName,
 		JoinFunction<IN, STATE, STATE> stateValueGenerator,
-		TypeSerializer<STATE> typeSerializer) {
+		ValueStateDescriptor<STATE> valueStateDescriptor) {
 		super(stateName);
-		this.typeSerializer = typeSerializer;
-		this.stateValueGenerator = stateValueGenerator;
+		this.valueStateDescriptor = Preconditions.checkNotNull(valueStateDescriptor);
+		this.stateValueGenerator = Preconditions.checkNotNull(stateValueGenerator);
 	}
 
 	@Override
@@ -51,8 +51,6 @@ public class ArtificialValueStateBuilder<IN, STATE> extends ArtificialStateBuild
 
 	@Override
 	public void initialize(FunctionInitializationContext initializationContext) {
-		ValueStateDescriptor<STATE> valueStateDescriptor =
-			new ValueStateDescriptor<>(stateName, typeSerializer);
 		valueState = initializationContext.getKeyedStateStore().getState(valueStateDescriptor);
 	}
 }
