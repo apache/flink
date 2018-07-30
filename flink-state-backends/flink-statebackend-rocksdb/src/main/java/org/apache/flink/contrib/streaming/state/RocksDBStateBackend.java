@@ -535,10 +535,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 						path = rawPath;
 					}
 				}
-
+				if (path.equalsIgnoreCase("file")) {
+					continue;
+				}
 				pp[i] = new File(path);
 				if (!pp[i].isAbsolute()) {
-					throw new IllegalArgumentException("Relative paths are not supported");
+					throw new IllegalArgumentException("Relative paths " + path + " are not supported");
 				}
 			}
 
