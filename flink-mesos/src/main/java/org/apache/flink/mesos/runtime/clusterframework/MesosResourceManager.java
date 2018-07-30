@@ -221,10 +221,14 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Starts the Mesos-specifics.
+	 * Do nothing and all work has been moved to on leadership granted callback.
 	 */
 	@Override
 	protected void initialize() throws ResourceManagerException {
+	}
+
+	@Override
+	protected void onLeaderShipGranted() throws Exception {
 		// create and start the worker store
 		try {
 			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig, getRpcService().getExecutor());
@@ -283,7 +287,14 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		connectionMonitor.tell(new ConnectionMonitor.Start(), selfActor);
 		schedulerDriver.start();
 
-		LOG.info("Mesos resource manager initialized.");
+		LOG.info("Mesos resource manager started.");
+	}
+
+	@Override
+	protected void onLeaderShipRevoked() throws Exception {
+		workerStore.stop(false);
+		schedulerDriver.stop(true);
+		disconnected(new Disconnected());
 	}
 
 	/**

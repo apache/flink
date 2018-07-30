@@ -899,6 +899,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 				setFencingToken(newResourceManagerId);
 
+				try {
+					onLeaderShipGranted();
+				} catch (Exception e) {
+					onFatalError(e);
+				}
+
 				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
 				getRpcService().execute(
@@ -918,6 +924,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				log.info("ResourceManager {} was revoked leadership. Clearing fencing token.", getAddress());
 
 				clearState();
+
+				try {
+					onLeaderShipRevoked();
+				} catch (Exception e) {
+					onFatalError(e);
+				}
 
 				setFencingToken(null);
 
@@ -945,6 +957,18 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @throws ResourceManagerException which occurs during initialization and causes the resource manager to fail.
 	 */
 	protected abstract void initialize() throws ResourceManagerException;
+
+	/**
+	 * Called when leadership is granted.
+	 * @throws Exception which occurs during granting leadership and causes the resource manager to fail.
+	 */
+	protected void onLeaderShipGranted() throws Exception {}
+
+	/**
+	 * Called when leadership is revoked.
+	 * @throws Exception which occurs during revoking leadership and causes the resource manager to fail.
+	 */
+	protected void onLeaderShipRevoked() throws Exception {}
 
 	/**
 	 * The framework specific code to deregister the application. This should report the
