@@ -119,7 +119,9 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "restarts." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, RestartReporter.class.getName());
+		config.setString(
+			ConfigConstants.METRICS_REPORTER_PREFIX + "restarts." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+			RestartReporter.class.getName());
 
 		// we have to manage this manually because we have to create the ZooKeeper server
 		// ahead of this
