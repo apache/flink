@@ -174,9 +174,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			timeout);
 
 		// create a co-location scheduling hint, if necessary
-		CoLocationGroup clg = jobVertex.getCoLocationGroup();
+		final CoLocationGroup clg = jobVertex.getCoLocationGroup();
 		if (clg != null) {
-			this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
+			synchronized (clg) {
+				this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
+			}
 		}
 		else {
 			this.locationConstraint = null;

@@ -88,6 +88,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -808,6 +809,55 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	//  Actions
 	// --------------------------------------------------------------------------------------------
 
+	private void createExecutionJobVertex(List<JobVertex> topologiallySorted) throws JobException {
+		final List<CompletableFuture<JobException>> futures = new LinkedList<>();
+		final long createTimestamp = System.currentTimeMillis();
+
+		for (JobVertex jobVertex: topologiallySorted) {
+			futures.add(CompletableFuture.supplyAsync(() -> {
+				try {
+					ExecutionJobVertex ejv = new ExecutionJobVertex(
+						this,
+						jobVertex,
+						1,
+						rpcTimeout,
+						globalModVersion,
+						createTimestamp);
+					ExecutionJobVertex previousTask = tasks.putIfAbsent(jobVertex.getID(), ejv);
+					if (previousTask != null) {
+						throw new JobException(
+							String.format(
+								"Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
+								jobVertex.getID(), ejv, previousTask));
+					}
+					return null;
+				} catch (JobException e) {
+					return e;
+				}
+			}, futureExecutor));
+		}
+
+		try {
+			// wait for all futures done
+			Collection<JobException> exceptions = FutureUtils.combineAll(futures).get();
+
+			// suppress all optional exceptions
+			Exception suppressedException = null;
+			for (Exception exception : exceptions) {
+				if (exception != null) {
+					suppressedException = ExceptionUtils.firstOrSuppressed(exception, suppressedException);
+				}
+			}
+
+			if (suppressedException != null) {
+				throw suppressedException;
+			}
+		} catch (Exception e) {
+			throw new JobException("Could not create execution job vertex.", e);
+		}
+	}
+
+
 	public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
 
 		LOG.debug("Attaching {} topologically sorted vertices to existing job graph with {} " +
@@ -815,7 +865,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				topologiallySorted.size(), tasks.size(), intermediateResults.size());
 
 		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
-		final long createTimestamp = System.currentTimeMillis();
+
+		createExecutionJobVertex(topologiallySorted);
 
 		for (JobVertex jobVertex : topologiallySorted) {
 
@@ -823,22 +874,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				this.isStoppable = false;
 			}
 
-			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = new ExecutionJobVertex(
-				this,
-				jobVertex,
-				1,
-				rpcTimeout,
-				globalModVersion,
-				createTimestamp);
+			ExecutionJobVertex ejv = tasks.get(jobVertex.getID());
 
 			ejv.connectToPredecessors(this.intermediateResults);
-
-			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
-			if (previousTask != null) {
-				throw new JobException(String.format("Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
-						jobVertex.getID(), ejv, previousTask));
-			}
 
 			for (IntermediateResult res : ejv.getProducedDataSets()) {
 				IntermediateResult previousDataSet = this.intermediateResults.putIfAbsent(res.getId(), res);
