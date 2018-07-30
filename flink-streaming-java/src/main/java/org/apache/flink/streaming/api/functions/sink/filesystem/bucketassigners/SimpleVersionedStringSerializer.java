@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
+package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * A {@link SimpleVersionedSerializer} implementation for Strings.
  */
+@PublicEvolving
 public final class SimpleVersionedStringSerializer implements SimpleVersionedSerializer<String> {
 
 	private static final Charset CHARSET = StandardCharsets.UTF_8;

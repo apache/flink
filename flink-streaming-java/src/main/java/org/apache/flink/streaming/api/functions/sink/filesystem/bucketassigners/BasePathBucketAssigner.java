@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.functions.sink.filesystem.bucketers;
+package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Bucketer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
 /**
- * A {@link Bucketer} that does not perform any
+ * A {@link BucketAssigner} that does not perform any
  * bucketing of files. All files are written to the base path.
  */
 @PublicEvolving
-public class BasePathBucketer<T> implements Bucketer<T, String> {
+public class BasePathBucketAssigner<T> implements BucketAssigner<T, String> {
 
 	private static final long serialVersionUID = -6033643155550226022L;
 
 	@Override
-	public String getBucketId(T element, Bucketer.Context context) {
+	public String getBucketId(T element, BucketAssigner.Context context) {
 		return "";
 	}
 
@@ -44,6 +44,6 @@ public class BasePathBucketer<T> implements Bucketer<T, String> {
 
 	@Override
 	public String toString() {
-		return "BasePathBucketer";
+		return "BasePathBucketAssigner";
 	}
 }

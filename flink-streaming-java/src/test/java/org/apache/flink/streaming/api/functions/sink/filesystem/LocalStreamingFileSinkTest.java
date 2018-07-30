@@ -491,8 +491,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 		OperatorSubtaskState mergedSnapshot;
 
-		final TestBucketFactory first = new TestBucketFactory();
-		final TestBucketFactory second = new TestBucketFactory();
+		final TestBucketFactoryImpl first = new TestBucketFactoryImpl();
+		final TestBucketFactoryImpl second = new TestBucketFactoryImpl();
 
 		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
 				.create()
@@ -526,8 +526,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			);
 		}
 
-		final TestBucketFactory firstRecovered = new TestBucketFactory();
-		final TestBucketFactory secondRecovered = new TestBucketFactory();
+		final TestBucketFactoryImpl firstRecovered = new TestBucketFactoryImpl();
+		final TestBucketFactoryImpl secondRecovered = new TestBucketFactoryImpl();
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = TestUtils.createCustomRescalingTestSink(
@@ -559,7 +559,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	//////////////////////			Helper Methods			//////////////////////
 
-	static class TestBucketFactory extends DefaultBucketFactory<Tuple2<String, Integer>, String> {
+	static class TestBucketFactoryImpl extends DefaultBucketFactoryImpl<Tuple2<String, Integer>, String> {
 
 		private static final long serialVersionUID = 2794824980604027930L;
 
@@ -572,7 +572,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 				final String bucketId,
 				final Path bucketPath,
 				final long initialPartCounter,
-				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory) {
+				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
+				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy) {
 
 			this.initialCounter = initialPartCounter;
 
@@ -582,7 +583,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					bucketId,
 					bucketPath,
 					initialPartCounter,
-					partFileWriterFactory);
+					partFileWriterFactory,
+					rollingPolicy);
 		}
 
 		@Override
@@ -591,6 +593,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 				final int subtaskIndex,
 				final long initialPartCounter,
 				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
+				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy,
 				final BucketState<String> bucketState) throws IOException {
 
 			this.initialCounter = initialPartCounter;
@@ -600,6 +603,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					subtaskIndex,
 					initialPartCounter,
 					partFileWriterFactory,
+					rollingPolicy,
 					bucketState);
 		}
 

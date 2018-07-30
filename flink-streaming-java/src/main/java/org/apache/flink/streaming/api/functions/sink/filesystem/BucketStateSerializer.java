@@ -90,20 +90,20 @@ class BucketStateSerializer<BucketID> implements SimpleVersionedSerializer<Bucke
 	void serializeV1(BucketState<BucketID> state, DataOutputView out) throws IOException {
 		SimpleVersionedSerialization.writeVersionAndSerialize(bucketIdSerializer, state.getBucketId(), out);
 		out.writeUTF(state.getBucketPath().toString());
-		out.writeLong(state.getCreationTime());
+		out.writeLong(state.getInProgressFileCreationTime());
 
 		// put the current open part file
-		final RecoverableWriter.ResumeRecoverable currentPart = state.getInProgress();
-		if (currentPart != null) {
+		if (state.hasInProgressResumableFile()) {
+			final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
 			out.writeBoolean(true);
-			SimpleVersionedSerialization.writeVersionAndSerialize(resumableSerializer, currentPart, out);
+			SimpleVersionedSerialization.writeVersionAndSerialize(resumableSerializer, resumable, out);
 		}
 		else {
 			out.writeBoolean(false);
 		}
 
 		// put the map of pending files per checkpoint
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingCommitters = state.getPendingPerCheckpoint();
+		final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingCommitters = state.getCommittableFilesPerCheckpoint();
 
 		// manually keep the version here to safe some bytes
 		out.writeInt(commitableSerializer.getVersion());
