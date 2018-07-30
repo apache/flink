@@ -71,13 +71,13 @@ orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(TumblingEventTimeWindows.of(Time.seconds(2)))
-    .apply (new JoinFunction<Integer, Integer, String> () {
+    .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
             return first + "," + second;
         }
     });
- {% endhighlight %}
+{% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -95,7 +95,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
     .apply { (e1, e2) => e1 + "," + e2 }
- {% endhighlight %}
+{% endhighlight %}
 
 </div>
 </div>
@@ -124,13 +124,13 @@ orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(SlidingEventTimeWindows.of(Time.milliseconds(2) /* size */, Time.milliseconds(1) /* slide */))
-    .apply (new JoinFunction<Integer, Integer, String> () {
+    .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
             return first + "," + second;
         }
     });
- {% endhighlight %}
+{% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -148,7 +148,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(SlidingEventTimeWindows.of(Time.milliseconds(2) /* size */, Time.milliseconds(1) /* slide */))
     .apply { (e1, e2) => e1 + "," + e2 }
- {% endhighlight %}
+{% endhighlight %}
 </div>
 </div>
 
@@ -176,13 +176,13 @@ orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
     .window(EventTimeSessionWindows.withGap(Time.milliseconds(1)))
-    .apply (new JoinFunction<Integer, Integer, String> () {
+    .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
             return first + "," + second;
         }
     });
- {% endhighlight %}
+{% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 
@@ -200,7 +200,7 @@ orangeStream.join(greenStream)
     .equalTo(elem => /* select key */)
     .window(EventTimeSessionWindows.withGap(Time.milliseconds(1)))
     .apply { (e1, e2) => e1 + "," + e2 }
- {% endhighlight %}
+{% endhighlight %}
 
 </div>
 </div>
@@ -208,7 +208,7 @@ orangeStream.join(greenStream)
 # Interval Join
 The interval join joins elements of two streams (we'll call them A & B for now) with a common key and where elements of stream B have timestamps that lie in a relative time interval to timestamps of elements in stream A.
 
-This can also expressed a little more formally as 
+This can also be expressed more formally as
 `b.timestamp ∈ [a.timestamp + lowerBound; a.timestamp + upperBound]` or 
 `a.timestamp + lowerBound <= b.timestamp <= a.timestamp + upperBound`
 
@@ -247,14 +247,14 @@ orangeStream
     .keyBy(<KeySelector>)
     .intervalJoin(greenStream.keyBy(<KeySelector>))
     .between(Time.milliseconds(-2), Time.milliseconds(1))
-    .process (new ProcessJoinFunction<Integer, Integer, String() {
+    .process (new ProcessJoinFunction<Integer, Integer, String(){
 
         @Override
         public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {
             out.collect(first + "," + second);
         }
     });
- {% endhighlight %}
+{% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
@@ -278,7 +278,7 @@ orangeStream
         }
       });
     });
- {% endhighlight %}
+{% endhighlight %}
 
 </div>
 </div>
