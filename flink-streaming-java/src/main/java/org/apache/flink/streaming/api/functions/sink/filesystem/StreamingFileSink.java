@@ -205,7 +205,7 @@ public class StreamingFileSink<IN>
 			this.rollingPolicy = DefaultRollingPolicy.create().build();
 		}
 
-		RowFormatBuilder(
+		private RowFormatBuilder(
 				Path basePath,
 				Encoder<IN> encoder,
 				Bucketer<IN, BucketID> bucketer,
@@ -282,7 +282,7 @@ public class StreamingFileSink<IN>
 			this.bucketer = Preconditions.checkNotNull(bucketer);
 		}
 
-		BulkFormatBuilder(
+		private BulkFormatBuilder(
 				Path basePath,
 				BulkWriter.Factory<IN> writerFactory,
 				Bucketer<IN, BucketID> bucketer,
