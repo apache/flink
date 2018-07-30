@@ -111,14 +111,20 @@
 (defn stop-master!
   [node]
   (info node "Stopping mesos master")
-  (meh (c/exec :killall :-9 :mesos-master))
-  (meh (c/exec :rm :-rf master-pidfile)))
+  (meh (cu/grepkill! :mesos-master))
+  (meh (c/exec :rm :-rf master-pidfile))
+  (meh (c/exec :rm :-rf
+               (c/lit (str log-dir "/*"))
+               (c/lit (str master-dir "/*")))))
 
 (defn stop-slave!
   [node]
   (info node "Stopping mesos slave")
-  (meh (c/exec :killall :-9 :mesos-slave))
-  (meh (c/exec :rm :-rf slave-pidfile)))
+  (meh (cu/grepkill! :mesos-slave))
+  (meh (c/exec :rm :-rf slave-pidfile))
+  (meh (c/exec :rm :-rf
+               (c/lit (str log-dir "/*"))
+               (c/lit (str slave-dir "/*")))))
 
 ;;; Marathon functions
 
