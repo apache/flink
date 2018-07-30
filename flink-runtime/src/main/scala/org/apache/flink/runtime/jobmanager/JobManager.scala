@@ -2139,7 +2139,6 @@ object JobManager {
       configuration: Configuration,
       externalHostname: String,
       port: Int): ActorSystem = {
-
     // Bring up the job manager actor system first, bind it to the given address.
     val jobManagerSystem = BootstrapTools.startActorSystem(
       configuration,
