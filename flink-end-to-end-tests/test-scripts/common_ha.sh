@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 ################################################################################
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,15 +18,11 @@
 # limitations under the License.
 ################################################################################
 
-source "$(dirname "$0")"/common.sh
-
-TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
+# flag indicating if we have already cleared up things after a test
+CLEARED=0
 
 JM_WATCHDOG_PID=0
 TM_WATCHDOG_PID=0
-
-# flag indicating if we have already cleared up things after a test
-CLEARED=0
 
 function stop_cluster_and_watchdog() {
     if [ ${CLEARED} -eq 0 ]; then
@@ -50,23 +47,26 @@ function verify_logs() {
     local OUTPUT=$FLINK_DIR/log/*.out
     local JM_FAILURES=$1
     local EXIT_CODE=0
+    local VERIFY_CHECKPOINTS=$2
 
     # verify that we have no alerts
     if ! [ `cat ${OUTPUT} | wc -l` -eq 0 ]; then
-        echo "FAILURE: Alerts found at the general purpose DataStream job."
+        echo "FAILURE: Alerts found at the general purpose job."
         EXIT_CODE=1
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
-    if ! [ `grep -r --include '*standalonesession*.log' Recovered SubmittedJobGraph "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${JM_FAILURES} ]; then
+    if ! [ `grep -r --include '*standalonesession*.log' 'Recovered SubmittedJobGraph' "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq ${JM_FAILURES} ]; then
         echo "FAILURE: A JM did not take over."
         EXIT_CODE=1
     fi
 
+    if [ "$VERIFY_CHECKPOINTS" = true ]; then
     # search the logs for JMs that log completed checkpoints
-    if ! [ `grep -r --include '*standalonesession*.log' Completed checkpoint "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((JM_FAILURES + 1)) ]; then
-        echo "FAILURE: A JM did not execute the job."
-        EXIT_CODE=1
+        if ! [ `grep -r --include '*standalonesession*.log' 'Completed checkpoint' "${FLINK_DIR}/log/" | cut -d ":" -f 1 | uniq | wc -l` -eq $((JM_FAILURES + 1)) ]; then
+            echo "FAILURE: A JM did not execute the job."
+            EXIT_CODE=1
+        fi
     fi
 
     if [[ $EXIT_CODE != 0 ]]; then
@@ -85,8 +85,14 @@ function jm_watchdog() {
         for (( c=0; c<MISSING_JMS; c++ )); do
             "$FLINK_DIR"/bin/jobmanager.sh start "localhost" ${IP_PORT}
         done
-        sleep 5;
+        sleep 1;
     done
+}
+
+function start_ha_jm_watchdog() {
+    jm_watchdog $1 $2 &
+    JM_WATCHDOG_PID=$!
+    echo "Running JM watchdog @ ${JM_WATCHDOG_PID}"
 }
 
 function kill_jm {
@@ -98,7 +104,8 @@ function kill_jm {
     echo "Killed JM @ ${PID}"
 }
 
-function tm_watchdog() {
+# ha prefix to differentiate from the one in common.sh
+function ha_tm_watchdog() {
     local JOB_ID=$1
     local EXPECTED_TMS=$2
 
@@ -146,74 +153,9 @@ function tm_watchdog() {
     done
 }
 
-function run_ha_test() {
-    local PARALLELISM=$1
-    local BACKEND=$2
-    local ASYNC=$3
-    local INCREM=$4
-
-    local JM_KILLS=3
-    local CHECKPOINT_DIR="${TEST_DATA_DIR}/checkpoints/"
-
-    CLEARED=0
-
-    # start the cluster on HA mode
-    start_ha_cluster
-
-    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
-
-    # submit a job in detached mode and let it run
-    local JOB_ID=$($FLINK_DIR/bin/flink run -d -p ${PARALLELISM} \
-     $TEST_PROGRAM_JAR \
-        --environment.parallelism ${PARALLELISM} \
-        --test.semantics exactly-once \
-        --test.simulate_failure true \
-        --test.simulate_failure.num_records 200 \
-        --test.simulate_failure.num_checkpoints 1 \
-        --test.simulate_failure.max_failures 20 \
-        --state_backend ${BACKEND} \
-        --state_backend.checkpoint_directory "file://${CHECKPOINT_DIR}" \
-        --state_backend.file.async ${ASYNC} \
-        --state_backend.rocks.incremental ${INCREM} \
-        --sequence_generator_source.sleep_time 15 \
-        --sequence_generator_source.sleep_after_elements 1 \
-        | grep "Job has been submitted with JobID" | sed 's/.* //g')
-
-    wait_job_running ${JOB_ID}
-
-    # start the watchdog that keeps the number of JMs stable
-    jm_watchdog 1 "8081" &
-    JM_WATCHDOG_PID=$!
-    echo "Running JM watchdog @ ${JM_WATCHDOG_PID}"
-
-    sleep 5
-
-    # start the watchdog that keeps the number of TMs stable
-    tm_watchdog ${JOB_ID} 1 &
+function start_ha_tm_watchdog() {
+    ha_tm_watchdog $1 $2 &
     TM_WATCHDOG_PID=$!
     echo "Running TM watchdog @ ${TM_WATCHDOG_PID}"
-
-    # let the job run for a while to take some checkpoints
-    sleep 20
-
-    for (( c=0; c<${JM_KILLS}; c++ )); do
-        # kill the JM and wait for watchdog to
-        # create a new one which will take over
-        kill_jm
-        sleep 60
-    done
-
-    verify_logs ${JM_KILLS}
-
-    # kill the cluster and zookeeper
-    stop_cluster_and_watchdog
 }
 
-trap stop_cluster_and_watchdog INT
-trap stop_cluster_and_watchdog EXIT
-
-STATE_BACKEND_TYPE=${1:-file}
-STATE_BACKEND_FILE_ASYNC=${2:-true}
-STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
-
-run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL}
