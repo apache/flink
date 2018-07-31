@@ -270,14 +270,11 @@ key if we had tuples with different values in the first field.
 
 A time-to-live (TTL) can be assigned to the keyed state value. 
 In this case it will expire after the configured TTL
-and its stored value will be cleaned up based on the best effort.
-Depending on configuration, the expired state can become unavailable for read access
-even if it is not cleaned up yet. In this case it behaves as if it does not exist any more.
+and its stored value will be cleaned up on the best effort basis which is discussed in details later.
 
-The collection types of state support TTL on entry level: 
-separate list elements and map entries expire independently. 
+The state collection types support per-entry TTLs: list elements and map entries expire independently.
 
-The behaviour of state with TTL firstly should be configured by building `StateTtlConfiguration`:
+To use state TTL you must first build a `StateTtlConfiguration` object:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -302,9 +299,9 @@ val ttlConfig = StateTtlConfiguration
 </div>
 
 It has several options to consider. 
-The first parameter of `newBuilder` method is mandatory, it is a value of time-to-live itself.
+The first parameter of `newBuilder` method is mandatory, it is the time-to-live value.
 
-The update type configures when the time-to-live of state value is prolonged (default `OnCreateAndWrite`):
+The update type configures when the state TTL is refreshed (default `OnCreateAndWrite`):
 
  - `StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite` - only on creation and write access,
  - `StateTtlConfiguration.TtlUpdateType.OnReadAndWrite` - also on read access.
@@ -314,8 +311,15 @@ if it is not cleaned up yet (default `NeverReturnExpired`):
 
  - `StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired` - expired value is never returned,
  - `StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available.
+ 
+ In case of `NeverReturnExpired`, the expired state behaves as if it does not exist any more, 
+ even if it has yet to be removed. The option can be useful for the use cases 
+ where data has to become unavailable for read access strictly after TTL, 
+ e.g. application working with privacy sensitive data.
+ 
+Another option `ReturnExpiredIfNotCleanedUp` allows to return the expired state before its cleanup.
 
-The TTL can be enabled in descriptor for any type of state:
+TTL functionality can be enabled in the descriptor of any type of state:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -338,16 +342,21 @@ stateDescriptor.enableTimeToLive(ttlConfig)
 **Notes:** 
 
 - The state backends store the timestamp of last modification along with the user value, 
-which means that enabling this feature increases consumption of state storage.
+which means that enabling this feature increases consumption of state storage. 
+Heap state backend stores an additional java object with a reference to the user state object 
+and a primitive long in memory. RocksDB state backend adds 8 bytes per stored value, list entry or map entry.
 
-- As of current implementation the state storage is cleaned up of expired value 
-only on its explicit read access per key, e.g. calling `ValueState.value()`. 
-This might change in future releases, e.g. additional strategies might be added in background to speed up cleanup.
+- Currently expired values are only removed when they are read out explicitly, 
+e.g. by calling ValueState.value(). 
+Note that this means that under the current implementation if expired state is not read, 
+it won't be removed, possibly leading to ever growing state. 
+This should change in future releases. 
+Additional strategies should be added that clean up expired state automatically in the background.
 
-- Only *processing time* scale is currently supported for TTL.
+- Only TTLs in reference to *processing time* are currently supported.
 
 - Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
-will lead to compatibility failure.
+will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoint 
 but rather a way how Flink treats it in the currently running job.
