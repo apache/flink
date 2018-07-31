@@ -21,9 +21,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.Duration;
 
@@ -31,6 +35,8 @@ import scala.concurrent.duration.Duration;
  * Configuration for the {@link SlotManager}.
  */
 public class SlotManagerConfiguration {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(SlotManagerConfiguration.class);
 
 	private final Time taskManagerRequestTimeout;
 	private final Time slotRequestTimeout;
@@ -68,11 +74,24 @@ public class SlotManagerConfiguration {
 				"value " + AkkaOptions.ASK_TIMEOUT + '.', e);
 		}
 
-		final Time slotRequestTimeout = Time.milliseconds(
-				configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT));
+		final Time slotRequestTimeout = getSlotRequestTimeout(configuration);
 		final Time taskManagerTimeout = Time.milliseconds(
 				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
 		return new SlotManagerConfiguration(rpcTimeout, slotRequestTimeout, taskManagerTimeout);
+	}
+
+	private static Time getSlotRequestTimeout(final Configuration configuration) {
+		final long legacySlotRequestTimeoutMs = configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT);
+		final long slotRequestTimeoutMs;
+		if (legacySlotRequestTimeoutMs == ResourceManagerOptions.SLOT_REQUEST_TIMEOUT.defaultValue()) {
+			slotRequestTimeoutMs = configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
+		} else {
+			LOGGER.warn("Config key {} is deprecated; use {} instead.",
+				ResourceManagerOptions.SLOT_REQUEST_TIMEOUT,
+				JobManagerOptions.SLOT_REQUEST_TIMEOUT);
+			slotRequestTimeoutMs = legacySlotRequestTimeoutMs;
+		}
+		return Time.milliseconds(slotRequestTimeoutMs);
 	}
 }
