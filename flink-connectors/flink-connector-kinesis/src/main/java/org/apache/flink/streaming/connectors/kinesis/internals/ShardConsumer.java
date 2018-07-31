@@ -232,11 +232,9 @@ public class ShardConsumer<T> implements Runnable {
 
 					nextShardItr = getRecordsResult.getNextShardIterator();
 
-					long processingEndTimeNanos = System.nanoTime();
-
-					long adjustmentEndTimeNanos = adjustRunLoopFrequency(processingStartTimeNanos, processingEndTimeNanos);
+					long adjustmentEndTimeNanos = adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());
 					long runLoopTimeNanos = adjustmentEndTimeNanos - processingStartTimeNanos;
-					maxNumberOfRecordsPerFetch = adaptRecordsToRead(runLoopTimeNanos, fetchedRecords.size(), recordBatchSizeBytes);
+					maxNumberOfRecordsPerFetch = adaptRecordsToRead(runLoopTimeNanos, fetchedRecords.size(), recordBatchSizeBytes, maxNumberOfRecordsPerFetch);
 					processingStartTimeNanos = adjustmentEndTimeNanos; // for next time through the loop
 				}
 			}
@@ -272,20 +270,21 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param runLoopTimeNanos The total time of one pass through the loop
 	 * @param numRecords The number of records of the last read operation
 	 * @param recordBatchSizeBytes The total batch size of the last read operation
+	 * @param maxNumberOfRecordsPerFetch The current maxNumberOfRecordsPerFetch
 	 */
-	protected int adaptRecordsToRead(long runLoopTimeNanos, int numRecords, long recordBatchSizeBytes) {
-		int adaptedNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
+	private int adaptRecordsToRead(long runLoopTimeNanos, int numRecords, long recordBatchSizeBytes,
+			int maxNumberOfRecordsPerFetch) {
 		if (useAdaptiveReads && numRecords != 0 && runLoopTimeNanos != 0) {
 			long averageRecordSizeBytes = recordBatchSizeBytes / numRecords;
 			// Adjust number of records to fetch from the shard depending on current average record size
 			// to optimize 2 Mb / sec read limits
 			double loopFrequencyHz = 1000000000.0d / runLoopTimeNanos;
 			double bytesPerRead = KINESIS_SHARD_BYTES_PER_SECOND_LIMIT / loopFrequencyHz;
-			adaptedNumberOfRecordsPerFetch = (int) (bytesPerRead / averageRecordSizeBytes);
+			maxNumberOfRecordsPerFetch = (int) (bytesPerRead / averageRecordSizeBytes);
 			// Ensure the value is not more than 10000L
-			adaptedNumberOfRecordsPerFetch = Math.min(adaptedNumberOfRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX);
+			maxNumberOfRecordsPerFetch = Math.min(maxNumberOfRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX);
 		}
-		return adaptedNumberOfRecordsPerFetch;
+		return maxNumberOfRecordsPerFetch;
 	}
 
 	/**
