@@ -969,7 +969,7 @@ private static class MyFoldFunction
 
   public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
       Integer cur = acc.getField(2);
-      acc.setField(2, cur + 1);
+      acc.setField(cur + 1, 2);
       return acc;
   }
 }
