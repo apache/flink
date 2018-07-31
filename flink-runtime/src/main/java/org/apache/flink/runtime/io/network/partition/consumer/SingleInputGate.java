@@ -274,6 +274,11 @@ public class SingleInputGate implements InputGate {
 		return 0;
 	}
 
+	@Override
+	public String getOwningTaskName() {
+		return owningTaskName;
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
