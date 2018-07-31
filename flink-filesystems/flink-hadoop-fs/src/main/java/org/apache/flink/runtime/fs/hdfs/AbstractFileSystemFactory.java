@@ -51,10 +51,16 @@ public abstract class AbstractFileSystemFactory implements FileSystemFactory {
 	public FileSystem create(URI fsUri) throws IOException {
 		LOG.debug("Creating Hadoop file system (backed by " + name + ")");
 		LOG.debug("Loading Hadoop configuration for " + name);
-		org.apache.hadoop.conf.Configuration hadoopConfig = hadoopConfigLoader.getOrLoadHadoopConfig();
-		org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
-		fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
-		return new HadoopFileSystem(fs);
+		try {
+			org.apache.hadoop.conf.Configuration hadoopConfig = hadoopConfigLoader.getOrLoadHadoopConfig();
+			org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
+			fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
+			return new HadoopFileSystem(fs);
+		} catch (IOException ioe) {
+			throw ioe;
+		} catch (Exception e) {
+			throw new IOException(e.getMessage(), e);
+		}
 	}
 
 	protected abstract org.apache.hadoop.fs.FileSystem createHadoopFileSystem();
