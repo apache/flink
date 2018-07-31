@@ -212,9 +212,7 @@ This can also be expressed more formally as
 `b.timestamp ∈ [a.timestamp + lowerBound; a.timestamp + upperBound]` or 
 `a.timestamp + lowerBound <= b.timestamp <= a.timestamp + upperBound`
 
-where a and b are elements of A and B that share a common key.
-
-The interval join currently only performs inner joins.
+where a and b are elements of A and B that share a common key. Both the lower and upper bound can be either negative or positive as long as as the lower bound is always smaller or equal to the upper bound. The interval join currently only performs inner joins.
 
 When a pair of elements are passed to the `ProcessJoinFunction`, they will be assigned with the larger timestamp (which can be accessed via the `ProcessJoinFunction.Context`) of the two elements.
 
