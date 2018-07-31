@@ -67,8 +67,8 @@ public class ClassLoaderTestProgram {
 					try (InputStream in = url.openStream()) {
 						Properties properties = new Properties();
 						properties.load(in);
-						String orderedGitUrl = properties.getProperty("git.commit.id.abbrev");
-						sortedProperties.append(orderedGitUrl);
+						String orderedGitCommitId = properties.getProperty("git.commit.id.abbrev");
+						sortedProperties.append(orderedGitCommitId);
 					}
 				}
 
