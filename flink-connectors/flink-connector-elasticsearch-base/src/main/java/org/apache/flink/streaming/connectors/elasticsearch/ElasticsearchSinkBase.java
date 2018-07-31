@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -86,6 +87,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 	/**
 	 * Used to control whether the retry delay should increase exponentially or remain constant.
 	 */
+	@PublicEvolving
 	public enum FlushBackoffType {
 		CONSTANT,
 		EXPONENTIAL
@@ -136,7 +138,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 
 	private final Integer bulkProcessorFlushMaxActions;
 	private final Integer bulkProcessorFlushMaxSizeMb;
-	private final Integer bulkProcessorFlushIntervalMillis;
+	private final Long bulkProcessorFlushIntervalMillis;
 	private final BulkFlushBackoffPolicy bulkProcessorFlushBackoffPolicy;
 
 	// ------------------------------------------------------------------------
@@ -244,7 +246,7 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		}
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)) {
-			bulkProcessorFlushIntervalMillis = params.getInt(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
+			bulkProcessorFlushIntervalMillis = params.getLong(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
 			userConfig.remove(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS);
 		} else {
 			bulkProcessorFlushIntervalMillis = null;

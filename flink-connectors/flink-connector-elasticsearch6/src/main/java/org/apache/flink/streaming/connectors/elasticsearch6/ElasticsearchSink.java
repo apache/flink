@@ -61,15 +61,6 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
-	 *
-	 * @param bulkRequestsConfig user configuration to configure bulk flushing behaviour.
-	 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
-	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
-	 * @param failureHandler This is used to handle failed {@link ActionRequest}.
-	 * @param restClientFactory the factory that configures the rest client.
-	 */
 	private ElasticsearchSink(
 		Map<String, String> bulkRequestsConfig,
 		List<HttpHost> httpHosts,
@@ -95,23 +86,103 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		private ActionRequestFailureHandler failureHandler = new NoOpFailureHandler();
 		private RestClientFactory restClientFactory = restClientBuilder -> {};
 
+		/**
+		 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link RestHighLevelClient}.
+		 *
+		 * @param httpHosts The list of {@link HttpHost} to which the {@link RestHighLevelClient} connects to.
+		 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element.
+		 */
 		public Builder(List<HttpHost> httpHosts, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 			this.httpHosts = Preconditions.checkNotNull(httpHosts);
 			this.elasticsearchSinkFunction = Preconditions.checkNotNull(elasticsearchSinkFunction);
 		}
 
-		public void setBulkRequestsConfig(Map<String, String> bulkRequestsConfig) {
-			this.bulkRequestsConfig = bulkRequestsConfig;
+		/**
+		 * Sets the maximum number of actions to buffer for each bulk request.
+		 *
+		 * @param numMaxActions the maxinum number of actions to buffer per bulk request.
+		 */
+		public void setBulkFlushMaxActions(int numMaxActions) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(numMaxActions));
 		}
 
+		/**
+		 * Sets the maximum size of buffered actions, in mb, per bulk request.
+		 *
+		 * @param maxSizeMb the maximum size of buffered actions, in mb.
+		 */
+		public void setBulkFlushMaxSizeMb(int maxSizeMb) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB, String.valueOf(maxSizeMb));
+		}
+
+		/**
+		 * Sets the bulk flush interval, in milliseconds.
+		 *
+		 * @param intervalMillis the bulk flush interval, in milliseconds.
+		 */
+		public void setBulkFlushInterval(long intervalMillis) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS, String.valueOf(intervalMillis));
+		}
+
+		/**
+		 * Sets whether or not to enable bulk flush backoff behaviour.
+		 *
+		 * @param enabled whether or not to enable backoffs.
+		 */
+		public void setBulkFlushBackoff(boolean enabled) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE, String.valueOf(enabled));
+		}
+
+		/**
+		 * Sets the type of back of to use when flushing bulk requests.
+		 *
+		 * @param flushBackoffType the backoff type to use.
+		 */
+		public void setBulkFlushBackoffType(FlushBackoffType flushBackoffType) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE, flushBackoffType.toString());
+		}
+
+		/**
+		 * Sets the maximum number of retries for a backoff attempt when flushing bulk requests.
+		 *
+		 * @param maxRetries the maximum number of retries for a backoff attempt when flushing bulk requests
+		 */
+		public void setBulkFlushBackoffRetries(int maxRetries) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES, String.valueOf(maxRetries));
+		}
+
+		/**
+		 * Sets the amount of delay between each backoff attempt when flushing bulk requests, in milliseconds.
+		 *
+		 * @param delayMillis the amount of delay between each backoff attempt when flushing bulk requests, in milliseconds.
+		 */
+		public void setBulkFlushBackoffDelay(long delayMillis) {
+			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY, String.valueOf(delayMillis));
+		}
+
+		/**
+		 * Sets a failure handler for action requests.
+		 *
+		 * @param failureHandler This is used to handle failed {@link ActionRequest}.
+		 */
 		public void setFailureHandler(ActionRequestFailureHandler failureHandler) {
 			this.failureHandler = failureHandler;
 		}
 
+		/**
+		 * Sets a REST client factory for custom client configuration.
+		 *
+		 * @param restClientFactory the factory that configures the rest client.
+		 */
 		public void setRestClientFactory(RestClientFactory restClientFactory) {
 			this.restClientFactory = restClientFactory;
 		}
 
+		/**
+		 * Creates the Elasticsearch sink.
+		 *
+		 * @return the created Elasticsearch sink.
+		 */
 		public ElasticsearchSink<T> build() {
 			return new ElasticsearchSink<>(bulkRequestsConfig, httpHosts, elasticsearchSinkFunction, failureHandler, restClientFactory);
 		}

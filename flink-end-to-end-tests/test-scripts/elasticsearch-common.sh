@@ -42,7 +42,7 @@ function setup_elasticsearch {
 }
 
 function verify_elasticsearch_process_exist {
-    while : ; do
+    for ((i=1;i<=10;i++)); do
         local elasticsearchProcess=$(jps | grep Elasticsearch | awk '{print $2}')
 
         echo "Waiting for Elasticsearch node to start ..."
@@ -52,9 +52,12 @@ function verify_elasticsearch_process_exist {
             sleep 1
         else
             echo "Elasticsearch node is running."
-            break
+            return
         fi
     done
+
+    echo "Elasticsearch node did not start properly"
+    exit 1
 }
 
 function verify_result {

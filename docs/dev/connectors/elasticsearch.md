@@ -198,10 +198,6 @@ List<HttpHost> httpHost = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
-Map<String, String> bulkRequestsConfig = new HashMap<>();
-// This instructs the sink to emit after every element, otherwise they would be buffered
-bulkRequestsConfig.put("bulk.flush.max.actions", "1");
-
 // use a ElasticsearchSink.Builder to create an ElasticsearchSink
 ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
     httpHosts,
@@ -223,8 +219,8 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
     }
 );
 
-// configuration for the bulk requests
-builder.setBulkRequestsConfig(bulkRequestsConfig);
+// configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
+builder.setBulkFlushMaxActions(1);
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
 builder.setRestClientBuilder(
@@ -347,10 +343,6 @@ val httpHosts = new java.util.ArrayList[HttpHost]
 httpHosts.add(new HttpHost("127.0.0.1", 9300, "http"))
 httpHosts.add(new HttpHost("10.2.3.1", 9300, "http"))
 
-val bulkRequestsConfig = new java.util.HashMap[String, String]
-// This instructs the sink to emit after every element, otherwise they would be buffered
-bulkRequestsConfig.put("bulk.flush.max.actions", "1")
-
 val esSinkBuilder = new ElasticsearchSink.Builer[String](
   httpHosts,
   new ElasticsearchSinkFunction[String] {
@@ -366,8 +358,8 @@ val esSinkBuilder = new ElasticsearchSink.Builer[String](
   }
 )
 
-// configuration for the bulk requests
-builder.setBulkRequestsConfig(bulkRequestsConfig)
+// configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
+builder.setBulkFlushMaxActions(1)
 
 // provide a RestClientFactory for custom configuration on the internally created REST client
 builder.setRestClientBuilder(
