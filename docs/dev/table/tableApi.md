@@ -4712,6 +4712,18 @@ STRING.sha2(INT)
         </p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.crc32()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>returns the cyclic redundancy check value of a given <i>string</i> as a 32-bit unsigned value. Return <i>null</i> if <i>string</i> is <i>null</i>.
+        </p>
+      </td>
+    </tr>
     </tbody>
 </table>
 

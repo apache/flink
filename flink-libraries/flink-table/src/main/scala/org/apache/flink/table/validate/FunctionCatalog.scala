@@ -281,7 +281,8 @@ object FunctionCatalog {
     "sha256" -> classOf[Sha256],
     "sha384" -> classOf[Sha384],
     "sha512" -> classOf[Sha512],
-    "sha2" -> classOf[Sha2]
+    "sha2" -> classOf[Sha2],
+    "crc32" -> classOf[Crc32]
   )
 
   /**
@@ -446,7 +447,9 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.SHA384,
     ScalarSqlFunctions.SHA512,
     ScalarSqlFunctions.SHA2,
+    ScalarSqlFunctions.CRC32,
     ScalarSqlFunctions.FROM_BASE64,
+
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,

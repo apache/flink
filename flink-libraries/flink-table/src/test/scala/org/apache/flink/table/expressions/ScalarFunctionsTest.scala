@@ -2112,6 +2112,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       expectedSha256)
   }
 
+  @Test
+  def testCrc32(): Unit = {
+    testAllApis(
+      "test".crc32(),
+      "'test'.crc32()",
+      "CRC32('test')",
+      "3632233996")
+
+    testAllApis(
+      'f0.crc32(),
+      "f0.crc32()",
+      "CRC32(f0)",
+      "4060186824"
+    )
+
+    testAllApis(
+      'f33.crc32(),
+      "crc32(f33)",
+      "CRC32(f33)",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Other functions
   // ----------------------------------------------------------------------------------------------

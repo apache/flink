@@ -121,4 +121,17 @@ case class Sha2(child: Expression, hashLength: Expression)
 
 }
 
+case class Crc32(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.LONG_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = STRING_TYPE_INFO :: Nil
+
+  override def toString: String = s"($child).crc32()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.CRC32, child.toRexNode)
+  }
+}
+
 

@@ -1969,4 +1969,22 @@ abstract class CodeGenerator(
 
     fieldTerm
   }
+
+  def addReusableCrc(): String = {
+    val fieldTerm = newName("crc32")
+
+    val field =
+      s"""
+        |final java.util.zip.CRC32 $fieldTerm;
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val init =
+      s"""
+        |$fieldTerm = new java.util.zip.CRC32();
+        |""".stripMargin
+
+    reusableInitStatements.add(init)
+    fieldTerm
+  }
 }

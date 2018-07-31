@@ -33,6 +33,9 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
     : GeneratedExpression = {
 
     val (initStmt, md) = operands.size match {
+      // for function calls of CRC32
+      case 1 if algName.equals("CRC32") =>
+        (None, codeGenerator.addReusableCrc())
 
       // for function calls of MD5, SHA1, SHA224, SHA256, SHA384, SHA512
       case 1 =>
@@ -63,15 +66,29 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
         (Some(init), messageDigest)
     }
 
-    generateCallWithStmtIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
-      (terms) =>
-        val auxiliaryStmt =
-          s"""
-            |${initStmt.getOrElse("")}
-            |$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));
-            |""".stripMargin
-        val result = s"${classOf[Hex].getCanonicalName}.encodeHexString($md.digest())"
-        (Some(auxiliaryStmt), result)
+    algName match {
+      case "CRC32" =>
+        generateCallWithStmtIfArgsNotNull(codeGenerator.nullCheck, LONG_TYPE_INFO, operands) {
+          (terms) =>
+            val auxiliaryStmt =
+              s"""
+                |${initStmt.getOrElse("")}
+                |$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));
+                |""".stripMargin
+            val result = s"$md.getValue()"
+            (Some(auxiliaryStmt), result)
+        }
+      case _ =>
+        generateCallWithStmtIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
+          (terms) =>
+            val auxiliaryStmt =
+              s"""
+                |${initStmt.getOrElse("")}
+                |$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));
+                |""".stripMargin
+            val result = s"${classOf[Hex].getCanonicalName}.encodeHexString($md.digest())"
+            (Some(auxiliaryStmt), result)
+        }
     }
   }
 }
