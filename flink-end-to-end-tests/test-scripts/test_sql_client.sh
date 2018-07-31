@@ -47,7 +47,7 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
     fi
   done
 
-  # check for proper proper factory
+  # check for proper factory
   if [ ! -f $EXTRACTED_JAR/META-INF/services/org.apache.flink.table.factories.TableFactory ]; then
     echo "No table factory found in JAR: $SQL_JAR"
     exit 1
@@ -58,10 +58,10 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
 done
 
 ################################################################################
-# Run a table program
+# Run a SQL statement
 ################################################################################
 
-echo "Testing table program..."
+echo "Testing SQL statement..."
 
 function sql_cleanup() {
   # don't call ourselves again for another signal interruption
@@ -84,17 +84,19 @@ setup_kafka_dist
 
 start_kafka_cluster
 
-create_kafka_topic 1 1 test-input
-create_kafka_topic 1 1 test-output
+create_kafka_topic 1 1 test-json
+create_kafka_topic 1 1 test-avro
 
 # put JSON data into Kafka
 echo "Sending messages to Kafka..."
-send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-input
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' test-input
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' test-input
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-input
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' test-input
-send_messages_to_kafka '{"timestamp": "2018-03-12 09:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-input
+send_messages_to_kafka '{"timestamp": "2018-03-12 08:00:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 08:10:00", "user": "Alice", "event": { "type": "WARNING", "message": "This is a warning."}}' test-json # duplicate
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:00:00", "user": "Bob", "event": { "type": "WARNING", "message": "This is another warning."}}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:10:00", "user": "Alice", "event": { "type": "INFO", "message": "This is a info."}}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:20:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": "Steve", "event": { "type": "INFO", "message": "This is another info."}}' test-json # duplicate
+send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "event": { "type": "WARNING", "message": "This is a bad message because the user is missing."}}' test-json # filtered in results
+send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json # pending in results
 
 # prepare Flink
 echo "Preparing Flink..."
@@ -120,7 +122,7 @@ tables:
             from: timestamp
           watermarks:
             type: periodic-bounded
-            delay: "60000"
+            delay: 2000
       - name: user
         type: VARCHAR
       - name: event
@@ -128,7 +130,7 @@ tables:
     connector:
       type: kafka
       version: "0.10"
-      topic: test-input
+      topic: test-json
       startup-mode: earliest-offset
       properties:
         - key: zookeeper.connect
@@ -170,10 +172,12 @@ tables:
         type: VARCHAR
       - name: message
         type: VARCHAR
+      - name: duplicateCount
+        type: BIGINT
     connector:
       type: kafka
       version: "0.10"
-      topic: test-output
+      topic: test-avro
       startup-mode: earliest-offset
       properties:
         - key: zookeeper.connect
@@ -190,7 +194,8 @@ tables:
             "fields": [
               {"name": "event_timestamp", "type": "string"},
               {"name": "user", "type": ["string", "null"]},
-              {"name": "message", "type": "string"}
+              {"name": "message", "type": "string"},
+              {"name": "duplicateCount", "type": "long"}
             ]
         }
   - name: CsvSinkTable
@@ -203,6 +208,8 @@ tables:
         type: VARCHAR
       - name: message
         type: VARCHAR
+      - name: duplicateCount
+        type: BIGINT
     connector:
       type: filesystem
       path: $RESULT
@@ -215,6 +222,8 @@ tables:
           type: VARCHAR
         - name: message
           type: VARCHAR
+        - name: duplicateCount
+          type: BIGINT
 
 functions:
   - name: RegReplace
@@ -222,16 +231,21 @@ functions:
     class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
 EOF
 
-# submit table programs
+# submit SQL statements
 
 read -r -d '' SQL_STATEMENT_1 << EOF
 INSERT INTO AvroBothTable
   SELECT
-    CAST(rowtime AS VARCHAR) AS event_timestamp,
+    CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,
     user,
-    RegReplace(event.message, ' is ', ' was ') AS message
+    RegReplace(event.message, ' is ', ' was ') AS message,
+    COUNT(*) AS duplicateCount
   FROM JsonSourceTable
   WHERE user IS NOT NULL
+  GROUP BY
+    user,
+    event.message,
+    TUMBLE(rowtime, INTERVAL '1' HOUR)
 EOF
 
 echo "Executing SQL: Kafka JSON -> Kafka Avro"
@@ -262,11 +276,11 @@ echo "Waiting for CSV results..."
 for i in {1..10}; do
   if [ -e $RESULT ]; then
     CSV_LINE_COUNT=`cat $RESULT | wc -l`
-    if [ $((CSV_LINE_COUNT)) -eq 5 ]; then
+    if [ $((CSV_LINE_COUNT)) -eq 4 ]; then
       break
     fi
   fi
   sleep 5
 done
 
-check_result_hash "SQLClient" $RESULT "fa321ad6030e2217ed4e01c0e7916697"
+check_result_hash "SQLClient" $RESULT "dca08a82cc09f6b19950291dbbef16bb"
