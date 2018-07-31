@@ -192,6 +192,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		leaderElectionService = highAvailabilityServices.getResourceManagerLeaderElectionService();
 
+		initialize();
+
 		try {
 			leaderElectionService.start(this);
 		} catch (Exception e) {
@@ -203,8 +205,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			throw new ResourceManagerException("Could not start the job leader id service.", e);
 		}
-
-		initialize();
 	}
 
 	@Override
@@ -233,7 +233,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
 
-		clearState();
+		clearStateInternal();
 
 		if (exception != null) {
 			return FutureUtils.completedExceptionally(
@@ -724,7 +724,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 	}
 
-	private void clearState() {
+	private void clearStateInternal() {
 		jobManagerRegistrations.clear();
 		jmResourceIdRegistrations.clear();
 		taskExecutors.clear();
@@ -734,7 +734,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			onFatalError(new ResourceManagerException("Could not properly clear the job leader id service.", e));
 		}
+		clearState();
 	}
+
+	protected void clearState() {}
 
 	/**
 	 * This method should be called by the framework once it detects that a currently registered
@@ -894,23 +897,21 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 				// clear the state if we've been the leader before
 				if (getFencingToken() != null) {
-					clearState();
+					clearStateInternal();
 				}
 
 				setFencingToken(newResourceManagerId);
 
-				try {
-					onLeaderShipGranted();
-				} catch (Exception e) {
-					onFatalError(e);
-				}
-
 				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
-				getRpcService().execute(
-					() ->
+				prepareLeadershipAsync()
+					.exceptionally(t -> {
+						onFatalError(t);
+						return null;
+					})
+					.thenRunAsync(() ->
 						// confirming the leader session ID might be blocking,
-						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID));
+						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID), getRpcService().getExecutor());
 			});
 	}
 
@@ -923,13 +924,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			() -> {
 				log.info("ResourceManager {} was revoked leadership. Clearing fencing token.", getAddress());
 
-				clearState();
-
-				try {
-					onLeaderShipRevoked();
-				} catch (Exception e) {
-					onFatalError(e);
-				}
+				clearStateInternal();
 
 				setFencingToken(null);
 
@@ -959,16 +954,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	protected abstract void initialize() throws ResourceManagerException;
 
 	/**
-	 * Called when leadership is granted.
-	 * @throws Exception which occurs during granting leadership and causes the resource manager to fail.
+	 * This method can be overridden to add a (non-blocking) initialization routine to the
+	 * ResourceManager that will be called when leadership is granted but before leadership is
+	 * confirmed.
+	 *
+	 * @return Returns a {@code CompletableFuture} that completes when the computation is finished.
 	 */
-	protected void onLeaderShipGranted() throws Exception {}
-
-	/**
-	 * Called when leadership is revoked.
-	 * @throws Exception which occurs during revoking leadership and causes the resource manager to fail.
-	 */
-	protected void onLeaderShipRevoked() throws Exception {}
+	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return CompletableFuture.completedFuture(null);
+	}
 
 	/**
 	 * The framework specific code to deregister the application. This should report the

@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
@@ -221,14 +222,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Do nothing and all work has been moved to on leadership granted callback.
+	 * Starts the Mesos-specifics.
 	 */
 	@Override
 	protected void initialize() throws ResourceManagerException {
-	}
-
-	@Override
-	protected void onLeaderShipGranted() throws Exception {
 		// create and start the worker store
 		try {
 			this.workerStore = mesosServices.createMesosWorkerStore(flinkConfig, getRpcService().getExecutor());
@@ -236,9 +233,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		} catch (Exception e) {
 			throw new ResourceManagerException("Unable to initialize the worker store.", e);
 		}
-
-		// register with Mesos
-		// TODO : defer connection until RM acquires leadership
 
 		Protos.FrameworkInfo.Builder frameworkInfo = mesosConfig.frameworkInfo()
 			.clone()
@@ -268,13 +262,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		reconciliationCoordinator = createReconciliationCoordinator(schedulerDriver);
 		taskMonitor = createTaskMonitor(schedulerDriver);
 
-		// recover state
-		try {
-			recoverWorkers();
-		} catch (Exception e) {
-			throw new ResourceManagerException("Unable to recover Mesos worker state.", e);
-		}
-
 		// configure the artifact server to serve the TM container artifacts
 		try {
 			LaunchableMesosWorker.configureArtifactServer(artifactServer, taskManagerContainerSpec);
@@ -283,28 +270,55 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			throw new ResourceManagerException("Unable to configure the artifact server with TaskManager artifacts.", e);
 		}
 
-		// begin scheduling
-		connectionMonitor.tell(new ConnectionMonitor.Start(), selfActor);
-		schedulerDriver.start();
-
-		LOG.info("Mesos resource manager started.");
+		LOG.info("Mesos resource manager initialized.");
 	}
 
 	@Override
-	protected void onLeaderShipRevoked() throws Exception {
-		workerStore.stop(false);
+	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return getRpcService().execute(() -> recoverWorkers())
+			.thenAcceptAsync((tasksFromPreviousAttempts) -> {
+				try {
+					recoverWorkers(tasksFromPreviousAttempts);
+				} catch (Exception e) {
+					throw new CompletionException(new ResourceManagerException(e));
+				}
+
+				// begin scheduling
+				connectionMonitor.tell(new ConnectionMonitor.Start(), selfActor);
+				schedulerDriver.start();
+
+				LOG.info("Mesos resource manager started.");
+			}, getMainThreadExecutor());
+	}
+
+	@Override
+	protected void clearState() {
 		schedulerDriver.stop(true);
+
 		disconnected(new Disconnected());
+
+		workersInNew.clear();
+		workersInLaunch.clear();
+		workersBeingReturned.clear();
+	}
+
+	/**
+	 * Get framework/worker information persisted by a prior incarnation of the RM.
+	 */
+	private List<MesosWorkerStore.Worker> recoverWorkers() throws ResourceManagerException {
+		// if this resource manager is recovering from failure,
+		// then some worker tasks are most likely still alive and we can re-obtain them
+		try {
+			return workerStore.recoverWorkers();
+		} catch (Exception e) {
+			throw new ResourceManagerException("Unable to recover Mesos worker state.", e);
+		}
 	}
 
 	/**
 	 * Recover framework/worker information persisted by a prior incarnation of the RM.
 	 */
-	private void recoverWorkers() throws Exception {
-		// if this resource manager is recovering from failure,
-		// then some worker tasks are most likely still alive and we can re-obtain them
-		final List<MesosWorkerStore.Worker> tasksFromPreviousAttempts = workerStore.recoverWorkers();
-
+	private void recoverWorkers(final List<MesosWorkerStore.Worker> tasksFromPreviousAttempts) throws Exception {
 		assert(workersInNew.isEmpty());
 		assert(workersInLaunch.isEmpty());
 		assert(workersBeingReturned.isEmpty());
@@ -805,7 +819,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 		@Override
 		public void disconnected(SchedulerDriver driver) {
-			runAsync(new Runnable() {
+			runAsyncWithoutFencing(new Runnable() {
 				@Override
 				public void run() {
 					MesosResourceManager.this.disconnected(new Disconnected());
