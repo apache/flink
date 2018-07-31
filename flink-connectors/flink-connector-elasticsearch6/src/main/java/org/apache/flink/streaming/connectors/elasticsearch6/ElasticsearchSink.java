@@ -98,6 +98,15 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		}
 
 		/**
+		 * Sets a map of strings that configures the bulk flushing behaviour.
+		 *
+		 * @param bulkRequestsConfig user configuration to configure bulk flushing behaviour.
+		 */
+		public void setBulkRequestsConfig(Map<String, String> bulkRequestsConfig) {
+			this.bulkRequestsConfig = bulkRequestsConfig;
+		}
+
+		/**
 		 * Sets the maximum number of actions to buffer for each bulk request.
 		 *
 		 * @param numMaxActions the maxinum number of actions to buffer per bulk request.
