@@ -213,7 +213,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	private void completeBufferedSequence() throws IOException {
-		LOG.debug("Finished feeding back buffered data");
+		LOG.debug("{}: Finished feeding back buffered data.", inputGate.getOwningTaskName());
 
 		currentBuffered.cleanup();
 		currentBuffered = queuedBuffered.pollFirst();
@@ -247,8 +247,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			}
 			else if (barrierId > currentCheckpointId) {
 				// we did not complete the current checkpoint, another started before
-				LOG.warn("Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
-						"Skipping current checkpoint.", barrierId, currentCheckpointId);
+				LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
+						"Skipping current checkpoint.",
+					inputGate.getOwningTaskName(),
+					barrierId,
+					currentCheckpointId);
 
 				// let the task know we are not completing this
 				notifyAbort(currentCheckpointId, new CheckpointDeclineSubsumedException(barrierId));
@@ -279,8 +282,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		if (numBarriersReceived + numClosedChannels == totalNumberOfInputChannels) {
 			// actually trigger checkpoint
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Received all barriers, triggering checkpoint {} at {}",
-						receivedBarrier.getId(), receivedBarrier.getTimestamp());
+				LOG.debug("{}: Received all barriers, triggering checkpoint {} at {}.",
+					inputGate.getOwningTaskName(),
+					receivedBarrier.getId(),
+					receivedBarrier.getTimestamp());
 			}
 
 			releaseBlocksAndResetBarriers();
@@ -309,7 +314,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			if (barrierId == currentCheckpointId) {
 				// cancel this alignment
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Checkpoint {} canceled, aborting alignment", barrierId);
+					LOG.debug("{}: Checkpoint {} canceled, aborting alignment.",
+						inputGate.getOwningTaskName(),
+						barrierId);
 				}
 
 				releaseBlocksAndResetBarriers();
@@ -317,8 +324,11 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			}
 			else if (barrierId > currentCheckpointId) {
 				// we canceled the next which also cancels the current
-				LOG.warn("Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
-						"Skipping current checkpoint.", barrierId, currentCheckpointId);
+				LOG.warn("{}: Received cancellation barrier for checkpoint {} before completing current checkpoint {}. " +
+						"Skipping current checkpoint.",
+					inputGate.getOwningTaskName(),
+					barrierId,
+					currentCheckpointId);
 
 				// this stops the current alignment
 				releaseBlocksAndResetBarriers();
@@ -347,7 +357,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			latestAlignmentDurationNanos = 0L;
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Checkpoint {} canceled, skipping alignment", barrierId);
+				LOG.debug("{}: Checkpoint {} canceled, skipping alignment.",
+					inputGate.getOwningTaskName(),
+					barrierId);
 			}
 
 			notifyAbortOnCancellationBarrier(barrierId);
@@ -401,8 +413,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private void checkSizeLimit() throws Exception {
 		if (maxBufferedBytes > 0 && (numQueuedBytes + bufferBlocker.getBytesBlocked()) > maxBufferedBytes) {
 			// exceeded our limit - abort this checkpoint
-			LOG.info("Checkpoint {} aborted because alignment volume limit ({} bytes) exceeded",
-					currentCheckpointId, maxBufferedBytes);
+			LOG.info("{}: Checkpoint {} aborted because alignment volume limit ({} bytes) exceeded.",
+				inputGate.getOwningTaskName(),
+				currentCheckpointId,
+				maxBufferedBytes);
 
 			releaseBlocksAndResetBarriers();
 			notifyAbort(currentCheckpointId, new AlignmentLimitExceededException(maxBufferedBytes));
@@ -444,7 +458,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		startOfAlignmentTimestamp = System.nanoTime();
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Starting stream alignment for checkpoint " + checkpointId + '.');
+			LOG.debug("{}: Starting stream alignment for checkpoint {}.",
+				inputGate.getOwningTaskName(),
+				checkpointId);
 		}
 	}
 
@@ -470,7 +486,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			numBarriersReceived++;
 
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Received barrier from channel " + channelIndex);
+				LOG.debug("{}: Received barrier from channel {}.",
+					inputGate.getOwningTaskName(),
+					channelIndex);
 			}
 		}
 		else {
@@ -483,7 +501,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	 * Makes sure the just written data is the next to be consumed.
 	 */
 	private void releaseBlocksAndResetBarriers() throws IOException {
-		LOG.debug("End of stream alignment, feeding buffered data back");
+		LOG.debug("{}: End of stream alignment, feeding buffered data back.",
+			inputGate.getOwningTaskName());
 
 		for (int i = 0; i < blockedChannels.length; i++) {
 			blockedChannels[i] = false;
@@ -499,8 +518,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		else {
 			// uncommon case: buffered data pending
 			// push back the pending data, if we have any
-			LOG.debug("Checkpoint skipped via buffered data:" +
-					"Pushing back current alignment buffers and feeding back new alignment data first.");
+			LOG.debug("{}: Checkpoint skipped via buffered data:" +
+					"Pushing back current alignment buffers and feeding back new alignment data first.",
+				inputGate.getOwningTaskName());
 
 			// since we did not fully drain the previous sequence, we need to allocate a new buffer for this one
 			BufferOrEventSequence bufferedNow = bufferBlocker.rollOverWithoutReusingResources();
@@ -513,8 +533,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Size of buffered data: {} bytes",
-					currentBuffered == null ? 0L : currentBuffered.size());
+			LOG.debug("{}: Size of buffered data: {} bytes",
+				inputGate.getOwningTaskName(),
+				currentBuffered == null ? 0L : currentBuffered.size());
 		}
 
 		// the next barrier that comes must assume it is the first
@@ -555,7 +576,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	@Override
 	public String toString() {
-		return String.format("last checkpoint: %d, current barriers: %d, closed channels: %d",
-				currentCheckpointId, numBarriersReceived, numClosedChannels);
+		return String.format("%s: last checkpoint: %d, current barriers: %d, closed channels: %d",
+			inputGate.getOwningTaskName(),
+			currentCheckpointId,
+			numBarriersReceived,
+			numClosedChannels);
 	}
 }
