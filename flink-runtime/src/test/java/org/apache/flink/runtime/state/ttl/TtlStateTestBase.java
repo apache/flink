@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -49,7 +49,7 @@ public abstract class TtlStateTestBase {
 
 	private MockTtlTimeProvider timeProvider;
 	private StateBackendTestContext sbetc;
-	private StateTtlConfiguration ttlConfig;
+	private StateTtlConfig ttlConfig;
 
 	@Before
 	public void setup() {
@@ -85,30 +85,30 @@ public abstract class TtlStateTestBase {
 	}
 
 	private void initTest() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfig.UpdateType.OnCreateAndWrite, StateTtlConfig.StateVisibility.NeverReturnExpired);
 	}
 
 	private void initTest(
-				StateTtlConfiguration.TtlUpdateType updateType,
-				StateTtlConfiguration.TtlStateVisibility visibility) throws Exception {
+				StateTtlConfig.UpdateType updateType,
+				StateTtlConfig.StateVisibility visibility) throws Exception {
 		initTest(updateType, visibility, TTL);
 	}
 
 	private void initTest(
-		StateTtlConfiguration.TtlUpdateType updateType,
-		StateTtlConfiguration.TtlStateVisibility visibility,
+		StateTtlConfig.UpdateType updateType,
+		StateTtlConfig.StateVisibility visibility,
 		long ttl) throws Exception {
 		initTest(getConfBuilder(ttl)
-			.setTtlUpdateType(updateType)
+			.setUpdateType(updateType)
 			.setStateVisibility(visibility)
 			.build());
 	}
 
-	private static StateTtlConfiguration.Builder getConfBuilder(long ttl) {
-		return StateTtlConfiguration.newBuilder(Time.milliseconds(ttl));
+	private static StateTtlConfig.Builder getConfBuilder(long ttl) {
+		return StateTtlConfig.newBuilder(Time.milliseconds(ttl));
 	}
 
-	private void initTest(StateTtlConfiguration ttlConfig) throws Exception {
+	private void initTest(StateTtlConfig ttlConfig) throws Exception {
 		this.ttlConfig = ttlConfig;
 		sbetc.createAndRestoreKeyedStateBackend();
 		sbetc.restoreSnapshot(null);
@@ -139,7 +139,7 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testExactExpirationOnWrite() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfig.UpdateType.OnCreateAndWrite, StateTtlConfig.StateVisibility.NeverReturnExpired);
 
 		takeAndRestoreSnapshot();
 
@@ -180,7 +180,7 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testRelaxedExpirationOnWrite() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		initTest(StateTtlConfig.UpdateType.OnCreateAndWrite, StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
 		ctx().update(ctx().updateEmpty);
@@ -195,7 +195,7 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testExactExpirationOnRead() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired);
+		initTest(StateTtlConfig.UpdateType.OnReadAndWrite, StateTtlConfig.StateVisibility.NeverReturnExpired);
 
 		timeProvider.time = 0;
 		ctx().update(ctx().updateEmpty);
@@ -219,7 +219,7 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testRelaxedExpirationOnRead() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnReadAndWrite, StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+		initTest(StateTtlConfig.UpdateType.OnReadAndWrite, StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
 
 		timeProvider.time = 0;
 		ctx().update(ctx().updateEmpty);
@@ -238,7 +238,7 @@ public abstract class TtlStateTestBase {
 
 	@Test
 	public void testExpirationTimestampOverflow() throws Exception {
-		initTest(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite, StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired, Long.MAX_VALUE);
+		initTest(StateTtlConfig.UpdateType.OnCreateAndWrite, StateTtlConfig.StateVisibility.NeverReturnExpired, Long.MAX_VALUE);
 
 		timeProvider.time = 10;
 		ctx().update(ctx().updateEmpty);

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
@@ -84,7 +84,7 @@ public class DataStreamStateTTLTestProgram {
 		long reportStatAfterUpdatesNum = pt.getLong(REPORT_STAT_AFTER_UPDATES_NUM.key(),
 			REPORT_STAT_AFTER_UPDATES_NUM.defaultValue());
 
-		StateTtlConfiguration ttlConfig = StateTtlConfiguration.newBuilder(ttl).build();
+		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(ttl).build();
 
 		env
 			.addSource(new TtlStateUpdateSource(keySpace, sleepAfterElements, sleepTime))

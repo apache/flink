@@ -25,24 +25,24 @@ import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 
-import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired;
-import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlTimeCharacteristic.ProcessingTime;
-import static org.apache.flink.api.common.state.StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite;
+import static org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired;
+import static org.apache.flink.api.common.state.StateTtlConfig.TimeCharacteristic.ProcessingTime;
+import static org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCreateAndWrite;
 
 /**
  * Configuration of state TTL logic.
  */
-public class StateTtlConfiguration implements Serializable {
+public class StateTtlConfig implements Serializable {
 
 	private static final long serialVersionUID = -7592693245044289793L;
 
-	public static final StateTtlConfiguration DISABLED =
-		newBuilder(Time.milliseconds(Long.MAX_VALUE)).setTtlUpdateType(TtlUpdateType.Disabled).build();
+	public static final StateTtlConfig DISABLED =
+		newBuilder(Time.milliseconds(Long.MAX_VALUE)).setUpdateType(UpdateType.Disabled).build();
 
 	/**
 	 * This option value configures when to update last access timestamp which prolongs state TTL.
 	 */
-	public enum TtlUpdateType {
+	public enum UpdateType {
 		/** TTL is disabled. State does not expire. */
 		Disabled,
 		/** Last access timestamp is initialised when state is created and updated on every write operation. */
@@ -54,7 +54,7 @@ public class StateTtlConfiguration implements Serializable {
 	/**
 	 * This option configures whether expired user value can be returned or not.
 	 */
-	public enum TtlStateVisibility {
+	public enum StateVisibility {
 		/** Return expired user value if it is not cleaned up yet. */
 		ReturnExpiredIfNotCleanedUp,
 		/** Never return expired user value. */
@@ -64,24 +64,24 @@ public class StateTtlConfiguration implements Serializable {
 	/**
 	 * This option configures time scale to use for ttl.
 	 */
-	public enum TtlTimeCharacteristic {
+	public enum TimeCharacteristic {
 		/** Processing time, see also <code>TimeCharacteristic.ProcessingTime</code>. */
 		ProcessingTime
 	}
 
-	private final TtlUpdateType ttlUpdateType;
-	private final TtlStateVisibility stateVisibility;
-	private final TtlTimeCharacteristic timeCharacteristic;
+	private final UpdateType updateType;
+	private final StateVisibility stateVisibility;
+	private final TimeCharacteristic timeCharacteristic;
 	private final Time ttl;
 	private final CleanupStrategies cleanupStrategies;
 
-	private StateTtlConfiguration(
-		TtlUpdateType ttlUpdateType,
-		TtlStateVisibility stateVisibility,
-		TtlTimeCharacteristic timeCharacteristic,
+	private StateTtlConfig(
+		UpdateType updateType,
+		StateVisibility stateVisibility,
+		TimeCharacteristic timeCharacteristic,
 		Time ttl,
 		CleanupStrategies cleanupStrategies) {
-		this.ttlUpdateType = Preconditions.checkNotNull(ttlUpdateType);
+		this.updateType = Preconditions.checkNotNull(updateType);
 		this.stateVisibility = Preconditions.checkNotNull(stateVisibility);
 		this.timeCharacteristic = Preconditions.checkNotNull(timeCharacteristic);
 		this.ttl = Preconditions.checkNotNull(ttl);
@@ -91,12 +91,12 @@ public class StateTtlConfiguration implements Serializable {
 	}
 
 	@Nonnull
-	public TtlUpdateType getTtlUpdateType() {
-		return ttlUpdateType;
+	public UpdateType getUpdateType() {
+		return updateType;
 	}
 
 	@Nonnull
-	public TtlStateVisibility getStateVisibility() {
+	public StateVisibility getStateVisibility() {
 		return stateVisibility;
 	}
 
@@ -106,12 +106,12 @@ public class StateTtlConfiguration implements Serializable {
 	}
 
 	@Nonnull
-	public TtlTimeCharacteristic getTimeCharacteristic() {
+	public TimeCharacteristic getTimeCharacteristic() {
 		return timeCharacteristic;
 	}
 
 	public boolean isEnabled() {
-		return ttlUpdateType != TtlUpdateType.Disabled;
+		return updateType != UpdateType.Disabled;
 	}
 
 	@Nonnull
@@ -121,8 +121,8 @@ public class StateTtlConfiguration implements Serializable {
 
 	@Override
 	public String toString() {
-		return "StateTtlConfiguration{" +
-			"ttlUpdateType=" + ttlUpdateType +
+		return "StateTtlConfig{" +
+			"updateType=" + updateType +
 			", stateVisibility=" + stateVisibility +
 			", timeCharacteristic=" + timeCharacteristic +
 			", ttl=" + ttl +
@@ -135,13 +135,13 @@ public class StateTtlConfiguration implements Serializable {
 	}
 
 	/**
-	 * Builder for the {@link StateTtlConfiguration}.
+	 * Builder for the {@link StateTtlConfig}.
 	 */
 	public static class Builder {
 
-		private TtlUpdateType ttlUpdateType = OnCreateAndWrite;
-		private TtlStateVisibility stateVisibility = NeverReturnExpired;
-		private TtlTimeCharacteristic timeCharacteristic = ProcessingTime;
+		private UpdateType updateType = OnCreateAndWrite;
+		private StateVisibility stateVisibility = NeverReturnExpired;
+		private TimeCharacteristic timeCharacteristic = ProcessingTime;
 		private Time ttl;
 		private CleanupStrategies cleanupStrategies = new CleanupStrategies();
 
@@ -152,22 +152,22 @@ public class StateTtlConfiguration implements Serializable {
 		/**
 		 * Sets the ttl update type.
 		 *
-		 * @param ttlUpdateType The ttl update type configures when to update last access timestamp which prolongs state TTL.
+		 * @param updateType The ttl update type configures when to update last access timestamp which prolongs state TTL.
 		 */
 		@Nonnull
-		public Builder setTtlUpdateType(TtlUpdateType ttlUpdateType) {
-			this.ttlUpdateType = ttlUpdateType;
+		public Builder setUpdateType(UpdateType updateType) {
+			this.updateType = updateType;
 			return this;
 		}
 
 		@Nonnull
 		public Builder updateTtlOnCreateAndWrite() {
-			return setTtlUpdateType(TtlUpdateType.OnCreateAndWrite);
+			return setUpdateType(UpdateType.OnCreateAndWrite);
 		}
 
 		@Nonnull
 		public Builder updateTtlOnReadAndWrite() {
-			return setTtlUpdateType(TtlUpdateType.OnReadAndWrite);
+			return setUpdateType(UpdateType.OnReadAndWrite);
 		}
 
 		/**
@@ -176,19 +176,19 @@ public class StateTtlConfiguration implements Serializable {
 		 * @param stateVisibility The state visibility configures whether expired user value can be returned or not.
 		 */
 		@Nonnull
-		public Builder setStateVisibility(@Nonnull TtlStateVisibility stateVisibility) {
+		public Builder setStateVisibility(@Nonnull StateVisibility stateVisibility) {
 			this.stateVisibility = stateVisibility;
 			return this;
 		}
 
 		@Nonnull
 		public Builder returnExpiredIfNotCleanedUp() {
-			return setStateVisibility(TtlStateVisibility.ReturnExpiredIfNotCleanedUp);
+			return setStateVisibility(StateVisibility.ReturnExpiredIfNotCleanedUp);
 		}
 
 		@Nonnull
 		public Builder neverReturnExpired() {
-			return setStateVisibility(TtlStateVisibility.NeverReturnExpired);
+			return setStateVisibility(StateVisibility.NeverReturnExpired);
 		}
 
 		/**
@@ -197,14 +197,14 @@ public class StateTtlConfiguration implements Serializable {
 		 * @param timeCharacteristic The time characteristic configures time scale to use for ttl.
 		 */
 		@Nonnull
-		public Builder setTimeCharacteristic(@Nonnull TtlTimeCharacteristic timeCharacteristic) {
+		public Builder setTimeCharacteristic(@Nonnull TimeCharacteristic timeCharacteristic) {
 			this.timeCharacteristic = timeCharacteristic;
 			return this;
 		}
 
 		@Nonnull
 		public Builder useProcessingTime() {
-			return setTimeCharacteristic(TtlTimeCharacteristic.ProcessingTime);
+			return setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		}
 
 		/** Cleanup expired state in full snapshot on checkpoint. */
@@ -226,9 +226,9 @@ public class StateTtlConfiguration implements Serializable {
 		}
 
 		@Nonnull
-		public StateTtlConfiguration build() {
-			return new StateTtlConfiguration(
-				ttlUpdateType,
+		public StateTtlConfig build() {
+			return new StateTtlConfig(
+				updateType,
 				stateVisibility,
 				timeCharacteristic,
 				ttl,

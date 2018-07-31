@@ -25,7 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -71,7 +71,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 	private final TypeSerializer<N> namespaceSerializer;
 	private final StateDescriptor<S, SV> stateDesc;
 	private final KeyedStateFactory originalStateFactory;
-	private final StateTtlConfiguration ttlConfig;
+	private final StateTtlConfig ttlConfig;
 	private final TtlTimeProvider timeProvider;
 	private final long ttl;
 

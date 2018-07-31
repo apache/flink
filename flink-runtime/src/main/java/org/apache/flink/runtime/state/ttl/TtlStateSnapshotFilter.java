@@ -44,6 +44,37 @@ abstract class TtlStateSnapshotFilter<T> implements StateSnapshotFilter<T> {
 		this.ttl = ttl;
 	}
 
+	<V> Optional<TtlValue<V>> filterTtlValue(TtlValue<V> value) {
+		return expired(value) ? Optional.empty() : Optional.of(value);
+	}
+
+	private boolean expired(TtlValue<?> ttlValue) {
+		return expired(ttlValue.getLastAccessTimestamp());
+	}
+
+	private boolean expired(long ts) {
+		return TtlUtils.expired(ts, ttl, ttlTimeProvider);
+	}
+
+	@Override
+	@Nonnull
+	public Optional<byte[]> filterSerialized(@Nonnull byte[] value) {
+		Preconditions.checkArgument(value.length >= 8);
+		long ts;
+		try {
+			ts = deserializeTs(value, value.length - 8);
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Unexpected timestamp deserialization failure");
+		}
+		return expired(ts) ? Optional.empty() : Optional.of(value);
+	}
+
+	private static long deserializeTs(
+		byte[] value, int offest) throws IOException {
+		return LongSerializer.INSTANCE.deserialize(
+			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offest, 8)));
+	}
+
 	static class TtlValueStateSnapshotFilter<T> extends TtlStateSnapshotFilter<TtlValue<T>> {
 		TtlValueStateSnapshotFilter(TtlTimeProvider ttlTimeProvider, long ttl) {
 			super(ttlTimeProvider, ttl);
@@ -98,36 +129,5 @@ abstract class TtlStateSnapshotFilter<T> implements StateSnapshotFilter<T> {
 			}
 			return unexpired;
 		}
-	}
-
-	<V> Optional<TtlValue<V>> filterTtlValue(TtlValue<V> value) {
-		return expired(value) ? Optional.empty() : Optional.of(value);
-	}
-
-	private boolean expired(TtlValue<?> ttlValue) {
-		return expired(ttlValue.getLastAccessTimestamp());
-	}
-
-	private boolean expired(long ts) {
-		return TtlUtils.expired(ts, ttl, ttlTimeProvider);
-	}
-
-	@Override
-	@Nonnull
-	public Optional<byte[]> filterSerialized(@Nonnull byte[] value) {
-		Preconditions.checkArgument(value.length >= 8);
-		long ts;
-		try {
-			ts = deserializeTs(value, value.length - 8);
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Unexpected timestamp deserialization failure");
-		}
-		return expired(ts) ? Optional.empty() : Optional.of(value);
-	}
-
-	private static long deserializeTs(
-		byte[] value, int offest) throws IOException {
-		return LongSerializer.INSTANCE.deserialize(
-			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offest, 8)));
 	}
 }
