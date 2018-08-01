@@ -471,7 +471,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "FROM_BASE64(f33)",
       "null")
   }
-
+  
   @Test
   def testToBase64(): Unit = {
     testAllApis(
@@ -498,6 +498,39 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.toBase64()",
       "TO_BASE64(f33)",
       "null")
+  }
+
+  @Test
+  def testUUID(): Unit = {
+    testAllApis(
+      CharLength(uuid()),
+      "uuid().charLength",
+      "CHARACTER_LENGTH(UUID())",
+      "36")
+
+    testAllApis(
+      Substring(uuid(), 9, 1),
+      "uuid().substring(9, 1)",
+      "SUBSTRING(UUID(), 9, 1)",
+      "-")
+
+    testAllApis(
+      Substring(uuid(), 14, 1),
+      "uuid().substring(14, 1)",
+      "SUBSTRING(UUID(), 14, 1)",
+      "-")
+
+    testAllApis(
+      Substring(uuid(), 19, 1),
+      "uuid().substring(19, 1)",
+      "SUBSTRING(UUID(), 19, 1)",
+      "-")
+
+    testAllApis(
+      Substring(uuid(), 24, 1),
+      "uuid().substring(24, 1)",
+      "SUBSTRING(UUID(), 24, 1)",
+      "-")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -1665,6 +1665,17 @@ RAND_INTEGER(seed integer, bound integer)
    </tr>
 
     <tr>
+     <td>
+       {% highlight text %}
+uuid()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a uuid string according to RFC 4122.</p>
+    </td>
+   </tr>
+
+    <tr>
       <td>
 {% highlight text %}
 BIN(numeric)

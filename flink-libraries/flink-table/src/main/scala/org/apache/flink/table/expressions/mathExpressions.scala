@@ -422,3 +422,15 @@ case class Bin(child: Expression) extends UnaryExpression {
     relBuilder.call(ScalarSqlFunctions.BIN, child.toRexNode)
   }
 }
+
+case class UUID() extends LeafExpression {
+  /**
+    * Returns the [[TypeInformation]] for evaluating this expression.
+    * It is sometimes not available until the expression is valid.
+    */
+  override private[flink] def resultType = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.UUID)
+  }
+}
