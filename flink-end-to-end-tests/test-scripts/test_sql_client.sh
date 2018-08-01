@@ -169,7 +169,7 @@ tables:
         type: VARCHAR
       - name: message
         type: VARCHAR
-      - name: duplicateCount
+      - name: duplicate_count
         type: BIGINT
     connector:
       type: kafka
@@ -192,7 +192,7 @@ tables:
               {"name": "event_timestamp", "type": "string"},
               {"name": "user", "type": ["string", "null"]},
               {"name": "message", "type": "string"},
-              {"name": "duplicateCount", "type": "long"}
+              {"name": "duplicate_count", "type": "long"}
             ]
         }
   - name: CsvSinkTable
@@ -205,7 +205,7 @@ tables:
         type: VARCHAR
       - name: message
         type: VARCHAR
-      - name: duplicateCount
+      - name: duplicate_count
         type: BIGINT
     connector:
       type: filesystem
@@ -219,7 +219,7 @@ tables:
           type: VARCHAR
         - name: message
           type: VARCHAR
-        - name: duplicateCount
+        - name: duplicate_count
           type: BIGINT
 
 functions:
@@ -236,7 +236,7 @@ INSERT INTO AvroBothTable
     CAST(TUMBLE_START(rowtime, INTERVAL '1' HOUR) AS VARCHAR) AS event_timestamp,
     user,
     RegReplace(event.message, ' is ', ' was ') AS message,
-    COUNT(*) AS duplicateCount
+    COUNT(*) AS duplicate_count
   FROM JsonSourceTable
   WHERE user IS NOT NULL
   GROUP BY
