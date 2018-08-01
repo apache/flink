@@ -32,9 +32,6 @@ start_cluster
 
 function test_cleanup {
   shutdown_elasticsearch_cluster index
-
-  # make sure to run regular cleanup as well
-   cleanup
 }
 
 trap test_cleanup INT
