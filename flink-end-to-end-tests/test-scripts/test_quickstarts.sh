@@ -29,7 +29,7 @@ cd $TEST_DATA_DIR
 mvn archetype:generate                             \
     -DarchetypeGroupId=org.apache.flink            \
     -DarchetypeArtifactId=flink-quickstart-java    \
-    -DarchetypeVersion=1.6-SNAPSHOT                \
+    -DarchetypeVersion=${FLINK_VERSION}            \
     -DgroupId=org.apache.flink.quickstart          \
     -DartifactId=flink-java-project                \
     -Dversion=0.1                                  \
