@@ -115,6 +115,18 @@ public class Bucket<IN, BucketID> {
 		this.pending = new ArrayList<>();
 	}
 
+	/**
+	 * Gets the information available for the currently
+	 * open part file, i.e. the one we are currently writing to.
+	 *
+	 * <p>This will be null if there is no currently open part file. This
+	 * is the case when we have a new, just created bucket or a bucket
+	 * that has not received any data after the closing of its previously
+	 * open in-progress file due to the specified rolling policy.
+	 *
+	 * @return The information about the currently in-progress part file
+	 * or {@code null} if there is no open part file.
+	 */
 	public PartFileInfo<BucketID> getInProgressPartInfo() {
 		return currentPart;
 	}

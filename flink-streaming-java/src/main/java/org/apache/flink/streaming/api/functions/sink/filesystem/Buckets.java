@@ -70,8 +70,6 @@ public class Buckets<IN, BucketID> {
 
 	private final Map<BucketID, Bucket<IN, BucketID>> activeBuckets;
 
-	private long initMaxPartCounter;
-
 	private long maxPartCounterUsed;
 
 	private final RecoverableWriter fileSystemWriter;
@@ -114,7 +112,6 @@ public class Buckets<IN, BucketID> {
 				bucketer.getSerializer()
 		);
 
-		this.initMaxPartCounter = 0L;
 		this.maxPartCounterUsed = 0L;
 	}
 
@@ -137,7 +134,7 @@ public class Buckets<IN, BucketID> {
 		for (long partCounter: partCounterState.get()) {
 			maxCounter = Math.max(partCounter, maxCounter);
 		}
-		initMaxPartCounter = maxCounter;
+		maxPartCounterUsed = maxCounter;
 
 		// get the restored buckets
 		for (byte[] recoveredState : bucketStates.get()) {
@@ -151,7 +148,7 @@ public class Buckets<IN, BucketID> {
 			final Bucket<IN, BucketID> restoredBucket = bucketFactory.restoreBucket(
 					fileSystemWriter,
 					subtaskIndex,
-					initMaxPartCounter,
+					maxPartCounterUsed,
 					partFileWriterFactory,
 					bucketState
 			);
@@ -200,8 +197,6 @@ public class Buckets<IN, BucketID> {
 			final PartFileInfo<BucketID> info = bucket.getInProgressPartInfo();
 
 			if (info != null && rollingPolicy.shouldRollOnCheckpoint(info)) {
-				// we also check here so that we do not have to always
-				// wait for the "next" element to arrive.
 				bucket.closePartFile();
 			}
 
@@ -237,13 +232,19 @@ public class Buckets<IN, BucketID> {
 					subtaskIndex,
 					bucketId,
 					bucketPath,
-					initMaxPartCounter,
+					maxPartCounterUsed,
 					partFileWriterFactory);
 			activeBuckets.put(bucketId, bucket);
 		}
 
 		final PartFileInfo<BucketID> info = bucket.getInProgressPartInfo();
 		if (info == null || rollingPolicy.shouldRollOnEvent(info, value)) {
+
+			// info will be null if there is no currently open part file. This
+			// is the case when we have a new, just created bucket or a bucket
+			// that has not received any data after the closing of its previously
+			// open in-progress file due to the specified rolling policy.
+
 			bucket.rollPartFile(currentProcessingTime);
 		}
 		bucket.write(value, currentProcessingTime);

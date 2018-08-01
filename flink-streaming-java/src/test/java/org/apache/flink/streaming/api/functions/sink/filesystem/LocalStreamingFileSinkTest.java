@@ -323,7 +323,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					Assert.assertEquals("test1@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test2")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-1", fileContents.getKey().getName());
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test3")) {
 					bucketCounter++;
@@ -346,11 +346,11 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test3")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-2", fileContents.getKey().getName());
 					Assert.assertEquals("test3@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test4")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-3", fileContents.getKey().getName());
 					Assert.assertEquals("test4@1\n", fileContents.getValue());
 				}
 			}
@@ -437,8 +437,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 							inProgressFilename.contains(".part-1-0.inprogress")
 						)
 				) {
-						counter++;
-				} else if (parentFilename.equals("test2") && inProgressFilename.contains(".part-1-0.inprogress")) {
+					counter++;
+				} else if (parentFilename.equals("test2") && inProgressFilename.contains(".part-1-1.inprogress")) {
 					counter++;
 				}
 			}
@@ -476,7 +476,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 						counter++;
 						Assert.assertTrue(fileContents.getValue().equals("test1@1\n") || fileContents.getValue().equals("test1@0\n"));
 					}
-				} else if (parentFilename.equals("test2") && filename.contains(".part-1-0.inprogress")) {
+				} else if (parentFilename.equals("test2") && filename.contains(".part-1-1.inprogress")) {
 					counter++;
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				}
