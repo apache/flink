@@ -807,4 +807,21 @@ public class MesosResourceManagerTest extends TestLogger {
 			resourceManager.taskRouter.expectMsgClass(Disconnected.class);
 		}};
 	}
+
+	@Test
+	public void testClearStateRevokeLeadership() throws Exception {
+		new Context() {{
+			MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
+			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
+			when(rmServices.workerStore.recoverWorkers()).thenReturn(Collections.singletonList(worker1)).thenReturn(Collections.emptyList());
+
+			startResourceManager();
+			rmServices.rmLeaderElectionService.notLeader();
+			rmServices.grantLeadership();
+
+			//resourceManager.stateCleared.await(5, TimeUnit.SECONDS);
+			assertThat(resourceManager.workersInLaunch.size(), equalTo(0));
+			verify(rmServices.schedulerDriver).stop(true);
+		}};
+	}
 }
