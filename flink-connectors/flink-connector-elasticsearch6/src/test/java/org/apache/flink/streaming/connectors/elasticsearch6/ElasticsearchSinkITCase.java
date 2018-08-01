@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
@@ -58,27 +57,31 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSink(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			List<HttpHost> httpHosts,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
 		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkRequestsConfig(userConfig);
+		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
 
 		return builder.build();
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForEmbeddedNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
-		return createElasticsearchSinkForNode(userConfig, elasticsearchSinkFunction, "127.0.0.1");
+		return createElasticsearchSinkForNode(
+				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, RestHighLevelClient> createElasticsearchSinkForNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
 			String ipAddress) throws Exception {
 
@@ -86,7 +89,7 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<RestHighL
 		httpHosts.add(new HttpHost(ipAddress, 9200, "http"));
 
 		ElasticsearchSink.Builder<Tuple2<Integer, String>> builder = new ElasticsearchSink.Builder<>(httpHosts, elasticsearchSinkFunction);
-		builder.setBulkRequestsConfig(userConfig);
+		builder.setBulkFlushMaxActions(bulkFlushMaxActions);
 
 		return builder.build();
 	}

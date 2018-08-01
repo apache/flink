@@ -61,17 +61,15 @@ public class Elasticsearch6SinkExample {
 				}
 			});
 
-		Map<String, String> bulkRequestsConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		bulkRequestsConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-
 		List<HttpHost> httpHosts = new ArrayList<>();
 		httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 
 		ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
 			httpHosts,
 			(String element, RuntimeContext ctx, RequestIndexer indexer) -> indexer.add(createIndexRequest(element, parameterTool)));
-		esSinkBuilder.setBulkRequestsConfig(bulkRequestsConfig);
+
+		// this instructs the sink to emit after every element, otherwise they would be buffered
+		esSinkBuilder.setBulkFlushMaxActions(1);
 
 		source.addSink(esSinkBuilder.build());
 

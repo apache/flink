@@ -94,13 +94,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 
 		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
-		Map<String, String> userConfig = new HashMap<>();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		userConfig.put("cluster.name", CLUSTER_NAME);
-
 		source.addSink(createElasticsearchSinkForEmbeddedNode(
-			userConfig, new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index)));
+				1,
+				CLUSTER_NAME,
+				new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index)));
 
 		env.execute("Elasticsearch Sink Test");
 
@@ -120,7 +117,11 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		userConfig.put("cluster.name", CLUSTER_NAME);
 
 		try {
-			createElasticsearchSink(userConfig, null, new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
+			createElasticsearchSink(
+					1,
+					CLUSTER_NAME,
+					null,
+					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
 		} catch (IllegalArgumentException | NullPointerException expectedException) {
 			// test passes
 			return;
@@ -139,9 +140,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 
 		try {
 			createElasticsearchSink(
-				userConfig,
-				Collections.emptyList(),
-				new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
+					1,
+					CLUSTER_NAME,
+					Collections.emptyList(),
+					new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"));
 		} catch (IllegalArgumentException expectedException) {
 			// test passes
 			return;
@@ -163,9 +165,10 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		userConfig.put("cluster.name", "invalid-cluster-name");
 
 		source.addSink(createElasticsearchSinkForNode(
-			Collections.unmodifiableMap(userConfig),
-			new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"),
-			"123.123.123.123")); // incorrect ip address
+				1,
+				"invalid-cluster-name",
+				new SourceSinkDataTestKit.TestElasticsearchSinkFunction("test"),
+				"123.123.123.123")); // incorrect ip address
 
 		try {
 			env.execute("Elasticsearch Sink Test");
@@ -177,27 +180,41 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 		fail();
 	}
 
+	/**
+	 * Utility method to create a user config map.
+	 */
+	protected Map<String, String> createUserConfig(int bulkFlushMaxActions, String clusterName) {
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put("cluster.name", clusterName);
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(bulkFlushMaxActions));
+
+		return userConfig;
+	}
+
 	/** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses. */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSink(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			List<A> addresses,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction);
 
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a local embedded Elasticsearch node.
 	 *
-	 * <p>This case is singled out from {@link ElasticsearchSinkTestBase#createElasticsearchSink(Map, List, ElasticsearchSinkFunction)}
+	 * <p>This case is singled out from {@link ElasticsearchSinkTestBase#createElasticsearchSink(int, String, List, ElasticsearchSinkFunction)}
 	 * because the Elasticsearch Java API to do so is incompatible across different versions.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForEmbeddedNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
 
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
 			String ipAddress) throws Exception;
 }

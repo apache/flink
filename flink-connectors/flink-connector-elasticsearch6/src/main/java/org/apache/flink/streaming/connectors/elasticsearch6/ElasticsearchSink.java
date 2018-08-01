@@ -98,20 +98,15 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		}
 
 		/**
-		 * Sets a map of strings that configures the bulk flushing behaviour.
-		 *
-		 * @param bulkRequestsConfig user configuration to configure bulk flushing behaviour.
-		 */
-		public void setBulkRequestsConfig(Map<String, String> bulkRequestsConfig) {
-			this.bulkRequestsConfig = bulkRequestsConfig;
-		}
-
-		/**
 		 * Sets the maximum number of actions to buffer for each bulk request.
 		 *
 		 * @param numMaxActions the maxinum number of actions to buffer per bulk request.
 		 */
 		public void setBulkFlushMaxActions(int numMaxActions) {
+			Preconditions.checkArgument(
+				numMaxActions > 0,
+				"Max number of buffered actions must be larger than 0.");
+
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(numMaxActions));
 		}
 
@@ -121,6 +116,10 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param maxSizeMb the maximum size of buffered actions, in mb.
 		 */
 		public void setBulkFlushMaxSizeMb(int maxSizeMb) {
+			Preconditions.checkArgument(
+				maxSizeMb > 0,
+				"Max size of buffered actions must be larger than 0.");
+
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB, String.valueOf(maxSizeMb));
 		}
 
@@ -130,6 +129,10 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param intervalMillis the bulk flush interval, in milliseconds.
 		 */
 		public void setBulkFlushInterval(long intervalMillis) {
+			Preconditions.checkArgument(
+				intervalMillis >= 0,
+				"Interval (in milliseconds) between each flush must be larger than or equal to 0.");
+
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS, String.valueOf(intervalMillis));
 		}
 
@@ -148,7 +151,9 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param flushBackoffType the backoff type to use.
 		 */
 		public void setBulkFlushBackoffType(FlushBackoffType flushBackoffType) {
-			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE, flushBackoffType.toString());
+			this.bulkRequestsConfig.put(
+				CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE,
+				Preconditions.checkNotNull(flushBackoffType).toString());
 		}
 
 		/**
@@ -157,6 +162,10 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param maxRetries the maximum number of retries for a backoff attempt when flushing bulk requests
 		 */
 		public void setBulkFlushBackoffRetries(int maxRetries) {
+			Preconditions.checkArgument(
+				maxRetries > 0,
+				"Max number of backoff attempts must be larger than 0.");
+
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES, String.valueOf(maxRetries));
 		}
 
@@ -166,6 +175,9 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param delayMillis the amount of delay between each backoff attempt when flushing bulk requests, in milliseconds.
 		 */
 		public void setBulkFlushBackoffDelay(long delayMillis) {
+			Preconditions.checkArgument(
+				delayMillis >= 0,
+				"Delay (in milliseconds) between each backoff attempt must be larger than or equal to 0.");
 			this.bulkRequestsConfig.put(CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY, String.valueOf(delayMillis));
 		}
 
@@ -175,7 +187,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param failureHandler This is used to handle failed {@link ActionRequest}.
 		 */
 		public void setFailureHandler(ActionRequestFailureHandler failureHandler) {
-			this.failureHandler = failureHandler;
+			this.failureHandler = Preconditions.checkNotNull(failureHandler);
 		}
 
 		/**
@@ -184,7 +196,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T, RestHighLevel
 		 * @param restClientFactory the factory that configures the rest client.
 		 */
 		public void setRestClientFactory(RestClientFactory restClientFactory) {
-			this.restClientFactory = restClientFactory;
+			this.restClientFactory = Preconditions.checkNotNull(restClientFactory);
 		}
 
 		/**

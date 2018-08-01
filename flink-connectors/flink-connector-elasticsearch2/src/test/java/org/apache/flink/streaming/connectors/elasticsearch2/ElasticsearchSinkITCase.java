@@ -28,8 +28,8 @@ import org.junit.Test;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
@@ -58,30 +58,40 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Transport
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSink(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			List<InetSocketAddress> transportAddresses,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
 
-		return new ElasticsearchSink<>(userConfig, transportAddresses, elasticsearchSinkFunction);
+		return new ElasticsearchSink<>(
+				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+				transportAddresses,
+				elasticsearchSinkFunction);
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForEmbeddedNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
 
-		return createElasticsearchSinkForNode(userConfig, elasticsearchSinkFunction, "127.0.0.1");
+		return createElasticsearchSinkForNode(
+				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
 	}
 
 	@Override
 	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
-			Map<String, String> userConfig,
+			int bulkFlushMaxActions,
+			String clusterName,
 			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
 			String ipAddress) throws Exception {
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
 
-		return new ElasticsearchSink<>(userConfig, transports, elasticsearchSinkFunction);
+		return new ElasticsearchSink<>(
+				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+				transports,
+				elasticsearchSinkFunction);
 	}
 }
