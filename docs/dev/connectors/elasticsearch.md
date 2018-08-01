@@ -333,9 +333,7 @@ import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.Requests
 
 import java.util.ArrayList
-import java.util.HashMap
 import java.util.List
-import java.util.Map
 
 val input: DataStream[String] = ...
 

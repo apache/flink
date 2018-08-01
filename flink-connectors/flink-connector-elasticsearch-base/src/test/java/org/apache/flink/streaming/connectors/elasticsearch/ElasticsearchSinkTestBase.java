@@ -190,11 +190,14 @@ public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> exte
 	 * because the Elasticsearch Java API to do so is incompatible across different versions.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForEmbeddedNode(
-		Map<String, String> userConfig, ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
 
 	/**
 	 * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
 	 */
 	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForNode(
-		Map<String, String> userConfig, ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction, String ipAddress) throws Exception;
+			Map<String, String> userConfig,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception;
 }
