@@ -24,7 +24,7 @@ under the License.
 
 Flink's Table API & SQL programs can be connected to other external systems for reading and writing both batch and streaming tables. A table source provides access to data which is stored in external systems (such as a database, key-value store, message queue, or file system). A table sink emits a table to an external storage system. Depending on the type of source and sink, they support different formats such as CSV, Parquet, or ORC.
 
-This page describes how to declare built-in table sources and/or table sinks and register them in Flink. After a source, sink, or both have been registered, they can be accessed by Table API & SQL queries.
+This page describes how to declare built-in table sources and/or table sinks and register them in Flink. After a source or sink has been registered, it can be accessed by Table API & SQL statements.
 
 <span class="label label-danger">Attention</span> If you want to implement your own *custom* table source or sink, have a look at the [user-defined sources & sinks page](sourceSinks.html).
 
@@ -67,14 +67,24 @@ This table is only available for stable releases.
 Overview
 --------
 
-Beginning from Flink 1.6, the declaration of a connection to an external system is separated from the actual implementation. Connections can be specified either
+Beginning from Flink 1.6, the declaration of a connection to an external system is separated from the actual implementation.
+
+Connections can be specified either
 
 - **programmatically** using a `Descriptor` under `org.apache.flink.table.descriptors` for Table & SQL API
 - or **declaratively** via [YAML configuration files](http://yaml.org/) for the SQL Client.
 
-This allows not only for better unification of APIs and SQL Client but also for better extensibility in case of [custom implementations](sourceSinks.html) without changing the declaration.
+This allows not only for better unification of APIs and SQL Client but also for better extensibility in case of [custom implementations](sourceSinks.html) without changing the actual declaration.
 
-Similar to a SQL `CREATE TABLE` statement, one can define the name of the table, the final schema of the table, connector, and a data format upfront for connecting to an external system. Additionally, the table's type (source, sink, or both) and an update mode for streaming queries can be specified:
+Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the final schema of the table, a connector, and a data format upfront for connecting to an external system.
+
+The **connector** describes the external system that should be used as a source and/or target of data. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format with fields and schema.
+
+Some systems support different **data formats**. For example, one can encode the rows of a table in CSV, JSON, or Avro representation before writing them into a file. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
+
+The **table schema** defines the schema of a table that is exposed to SQL queries. It forms the interface between the "external world" and the "table world". The schema has access to fields defined by the connector or format. The schema can use one or more fields for extracting or ingesting [time attributes](streaming.html#time-attributes). If input fields have no determinstic field order, the schema clearly defines field names, their order, and origin.
+
+The subsequent sections will cover each definition part ([schema](connect.html#table-schema), [connector](connect.html#table-connectors), and [format](connect.html#table-formats)) in more detail. The following example shows how to pass them:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -84,7 +94,7 @@ tableEnvironment
   .withFormat(...)
   .withSchema(...)
   .inAppendMode()
-  .registerTableSource(...)
+  .registerTableSource("MyTable")
 {% endhighlight %}
 </div>
 
@@ -100,7 +110,9 @@ connector: ...
 </div>
 </div>
 
-The subsequent sections will cover each definition part ([schema](connect.html#table-schema), [connector](connect.html#table-connectors), [format](connect.html#table-formats), and [update mode](connect.html#update-modes)) in more detail.
+The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
+
+For streaming queries, an [update mode](connect.html#update-mode) declares how to communicate between a dynamic table and the storage system for continous queries.
 
 The following code shows a full example of how to connect to Kafka for reading Avro records.
 
@@ -215,9 +227,9 @@ If no factory can be found or multiple factories match for the given properties,
 Table Schema
 ------------
 
-The table schema allows for describing the final appearance of a table. It specifies the final name, final type, and the origin of a field. The origin of a field might be important if the name of the field should differ from the input/output format. For instance, a field `name&field` should reference `nameField` from an Avro format. Additionally, the schema is needed to map column names and types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
+The table schema defines the final appearance of a table. It specifies the name, type, and the origin of a field. The origin of a field might be important if the name of the field should differ from the input/output format. For instance, a field `user_name` should reference `$$-user-name` from a JSON format. Additionally, the schema is needed to map column names and types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
 
-The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns. 
+The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -487,6 +499,8 @@ connector:
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
 <span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/ops/filesystems.html).
+
+<span class="label label-danger">Attention</span> File system sources and sinks for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., directory monitoring and bucket output.
 
 ### Kafka Connector
 

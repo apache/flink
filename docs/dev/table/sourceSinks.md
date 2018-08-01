@@ -28,7 +28,7 @@ A `TableSink` [emits a Table](common.html#emit-a-table) to an external storage s
 
 A `TableFactory` allows for separating the declaration of a connection to an external system from the actual implementation. A table factory creates configured instances of table sources and sinks from normalized, string-based properties. The properties can be generated programmatically using a `Descriptor` or via YAML configuration files for the [SQL Client](sqlClient.html).
 
-Have a look at the [common concepts and API](common.html) page for details how to [register a TableSource](common.html#register-a-tablesource) and how to [emit a Table through a TableSink](common.html#emit-a-table). See the [built-in sources, sinks, and formats](connect.md) page for examples how to use factories.
+Have a look at the [common concepts and API](common.html) page for details how to [register a TableSource](common.html#register-a-tablesource) and how to [emit a Table through a TableSink](common.html#emit-a-table). See the [built-in sources, sinks, and formats](connect.html) page for examples how to use factories.
 
 * This will be replaced by the TOC
 {:toc}
