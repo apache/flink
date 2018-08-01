@@ -25,12 +25,19 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
+import org.apache.commons.io.FileUtils;
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
+
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.equalTo;
 
 /**
  * Tests for different {@link RollingPolicy rolling policies}.
@@ -134,24 +141,74 @@ public class RollingPolicyTest {
 			// we take a checkpoint so we roll.
 			testHarness.snapshot(1L, 1L);
 
+			for (File file: FileUtils.listFiles(outDir, null, true)) {
+				if (Objects.equals(file.getParentFile().getName(), "test1")) {
+					Assert.assertTrue(file.getName().contains(".part-0-1.inprogress."));
+				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
+					Assert.assertTrue(file.getName().contains(".part-0-0.inprogress."));
+				}
+			}
+
 			// this will create a new part file
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 4), 4L));
 			TestUtils.checkLocalFs(outDir, 3, 0);
 
+			testHarness.notifyOfCompletedCheckpoint(1L);
+			for (File file: FileUtils.listFiles(outDir, null, true)) {
+				if (Objects.equals(file.getParentFile().getName(), "test1")) {
+					Assert.assertTrue(
+							file.getName().contains(".part-0-2.inprogress.") || file.getName().equals("part-0-1")
+					);
+				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
+					Assert.assertEquals("part-0-0", file.getName());
+				}
+			}
+
 			// and open and fill .part-0-2.inprogress
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 5), 5L));
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test1", 6), 6L));
-			TestUtils.checkLocalFs(outDir, 3, 0);                    // nothing committed yet
+			TestUtils.checkLocalFs(outDir, 1, 2);
 
 			// we take a checkpoint so we roll.
 			testHarness.snapshot(2L, 2L);
 
 			testHarness.processElement(new StreamRecord<>(Tuple2.of("test2", 7), 7L));
-			TestUtils.checkLocalFs(outDir, 4, 0);
+			TestUtils.checkLocalFs(outDir, 2, 2);
+
+			for (File file: FileUtils.listFiles(outDir, null, true)) {
+				if (Objects.equals(file.getParentFile().getName(), "test1")) {
+					Assert.assertThat(
+							file.getName(),
+							either(containsString(".part-0-2.inprogress."))
+									.or(equalTo("part-0-1"))
+					);
+				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
+					Assert.assertThat(
+							file.getName(),
+							either(containsString(".part-0-3.inprogress."))
+									.or(equalTo("part-0-0"))
+					);
+				}
+			}
 
 			// we acknowledge the last checkpoint so we should publish all but the latest in-progress file
 			testHarness.notifyOfCompletedCheckpoint(2L);
+
 			TestUtils.checkLocalFs(outDir, 1, 3);
+			for (File file: FileUtils.listFiles(outDir, null, true)) {
+				if (Objects.equals(file.getParentFile().getName(), "test1")) {
+					Assert.assertThat(
+							file.getName(),
+							either(equalTo("part-0-2")).or(equalTo("part-0-1"))
+					);
+				} else if (Objects.equals(file.getParentFile().getName(), "test2")) {
+					Assert.assertThat(
+							file.getName(),
+							either(containsString(".part-0-3.inprogress."))
+									.or(equalTo("part-0-0"))
+					);
+				}
+			}
 		}
 	}
 
