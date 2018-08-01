@@ -249,11 +249,6 @@ function start_taskmanagers {
     done
 }
 
-function stop_all_taskmanagers {
-  echo "Stopping all task managers."
-  $FLINK_DIR/bin/taskmanager.sh stop-all
-}
-
 function start_and_wait_for_tm {
 
   tm_query_result=$(curl -s "http://localhost:8081/taskmanagers")

@@ -70,9 +70,6 @@ function sql_cleanup() {
   trap "" EXIT
 
   stop_kafka_cluster
-
-  stop_cluster
-  stop_all_taskmanagers
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT
