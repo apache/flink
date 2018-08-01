@@ -139,4 +139,6 @@ object BuiltInMethods {
 
   val HEX_LONG: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[Long])
   val HEX_STRING: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
+
+  val UUID: Method = Types.lookupMethod(classOf[ScalarFunctions], "uuid")
 }

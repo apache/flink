@@ -167,6 +167,17 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val UUID: SqlFunction = new SqlFunction(
+    "UUID",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.VARCHAR_2000,
+    null,
+    OperandTypes.NILADIC,
+    SqlFunctionCategory.STRING
+  ) {
+    override def isDeterministic: Boolean = false
+  }
+
   val DATE_FORMAT = new SqlFunction(
     "DATE_FORMAT",
     SqlKind.OTHER_FUNCTION,

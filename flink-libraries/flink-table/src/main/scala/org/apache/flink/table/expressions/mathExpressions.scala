@@ -434,9 +434,20 @@ case class Hex(child: Expression) extends UnaryExpression {
       ValidationFailure(s"hex() requires an integer or string input but was '${child.resultType}'.")
     }
   }
+
   override def toString: String = s"hex($child)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(ScalarSqlFunctions.HEX, child.toRexNode)
+  }
+}
+
+case class UUID() extends LeafExpression {
+  override private[flink] def resultType = BasicTypeInfo.STRING_TYPE_INFO
+
+  override def toString: String = s"uuid()"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.UUID)
   }
 }

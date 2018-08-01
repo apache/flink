@@ -222,4 +222,9 @@ object ScalarFunctions {
     * Returns the hex string of a string argument.
     */
   def hex(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
+
+  /**
+    * Returns an UUID string using Java utilities.
+    */
+  def uuid(): String = java.util.UUID.randomUUID().toString
 }

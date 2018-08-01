@@ -1382,6 +1382,17 @@ RAND_INTEGER(integer1, integer2)
       <p>Returns a pseudorandom integer value between 0 (inclusive) and the specified value (exclusive) with an initial seed. Two RAND_INTEGER functions will return identical sequences of numbers if they have the same initial seed and bound.</p>
     </td>
    </tr>
+
+    <tr>
+     <td>
+       {% highlight text %}
+UUID()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
+    </td>
+   </tr>
     
     <tr>
       <td>
@@ -1811,6 +1822,17 @@ randInteger(INTEGER1, INTEGER2)
     <tr>
      <td>
        {% highlight java %}
+uuid()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
+    </td>
+   </tr>
+
+    <tr>
+     <td>
+       {% highlight java %}
 INTEGER.bin()
 {% endhighlight %}
      </td>
@@ -2230,6 +2252,17 @@ randInteger(INTEGER1, INTEGER2)
      </td>
     <td>
       <p>Returns a pseudorandom integer value between 0 (inclusive) and <i>INTEGER2</i> (exclusive) with an initial seed <i>INTEGER1</i>. Two randInteger functions will return identical sequences of numbers if they have same initial seed and bound.</p>
+    </td>
+   </tr>
+
+    <tr>
+     <td>
+       {% highlight scala %}
+uuid()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
     </td>
    </tr>
 

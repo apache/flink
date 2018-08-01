@@ -204,6 +204,7 @@ object FunctionCatalog {
     "rpad" -> classOf[Rpad],
     "fromBase64" -> classOf[FromBase64],
     "toBase64" -> classOf[ToBase64],
+    "uuid" -> classOf[UUID],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -453,6 +454,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.SHA2,
     ScalarSqlFunctions.FROM_BASE64,
     ScalarSqlFunctions.TO_BASE64,
+    ScalarSqlFunctions.UUID,
+
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,

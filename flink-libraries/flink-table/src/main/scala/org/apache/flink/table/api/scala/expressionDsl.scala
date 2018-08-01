@@ -1256,4 +1256,23 @@ object concat_ws {
   }
 }
 
+/**
+  * Returns an UUID (Universally Unique Identifier) string (e.g.,
+  * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+  * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+  * generator.
+  */
+object uuid {
+
+  /**
+    * Returns an UUID (Universally Unique Identifier) string (e.g.,
+    * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+    * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+    * generator.
+    */
+  def apply(): Expression = {
+    UUID()
+  }
+}
+
 // scalastyle:on object.name
