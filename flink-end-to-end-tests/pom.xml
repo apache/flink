@@ -53,6 +53,7 @@ under the License.
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
 		<module>flink-sql-client-test</module>
+		<module>flink-streaming-file-sink-test</module>
 	</modules>
 
 	<build>
