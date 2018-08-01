@@ -57,7 +57,7 @@ public class Kafka extends ConnectorDescriptor {
 	private StartupMode startupMode;
 	private Map<Integer, Long> specificOffsets;
 	private Map<String, String> kafkaProperties;
-	private String sinkPartitioner;
+	private String sinkPartitionerType;
 	private Class<? extends FlinkKafkaPartitioner> sinkPartitionerClass;
 
 	/**
@@ -214,7 +214,7 @@ public class Kafka extends ConnectorDescriptor {
 	 * @see org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner
 	 */
 	public Kafka sinkPartitionerFixed() {
-		sinkPartitioner = CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
 		sinkPartitionerClass = null;
 		return this;
 	}
@@ -229,7 +229,7 @@ public class Kafka extends ConnectorDescriptor {
 	 * cause a lot of network connections between all the Flink instances and all the Kafka brokers.
 	 */
 	public Kafka sinkPartitionerRoundRobin() {
-		sinkPartitioner = CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
 		sinkPartitionerClass = null;
 		return this;
 	}
@@ -241,7 +241,7 @@ public class Kafka extends ConnectorDescriptor {
 	 * of {@link FlinkKafkaPartitioner}.
 	 */
 	public Kafka sinkPartitionerCustom(Class<? extends FlinkKafkaPartitioner> partitionerClass) {
-		sinkPartitioner = CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
+		sinkPartitionerType = CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
 		sinkPartitionerClass = Preconditions.checkNotNull(partitionerClass);
 		return this;
 	}
@@ -284,8 +284,8 @@ public class Kafka extends ConnectorDescriptor {
 				);
 		}
 
-		if (sinkPartitioner != null) {
-			properties.putString(CONNECTOR_SINK_PARTITIONER, sinkPartitioner);
+		if (sinkPartitionerType != null) {
+			properties.putString(CONNECTOR_SINK_PARTITIONER, sinkPartitionerType);
 			if (sinkPartitionerClass != null) {
 				properties.putClass(CONNECTOR_SINK_PARTITIONER_CLASS, sinkPartitionerClass);
 			}
