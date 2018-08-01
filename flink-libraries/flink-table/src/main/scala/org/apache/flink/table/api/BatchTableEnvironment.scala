@@ -480,11 +480,20 @@ abstract class BatchTableEnvironment(
       normalizedPlan
     }
 
-    // 4. optimize the physical Flink plan
+    // 4. optimize the logical Flink plan
+    val flinkLogicalOptRuleSet = getFlinkLogicalOptRuleSet
+    val flinkLogicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val flinkLogicalPlan = if (flinkLogicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(flinkLogicalOptRuleSet, logicalPlan, flinkLogicalOutputProps)
+    } else {
+      logicalPlan
+    }
+
+    // 5. optimize the physical Flink plan
     val physicalOptRuleSet = getPhysicalOptRuleSet
     val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASET).simplify()
     val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
+      runVolcanoPlanner(physicalOptRuleSet, flinkLogicalPlan, physicalOutputProps)
     } else {
       logicalPlan
     }

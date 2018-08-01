@@ -177,6 +177,22 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
   }
 
+  protected def getFlinkLogicalOptRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getFlinkLogicalOptRuleSet match {
+
+      case None =>
+        getBuiltinFlinkLogicalOptRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesFlinkLogicalOptRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltinFlinkLogicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
   /**
     * Returns the physical optimization rule set for this environment
     * including a custom RuleSet configuration.
@@ -227,6 +243,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected def getBuiltInLogicalOptRuleSet: RuleSet = {
     FlinkRuleSets.LOGICAL_OPT_RULES
+  }
+
+  /**
+    * Returns the built-in flink logical optimization rules that are defined by the environment.
+    */
+  protected def getBuiltinFlinkLogicalOptRuleSet: RuleSet = {
+    FlinkRuleSets.FLINK_LOGICAL_OPT_RULES
   }
 
   /**

@@ -838,16 +838,25 @@ abstract class StreamTableEnvironment(
       normalizedPlan
     }
 
-    // 5. optimize the physical Flink plan
-    val physicalOptRuleSet = getPhysicalOptRuleSet
-    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
-    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
-      runVolcanoPlanner(physicalOptRuleSet, logicalPlan, physicalOutputProps)
+    // 5. optimize the flink logical plan
+    val flinkLogicalOptRuleSet = getFlinkLogicalOptRuleSet
+    val flinkLogicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    val flinkLogicalPlan = if (flinkLogicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(flinkLogicalOptRuleSet, logicalPlan, flinkLogicalOutputProps)
     } else {
       logicalPlan
     }
 
-    // 6. decorate the optimized plan
+    // 6. optimize the physical Flink plan
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
+    val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, flinkLogicalPlan, physicalOutputProps)
+    } else {
+      logicalPlan
+    }
+
+    // 7. decorate the optimized plan
     val decoRuleSet = getDecoRuleSet
     val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
       val planToDecorate = if (updatesAsRetraction) {

@@ -136,6 +136,11 @@ object FlinkRuleSets {
     FlinkLogicalNativeTableScan.CONVERTER
   )
 
+  val FLINK_LOGICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+    FlinkReduceExpressionRule.CALC_INSTANCE,
+    FlinkCalcRemoveRule.INSTANCE
+  )
+
   /**
     * RuleSet to normalize plans for batch / DataSet execution
     */

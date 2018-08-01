@@ -460,9 +460,8 @@ class ExpressionReductionRulesTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-  // TODO this NPE is caused by Calcite, it shall pass when [CALCITE-1860] is fixed
-  @Ignore
-  def testReduceDeterministicUDF(): Unit = {
+  @Test
+  def testReduceDeterministicUDFInStream(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
@@ -473,6 +472,22 @@ class ExpressionReductionRulesTest extends TableTestBase {
       .select('a, 'b, 'c)
 
     val expected: String = streamTableNode(0)
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testReduceDeterministicUDFInBatch(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+    // if isDeterministic = true, will cause a Calcite NPE, which will be fixed in [CALCITE-1860]
+    val result = table
+      .select('a, 'b, 'c, DeterministicNullFunc() as 'd)
+      .where("d.isNull")
+      .select('a, 'b, 'c)
+
+    val expected: String = batchTableNode(0)
 
     util.verifyTable(result, expected)
   }

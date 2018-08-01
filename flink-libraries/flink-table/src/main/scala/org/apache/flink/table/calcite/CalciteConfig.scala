@@ -49,6 +49,12 @@ class CalciteConfigBuilder {
   private var logicalOptRuleSets: List[RuleSet] = Nil
 
   /**
+    * Defines the flink logical optimization rule set.
+    */
+  private var replaceFlinkLogicalOptRules: Boolean = false
+  private var flinkLogicalOptRuleSets: List[RuleSet] = Nil
+
+  /**
     * Defines the physical optimization rule set.
     */
   private var replacePhysicalOptRules: Boolean = false
@@ -107,6 +113,25 @@ class CalciteConfigBuilder {
   def addLogicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
     Preconditions.checkNotNull(addedRuleSet)
     logicalOptRuleSets = addedRuleSet :: logicalOptRuleSets
+    this
+  }
+
+  /**
+    * Replaces the built-in flink logical optimization rule set with the given rule set.
+    */
+  def replaceFlinkLogicalOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    flinkLogicalOptRuleSets = List(replaceRuleSet)
+    replaceFlinkLogicalOptRules = true
+    this
+  }
+
+  /**
+    * Appends the given optimization rule set to the built-in Flink logical rule set.
+    */
+  def addFlinkLogicalOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    flinkLogicalOptRuleSets = addedRuleSet :: flinkLogicalOptRuleSets
     this
   }
 
@@ -188,6 +213,8 @@ class CalciteConfigBuilder {
       val replacesNormRuleSet: Boolean,
       val getLogicalOptRuleSet: Option[RuleSet],
       val replacesLogicalOptRuleSet: Boolean,
+      val getFlinkLogicalOptRuleSet: Option[RuleSet],
+      val replacesFlinkLogicalOptRuleSet: Boolean,
       val getPhysicalOptRuleSet: Option[RuleSet],
       val replacesPhysicalOptRuleSet: Boolean,
       val getDecoRuleSet: Option[RuleSet],
@@ -221,6 +248,8 @@ class CalciteConfigBuilder {
     replaceNormRules,
     getRuleSet(logicalOptRuleSets),
     replaceLogicalOptRules,
+    getRuleSet(flinkLogicalOptRuleSets),
+    replaceFlinkLogicalOptRules,
     getRuleSet(physicalOptRuleSets),
     replacePhysicalOptRules,
     getRuleSet(decoRuleSets),
@@ -260,6 +289,16 @@ trait CalciteConfig {
     * Returns a custom logical optimization rule set.
     */
   def getLogicalOptRuleSet: Option[RuleSet]
+
+  /**
+    * Returns whether this configuration replaces the built-in flink logical optimization rule set.
+    */
+  def replacesFlinkLogicalOptRuleSet: Boolean
+
+  /**
+    * Returns a custom flink logical optimization rule set.
+    */
+  def getFlinkLogicalOptRuleSet: Option[RuleSet]
 
   /**
     * Returns whether this configuration replaces the built-in physical optimization rule set.

@@ -108,7 +108,7 @@ class CalcTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "a", "b"),
-      term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
+      term("where", "AND(>(a, 0), <(b, 2), =(MOD(a, 2), 1))")
     )
 
     util.verifyTable(resultTable, expected)
