@@ -18,7 +18,6 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
@@ -368,8 +367,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		}
 	}
 
-	@VisibleForTesting
-	CompletableFuture<Void> stopSupportingActorsAsync() {
+	private CompletableFuture<Void> stopSupportingActorsAsync() {
 		FiniteDuration stopTimeout = new FiniteDuration(5L, TimeUnit.SECONDS);
 
 		CompletableFuture<Boolean> stopTaskMonitorFuture = stopActor(taskMonitor, stopTimeout);
