@@ -737,6 +737,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		clearState();
 	}
 
+	/**
+	 * Callback to clear state on leadership revocation.
+	 */
 	protected void clearState() {}
 
 	/**
