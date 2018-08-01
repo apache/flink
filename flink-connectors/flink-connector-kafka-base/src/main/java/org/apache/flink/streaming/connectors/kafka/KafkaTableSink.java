@@ -40,7 +40,7 @@ import java.util.Properties;
  * A version-agnostic Kafka {@link AppendStreamTableSink}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaProducer(String, Properties, SerializationSchema, FlinkKafkaPartitioner)}}.
+ * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
  */
 @Internal
 public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
@@ -60,7 +60,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	protected Optional<SerializationSchema<Row>> serializationSchema;
 
 	/** Partitioner to select Kafka partition for each item. */
-	protected final FlinkKafkaPartitioner<Row> partitioner;
+	protected final Optional<FlinkKafkaPartitioner<Row>> partitioner;
 
 	// legacy variables
 	protected String[] fieldNames;
@@ -70,7 +70,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 			TableSchema schema,
 			String topic,
 			Properties properties,
-			FlinkKafkaPartitioner<Row> partitioner,
+			Optional<FlinkKafkaPartitioner<Row>> partitioner,
 			SerializationSchema<Row> serializationSchema) {
 		this.schema = Optional.of(Preconditions.checkNotNull(schema, "Schema must not be null."));
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
@@ -96,7 +96,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		this.schema = Optional.empty();
 		this.topic = Preconditions.checkNotNull(topic, "topic");
 		this.properties = Preconditions.checkNotNull(properties, "properties");
-		this.partitioner = Preconditions.checkNotNull(partitioner, "partitioner");
+		this.partitioner = Optional.of(Preconditions.checkNotNull(partitioner, "partitioner"));
 		this.serializationSchema = Optional.empty();
 	}
 
@@ -113,7 +113,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		String topic,
 		Properties properties,
 		SerializationSchema<Row> serializationSchema,
-		FlinkKafkaPartitioner<Row> partitioner);
+		Optional<FlinkKafkaPartitioner<Row>> partitioner);
 
 	/**
 	 * Create serialization schema for converting table rows into bytes.
