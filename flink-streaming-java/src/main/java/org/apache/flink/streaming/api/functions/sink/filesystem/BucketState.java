@@ -96,4 +96,26 @@ class BucketState<BucketID> {
 	Map<Long, List<RecoverableWriter.CommitRecoverable>> getCommittableFilesPerCheckpoint() {
 		return committableFilesPerCheckpoint;
 	}
+
+	@Override
+	public String toString() {
+		final StringBuilder strBuilder = new StringBuilder();
+
+		strBuilder
+				.append("BucketState for bucketId=").append(bucketId)
+				.append(" and bucketPath=").append(bucketPath);
+
+		if (hasInProgressResumableFile()) {
+			strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
+		}
+
+		if (!committableFilesPerCheckpoint.isEmpty()) {
+			strBuilder.append(", has pending files for checkpoints: {");
+			for (long checkpointId: committableFilesPerCheckpoint.keySet()) {
+				strBuilder.append(checkpointId).append(' ');
+			}
+			strBuilder.append('}');
+		}
+		return strBuilder.toString();
+	}
 }

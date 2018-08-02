@@ -27,6 +27,9 @@ import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -46,6 +49,8 @@ import java.util.Map;
  */
 @Internal
 public class Buckets<IN, BucketID> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(Buckets.class);
 
 	// ------------------------ configuration fields --------------------------
 
@@ -102,7 +107,13 @@ public class Buckets<IN, BucketID> {
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new Buckets.BucketerContext();
 
-		this.fsWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
+		try {
+			this.fsWriter = FileSystem.get(basePath.toUri()).createRecoverableWriter();
+		} catch (IOException e) {
+			LOG.error("Unable to create filesystem for path: {}", basePath);
+			throw e;
+		}
+
 		this.bucketStateSerializer = new BucketStateSerializer<>(
 				fsWriter.getResumeRecoverableSerializer(),
 				fsWriter.getCommitRecoverableSerializer(),
@@ -129,7 +140,11 @@ public class Buckets<IN, BucketID> {
 	 * in-progress/pending part files
 	 */
 	void initializeState(final ListState<byte[]> bucketStates, final ListState<Long> partCounterState) throws Exception {
+
 		initializePartCounter(partCounterState);
+
+		LOG.info("Subtask {} initializing its state (max part counter={}).", subtaskIndex, maxPartCounter);
+
 		initializeActiveBuckets(bucketStates);
 	}
 
@@ -152,6 +167,10 @@ public class Buckets<IN, BucketID> {
 
 	private void handleRestoredBucketState(final BucketState<BucketID> recoveredState) throws Exception {
 		final BucketID bucketId = recoveredState.getBucketId();
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Subtask {} restoring: {}", subtaskIndex, recoveredState);
+		}
 
 		final Bucket<IN, BucketID> restoredBucket = bucketFactory
 				.restoreBucket(
@@ -179,6 +198,8 @@ public class Buckets<IN, BucketID> {
 		final Iterator<Map.Entry<BucketID, Bucket<IN, BucketID>>> activeBucketIt =
 				activeBuckets.entrySet().iterator();
 
+		LOG.info("Subtask {} received completion notification for checkpoint with id={}.", subtaskIndex, checkpointId);
+
 		while (activeBucketIt.hasNext()) {
 			final Bucket<IN, BucketID> bucket = activeBucketIt.next().getValue();
 			bucket.onSuccessfulCompletionOfCheckpoint(checkpointId);
@@ -200,6 +221,9 @@ public class Buckets<IN, BucketID> {
 				fsWriter != null && bucketStateSerializer != null,
 				"sink has not been initialized");
 
+		LOG.info("Subtask {} checkpointing for checkpoint with id={} (max part counter={}).",
+				subtaskIndex, checkpointId, maxPartCounter);
+
 		snapshotActiveBuckets(checkpointId, bucketStatesContainer);
 		partCounterStateContainer.add(maxPartCounter);
 	}
@@ -215,6 +239,10 @@ public class Buckets<IN, BucketID> {
 					.writeVersionAndSerialize(bucketStateSerializer, bucketState);
 
 			bucketStatesContainer.add(serializedBucketState);
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} checkpointing: {}", subtaskIndex, bucketState);
+			}
 		}
 	}
 
