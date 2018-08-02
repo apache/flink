@@ -48,7 +48,7 @@ public class TestInputChannel extends InputChannel {
 	private boolean isReleased = false;
 
 	TestInputChannel(SingleInputGate inputGate, int channelIndex) {
-		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter());
+		super(inputGate, channelIndex, new ResultPartitionID(), 0, 0, new SimpleCounter(), new SimpleCounter());
 	}
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {

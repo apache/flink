@@ -64,6 +64,8 @@ public abstract class InputChannel {
 
 	protected final Counter numBytesIn;
 
+	protected final Counter numBuffersIn;
+
 	/** The current backoff (in ms) */
 	private int currentBackoff;
 
@@ -73,7 +75,8 @@ public abstract class InputChannel {
 			ResultPartitionID partitionId,
 			int initialBackoff,
 			int maxBackoff,
-			Counter numBytesIn) {
+			Counter numBytesIn,
+			Counter numBuffersIn) {
 
 		checkArgument(channelIndex >= 0);
 
@@ -91,6 +94,7 @@ public abstract class InputChannel {
 		this.currentBackoff = initial == 0 ? -1 : 0;
 
 		this.numBytesIn = numBytesIn;
+		this.numBuffersIn = numBuffersIn;
 	}
 
 	// ------------------------------------------------------------------------

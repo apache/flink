@@ -36,6 +36,14 @@ public final class IOMetricsInfo {
 
 	private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
+	private static final String FIELD_NAME_BUFFERS_READ = "read-buffers";
+
+	private static final String FIELD_NAME_BUFFERS_READ_COMPLETE = "read-buffers-complete";
+
+	private static final String FIELD_NAME_BUFFERS_WRITTEN = "write-buffers";
+
+	private static final String FIELD_NAME_BUFFERS_WRITTEN_COMPLETE = "write-buffers-complete";
+
 	private static final String FIELD_NAME_RECORDS_READ = "read-records";
 
 	private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
@@ -56,6 +64,18 @@ public final class IOMetricsInfo {
 	@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
 	private final boolean bytesWrittenComplete;
 
+	@JsonProperty(FIELD_NAME_BUFFERS_READ)
+	private final long buffersRead;
+
+	@JsonProperty(FIELD_NAME_BUFFERS_READ_COMPLETE)
+	private final boolean buffersReadComplete;
+
+	@JsonProperty(FIELD_NAME_BUFFERS_WRITTEN)
+	private final long buffersWritten;
+
+	@JsonProperty(FIELD_NAME_BUFFERS_WRITTEN_COMPLETE)
+	private final boolean buffersWrittenComplete;
+
 	@JsonProperty(FIELD_NAME_RECORDS_READ)
 	private final long recordsRead;
 
@@ -74,6 +94,10 @@ public final class IOMetricsInfo {
 			@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
 			@JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
 			@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
+			@JsonProperty(FIELD_NAME_BUFFERS_READ) long buffersRead,
+			@JsonProperty(FIELD_NAME_BUFFERS_READ_COMPLETE) boolean buffersReadComplete,
+			@JsonProperty(FIELD_NAME_BUFFERS_WRITTEN) long buffersWritten,
+			@JsonProperty(FIELD_NAME_BUFFERS_WRITTEN_COMPLETE) boolean buffersWrittenComplete,
 			@JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
 			@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
 			@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
@@ -82,6 +106,12 @@ public final class IOMetricsInfo {
 		this.bytesReadComplete = bytesReadComplete;
 		this.bytesWritten = bytesWritten;
 		this.bytesWrittenComplete = bytesWrittenComplete;
+
+		this.buffersRead = buffersRead;
+		this.buffersReadComplete = buffersReadComplete;
+		this.buffersWritten = buffersWritten;
+		this.buffersWrittenComplete = buffersWrittenComplete;
+
 		this.recordsRead = recordsRead;
 		this.recordsReadComplete = recordsReadComplete;
 		this.recordsWritten = recordsWritten;
@@ -102,6 +132,22 @@ public final class IOMetricsInfo {
 
 	public boolean isBytesWrittenComplete() {
 		return bytesWrittenComplete;
+	}
+
+	public long getBuffersRead() {
+		return buffersRead;
+	}
+
+	public boolean isBuffersReadComplete() {
+		return buffersReadComplete;
+	}
+
+	public long getBuffersWritten() {
+		return buffersWritten;
+	}
+
+	public boolean isBuffersWrittenComplete() {
+		return buffersWrittenComplete;
 	}
 
 	public long getRecordsRead() {
@@ -133,6 +179,10 @@ public final class IOMetricsInfo {
 			bytesReadComplete == that.bytesReadComplete &&
 			bytesWritten == that.bytesWritten &&
 			bytesWrittenComplete == that.bytesWrittenComplete &&
+			buffersRead == that.buffersRead &&
+			buffersReadComplete == that.buffersReadComplete &&
+			buffersWritten == that.buffersWritten &&
+			buffersWrittenComplete == that.buffersWrittenComplete &&
 			recordsRead == that.recordsRead &&
 			recordsReadComplete == that.recordsReadComplete &&
 			recordsWritten == that.recordsWritten &&
@@ -141,6 +191,6 @@ public final class IOMetricsInfo {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
+		return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, buffersRead, buffersReadComplete, buffersWritten, buffersWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
 	}
 }

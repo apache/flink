@@ -75,6 +75,9 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 		final long bytesInLocal = 1L;
 		final long bytesInRemote = 2L;
 		final long bytesOut = 10L;
+		final long buffersInLocal = 1L;
+		final long buffersInRemote = 2L;
+		final long buffersOut = 3L;
 		final long recordsIn = 20L;
 		final long recordsOut = 30L;
 
@@ -82,8 +85,14 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			bytesInLocal,
 			bytesInRemote,
 			bytesOut,
+			buffersInLocal,
+			buffersInRemote,
+			buffersOut,
 			recordsIn,
 			recordsOut,
+			0.0,
+			0.0,
+			0.0,
 			0.0,
 			0.0,
 			0.0,
@@ -160,6 +169,10 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			bytesInLocal + bytesInRemote,
 			true,
 			bytesOut,
+			true,
+			buffersInLocal + buffersInRemote,
+			true,
+			buffersOut,
 			true,
 			recordsIn,
 			true,

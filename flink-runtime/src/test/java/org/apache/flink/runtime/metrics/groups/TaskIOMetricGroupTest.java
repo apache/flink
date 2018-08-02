@@ -54,6 +54,9 @@ public class TaskIOMetricGroupTest {
 		taskIO.getNumBytesInLocalCounter().inc(100L);
 		taskIO.getNumBytesInRemoteCounter().inc(150L);
 		taskIO.getNumBytesOutCounter().inc(250L);
+		taskIO.getNumBuffersInLocalCounter().inc(1L);
+		taskIO.getNumBuffersInRemoteCounter().inc(2L);
+		taskIO.getNumBuffersOutCounter().inc(3L);
 
 		IOMetrics io = taskIO.createSnapshot();
 		assertEquals(32L, io.getNumRecordsIn());
@@ -61,5 +64,8 @@ public class TaskIOMetricGroupTest {
 		assertEquals(100L, io.getNumBytesInLocal());
 		assertEquals(150L, io.getNumBytesInRemote());
 		assertEquals(250L, io.getNumBytesOut());
+		assertEquals(1L, io.getNumBuffersInLocal());
+		assertEquals(2L, io.getNumBuffersInRemote());
+		assertEquals(3L, io.getNumBuffersOut());
 	}
 }
