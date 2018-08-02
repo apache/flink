@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * {@link InternalTimerService} that stores timers on the Java heap.
  */
-public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
+public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, ProcessingTimeCallback {
 
 	private final ProcessingTimeService processingTimeService;
 
@@ -95,7 +95,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/** The restored timers snapshot, if any. */
 	private InternalTimersSnapshot<K, N> restoredTimersSnapshot;
 
-	HeapInternalTimerService(
+	InternalTimerServiceImpl(
 		KeyGroupRange localKeyGroupRange,
 		KeyContext keyContext,
 		ProcessingTimeService processingTimeService,
@@ -117,7 +117,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	/**
-	 * Starts the local {@link HeapInternalTimerService} by:
+	 * Starts the local {@link InternalTimerServiceImpl} by:
 	 * <ol>
 	 *     <li>Setting the {@code keySerialized} and {@code namespaceSerializer} for the timers it will contain.</li>
 	 *     <li>Setting the {@code triggerTarget} which contains the action to be performed when a timer fires.</li>
@@ -227,37 +227,29 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		// inside the callback.
 		nextTimer = null;
 
-		processingTimeTimersQueue.bulkPoll(
-			(timer) -> (timer.getTimestamp() <= time),
-			(timer) -> {
-				keyContext.setCurrentKey(timer.getKey());
-				try {
-					triggerTarget.onProcessingTime(timer);
-				} catch (Exception e) {
-					throw new FlinkRuntimeException("Problem in trigger target.", e);
-				}
-			});
+		InternalTimer<K, N> timer;
 
-		if (nextTimer == null) {
-			final TimerHeapInternalTimer<K, N> timer = processingTimeTimersQueue.peek();
-			if (timer != null) {
-				nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
-			}
+		while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
+			processingTimeTimersQueue.poll();
+			keyContext.setCurrentKey(timer.getKey());
+			triggerTarget.onProcessingTime(timer);
+		}
+
+		if (timer != null && nextTimer == null) {
+			nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
 		}
 	}
 
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
-		eventTimeTimersQueue.bulkPoll(
-			(timer) -> (timer.getTimestamp() <= time),
-			(timer) -> {
-				keyContext.setCurrentKey(timer.getKey());
-				try {
-					triggerTarget.onEventTime(timer);
-				} catch (Exception e) {
-					throw new FlinkRuntimeException("Problem in trigger target.", e);
-				}
-			});
+
+		InternalTimer<K, N> timer;
+
+		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
+			eventTimeTimersQueue.poll();
+			keyContext.setCurrentKey(timer.getKey());
+			triggerTarget.onEventTime(timer);
+		}
 	}
 
 	/**

@@ -68,16 +68,6 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 	@Override
 	public StateSnapshot stateSnapshot() {
 		final T[] queueDump = (T[]) priorityQueue.toArray(new HeapPriorityQueueElement[priorityQueue.size()]);
-
-		final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
-
-		// turn the flat copy into a deep copy if required.
-		if (!elementSerializer.isImmutableType()) {
-			for (int i = 0; i < queueDump.length; ++i) {
-				queueDump[i] = elementSerializer.copy(queueDump[i]);
-			}
-		}
-
 		return new HeapPriorityQueueStateSnapshot<>(
 			queueDump,
 			keyExtractorFunction,
