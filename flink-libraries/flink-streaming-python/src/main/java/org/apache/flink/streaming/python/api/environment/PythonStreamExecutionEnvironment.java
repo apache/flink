@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.python.api.datastream.PythonDataStream;
@@ -199,6 +200,24 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public PythonDataStream socket_text_stream(String host, int port) {
 		return new PythonDataStream<>(env.socketTextStream(host, port).map(new AdapterMap<String>()));
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#setStreamTimeCharacteristic(TimeCharacteristic)}.
+	 *
+	 * @param characteristic The time characteristic.
+	 */
+	public void set_stream_time_characteristic(TimeCharacteristic characteristic) {
+		this.env.setStreamTimeCharacteristic(characteristic);
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getStreamTimeCharacteristic()}.
+	 *
+	 * @return The time characteristic.
+	 */
+	public TimeCharacteristic get_stream_time_characteristic() {
+		return this.env.getStreamTimeCharacteristic();
 	}
 
 	/**
