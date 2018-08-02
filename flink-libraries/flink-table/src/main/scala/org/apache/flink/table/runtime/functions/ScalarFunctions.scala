@@ -197,6 +197,17 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns an Integer to indicate if the text string is a numeric value.
+    */
+  def isNumeric(str: String): Integer = {
+    if (str.matches("^(([0-9+-.$]{1})|([+-]?[$]?[0-9]*(([.]{1}[0-9]*)|([.]?[0-9]+))))$")) {
+      1
+    } else {
+      0
+    }
+  }
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64(str: String): String = new String(Base64.decodeBase64(str))

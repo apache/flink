@@ -545,6 +545,11 @@ trait ImplicitExpressionOperations {
     Overlay(expr, newString, starting, length)
 
   /**
+    * Returns an Integer to indicate if the text string is a numeric value.
+    */
+  def isNumeric() = IsNumeric(expr)
+
+  /**
     * Returns the base string decoded with base64.
     */
   def fromBase64() = FromBase64(expr)

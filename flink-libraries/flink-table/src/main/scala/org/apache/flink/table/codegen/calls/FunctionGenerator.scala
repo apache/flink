@@ -147,6 +147,12 @@ object FunctionGenerator {
     BuiltInMethod.OVERLAY.method)
 
   addSqlFunctionMethod(
+    ISNUMERIC,
+    Seq(STRING_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.ISNUMERIC)
+
+  addSqlFunctionMethod(
     FROM_BASE64,
     Seq(STRING_TYPE_INFO),
     STRING_TYPE_INFO,

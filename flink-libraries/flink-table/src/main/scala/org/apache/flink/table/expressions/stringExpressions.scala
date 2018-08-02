@@ -358,6 +358,29 @@ case class Rpad(text: Expression, len: Expression, pad: Expression)
   }
 }
 
+case class IsNumeric(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = INT_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"IsNumeric operator requires a String input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.ISNUMERIC, child.toRexNode)
+  }
+
+  override def toString: String = s"($child).isNumeric"
+
+}
+
 /**
   * Returns the base string decoded with base64.
   * Returns NULL If the input string is NULL.

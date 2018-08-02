@@ -451,6 +451,63 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testIsNumeric(): Unit = {
+    testAllApis(
+      "123".isNumeric(),
+      "'123'.isNumeric",
+      "ISNUMERIC('123')",
+      "1")
+
+    testAllApis(
+      "0.123".isNumeric(),
+      "'123'.isNumeric",
+      "ISNUMERIC('0.123')",
+      "1")
+
+    testAllApis(
+      "123.0".isNumeric(),
+      "'123.0'.isNumeric",
+      "ISNUMERIC('123.0')",
+      "1")
+
+    testAllApis(
+      "123.0".isNumeric(),
+      "'123.0'.isNumeric",
+      "ISNUMERIC('123.0')",
+      "1")
+
+    testAllApis(
+      "+123.0".isNumeric(),
+      "'+123.0'.isNumeric",
+      "ISNUMERIC('+123.0')",
+      "1")
+
+    testAllApis(
+      "-0.123".isNumeric(),
+      "'-0.123'.isNumeric",
+      "ISNUMERIC('-0.123')",
+      "1")
+
+    testAllApis(
+      "0.123a".isNumeric(),
+      "'0.123a'.isNumeric",
+      "ISNUMERIC('0.123a')",
+      "0")
+
+    testAllApis(
+      "$0.123".isNumeric(),
+      "'$0.123'.isNumeric",
+      "ISNUMERIC('$0.123')",
+      "1")
+
+    testAllApis(
+      'f33.isNumeric(),
+      "f33.isNumeric",
+      "ISNUMERIC(f33)",
+      "null")
+  }
+
+  @Test
   def testFromBase64(): Unit = {
     testAllApis(
       'f35.fromBase64(),

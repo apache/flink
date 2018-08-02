@@ -2477,6 +2477,17 @@ STRING.rpad(len INT, pad STRING)
     <tr>
       <td>
         {% highlight java %}
+STRING.isNumeric()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns an Integer to indicate if the text string is a numeric value, supports some characters that are not numbers, such as plus (+), minus (-), and valid currency symbols such as the dollar sign ($), if true, returns 1, otherwise returns 0, if text is NULL, returns NULL. E.g. "123".isNumeric() returns 1.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        {% highlight java %}
 STRING.fromBase64()
 {% endhighlight %}
       </td>
@@ -4022,6 +4033,18 @@ STRING.initCap()
 
       <td>
         <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.isNumeric()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns an Integer to indicate if the text string is a numeric value, supports some characters that are not numbers, such as plus (+), minus (-), and valid currency symbols such as the dollar sign ($), if true, returns 1, otherwise returns 0, if text is NULL, returns NULL. E.g. "123".isNumeric() returns 1.</p>
       </td>
     </tr>
 

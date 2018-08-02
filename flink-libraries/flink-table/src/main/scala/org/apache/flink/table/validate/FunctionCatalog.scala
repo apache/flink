@@ -202,6 +202,7 @@ object FunctionCatalog {
     "concat_ws" -> classOf[ConcatWs],
     "lpad" -> classOf[Lpad],
     "rpad" -> classOf[Rpad],
+    "isNumeric" -> classOf[IsNumeric],
     "fromBase64" -> classOf[FromBase64],
 
     // math functions
@@ -446,6 +447,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.SHA384,
     ScalarSqlFunctions.SHA512,
     ScalarSqlFunctions.SHA2,
+    ScalarSqlFunctions.ISNUMERIC,
     ScalarSqlFunctions.FROM_BASE64,
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

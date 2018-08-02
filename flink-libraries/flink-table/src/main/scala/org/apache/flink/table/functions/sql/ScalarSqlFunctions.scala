@@ -167,6 +167,15 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.TIMEDATE
   )
 
+  val ISNUMERIC = new SqlFunction(
+    "ISNUMERIC",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.INTEGER,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
   val FROM_BASE64 = new SqlFunction(
     "FROM_BASE64",
     SqlKind.OTHER_FUNCTION,

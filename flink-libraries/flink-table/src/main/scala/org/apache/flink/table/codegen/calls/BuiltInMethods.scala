@@ -113,5 +113,7 @@ object BuiltInMethods {
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 
+  val ISNUMERIC = Types.lookupMethod(classOf[ScalarFunctions], "isNumeric", classOf[String])
+
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 }

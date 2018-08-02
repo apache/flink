@@ -1842,6 +1842,16 @@ RPAD(text string, len integer, pad string)
     <tr>
       <td>
         {% highlight text %}
+ISNUMERIC(text string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an Integer to indicate if the text string is a numeric value, supports some characters that are not numbers, such as plus (+), minus (-), and valid currency symbols such as the dollar sign ($), if true, returns 1, otherwise returns 0, if text is NULL, returns NULL. E.g. <code>ISNUMERIC('123.0')</code> returns <code>1</code>.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        {% highlight text %}
 FROM_BASE64(text string)
 {% endhighlight %}
       </td>
