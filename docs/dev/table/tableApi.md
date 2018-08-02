@@ -2750,7 +2750,7 @@ TEMPORAL.extract(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>'2006-06-05'.toDate.extract(DAY)</code> leads to 5.</p>
+        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>'2006-06-05'.toDate.extract(DAY)</code> leads to 5 or <code>'2006-06-05'.toDate.extract(QUARTER)</code> leads to 2.</p>
       </td>
     </tr>
 
@@ -2773,17 +2773,6 @@ TIMEPOINT.ceil(TIMEINTERVALUNIT)
       </td>
       <td>
         <p>Rounds a time point up to the given unit. E.g. <code>'12:44:31'.toTime.floor(MINUTE)</code> leads to 12:45:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-DATE.quarter()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>'1994-09-27'.toDate.quarter()</code> leads to 3.</p>
       </td>
     </tr>
 
@@ -4267,7 +4256,7 @@ TEMPORAL.extract(TimeIntervalUnit)
 {% endhighlight %}
       </td>
       <td>
-        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>"2006-06-05".toDate.extract(TimeIntervalUnit.DAY)</code> leads to 5.</p>
+        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>"2006-06-05".toDate.extract(TimeIntervalUnit.DAY)</code> leads to 5 or <code>'2006-06-05'.toDate.extract(QUARTER)</code> leads to 2.</p>
       </td>
     </tr>
 
@@ -4290,17 +4279,6 @@ TIMEPOINT.ceil(TimeIntervalUnit)
       </td>
       <td>
         <p>Rounds a time point up to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:45:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-DATE.quarter()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>"1994-09-27".toDate.quarter()</code> leads to 3.</p>
       </td>
     </tr>
 

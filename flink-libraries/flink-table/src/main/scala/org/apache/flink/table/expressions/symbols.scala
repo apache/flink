@@ -85,6 +85,7 @@ object TimeIntervalUnit extends TableSymbols {
   val YEAR = Value(TimeUnitRange.YEAR)
   val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
   val MONTH = Value(TimeUnitRange.MONTH)
+  val QUARTER = Value(TimeUnitRange.QUARTER)
   val DAY = Value(TimeUnitRange.DAY)
   val DAY_TO_HOUR = Value(TimeUnitRange.DAY_TO_HOUR)
   val DAY_TO_MINUTE = Value(TimeUnitRange.DAY_TO_MINUTE)
