@@ -19,10 +19,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
@@ -84,19 +82,13 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private final byte[] groupPrefixBytes;
 
-	/** Output stream that helps to serialize elements. */
+	/** Output view that helps to serialize elements. */
 	@Nonnull
-	private final ByteArrayOutputStreamWithPos outputStream;
+	private final ByteArrayDataOutputView outputView;
 
-	/** Output view that helps to serialize elements, must wrap the output stream. */
+	/** Input view that helps to de-serialize elements. */
 	@Nonnull
-	private final DataOutputViewStreamWrapper outputView;
-
-	@Nonnull
-	private final ByteArrayInputStreamWithPos inputStream;
-
-	@Nonnull
-	private final DataInputViewStreamWrapper inputView;
+	private final ByteArrayDataInputView inputView;
 
 	/** In memory cache that holds a head-subset of the elements stored in RocksDB. */
 	@Nonnull
@@ -122,20 +114,18 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		@Nonnull RocksDB db,
 		@Nonnull ColumnFamilyHandle columnFamilyHandle,
 		@Nonnull TypeSerializer<E> byteOrderProducingSerializer,
-		@Nonnull ByteArrayOutputStreamWithPos outputStream,
-		@Nonnull ByteArrayInputStreamWithPos inputStream,
+		@Nonnull ByteArrayDataOutputView outputStream,
+		@Nonnull ByteArrayDataInputView inputStream,
 		@Nonnull RocksDBWriteBatchWrapper batchWrapper,
 		@Nonnull OrderedByteArraySetCache orderedByteArraySetCache) {
 		this.db = db;
 		this.columnFamilyHandle = columnFamilyHandle;
 		this.byteOrderProducingSerializer = byteOrderProducingSerializer;
-		this.outputStream = outputStream;
-		this.inputStream = inputStream;
 		this.batchWrapper = batchWrapper;
-		this.allElementsInCache = false;
-		this.outputView = new DataOutputViewStreamWrapper(outputStream);
-		this.inputView = new DataInputViewStreamWrapper(inputStream);
+		this.outputView = outputStream;
+		this.inputView = inputStream;
 		this.orderedCache = orderedByteArraySetCache;
+		this.allElementsInCache = false;
 		this.groupPrefixBytes = createKeyGroupBytes(keyGroupId, keyGroupPrefixBytes);
 		this.seekHint = groupPrefixBytes;
 		this.internalIndex = HeapPriorityQueueElement.NOT_CONTAINED;
@@ -367,7 +357,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private byte[] createKeyGroupBytes(int keyGroupId, int numPrefixBytes) {
 
-		outputStream.reset();
+		outputView.reset();
 
 		try {
 			RocksDBKeySerializationUtils.writeKeyGroup(keyGroupId, numPrefixBytes, outputView);
@@ -375,16 +365,16 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 			throw new FlinkRuntimeException("Could not write key-group bytes.", e);
 		}
 
-		return outputStream.toByteArray();
+		return outputView.toByteArray();
 	}
 
 	@Nonnull
 	private byte[] serializeElement(@Nonnull E element) {
 		try {
-			outputStream.reset();
+			outputView.reset();
 			outputView.write(groupPrefixBytes);
 			byteOrderProducingSerializer.serialize(element, outputView);
-			return outputStream.toByteArray();
+			return outputView.toByteArray();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while serializing the element.", e);
 		}
@@ -393,7 +383,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private E deserializeElement(@Nonnull byte[] bytes) {
 		try {
-			inputStream.setBuffer(bytes, groupPrefixBytes.length, bytes.length);
+			inputView.setData(bytes, groupPrefixBytes.length, bytes.length);
 			return byteOrderProducingSerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while deserializing the element.", e);

@@ -39,6 +39,8 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -2650,15 +2652,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		/** A shared buffer to serialize elements for the priority queue. */
 		@Nonnull
-		private final ByteArrayOutputStreamWithPos elementSerializationOutStream;
+		private final ByteArrayDataOutputView sharedElementOutView;
 
 		/** A shared buffer to de-serialize elements for the priority queue. */
 		@Nonnull
-		private final ByteArrayInputStreamWithPos elementSerializationInStream;
+		private final ByteArrayDataInputView sharedElementInView;
 
 		RocksDBPriorityQueueSetFactory() {
-			this.elementSerializationOutStream = new ByteArrayOutputStreamWithPos();
-			this.elementSerializationInStream = new ByteArrayInputStreamWithPos();
+			this.sharedElementOutView = new ByteArrayDataOutputView();
+			this.sharedElementInView = new ByteArrayDataInputView();
 		}
 
 		@Nonnull
@@ -2689,8 +2691,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							db,
 							columnFamilyHandle,
 							byteOrderedElementSerializer,
-							elementSerializationOutStream,
-							elementSerializationInStream,
+							sharedElementOutView,
+							sharedElementInView,
 							writeBatchWrapper,
 							orderedSetCache
 						);
