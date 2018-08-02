@@ -23,6 +23,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,11 +38,12 @@ import java.util.Objects;
  * A bucket is the directory organization of the output of the {@link StreamingFileSink}.
  *
  * <p>For each incoming element in the {@code StreamingFileSink}, the user-specified
- * {@link BucketAssigner Bucketer} is queried to see in which bucket this element should
- * be written to.
+ * {@link BucketAssigner} is queried to see in which bucket this element should be written to.
  */
 @Internal
 public class Bucket<IN, BucketID> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(Bucket.class);
 
 	private static final String PART_PREFIX = "part";
 
@@ -111,6 +115,7 @@ public class Bucket<IN, BucketID> {
 	}
 
 	private void restoreInProgressFile(final BucketState<BucketID> state) throws IOException {
+
 		// we try to resume the previous in-progress file
 		if (state.hasInProgressResumableFile()) {
 			final RecoverableWriter.ResumeRecoverable resumable = state.getInProgressResumableFile();
@@ -162,10 +167,20 @@ public class Bucket<IN, BucketID> {
 		if (committable != null) {
 			pendingPartsForCurrentCheckpoint.add(committable);
 		}
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Subtask {} merging buckets for bucket id={}", subtaskIndex, bucketId);
+		}
 	}
 
 	void write(IN element, long currentTime) throws IOException {
 		if (inProgressPart == null || rollingPolicy.shouldRollOnEvent(inProgressPart, element)) {
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} closing in-progress part file for bucket id={} due to element {}.",
+						subtaskIndex, bucketId, element);
+			}
+
 			rollPartFile(currentTime);
 		}
 		inProgressPart.write(element, currentTime);
@@ -173,7 +188,15 @@ public class Bucket<IN, BucketID> {
 
 	private void rollPartFile(final long currentTime) throws IOException {
 		closePartFile();
-		inProgressPart = partFileFactory.openNew(bucketId, fsWriter, assembleNewPartPath(), currentTime);
+
+		final Path partFilePath = assembleNewPartPath();
+		inProgressPart = partFileFactory.openNew(bucketId, fsWriter, partFilePath, currentTime);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Subtask {} opening new part file \"{}\" for bucket id={}.",
+					subtaskIndex, partFilePath.getName(), bucketId);
+		}
+
 		partCounter++;
 	}
 
@@ -213,6 +236,9 @@ public class Bucket<IN, BucketID> {
 
 	private void prepareBucketForCheckpointing(long checkpointId) throws IOException {
 		if (inProgressPart != null && rollingPolicy.shouldRollOnCheckpoint(inProgressPart)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} closing in-progress part file for bucket id={} on checkpoint.", subtaskIndex, bucketId);
+			}
 			closePartFile();
 		}
 
@@ -242,6 +268,11 @@ public class Bucket<IN, BucketID> {
 
 	void onProcessingTime(long timestamp) throws IOException {
 		if (inProgressPart != null && rollingPolicy.shouldRollOnProcessingTime(inProgressPart, timestamp)) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Subtask {} closing in-progress part file for bucket id={} due to processing time rolling policy " +
+						"(in-progress file created @ {}, last updated @ {} and current time is {}).",
+						subtaskIndex, bucketId, inProgressPart.getCreationTime(), inProgressPart.getLastUpdateTime(), timestamp);
+			}
 			closePartFile();
 		}
 	}
