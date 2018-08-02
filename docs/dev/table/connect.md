@@ -76,15 +76,15 @@ Connections can be specified either
 
 This allows not only for better unification of APIs and SQL Client but also for better extensibility in case of [custom implementations](sourceSinks.html) without changing the actual declaration.
 
-Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the final schema of the table, a connector, and a data format upfront for connecting to an external system.
+Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
 
-The **connector** describes the external system that should be used as a source and/or target of data. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format with fields and schema.
+The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format with fields and schema.
 
-Some systems support different **data formats**. For example, one can encode the rows of a table in CSV, JSON, or Avro representation before writing them into a file. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
+Some systems support different **data formats**. For example, a table that is stored in Kafka or in files can encode its rows with CSV, JSON, or Avro. A database connector might need the table schema here. Whether or not a storage system requires the definition of a format, is documented for every [connector](connect.html#table-connectors). Different systems also require different [types of formats](connect.html#table-formats) (e.g., column-oriented formats vs. row-oriented formats). The documentation states which format types and connectors are compatible.
 
-The **table schema** defines the schema of a table that is exposed to SQL queries. It forms the interface between the "external world" and the "table world". The schema has access to fields defined by the connector or format. The schema can use one or more fields for extracting or ingesting [time attributes](streaming.html#time-attributes). If input fields have no determinstic field order, the schema clearly defines field names, their order, and origin.
+The **table schema** defines the schema of a table that is exposed to SQL queries. It describes how a source maps the data format to the table schema and a sink vice versa. The schema has access to fields defined by the connector or format. It can use one or more fields for extracting or inserting [time attributes](streaming.html#time-attributes). If input fields have no determinstic field order, the schema clearly defines field names, their order, and origin.
 
-The subsequent sections will cover each definition part ([schema](connect.html#table-schema), [connector](connect.html#table-connectors), and [format](connect.html#table-formats)) in more detail. The following example shows how to pass them:
+The subsequent sections will cover each definition part ([connector](connect.html#table-connectors), [format](connect.html#table-formats), and [schema](connect.html#table-schema)) in more detail. The following example shows how to pass them:
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
@@ -103,9 +103,9 @@ tableEnvironment
 name: MyTable
 type: source
 update-mode: append
-schema: ...
-format: ...
 connector: ...
+format: ...
+schema: ...
 {% endhighlight %}
 </div>
 </div>
@@ -147,7 +147,7 @@ tableEnvironment
       )
   )
 
-  // declare the final schema of the table
+  // declare the schema of the table
   .withSchema(
     new Schema()
       .field("rowtime", Types.SQL_TIMESTAMP)
@@ -174,21 +174,17 @@ tables:
     type: source           # declare if the table should be "source", "sink", or "both"
     update-mode: append    # specify the update-mode for streaming tables
 
-    # declare the final schema of the table
-    schema:
-      - name: rowtime
-        type: TIMESTAMP
-        rowtime:
-          timestamps:
-            type: from-field
-            from: ts
-          watermarks:
-            type: periodic-bounded
-            delay: "60000"
-      - name: user
-        type: BIGINT
-      - name: message
-        type: VARCHAR
+    # declare the external system to connect to
+    connector:
+      type: kafka
+      version: "0.10"
+      topic: test-input
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
 
     # declare a format for this system
     format:
@@ -205,17 +201,21 @@ tables:
             ]
         }
 
-    # declare the external system to connect to
-    connector:
-      type: kafka
-      version: "0.10"
-      topic: test-input
-      startup-mode: earliest-offset
-      properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
+    # declare the schema of the table
+    schema:
+      - name: rowtime
+        type: TIMESTAMP
+        rowtime:
+          timestamps:
+            type: from-field
+            from: ts
+          watermarks:
+            type: periodic-bounded
+            delay: "60000"
+      - name: user
+        type: BIGINT
+      - name: message
+        type: VARCHAR
 {% endhighlight %}
 </div>
 </div>
@@ -224,10 +224,12 @@ In both ways the desired connection properties are converted into normalized, st
 
 If no factory can be found or multiple factories match for the given properties, an exception will be thrown with additional information about considered factories and supported properties.
 
+{% top %}
+
 Table Schema
 ------------
 
-The table schema defines the final appearance of a table. It specifies the name, type, and the origin of a field. The origin of a field might be important if the name of the field should differ from the input/output format. For instance, a field `user_name` should reference `$$-user-name` from a JSON format. Additionally, the schema is needed to map column names and types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
+The table schema defines the names and types of columns similar to the column definitions of a SQL `CREATE TABLE` statement. In addition, one can specify how columns are mapped from and to fields of the format in which the table data is encoded. The origin of a field might be important if the name of the column should differ from the input/output format. For instance, a column `user_name` should reference the field `$$-user-name` from a JSON format. Additionally, the schema is needed to map column names and types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
 
 The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
 

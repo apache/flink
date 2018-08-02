@@ -163,11 +163,6 @@ Every environment file is a regular [YAML file](http://yaml.org/). An example of
 tables:
   - name: MyTableName
     type: source
-    schema:
-      - name: MyField1
-        type: INT
-      - name: MyField2
-        type: VARCHAR
     connector:
       type: filesystem
       path: "/path/to/something.csv"
@@ -180,6 +175,11 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+    schema:
+      - name: MyField1
+        type: INT
+      - name: MyField2
+        type: VARCHAR
 
 # Execution properties allow for changing the behavior of a table program.
 
@@ -231,6 +231,23 @@ tables:
   - name: TaxiRides
     type: source
     update-mode: append
+    connector:
+      property-version: 1
+      type: kafka
+      version: 0.11
+      topic: TaxiRides
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
+        - key: group.id
+          value: testGroup
+    format:
+      property-version: 1
+      type: json
+      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
     schema:
       - name: rideId
         type: LONG
@@ -250,23 +267,6 @@ tables:
       - name: procTime
         type: TIMESTAMP
         proctime: true
-    connector:
-      property-version: 1
-      type: kafka
-      version: 0.11
-      topic: TaxiRides
-      startup-mode: earliest-offset
-      properties:
-        - key: zookeeper.connect
-          value: localhost:2181
-        - key: bootstrap.servers
-          value: localhost:9092
-        - key: group.id
-          value: testGroup
-    format:
-      property-version: 1
-      type: json
-      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
 {% endhighlight %}
 
 The resulting schema of the `TaxiRide` table contains most of the fields of the JSON schema. Furthermore, it adds a rowtime attribute `rowTime` and processing-time attribute `procTime`.
