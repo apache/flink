@@ -2664,31 +2664,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull
 		@Override
 		public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-		create(
-			@Nonnull String stateName,
-			@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+		create(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-			final PriorityComparator<T> priorityComparator =
-				PriorityComparator.forPriorityComparableObjects();
-
-			Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
-				kvStateInformation.get(stateName);
-
-			if (entry == null) {
-				RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
-					new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
-
-				final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
-
-				entry = new Tuple2<>(columnFamilyHandle, metaInfo);
-				kvStateInformation.put(stateName, entry);
-			}
+			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+				tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);
 
 			final ColumnFamilyHandle columnFamilyHandle = entry.f0;
 
 			return new KeyGroupPartitionedPriorityQueue<>(
 				KeyExtractorFunction.forKeyedObjects(),
-				priorityComparator,
+				PriorityComparator.forPriorityComparableObjects(),
 				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, RocksDBCachingPriorityQueueSet<T>>() {
 					@Nonnull
 					@Override
@@ -2714,6 +2699,27 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				keyGroupRange,
 				numberOfKeyGroups);
 		}
+	}
+
+	@Nonnull
+	private <T> Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tryRegisterPriorityQueueMetaInfo(
+		@Nonnull String stateName,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+
+		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
+			kvStateInformation.get(stateName);
+
+		if (entry == null) {
+			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
+				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
+
+			final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
+
+			entry = new Tuple2<>(columnFamilyHandle, metaInfo);
+			kvStateInformation.put(stateName, entry);
+		}
+
+		return entry;
 	}
 
 	@Override

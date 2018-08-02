@@ -39,7 +39,7 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends Intern
 		return new KeyGroupPartitionedPriorityQueue<>(
 			KEY_EXTRACTOR_FUNCTION,
 			TEST_ELEMENT_PRIORITY_COMPARATOR,
-			newFactory(initialCapacity),
+			newFactory(),
 			KEY_GROUP_RANGE, KEY_GROUP_RANGE.getNumberOfKeyGroups());
 	}
 
@@ -49,7 +49,7 @@ public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends Intern
 	}
 
 	private KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<
-		TestElement, RocksDBCachingPriorityQueueSet<TestElement>> newFactory(int initialCapacity) {
+		TestElement, RocksDBCachingPriorityQueueSet<TestElement>> newFactory() {
 
 		return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) -> {
 			ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);

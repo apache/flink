@@ -98,7 +98,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private final DataInputViewStreamWrapper inputView;
 
-	/** In memory cache that holds a partial view on the head of the RocksDB content. */
+	/** In memory cache that holds a head-subset of the elements stored in RocksDB. */
 	@Nonnull
 	private final OrderedByteArraySetCache orderedCache;
 
@@ -110,8 +110,8 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nullable
 	private E peekCache;
 
-	/** This flag is true if there could be elements in the backend that are not in the cache (false positives ok). */
-	private boolean storeOnlyElements;
+	/** This flag is true iff all elements in RocksDB are also contained in the cache. */
+	private boolean allElementsInCache;
 
 	/** Index for management as a {@link HeapPriorityQueueElement}. */
 	private int internalIndex;
@@ -132,7 +132,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		this.outputStream = outputStream;
 		this.inputStream = inputStream;
 		this.batchWrapper = batchWrapper;
-		this.storeOnlyElements = true;
+		this.allElementsInCache = false;
 		this.outputView = new DataOutputViewStreamWrapper(outputStream);
 		this.inputView = new DataInputViewStreamWrapper(inputStream);
 		this.orderedCache = orderedByteArraySetCache;
@@ -197,14 +197,14 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 
 		final boolean cacheFull = orderedCache.isFull();
 
-		if ((!cacheFull && !storeOnlyElements) ||
+		if ((!cacheFull && allElementsInCache) ||
 			LEXICOGRAPHIC_BYTE_COMPARATOR.compare(toAddBytes, orderedCache.peekLast()) < 0) {
 
 			if (cacheFull) {
 				// we drop the element with lowest priority from the cache
 				orderedCache.pollLast();
 				// the dropped element is now only in the store
-				storeOnlyElements = true;
+				allElementsInCache = false;
 			}
 
 			if (orderedCache.add(toAddBytes)) {
@@ -218,7 +218,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		} else {
 			// we only added to the store
 			addToRocksDB(toAddBytes);
-			storeOnlyElements = true;
+			allElementsInCache = false;
 		}
 		return false;
 	}
@@ -285,7 +285,9 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Override
 	public int size() {
 
-		if (storeOnlyElements) {
+		if (allElementsInCache) {
+			return orderedCache.size();
+		} else {
 			int count = 0;
 			try (final RocksBytesIterator iterator = orderedBytesIterator()) {
 				while (iterator.hasNext()) {
@@ -294,8 +296,6 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 				}
 			}
 			return count;
-		} else {
-			return orderedCache.size();
 		}
 	}
 
@@ -345,10 +345,10 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	}
 
 	private void checkRefillCacheFromStore() {
-		if (storeOnlyElements && orderedCache.isEmpty()) {
+		if (!allElementsInCache && orderedCache.isEmpty()) {
 			try (final RocksBytesIterator iterator = orderedBytesIterator()) {
 				orderedCache.bulkLoadFromOrderedIterator(iterator);
-				storeOnlyElements = iterator.hasNext();
+				allElementsInCache = !iterator.hasNext();
 			} catch (Exception e) {
 				throw new FlinkRuntimeException("Exception while refilling store from iterator.", e);
 			}
@@ -393,8 +393,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private E deserializeElement(@Nonnull byte[] bytes) {
 		try {
-			inputStream.setBuffer(bytes, 0, bytes.length);
-			inputView.skipBytes(groupPrefixBytes.length);
+			inputStream.setBuffer(bytes, groupPrefixBytes.length, bytes.length);
 			return byteOrderProducingSerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while deserializing the element.", e);
@@ -488,7 +487,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	}
 
 	/**
-	 * Cache that is organized as an ordered set for byte-arrays. THe byte-arrays are sorted in lexicographic order
+	 * Cache that is organized as an ordered set for byte-arrays. The byte-arrays are sorted in lexicographic order
 	 * of their content. Caches typically have a bounded size.
 	 */
 	public interface OrderedByteArraySetCache {
