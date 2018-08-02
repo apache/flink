@@ -524,7 +524,7 @@ public abstract class InternalPriorityQueueTestBase extends TestLogger {
 
 			@Override
 			public boolean equals(Object obj) {
-				return obj instanceof Snapshot;
+				return obj instanceof Snapshot && revision == ((Snapshot) obj).revision;
 			}
 
 			@Override

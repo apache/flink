@@ -2703,8 +2703,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						byteOrderedElementSerializer);
 
 					if (compatibilityResult.isRequiresMigration()) {
-						throw new FlinkRuntimeException(
-							new StateMigrationException("Migration is currently not supported."));
+						throw new FlinkRuntimeException(StateMigrationException.notSupported());
 					}
 
 					// update meta info with new serializer

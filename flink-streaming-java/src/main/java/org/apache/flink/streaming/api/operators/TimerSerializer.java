@@ -216,9 +216,9 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	public CompatibilityResult<TimerHeapInternalTimer<K, N>> ensureCompatibility(
 		TypeSerializerConfigSnapshot configSnapshot) {
 
-		if (configSnapshot instanceof CompositeTypeSerializerConfigSnapshot) {
+		if (configSnapshot instanceof TimerSerializerConfigSnapshot) {
 			List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
-				((CompositeTypeSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+				((TimerSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
 
 			if (previousSerializersAndConfigs.size() == 2) {
 				Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot> keySerializerAndSnapshot =
@@ -264,7 +264,7 @@ public class TimerSerializer<K, N> extends TypeSerializer<TimerHeapInternalTimer
 	 */
 	public static class TimerSerializerConfigSnapshot<K, N> extends CompositeTypeSerializerConfigSnapshot {
 
-		private static final int VERSION = 0;
+		private static final int VERSION = 1;
 
 		public TimerSerializerConfigSnapshot() {
 		}

@@ -46,9 +46,11 @@ import java.util.Map;
 @Internal
 public class InternalTimeServiceManager<K> {
 
-
+	@VisibleForTesting
 	static final String TIMER_STATE_PREFIX = "_timer_state";
+	@VisibleForTesting
 	static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
+	@VisibleForTesting
 	static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
 
 	private final KeyGroupRange localKeyGroupRange;

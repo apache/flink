@@ -210,7 +210,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				byteOrderedElementSerializer);
 
 			if (compatibilityResult.isRequiresMigration()) {
-				throw new FlinkRuntimeException(new StateMigrationException("State migreation is currently not supported!"));
+				throw new FlinkRuntimeException(StateMigrationException.notSupported());
 			} else {
 				registeredPQStates.put(
 					stateName,

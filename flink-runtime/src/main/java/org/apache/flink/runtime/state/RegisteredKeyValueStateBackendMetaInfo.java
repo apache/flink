@@ -190,7 +190,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 		if (namespaceCompatibility.isRequiresMigration() || stateCompatibility.isRequiresMigration()) {
 			// TODO state migration currently isn't possible.
-			throw new StateMigrationException("State migration isn't supported, yet.");
+			throw StateMigrationException.notSupported();
 		} else {
 			return new RegisteredKeyValueStateBackendMetaInfo<>(
 				newStateDescriptor.getType(),

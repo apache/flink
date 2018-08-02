@@ -80,6 +80,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
@@ -1214,16 +1215,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			keyedBackend = restoreKeyedBackend(IntSerializer.INSTANCE, keyedStateHandle);
 
 			try {
+				// this is expected to fail, because the old and new serializer shoulbe be incompatible through
+				// different revision numbers.
 				keyedBackend.create("test", serializer);
 				Assert.fail("Expected exception from incompatible serializer.");
 			} catch (Exception e) {
-				Throwable t = e;
-				boolean isRightException;
-				do {
-					isRightException = t instanceof StateMigrationException;
-					t = t.getCause();
-				} while (!isRightException && t != null);
-				Assert.assertTrue(isRightException);
+				Assert.assertTrue("Exception was not caused by state migration: " + e,
+					ExceptionUtils.findThrowable(e, StateMigrationException.class).isPresent());
 			}
 		} finally {
 			keyedBackend.dispose();
