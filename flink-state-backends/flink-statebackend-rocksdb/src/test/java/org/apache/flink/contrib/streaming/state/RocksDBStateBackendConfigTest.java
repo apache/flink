@@ -131,8 +131,6 @@ public class RocksDBStateBackendConfigTest {
 	@Test
 	public void testConfigureTimerService() throws Exception {
 
-		final Environment env = getMockEnvironment(tempFolder.newFolder());
-
 		// Fix the option key string
 		Assert.assertEquals("state.backend.rocksdb.timer-service.factory", RocksDBOptions.TIMER_SERVICE_FACTORY.key());
 
@@ -148,7 +146,7 @@ public class RocksDBStateBackendConfigTest {
 
 		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
 
-		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend);
 		keyedBackend.restore(Collections.emptyList());
 		Assert.assertEquals(HeapPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
@@ -159,7 +157,7 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
 		rocksDbBackend = rocksDbBackend.configure(conf);
-		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		keyedBackend = createKeyedStateBackend(rocksDbBackend);
 		keyedBackend.restore(Collections.emptyList());
 		Assert.assertEquals(
 			RocksDBKeyedStateBackend.RocksDBPriorityQueueSetFactory.class,
