@@ -88,11 +88,12 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
     (TIMESTAMP | SQL_TIMESTAMP) ^^ { e => Types.SQL_TIMESTAMP } |
     (TIME | SQL_TIME) ^^ { e => Types.SQL_TIME }
 
-  lazy val escapedFieldName: PackratParser[String] = "\"" ~> stringLiteral <~ "\"" ^^ { s =>
-    StringEscapeUtils.unescapeJava(s)
+  lazy val escapedFieldName: PackratParser[String] = stringLiteral ^^ { s =>
+    val unquoted = s.substring(1, s.length - 1)
+    StringEscapeUtils.unescapeJava(unquoted)
   }
 
-  lazy val fieldName: PackratParser[String] = escapedFieldName | stringLiteral | ident
+  lazy val fieldName: PackratParser[String] = escapedFieldName | ident
 
   lazy val field: PackratParser[(String, TypeInformation[_])] =
     fieldName ~ typeInfo ^^ {

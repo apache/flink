@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -36,11 +35,13 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,6 +50,7 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -109,7 +111,8 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setDbStoragePaths(testDir1, testDir2);
 		assertArrayEquals(new String[] { testDir1, testDir2 }, rocksDbBackend.getDbStoragePaths());
 
-		final RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend);
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
+		final RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 
 		try {
 			File instanceBasePath = keyedBackend.getInstanceBasePath();
@@ -123,6 +126,45 @@ public class RocksDBStateBackendConfigTest {
 			IOUtils.closeQuietly(keyedBackend);
 			keyedBackend.dispose();
 		}
+	}
+
+	@Test
+	public void testConfigureTimerService() throws Exception {
+
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
+
+		// Fix the option key string
+		Assert.assertEquals("state.backend.rocksdb.timer-service.factory", RocksDBOptions.TIMER_SERVICE_FACTORY.key());
+
+		// Fix the option value string and ensure all are covered
+		Assert.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
+		Assert.assertEquals("ROCKSDB", RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+		Assert.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+
+		// Fix the default
+		Assert.assertEquals(
+			RocksDBStateBackend.PriorityQueueStateType.HEAP.toString(),
+			RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
+
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+
+		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		keyedBackend.restore(Collections.emptyList());
+		Assert.assertEquals(HeapPriorityQueueSetFactory.class, keyedBackend.getPriorityQueueFactory().getClass());
+		keyedBackend.dispose();
+
+		Configuration conf = new Configuration();
+		conf.setString(
+			RocksDBOptions.TIMER_SERVICE_FACTORY,
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+
+		rocksDbBackend = rocksDbBackend.configure(conf);
+		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
+		keyedBackend.restore(Collections.emptyList());
+		Assert.assertEquals(
+			RocksDBKeyedStateBackend.RocksDBPriorityQueueSetFactory.class,
+			keyedBackend.getPriorityQueueFactory().getClass());
+		keyedBackend.dispose();
 	}
 
 	@Test
@@ -142,8 +184,7 @@ public class RocksDBStateBackendConfigTest {
 			Configuration config = new Configuration();
 			config.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "s3://mydomain.com:8020/flink");
 			FileSystem.initialize(config);
-
-			testLocalDbPaths(null, new File(CommonTestUtils.getTempDir()));
+			testLocalDbPaths(null, tempFolder.getRoot());
 		}
 		finally {
 			FileSystem.initialize(new Configuration());
@@ -172,7 +213,8 @@ public class RocksDBStateBackendConfigTest {
 		final RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
 		rocksDbBackend.setDbStoragePath(configuredPath);
 
-		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend);
+		final Environment env = getMockEnvironment(tempFolder.newFolder());
+		RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 
 		try {
 			File instanceBasePath = keyedBackend.getInstanceBasePath();
@@ -229,11 +271,9 @@ public class RocksDBStateBackendConfigTest {
 		File dir1 = tempFolder.newFolder();
 		File dir2 = tempFolder.newFolder();
 
-		File[] tempDirs = new File[] { dir1, dir2 };
-
 		assertNull(rocksDbBackend.getDbStoragePaths());
 
-		Environment env = getMockEnvironment(tempDirs);
+		Environment env = getMockEnvironment(dir1, dir2);
 		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
 				createKeyedStateBackend(
 						env,
@@ -273,7 +313,7 @@ public class RocksDBStateBackendConfigTest {
 
 			boolean hasFailure = false;
 			try {
-				Environment env = getMockEnvironment();
+				Environment env = getMockEnvironment(tempFolder.newFolder());
 				rocksDbBackend.createKeyedStateBackend(
 						env,
 						env.getJobID(),
@@ -314,7 +354,7 @@ public class RocksDBStateBackendConfigTest {
 			rocksDbBackend.setDbStoragePaths(targetDir1.getAbsolutePath(), targetDir2.getAbsolutePath());
 
 			try {
-				Environment env = getMockEnvironment();
+				Environment env = getMockEnvironment(tempFolder.newFolder());
 				AbstractKeyedStateBackend<Integer> keyedStateBackend = rocksDbBackend.createKeyedStateBackend(
 					env,
 					env.getJobID(),
@@ -466,9 +506,7 @@ public class RocksDBStateBackendConfigTest {
 	// ------------------------------------------------------------------------
 
 	static RocksDBKeyedStateBackend<Integer> createKeyedStateBackend(
-			RocksDBStateBackend rocksDbBackend) throws Exception {
-
-		final Environment env = getMockEnvironment();
+			RocksDBStateBackend rocksDbBackend, Environment env) throws Exception {
 
 		return (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
 				createKeyedStateBackend(
@@ -481,11 +519,7 @@ public class RocksDBStateBackendConfigTest {
 						env.getTaskKvStateRegistry());
 	}
 
-	static Environment getMockEnvironment() {
-		return getMockEnvironment(new File[] { new File(System.getProperty("java.io.tmpdir")) });
-	}
-
-	static Environment getMockEnvironment(File[] tempDirs) {
+	static Environment getMockEnvironment(File... tempDirs) {
 		final String[] tempDirStrings = new String[tempDirs.length];
 		for (int i = 0; i < tempDirs.length; i++) {
 			tempDirStrings[i] = tempDirs[i].getAbsolutePath();

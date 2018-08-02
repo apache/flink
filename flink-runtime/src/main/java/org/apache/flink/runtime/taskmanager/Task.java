@@ -1046,19 +1046,22 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 						// the periodic interrupting thread - a different thread than the canceller, in case
 						// the application code does blocking stuff in its cancellation paths.
-						Runnable interrupter = new TaskInterrupter(
-								LOG,
-								executingThread,
-								taskNameWithSubtask,
-								taskCancellationInterval);
+						if (invokable.shouldInterruptOnCancel()) {
+							Runnable interrupter = new TaskInterrupter(
+									LOG,
+									invokable,
+									executingThread,
+									taskNameWithSubtask,
+									taskCancellationInterval);
 
-						Thread interruptingThread = new Thread(
-								executingThread.getThreadGroup(),
-								interrupter,
-								String.format("Canceler/Interrupts for %s (%s).", taskNameWithSubtask, executionId));
-						interruptingThread.setDaemon(true);
-						interruptingThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
-						interruptingThread.start();
+							Thread interruptingThread = new Thread(
+									executingThread.getThreadGroup(),
+									interrupter,
+									String.format("Canceler/Interrupts for %s (%s).", taskNameWithSubtask, executionId));
+							interruptingThread.setDaemon(true);
+							interruptingThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+							interruptingThread.start();
+						}
 
 						// if a cancellation timeout is set, the watchdog thread kills the process
 						// if graceful cancellation does not succeed
@@ -1514,8 +1517,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 				}
 
-				// send the initial interruption signal
-				executer.interrupt();
+				// send the initial interruption signal, if requested
+				if (invokable.shouldInterruptOnCancel()) {
+					executer.interrupt();
+				}
 			}
 			catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalError(t);
@@ -1532,6 +1537,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		/** The logger to report on the fatal condition. */
 		private final Logger log;
 
+		/** The invokable task. */
+		private final AbstractInvokable task;
+
 		/** The executing task thread that we wait for to terminate. */
 		private final Thread executerThread;
 
@@ -1543,11 +1551,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		TaskInterrupter(
 				Logger log,
+				AbstractInvokable task,
 				Thread executerThread,
 				String taskName,
 				long interruptIntervalMillis) {
 
 			this.log = log;
+			this.task = task;
 			this.executerThread = executerThread;
 			this.taskName = taskName;
 			this.interruptIntervalMillis = interruptIntervalMillis;
@@ -1563,7 +1573,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// log stack trace where the executing thread is stuck and
 				// interrupt the running thread periodically while it is still alive
-				while (executerThread.isAlive()) {
+				while (task.shouldInterruptOnCancel() && executerThread.isAlive()) {
 					// build the stack trace of where the thread is stuck, for the log
 					StackTraceElement[] stack = executerThread.getStackTrace();
 					StringBuilder bld = new StringBuilder();

@@ -25,7 +25,8 @@
 
 tables:
   - name: TableNumber1
-    type: source
+    type: both
+    update-mode: append
     schema:
       - name: IntegerField1
         type: INT
@@ -35,7 +36,8 @@ tables:
         type: TIMESTAMP
         rowtime:
           timestamps:
-            type: from-source
+            type: from-field
+            from: rowtimeField
           watermarks:
             type: from-source
     connector:

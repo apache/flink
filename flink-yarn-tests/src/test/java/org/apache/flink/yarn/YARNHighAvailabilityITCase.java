@@ -133,7 +133,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			"@@" + CheckpointingOptions.CHECKPOINTS_DIRECTORY + "=" + fsStateHandlePath + "/checkpoints" +
 			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
 
-		ClusterClient<ApplicationId> yarnCluster = null;
+		ClusterClient<ApplicationId> yarnClusterClient = null;
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
@@ -147,10 +147,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			.createClusterSpecification();
 
 		try {
-			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
+			yarnClusterClient = flinkYarnClient.deploySessionCluster(clusterSpecification);
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				yarnCluster.getFlinkConfiguration(),
+				yarnClusterClient.getFlinkConfiguration(),
 				Executors.directExecutor(),
 				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
@@ -201,8 +201,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 			}};
 		} finally {
-			if (yarnCluster != null) {
-				yarnCluster.shutdown();
+			if (yarnClusterClient != null) {
+				log.info("Shutting down the Flink Yarn application.");
+				yarnClusterClient.shutDownCluster();
+				yarnClusterClient.shutdown();
 			}
 
 			if (highAvailabilityServices != null) {

@@ -212,7 +212,7 @@ class TableSourceValidationTest {
     val schema = new TableSchema(
       fieldNames,
       Array(Types.LONG, Types.SQL_TIMESTAMP, Types.INT))
-    val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "name")
+    val ts = new TestTableSourceWithTime(schema, rowType, Seq[Row](), rowtime = "amount")
 
     // should fail because configured rowtime field is not of type Long or Timestamp
     tEnv.registerTableSource("testTable", ts)

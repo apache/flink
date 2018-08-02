@@ -52,6 +52,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -127,11 +128,11 @@ public class RescalingITCase extends TestLogger {
 			config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
 			cluster = new MiniClusterResource(
-				new MiniClusterResource.MiniClusterResourceConfiguration(
-					config,
-					numTaskManagers,
-					slotsPerTaskManager),
-				true);
+				new MiniClusterResourceConfiguration.Builder()
+					.setConfiguration(config)
+					.setNumberTaskManagers(numTaskManagers)
+					.setNumberSlotsPerTaskManager(numSlots)
+					.build());
 			cluster.before();
 		}
 	}

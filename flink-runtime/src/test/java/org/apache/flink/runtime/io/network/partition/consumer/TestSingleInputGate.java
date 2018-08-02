@@ -98,7 +98,7 @@ public class TestSingleInputGate {
 		if (initialize) {
 			for (int i = 0; i < numberOfInputChannels; i++) {
 				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i].getInputChannel());
+				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
 			}
 		}
 	}

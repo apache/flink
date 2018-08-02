@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -43,11 +43,16 @@ under the License.
 		<module>flink-distributed-cache-via-blob-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
 		<module>flink-elasticsearch1-test</module>
 		<module>flink-elasticsearch2-test</module>
 		<module>flink-elasticsearch5-test</module>
+		<module>flink-elasticsearch6-test</module>
 		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
+		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
 	</modules>
 
 	<build>
@@ -60,5 +65,33 @@ under the License.
 				</configuration>
 			</plugin>
 		</plugins>
+
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
+	
 </project>

@@ -301,6 +301,11 @@ trait ImplicitExpressionOperations {
   def log10() = Log10(expr)
 
   /**
+    * Calculates the base 2 logarithm of the given value.
+    */
+  def log2() = Log2(expr)
+
+  /**
     * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)
@@ -539,6 +544,11 @@ trait ImplicitExpressionOperations {
   def overlay(newString: Expression, starting: Expression, length: Expression) =
     Overlay(expr, newString, starting, length)
 
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64() = FromBase64(expr)
+
   // Temporal operations
 
   /**
@@ -562,6 +572,16 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
+
+  /**
+    * Returns the quarter of a year from a SQL date.
+    *
+    * e.g. "1994-09-27".toDate.quarter() leads to 3
+    *
+    * @deprecated This method will be used for describing an interval of months in future versions.
+    *             Use `extract(TimeIntervalUnit.QUARTER)` instead.
+    */
+  def quarter() = Quarter(expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -1196,8 +1216,26 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
+
+  /**
+    * Returns the string that results from concatenating the arguments.
+    * Returns NULL if any argument is NULL.
+    */
   def apply(string: Expression, strings: Expression*): Expression = {
     Concat(Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Calculates the arc tangent of a given coordinate.
+  */
+object atan2 {
+
+  /**
+    * Calculates the arc tangent of a given coordinate.
+    */
+  def apply(y: Expression, x: Expression): Expression = {
+    Atan2(y, x)
   }
 }
 

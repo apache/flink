@@ -92,6 +92,18 @@ case class Log10(child: Expression) extends UnaryExpression with InputTypeSpec {
   }
 }
 
+case class Log2(child: Expression) extends UnaryExpression with InputTypeSpec {
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = DOUBLE_TYPE_INFO :: Nil
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder) = {
+    relBuilder.call(ScalarSqlFunctions.LOG2, child.toRexNode)
+  }
+
+  override def toString: String = s"log2($child)"
+}
+
 case class Log(base: Expression, antilogarithm: Expression) extends Expression with InputTypeSpec {
   def this(antilogarithm: Expression) = this(null, antilogarithm)
 
@@ -240,6 +252,26 @@ case class Atan(child: Expression) extends UnaryExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     relBuilder.call(SqlStdOperatorTable.ATAN, child.toRexNode)
+  }
+}
+
+case class Atan2(y: Expression, x: Expression) extends BinaryExpression {
+
+  override private[flink] def left = y
+
+  override private[flink] def right = x
+
+  override private[flink] def resultType: TypeInformation[_] = DOUBLE_TYPE_INFO
+
+  override private[flink] def validateInput() = {
+    TypeCheckUtils.assertNumericExpr(y.resultType, "atan2")
+    TypeCheckUtils.assertNumericExpr(x.resultType, "atan2")
+  }
+
+  override def toString: String = s"atan2($left, $right)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.ATAN2, left.toRexNode, right.toRexNode)
   }
 }
 

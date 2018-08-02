@@ -20,7 +20,7 @@ package org.apache.flink.table.descriptors
 
 import java.util.Optional
 
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{TableException, TableSchema, Types}
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
 import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks
 import org.junit.Assert.{assertEquals, assertTrue}
@@ -67,7 +67,7 @@ class SchemaValidatorTest {
       "myField" -> "myField").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
 
     // test field format
     val formatSchema = SchemaValidator.deriveFormatFields(props)
@@ -76,6 +76,40 @@ class SchemaValidatorTest {
       .field("abcField", Types.STRING)
       .build()
     assertEquals(expectedFormatSchema, formatSchema)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testDeriveTableSinkSchemaWithRowtimeFromSource(): Unit = {
+    val desc1 = Schema()
+      .field("otherField", Types.STRING).from("csvField")
+      .field("abcField", Types.STRING)
+      .field("p", Types.SQL_TIMESTAMP).proctime()
+      .field("r", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromSource().watermarksFromSource())
+    val props = new DescriptorProperties()
+    desc1.addProperties(props)
+
+    SchemaValidator.deriveTableSinkSchema(props)
+  }
+
+  @Test
+  def testDeriveTableSinkSchemaWithRowtimeFromField(): Unit = {
+    val desc1 = Schema()
+      .field("otherField", Types.STRING).from("csvField")
+      .field("abcField", Types.STRING)
+      .field("p", Types.SQL_TIMESTAMP).proctime()
+      .field("r", Types.SQL_TIMESTAMP).rowtime(
+        Rowtime().timestampsFromField("myTime").watermarksFromSource())
+    val props = new DescriptorProperties()
+    desc1.addProperties(props)
+
+    val expectedTableSinkSchema = TableSchema.builder()
+      .field("csvField", Types.STRING) // aliased
+      .field("abcField", Types.STRING)
+      .field("myTime", Types.SQL_TIMESTAMP)
+      .build()
+
+    assertEquals(expectedTableSinkSchema, SchemaValidator.deriveTableSinkSchema(props))
   }
 
   @Test
@@ -114,7 +148,7 @@ class SchemaValidatorTest {
       "myTime" -> "myTime").asJava
     assertEquals(
       expectedMapping,
-      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema)))
+      SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
 
     // test field format
     val formatSchema = SchemaValidator.deriveFormatFields(props)

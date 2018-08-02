@@ -17,57 +17,81 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
 
+import org.elasticsearch.client.transport.TransportClient;
 import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 /**
  * IT cases for the {@link ElasticsearchSink}.
  */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
+public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<TransportClient, InetSocketAddress> {
 
 	@Test
-	public void testTransportClient() throws Exception {
-		runTransportClientTest();
+	public void testElasticsearchSink() throws Exception {
+		runElasticsearchSinkTest();
 	}
 
 	@Test
-	public void testNullTransportClient() throws Exception {
-		runNullTransportClientTest();
+	public void testNullAddresses() throws Exception {
+		runNullAddressesTest();
 	}
 
 	@Test
-	public void testEmptyTransportClient() throws Exception {
-		runEmptyTransportClientTest();
+	public void testEmptyAddresses() throws Exception {
+		runEmptyAddressesTest();
 	}
 
 	@Test
-	public void testTransportClientFails() throws Exception{
-		runTransportClientFailsTest();
+	public void testInvalidElasticsearchCluster() throws Exception{
+		runInvalidElasticsearchClusterTest();
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
-																List<InetSocketAddress> transportAddresses,
-																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		return new ElasticsearchSink<>(userConfig, transportAddresses, elasticsearchSinkFunction);
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSink(
+			int bulkFlushMaxActions,
+			String clusterName,
+			List<InetSocketAddress> transportAddresses,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+
+		return new ElasticsearchSink<>(
+				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+				transportAddresses,
+				elasticsearchSinkFunction);
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSinkForEmbeddedNode(
-		Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) throws Exception {
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForEmbeddedNode(
+			int bulkFlushMaxActions,
+			String clusterName,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+
+		return createElasticsearchSinkForNode(
+				bulkFlushMaxActions, clusterName, elasticsearchSinkFunction, "127.0.0.1");
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, TransportClient> createElasticsearchSinkForNode(
+			int bulkFlushMaxActions,
+			String clusterName,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception {
 
 		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+		transports.add(new InetSocketAddress(InetAddress.getByName(ipAddress), 9300));
 
-		return new ElasticsearchSink<>(userConfig, transports, elasticsearchSinkFunction);
+		return new ElasticsearchSink<>(
+				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+				transports,
+				elasticsearchSinkFunction);
 	}
 }

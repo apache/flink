@@ -969,7 +969,7 @@ private static class MyFoldFunction
 
   public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
       Integer cur = acc.getField(2);
-      acc.setField(2, cur + 1);
+      acc.setField(cur + 1, 2);
       return acc;
   }
 }
@@ -1411,7 +1411,6 @@ val globalResults = resultsPerKey
 
 In this example, the results for time window `[0, 5)` from the first operation will also end up in
 time window `[0, 5)` in the subsequent windowed operation. This allows calculating a sum per key
-and then calculating the top-k elements within the same window in the second operation.
 and then calculating the top-k elements within the same window in the second operation.
 
 ## Useful state size considerations

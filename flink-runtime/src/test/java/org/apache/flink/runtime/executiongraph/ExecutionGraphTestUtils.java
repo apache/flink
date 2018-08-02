@@ -118,7 +118,7 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException("The job did not reach status " + status + " in time. Current status is " + eg.getState() + '.');
 		}
 	}
 
@@ -193,7 +193,11 @@ public class ExecutionGraphTestUtils {
 	/**
 	 * Predicate which is true if the given {@link Execution} has a resource assigned.
 	 */
-	public static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
+	static final Predicate<Execution> hasResourceAssigned = (Execution execution) -> execution.getAssignedResource() != null;
+
+	static Predicate<Execution> isInExecutionState(ExecutionState executionState) {
+		return (Execution execution) -> execution.getState() == executionState;
+	}
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {

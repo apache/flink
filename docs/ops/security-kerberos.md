@@ -53,7 +53,7 @@ Flink provides first-class support for Kerberos authentication only.  The follow
 
 Note that it is possible to enable the use of Kerberos independently for each service or connector.  For example, the user may enable 
 Hadoop security without necessitating the use of Kerberos for ZooKeeper, or vice versa.    The shared element is the configuration of 
-Kerbreros credentials, which is then explicitly used by each component.
+Kerberos credentials, which is then explicitly used by each component.
 
 The internal architecture is based on security modules (implementing `org.apache.flink.runtime.security.modules.SecurityModule`) which
 are installed at startup.  The following sections describes each security module.

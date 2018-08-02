@@ -158,6 +158,12 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 		 * A {@link TimerService} for querying time and registering timers.
 		 */
 		public abstract TimerService timerService();
+
+
+		/**
+		 * Get key of the element being processed.
+		 */
+		public abstract KS getCurrentKey();
 	}
 
 	/**
@@ -174,6 +180,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 		/**
 		 * Get the key of the firing timer.
 		 */
+		@Override
 		public abstract KS getCurrentKey();
 	}
 }

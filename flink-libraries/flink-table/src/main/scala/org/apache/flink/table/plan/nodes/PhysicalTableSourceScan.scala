@@ -22,9 +22,8 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.TableSourceSinkTable
 import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
@@ -39,10 +38,10 @@ abstract class PhysicalTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val streamingTable = table.unwrap(classOf[TableSourceTable[_]]) match {
-      case _: StreamTableSourceTable[_] => true
-      case _: BatchTableSourceTable[_] => false
-      case t => throw TableException(s"Unknown Table type ${t.getClass}.")
+    val streamingTable = table.unwrap(classOf[TableSourceSinkTable[_, _]]) match {
+      case t: TableSourceSinkTable[_, _] if t.isStreamSourceTable => true
+      // null
+      case _ => false
     }
 
     TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)

@@ -450,6 +450,28 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1111111111111111111111111111111111111111111111111111111111111111")
   }
 
+  @Test
+  def testFromBase64(): Unit = {
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "from_base64(f35)",
+      "hello world")
+
+    testAllApis(
+      'f35.fromBase64(),
+      "f35.fromBase64()",
+      "FROM_BASE64(f35)",
+      "hello world")
+
+    //null test
+    testAllApis(
+      'f33.fromBase64(),
+      "f33.fromBase64()",
+      "FROM_BASE64(f33)",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -551,6 +573,33 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f6.log10()",
       "LOG10(f6)",
       math.log10(4.6).toString)
+  }
+
+  @Test
+  def testLog2(): Unit = {
+    testAllApis(
+      'f6.log2(),
+      "f6.log2",
+      "LOG2(f6)",
+     "2.2016338611696504")
+
+    testAllApis(
+      ('f6 - 'f6 + 100).log2(),
+      "(f6 - f6 + 100).log2()",
+      "LOG2(f6 - f6 + 100)",
+      "6.643856189774725")
+
+    testAllApis(
+      ('f6 + 20).log2(),
+      "(f6+20).log2",
+      "LOG2(f6+20)",
+      "4.620586410451877")
+
+    testAllApis(
+      10.log2(),
+      "10.log2",
+      "LOG2(10)",
+      "3.3219280948873626")
   }
 
   @Test
@@ -1112,6 +1161,51 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testAtan2(): Unit = {
+    testAllApis(
+      atan2('f25, 'f26),
+      "atan2(f25, f26)",
+      "ATAN2(f25, f26)",
+      math.atan2(0.42.toByte, 0.toByte).toString)
+
+    testAllApis(
+      Atan2('f26, 'f25),
+      "atan2(f26, f25)",
+      "ATAN2(f26, f25)",
+      math.atan2(0.toShort, 0.toShort).toString)
+
+    testAllApis(
+      Atan2('f27, 'f27),
+      "atan2(f27, f27)",
+      "ATAN2(f27, f27)",
+      math.atan2(0.toLong, 0.toLong).toString)
+
+    testAllApis(
+      Atan2('f28, 'f28),
+      "atan2(f28, f28)",
+      "ATAN2(f28, f28)",
+      math.atan2(0.45.toFloat, 0.45.toFloat).toString)
+
+    testAllApis(
+      Atan2('f29, 'f29),
+      "atan2(f29, f29)",
+      "ATAN2(f29, f29)",
+      math.atan2(0.46, 0.46).toString)
+
+    testAllApis(
+      Atan2('f30, 'f30),
+      "atan2(f30, f30)",
+      "ATAN2(f30, f30)",
+      math.atan2(1, 1).toString)
+
+    testAllApis(
+      Atan2('f31, 'f31),
+      "atan2(f31, f31)",
+      "ATAN2(f31, f31)",
+      math.atan2(-0.1231231321321321111, -0.1231231321321321111).toString)
+  }
+
+  @Test
   def testDegrees(): Unit = {
     testAllApis(
       'f2.degrees(),
@@ -1480,6 +1574,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "EXTRACT(YEAR FROM f20)",
       "2")
 
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.QUARTER),
+      "f18.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
     // test SQL only time units
     testSqlApi(
       "EXTRACT(MILLENNIUM FROM f18)",
@@ -1512,14 +1618,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "EXTRACT(DOW FROM f16)",
       "1")
-
-    testSqlApi(
-      "EXTRACT(QUARTER FROM f18)",
-      "4")
-
-    testSqlApi(
-      "EXTRACT(QUARTER FROM f16)",
-      "4")
 
     testSqlApi(
       "EXTRACT(WEEK FROM f18)",

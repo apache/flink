@@ -146,6 +146,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethod.OVERLAY.method)
 
+  addSqlFunctionMethod(
+    FROM_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.FROMBASE64)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -155,6 +161,12 @@ object FunctionGenerator {
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LOG10)
+
+  addSqlFunctionMethod(
+    LOG2,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG2)
 
   addSqlFunctionMethod(
     LN,
@@ -299,6 +311,18 @@ object FunctionGenerator {
     Seq(BIG_DEC_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.ATAN_DEC)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DOUBLE_DOUBLE)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DEC_DEC)
 
   addSqlFunctionMethod(
     DEGREES,

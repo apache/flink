@@ -18,7 +18,7 @@
 ################################################################################
 
 END_TO_END_DIR="`dirname \"$0\"`" # relative
-END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd )`" # absolutized and normalized
+END_TO_END_DIR="`( cd \"$END_TO_END_DIR\" && pwd -P )`" # absolutized and normalized
 if [ -z "$END_TO_END_DIR" ] ; then
     # error; for some reason, the path is not accessible
     # to the script (e.g. permissions re-evaled after suid)
@@ -34,7 +34,7 @@ fi
 
 source ${END_TO_END_DIR}/test-scripts/test-runner-common.sh
 
-FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd )`" # absolutized and normalized
+FLINK_DIR="`( cd \"$FLINK_DIR\" && pwd -P)`" # absolutized and normalized
 
 echo "flink-end-to-end-test directory: $END_TO_END_DIR"
 echo "Flink distribution directory: $FLINK_DIR"
@@ -51,6 +51,7 @@ run_test "Shaded Hadoop S3A end-to-end test" "$END_TO_END_DIR/test-scripts/test_
 run_test "Shaded Presto S3 end-to-end test" "$END_TO_END_DIR/test-scripts/test_shaded_presto_s3.sh"
 run_test "Hadoop-free Wordcount end-to-end test" "$END_TO_END_DIR/test-scripts/test_hadoop_free.sh"
 run_test "Distributed cache end-to-end test" "$END_TO_END_DIR/test-scripts/test_streaming_distributed_cache_via_blob.sh"
+run_test "Wordcount end-to-end test in docker env" "$END_TO_END_DIR/test-scripts/test_docker_embedded_job.sh"
 
 printf "\n[PASS] All tests passed\n"
 exit 0

@@ -72,7 +72,7 @@ public class MesosOptions {
 	 */
 	public static final ConfigOption<Integer> FAILOVER_TIMEOUT_SECONDS =
 		key("mesos.failover-timeout")
-			.defaultValue(600)
+			.defaultValue(60 * 60 * 24 * 7)
 			.withDescription("The failover timeout in seconds for the Mesos scheduler, after which running tasks are" +
 				" automatically shut down.");
 
@@ -119,5 +119,13 @@ public class MesosOptions {
 			.defaultValue(true)
 			.withDescription("Enables SSL for the Flink artifact server. Note that security.ssl.enabled also needs to" +
 				" be set to true encryption to enable encryption.");
+
+	/**
+	 * Config parameter to configure which configuration keys will dynamically get a port assigned through Mesos.
+	 */
+	public static final ConfigOption<String> PORT_ASSIGNMENTS = key("mesos.resourcemanager.tasks.port-assignments")
+		.defaultValue("")
+		.withDescription("Comma-separated list of configuration keys which represent a configurable port." +
+			"All port keys will dynamically get a port assigned through Mesos.");
 
 }

@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -761,6 +762,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			numKeyGroups,
 			new KeyGroupRange(0, 0),
-			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()),
+			TtlTimeProvider.DEFAULT);
 	}
 }

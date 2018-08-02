@@ -35,7 +35,7 @@ import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.table.utils.{MemoryTableSinkUtil, TestTableSourceWithTime}
+import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestTableSourceWithTime}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -183,7 +183,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear()
 
     val stream = env
       .fromCollection(data)
@@ -191,7 +191,7 @@ class TimeAttributesITCase extends AbstractTestBase {
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
       .filter('rowtime.cast(Types.LONG) > 4)
       .select('rowtime, 'rowtime.floor(TimeIntervalUnit.DAY), 'rowtime.ceil(TimeIntervalUnit.DAY))
-      .writeToSink(new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink)
+      .writeToSink(new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink)
 
     env.execute()
 
@@ -199,7 +199,7 @@ class TimeAttributesITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.007,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.008,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0",
       "1970-01-01 00:00:00.016,1970-01-01 00:00:00.0,1970-01-02 00:00:00.0")
-    assertEquals(expected.sorted, MemoryTableSinkUtil.results.sorted)
+    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
   }
 
   @Test

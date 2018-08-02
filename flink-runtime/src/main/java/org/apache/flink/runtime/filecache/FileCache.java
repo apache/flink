@@ -21,15 +21,12 @@ package org.apache.flink.runtime.filecache;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -38,9 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -52,15 +47,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The FileCache is used to create the local files for the registered cache files when a task is deployed.
- * The files will be removed when the task is unregistered after a 5 second delay.
- * A given file x will be placed in "{@code <system-tmp-dir>/tmp_<jobID>/}".
+ * The FileCache is used to access registered cache files when a task is deployed.
+ *
+ * <p>Files and zipped directories are retrieved from the {@link PermanentBlobService}. The life-cycle of these files
+ * is managed by the blob-service.
+ *
+ * <p>Retrieved directories will be expanded in "{@code <system-tmp-dir>/tmp_<jobID>/}"
+ * and deleted when the task is unregistered after a 5 second delay, unless a new task requests the file in the meantime.
  */
 public class FileCache {
 
@@ -167,7 +164,7 @@ public class FileCache {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * If the file doesn't exists locally, it will copy the file to the temp directory.
+	 * If the file doesn't exists locally, retrieve the file from the blob-service.
 	 *
 	 * @param entry The cache entry descriptor (path, executable flag)
 	 * @param jobID The ID of the job for which the file is copied.
@@ -195,20 +192,12 @@ public class FileCache {
 					nextDirectory = 0;
 				}
 
-				String sourceFile = entry.filePath;
-				int posOfSep = sourceFile.lastIndexOf("/");
-				if (posOfSep > 0) {
-					sourceFile = sourceFile.substring(posOfSep + 1);
-				}
-
-				Path target = new Path(tempDirToUse.getAbsolutePath() + "/" + sourceFile);
-
 				// kick off the copying
 				Callable<Path> cp;
 				if (entry.blobKey != null) {
-					cp = new CopyFromBlobProcess(entry, jobID, blobService, target);
+					cp = new CopyFromBlobProcess(entry, jobID, blobService, new Path(tempDirToUse.getAbsolutePath()));
 				} else {
-					cp = new CopyFromDFSProcess(entry, target);
+					cp = new CopyFromDFSProcess(entry, new Path(tempDirToUse.getAbsolutePath()));
 				}
 				FutureTask<Path> copyTask = new FutureTask<>(cp);
 				executorService.submit(copyTask);
@@ -278,26 +267,8 @@ public class FileCache {
 			final File file = blobService.getFile(jobID, blobKey);
 
 			if (isDirectory) {
-				try (ZipInputStream zis = new ZipInputStream(new FileInputStream(file))) {
-					ZipEntry entry;
-					while ((entry = zis.getNextEntry()) != null) {
-						String fileName = entry.getName();
-						Path newFile = new Path(target, fileName);
-						if (entry.isDirectory()) {
-							target.getFileSystem().mkdirs(newFile);
-						} else {
-							try (FSDataOutputStream fsDataOutputStream = target.getFileSystem()
-									.create(newFile, FileSystem.WriteMode.NO_OVERWRITE)) {
-								IOUtils.copyBytes(zis, fsDataOutputStream, false);
-							}
-							//noinspection ResultOfMethodCallIgnored
-							new File(newFile.getPath()).setExecutable(isExecutable);
-						}
-						zis.closeEntry();
-					}
-				}
-				Files.delete(file.toPath());
-				return target;
+				Path directory = FileUtils.expandDirectory(new Path(file.getAbsolutePath()), target);
+				return directory;
 			} else {
 				//noinspection ResultOfMethodCallIgnored
 				file.setExecutable(isExecutable);
@@ -319,7 +290,15 @@ public class FileCache {
 		public CopyFromDFSProcess(DistributedCacheEntry e, Path cachedPath) {
 			this.filePath = new Path(e.filePath);
 			this.executable = e.isExecutable;
-			this.cachedPath = cachedPath;
+
+			String sourceFile = e.filePath;
+			int posOfSep = sourceFile.lastIndexOf("/");
+			if (posOfSep > 0) {
+				sourceFile = sourceFile.substring(posOfSep + 1);
+			}
+
+			this.cachedPath = new Path(cachedPath, sourceFile);
+
 		}
 
 		@Override

@@ -367,8 +367,8 @@ class LocalFlinkMiniCluster(
 
   def setMemory(config: Configuration): Unit = {
     // set this only if no memory was pre-configured
-    if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
-        TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
+    if (config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(
+      TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue())) {
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
@@ -387,7 +387,7 @@ class LocalFlinkMiniCluster(
       memorySize -= TaskManagerServices.calculateNetworkBufferMemory(memorySize, config)
       memorySize = (memorySize * memoryFraction).toLong
       memorySize >>= 20 // bytes to megabytes
-      config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
+      config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize + "m")
     }
   }
 

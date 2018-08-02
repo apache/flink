@@ -53,7 +53,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -144,7 +143,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
-			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
@@ -162,7 +160,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			rpcService,
 			resourceManagerEndpointId,
 			resourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,
@@ -666,10 +663,12 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 				new HashMap<>(taskManagerParameters.containeredParameters().taskManagerEnv())),
 			taskManagerParameters.containerVolumes(),
 			taskManagerParameters.dockerParameters(),
+			taskManagerParameters.dockerForcePullImage(),
 			taskManagerParameters.constraints(),
 			taskManagerParameters.command(),
 			taskManagerParameters.bootstrapCommand(),
-			taskManagerParameters.getTaskManagerHostname()
+			taskManagerParameters.getTaskManagerHostname(),
+			taskManagerParameters.uris()
 		);
 
 		LOG.debug("LaunchableMesosWorker parameters: {}", params);

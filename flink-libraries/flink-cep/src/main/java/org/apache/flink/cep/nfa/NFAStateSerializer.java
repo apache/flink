@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -31,7 +32,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Queue;
 
 /**
@@ -89,43 +90,61 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 		return -1;
 	}
 
+	private static final StringSerializer STATE_NAME_SERIALIZER = StringSerializer.INSTANCE;
+	private static final LongSerializer TIMESTAMP_SERIALIZER = LongSerializer.INSTANCE;
+	private static final DeweyNumber.DeweyNumberSerializer VERSION_SERIALIZER = DeweyNumber.DeweyNumberSerializer.INSTANCE;
+	private static final NodeId.NodeIdSerializer NODE_ID_SERIALIZER = NodeId.NodeIdSerializer.INSTANCE;
+	private static final EventId.EventIdSerializer EVENT_ID_SERIALIZER = EventId.EventIdSerializer.INSTANCE;
+
 	@Override
 	public void serialize(NFAState record, DataOutputView target) throws IOException {
+		serializeComputationStates(record.getPartialMatches(), target);
+		serializeComputationStates(record.getCompletedMatches(), target);
+	}
 
-		target.writeInt(record.getComputationStates().size());
+	private void serializeComputationStates(Queue<ComputationState> states, DataOutputView target) throws IOException {
+		target.writeInt(states.size());
+		for (ComputationState computationState : states) {
+			STATE_NAME_SERIALIZER.serialize(computationState.getCurrentStateName(), target);
+			NODE_ID_SERIALIZER.serialize(computationState.getPreviousBufferEntry(), target);
 
-		StringSerializer stateNameSerializer = StringSerializer.INSTANCE;
-		LongSerializer timestampSerializer = LongSerializer.INSTANCE;
-		DeweyNumber.DeweyNumberSerializer versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-		NodeId.NodeIdSerializer nodeIdSerializer = NodeId.NodeIdSerializer.INSTANCE;
-
-		for (ComputationState computationState : record.getComputationStates()) {
-			stateNameSerializer.serialize(computationState.getCurrentStateName(), target);
-			nodeIdSerializer.serialize(computationState.getPreviousBufferEntry(), target);
-
-			versionSerializer.serialize(computationState.getVersion(), target);
-			timestampSerializer.serialize(computationState.getStartTimestamp(), target);
+			VERSION_SERIALIZER.serialize(computationState.getVersion(), target);
+			TIMESTAMP_SERIALIZER.serialize(computationState.getStartTimestamp(), target);
+			if (computationState.getStartEventID() != null) {
+				target.writeByte(1);
+				EVENT_ID_SERIALIZER.serialize(computationState.getStartEventID(), target);
+			} else {
+				target.writeByte(0);
+			}
 		}
 	}
 
 	@Override
 	public NFAState deserialize(DataInputView source) throws IOException {
-		Queue<ComputationState> computationStates = new LinkedList<>();
-		StringSerializer stateNameSerializer = StringSerializer.INSTANCE;
-		LongSerializer timestampSerializer = LongSerializer.INSTANCE;
-		DeweyNumber.DeweyNumberSerializer versionSerializer = DeweyNumber.DeweyNumberSerializer.INSTANCE;
-		NodeId.NodeIdSerializer nodeIdSerializer = NodeId.NodeIdSerializer.INSTANCE;
+		PriorityQueue<ComputationState> partialMatches = deserializeComputationStates(source);
+		PriorityQueue<ComputationState> completedMatches = deserializeComputationStates(source);
+		return new NFAState(partialMatches, completedMatches);
+	}
+
+	private PriorityQueue<ComputationState> deserializeComputationStates(DataInputView source) throws IOException {
+		PriorityQueue<ComputationState> computationStates = new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
 		int computationStateNo = source.readInt();
 		for (int i = 0; i < computationStateNo; i++) {
-			String state = stateNameSerializer.deserialize(source);
-			NodeId prevState = nodeIdSerializer.deserialize(source);
-			DeweyNumber version = versionSerializer.deserialize(source);
-			long startTimestamp = timestampSerializer.deserialize(source);
+			String state = STATE_NAME_SERIALIZER.deserialize(source);
+			NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
+			DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
+			long startTimestamp = TIMESTAMP_SERIALIZER.deserialize(source);
 
-			computationStates.add(ComputationState.createState(state, prevState, version, startTimestamp));
+			byte isNull = source.readByte();
+			EventId startEventId = null;
+			if (isNull == 1) {
+				startEventId = EVENT_ID_SERIALIZER.deserialize(source);
+			}
+
+			computationStates.add(ComputationState.createState(state, prevState, version, startTimestamp, startEventId));
 		}
-		return new NFAState(computationStates);
+		return computationStates;
 	}
 
 	@Override
@@ -135,7 +154,32 @@ public class NFAStateSerializer extends TypeSerializerSingleton<NFAState> {
 
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
+		copyStates(source, target); // copy partial matches
+		copyStates(source, target); // copy completed matches
+	}
+
+	private void copyStates(DataInputView source, DataOutputView target) throws IOException {
+		int computationStateNo = source.readInt();
+		target.writeInt(computationStateNo);
+
+		for (int i = 0; i < computationStateNo; i++) {
+			String state = STATE_NAME_SERIALIZER.deserialize(source);
+			STATE_NAME_SERIALIZER.serialize(state, target);
+			NodeId prevState = NODE_ID_SERIALIZER.deserialize(source);
+			NODE_ID_SERIALIZER.serialize(prevState, target);
+			DeweyNumber version = VERSION_SERIALIZER.deserialize(source);
+			VERSION_SERIALIZER.serialize(version, target);
+			long startTimestamp = TIMESTAMP_SERIALIZER.deserialize(source);
+			TIMESTAMP_SERIALIZER.serialize(startTimestamp, target);
+
+			byte isNull = source.readByte();
+			target.writeByte(isNull);
+
+			if (isNull == 1) {
+				EventId startEventId = EVENT_ID_SERIALIZER.deserialize(source);
+				EVENT_ID_SERIALIZER.serialize(startEventId, target);
+			}
+		}
 	}
 
 	@Override

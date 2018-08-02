@@ -51,6 +51,10 @@ public class StandaloneClusterClient extends ClusterClient<StandaloneClusterId> 
 		super(config, highAvailabilityServices, sharedHaServices);
 	}
 
+	public StandaloneClusterClient(Configuration config, HighAvailabilityServices highAvailabilityServices, boolean sharedHaServices, ActorSystemLoader actorSystemLoader) {
+		super(config, highAvailabilityServices, sharedHaServices, actorSystemLoader);
+	}
+
 	@Override
 	public void waitForClusterToBeReady() {}
 

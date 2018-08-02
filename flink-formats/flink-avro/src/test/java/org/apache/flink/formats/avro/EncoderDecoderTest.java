@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
+import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
@@ -28,12 +29,17 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,6 +55,7 @@ import static org.junit.Assert.fail;
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
  */
 public class EncoderDecoderTest {
+
 	@Test
 	public void testComplexStringsDirecty() {
 		try {
@@ -93,56 +100,56 @@ public class EncoderDecoderTest {
 	@Test
 	public void testPrimitiveTypes() {
 
-		testObjectSerialization(new Boolean(true));
-		testObjectSerialization(new Boolean(false));
+		testObjectSerialization(Boolean.TRUE);
+		testObjectSerialization(Boolean.FALSE);
 
-		testObjectSerialization(Byte.valueOf((byte) 0));
-		testObjectSerialization(Byte.valueOf((byte) 1));
-		testObjectSerialization(Byte.valueOf((byte) -1));
-		testObjectSerialization(Byte.valueOf(Byte.MIN_VALUE));
-		testObjectSerialization(Byte.valueOf(Byte.MAX_VALUE));
+		testObjectSerialization((byte) 0);
+		testObjectSerialization((byte) 1);
+		testObjectSerialization((byte) -1);
+		testObjectSerialization(Byte.MIN_VALUE);
+		testObjectSerialization(Byte.MAX_VALUE);
 
-		testObjectSerialization(Short.valueOf((short) 0));
-		testObjectSerialization(Short.valueOf((short) 1));
-		testObjectSerialization(Short.valueOf((short) -1));
-		testObjectSerialization(Short.valueOf(Short.MIN_VALUE));
-		testObjectSerialization(Short.valueOf(Short.MAX_VALUE));
+		testObjectSerialization((short) 0);
+		testObjectSerialization((short) 1);
+		testObjectSerialization((short) -1);
+		testObjectSerialization(Short.MIN_VALUE);
+		testObjectSerialization(Short.MAX_VALUE);
 
-		testObjectSerialization(Integer.valueOf(0));
-		testObjectSerialization(Integer.valueOf(1));
-		testObjectSerialization(Integer.valueOf(-1));
-		testObjectSerialization(Integer.valueOf(Integer.MIN_VALUE));
-		testObjectSerialization(Integer.valueOf(Integer.MAX_VALUE));
+		testObjectSerialization(0);
+		testObjectSerialization(1);
+		testObjectSerialization(-1);
+		testObjectSerialization(Integer.MIN_VALUE);
+		testObjectSerialization(Integer.MAX_VALUE);
 
-		testObjectSerialization(Long.valueOf(0));
-		testObjectSerialization(Long.valueOf(1));
-		testObjectSerialization(Long.valueOf(-1));
-		testObjectSerialization(Long.valueOf(Long.MIN_VALUE));
-		testObjectSerialization(Long.valueOf(Long.MAX_VALUE));
+		testObjectSerialization(0L);
+		testObjectSerialization(1L);
+		testObjectSerialization((long) -1);
+		testObjectSerialization(Long.MIN_VALUE);
+		testObjectSerialization(Long.MAX_VALUE);
 
-		testObjectSerialization(Float.valueOf(0));
-		testObjectSerialization(Float.valueOf(1));
-		testObjectSerialization(Float.valueOf(-1));
-		testObjectSerialization(Float.valueOf((float) Math.E));
-		testObjectSerialization(Float.valueOf((float) Math.PI));
-		testObjectSerialization(Float.valueOf(Float.MIN_VALUE));
-		testObjectSerialization(Float.valueOf(Float.MAX_VALUE));
-		testObjectSerialization(Float.valueOf(Float.MIN_NORMAL));
-		testObjectSerialization(Float.valueOf(Float.NaN));
-		testObjectSerialization(Float.valueOf(Float.NEGATIVE_INFINITY));
-		testObjectSerialization(Float.valueOf(Float.POSITIVE_INFINITY));
+		testObjectSerialization(0f);
+		testObjectSerialization(1f);
+		testObjectSerialization((float) -1);
+		testObjectSerialization((float) Math.E);
+		testObjectSerialization((float) Math.PI);
+		testObjectSerialization(Float.MIN_VALUE);
+		testObjectSerialization(Float.MAX_VALUE);
+		testObjectSerialization(Float.MIN_NORMAL);
+		testObjectSerialization(Float.NaN);
+		testObjectSerialization(Float.NEGATIVE_INFINITY);
+		testObjectSerialization(Float.POSITIVE_INFINITY);
 
-		testObjectSerialization(Double.valueOf(0));
-		testObjectSerialization(Double.valueOf(1));
-		testObjectSerialization(Double.valueOf(-1));
-		testObjectSerialization(Double.valueOf(Math.E));
-		testObjectSerialization(Double.valueOf(Math.PI));
-		testObjectSerialization(Double.valueOf(Double.MIN_VALUE));
-		testObjectSerialization(Double.valueOf(Double.MAX_VALUE));
-		testObjectSerialization(Double.valueOf(Double.MIN_NORMAL));
-		testObjectSerialization(Double.valueOf(Double.NaN));
-		testObjectSerialization(Double.valueOf(Double.NEGATIVE_INFINITY));
-		testObjectSerialization(Double.valueOf(Double.POSITIVE_INFINITY));
+		testObjectSerialization(0d);
+		testObjectSerialization(1d);
+		testObjectSerialization((double) -1);
+		testObjectSerialization(Math.E);
+		testObjectSerialization(Math.PI);
+		testObjectSerialization(Double.MIN_VALUE);
+		testObjectSerialization(Double.MAX_VALUE);
+		testObjectSerialization(Double.MIN_NORMAL);
+		testObjectSerialization(Double.NaN);
+		testObjectSerialization(Double.NEGATIVE_INFINITY);
+		testObjectSerialization(Double.POSITIVE_INFINITY);
 
 		testObjectSerialization("");
 		testObjectSerialization("abcdefg");
@@ -209,7 +216,7 @@ public class EncoderDecoderTest {
 
 		// object with collection
 		{
-			ArrayList<String> list = new ArrayList<String>();
+			ArrayList<String> list = new ArrayList<>();
 			list.add("A");
 			list.add("B");
 			list.add("C");
@@ -221,7 +228,7 @@ public class EncoderDecoderTest {
 
 		// object with empty collection
 		{
-			ArrayList<String> list = new ArrayList<String>();
+			ArrayList<String> list = new ArrayList<>();
 			testObjectSerialization(new BookAuthor(987654321L, list, "The Saurus"));
 		}
 	}
@@ -235,7 +242,7 @@ public class EncoderDecoderTest {
 	public void testGeneratedObjectWithNullableFields() {
 		List<CharSequence> strings = Arrays.asList(new CharSequence[] { "These", "strings", "should", "be", "recognizable", "as", "a", "meaningful", "sequence" });
 		List<Boolean> bools = Arrays.asList(true, true, false, false, true, false, true, true);
-		Map<CharSequence, Long> map = new HashMap<CharSequence, Long>();
+		Map<CharSequence, Long> map = new HashMap<>();
 		map.put("1", 1L);
 		map.put("2", 2L);
 		map.put("3", 3L);
@@ -243,11 +250,31 @@ public class EncoderDecoderTest {
 		byte[] b = new byte[16];
 		new Random().nextBytes(b);
 		Fixed16 f = new Fixed16(b);
-		Address addr = new Address(new Integer(239), "6th Main", "Bangalore",
-				"Karnataka", "560075");
-		User user = new User("Freudenreich", 1337, "macintosh gray",
-				1234567890L, 3.1415926, null, true, strings, bools, null,
-				Colors.GREEN, map, f, new Boolean(true), addr);
+		Address addr = new Address(239, "6th Main", "Bangalore", "Karnataka", "560075");
+		User user = new User(
+			"Freudenreich",
+			1337,
+			"macintosh gray",
+			1234567890L,
+			3.1415926,
+			null,
+			true,
+			strings,
+			bools,
+			null,
+			Colors.GREEN,
+			map,
+			f,
+			Boolean.TRUE,
+			addr,
+			ByteBuffer.wrap(b),
+			LocalDate.parse("2014-03-01"),
+			LocalTime.parse("12:12:12"),
+			123456,
+			DateTime.parse("2014-03-01T12:12:12.321Z"),
+			123456L,
+			ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()), // 20.00
+			new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray())); // 20.00
 
 		testObjectSerialization(user);
 	}
@@ -301,7 +328,7 @@ public class EncoderDecoderTest {
 
 				@SuppressWarnings("unchecked")
 				Class<X> clazz = (Class<X>) obj.getClass();
-				ReflectDatumWriter<X> writer = new ReflectDatumWriter<X>(clazz);
+				ReflectDatumWriter<X> writer = new ReflectDatumWriter<>(clazz);
 
 				writer.write(obj, encoder);
 				dataOut.flush();
@@ -309,7 +336,7 @@ public class EncoderDecoderTest {
 			}
 
 			byte[] data = baos.toByteArray();
-			X result = null;
+			X result;
 
 			// deserialize
 			{
@@ -320,7 +347,7 @@ public class EncoderDecoderTest {
 
 				@SuppressWarnings("unchecked")
 				Class<X> clazz = (Class<X>) obj.getClass();
-				ReflectDatumReader<X> reader = new ReflectDatumReader<X>(clazz);
+				ReflectDatumReader<X> reader = new ReflectDatumReader<>(clazz);
 
 				// create a reuse object if possible, otherwise we have no reuse object
 				X reuse = null;
@@ -328,7 +355,9 @@ public class EncoderDecoderTest {
 					@SuppressWarnings("unchecked")
 					X test = (X) obj.getClass().newInstance();
 					reuse = test;
-				} catch (Throwable t) {}
+				} catch (Throwable t) {
+					// do nothing
+				}
 
 				result = reader.read(reuse, decoder);
 			}
@@ -427,7 +456,7 @@ public class EncoderDecoderTest {
 		public ComplexNestedObject1(int offInit) {
 			this.doubleValue = 6293485.6723 + offInit;
 
-			this.stringList = new ArrayList<String>();
+			this.stringList = new ArrayList<>();
 			this.stringList.add("A" + offInit);
 			this.stringList.add("somewhat" + offInit);
 			this.stringList.add("random" + offInit);
@@ -458,7 +487,7 @@ public class EncoderDecoderTest {
 		public ComplexNestedObject2(boolean init) {
 			this.longValue = 46547;
 
-			this.theMap = new HashMap<String, ComplexNestedObject1>();
+			this.theMap = new HashMap<>();
 			this.theMap.put("36354L", new ComplexNestedObject1(43546543));
 			this.theMap.put("785611L", new ComplexNestedObject1(45784568));
 			this.theMap.put("43L", new ComplexNestedObject1(9876543));

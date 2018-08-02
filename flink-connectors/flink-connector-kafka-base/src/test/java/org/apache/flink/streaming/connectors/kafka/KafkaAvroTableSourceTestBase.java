@@ -18,17 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.formats.avro.utils.AvroTestUtils;
+import org.apache.flink.formats.avro.generated.DifferentSchemaRecord;
+import org.apache.flink.formats.avro.generated.SchemaRecord;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Types;
 
-import org.apache.avro.Schema;
-import org.apache.avro.specific.SpecificRecordBase;
 import org.junit.Test;
 
-import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,13 +35,17 @@ import static org.junit.Assert.assertNull;
 
 /**
  * Abstract test base for all Kafka Avro table sources.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
-public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestBase {
+@Deprecated
+public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceBuilderTestBase {
 
 	@Override
 	protected void configureBuilder(KafkaTableSource.Builder builder) {
 		super.configureBuilder(builder);
-		((KafkaAvroTableSource.Builder) builder).forAvroRecordClass(SameFieldsAvroClass.class);
+		((KafkaAvroTableSource.Builder) builder).forAvroRecordClass(SchemaRecord.class);
 	}
 
 	@Test
@@ -67,8 +68,8 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		// check field types
 		assertEquals(Types.LONG(), returnType.getTypeAt(0));
 		assertEquals(Types.STRING(), returnType.getTypeAt(1));
-		assertEquals(Types.SQL_TIMESTAMP(), returnType.getTypeAt(2));
-		assertEquals(Types.SQL_TIMESTAMP(), returnType.getTypeAt(3));
+		assertEquals(Types.LONG(), returnType.getTypeAt(2));
+		assertEquals(Types.LONG(), returnType.getTypeAt(3));
 		assertEquals(Types.DOUBLE(), returnType.getTypeAt(4));
 
 		// check field mapping
@@ -91,7 +92,7 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		mapping.put("field3", "otherField3");
 
 		// set Avro class with different fields
-		b.forAvroRecordClass(DifferentFieldsAvroClass.class);
+		b.forAvroRecordClass(DifferentSchemaRecord.class);
 		b.withTableToAvroMapping(mapping);
 
 		KafkaAvroTableSource source = (KafkaAvroTableSource) b.build();
@@ -110,9 +111,9 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		// check field types
 		assertEquals(Types.LONG(), returnType.getTypeAt(0));
 		assertEquals(Types.STRING(), returnType.getTypeAt(1));
-		assertEquals(Types.SQL_TIMESTAMP(), returnType.getTypeAt(2));
+		assertEquals(Types.LONG(), returnType.getTypeAt(2));
 		assertEquals(Types.DOUBLE(), returnType.getTypeAt(3));
-		assertEquals(Types.BYTE(), returnType.getTypeAt(4));
+		assertEquals(Types.FLOAT(), returnType.getTypeAt(4));
 		assertEquals(Types.INT(), returnType.getTypeAt(5));
 
 		// check field mapping
@@ -127,68 +128,4 @@ public abstract class KafkaAvroTableSourceTestBase extends KafkaTableSourceTestB
 		assertEquals(source.getReturnType(),
 			source.getDataStream(StreamExecutionEnvironment.getExecutionEnvironment()).getType());
 	}
-
-	/**
-	 * Avro record that matches the table schema.
-	 */
-	@SuppressWarnings("unused")
-	public static class SameFieldsAvroClass extends SpecificRecordBase {
-
-		//CHECKSTYLE.OFF: StaticVariableNameCheck - Avro accesses this field by name via reflection.
-		public static Schema SCHEMA$ = AvroTestUtils.createFlatAvroSchema(FIELD_NAMES, FIELD_TYPES);
-		//CHECKSTYLE.ON: StaticVariableNameCheck
-
-		public Long field1;
-		public String field2;
-		public Timestamp time1;
-		public Timestamp time2;
-		public Double field3;
-
-		@Override
-		public Schema getSchema() {
-			return null;
-		}
-
-		@Override
-		public Object get(int field) {
-			return null;
-		}
-
-		@Override
-		public void put(int field, Object value) { }
-	}
-
-	/**
-	 * Avro record that does NOT match the table schema.
-	 */
-	@SuppressWarnings("unused")
-	public static class DifferentFieldsAvroClass extends SpecificRecordBase {
-
-		//CHECKSTYLE.OFF: StaticVariableNameCheck - Avro accesses this field by name via reflection.
-		public static Schema SCHEMA$ = AvroTestUtils.createFlatAvroSchema(
-			new String[]{"otherField1", "otherField2", "otherTime1", "otherField3", "otherField4", "otherField5"},
-			new TypeInformation[]{Types.LONG(), Types.STRING(), Types.SQL_TIMESTAMP(), Types.DOUBLE(), Types.BYTE(), Types.INT()});
-		//CHECKSTYLE.ON: StaticVariableNameCheck
-
-		public Long otherField1;
-		public String otherField2;
-		public Timestamp otherTime1;
-		public Double otherField3;
-		public Byte otherField4;
-		public Integer otherField5;
-
-		@Override
-		public Schema getSchema() {
-			return null;
-		}
-
-		@Override
-		public Object get(int field) {
-			return null;
-		}
-
-		@Override
-		public void put(int field, Object value) { }
-	}
-
 }

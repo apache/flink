@@ -18,11 +18,11 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 @Internal
 public final class LongSerializer extends TypeSerializerSingleton<Long> {
@@ -31,7 +31,7 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 	
 	public static final LongSerializer INSTANCE = new LongSerializer();
 	
-	private static final Long ZERO = Long.valueOf(0);
+	private static final Long ZERO = 0L;
 
 	@Override
 	public boolean isImmutableType() {
@@ -55,17 +55,17 @@ public final class LongSerializer extends TypeSerializerSingleton<Long> {
 
 	@Override
 	public int getLength() {
-		return 8;
+		return Long.BYTES;
 	}
 
 	@Override
 	public void serialize(Long record, DataOutputView target) throws IOException {
-		target.writeLong(record.longValue());
+		target.writeLong(record);
 	}
 
 	@Override
 	public Long deserialize(DataInputView source) throws IOException {
-		return Long.valueOf(source.readLong());
+		return source.readLong();
 	}
 	
 	@Override

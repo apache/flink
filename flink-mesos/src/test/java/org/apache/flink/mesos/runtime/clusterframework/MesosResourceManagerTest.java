@@ -59,7 +59,6 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
@@ -161,7 +160,6 @@ public class MesosResourceManagerTest extends TestLogger {
 			RpcService rpcService,
 			String resourceManagerEndpointId,
 			ResourceID resourceId,
-			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
@@ -179,7 +177,6 @@ public class MesosResourceManagerTest extends TestLogger {
 				rpcService,
 				resourceManagerEndpointId,
 				resourceId,
-				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				slotManager,
@@ -239,7 +236,6 @@ public class MesosResourceManagerTest extends TestLogger {
 		MockMesosServices mesosServices;
 
 		// RM
-		ResourceManagerConfiguration rmConfiguration;
 		ResourceID rmResourceID;
 		static final String RM_ADDRESS = "resourceManager";
 		TestingMesosResourceManager resourceManager;
@@ -279,21 +275,17 @@ public class MesosResourceManagerTest extends TestLogger {
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
 				1.0, 1, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams,
-				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(),
+				Collections.<Protos.Volume>emptyList(), Collections.<Protos.Parameter>emptyList(), false,
 				Collections.<ConstraintEvaluator>emptyList(), "", Option.<String>empty(),
-				Option.<String>empty());
+				Option.<String>empty(), Collections.<String>emptyList());
 
 			// resource manager
-			rmConfiguration = new ResourceManagerConfiguration(
-				Time.seconds(5L),
-				Time.seconds(5L));
 			rmResourceID = ResourceID.generate();
 			resourceManager =
 				new TestingMesosResourceManager(
 					rpcService,
 					RM_ADDRESS,
 					rmResourceID,
-					rmConfiguration,
 					rmServices.highAvailabilityServices,
 					rmServices.heartbeatServices,
 					rmServices.slotManager,

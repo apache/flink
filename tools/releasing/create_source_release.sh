@@ -20,8 +20,12 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-RELEASE_VERSION=${RELEASE_VERSION:-1.3-SNAPSHOT}
 MVN=${MVN:-mvn}
+
+if [ -z "${RELEASE_VERSION}" ]; then
+    echo "RELEASE_VERSION was not set."
+    exit 1
+fi
 
 # fail immediately
 set -o errexit
@@ -45,11 +49,17 @@ fi
 
 cd ..
 
+FLINK_DIR=`pwd`
+RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
+CLONE_DIR=${RELEASE_DIR}/flink-tmp-clone
+
 echo "Creating source package"
 
+mkdir -p ${RELEASE_DIR}
+
 # create a temporary git clone to ensure that we have a pristine source release
-git clone . flink-tmp-clone
-cd flink-tmp-clone
+git clone ${FLINK_DIR} ${CLONE_DIR}
+cd ${CLONE_DIR}
 
 rsync -a \
   --exclude ".git" --exclude ".gitignore" --exclude ".gitattributes" --exclude ".travis.yml" \
@@ -58,10 +68,10 @@ rsync -a \
   --exclude "docs/content" --exclude ".rubydeps" \
   . flink-$RELEASE_VERSION
 
-tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
-gpg --armor --detach-sig flink-$RELEASE_VERSION-src.tgz
+tar czf ${RELEASE_DIR}/flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
+gpg --armor --detach-sig ${RELEASE_DIR}/flink-$RELEASE_VERSION-src.tgz
+cd ${RELEASE_DIR}
 $SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha512
 
-mv flink-$RELEASE_VERSION-src.* ../
-cd ..
-rm -rf flink-tmp-clone
+cd ${CURR_DIR}
+rm -rf ${CLONE_DIR}

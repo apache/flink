@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.util.Preconditions
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -84,18 +85,44 @@ abstract class DescriptorTestBase {
   }
 }
 
-class TestTableSourceDescriptor(connector: ConnectorDescriptor)
-  extends TableSourceDescriptor {
+class TestTableDescriptor(connector: ConnectorDescriptor)
+  extends TableDescriptor
+  with SchematicDescriptor[TestTableDescriptor]
+  with StreamableDescriptor[TestTableDescriptor] {
 
-  this.connectorDescriptor = Some(connector)
+  private var formatDescriptor: Option[FormatDescriptor] = None
+  private var schemaDescriptor: Option[Schema] = None
+  private var updateMode: Option[String] = None
 
-  def addFormat(format: FormatDescriptor): TestTableSourceDescriptor = {
+  override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
+    connector.addProperties(properties)
+    formatDescriptor.foreach(_.addProperties(properties))
+    schemaDescriptor.foreach(_.addProperties(properties))
+    updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
+  }
+
+  override def withFormat(format: FormatDescriptor): TestTableDescriptor = {
     this.formatDescriptor = Some(format)
     this
   }
 
-  def addSchema(schema: Schema): TestTableSourceDescriptor = {
+  override def withSchema(schema: Schema): TestTableDescriptor = {
     this.schemaDescriptor = Some(schema)
+    this
+  }
+
+  override def inAppendMode(): TestTableDescriptor = {
+    updateMode = Some(UPDATE_MODE_VALUE_APPEND)
+    this
+  }
+
+  override def inRetractMode(): TestTableDescriptor = {
+    updateMode = Some(UPDATE_MODE_VALUE_RETRACT)
+    this
+  }
+
+  override def inUpsertMode(): TestTableDescriptor = {
+    updateMode = Some(UPDATE_MODE_VALUE_UPSERT)
     this
   }
 }

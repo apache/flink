@@ -82,7 +82,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ZooKeeperStateHandleStore<T extends Serializable> {
 
-	public static Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
 
 	/** Curator ZooKeeper client */
 	private final CuratorFramework client;

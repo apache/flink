@@ -84,7 +84,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
             }
         }
     ).next("middle").subtype(SubEvent.class).where(
-        new SimpleCondition<Event>() {
+        new SimpleCondition<SubEvent>() {
             @Override
             public boolean filter(SubEvent subEvent) {
                 return subEvent.getVolume() >= 10.0;
@@ -102,7 +102,7 @@ Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
 PatternStream<Event> patternStream = CEP.pattern(input, pattern);
 
 DataStream<Alert> result = patternStream.select(
-    new PatternSelectFunction<Event, Alert> {
+    new PatternSelectFunction<Event, Alert>() {
         @Override
         public Alert select(Map<String, List<Event>> pattern) throws Exception {
             return createAlertFrom(pattern);
@@ -115,7 +115,7 @@ DataStream<Alert> result = patternStream.select(
 {% highlight scala %}
 val input: DataStream[Event] = ...
 
-val pattern = Pattern.begin("start").where(_.getId == 42)
+val pattern = Pattern.begin[Event]("start").where(_.getId == 42)
   .next("middle").subtype(classOf[SubEvent]).where(_.getVolume >= 10.0)
   .followedBy("end").where(_.getName == "end")
 
@@ -131,7 +131,7 @@ val result: DataStream[Alert] = patternStream.select(createAlert(_))
 The pattern API allows you to define complex pattern sequences that you want to extract from your input stream.
 
 Each complex pattern sequence consists of multiple simple patterns, i.e. patterns looking for individual events with the same properties. From now on, we will call these simple patterns **patterns**, and the final complex pattern sequence we are searching for in the stream, the **pattern sequence**. You can see a pattern sequence as a graph of such patterns, where transitions from one pattern to the next occur based on user-specified
-*conditions*, e.g. `event.getName().equals("start")`. A **match** is a sequence of input events which visits all
+*conditions*, e.g. `event.getName().equals("end")`. A **match** is a sequence of input events which visits all
 patterns of the complex pattern graph, through a sequence of valid pattern transitions.
 
 {% warn Attention %} Each pattern must have a unique name, which you use later to identify the matched events.
@@ -275,36 +275,40 @@ with "foo", and if the sum of the prices of the previously accepted events for t
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-middle.oneOrMore().where(new IterativeCondition<SubEvent>() {
-    @Override
-    public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
-        if (!value.getName().startsWith("foo")) {
-            return false;
+middle.oneOrMore()
+    .subtype(SubEvent.class)
+    .where(new IterativeCondition<SubEvent>() {
+        @Override
+        public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
+            if (!value.getName().startsWith("foo")) {
+                return false;
+            }
+    
+            double sum = value.getPrice();
+            for (Event event : ctx.getEventsForPattern("middle")) {
+                sum += event.getPrice();
+            }
+            return Double.compare(sum, 5.0) < 0;
         }
-
-        double sum = value.getPrice();
-        for (Event event : ctx.getEventsForPattern("middle")) {
-            sum += event.getPrice();
-        }
-        return Double.compare(sum, 5.0) < 0;
-    }
-});
+    });
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-middle.oneOrMore().where(
-    (value, ctx) => {
-        lazy val sum = ctx.getEventsForPattern("middle").asScala.map(_.getPrice).sum
-        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
-    }
-)
+middle.oneOrMore()
+    .subtype(classOf[SubEvent])
+    .where(
+        (value, ctx) => {
+            lazy val sum = ctx.getEventsForPattern("middle").map(_.getPrice).sum
+            value.getName.startsWith("foo") && sum + value.getPrice < 5.0
+        }
+    )
 {% endhighlight %}
 </div>
 </div>
 
-{% warn Attention %} The call to `context.getEventsForPattern(...)` finds all the
+{% warn Attention %} The call to `ctx.getEventsForPattern(...)` finds all the
 previously accepted events for a given potential match. The cost of this operation can vary, so when implementing
 your condition, try to minimize its use.
 
@@ -950,22 +954,22 @@ Pattern<Event, ?> nonDetermin = start.followedByAny(
 {% highlight scala %}
 
 val start: Pattern[Event, _] = Pattern.begin(
-    Pattern.begin[Event, _]("start").where(...).followedBy("start_middle").where(...)
+    Pattern.begin[Event]("start").where(...).followedBy("start_middle").where(...)
 )
 
 // strict contiguity
 val strict: Pattern[Event, _] = start.next(
-    Pattern.begin[Event, _]("next_start").where(...).followedBy("next_middle").where(...)
+    Pattern.begin[Event]("next_start").where(...).followedBy("next_middle").where(...)
 ).times(3)
 
 // relaxed contiguity
 val relaxed: Pattern[Event, _] = start.followedBy(
-    Pattern.begin[Event, _]("followedby_start").where(...).followedBy("followedby_middle").where(...)
+    Pattern.begin[Event]("followedby_start").where(...).followedBy("followedby_middle").where(...)
 ).oneOrMore()
 
 // non-deterministic relaxed contiguity
 val nonDetermin: Pattern[Event, _] = start.followedByAny(
-    Pattern.begin[Event, _]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
+    Pattern.begin[Event]("followedbyany_start").where(...).followedBy("followedbyany_middle").where(...)
 ).optional()
 
 {% endhighlight %}
@@ -1248,13 +1252,13 @@ pattern.within(Time.seconds(10))
 For a given pattern, the same event may be assigned to multiple successful matches. To control to how many matches an event will be assigned, you need to specify the skip strategy called `AfterMatchSkipStrategy`. There are four types of skip strategies, listed as follows:
 
 * <strong>*NO_SKIP*</strong>: Every possible match will be emitted.
-* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that contains event of the match.
-* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that contains event of the match preceding the first of *PatternName*.
-* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that contains event of the match preceding the last of *PatternName*.
+* <strong>*SKIP_PAST_LAST_EVENT*</strong>: Discards every partial match that started after the match started but before it ended.
+* <strong>*SKIP_TO_FIRST*</strong>: Discards every partial match that started after the match started but before the first event of *PatternName* occurred.
+* <strong>*SKIP_TO_LAST*</strong>: Discards every partial match that started after the match started but before the last event of *PatternName* occurred.
 
 Notice that when using *SKIP_TO_FIRST* and *SKIP_TO_LAST* skip strategy, a valid *PatternName* should also be specified.
 
-For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4, ab5, ab6`, the differences between these four skip strategies are as follows:
+For example, for a given pattern `b+ c` and a data stream `b1 b2 b3 c`, the differences between these four skip strategies are as follows:
 
 <table class="table table-bordered">
     <tr>
@@ -1265,38 +1269,65 @@ For example, for a given pattern `a b{2}` and a data stream `ab1, ab2, ab3, ab4,
     <tr>
         <td><strong>NO_SKIP</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will not discard any result.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will not discard any result.</td>
     </tr>
     <tr>
         <td><strong>SKIP_PAST_LAST_EVENT</strong></td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all started partial matches.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will discard all started partial matches.</td>
     </tr>
     <tr>
-        <td><strong>SKIP_TO_FIRST</strong>[<code>b</code>]</td>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab2 ab3 ab4</code><br>
-            <code>ab3 ab4 ab5</code><br>
-            <code>ab4 ab5 ab6</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code>, which is the only event that comes before the first <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b1</code>, but there are no such matches. Therefore nothing will be discarded.</td>
     </tr>
     <tr>
         <td><strong>SKIP_TO_LAST</strong>[<code>b</code>]</td>
         <td>
-            <code>ab1 ab2 ab3</code><br>
-            <code>ab3 ab4 ab5</code><br>
+            <code>b1 b2 b3 c</code><br>
+            <code>b3 c</code><br>
         </td>
-        <td>After found matching <code>ab1 ab2 ab3</code>, the match process will discard all partial matches containing <code>ab1</code> and <code>ab2</code>, which are events that comes before the last <code>b</code>.</td>
+        <td>After found matching <code>b1 b2 b3 c</code>, the match process will try to discard all partial matches started before <code>b3</code>. There is one such match <code>b2 b3 c</code></td>
+    </tr>
+</table>
+
+Have a look also at another example to better see the difference between NO_SKIP and SKIP_TO_FIRST:
+Pattern: `(a | c) (b | c) c+.greedy d` and sequence: `a b c1 c2 c3 d` Then the results will be:
+
+
+<table class="table table-bordered">
+    <tr>
+        <th class="text-left" style="width: 25%">Skip Strategy</th>
+        <th class="text-center" style="width: 25%">Result</th>
+        <th class="text-center"> Description</th>
+    </tr>
+    <tr>
+        <td><strong>NO_SKIP</strong></td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+            <code>c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will not discard any result.</td>
+    </tr>
+    <tr>
+        <td><strong>SKIP_TO_FIRST</strong>[<code>b*</code>]</td>
+        <td>
+            <code>a b c1 c2 c3 d</code><br>
+            <code>c1 c2 c3 d</code><br>
+        </td>
+        <td>After found matching <code>a b c1 c2 c3 d</code>, the match process will try to discard all partial matches started before <code>c1</code>. There is one such match <code>b c1 c2 c3 d</code>.</td>
     </tr>
 </table>
 
@@ -1633,7 +1664,7 @@ val input : DataStream[Event] = ...
 
 val partitionedInput = input.keyBy(event => event.getId)
 
-val pattern = Pattern.begin("start")
+val pattern = Pattern.begin[Event]("start")
   .next("middle").where(_.getName == "error")
   .followedBy("end").where(_.getName == "critical")
   .within(Time.seconds(10))

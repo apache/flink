@@ -586,7 +586,7 @@ object AggregateUtil {
       isDistinctAggs,
       isStateBackedDataViews = false,
       partialResults = true,
-      groupings,
+      groupings.indices.toArray,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
       outputType.getFieldCount,
       needRetract,
