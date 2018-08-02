@@ -581,6 +581,7 @@ trait ImplicitExpressionOperations {
     * @deprecated This method will be used for describing an interval of months in future versions.
     *             Use `extract(TimeIntervalUnit.QUARTER)` instead.
     */
+  @deprecated
   def quarter() = Quarter(expr)
 
   /**
