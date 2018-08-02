@@ -115,11 +115,11 @@ public class TriggerTestHarness<T, W extends Window> {
 	}
 
 	public int numStateEntries() {
-		return stateBackend.numStateEntries();
+		return stateBackend.numKeyValueStateEntries();
 	}
 
 	public int numStateEntries(W window) {
-		return stateBackend.numStateEntries(window);
+		return stateBackend.numKeyValueStateEntries(window);
 	}
 
 	/**
