@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
  * written to the file.
  *
  * <p>The sink rolls on each checkpoint, with each part file containing a sequence of integers.
- * Adding all committed part files together, and numerically sorting the contents, should 
+ * Adding all committed part files together, and numerically sorting the contents, should
  * result in a complete sequence from 0 (inclusive) to 60000 (exclusive).
  */
 public enum StreamingFileSinkProgram {
