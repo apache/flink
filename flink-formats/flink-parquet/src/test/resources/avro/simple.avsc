@@ -1,0 +1,11 @@
+{
+  "name": "SimpleRecord",
+  "namespace": "org.apache.flink.formats.parquet.generated",
+  "type": "record",
+  "fields": [
+    { "default": null, "name": "foo", "type": [ "null", "long" ]},
+    { "default": null, "name": "bar", "type": [ "null", "string"]}
+  ],
+  "schema_id": 1,
+  "type": "record"
+}

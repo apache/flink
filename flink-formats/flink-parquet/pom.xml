@@ -73,6 +73,12 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+
 		<!-- Optional Parquet Builders for Formats like Avro, Protobuf, Thrift -->
 
 		<dependency>
