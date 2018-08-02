@@ -1348,7 +1348,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "EXTRACT(YEAR FROM f16)",
       "1996")
 
-     testAllApis(
+    testAllApis(
       'f16.extract(TimeIntervalUnit.QUARTER),
       "f16.extract(QUARTER)",
       "EXTRACT(QUARTER FROM f16)",
@@ -1967,8 +1967,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         for (i <- 0 to 4) {
           val timeInterval = intervalCount(interval, data(i)._1)
           testAllApis(
-              data(i)._3 + timeInterval._1,
-              s"${timeInterval._2} + ${data(i)._4}",
+            data(i)._3 + timeInterval._1,
+            s"${timeInterval._2} + ${data(i)._4}",
             s"TIMESTAMPADD($interval, ${data(i)._1}, ${data(i)._2})",
             result(i))
         }
@@ -1976,22 +1976,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     }
 
     testSqlApi(
-        "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
-        "null")
+      "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
+      "null")
 
     testSqlApi(
-        "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
-        "null")
+      "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
+      "null")
 
     testAllApis(
-        "2016-06-15".toDate + 1.day,
-        "'2016-06-15'.toDate + 1.day",
-        "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
-        "2016-06-16")
+      "2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
+      "2016-06-16")
 
     testSqlApi(
-        "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
-        "null")
+      "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
+      "null")
   }
 
   // ----------------------------------------------------------------------------------------------
