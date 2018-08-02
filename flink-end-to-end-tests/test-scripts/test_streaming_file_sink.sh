@@ -110,26 +110,18 @@ wait_job_running ${JOB_ID}
 wait_num_checkpoints "${JOB_ID}" 3
 
 echo "Killing TM"
-
-# kill task manager
 kill_random_taskmanager
 
 echo "Starting TM"
-
-# start task manager again
 "$FLINK_DIR/bin/taskmanager.sh" start
 
 wait_for_restart 0
 
 echo "Killing 2 TMs"
-
-# kill two task managers again shortly after
 kill_random_taskmanager
 kill_random_taskmanager
 
 echo "Starting 2 TMs"
-
-# start task manager again and let job finish
 "$FLINK_DIR/bin/taskmanager.sh" start
 "$FLINK_DIR/bin/taskmanager.sh" start
 
@@ -153,7 +145,7 @@ cancel_job "${JOB_ID}"
 
 wait_job_terminal_state "${JOB_ID}" "CANCELED"
 
-# get all lines in part files
+# get all lines in part files and sort them numerically
 find "${OUTPUT_PATH}" -type f \( -iname "part-*" \) -exec cat {} + | sort -g > "${TEST_DATA_DIR}/complete_result"
 
 check_result_hash "File Streaming Sink" "$TEST_DATA_DIR/complete_result" "6727342fdd3aae2129e61fc8f433fb6f"
