@@ -88,7 +88,6 @@ function get_completed_number_of_checkpoints {
         sed 's/,.*//'     # 24
 }
 
-backup_config
 start_cluster
 
 "${FLINK_DIR}/bin/taskmanager.sh" start
