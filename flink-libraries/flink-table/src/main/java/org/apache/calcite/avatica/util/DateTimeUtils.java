@@ -91,6 +91,11 @@ public class DateTimeUtils {
 	public static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 
 	/**
+	 * The number of milliseconds in a week.
+	 */
+	public static final long MILLIS_PER_WEEK = 604800000L; // = 7 * 24 * 60 * 60 * 1000
+
+	/**
 	 * Calendar set to the epoch (1970-01-01 00:00:00 UTC). Useful for
 	 * initializing other values. Calendars are not immutable, so be careful not
 	 * to screw up this object for everyone else.

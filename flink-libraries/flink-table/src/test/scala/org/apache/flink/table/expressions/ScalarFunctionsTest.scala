@@ -1443,10 +1443,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996")
 
     testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
+    testAllApis(
       'f16.extract(TimeIntervalUnit.MONTH),
       "extract(f16, MONTH)",
       "EXTRACT(MONTH FROM f16)",
       "11")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.WEEK),
+      "extract(f16, WEEK)",
+      "EXTRACT(WEEK FROM f16)",
+      "45")
 
     testAllApis(
       'f16.extract(TimeIntervalUnit.DAY),
@@ -1461,10 +1473,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "1996")
 
     testAllApis(
+      'f18.extract(TimeIntervalUnit.QUARTER),
+      "f18.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testAllApis(
       'f18.extract(TimeIntervalUnit.MONTH),
       "f18.extract(MONTH)",
       "EXTRACT(MONTH FROM f18)",
       "11")
+
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.WEEK),
+      "f18.extract(WEEK)",
+      "EXTRACT(WEEK FROM f18)",
+      "45")
 
     testAllApis(
       'f18.extract(TimeIntervalUnit.DAY),
@@ -1536,6 +1560,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f20.extract(TimeIntervalUnit.MONTH),
       "f20.extract(MONTH)",
       "EXTRACT(MONTH FROM f20)",
+      "1")
+
+    testAllApis(
+      'f20.extract(TimeIntervalUnit.QUARTER),
+      "f20.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f20)",
       "1")
 
     testAllApis(
@@ -1894,32 +1924,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testQuarter(): Unit = {
     testAllApis(
-      "1997-01-27".toDate.quarter(),
-      "'1997-01-27'.toDate.quarter()",
+      "1997-01-27".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-01-27'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-01-27')",
       "1")
 
     testAllApis(
-      "1997-04-27".toDate.quarter(),
-      "'1997-04-27'.toDate.quarter()",
+      "1997-04-27".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-04-27'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-04-27')",
       "2")
 
     testAllApis(
-      "1997-12-31".toDate.quarter(),
-      "'1997-12-31'.toDate.quarter()",
+      "1997-12-31".toDate.extract(TimeIntervalUnit.QUARTER),
+      "'1997-12-31'.toDate.extract(QUARTER)",
       "QUARTER(DATE '1997-12-31')",
       "4")
   }
 
   @Test
   def testTimestampAdd(): Unit = {
-    val data = Seq(
-      (1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (3, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-61, "TIMESTAMP '2017-11-29 22:58:58.998'"),
-      (-1000, "TIMESTAMP '2017-11-29 22:58:58.998'")
+    val data = Seq((
+        1,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        3,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        -1,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"), (
+        -61,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp"),(
+        -1000,
+        "TIMESTAMP '2017-11-29 22:58:58.998'",
+        "2017-11-29 22:58:58.998".toTimestamp,
+        "'2017-11-29 22:58:58.998'.toTimestamp")
     )
 
     val YEAR = Seq(
@@ -1998,27 +2043,53 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SQL_TSI_SECOND" -> SECOND
     )
 
-    for ((interval, result) <- intervalMapResults) {
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data.head._1}, ${data.head._2})", result.head)
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(1)._1}, ${data(1)._2})", result(1))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(2)._1}, ${data(2)._2})", result(2))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(3)._1}, ${data(3)._2})", result(3))
-      testSqlApi(
-        s"TIMESTAMPADD($interval, ${data(4)._1}, ${data(4)._2})", result(4))
+    def intervalCount(interval: String, count: Int): (Expression, String) = interval match {
+      case "YEAR" => (count.years, s"${count}.years")
+      case "SQL_TSI_YEAR" => (count.years, s"${count}.years")
+      case "MONTH" => (count.months, s"${count}.months")
+      case "SQL_TSI_MONTH" => (count.months, s"${count}.months")
+      case "WEEK" => (count.weeks, s"${count}.weeks")
+      case "SQL_TSI_WEEK" => (count.weeks, s"${count}.weeks")
+      case "DAY" => (count.days, s"${count}.days")
+      case "SQL_TSI_DAY" => (count.days, s"${count}.days")
+      case "HOUR" => (count.hours, s"${count}.hours")
+      case "SQL_TSI_HOUR" => (count.hours, s"${count}.hours")
+      case "MINUTE" => (count.minutes, s"${count}.minutes")
+      case "SQL_TSI_MINUTE" => (count.minutes, s"${count}.minutes")
+      case "SECOND" => (count.seconds, s"${count}.seconds")
+      case "SQL_TSI_SECOND" => (count.seconds, s"${count}.seconds")
     }
 
-    testSqlApi("TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')", "null")
+    for ((interval, result) <- intervalMapResults) {
+      if (!interval.contains("QUARTER")) {
+        for (i <- 0 to 4) {
+          val timeInterval = intervalCount(interval, data(i)._1)
+          testAllApis(
+            data(i)._3 + timeInterval._1,
+            s"${timeInterval._2} + ${data(i)._4}",
+            s"TIMESTAMPADD($interval, ${data(i)._1}, ${data(i)._2})",
+            result(i))
+        }
+      }
+    }
 
-    testSqlApi("TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))", "null")
+    testSqlApi(
+      "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
+      "null")
 
-    testSqlApi("TIMESTAMPADD(DAY, 1, DATE '2016-06-15')", "2016-06-16")
+    testSqlApi(
+      "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
+      "null")
 
-    testSqlApi("TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))", "null")
+    testAllApis(
+      "2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "TIMESTAMPADD(DAY, 1, DATE '2016-06-15')",
+      "2016-06-16")
 
+    testSqlApi(
+      "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
+      "null")
   }
 
   // ----------------------------------------------------------------------------------------------

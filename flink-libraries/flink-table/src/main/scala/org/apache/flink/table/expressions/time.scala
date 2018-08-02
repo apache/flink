@@ -49,6 +49,7 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
       case SymbolExpression(TimeIntervalUnit.YEAR)
            | SymbolExpression(TimeIntervalUnit.MONTH)
            | SymbolExpression(TimeIntervalUnit.QUARTER)
+           | SymbolExpression(TimeIntervalUnit.WEEK)
            | SymbolExpression(TimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP

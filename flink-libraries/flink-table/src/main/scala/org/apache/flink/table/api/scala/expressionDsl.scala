@@ -615,6 +615,20 @@ trait ImplicitExpressionOperations {
   def years = year
 
   /**
+  * Creates an interval of the given number of quarters.
+  *
+  * @return interval of months
+  */
+  def quarter = toMonthInterval(expr, 3)
+
+  /**
+  * Creates an interval of the given number of quarters.
+  *
+  * @return interval of months
+  */
+  def quarters = quarter
+
+  /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
@@ -627,6 +641,20 @@ trait ImplicitExpressionOperations {
     * @return interval of months
     */
   def months = month
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def week = toMilliInterval(expr, MILLIS_PER_WEEK)
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def weeks = week
 
   /**
     * Creates an interval of the given number of days.
