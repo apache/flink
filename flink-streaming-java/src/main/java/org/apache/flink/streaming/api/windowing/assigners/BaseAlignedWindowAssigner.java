@@ -30,9 +30,8 @@ import java.util.Collection;
  * A base {@link WindowAssigner} used to instantiate one of the deprecated operators.
  *
  * @deprecated will be removed in a future version. please use other {@link WindowAssigner}s listed under
- *  * {@link org.apache.flink.streaming.api.windowing.assigners}.
- * */
-
+ * {@link org.apache.flink.streaming.api.windowing.assigners}.
+ */
 @Deprecated
 public class BaseAlignedWindowAssigner extends WindowAssigner<Object, TimeWindow> {
 
