@@ -28,49 +28,45 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
- * A bucketer is used with a {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}
- * to determine the {@link org.apache.flink.streaming.api.functions.sink.filesystem.Bucket} each incoming element
+ * A BucketAssigner is used with a {@link StreamingFileSink} to determine the {@link Bucket} each incoming element
  * should be put into.
  *
  * <p>The {@code StreamingFileSink} can be writing to many buckets at a time, and it is responsible for managing
- * a set of active buckets. Whenever a new element arrives it will ask the {@code Bucketer} for the bucket the
- * element should fall in. The {@code Bucketer} can, for example, determine buckets based on system time.
+ * a set of active buckets. Whenever a new element arrives it will ask the {@code BucketAssigner} for the bucket the
+ * element should fall in. The {@code BucketAssigner} can, for example, determine buckets based on system time.
  *
  * @param <IN> The type of input elements.
- * @param <BucketID> The type of the object returned by the {@link #getBucketId(Object, Bucketer.Context)}. This has to have
+ * @param <BucketID> The type of the object returned by the {@link #getBucketId(Object, BucketAssigner.Context)}. This has to have
  *                  a correct {@link #hashCode()} and {@link #equals(Object)} method. In addition, the {@link Path}
  *                  to the created bucket will be the result of the {@link #toString()} of this method, appended to
- *                  the {@code basePath} specified in the
- *                  {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ *                  the {@code basePath} specified in the {@link StreamingFileSink StreamingFileSink}.
  */
 @PublicEvolving
-public interface Bucketer<IN, BucketID> extends Serializable {
+public interface BucketAssigner<IN, BucketID> extends Serializable {
 
 	/**
 	 * Returns the identifier of the bucket the provided element should be put into.
 	 * @param element The current element being processed.
-	 * @param context The {@link SinkFunction.Context context} used by the
-	 *                {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink sink}.
+	 * @param context The {@link SinkFunction.Context context} used by the {@link StreamingFileSink sink}.
 	 *
 	 * @return A string representing the identifier of the bucket the element should be put into.
-	 * This actual path to the bucket will result from the concatenation of the returned string
-	 * and the {@code base path} provided during the initialization of the
-	 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink sink}.
+	 * The actual path to the bucket will result from the concatenation of the returned string
+	 * and the {@code base path} provided during the initialization of the {@link StreamingFileSink sink}.
 	 */
-	BucketID getBucketId(IN element, Bucketer.Context context);
+	BucketID getBucketId(IN element, BucketAssigner.Context context);
 
 	/**
 	 * @return A {@link SimpleVersionedSerializer} capable of serializing/deserializing the elements
 	 * of type {@code BucketID}. That is the type of the objects returned by the
-	 * {@link #getBucketId(Object, Bucketer.Context)}.
+	 * {@link #getBucketId(Object, BucketAssigner.Context)}.
 	 */
 	SimpleVersionedSerializer<BucketID> getSerializer();
 
 	/**
-	 * Context that the {@link Bucketer} can use for getting additional data about
+	 * Context that the {@link BucketAssigner} can use for getting additional data about
 	 * an input record.
 	 *
-	 * <p>The context is only valid for the duration of a {@link Bucketer#getBucketId(Object, Bucketer.Context)} call.
+	 * <p>The context is only valid for the duration of a {@link BucketAssigner#getBucketId(Object, BucketAssigner.Context)} call.
 	 * Do not store the context and use afterwards!
 	 */
 	@PublicEvolving
