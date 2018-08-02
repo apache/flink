@@ -313,6 +313,24 @@ object FunctionGenerator {
     BuiltInMethods.ATAN_DEC)
 
   addSqlFunctionMethod(
+    ATAN2,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(DOUBLE_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DEC)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DEC_DEC)
+
+  addSqlFunctionMethod(
     DEGREES,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,

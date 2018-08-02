@@ -34,6 +34,14 @@ object ScalarFunctions {
     Math.pow(a, b.doubleValue())
   }
 
+  def atan2(a: Double, b: JBigDecimal): Double = {
+    Math.atan2(a, b.doubleValue())
+  }
+
+  def atan2(a: JBigDecimal, b: JBigDecimal): Double = {
+    Math.atan2(a.doubleValue(), b.doubleValue())
+  }
+
   /**
     * Returns the string that results from concatenating the arguments.
     * Returns NULL if any argument is NULL.

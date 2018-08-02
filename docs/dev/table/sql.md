@@ -1547,6 +1547,17 @@ ATAN(numeric)
     <tr>
       <td>
         {% highlight text %}
+ATAN2(numeric, numeric)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given coordinate.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 DEGREES(numeric)
 {% endhighlight %}
       </td>

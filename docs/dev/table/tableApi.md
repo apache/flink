@@ -2204,6 +2204,17 @@ NUMERIC.atan()
     <tr>
       <td>
         {% highlight java %}
+atan2(NUMERIC, NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given coordinate.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
 NUMERIC.degrees()
 {% endhighlight %}
       </td>
@@ -3776,6 +3787,17 @@ NUMERIC.atan()
       </td>
     </tr>
 
+    <tr>
+      <td>
+        {% highlight scala %}
+atan2(NUMERIC, NUMERIC)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the arc tangent of a given coordinate.</p>
+      </td>
+    </tr>
+    
     <tr>
       <td>
         {% highlight scala %}
