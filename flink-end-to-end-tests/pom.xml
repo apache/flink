@@ -52,6 +52,7 @@ under the License.
 		<module>flink-quickstart-test</module>
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
 	</modules>
 
 	<build>
