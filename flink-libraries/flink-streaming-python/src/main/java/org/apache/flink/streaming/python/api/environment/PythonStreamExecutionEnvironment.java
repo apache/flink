@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.python.api.datastream.PythonDataStream;
@@ -222,6 +223,15 @@ public class PythonStreamExecutionEnvironment {
 	public PythonStreamExecutionEnvironment enable_checkpointing(long interval, CheckpointingMode mode) {
 		this.env.enableCheckpointing(interval, mode);
 		return this;
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getCheckpointConfig()}.
+	 *
+	 * @return The checkpoint config.
+	 */
+	public CheckpointConfig get_checkpoint_config(){
+		return this.env.getCheckpointConfig();
 	}
 
 	/**
