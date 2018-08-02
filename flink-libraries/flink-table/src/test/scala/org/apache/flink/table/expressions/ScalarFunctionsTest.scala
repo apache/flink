@@ -1544,6 +1544,18 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "EXTRACT(YEAR FROM f20)",
       "2")
 
+    testAllApis(
+      'f18.extract(TimeIntervalUnit.QUARTER),
+      "f18.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f18)",
+      "4")
+
+    testAllApis(
+      'f16.extract(TimeIntervalUnit.QUARTER),
+      "f16.extract(QUARTER)",
+      "EXTRACT(QUARTER FROM f16)",
+      "4")
+
     // test SQL only time units
     testSqlApi(
       "EXTRACT(MILLENNIUM FROM f18)",
@@ -1576,14 +1588,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "EXTRACT(DOW FROM f16)",
       "1")
-
-    testSqlApi(
-      "EXTRACT(QUARTER FROM f18)",
-      "4")
-
-    testSqlApi(
-      "EXTRACT(QUARTER FROM f16)",
-      "4")
 
     testSqlApi(
       "EXTRACT(WEEK FROM f18)",

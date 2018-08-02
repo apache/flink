@@ -577,7 +577,11 @@ trait ImplicitExpressionOperations {
     * Returns the quarter of a year from a SQL date.
     *
     * e.g. "1994-09-27".toDate.quarter() leads to 3
+    *
+    * @deprecated This method will be used for describing an interval of months in future versions.
+    *             Use `extract(TimeIntervalUnit.QUARTER)` instead.
     */
+  @deprecated
   def quarter() = Quarter(expr)
 
   /**
