@@ -1723,6 +1723,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public byte[] value() {
+			if (!isValid()) {
+				throw new IllegalStateException("value() method cannot be called if isValid() is false");
+			}
 			return current;
 		}
 	}

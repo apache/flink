@@ -72,7 +72,7 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 
 		@Override
 		@Nullable
-		public TtlValue<T> filterOrTransform(@Nonnull TtlValue<T> value) {
+		public TtlValue<T> filterOrTransform(@Nullable TtlValue<T> value) {
 			return filterTtlValue(value);
 		}
 	}
@@ -84,8 +84,11 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 
 		@Override
 		@Nullable
-		public byte[] filterOrTransform(@Nonnull byte[] value) {
-			Preconditions.checkArgument(value.length >= 8);
+		public byte[] filterOrTransform(@Nullable byte[] value) {
+			if (value == null) {
+				return null;
+			}
+			Preconditions.checkArgument(value.length >= Long.BYTES);
 			long ts;
 			try {
 				ts = deserializeTs(value, value.length - Long.BYTES);
