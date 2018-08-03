@@ -25,9 +25,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.Bucketer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
@@ -65,8 +65,8 @@ public enum StreamingFileSinkProgram {
 				PrintStream out = new PrintStream(stream);
 				out.println(element.f1);
 			})
-			.withBucketer(new KeyBucketer())
-			.withRollingPolicy(new OnCheckpointRollingPolicy<>())
+			.withBucketAssigner(new KeyBucketAssigner())
+			.withRollingPolicy(OnCheckpointRollingPolicy.build())
 			.build();
 
 		// generate data, shuffle, sink
@@ -81,7 +81,7 @@ public enum StreamingFileSinkProgram {
 	/**
 	 * Use first field for buckets.
 	 */
-	public static final class KeyBucketer implements Bucketer<Tuple2<Integer, Integer>, String> {
+	public static final class KeyBucketAssigner implements BucketAssigner<Tuple2<Integer, Integer>, String> {
 
 		private static final long serialVersionUID = 987325769970523326L;
 
