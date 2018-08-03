@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
+import java.util.EnumMap;
 
 import static org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired;
 import static org.apache.flink.api.common.state.StateTtlConfig.TimeCharacteristic.ProcessingTime;
@@ -210,8 +211,9 @@ public class StateTtlConfig implements Serializable {
 		/** Cleanup expired state in full snapshot on checkpoint. */
 		@Nonnull
 		public Builder cleanupFullSnapshot() {
-			cleanupStrategies.strategies[CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT.ordinal()] =
-				new CleanupStrategies.CleanupStrategy() {  };
+			cleanupStrategies.strategies.put(
+				CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
+				new CleanupStrategies.CleanupStrategy() {  });
 			return this;
 		}
 
@@ -254,10 +256,10 @@ public class StateTtlConfig implements Serializable {
 
 		}
 
-		final CleanupStrategy[] strategies = new CleanupStrategy[Strategies.values().length];
+		final EnumMap<Strategies, CleanupStrategy> strategies = new EnumMap<>(Strategies.class);
 
 		public boolean inFullSnapshot() {
-			return strategies[Strategies.FULL_STATE_SCAN_SNAPSHOT.ordinal()] != null;
+			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
 		}
 	}
 }

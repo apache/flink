@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateSnapshotFilter;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
@@ -319,7 +319,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this, getSnapshotFilter());
+		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getSnapshotTransformer());
 	}
 
 	/**
@@ -332,14 +332,17 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	static class NestedMapsStateTableSnapshot<K, N, S>
 			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>>
 			implements StateSnapshot.StateKeyGroupWriter {
-		private final TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();
-		private final TypeSerializer<N> namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
-		private final TypeSerializer<S> stateSerializer = owningStateTable.metaInfo.getStateSerializer();
-		private final StateSnapshotFilter<S> snapshotFilter;
+		private final TypeSerializer<K> keySerializer;
+		private final TypeSerializer<N> namespaceSerializer;
+		private final TypeSerializer<S> stateSerializer;
+		private final StateSnapshotTransformer<S> snapshotFilter;
 
-		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable, StateSnapshotFilter<S> snapshotFilter) {
+		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable, StateSnapshotTransformer<S> snapshotFilter) {
 			super(owningTable);
 			this.snapshotFilter = snapshotFilter;
+			this.keySerializer = owningStateTable.keyContext.getKeySerializer();
+			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
+			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}
 
 		@Nonnull
@@ -388,7 +391,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		}
 
 		private Map<N, Map<K, S>> filterMappingsInKeyGroupIfNeeded(final Map<N, Map<K, S>> keyGroupMap) {
-			return snapshotFilter == StateSnapshotFilter.snapshotAll() ?
+			return snapshotFilter == null ?
 				keyGroupMap : filterMappingsInKeyGroup(keyGroupMap);
 		}
 
@@ -399,7 +402,10 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 				Map<K, S> filteredNamespaceMap = filtered.computeIfAbsent(namespace, n -> new HashMap<>());
 				for (Map.Entry<K, S> keyEntry : namespaceEntry.getValue().entrySet()) {
 					K key = keyEntry.getKey();
-					snapshotFilter.filter(keyEntry.getValue()).ifPresent(v -> filteredNamespaceMap.put(key, v));
+					S transformedvalue = snapshotFilter.filterOrTransform(keyEntry.getValue());
+					if (transformedvalue != null) {
+						filteredNamespaceMap.put(key, transformedvalue);
+					}
 				}
 			}
 			return filtered;

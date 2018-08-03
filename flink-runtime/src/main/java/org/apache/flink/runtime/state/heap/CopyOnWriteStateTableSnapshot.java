@@ -22,16 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
+import org.apache.flink.runtime.state.KeyGroupPartitioner.ElementWriterFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.StateSnapshotFilter;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import java.util.Optional;
 
 /**
  * This class represents the snapshot of a {@link CopyOnWriteStateTable} and has a role in operator state checkpointing. Besides
@@ -138,28 +137,33 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	@SuppressWarnings("unchecked")
 	@Override
 	public StateKeyGroupWriter getKeyGroupWriter() {
-
 		if (partitionedStateTableSnapshot == null) {
-
 			final InternalKeyContext<K> keyContext = owningStateTable.keyContext;
-			final KeyGroupRange keyGroupRange = keyContext.getKeyGroupRange();
 			final int numberOfKeyGroups = keyContext.getNumberOfKeyGroups();
-
-			final StateTableKeyGroupPartitioner<K, N, S> keyGroupPartitioner = new StateTableKeyGroupPartitioner<>(
-				snapshotData,
-				numberOfEntriesInSnapshotData,
-				keyGroupRange,
-				numberOfKeyGroups,
+			final KeyGroupRange keyGroupRange = keyContext.getKeyGroupRange();
+			ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction =
 				(element, dov) -> {
 					localNamespaceSerializer.serialize(element.namespace, dov);
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
-				},
-				owningStateTable.getSnapshotFilter());
-
-			partitionedStateTableSnapshot = keyGroupPartitioner.partitionByKeyGroup();
+				};
+			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.getSnapshotTransformer();
+			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer != null ?
+				new TransformingStateTableKeyGroupPartitioner<>(
+					snapshotData,
+					numberOfEntriesInSnapshotData,
+					keyGroupRange,
+					numberOfKeyGroups,
+					elementWriterFunction,
+					stateSnapshotTransformer) :
+				new StateTableKeyGroupPartitioner<>(
+					snapshotData,
+					numberOfEntriesInSnapshotData,
+					keyGroupRange,
+					numberOfKeyGroups,
+					elementWriterFunction);
+			partitionedStateTableSnapshot = stateTableKeyGroupPartitioner.partitionByKeyGroup();
 		}
-
 		return partitionedStateTableSnapshot;
 	}
 
@@ -191,9 +195,8 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 * @param <S> type of state value.
 	 */
 	@VisibleForTesting
-	protected static final class StateTableKeyGroupPartitioner<K, N, S>
+	protected static class StateTableKeyGroupPartitioner<K, N, S>
 		extends KeyGroupPartitioner<CopyOnWriteStateTable.StateTableEntry<K, N, S>> {
-		private final StateSnapshotFilter<S> stateSnapshotFilter;
 
 		@SuppressWarnings("unchecked")
 		StateTableKeyGroupPartitioner(
@@ -201,8 +204,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			@Nonnegative int stateTableSize,
 			@Nonnull KeyGroupRange keyGroupRange,
 			@Nonnegative int totalKeyGroups,
-			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction,
-			@Nonnull StateSnapshotFilter<S> stateSnapshotFilter) {
+			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction) {
 
 			super(
 				new CopyOnWriteStateTable.StateTableEntry[stateTableSize],
@@ -214,7 +216,6 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 				totalKeyGroups,
 				CopyOnWriteStateTable.StateTableEntry::getKey,
 				elementWriterFunction);
-			this.stateSnapshotFilter = stateSnapshotFilter;
 		}
 
 		@Override
@@ -223,25 +224,62 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			int flattenIndex = 0;
 			for (CopyOnWriteStateTable.StateTableEntry<K, N, S> entry : partitioningDestination) {
 				while (null != entry) {
-					CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = filterEntry(entry);
-					if (filteredEntry != null) {
-						final int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(entry.key, totalKeyGroups);
-						reportKeyGroupOfElementAtIndex(flattenIndex, keyGroup);
-						partitioningSource[flattenIndex++] = filteredEntry;
-					}
+					flattenIndex = tryAddToSource(flattenIndex, entry);
 					entry = entry.next;
 				}
 			}
 		}
 
+		/** Tries to append next entry to {@code partitioningSource} array snapshot and returns next index.*/
+		int tryAddToSource(int currentIndex, CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
+			final int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(entry.key, totalKeyGroups);
+			reportKeyGroupOfElementAtIndex(currentIndex, keyGroup);
+			partitioningSource[currentIndex] = entry;
+			return currentIndex + 1;
+		}
+	}
+
+	/** Extended state snapshot transforming {@link StateTableKeyGroupPartitioner}.
+	 *
+	 * <p>This partitioner can additionally transform state before including or not into the snapshot.
+	 */
+	protected static final class TransformingStateTableKeyGroupPartitioner<K, N, S>
+		extends StateTableKeyGroupPartitioner<K, N, S> {
+		private final StateSnapshotTransformer<S> stateSnapshotTransformer;
+
+		TransformingStateTableKeyGroupPartitioner(
+			@Nonnull CopyOnWriteStateTable.StateTableEntry<K, N, S>[] snapshotData,
+			int stateTableSize,
+			@Nonnull KeyGroupRange keyGroupRange,
+			int totalKeyGroups,
+			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction,
+			@Nonnull StateSnapshotTransformer<S> stateSnapshotTransformer) {
+			super(
+				snapshotData,
+				stateTableSize,
+				keyGroupRange,
+				totalKeyGroups,
+				elementWriterFunction);
+			this.stateSnapshotTransformer = stateSnapshotTransformer;
+		}
+
+		@Override
+		int tryAddToSource(int currentIndex, CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
+			CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = filterEntry(entry);
+			if (filteredEntry != null) {
+				return tryAddToSource(currentIndex, filteredEntry);
+			}
+			return currentIndex;
+		}
+
 		private CopyOnWriteStateTable.StateTableEntry<K, N, S> filterEntry(
 			CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
-			Optional<S> filteredValue = stateSnapshotFilter.filter(entry.state);
-			if (filteredValue.isPresent()) {
+			S transformedValue = stateSnapshotTransformer.filterOrTransform(entry.state);
+			if (transformedValue != null) {
 				CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = entry;
-				if (filteredValue.get() != entry.state) {
+				if (transformedValue != entry.state) {
 					filteredEntry = new CopyOnWriteStateTable.StateTableEntry<>(entry, entry.entryVersion);
-					filteredEntry.state = filteredValue.get();
+					filteredEntry.state = transformedValue;
 				}
 				return filteredEntry;
 			}

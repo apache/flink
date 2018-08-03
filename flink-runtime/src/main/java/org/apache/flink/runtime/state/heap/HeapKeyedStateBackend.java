@@ -62,9 +62,10 @@ import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateSnapshotFilter;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -90,6 +91,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -248,7 +250,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) throws StateMigrationException {
+			TypeSerializer<N> namespaceSerializer,
+			StateDescriptor<?, V> stateDesc,
+			StateSnapshotTransformer<V> snapshotTransformer) throws StateMigrationException {
 
 		@SuppressWarnings("unchecked")
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
@@ -268,7 +272,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
 				restoredMetaInfoSnapshot,
 				namespaceSerializer,
-				stateDesc);
+				stateDesc,
+				snapshotTransformer);
 
 			stateTable.setMetaInfo(newMetaInfo);
 		} else {
@@ -276,7 +281,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getType(),
 				stateDesc.getName(),
 				namespaceSerializer,
-				stateDesc.getSerializer());
+				stateDesc.getSerializer(),
+				snapshotTransformer);
 
 			stateTable = snapshotStrategy.newStateTable(newMetaInfo);
 			registeredKVStates.put(stateDesc.getName(), stateTable);
@@ -303,19 +309,39 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	@Nonnull
-	public <N, SV, S extends State, IS extends S> IS createInternalState(
+	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotFilter<SV> snapshotFilter) throws Exception {
+		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
-		StateTable<K, N, SV> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		stateTable.setSnapshotFilter(snapshotFilter);
+		StateTable<K, N, SV> stateTable = tryRegisterStateTable(
+			namespaceSerializer, stateDesc, getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
 		return stateFactory.createState(stateDesc, stateTable, keySerializer);
+	}
+
+	@SuppressWarnings("unchecked")
+	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+		StateDescriptor<?, SV> stateDesc,
+		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
+		if (original.isPresent()) {
+			if (stateDesc instanceof ListStateDescriptor) {
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+					.ListStateSnapshotTransformer<>(original.get());
+			} else if (stateDesc instanceof MapStateDescriptor) {
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+					.MapStateSnapshotTransformer<>(original.get());
+			} else {
+				return (StateSnapshotTransformer<SV>) original.get();
+			}
+		} else {
+			return null;
+		}
 	}
 
 	@Override

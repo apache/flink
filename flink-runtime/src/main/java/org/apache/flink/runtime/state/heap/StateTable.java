@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateSnapshotFilter;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateTransformationFunction;
@@ -50,9 +49,6 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	 * Combined meta information such as name and serializers for this state.
 	 */
 	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
-
-	/** Filter of state value entries to modify it and decide whether to snapshot. */
-	private StateSnapshotFilter<S> snapshotFilter = StateSnapshotFilter.snapshotAll();
 
 	/**
 	 *
@@ -191,14 +187,6 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	// Snapshot / Restore -------------------------------------------------------------------------
 
 	public abstract void put(K key, int keyGroup, N namespace, S state);
-
-	StateSnapshotFilter<S> getSnapshotFilter() {
-		return snapshotFilter;
-	}
-
-	void setSnapshotFilter(StateSnapshotFilter<S> snapshotFilter) {
-		this.snapshotFilter = snapshotFilter;
-	}
 
 	// For testing --------------------------------------------------------------------------------
 
