@@ -55,9 +55,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 	}
 
 	private static long deserializeTs(
-		byte[] value, int offest) throws IOException {
+		byte[] value, int offset) throws IOException {
 		return LongSerializer.INSTANCE.deserialize(
-			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offest, 8)));
+			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offset, Long.BYTES)));
 	}
 
 	@Override
