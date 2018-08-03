@@ -1859,6 +1859,17 @@ FROM_BASE64(text string)
       <td>
         <p>Returns the base string decoded with base64, if text is NULL, returns NULL. E.g. <code>FROM_BASE64('aGVsbG8gd29ybGQ=')</code> returns <code>hello world</code>.</p>
       </td>
+    </tr>  
+        
+    <tr>
+      <td>
+        {% highlight text %}
+TO_BASE64(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the base64-encoded result of the input string. If the input is NULL, returns NULL. E.g. <code>TO_BASE64('hello world')</code> returns <code>aGVsbG8gd29ybGQ=</code>.</p>
+      </td>
     </tr>
 
   </tbody>

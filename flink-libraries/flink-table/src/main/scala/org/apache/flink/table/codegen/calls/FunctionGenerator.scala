@@ -152,6 +152,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.FROMBASE64)
 
+  addSqlFunctionMethod(
+    TO_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.TOBASE64)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------

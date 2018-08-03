@@ -2485,6 +2485,7 @@ STRING.rpad(len INT, pad STRING)
         <p>Returns a string right-padded with the given pad string to a length of len characters. If the string is longer than len, the return value is shortened to len characters. E.g. "hi".rpad(4, '??') returns "hi??",  "hi".rpad(1, '??') returns "h".</p>
       </td>
     </tr>
+
     <tr>
       <td>
         {% highlight java %}
@@ -2494,6 +2495,18 @@ STRING.fromBase64()
 
       <td>
         <p>Returns the base string decoded with base64, if string is null, returns null. E.g. "aGVsbG8gd29ybGQ=".fromBase64() returns "hello world".</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.toBase64()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns the base64-encoded result of STRING. If STRING is NULL, returns NULL. E.g. "hello world".toBase64() returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
 
@@ -4033,6 +4046,18 @@ STRING.initCap()
 
       <td>
         <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.toBase64()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Returns the base64-encoded result of STRING. If STRING is NULL, returns NULL. E.g. "hello world".toBase64() returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
 
