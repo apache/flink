@@ -135,8 +135,8 @@ public class KeyGroupPartitioner<T> {
 	public StateSnapshot.StateKeyGroupWriter partitionByKeyGroup() {
 		if (computedResult == null) {
 			reportAllElementKeyGroups();
-			buildHistogramByAccumulatingCounts();
-			executePartitioning();
+			int outputNumberOfElements = buildHistogramByAccumulatingCounts();
+			executePartitioning(outputNumberOfElements);
 		}
 		return computedResult;
 	}
@@ -167,22 +167,20 @@ public class KeyGroupPartitioner<T> {
 	/**
 	 * This method creates a histogram from the counts per key-group in {@link #counterHistogram}.
 	 */
-	private void buildHistogramByAccumulatingCounts() {
+	private int buildHistogramByAccumulatingCounts() {
 		int sum = 0;
 		for (int i = 0; i < counterHistogram.length; ++i) {
 			int currentSlotValue = counterHistogram[i];
 			counterHistogram[i] = sum;
 			sum += currentSlotValue;
 		}
-
-		// sanity check that the sum matches the expected number of elements.
-		Preconditions.checkState(sum == numberOfElements);
+		return sum;
 	}
 
-	private void executePartitioning() {
+	private void executePartitioning(int outputNumberOfElements) {
 
 		// We repartition the entries by their pre-computed key-groups, using the histogram values as write indexes
-		for (int inIdx = 0; inIdx < numberOfElements; ++inIdx) {
+		for (int inIdx = 0; inIdx < outputNumberOfElements; ++inIdx) {
 			int effectiveKgIdx = elementKeyGroups[inIdx];
 			int outIdx = counterHistogram[effectiveKgIdx]++;
 			partitioningDestination[outIdx] = partitioningSource[inIdx];
@@ -272,7 +270,7 @@ public class KeyGroupPartitioner<T> {
 	}
 
 	/**
-	 * General algorithm to read key-grouped state that was written from a {@link PartitioningResult}
+	 * General algorithm to read key-grouped state that was written from a {@link PartitioningResult}.
 	 *
 	 * @param <T> type of the elements to read.
 	 */
@@ -339,8 +337,6 @@ public class KeyGroupPartitioner<T> {
 	 */
 	@FunctionalInterface
 	public interface KeyGroupElementsConsumer<T> {
-
-
 		void consume(@Nonnull T element, @Nonnegative int keyGroupId) throws IOException;
 	}
 }

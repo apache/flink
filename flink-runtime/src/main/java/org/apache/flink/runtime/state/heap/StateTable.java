@@ -46,7 +46,7 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	protected final InternalKeyContext<K> keyContext;
 
 	/**
-	 * Combined meta information such as name and serializers for this state
+	 * Combined meta information such as name and serializers for this state.
 	 */
 	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
 
