@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.tests.verify;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 
@@ -45,7 +45,7 @@ public interface TtlStateVerifier<UV, GV> {
 	}
 
 	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfiguration ttlConfig);
+	State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig);
 
 	@Nonnull
 	TypeSerializer<UV> getUpdateSerializer();

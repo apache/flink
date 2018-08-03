@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -67,14 +67,14 @@ class TtlVerifyUpdateFunction
 	private static final Logger LOG = LoggerFactory.getLogger(TtlVerifyUpdateFunction.class);
 
 	@Nonnull
-	private final StateTtlConfiguration ttlConfig;
+	private final StateTtlConfig ttlConfig;
 	private final long ttl;
 	private final UpdateStat stat;
 
 	private transient Map<String, State> states;
 	private transient Map<String, ListState<ValueWithTs<?>>> prevUpdatesByVerifierId;
 
-	TtlVerifyUpdateFunction(@Nonnull StateTtlConfiguration ttlConfig, long reportStatAfterUpdatesNum) {
+	TtlVerifyUpdateFunction(@Nonnull StateTtlConfig ttlConfig, long reportStatAfterUpdatesNum) {
 		this.ttlConfig = ttlConfig;
 		this.ttl = ttlConfig.getTtl().toMilliseconds();
 		this.stat = new UpdateStat(reportStatAfterUpdatesNum);

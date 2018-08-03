@@ -20,7 +20,7 @@ package org.apache.flink.streaming.tests.verify;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.util.StringUtils;
@@ -52,7 +52,7 @@ abstract class AbstractTtlStateVerifier<D extends StateDescriptor<S, SV>, S exte
 	@SuppressWarnings("unchecked")
 	@Override
 	@Nonnull
-	public State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfiguration ttlConfig) {
+	public State createState(@Nonnull FunctionInitializationContext context, @Nonnull StateTtlConfig ttlConfig) {
 		stateDesc.enableTimeToLive(ttlConfig);
 		return createState(context);
 	}
