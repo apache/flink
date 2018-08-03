@@ -26,7 +26,7 @@ import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 
 /**
- *
+ * Row materializer for {@link RowReadSupport}.
  */
 public class RowMaterializer extends RecordMaterializer<Row> {
 	private RowConverter root;

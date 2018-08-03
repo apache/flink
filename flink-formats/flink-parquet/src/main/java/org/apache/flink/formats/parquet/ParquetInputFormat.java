@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetRecordReader;
-import org.apache.flink.formats.parquet.utils.ParquetUtil;
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.RowReadSupport;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.types.Row;
@@ -41,16 +41,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * The base InputFormat class to read from Parquet files.
- * For specific return types the {@link #convert(Row)} method need to be implemented
+ * For specific return types the {@link #convert(Row)} method need to be implemented.
  *
  * <P>Using {@link ParquetRecordReader} to Read files instead of {@link org.apache.flink.core.fs.FSDataInputStream},
- * we override {@link #open(FileInputSplit)} and {@link #close()} to change the behaviors
- *
- * @param <E>
+ * we override {@link #open(FileInputSplit)} and {@link #close()} to change the behaviors.
  */
 public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implements
 	CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
@@ -95,10 +92,8 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 		ParquetReadOptions options = ParquetReadOptions.builder().build();
 		ParquetFileReader fileReader = new ParquetFileReader(inputFile, options);
 		MessageType schema = fileReader.getFileMetaData().getSchema();
-
-		// checkSchema(schema);
-
-		MessageType readSchema = ParquetUtil.toParquetType(readType);
+		checkSchema(schema);
+		MessageType readSchema = ParquetSchemaConverter.toParquetType(readType);
 		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
 		this.parquetRecordReader.initialize(fileReader, configuration);
 		if (this.recordConsumed == null) {
@@ -168,17 +163,16 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 	protected abstract E convert(Row row);
 
 	private void checkSchema(MessageType schema) {
-		TypeInformation<?> rootTypeInfo = ParquetUtil.fromParquetType(schema);
-		Map<String, TypeInformation<?>> fileFieldTypeMap = rootTypeInfo.getGenericParameters();
+		RowTypeInfo rootTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(schema);
 
 		for (int i = 0; i < fieldNames.length; ++i) {
 			String readFieldName = fieldNames[i];
 			TypeInformation<?> readFieldType = fieldTypes[i];
-			if (!fileFieldTypeMap.containsKey(readFieldName)) {
+			if (rootTypeInfo.getFieldIndex(readFieldName) < 0) {
 				throw new IllegalArgumentException(readFieldName + " can not be found in parquet schema");
 			}
 
-			if (!readFieldType.equals(fileFieldTypeMap.get(readFieldName))) {
+			if (!readFieldType.equals(rootTypeInfo.getTypeAt(readFieldName))) {
 				throw new IllegalArgumentException(readFieldName + " can not be converted to " + readFieldType);
 			}
 		}

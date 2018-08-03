@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.generated.SimpleRecord;
-import org.apache.flink.formats.parquet.utils.ParquetUtil;
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
@@ -50,7 +50,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Simple test case for reading {@link org.apache.flink.types.Row} from Parquet files.
+ * Simple test case for reading {@link org.apache.flink.types.Row}, Map and Pojo from Parquet files.
  */
 public class ParquetInputFormatTest {
 	private static final AvroSchemaConverter SCHEMA_CONVERTER = new AvroSchemaConverter();
@@ -66,7 +66,7 @@ public class ParquetInputFormatTest {
 		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetUtil.fromParquetType(simpleType));
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -90,7 +90,7 @@ public class ParquetInputFormatTest {
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
 
 		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
-			path, (RowTypeInfo) ParquetUtil.fromParquetType(nestedType));
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType));
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -145,7 +145,7 @@ public class ParquetInputFormatTest {
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();
 		Path path = TestUtil.createTempParquetFile(temp, TestUtil.NESTED_SCHEMA, nested.f1, 1);
 		MessageType nestedType = SCHEMA_CONVERTER.convert(TestUtil.NESTED_SCHEMA);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetUtil.fromParquetType(nestedType);
+		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedType);
 
 		ParquetMapInputFormat mapInputFormat = new ParquetMapInputFormat(
 			path, rowTypeInfo.getFieldTypes(), rowTypeInfo.getFieldNames());

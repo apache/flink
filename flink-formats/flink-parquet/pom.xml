@@ -78,7 +78,6 @@ under the License.
 			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
 
-
 		<!-- Optional Parquet Builders for Formats like Avro, Protobuf, Thrift -->
 
 		<dependency>

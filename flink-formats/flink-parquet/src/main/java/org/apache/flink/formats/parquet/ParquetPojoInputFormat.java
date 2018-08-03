@@ -105,11 +105,6 @@ public class ParquetPojoInputFormat<E> extends ParquetInputFormat<E> {
 
 	/**
 	 * Extracts the {@link TypeInformation}s  from {@link PojoTypeInfo} according to the given field name.
-	 *
-	 * @param pojoTypeInfo
-	 * @param fieldNames
-	 * @param <E>
-	 * @return
 	 */
 	private static <E> TypeInformation<?>[] extractTypeInfos(PojoTypeInfo<E> pojoTypeInfo, String[] fieldNames) {
 		Preconditions.checkNotNull(pojoTypeInfo);

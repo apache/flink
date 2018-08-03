@@ -35,7 +35,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Simple test case for conversion between Parquet schema and Flink date types.
  */
-public class ParquetUtilTest extends TestUtil {
+public class ParquetSchemaConverterTest extends TestUtil {
 	private final RowTypeInfo simplyRowType = new RowTypeInfo(
 		new TypeInformation[] {BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
 		new String[] {"foo", "bar"}
@@ -75,26 +75,26 @@ public class ParquetUtilTest extends TestUtil {
 	@Test
 	public void testSimpleSchemaConversion() {
 		MessageType simpleType = new MessageType("simple", SIMPLE_TYPES);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetUtil.fromParquetType(simpleType);
+		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType);
 		assertEquals(simplyRowType, rowTypeInfo);
 	}
 
 	@Test
 	public void testNestedSchemaConversion() {
 		MessageType nestedTypes = new MessageType("nested", NESTED_TYPES);
-		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetUtil.fromParquetType(nestedTypes);
+		RowTypeInfo rowTypeInfo = (RowTypeInfo) ParquetSchemaConverter.fromParquetType(nestedTypes);
 		assertEquals(nestedRowType, rowTypeInfo);
 	}
 
 	@Test
 	public void testSimpleRowTypeConversion() {
-		MessageType simpleSchema = ParquetUtil.toParquetType(simplyRowType);
+		MessageType simpleSchema = ParquetSchemaConverter.toParquetType(simplyRowType);
 		assertEquals(Arrays.asList(SIMPLE_TYPES), simpleSchema.getFields());
 	}
 
 	@Test
 	public void testNestedRowTypeConversion() {
-		MessageType nestedSchema = ParquetUtil.toParquetType(nestedRowType);
+		MessageType nestedSchema = ParquetSchemaConverter.toParquetType(nestedRowType);
 		assertEquals(Arrays.asList(NESTED_TYPES), nestedSchema.getFields());
 	}
 }

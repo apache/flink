@@ -46,7 +46,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /**
- *
+ * Simple test case for reading parquet records.
  */
 public class ParquetRecordReaderTest extends TestUtil {
 

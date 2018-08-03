@@ -38,7 +38,7 @@ public class RowReadSupport extends ReadSupport<Row> {
 
 	@Override
 	public ReadContext init(InitContext initContext) {
-		returnTypeInfo = ParquetUtil.fromParquetType(initContext.getFileSchema());
+		returnTypeInfo = ParquetSchemaConverter.fromParquetType(initContext.getFileSchema());
 		return new ReadContext(initContext.getFileSchema());
 	}
 

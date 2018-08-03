@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Converts an Parquet Record into Row.
+ * Extends from {@link GroupConverter} to convert an nested Parquet Record into Row.
  */
 public class RowConverter extends GroupConverter implements ParentDataHolder {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RowConverter.class);

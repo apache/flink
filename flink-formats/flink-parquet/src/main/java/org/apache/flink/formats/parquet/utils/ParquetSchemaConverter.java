@@ -38,9 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Schema conversion helper between Parquet and Row.
+ * Schema converter converts Parquet schema to and from Flink internal Types.
  */
-public class ParquetUtil {
+public class ParquetSchemaConverter {
 	public static final String MAP_KEY = "key";
 	public static final String MAP_VALUE = "value";
 	public static final String LIST_ELEMENT = "array";

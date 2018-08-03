@@ -48,8 +48,7 @@ import java.util.Set;
 import static org.apache.parquet.Preconditions.checkNotNull;
 
 /**
- *
- * @param <T>
+ * Customized {@link org.apache.parquet.hadoop.ParquetRecordReader} that support start read from particular position.
  */
 public class ParquetRecordReader<T> {
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetRecordReader.class);

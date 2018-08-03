@@ -63,7 +63,7 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.junit.Assert.assertEquals;
 
 /**
- *
+ * Utilities for testing schema conversion and test parquet file creation.
  */
 public class TestUtil {
 	@ClassRule
