@@ -304,8 +304,8 @@ class RocksDBListState<K, N, V>
 		StateSnapshotTransformerWrapper(StateSnapshotTransformer<T> elementTransformer, TypeSerializer<T> elementSerializer) {
 			this.elementTransformer = elementTransformer;
 			this.elementSerializer = elementSerializer;
-			this.transformStrategy = elementSerializer instanceof CollectionStateSnapshotTransformer ?
-				((CollectionStateSnapshotTransformer) elementSerializer).getFilterStrategy() :
+			this.transformStrategy = elementTransformer instanceof CollectionStateSnapshotTransformer ?
+				((CollectionStateSnapshotTransformer) elementTransformer).getFilterStrategy() :
 				CollectionStateSnapshotTransformer.TransformStrategy.TRANSFORM_ALL;
 		}
 
