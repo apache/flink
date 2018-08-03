@@ -91,6 +91,9 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Exponential backoff power constant for the list shards operation. */
 	private final double listShardsExpConstant;
 
+	/** Maximum attempts for the list shards operation. */
+	private final int listShardsMaxAttempts;
+
 	// ------------------------------------------------------------------------
 	//  getRecords() related performance settings
 	// ------------------------------------------------------------------------
@@ -146,6 +149,10 @@ public class KinesisProxy implements KinesisProxyInterface {
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT)));
+		this.listShardsMaxAttempts = Integer.valueOf(
+			configProps.getProperty(
+				ConsumerConfigConstants.LIST_SHARDS_RETRIES,
+				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_RETRIES)));
 
 		this.getRecordsBaseBackoffMillis = Long.valueOf(
 			configProps.getProperty(
@@ -409,7 +416,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		int attemptCount = 0;
 		// List Shards returns just the first 1000 shard entries. Make sure that all entries
 		// are taken up.
-		while (listShardsResults == null) { // retry until we get a result
+		while (attemptCount <= listShardsMaxAttempts && listShardsResults == null) { // retry until we get a result
 			try {
 
 				listShardsResults = kinesisClient.listShards(listShardsRequest);
@@ -433,6 +440,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 			} catch (ExpiredNextTokenException expiredToken) {
 				LOG.warn("List Shards has an expired token. Reusing the previous state.");
 				break;
+			} catch (SdkClientException ex) {
+				if (isRecoverableSdkClientException(ex)) {
+					long backoffMillis = fullJitterBackoff(
+						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, attemptCount++);
+					LOG.warn("Got SdkClientException when listing shards from stream {}. Backing off for {} millis.",
+						streamName, backoffMillis);
+					Thread.sleep(backoffMillis);
+				} else {
+					throw ex;
+				}
 			}
 		}
 		// Kinesalite (mock implementation of Kinesis) does not correctly exclude shards before
