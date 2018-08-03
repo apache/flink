@@ -540,6 +540,16 @@ function rollback_flink_slf4j_metric_reporter() {
   rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
 }
 
+function get_job_metric {
+  local job_id=$1
+  local metric_name=$2
+
+  local json=$(curl -s http://localhost:8081/jobs/${job_id}/metrics?get=${metric_name})
+  local metric_value=$(echo ${json} | sed -n 's/.*"value":"\(.*\)".*/\1/p')
+
+  echo ${metric_value}
+}
+
 function get_metric_processed_records {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
