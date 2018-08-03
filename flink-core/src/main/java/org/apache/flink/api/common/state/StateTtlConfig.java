@@ -246,6 +246,8 @@ public class StateTtlConfig implements Serializable {
 	 * Currently cleanup of state full snapshot can be additionally activated.
 	 */
 	public static class CleanupStrategies implements Serializable {
+		private static final long serialVersionUID = -1617740467277313524L;
+
 		/** Fixed strategies ordinals in {@code strategies} config field. */
 		enum Strategies {
 			FULL_STATE_SCAN_SNAPSHOT
