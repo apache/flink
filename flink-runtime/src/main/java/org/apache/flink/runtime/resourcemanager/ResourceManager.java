@@ -79,7 +79,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -896,9 +895,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		final CompletableFuture<Boolean> acceptLeadershipFuture = CompletableFuture.supplyAsync(
-			() -> tryAcceptLeadership(newLeaderSessionID),
-			getUnfencedMainThreadExecutor()).thenCompose(Function.identity());
+		final CompletableFuture<Boolean> acceptLeadershipFuture = clearStateFuture
+			.thenComposeAsync((ignored) -> tryAcceptLeadership(newLeaderSessionID), getUnfencedMainThreadExecutor());
 
 		final CompletableFuture<Void> confirmationFuture = acceptLeadershipFuture.thenAcceptAsync(
 			(acceptLeadership) -> {
@@ -932,9 +930,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
-			return clearStateFuture
-				.thenComposeAsync((Void ignored) -> prepareLeadershipAsync(), getMainThreadExecutor())
-				.thenApply(ignored -> true);
+			return prepareLeadershipAsync().thenApply(ignored -> true);
 		} else {
 			return CompletableFuture.completedFuture(false);
 		}
