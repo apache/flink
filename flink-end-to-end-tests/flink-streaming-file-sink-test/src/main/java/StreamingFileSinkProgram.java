@@ -99,15 +99,13 @@ public enum StreamingFileSinkProgram {
 	/**
 	 * Data-generating source function.
 	 */
-	public static final class Generator implements SourceFunction<Tuple2<Integer, Integer>>, ListCheckpointed<Tuple2<Integer, Long>> {
+	public static final class Generator implements SourceFunction<Tuple2<Integer, Integer>>, ListCheckpointed<Integer> {
 
 		private static final long serialVersionUID = -2819385275681175792L;
 
 		private final int numKeys;
 		private final int idlenessMs;
-		private final int durationMs;
-
-		private long ms = 0L;
+		private final int recordsToEmit;
 
 		private volatile int numRecordsEmitted = 0;
 		private volatile boolean canceled = false;
@@ -115,18 +113,18 @@ public enum StreamingFileSinkProgram {
 		Generator(final int numKeys, final int idlenessMs, final int durationSeconds) {
 			this.numKeys = numKeys;
 			this.idlenessMs = idlenessMs;
-			this.durationMs = durationSeconds * 1000;
+
+			this.recordsToEmit = ((durationSeconds * 1000) / idlenessMs) * numKeys;
 		}
 
 		@Override
 		public void run(final SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-			while (ms < durationMs) {
+			while (numRecordsEmitted < recordsToEmit) {
 				synchronized (ctx.getCheckpointLock()) {
 					for (int i = 0; i < numKeys; i++) {
 						ctx.collect(Tuple2.of(i, numRecordsEmitted));
 						numRecordsEmitted++;
 					}
-					ms += idlenessMs;
 				}
 				Thread.sleep(idlenessMs);
 			}
@@ -143,15 +141,14 @@ public enum StreamingFileSinkProgram {
 		}
 
 		@Override
-		public List<Tuple2<Integer, Long>> snapshotState(final long checkpointId, final long timestamp) {
-			return Collections.singletonList(Tuple2.of(numRecordsEmitted, ms));
+		public List<Integer> snapshotState(final long checkpointId, final long timestamp) {
+			return Collections.singletonList(numRecordsEmitted);
 		}
 
 		@Override
-		public void restoreState(final List<Tuple2<Integer, Long>> states) {
-			for (final Tuple2<Integer, Long> state : states) {
-				numRecordsEmitted += state.f0;
-				ms += state.f1;
+		public void restoreState(final List<Integer> states) {
+			for (final Integer state : states) {
+				numRecordsEmitted += state;
 			}
 		}
 	}
