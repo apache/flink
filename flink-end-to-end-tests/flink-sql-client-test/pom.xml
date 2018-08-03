@@ -79,6 +79,18 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Pick an arbitrary version here to satisfy the enforcer-plugin,
+					as we neither access nor package the kafka dependencies -->
+				<groupId>org.apache.kafka</groupId>
+				<artifactId>kafka-clients</artifactId>
+				<version>0.11.0.2</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
 			<!-- Build toolbox jar. -->
