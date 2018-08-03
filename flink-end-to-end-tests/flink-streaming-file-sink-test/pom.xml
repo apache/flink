@@ -28,7 +28,6 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-streaming-file-sink-test</artifactId>
-	<version>1.7-SNAPSHOT</version>
 
 	<dependencies>
 		<dependency>
