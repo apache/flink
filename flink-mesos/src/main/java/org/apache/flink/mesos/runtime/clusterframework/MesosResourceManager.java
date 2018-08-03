@@ -141,12 +141,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	private MesosConfiguration initializedMesosConfig;
 
-	/**
-	 * Future that will be created in {@link #clearState()}.
-	 * Represents asynchronous state clearing work.
-	 */
-	private CompletableFuture<Void> clearStateFuture = CompletableFuture.completedFuture(null);
-
 	public MesosResourceManager(
 			// base class
 			RpcService rpcService,
@@ -273,40 +267,38 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	protected CompletableFuture<Void> prepareLeadershipAsync() {
 		Preconditions.checkState(initializedMesosConfig != null);
 
-		return clearStateFuture
-			.thenRunAsync(() -> {
-				schedulerDriver = initializedMesosConfig.createDriver(
-					new MesosResourceManagerSchedulerCallback(),
-					false);
+		schedulerDriver = initializedMesosConfig.createDriver(
+			new MesosResourceManagerSchedulerCallback(),
+			false);
 
-				// create supporting actors
-				connectionMonitor = createConnectionMonitor();
-				launchCoordinator = createLaunchCoordinator(schedulerDriver, selfActor);
-				reconciliationCoordinator = createReconciliationCoordinator(schedulerDriver);
-				taskMonitor = createTaskMonitor(schedulerDriver);
-			}, getMainThreadExecutor())
-			.thenCombineAsync(getWorkersAsync(), (ignored, tasksFromPreviousAttempts) -> {
-				// recover state
-				recoverWorkers(tasksFromPreviousAttempts);
+		// create supporting actors
+		connectionMonitor = createConnectionMonitor();
+		launchCoordinator = createLaunchCoordinator(schedulerDriver, selfActor);
+		reconciliationCoordinator = createReconciliationCoordinator(schedulerDriver);
+		taskMonitor = createTaskMonitor(schedulerDriver);
 
-				// begin scheduling
-				connectionMonitor.tell(new ConnectionMonitor.Start(), selfActor);
-				schedulerDriver.start();
+		return getWorkersAsync().thenApplyAsync((tasksFromPreviousAttempts) -> {
+			// recover state
+			recoverWorkers(tasksFromPreviousAttempts);
 
-				LOG.info("Mesos resource manager started.");
-				return null;
-			}, getMainThreadExecutor());
+			// begin scheduling
+			connectionMonitor.tell(new ConnectionMonitor.Start(), selfActor);
+			schedulerDriver.start();
+
+			LOG.info("Mesos resource manager started.");
+			return null;
+		}, getMainThreadExecutor());
 	}
 
 	@Override
-	protected void clearState() {
+	protected CompletableFuture<Void> clearStateAsync() {
 		schedulerDriver.stop(true);
 
 		workersInNew.clear();
 		workersInLaunch.clear();
 		workersBeingReturned.clear();
 
-		clearStateFuture = stopSupportingActorsAsync();
+		return stopSupportingActorsAsync();
 	}
 
 	/**
@@ -391,7 +383,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	@Override
 	public CompletableFuture<Void> postStop() {
-		return super.postStop().thenCompose((ignored) -> stopSupportingActorsAsync());
+		return stopSupportingActorsAsync().thenCompose((ignored) -> super.postStop());
 	}
 
 	@Override

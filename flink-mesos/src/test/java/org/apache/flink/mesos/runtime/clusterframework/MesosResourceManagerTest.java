@@ -505,6 +505,7 @@ public class MesosResourceManagerTest extends TestLogger {
 		@Override
 		public void close() throws Exception {
 			rpcService.stopService().get();
+			fatalErrorHandler.rethrowError();
 		}
 	}
 

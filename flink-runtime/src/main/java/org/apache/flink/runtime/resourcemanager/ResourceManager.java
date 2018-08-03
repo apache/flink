@@ -79,6 +79,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -138,6 +139,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 	/** All registered listeners for status updates of the ResourceManager. */
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
+
+	/**
+	 * Represents asynchronous state clearing work.
+	 *
+	 * @see #clearStateAsync()
+	 * @see #clearStateInternal()
+	 */
+	private CompletableFuture<Void> clearStateFuture = CompletableFuture.completedFuture(null);
 
 	public ResourceManager(
 			RpcService rpcService,
@@ -734,13 +743,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		} catch (Exception e) {
 			onFatalError(new ResourceManagerException("Could not properly clear the job leader id service.", e));
 		}
-		clearState();
+		clearStateFuture = clearStateAsync();
 	}
-
-	/**
-	 * Callback to clear state on leadership revocation.
-	 */
-	protected void clearState() {}
 
 	/**
 	 * This method should be called by the framework once it detects that a currently registered
@@ -892,30 +896,48 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		runAsyncWithoutFencing(
-			() -> {
-				final ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);
+		final CompletableFuture<Boolean> acceptLeadershipFuture = CompletableFuture.supplyAsync(
+			() -> tryAcceptLeadership(newLeaderSessionID),
+			getUnfencedMainThreadExecutor()).thenCompose(Function.identity());
 
-				log.info("ResourceManager {} was granted leadership with fencing token {}", getAddress(), newResourceManagerId);
-
-				// clear the state if we've been the leader before
-				if (getFencingToken() != null) {
-					clearStateInternal();
+		final CompletableFuture<Void> confirmationFuture = acceptLeadershipFuture.thenAcceptAsync(
+			(acceptLeadership) -> {
+				if (acceptLeadership) {
+					// confirming the leader session ID might be blocking,
+					leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
 				}
+			},
+			getRpcService().getExecutor());
 
-				setFencingToken(newResourceManagerId);
-
-				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
-
-				prepareLeadershipAsync()
-					.thenRunAsync(() ->
-						// confirming the leader session ID might be blocking,
-						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID), getRpcService().getExecutor())
-					.exceptionally(t -> {
-						onFatalError(t);
-						return null;
-					});
+		confirmationFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					onFatalError(ExceptionUtils.stripCompletionException(throwable));
+				}
 			});
+	}
+
+	private CompletableFuture<Boolean> tryAcceptLeadership(final UUID newLeaderSessionID) {
+		if (leaderElectionService.hasLeadership(newLeaderSessionID)) {
+			final ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);
+
+			log.info("ResourceManager {} was granted leadership with fencing token {}", getAddress(), newResourceManagerId);
+
+			// clear the state if we've been the leader before
+			if (getFencingToken() != null) {
+				clearStateInternal();
+			}
+
+			setFencingToken(newResourceManagerId);
+
+			slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
+
+			return clearStateFuture
+				.thenComposeAsync((Void ignored) -> prepareLeadershipAsync(), getMainThreadExecutor())
+				.thenApply(ignored -> true);
+		} else {
+			return CompletableFuture.completedFuture(false);
+		}
 	}
 
 	/**
@@ -964,6 +986,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * @return Returns a {@code CompletableFuture} that completes when the computation is finished.
 	 */
 	protected CompletableFuture<Void> prepareLeadershipAsync() {
+		return CompletableFuture.completedFuture(null);
+	}
+
+	/**
+	 * This method can be overridden to add a (non-blocking) state clearing routine to the
+	 * ResourceManager that will be called when leadership is revoked.
+	 *
+	 * @return Returns a {@code CompletableFuture} that completes when the state clearing routine
+	 * is finished.
+	 */
+	protected CompletableFuture<Void> clearStateAsync() {
 		return CompletableFuture.completedFuture(null);
 	}
 
