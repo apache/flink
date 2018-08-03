@@ -28,14 +28,14 @@ import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 public class ShardMetricsReporter {
 
 	private volatile long millisBehindLatest = -1;
-	private volatile double loopFrequencyHz = 0.0;
-	private volatile double bytesPerRead = 0.0;
-	private volatile long runLoopTimeNanos = 0L;
-	private volatile long averageRecordSizeBytes = 0L;
-	private volatile long sleepTimeMillis = 0L;
-	private volatile int numberOfAggregatedRecords = 0;
-	private volatile int numberOfDeaggregatedRecords = 0;
-	private volatile int maxNumberOfRecordsPerFetch = 0;
+	private volatile double loopFrequencyHz = -1.0;
+	private volatile double bytesPerRead = -1.0;
+	private volatile long runLoopTimeNanos = -1;
+	private volatile long averageRecordSizeBytes = -1;
+	private volatile long sleepTimeMillis = -1;
+	private volatile int numberOfAggregatedRecords = -1;
+	private volatile int numberOfDeaggregatedRecords = -1;
+	private volatile int maxNumberOfRecordsPerFetch = -1;
 
 	public long getMillisBehindLatest() {
 		return millisBehindLatest;
