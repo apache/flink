@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
@@ -24,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
@@ -41,8 +43,8 @@ import java.util.stream.Stream;
 /**
  * This implementation of {@link StateTable} uses nested {@link HashMap} objects. It is also maintaining a partitioning
  * by key-group.
- * <p>
- * In contrast to {@link CopyOnWriteStateTable}, this implementation does not support asynchronous snapshots. However,
+ *
+ * <p>In contrast to {@link CopyOnWriteStateTable}, this implementation does not support asynchronous snapshots. However,
  * it might have a better memory footprint for some use-cases, e.g. it is naturally de-duplicating namespace objects.
  *
  * @param <K> type of key.
@@ -59,7 +61,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	private final Map<N, Map<K, S>>[] state;
 
 	/**
-	 * The offset to the contiguous key groups
+	 * The offset to the contiguous key groups.
 	 */
 	private final int keyGroupOffset;
 
@@ -317,7 +319,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	@Nonnull
 	@Override
 	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(this);
+		return new NestedMapsStateTableSnapshot<>(this, metaInfo.getSnapshotTransformer());
 	}
 
 	/**
@@ -330,9 +332,17 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	static class NestedMapsStateTableSnapshot<K, N, S>
 			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>>
 			implements StateSnapshot.StateKeyGroupWriter {
+		private final TypeSerializer<K> keySerializer;
+		private final TypeSerializer<N> namespaceSerializer;
+		private final TypeSerializer<S> stateSerializer;
+		private final StateSnapshotTransformer<S> snapshotFilter;
 
-		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable) {
+		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable, StateSnapshotTransformer<S> snapshotFilter) {
 			super(owningTable);
+			this.snapshotFilter = snapshotFilter;
+			this.keySerializer = owningStateTable.keyContext.getKeySerializer();
+			this.namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
+			this.stateSerializer = owningStateTable.metaInfo.getStateSerializer();
 		}
 
 		@Nonnull
@@ -350,8 +360,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		/**
 		 * Implementation note: we currently chose the same format between {@link NestedMapsStateTable} and
 		 * {@link CopyOnWriteStateTable}.
-		 * <p>
-		 * {@link NestedMapsStateTable} could naturally support a kind of
+		 *
+		 * <p>{@link NestedMapsStateTable} could naturally support a kind of
 		 * prefix-compressed format (grouping by namespace, writing the namespace only once per group instead for each
 		 * mapping). We might implement support for different formats later (tailored towards different state table
 		 * implementations).
@@ -360,23 +370,45 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		public void writeStateInKeyGroup(@Nonnull DataOutputView dov, int keyGroupId) throws IOException {
 			final Map<N, Map<K, S>> keyGroupMap = owningStateTable.getMapForKeyGroup(keyGroupId);
 			if (null != keyGroupMap) {
-				TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();
-				TypeSerializer<N> namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
-				TypeSerializer<S> stateSerializer = owningStateTable.metaInfo.getStateSerializer();
-				dov.writeInt(countMappingsInKeyGroup(keyGroupMap));
-				for (Map.Entry<N, Map<K, S>> namespaceEntry : keyGroupMap.entrySet()) {
+				Map<N, Map<K, S>> filteredMappings = filterMappingsInKeyGroupIfNeeded(keyGroupMap);
+				dov.writeInt(countMappingsInKeyGroup(filteredMappings));
+				for (Map.Entry<N, Map<K, S>> namespaceEntry : filteredMappings.entrySet()) {
 					final N namespace = namespaceEntry.getKey();
 					final Map<K, S> namespaceMap = namespaceEntry.getValue();
-
 					for (Map.Entry<K, S> keyEntry : namespaceMap.entrySet()) {
-						namespaceSerializer.serialize(namespace, dov);
-						keySerializer.serialize(keyEntry.getKey(), dov);
-						stateSerializer.serialize(keyEntry.getValue(), dov);
+						writeElement(namespace, keyEntry, dov);
 					}
 				}
 			} else {
 				dov.writeInt(0);
 			}
+		}
+
+		private void writeElement(N namespace, Map.Entry<K, S> keyEntry, DataOutputView dov) throws IOException {
+			namespaceSerializer.serialize(namespace, dov);
+			keySerializer.serialize(keyEntry.getKey(), dov);
+			stateSerializer.serialize(keyEntry.getValue(), dov);
+		}
+
+		private Map<N, Map<K, S>> filterMappingsInKeyGroupIfNeeded(final Map<N, Map<K, S>> keyGroupMap) {
+			return snapshotFilter == null ?
+				keyGroupMap : filterMappingsInKeyGroup(keyGroupMap);
+		}
+
+		private Map<N, Map<K, S>> filterMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
+			Map<N, Map<K, S>> filtered = new HashMap<>();
+			for (Map.Entry<N, Map<K, S>> namespaceEntry : keyGroupMap.entrySet()) {
+				N namespace = namespaceEntry.getKey();
+				Map<K, S> filteredNamespaceMap = filtered.computeIfAbsent(namespace, n -> new HashMap<>());
+				for (Map.Entry<K, S> keyEntry : namespaceEntry.getValue().entrySet()) {
+					K key = keyEntry.getKey();
+					S transformedvalue = snapshotFilter.filterOrTransform(keyEntry.getValue());
+					if (transformedvalue != null) {
+						filteredNamespaceMap.put(key, transformedvalue);
+					}
+				}
+			}
+			return filtered;
 		}
 	}
 }
