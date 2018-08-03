@@ -302,11 +302,11 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	protected void clearState() {
 		schedulerDriver.stop(true);
 
-		clearStateFuture = stopSupportingActorsAsync().thenRunAsync(() -> {
-			workersInNew.clear();
-			workersInLaunch.clear();
-			workersBeingReturned.clear();
-		}, getUnfencedMainThreadExecutor());
+		workersInNew.clear();
+		workersInLaunch.clear();
+		workersBeingReturned.clear();
+
+		clearStateFuture = stopSupportingActorsAsync();
 	}
 
 	/**
@@ -391,13 +391,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 	@Override
 	public CompletableFuture<Void> postStop() {
-		final CompletableFuture<Void> supportActorsStopFuture = stopSupportingActorsAsync();
-
-		final CompletableFuture<Void> terminationFuture = super.postStop();
-
-		return supportActorsStopFuture.thenCombine(
-			terminationFuture,
-			(Void voidA, Void voidB) -> null);
+		return super.postStop().thenCompose((ignored) -> stopSupportingActorsAsync());
 	}
 
 	@Override
@@ -670,10 +664,15 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	 * Tries to shut down the given actor gracefully.
 	 *
 	 * @param actorRef specifying the actor to shut down
-	 * @param timeout for the graceful shut down
-	 * @return Future containing the result of the graceful shut down
+	 * @param timeout  for the graceful shut down
+	 * @return A future that finishes with {@code true} iff. the actor could be stopped gracefully
+	 * or {@code actorRef} was {@code null}.
 	 */
-	private CompletableFuture<Boolean> stopActor(final ActorRef actorRef, FiniteDuration timeout) {
+	private CompletableFuture<Boolean> stopActor(@Nullable final ActorRef actorRef, FiniteDuration timeout) {
+		if (actorRef == null) {
+			return CompletableFuture.completedFuture(true);
+		}
+
 		return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
 			.exceptionally(
 				(Throwable throwable) -> {
@@ -682,7 +681,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 					log.warn("Could not stop actor {} gracefully.", actorRef.path(), throwable);
 
-					return true;
+					return false;
 				}
 			);
 	}

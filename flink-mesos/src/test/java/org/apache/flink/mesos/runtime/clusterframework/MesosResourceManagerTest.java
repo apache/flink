@@ -809,18 +809,21 @@ public class MesosResourceManagerTest extends TestLogger {
 	}
 
 	@Test
-	public void testClearStateRevokeLeadership() throws Exception {
+	public void testClearStateAfterRevokeLeadership() throws Exception {
 		new Context() {{
-			MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1).launchWorker(slave1, slave1host);
+			final MesosWorkerStore.Worker worker1 = MesosWorkerStore.Worker.newWorker(task1);
+			final MesosWorkerStore.Worker worker2 = MesosWorkerStore.Worker.newWorker(task2).launchWorker(slave1, slave1host);
+			final MesosWorkerStore.Worker worker3 = MesosWorkerStore.Worker.newWorker(task3).launchWorker(slave1, slave1host).releaseWorker();
 			when(rmServices.workerStore.getFrameworkID()).thenReturn(Option.apply(framework1));
-			when(rmServices.workerStore.recoverWorkers()).thenReturn(Collections.singletonList(worker1)).thenReturn(Collections.emptyList());
+			when(rmServices.workerStore.recoverWorkers()).thenReturn(Arrays.asList(worker1, worker2, worker3)).thenReturn(Collections.emptyList());
 
 			startResourceManager();
 			rmServices.rmLeaderElectionService.notLeader();
 			rmServices.grantLeadership();
 
-			//resourceManager.stateCleared.await(5, TimeUnit.SECONDS);
+			assertThat(resourceManager.workersInNew.size(), equalTo(0));
 			assertThat(resourceManager.workersInLaunch.size(), equalTo(0));
+			assertThat(resourceManager.workersBeingReturned.size(), equalTo(0));
 			verify(rmServices.schedulerDriver).stop(true);
 		}};
 	}

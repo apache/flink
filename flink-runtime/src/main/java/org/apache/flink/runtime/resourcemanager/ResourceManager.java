@@ -908,13 +908,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
 				prepareLeadershipAsync()
+					.thenRunAsync(() ->
+						// confirming the leader session ID might be blocking,
+						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID), getRpcService().getExecutor())
 					.exceptionally(t -> {
 						onFatalError(t);
 						return null;
-					})
-					.thenRunAsync(() ->
-						// confirming the leader session ID might be blocking,
-						leaderElectionService.confirmLeaderSessionID(newLeaderSessionID), getRpcService().getExecutor());
+					});
 			});
 	}
 
