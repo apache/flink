@@ -89,9 +89,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		if (!inputChannels.containsKey(listener.getInputChannelId())) {
-			inputChannels.put(listener.getInputChannelId(), listener);
-		}
+		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
 	}
 
 	@Override
@@ -112,12 +110,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
 	@Override
 	public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-		ctx.executor().execute(new Runnable() {
-			@Override
-			public void run() {
-				ctx.pipeline().fireUserEventTriggered(inputChannel);
-			}
-		});
+		ctx.executor().execute(() -> ctx.pipeline().fireUserEventTriggered(inputChannel));
 	}
 
 	// ------------------------------------------------------------------------
