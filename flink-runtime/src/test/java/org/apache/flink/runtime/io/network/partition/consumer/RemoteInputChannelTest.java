@@ -106,10 +106,33 @@ public class RemoteInputChannelTest {
 
 	@Test
 	public void testConcurrentOnBufferAndRelease() throws Exception {
-		// Config
-		// Repeatedly spawn two tasks: one to queue buffers and the other to release the channel
-		// concurrently. We do this repeatedly to provoke races.
-		final int numberOfRepetitions = 8192;
+		testConcurrentReleaseAndSomething(8192, (inputChannel, buffer, j) -> {
+			inputChannel.onBuffer(buffer, j, -1);
+			return null;
+		});
+	}
+
+	@Test
+	public void testConcurrentNotifyBufferAvailableAndRelease() throws Exception {
+		testConcurrentReleaseAndSomething(1024, (inputChannel, buffer, j) ->
+			inputChannel.notifyBufferAvailable(buffer)
+		);
+	}
+
+	private interface TriFunction<T, U, V, R> {
+		R apply(T t, U u, V v) throws Exception;
+	}
+
+	/**
+	 * Repeatedly spawns two tasks: one to call <tt>function</tt> and the other to release the
+	 * channel concurrently. We do this repeatedly to provoke races.
+	 *
+	 * @param numberOfRepetitions how often to repeat the test
+	 * @param function function to call concurrently to {@link RemoteInputChannel#releaseAllResources()}
+	 */
+	private void testConcurrentReleaseAndSomething(
+			final int numberOfRepetitions,
+			TriFunction<RemoteInputChannel, Buffer, Integer, Object> function) throws Exception {
 
 		// Setup
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -122,30 +145,23 @@ public class RemoteInputChannelTest {
 			for (int i = 0; i < numberOfRepetitions; i++) {
 				final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 
-				final Callable<Void> enqueueTask = new Callable<Void>() {
-					@Override
-					public Void call() throws Exception {
-						while (true) {
-							for (int j = 0; j < 128; j++) {
-								// this is the same buffer over and over again which will be
-								// recycled by the RemoteInputChannel
-								inputChannel.onBuffer(buffer.retainBuffer(), j, -1);
-							}
+				final Callable<Void> enqueueTask = () -> {
+					while (true) {
+						for (int j = 0; j < 128; j++) {
+							// this is the same buffer over and over again which will be
+							// recycled by the RemoteInputChannel
+							function.apply(inputChannel, buffer.retainBuffer(), j);
+						}
 
-							if (inputChannel.isReleased()) {
-								return null;
-							}
+						if (inputChannel.isReleased()) {
+							return null;
 						}
 					}
 				};
 
-				final Callable<Void> releaseTask = new Callable<Void>() {
-					@Override
-					public Void call() throws Exception {
-						inputChannel.releaseAllResources();
-
-						return null;
-					}
+				final Callable<Void> releaseTask = () -> {
+					inputChannel.releaseAllResources();
+					return null;
 				};
 
 				// Submit tasks and wait to finish
@@ -158,8 +174,8 @@ public class RemoteInputChannelTest {
 					result.get();
 				}
 
-				assertEquals("Resource leak during concurrent release and enqueue.",
-						0, inputChannel.getNumberOfQueuedBuffers());
+				assertEquals("Resource leak during concurrent release and notifyBufferAvailable.",
+					0, inputChannel.getNumberOfQueuedBuffers());
 			}
 		}
 		finally {
