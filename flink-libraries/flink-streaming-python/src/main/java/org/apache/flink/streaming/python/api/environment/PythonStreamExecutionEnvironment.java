@@ -236,6 +236,27 @@ public class PythonStreamExecutionEnvironment {
 	}
 
 	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#setMaxParallelism(int)}.
+	 *
+	 * @param maxParallelism Maximum degree of parallelism to be used for the program.,
+	 *              with 0 < maxParallelism <= 2^15 - 1
+	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller
+	 */
+	public PythonStreamExecutionEnvironment set_max_parallelism(int maxParallelism) {
+		this.env.setMaxParallelism(maxParallelism);
+		return this;
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getMaxParallelism()}.
+	 *
+	 * @return Maximum degree of parallelism
+	 */
+	public int get_max_parallelism() {
+		return this.env.getMaxParallelism();
+	}
+
+	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#execute()}.
 	 *
 	 * @return The result of the job execution
