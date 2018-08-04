@@ -236,6 +236,15 @@ public class PythonStreamExecutionEnvironment {
 	}
 
 	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getParallelism()}.
+	 *
+	 * @return The parallelism used by operations, unless they override that value.
+	 */
+	public int get_parallelism() {
+		return this.env.getParallelism();
+	}
+
+	/**
 	 * A thin wrapper layer over {@link StreamExecutionEnvironment#execute()}.
 	 *
 	 * @return The result of the job execution
