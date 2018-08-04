@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -186,6 +187,10 @@ public class Buckets<IN, BucketID> {
 	}
 
 	private void updateActiveBucketId(final BucketID bucketId, final Bucket<IN, BucketID> restoredBucket) throws IOException {
+		if (!restoredBucket.isActive()) {
+			return;
+		}
+
 		final Bucket<IN, BucketID> bucket = activeBuckets.get(bucketId);
 		if (bucket != null) {
 			bucket.merge(restoredBucket);
@@ -223,6 +228,9 @@ public class Buckets<IN, BucketID> {
 
 		LOG.info("Subtask {} checkpointing for checkpoint with id={} (max part counter={}).",
 				subtaskIndex, checkpointId, maxPartCounter);
+
+		bucketStatesContainer.clear();
+		partCounterStateContainer.clear();
 
 		snapshotActiveBuckets(checkpointId, bucketStatesContainer);
 		partCounterStateContainer.add(maxPartCounter);
@@ -340,5 +348,17 @@ public class Buckets<IN, BucketID> {
 		public Long timestamp() {
 			return elementTimestamp;
 		}
+	}
+
+	// --------------------------- Testing Methods -----------------------------
+
+	@VisibleForTesting
+	public long getMaxPartCounter() {
+		return maxPartCounter;
+	}
+
+	@VisibleForTesting
+	Map<BucketID, Bucket<IN, BucketID>> getActiveBuckets() {
+		return activeBuckets;
 	}
 }
