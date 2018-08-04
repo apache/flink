@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.TimeZone;
 
 /**
  * A {@link Bucketer} that assigns to buckets based on current system time.
@@ -39,7 +40,7 @@ import java.util.Date;
  *
  *
  * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
- * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
+ * the date format string with a timezone. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  *
@@ -61,26 +62,49 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	private static final String DEFAULT_FORMAT_STRING = "yyyy-MM-dd--HH";
 
 	private final String formatString;
+	private final TimeZone timeZone;
 
 	private transient SimpleDateFormat dateFormatter;
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"}.
+	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"} using JVM's default timezone.
 	 */
 	public DateTimeBucketer() {
 		this(DEFAULT_FORMAT_STRING);
 	}
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with the given date/time format string.
+	 * Creates a new {@code DateTimeBucketer} with the given date/time format string using JVM's default timezone.
 	 *
 	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
 	 *                     the bucket path.
 	 */
 	public DateTimeBucketer(String formatString) {
+		this(formatString, TimeZone.getDefault());
+	}
+
+	/**
+	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"} using the given timezone.
+	 *
+	 * @param timeZone The timezone used to format {@code SimpleDateFormat} for bucket path.
+	 */
+	public DateTimeBucketer(TimeZone timeZone) {
+		this(DEFAULT_FORMAT_STRING, timeZone);
+	}
+
+	/**
+	 * Creates a new {@code DateTimeBucketer} with the given date/time format string using the given timezone.
+	 *
+	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
+	 *                     the bucket path.
+	 * @param timeZone The timezone used to format {@code SimpleDateFormat} for bucket path.
+	 */
+	public DateTimeBucketer(String formatString, TimeZone timeZone) {
 		this.formatString = formatString;
+		this.timeZone = timeZone;
 
 		this.dateFormatter = new SimpleDateFormat(formatString);
+		this.dateFormatter.setTimeZone(this.timeZone);
 	}
 
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -98,7 +122,8 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	@Override
 	public String toString() {
 		return "DateTimeBucketer{" +
-				"formatString='" + formatString + '\'' +
-				'}';
+			"formatString='" + formatString + '\'' +
+			", timeZone=" + timeZone +
+			'}';
 	}
 }
