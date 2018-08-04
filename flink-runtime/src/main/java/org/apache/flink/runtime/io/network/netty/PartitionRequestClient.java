@@ -171,10 +171,7 @@ public class PartitionRequestClient {
 	}
 
 	public void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-		// We should skip the notification if the client is already closed.
-		if (!closeReferenceCounter.isDisposed()) {
-			clientHandler.notifyCreditAvailable(inputChannel);
-		}
+		clientHandler.notifyCreditAvailable(inputChannel);
 	}
 
 	public void close(RemoteInputChannel inputChannel) throws IOException {
