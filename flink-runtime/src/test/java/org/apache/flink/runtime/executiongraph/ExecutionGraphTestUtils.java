@@ -97,13 +97,12 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Waits until the job has reached a certain state.
+	 * Waits until the Job has reached a certain state.
 	 *
 	 * <p>This method is based on polling and might miss very fast state transitions!
 	 */
 	public static void waitUntilJobStatus(ExecutionGraph eg, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(eg);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
@@ -118,7 +117,9 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException("The job did not reach status " + status + " in time. Current status is " + eg.getState() + '.');
+			throw new TimeoutException(
+				String.format("The job did not reach status %s in time. Current status is %s.",
+					status, eg.getState()));
 		}
 	}
 
@@ -129,7 +130,6 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void waitUntilExecutionState(Execution execution, ExecutionState state, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(execution);
 		checkNotNull(state);
 		checkArgument(maxWaitMillis >= 0);
@@ -144,7 +144,47 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException(
+				String.format("The execution did not reach state %s in time. Current state is %s.",
+					state, execution.getState()));
+		}
+	}
+
+	/**
+	 * Waits until the ExecutionVertex has reached a certain state.
+	 *
+	 * <p>This method is based on polling and might miss very fast state transitions!
+	 */
+	public static void waitUntilExecutionVertexState(ExecutionVertex executionVertex, ExecutionState state, long maxWaitMillis)
+		throws TimeoutException {
+		checkNotNull(executionVertex);
+		checkNotNull(state);
+		checkArgument(maxWaitMillis >= 0);
+
+		// this is a poor implementation - we may want to improve it eventually
+		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
+
+		while (true) {
+			Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+			if (execution == null || (execution.getState() != state && System.nanoTime() < deadline)) {
+				try {
+					Thread.sleep(2);
+				} catch (InterruptedException ignored) { }
+			} else {
+				break;
+			}
+
+			if (System.nanoTime() >= deadline) {
+				if (execution != null) {
+					throw new TimeoutException(
+						String.format("The execution vertex did not reach state %s in time. Current state is %s.",
+							state, execution.getState()));
+				} else {
+					throw new TimeoutException(
+						"Cannot get current execution attempt of " + executionVertex + '.');
+				}
+			}
 		}
 	}
 
@@ -201,7 +241,6 @@ public class ExecutionGraphTestUtils {
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(region);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
