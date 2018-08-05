@@ -2376,6 +2376,18 @@ TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
         <p>Returns a string that removes leading and/or trailing characters <i>string1</i> from <i>string2</i>. By default, whitespaces at both sides are removed.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+LTRIM(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>string</i>.</p> 
+        <p>E.g., <code>LTRIM(' This is a test String.')</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -2570,6 +2582,18 @@ STRING1.trim()
     <tr>
       <td>
         {% highlight java %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight java %}
 STRING1.overlay(STRING2, INT1)
 STRING1.overlay(STRING2, INT1, INT2)
 {% endhighlight %}
@@ -2674,7 +2698,6 @@ STRING.toBase64()
          <p>E.g., <code>'hello world'.toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
-    
   </tbody>
 </table>
 </div>
@@ -2756,6 +2779,18 @@ STRING.trim(
       </td>
       <td>
         <p>Returns a string that removes leading and/or trailing characters from <i>STRING</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>" This is a test String.".ltrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
 

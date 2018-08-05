@@ -172,7 +172,7 @@ trait ImplicitExpressionOperations {
     * If all values are null, 0 is returned.
     */
   def sum0 = Sum0(expr)
-  
+
   /**
     * Returns the minimum value of field across all input values.
     */
@@ -562,6 +562,11 @@ trait ImplicitExpressionOperations {
     * Returns the base64-encoded result of the input string.
     */
   def toBase64() = ToBase64(expr)
+
+  /**
+    * Returns a string that removes the left whitespaces from the given string.
+    */
+  def ltrim() = LTrim(expr)
 
   // Temporal operations
 
