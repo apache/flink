@@ -2313,7 +2313,7 @@ STRING.hex()
 {% endhighlight %}
      </td>
     <td>
-      <p>Returns a string representation of an integer numeric value or a string in hex format. Returns null if numeric is null. E.g. "20" leads to "14", "100" leads to "64", "hello,world" leads to "68656c6c6f2c776f726c64".</p>
+      <p>Returns a string representation of an integer numeric value or a string in hex format. Returns null if numeric is null. E.g. For numeric "20" leads to "14", "100" leads to "64", and for string "hello,world" leads to "68656c6c6f2c776f726c64".</p>
     </td>
    </tr>
   </tbody>
@@ -3880,6 +3880,17 @@ NUMERIC.bin()
     </td>
    </tr>
 
+    <tr>
+     <td>
+       {% highlight scala %}
+NUMERIC.hex()
+STRING.hex()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a string representation of an integer numeric value or a string in hex format. Returns null if numeric is null. E.g. For numeric "20" leads to "14", "100" leads to "64", and for string "hello,world" leads to "68656c6c6f2c776f726c64".</p>
+    </td>
+   </tr>
   </tbody>
 </table>
 
