@@ -24,6 +24,8 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.description.Formatter;
+import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.docs.configuration.data.TestCommonOptions;
 import org.apache.flink.util.FileUtils;
 
@@ -235,6 +237,7 @@ public class ConfigOptionsDocGeneratorTest {
 		};
 
 		ConfigOptionsDocGenerator.generateCommonSection(projectRootDir, outputDirectory, locations, "src/test/java");
+		Formatter formatter = new HtmlFormatter();
 
 		String expected =
 			"<table class=\"table table-bordered\">\n" +
@@ -249,12 +252,12 @@ public class ConfigOptionsDocGeneratorTest {
 			"        <tr>\n" +
 			"            <td><h5>" + TestCommonOptions.COMMON_POSITIONED_OPTION.key() + "</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_POSITIONED_OPTION.defaultValue() + "</td>\n" +
-			"            <td>" + TestCommonOptions.COMMON_POSITIONED_OPTION.description() + "</td>\n" +
+			"            <td>" + formatter.format(TestCommonOptions.COMMON_POSITIONED_OPTION.description()) + "</td>\n" +
 			"        </tr>\n" +
 			"        <tr>\n" +
 			"            <td><h5>" + TestCommonOptions.COMMON_OPTION.key() + "</h5></td>\n" +
 			"            <td style=\"word-wrap: break-word;\">" + TestCommonOptions.COMMON_OPTION.defaultValue() + "</td>\n" +
-			"            <td>" + TestCommonOptions.COMMON_OPTION.description() + "</td>\n" +
+			"            <td>" + formatter.format(TestCommonOptions.COMMON_OPTION.description()) + "</td>\n" +
 			"        </tr>\n" +
 			"    </tbody>\n" +
 			"</table>\n";

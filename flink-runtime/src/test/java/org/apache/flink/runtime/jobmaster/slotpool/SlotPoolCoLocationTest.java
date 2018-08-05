@@ -29,11 +29,16 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -48,7 +53,15 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test cases for {@link CoLocationConstraint} with the {@link SlotPool}.
  */
-public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
+public class SlotPoolCoLocationTest extends TestLogger {
+
+	@ClassRule
+	public static final TestingRpcServiceResource rpcServiceResource = new TestingRpcServiceResource();
+
+	@Rule
+	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
+		rpcServiceResource.getTestingRpcService(),
+		PreviousAllocationSchedulingStrategy.getInstance());
 
 	/**
 	 * Tests the scheduling of two tasks with a parallelism of 2 and a co-location constraint.
@@ -57,11 +70,14 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 	public void testSimpleCoLocatedSlotScheduling() throws ExecutionException, InterruptedException {
 		final BlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
+
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
+		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
 		CoLocationGroup group = new CoLocationGroup();
@@ -73,6 +89,7 @@ public class SlotPoolCoLocationTest extends SlotPoolSchedulingTestBase {
 		JobVertexID jobVertexId1 = new JobVertexID();
 		JobVertexID jobVertexId2 = new JobVertexID();
 
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture11 = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				jobVertexId1,

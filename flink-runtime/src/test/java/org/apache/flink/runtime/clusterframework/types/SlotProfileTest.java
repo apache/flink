@@ -22,7 +22,10 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSchedulingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.SchedulingStrategy;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -33,7 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-public class SlotProfileTest {
+public class SlotProfileTest extends TestLogger {
 
 	private final ResourceProfile resourceProfile = new ResourceProfile(2, 1024);
 
@@ -57,6 +60,8 @@ public class SlotProfileTest {
 	private SimpleSlotContext ssc4 = new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway);
 
 	private final Set<SlotContext> candidates = Collections.unmodifiableSet(createCandidates());
+
+	private final SchedulingStrategy schedulingStrategy = PreviousAllocationSchedulingStrategy.getInstance();
 
 	private Set<SlotContext> createCandidates() {
 		Set<SlotContext> candidates = new HashSet<>(4);
@@ -128,8 +133,8 @@ public class SlotProfileTest {
 	}
 
 	private SlotContext runMatching(SlotProfile slotProfile) {
-		SlotProfile.ProfileToSlotContextMatcher matcher = slotProfile.matcher();
-		return matcher.findMatchWithLocality(
+		return schedulingStrategy.findMatchWithLocality(
+			slotProfile,
 			candidates.stream(),
 			(candidate) -> candidate,
 			(candidate) -> true,

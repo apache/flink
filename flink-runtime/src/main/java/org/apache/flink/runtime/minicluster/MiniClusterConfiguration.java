@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.apache.flink.runtime.minicluster.MiniClusterConfiguration.RpcServiceSharing.SHARED;
+import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
 /**
  * Configuration object for the {@link MiniCluster}.
@@ -116,15 +116,6 @@ public class MiniClusterConfiguration {
 	// ----------------------------------------------------------------------------------
 	// Enums
 	// ----------------------------------------------------------------------------------
-
-	/**
-	 * Enum which defines whether the mini cluster components use a shared RpcService
-	 * or whether every component gets its own dedicated RpcService started.
-	 */
-	public enum RpcServiceSharing {
-		SHARED, // a single shared rpc service
-		DEDICATED // every component gets his own dedicated rpc service
-	}
 
 	// ----------------------------------------------------------------------------------
 	// Builder

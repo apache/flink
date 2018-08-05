@@ -103,7 +103,7 @@ public class TaskManagerProcess extends TestJvmProcess {
 				Configuration config = ParameterTool.fromArgs(args).getConfiguration();
 
 				if (!config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
-					config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+					config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 				}
 
 				if (!config.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS)) {

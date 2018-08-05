@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.typeutils
 
+import java.util
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.CommonTestData.{NonPojo, Person}
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.{Assert, Test}
 
 /**
   * Tests for string-based representation of [[TypeInformation]].
@@ -74,24 +76,18 @@ class TypeStringUtilsTest {
         Array[TypeInformation[_]](Types.DECIMAL, Types.BYTE)))
 
     testReadAndWrite(
-      "ROW(\"he llo\" DECIMAL, world TINYINT)",
-      Types.ROW(
-        Array[String]("he llo", "world"),
-        Array[TypeInformation[_]](Types.DECIMAL, Types.BYTE)))
-
-    testReadAndWrite(
-      "ROW(\"he         \\nllo\" DECIMAL, world TINYINT)",
-      Types.ROW(
-        Array[String]("he         \nllo", "world"),
-        Array[TypeInformation[_]](Types.DECIMAL, Types.BYTE)))
-
-    testReadAndWrite(
       "POJO(org.apache.flink.table.runtime.utils.CommonTestData$Person)",
       TypeExtractor.createTypeInfo(classOf[Person]))
 
     testReadAndWrite(
       "ANY(org.apache.flink.table.runtime.utils.CommonTestData$NonPojo)",
       TypeExtractor.createTypeInfo(classOf[NonPojo]))
+
+    // test escaping
+    assertTrue(
+      TypeStringUtils.readTypeInfo("ROW(\"he         \\nllo\" DECIMAL, world TINYINT)")
+        .asInstanceOf[RowTypeInfo].getFieldNames
+        .sameElements(Array[String]("he         \nllo", "world")))
   }
 
   private def testReadAndWrite(expected: String, tpe: TypeInformation[_]): Unit = {

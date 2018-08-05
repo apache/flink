@@ -166,6 +166,10 @@ public class CliFrontend {
 		return copiedConfiguration;
 	}
 
+	public Options getCustomCommandLineOptions() {
+		return customCommandLineOptions;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Execute Actions
 	// --------------------------------------------------------------------------------------------

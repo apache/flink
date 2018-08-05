@@ -26,12 +26,13 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.Objects;
 
 /**
  * Composite key for events in {@link SharedBuffer}.
  */
-public class EventId {
+public class EventId implements Comparable<EventId> {
 	private final int id;
 	private final long timestamp;
 
@@ -47,6 +48,9 @@ public class EventId {
 	public long getTimestamp() {
 		return timestamp;
 	}
+
+	public static final Comparator<EventId> COMPARATOR = Comparator.comparingLong(EventId::getTimestamp)
+		.thenComparingInt(EventId::getId);
 
 	@Override
 	public boolean equals(Object o) {
@@ -72,6 +76,11 @@ public class EventId {
 			"id=" + id +
 			", timestamp=" + timestamp +
 			'}';
+	}
+
+	@Override
+	public int compareTo(EventId o) {
+		return COMPARATOR.compare(this, o);
 	}
 
 	/** {@link TypeSerializer} for {@link EventId}. */

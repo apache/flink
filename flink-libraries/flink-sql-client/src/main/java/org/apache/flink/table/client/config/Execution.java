@@ -50,6 +50,12 @@ public class Execution {
 			PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING);
 	}
 
+	public boolean isBatchExecution() {
+		return Objects.equals(
+			properties.get(PropertyStrings.EXECUTION_TYPE),
+			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
+	}
+
 	public TimeCharacteristic getTimeCharacteristic() {
 		final String s = properties.getOrDefault(
 			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC,
@@ -64,12 +70,16 @@ public class Execution {
 		}
 	}
 
+	public long getPeriodicWatermarksInterval() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_PERIODIC_WATERMARKS_INTERVAL, Long.toString(200L)));
+	}
+
 	public long getMinStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public long getMaxStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public int getParallelism() {

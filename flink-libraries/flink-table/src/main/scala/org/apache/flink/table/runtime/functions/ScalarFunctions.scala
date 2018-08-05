@@ -22,6 +22,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.lang.StringBuilder
 
 import org.apache.commons.codec.binary.Hex
+import org.apache.commons.codec.binary.Base64
 
 /**
   * Built-in scalar runtime functions.
@@ -111,6 +112,17 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the logarithm of "x" with base 2.
+    */
+  def log2(x: Double): Double = {
+    if (x <= 0.0) {
+      throw new IllegalArgumentException(s"x of 'log2(x)' must be > 0, but x = $x")
+    } else {
+      Math.log(x) / Math.log(2)
+    }
+  }
+
+  /**
     * Returns the string str left-padded with the string pad to a length of len characters.
     * If str is longer than len, the return value is shortened to len characters.
     */
@@ -189,4 +201,9 @@ object ScalarFunctions {
     * Returns the string str that is encoded as hex string of x.
     */
   def hex(x: String): String = Hex.encodeHexString(x.getBytes)
+
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
 }

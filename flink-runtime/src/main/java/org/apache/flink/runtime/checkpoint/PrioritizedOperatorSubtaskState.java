@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -282,7 +283,7 @@ public class PrioritizedOperatorSubtaskState {
 				if (alternative != null
 					&& alternative.hasState()
 					&& alternative.size() == 1
-					&& approveFun.apply(reference, alternative.iterator().next())) {
+					&& BooleanUtils.isTrue(approveFun.apply(reference, alternative.iterator().next()))) {
 
 					approved.add(alternative);
 				}

@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.description.Description;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,7 +53,7 @@ public class ConfigOption<T> {
 	private final T defaultValue;
 
 	/** The description for this option. */
-	private final String description;
+	private final Description description;
 
 	// ------------------------------------------------------------------------
 
@@ -64,7 +65,7 @@ public class ConfigOption<T> {
 	 */
 	ConfigOption(String key, T defaultValue) {
 		this.key = checkNotNull(key);
-		this.description = "";
+		this.description = Description.builder().text("").build();
 		this.defaultValue = defaultValue;
 		this.deprecatedKeys = EMPTY;
 	}
@@ -73,10 +74,28 @@ public class ConfigOption<T> {
 	 * Creates a new config option with deprecated keys.
 	 *
 	 * @param key             The current key for that config option
+	 * @param description     Description for that option
+	 * @param defaultValue    The default value for this option
+	 * @param deprecatedKeys  The list of deprecated keys, in the order to be checked
+	 * @deprecated use version with {@link Description} instead
+	 */
+	@Deprecated
+	ConfigOption(String key, String description, T defaultValue, String... deprecatedKeys) {
+		this.key = checkNotNull(key);
+		this.description = Description.builder().text(description).build();
+		this.defaultValue = defaultValue;
+		this.deprecatedKeys = deprecatedKeys == null || deprecatedKeys.length == 0 ? EMPTY : deprecatedKeys;
+	}
+
+	/**
+	 * Creates a new config option with deprecated keys.
+	 *
+	 * @param key             The current key for that config option
+	 * @param description     Description for that option
 	 * @param defaultValue    The default value for this option
 	 * @param deprecatedKeys  The list of deprecated keys, in the order to be checked
 	 */
-	ConfigOption(String key, String description, T defaultValue, String... deprecatedKeys) {
+	ConfigOption(String key, Description description, T defaultValue, String... deprecatedKeys) {
 		this.key = checkNotNull(key);
 		this.description = description;
 		this.defaultValue = defaultValue;
@@ -104,12 +123,23 @@ public class ConfigOption<T> {
 	 * Creates a new config option, using this option's key and default value, and
 	 * adding the given description. The given description is used when generation the configuration documention.
 	 *
-	 * <p><b>NOTE:</b> You can use html to format the output of the generated cell.
+	 * @param description The description for this option.
+	 * @return A new config option, with given description.
+	 * @deprecated use version with {@link Description}
+	 */
+	@Deprecated
+	public ConfigOption<T> withDescription(final String description) {
+		return new ConfigOption<>(key, description, defaultValue, deprecatedKeys);
+	}
+
+	/**
+	 * Creates a new config option, using this option's key and default value, and
+	 * adding the given description. The given description is used when generation the configuration documention.
 	 *
 	 * @param description The description for this option.
 	 * @return A new config option, with given description.
 	 */
-	public ConfigOption<T> withDescription(final String description) {
+	public ConfigOption<T> withDescription(final Description description) {
 		return new ConfigOption<>(key, description, defaultValue, deprecatedKeys);
 	}
 
@@ -159,7 +189,7 @@ public class ConfigOption<T> {
 	 * Returns the description of this option.
 	 * @return The option's description.
 	 */
-	public String description() {
+	public Description description() {
 		return description;
 	}
 

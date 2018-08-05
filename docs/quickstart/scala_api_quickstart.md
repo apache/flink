@@ -140,9 +140,9 @@ Use one of the following commands to __create a project__:
     <div class="tab-pane" id="quickstart-script">
 {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-scala.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-scala-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
 {% endhighlight %}
     </div>
@@ -200,7 +200,7 @@ For Eclipse, you need the following plugins, which you can install from the prov
 If you want to __build/package your project__, go to your project directory and
 run the '`mvn clean package`' command.
 You will __find a JAR file__ that contains your application, plus connectors and libraries
-that you may have added as dependencoes to the application: `target/<artifact-id>-<version>.jar`.
+that you may have added as dependencies to the application: `target/<artifact-id>-<version>.jar`.
 
 __Note:__ If you use a different class than *StreamingJob* as the application's main class / entry point,
 we recommend you change the `mainClass` setting in the `pom.xml` file accordingly. That way, the Flink
@@ -220,6 +220,8 @@ take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/exa
 For a complete overview over the APIa, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
+
+[Here]({{ site.baseurl }}/quickstart/setup_quickstart.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).

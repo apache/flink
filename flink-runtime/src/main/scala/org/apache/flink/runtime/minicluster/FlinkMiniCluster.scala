@@ -448,6 +448,13 @@ abstract class FlinkMiniCluster(
       ioExecutor)
   }
 
+  def firstActorSystem(): Option[ActorSystem] = {
+    jobManagerActorSystems match {
+      case Some(jmActorSystems) => Some(jmActorSystems.head)
+      case None => None
+    }
+  }
+
   protected def startInternalShutdown(): Unit = {
     webMonitor foreach {
       _.stop()

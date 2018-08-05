@@ -104,7 +104,7 @@ def main(factory):
         .key_by(Selector()) \
         .time_window(milliseconds(50)) \
         .reduce(Sum()) \
-        .print()
+        .output()
     env.execute()
 
 {% endhighlight %}

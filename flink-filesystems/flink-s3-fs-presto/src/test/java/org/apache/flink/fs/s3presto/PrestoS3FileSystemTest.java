@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.fs.hdfs.HadoopConfigLoader;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -31,6 +32,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.net.URI;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -73,6 +75,19 @@ public class PrestoS3FileSystemTest {
 
 		FileSystem fs = FileSystem.get(new URI("s3://test"));
 		validateBasicCredentials(fs);
+	}
+
+	@Test
+	public void testShadingOfAwsCredProviderConfig() {
+		final Configuration conf = new Configuration();
+		conf.setString("presto.s3.credentials-provider", "com.amazonaws.auth.ContainerCredentialsProvider");
+
+		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+		configLoader.setFlinkConfig(conf);
+
+		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
+		assertEquals("org.apache.flink.fs.s3presto.shaded.com.amazonaws.auth.ContainerCredentialsProvider",
+			hadoopConfig.get("presto.s3.credentials-provider"));
 	}
 
 	// ------------------------------------------------------------------------

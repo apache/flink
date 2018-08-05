@@ -89,6 +89,12 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.bootstrap-cmd")
 		.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_TM_URIS =
+		key("mesos.resourcemanager.tasks.uris")
+		.noDefaultValue()
+		.withDescription("A comma separated list of URIs of custom artifacts to be downloaded into the sandbox" +
+			" of Mesos workers.");
+
 	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
 		key("mesos.resourcemanager.tasks.container.volumes")
 		.noDefaultValue()
@@ -100,6 +106,12 @@ public class MesosTaskManagerParameters {
 		.noDefaultValue()
 		.withDescription("Custom parameters to be passed into docker run command when using the docker containerizer." +
 			" Comma separated list of \"key=value\" pairs. The \"value\" may contain '='.");
+
+	public static final ConfigOption<Boolean> MESOS_RM_CONTAINER_DOCKER_FORCE_PULL_IMAGE =
+		key("mesos.resourcemanager.tasks.container.docker.force-pull-image")
+		.defaultValue(false)
+		.withDescription("Instruct the docker containerizer to forcefully pull the image rather than" +
+			" reuse a cached version.");
 
 	public static final ConfigOption<String> MESOS_CONSTRAINTS_HARD_HOSTATTR =
 		key("mesos.constraints.hard.hostattribute")
@@ -129,6 +141,8 @@ public class MesosTaskManagerParameters {
 
 	private final List<Protos.Parameter> dockerParameters;
 
+	private final boolean dockerForcePullImage;
+
 	private final List<ConstraintEvaluator> constraints;
 
 	private final String command;
@@ -136,6 +150,8 @@ public class MesosTaskManagerParameters {
 	private final Option<String> bootstrapCommand;
 
 	private final Option<String> taskManagerHostname;
+
+	private final List<String> uris;
 
 	public MesosTaskManagerParameters(
 			double cpus,
@@ -145,10 +161,12 @@ public class MesosTaskManagerParameters {
 			ContaineredTaskManagerParameters containeredParameters,
 			List<Protos.Volume> containerVolumes,
 			List<Protos.Parameter> dockerParameters,
+			boolean dockerForcePullImage,
 			List<ConstraintEvaluator> constraints,
 			String command,
 			Option<String> bootstrapCommand,
-			Option<String> taskManagerHostname) {
+			Option<String> taskManagerHostname,
+			List<String> uris) {
 
 		this.cpus = cpus;
 		this.gpus = gpus;
@@ -157,10 +175,12 @@ public class MesosTaskManagerParameters {
 		this.containeredParameters = Preconditions.checkNotNull(containeredParameters);
 		this.containerVolumes = Preconditions.checkNotNull(containerVolumes);
 		this.dockerParameters = Preconditions.checkNotNull(dockerParameters);
+		this.dockerForcePullImage = dockerForcePullImage;
 		this.constraints = Preconditions.checkNotNull(constraints);
 		this.command = Preconditions.checkNotNull(command);
 		this.bootstrapCommand = Preconditions.checkNotNull(bootstrapCommand);
 		this.taskManagerHostname = Preconditions.checkNotNull(taskManagerHostname);
+		this.uris = Preconditions.checkNotNull(uris);
 	}
 
 	/**
@@ -215,6 +235,13 @@ public class MesosTaskManagerParameters {
 	}
 
 	/**
+	 * Get Docker option to force pull image.
+	 */
+	public boolean dockerForcePullImage() {
+		return dockerForcePullImage;
+	}
+
+	/**
 	 * Get the placement constraints.
 	 */
 	public List<ConstraintEvaluator> constraints() {
@@ -242,6 +269,13 @@ public class MesosTaskManagerParameters {
 		return bootstrapCommand;
 	}
 
+	/**
+	 * Get custom artifact URIs.
+	 */
+	public List<String> uris() {
+		return uris;
+	}
+
 	@Override
 	public String toString() {
 		return "MesosTaskManagerParameters{" +
@@ -252,10 +286,12 @@ public class MesosTaskManagerParameters {
 			", containeredParameters=" + containeredParameters +
 			", containerVolumes=" + containerVolumes +
 			", dockerParameters=" + dockerParameters +
+			", dockerForcePullImage=" + dockerForcePullImage +
 			", constraints=" + constraints +
 			", taskManagerHostName=" + taskManagerHostname +
 			", command=" + command +
 			", bootstrapCommand=" + bootstrapCommand +
+			", uris=" + uris +
 			'}';
 	}
 
@@ -309,9 +345,15 @@ public class MesosTaskManagerParameters {
 
 		Option<String> dockerParamsOpt = Option.<String>apply(flinkConfig.getString(MESOS_RM_CONTAINER_DOCKER_PARAMETERS));
 
+		Option<String> uriParamsOpt = Option.<String>apply(flinkConfig.getString(MESOS_TM_URIS));
+
+		boolean dockerForcePullImage = flinkConfig.getBoolean(MESOS_RM_CONTAINER_DOCKER_FORCE_PULL_IMAGE);
+
 		List<Protos.Volume> containerVolumes = buildVolumes(containerVolOpt);
 
 		List<Protos.Parameter> dockerParameters = buildDockerParameters(dockerParamsOpt);
+
+		List<String> uris = buildUris(uriParamsOpt);
 
 		//obtain Task Manager Host Name from the configuration
 		Option<String> taskManagerHostname = Option.apply(flinkConfig.getString(MESOS_TM_HOSTNAME));
@@ -328,10 +370,12 @@ public class MesosTaskManagerParameters {
 			containeredParameters,
 			containerVolumes,
 			dockerParameters,
+			dockerForcePullImage,
 			constraints,
 			tmCommand,
 			tmBootstrapCommand,
-			taskManagerHostname);
+			taskManagerHostname,
+			uris);
 	}
 
 	private static List<ConstraintEvaluator> parseConstraints(String mesosConstraints) {
@@ -441,6 +485,22 @@ public class MesosTaskManagerParameters {
 				}
 			}
 			return parameters;
+		}
+	}
+
+	/**
+	 * Build a list of URIs for providing custom artifacts to Mesos tasks.
+	 * @param uris a comma delimited optional string listing artifact URIs
+	 */
+	public static List<String> buildUris(Option<String> uris) {
+		if (uris.isEmpty()) {
+			return Collections.emptyList();
+		} else {
+			List<String> urisList = new ArrayList<>();
+			for (String uri : uris.get().split(",")) {
+				urisList.add(uri.trim());
+			}
+			return urisList;
 		}
 	}
 

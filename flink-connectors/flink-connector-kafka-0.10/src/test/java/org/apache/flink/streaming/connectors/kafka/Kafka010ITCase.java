@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -169,6 +170,7 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 	/**
 	 * Kafka 0.10 specific test, ensuring Timestamps are properly written to and read from Kafka.
 	 */
+	@Ignore("This test is disabled because of: https://issues.apache.org/jira/browse/FLINK-9217")
 	@Test(timeout = 60000)
 	public void testTimestamps() throws Exception {
 

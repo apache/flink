@@ -19,26 +19,52 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+
+import javax.annotation.Nonnull;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Testing implementation of the {@link ResourceActions}.
  */
 public class TestingResourceActions implements ResourceActions {
+
+	@Nonnull
+	private final BiConsumer<InstanceID, Exception> releaseResourceConsumer;
+
+	@Nonnull
+	private final Consumer<ResourceProfile> allocateResourceConsumer;
+
+	@Nonnull
+	private final Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer;
+
+	public TestingResourceActions(
+			@Nonnull BiConsumer<InstanceID, Exception> releaseResourceConsumer,
+			@Nonnull Consumer<ResourceProfile> allocateResourceConsumer,
+			@Nonnull Consumer<Tuple3<JobID, AllocationID, Exception>> notifyAllocationFailureConsumer) {
+		this.releaseResourceConsumer = releaseResourceConsumer;
+		this.allocateResourceConsumer = allocateResourceConsumer;
+		this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
+	}
+
+
 	@Override
 	public void releaseResource(InstanceID instanceId, Exception cause) {
-
+		releaseResourceConsumer.accept(instanceId, cause);
 	}
 
 	@Override
 	public void allocateResource(ResourceProfile resourceProfile) {
-
+		allocateResourceConsumer.accept(resourceProfile);
 	}
 
 	@Override
 	public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
-
+		notifyAllocationFailureConsumer.accept(Tuple3.of(jobId, allocationId, cause));
 	}
 }

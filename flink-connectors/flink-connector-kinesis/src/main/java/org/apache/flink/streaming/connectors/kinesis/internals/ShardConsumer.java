@@ -56,6 +56,10 @@ public class ShardConsumer<T> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);
 
+	// AWS Kinesis has a read limit of 2 Mb/sec
+	// https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html
+	private static final long KINESIS_SHARD_BYTES_PER_SECOND_LIMIT = 2 * 1024L * 1024L;
+
 	private final KinesisDeserializationSchema<T> deserializer;
 
 	private final KinesisProxyInterface kinesis;
@@ -66,8 +70,9 @@ public class ShardConsumer<T> implements Runnable {
 
 	private final StreamShardHandle subscribedShard;
 
-	private final int maxNumberOfRecordsPerFetch;
+	private int maxNumberOfRecordsPerFetch;
 	private final long fetchIntervalMillis;
+	private final boolean useAdaptiveReads;
 
 	private final ShardMetricsReporter shardMetricsReporter;
 
@@ -125,6 +130,9 @@ public class ShardConsumer<T> implements Runnable {
 		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
 			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
+		this.useAdaptiveReads = Boolean.valueOf(consumerConfig.getProperty(
+			ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS,
+			Boolean.toString(ConsumerConfigConstants.DEFAULT_SHARD_USE_ADAPTIVE_READS)));
 
 		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
 			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
@@ -199,6 +207,7 @@ public class ShardConsumer<T> implements Runnable {
 				}
 			}
 
+			long lastTimeNanos = 0;
 			while (isRunning()) {
 				if (nextShardItr == null) {
 					fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
@@ -207,7 +216,12 @@ public class ShardConsumer<T> implements Runnable {
 					break;
 				} else {
 					if (fetchIntervalMillis != 0) {
-						Thread.sleep(fetchIntervalMillis);
+						long elapsedTimeNanos = System.nanoTime() - lastTimeNanos;
+						long sleepTimeMillis = fetchIntervalMillis - (elapsedTimeNanos / 1_000_000);
+						if (sleepTimeMillis > 0) {
+							Thread.sleep(sleepTimeMillis);
+						}
+						lastTimeNanos = System.nanoTime();
 					}
 
 					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
@@ -218,8 +232,17 @@ public class ShardConsumer<T> implements Runnable {
 						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
 						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
+					long recordBatchSizeBytes = 0L;
+					long averageRecordSizeBytes = 0L;
+
 					for (UserRecord record : fetchedRecords) {
+						recordBatchSizeBytes += record.getData().remaining();
 						deserializeRecordForCollectionAndUpdateState(record);
+					}
+
+					if (useAdaptiveReads && !fetchedRecords.isEmpty()) {
+						averageRecordSizeBytes = recordBatchSizeBytes / fetchedRecords.size();
+						maxNumberOfRecordsPerFetch = getAdaptiveMaxRecordsPerFetch(averageRecordSizeBytes);
 					}
 
 					nextShardItr = getRecordsResult.getNextShardIterator();
@@ -323,5 +346,24 @@ public class ShardConsumer<T> implements Runnable {
 	@SuppressWarnings("unchecked")
 	protected static List<UserRecord> deaggregateRecords(List<Record> records, String startingHashKey, String endingHashKey) {
 		return UserRecord.deaggregate(records, new BigInteger(startingHashKey), new BigInteger(endingHashKey));
+	}
+
+	/**
+	 * Adapts the maxNumberOfRecordsPerFetch based on the current average record size
+	 * to optimize 2 Mb / sec read limits.
+	 *
+	 * @param averageRecordSizeBytes
+	 * @return adaptedMaxRecordsPerFetch
+	 */
+
+	protected int getAdaptiveMaxRecordsPerFetch(long averageRecordSizeBytes) {
+		int adaptedMaxRecordsPerFetch = maxNumberOfRecordsPerFetch;
+		if (averageRecordSizeBytes != 0 && fetchIntervalMillis != 0) {
+				adaptedMaxRecordsPerFetch = (int) (KINESIS_SHARD_BYTES_PER_SECOND_LIMIT / (averageRecordSizeBytes * 1000L / fetchIntervalMillis));
+
+				// Ensure the value is not more than 10000L
+				adaptedMaxRecordsPerFetch = Math.min(adaptedMaxRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX);
+			}
+		return adaptedMaxRecordsPerFetch;
 	}
 }

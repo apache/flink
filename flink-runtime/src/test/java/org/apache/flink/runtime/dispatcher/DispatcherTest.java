@@ -60,7 +60,6 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -128,7 +127,7 @@ public class DispatcherTest extends TestLogger {
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
-	private InMemorySubmittedJobGraphStore submittedJobGraphStore;
+	private FaultySubmittedJobGraphStore submittedJobGraphStore;
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
 
@@ -168,7 +167,7 @@ public class DispatcherTest extends TestLogger {
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
 		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
-		submittedJobGraphStore = new InMemorySubmittedJobGraphStore();
+		submittedJobGraphStore = new FaultySubmittedJobGraphStore();
 
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		jobMasterLeaderElectionService = new TestingLeaderElectionService();
@@ -190,7 +189,14 @@ public class DispatcherTest extends TestLogger {
 		createdJobManagerRunnerLatch = new CountDownLatch(2);
 		blobServer = new BlobServer(configuration, new VoidBlobStore());
 
-		dispatcher = new TestingDispatcher(
+		dispatcher = createDispatcher(heartbeatServices, haServices);
+
+		dispatcher.start();
+	}
+
+	@Nonnull
+	private TestingDispatcher createDispatcher(HeartbeatServices heartbeatServices, TestingHighAvailabilityServices haServices) throws Exception {
+		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			configuration,
@@ -203,8 +209,6 @@ public class DispatcherTest extends TestLogger {
 			new MemoryArchivedExecutionGraphStore(),
 			new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch),
 			fatalErrorHandler);
-
-		dispatcher.start();
 	}
 
 	@After
@@ -286,6 +290,42 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 		createdJobManagerRunnerLatch.await();
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
+	}
+
+	@Test
+	public void testOnAddedJobGraphRecoveryFailure() throws Exception {
+		final FlinkException expectedFailure = new FlinkException("Expected failure");
+		submittedJobGraphStore.setRecoveryFailure(expectedFailure);
+
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		dispatcher.onAddedJobGraph(TEST_JOB_ID);
+
+		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
+
+		final Throwable throwable = errorFuture.get();
+
+		assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), is(true));
+
+		fatalErrorHandler.clearError();
+	}
+
+	@Test
+	public void testOnAddedJobGraphWithFinishedJob() throws Throwable {
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
+		runningJobsRegistry.setJobFinished(TEST_JOB_ID);
+		dispatcher.onAddedJobGraph(TEST_JOB_ID);
+
+		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
+
+		final Throwable throwable = errorFuture.get();
+
+		assertThat(throwable, instanceOf(DispatcherException.class));
+
+		fatalErrorHandler.clearError();
 	}
 
 	/**
@@ -571,4 +611,5 @@ public class DispatcherTest extends TestLogger {
 				fatalErrorHandler);
 		}
 	}
+
 }

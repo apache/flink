@@ -336,9 +336,9 @@ public class AkkaRpcService implements RpcService {
 
 		LOG.info("Stopping Akka RPC service.");
 
-		final CompletableFuture<Terminated> actorSytemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+		final CompletableFuture<Terminated> actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
 
-		actorSytemTerminationFuture.whenComplete(
+		actorSystemTerminationFuture.whenComplete(
 			(Terminated ignored, Throwable throwable) -> {
 				synchronized (lock) {
 					actors.clear();

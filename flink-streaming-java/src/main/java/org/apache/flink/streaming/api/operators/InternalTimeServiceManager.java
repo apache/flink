@@ -20,16 +20,17 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,62 +46,83 @@ import java.util.Map;
 @Internal
 public class InternalTimeServiceManager<K> {
 
+	//TODO guard these constants with a test
+	private static final String TIMER_STATE_PREFIX = "_timer_state";
+	private static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";
+	private static final String EVENT_TIMER_PREFIX = TIMER_STATE_PREFIX + "/event_";
+
 	private final int totalKeyGroups;
 	private final KeyGroupRange localKeyGroupRange;
 	private final KeyContext keyContext;
 
+	private final PriorityQueueSetFactory priorityQueueSetFactory;
 	private final ProcessingTimeService processingTimeService;
 
 	private final Map<String, HeapInternalTimerService<K, ?>> timerServices;
 
+	private final boolean useLegacySynchronousSnapshots;
+
 	InternalTimeServiceManager(
-			int totalKeyGroups,
-			KeyGroupRange localKeyGroupRange,
-			KeyContext keyContext,
-			ProcessingTimeService processingTimeService) {
+		int totalKeyGroups,
+		KeyGroupRange localKeyGroupRange,
+		KeyContext keyContext,
+		PriorityQueueSetFactory priorityQueueSetFactory,
+		ProcessingTimeService processingTimeService, boolean useLegacySynchronousSnapshots) {
 
 		Preconditions.checkArgument(totalKeyGroups > 0);
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
-
+		this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
+		this.useLegacySynchronousSnapshots = useLegacySynchronousSnapshots;
 
 		this.timerServices = new HashMap<>();
 	}
 
-	/**
-	 * Returns a {@link InternalTimerService} that can be used to query current processing time
-	 * and event time and to set timers. An operator can have several timer services, where
-	 * each has its own namespace serializer. Timer services are differentiated by the string
-	 * key that is given when requesting them, if you call this method with the same key
-	 * multiple times you will get the same timer service instance in subsequent requests.
-	 *
-	 * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
-	 * When a timer fires, this key will also be set as the currently active key.
-	 *
-	 * <p>Each timer has attached metadata, the namespace. Different timer services
-	 * can have a different namespace type. If you don't need namespace differentiation you
-	 * can use {@link VoidNamespaceSerializer} as the namespace serializer.
-	 *
-	 * @param name The name of the requested timer service. If no service exists under the given
-	 *             name a new one will be created and returned.
-	 * @param keySerializer {@code TypeSerializer} for the timer keys.
-	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
-	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
-	 */
 	@SuppressWarnings("unchecked")
-	public <N> InternalTimerService<N> getInternalTimerService(String name, TypeSerializer<K> keySerializer,
-														TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
+	public <N> InternalTimerService<N> getInternalTimerService(
+		String name,
+		TimerSerializer<K, N> timerSerializer,
+		Triggerable<K, N> triggerable) {
 
+		HeapInternalTimerService<K, N> timerService = registerOrGetTimerService(name, timerSerializer);
+
+		timerService.startTimerService(
+			timerSerializer.getKeySerializer(),
+			timerSerializer.getNamespaceSerializer(),
+			triggerable);
+
+		return timerService;
+	}
+
+	@SuppressWarnings("unchecked")
+	<N> HeapInternalTimerService<K, N> registerOrGetTimerService(String name, TimerSerializer<K, N> timerSerializer) {
 		HeapInternalTimerService<K, N> timerService = (HeapInternalTimerService<K, N>) timerServices.get(name);
 		if (timerService == null) {
-			timerService = new HeapInternalTimerService<>(totalKeyGroups,
-				localKeyGroupRange, keyContext, processingTimeService);
+
+			timerService = new HeapInternalTimerService<>(
+				localKeyGroupRange,
+				keyContext,
+				processingTimeService,
+				createTimerPriorityQueue(PROCESSING_TIMER_PREFIX + name, timerSerializer),
+				createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer));
+
 			timerServices.put(name, timerService);
 		}
-		timerService.startTimerService(keySerializer, namespaceSerializer, triggerable);
 		return timerService;
+	}
+
+	Map<String, HeapInternalTimerService<K, ?>> getRegisteredTimerServices() {
+		return Collections.unmodifiableMap(timerServices);
+	}
+
+	private <N> KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerPriorityQueue(
+		String name,
+		TimerSerializer<K, N> timerSerializer) {
+		return priorityQueueSetFactory.create(
+			name,
+			timerSerializer);
 	}
 
 	public void advanceWatermark(Watermark watermark) throws Exception {
@@ -112,8 +134,9 @@ public class InternalTimeServiceManager<K> {
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	public void snapshotStateForKeyGroup(DataOutputView stream, int keyGroupIdx) throws IOException {
+		Preconditions.checkState(useLegacySynchronousSnapshots);
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
-			new InternalTimerServiceSerializationProxy<>(timerServices, keyGroupIdx);
+			new InternalTimerServiceSerializationProxy<>(this, keyGroupIdx);
 
 		serializationProxy.write(stream);
 	}
@@ -125,15 +148,15 @@ public class InternalTimeServiceManager<K> {
 
 		InternalTimerServiceSerializationProxy<K> serializationProxy =
 			new InternalTimerServiceSerializationProxy<>(
-				timerServices,
+				this,
 				userCodeClassLoader,
-				totalKeyGroups,
-				localKeyGroupRange,
-				keyContext,
-				processingTimeService,
 				keyGroupIdx);
 
 		serializationProxy.read(stream);
+	}
+
+	public boolean isUseLegacySynchronousSnapshots() {
+		return useLegacySynchronousSnapshots;
 	}
 
 	////////////////////			Methods used ONLY IN TESTS				////////////////////

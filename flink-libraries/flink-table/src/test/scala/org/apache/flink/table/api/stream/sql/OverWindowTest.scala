@@ -45,6 +45,16 @@ class OverWindowTest extends TableTestBase {
       "CURRENT ROW) as sum2 " +
       "from MyTable"
 
+    val sql2 = "SELECT " +
+      "b, " +
+      "count(a) OVER w as cnt1, " +
+      "sum(a) OVER w as sum1, " +
+      "count(DISTINCT a) OVER w as cnt2, " +
+      "sum(DISTINCT c) OVER w as sum2 " +
+      "from MyTable " +
+      "WINDOW w AS (PARTITION BY b ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -77,6 +87,15 @@ class OverWindowTest extends TableTestBase {
       "CURRENT ROW) as sum1 " +
       "from MyTable"
 
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(DISTINCT a) OVER w as cnt1, " +
+      "sum(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
+      "CURRENT ROW) as sum1 " +
+      "FROM MyTable " +
+      "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -108,6 +127,15 @@ class OverWindowTest extends TableTestBase {
       "CURRENT ROW) as sum1 " +
       "from MyTable"
 
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
+      "CURRENT ROW) as cnt1, " +
+      "sum(a) OVER w as sum1 " +
+      "from MyTable " +
+      "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+    
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -136,6 +164,14 @@ class OverWindowTest extends TableTestBase {
         "  AVG(c) OVER (PARTITION BY a ORDER BY proctime " +
         "    RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND CURRENT ROW) AS avgA " +
         "FROM MyTable"
+
+    val sqlQuery2 =
+      "SELECT a, " +
+        "  AVG(c) OVER w AS avgA " +
+        "FROM MyTable " +
+        "WINDOW w AS (PARTITION BY a ORDER BY proctime " +
+        "  RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sqlQuery, sqlQuery2)
 
     val expected =
       unaryNode(
@@ -174,6 +210,14 @@ class OverWindowTest extends TableTestBase {
         "    RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) " +
         "FROM MyTable"
 
+    val sqlQuery2 =
+      "SELECT a, " +
+        "  COUNT(c) OVER w " +
+        "FROM MyTable " +
+        "WINDOW w AS (ORDER BY proctime " +
+        "  RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sqlQuery, sqlQuery2)
+
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -201,6 +245,13 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN 2 preceding AND " +
       "CURRENT ROW)" +
       "from MyTable"
+
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER w " +
+      "FROM MyTable " +
+      "WINDOW w AS (ORDER BY proctime ROWS BETWEEN 2 preceding AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
     val expected =
       unaryNode(
@@ -230,6 +281,14 @@ class OverWindowTest extends TableTestBase {
       "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
 
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER w as cnt1, " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
+      "FROM MyTable " +
+      "WINDOW w AS (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -258,6 +317,13 @@ class OverWindowTest extends TableTestBase {
       "CURRENT ROW) " +
       "from MyTable"
 
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER w " +
+      "FROM MyTable " +
+      "WINDOW w AS (PARTITION BY c ORDER BY proctime ROWS UNBOUNDED preceding)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+
     val expected =
       unaryNode(
         "DataStreamCalc",
@@ -281,6 +347,14 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
       "sum(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) as cnt2 " +
       "from MyTable"
+
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER (ORDER BY proctime RANGE UNBOUNDED preceding) as cnt1, " +
+      "sum(a) OVER w as cnt2 " +
+      "FROM MyTable " +
+      "WINDOW w AS(ORDER BY proctime RANGE UNBOUNDED preceding)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
     val expected =
       unaryNode(
@@ -308,6 +382,13 @@ class OverWindowTest extends TableTestBase {
       "count(a) OVER (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND " +
       "CURRENT ROW) " +
       "from MyTable"
+
+    val sql2 = "SELECT " +
+      "c, " +
+      "count(a) OVER w " +
+      "FROM MyTable " +
+      "WINDOW w AS (ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
 
     val expected =
       unaryNode(
@@ -567,6 +648,45 @@ class OverWindowTest extends TableTestBase {
           "CAST(w0$o1), null) AS cnt2"
         )
       )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testProcTimeBoundedPartitionedRowsOverDifferentWindows() = {
+    val sql = "SELECT " +
+      "a, " +
+      "SUM(c) OVER (PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW), " +
+      "MIN(c) OVER (PARTITION BY a ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) " +
+      "FROM MyTable"
+
+    val sql2 = "SELECT " +
+      "a, " +
+      "SUM(c) OVER w1, " +
+      "MIN(c) OVER w2 " +
+      "FROM MyTable " +
+      "WINDOW w1 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)," +
+      "w2 AS (PARTITION BY a ORDER BY proctime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)"
+    streamUtil.verifySqlPlansIdentical(sql, sql2)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamOverAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c", "proctime")
+          ),
+          term("partitionBy", "a"),
+          term("orderBy", "proctime"),
+          term("rows", "BETWEEN 3 PRECEDING AND CURRENT ROW"),
+          term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0",
+            "$SUM0(c) AS w0$o1")
+        ),
+        term("select", "a", "CASE(>(w0$o0, 0)", "CAST(w0$o1), null) AS EXPR$1", "w1$o0 AS EXPR$2")
+      )
+
     streamUtil.verifySql(sql, expected)
   }
 }

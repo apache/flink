@@ -33,6 +33,19 @@ SSL can be enabled for all network communication between Flink components. SSL k
 * **akka.ssl.enabled**: SSL flag for akka based control connection between the Flink client, jobmanager and taskmanager 
 * **jobmanager.web.ssl.enabled**: Flag to enable https access to the jobmanager's web frontend
 
+**IMPORTANT**
+
+The [IETF RFC 7525](https://tools.ietf.org/html/rfc7525) recommends to use a specific set of cipher suites for strong security.
+Because these cipher suites were not available on many setups out of the box, Flink's default value is set to a slightly
+weaker but more compatible cipher suite.
+We recommend that SSL setups update to the stronger cipher suites, if possible, by adding the below entry to the Flink configuration:
+
+{% highlight yaml %}
+security.ssl.algorithms: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+{% endhighlight %}
+
+If these suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
+
 ## Deploying Keystores and Truststores
 
 You need to have a Java Keystore generated and copied to each node in the Flink cluster. The common name or subject alternative names in the certificate should match the node's hostname and IP address. Keystores and truststores can be generated using the [keytool utility](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/keytool.html). All Flink components should have read access to the keystore and truststore files.

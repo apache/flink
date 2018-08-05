@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.InstantiationUtil;
@@ -32,12 +31,10 @@ import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -332,7 +329,7 @@ public class JobGraph implements Serializable {
 	 * Sets the settings for asynchronous snapshots. A value of {@code null} means that
 	 * snapshotting is not enabled.
 	 *
-	 * @param settings The snapshot settings, or null, to disable snapshotting.
+	 * @param settings The snapshot settings
 	 */
 	public void setSnapshotSettings(JobCheckpointingSettings settings) {
 		this.snapshotSettings = settings;
@@ -342,10 +339,26 @@ public class JobGraph implements Serializable {
 	 * Gets the settings for asynchronous snapshots. This method returns null, when
 	 * checkpointing is not enabled.
 	 *
-	 * @return The snapshot settings, or null, if checkpointing is not enabled.
+	 * @return The snapshot settings
 	 */
 	public JobCheckpointingSettings getCheckpointingSettings() {
 		return snapshotSettings;
+	}
+
+	/**
+	 * Checks if the checkpointing was enabled for this job graph
+	 *
+	 * @return true if checkpointing enabled
+	 */
+	public boolean isCheckpointingEnabled() {
+
+		if (snapshotSettings == null) {
+			return false;
+		}
+
+		long checkpointInterval = snapshotSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval();
+		return checkpointInterval > 0 &&
+			checkpointInterval < Long.MAX_VALUE;
 	}
 
 	/**
@@ -552,95 +565,30 @@ public class JobGraph implements Serializable {
 		return this.userJarBlobKeys;
 	}
 
-	/**
-	 * Uploads the previously added user JAR files to the job manager through
-	 * the job manager's BLOB server. The BLOB servers' address is given as a
-	 * parameter. This function issues a blocking call.
-	 *
-	 * @param blobServerAddress of the blob server to upload the jars to
-	 * @param blobClientConfig the blob client configuration
-	 * @throws IOException Thrown, if the file upload to the JobManager failed.
-	 */
-	public void uploadUserJars(
-			InetSocketAddress blobServerAddress,
-			Configuration blobClientConfig) throws IOException {
-		if (!userJars.isEmpty()) {
-			List<PermanentBlobKey> blobKeys = BlobClient.uploadFiles(
-				blobServerAddress, blobClientConfig, jobID, userJars);
-
-			for (PermanentBlobKey blobKey : blobKeys) {
-				if (!userJarBlobKeys.contains(blobKey)) {
-					userJarBlobKeys.add(blobKey);
-				}
-			}
-		}
-	}
-
 	@Override
 	public String toString() {
 		return "JobGraph(jobId: " + jobID + ")";
 	}
 
-	/**
-	 * Configures JobGraph with user specified artifacts. If the files are in local system it uploads them
-	 * to the BLOB server, otherwise it just puts metadata for future remote access from within task executor.
-	 *
-	 * @param blobServerAddress of the blob server to upload the files to
-	 * @param blobClientConfig the blob client configuration
-	 * @throws IOException Thrown, if the file upload to the Blob server failed.
-	 */
-	public void uploadUserArtifacts(
-			InetSocketAddress blobServerAddress,
-			Configuration blobClientConfig) throws IOException {
+	public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey) throws IOException {
+		byte[] serializedBlobKey;
+		serializedBlobKey = InstantiationUtil.serializeObject(blobKey);
 
-		Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> uploadToBlobServer = new HashSet<>();
-		Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> distributeViaDFS = new HashSet<>();
+		userArtifacts.computeIfPresent(entryName, (key, originalEntry) -> new DistributedCache.DistributedCacheEntry(
+			originalEntry.filePath,
+			originalEntry.isExecutable,
+			serializedBlobKey,
+			originalEntry.isZipped
+		));
+	}
 
+	public void writeUserArtifactEntriesToConfiguration() {
 		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : userArtifacts.entrySet()) {
-			Path filePath = new Path(userArtifact.getValue().filePath);
-
-			try {
-				if (filePath.getFileSystem().isDistributedFS()) {
-					distributeViaDFS.add(userArtifact);
-				} else {
-					uploadToBlobServer.add(userArtifact);
-				}
-
-			} catch (IOException ex) {
-				distributeViaDFS.add(userArtifact);
-			}
-		}
-
-		uploadViaBlob(blobServerAddress, blobClientConfig, uploadToBlobServer);
-
-		for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : distributeViaDFS) {
 			DistributedCache.writeFileInfoToConfig(
 				userArtifact.getKey(),
 				userArtifact.getValue(),
 				jobConfiguration
 			);
-		}
-	}
-
-	private void uploadViaBlob(
-			InetSocketAddress blobServerAddress,
-			Configuration clientConfig,
-			Set<Map.Entry<String, DistributedCache.DistributedCacheEntry>> uploadToBlobServer) throws IOException {
-		if (!uploadToBlobServer.isEmpty()) {
-			try (BlobClient blobClient = new BlobClient(blobServerAddress, clientConfig)) {
-				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact : uploadToBlobServer) {
-					final PermanentBlobKey key = blobClient.uploadFile(jobID,
-						new Path(userArtifact.getValue().filePath));
-
-					DistributedCache.writeFileInfoToConfig(
-						userArtifact.getKey(),
-						new DistributedCache.DistributedCacheEntry(
-							userArtifact.getValue().filePath,
-							userArtifact.getValue().isExecutable,
-							InstantiationUtil.serializeObject(key)),
-						jobConfiguration);
-				}
-			}
 		}
 	}
 }

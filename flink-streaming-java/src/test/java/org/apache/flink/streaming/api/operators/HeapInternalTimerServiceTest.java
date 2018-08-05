@@ -18,12 +18,16 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -85,12 +89,13 @@ public class HeapInternalTimerServiceTest {
 
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 
-		HeapInternalTimerService<Integer, String> service =
-				new HeapInternalTimerService<>(
-						testKeyGroupList.getNumberOfKeyGroups(),
-						testKeyGroupList,
-						keyContext,
-						processingTimeService);
+		HeapInternalTimerService<Integer, String> service = createInternalTimerService(
+			testKeyGroupList,
+			keyContext,
+			processingTimeService,
+			IntSerializer.INSTANCE,
+			StringSerializer.INSTANCE,
+			createQueueFactory());
 
 		Assert.assertEquals(startKeyGroupIdx, service.getLocalKeyGroupRangeStartIdx());
 	}
@@ -104,15 +109,21 @@ public class HeapInternalTimerServiceTest {
 		int endKeyGroupIdx = totalNoOfKeyGroups - 1; // we have 0 to 99
 
 		@SuppressWarnings("unchecked")
-		Set<InternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
-
+		Set<TimerHeapInternalTimer<Integer, String>>[] expectedNonEmptyTimerSets = new HashSet[totalNoOfKeyGroups];
 		TestKeyContext keyContext = new TestKeyContext();
-		HeapInternalTimerService<Integer, String> timerService =
-				new HeapInternalTimerService<>(
-						totalNoOfKeyGroups,
-						new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx),
-						keyContext,
-						new TestProcessingTimeService());
+
+		final KeyGroupRange keyGroupRange = new KeyGroupRange(startKeyGroupIdx, endKeyGroupIdx);
+
+		final PriorityQueueSetFactory priorityQueueSetFactory =
+			createQueueFactory(keyGroupRange, totalNoOfKeyGroups);
+
+		HeapInternalTimerService<Integer, String> timerService = createInternalTimerService(
+			keyGroupRange,
+			keyContext,
+			new TestProcessingTimeService(),
+			IntSerializer.INSTANCE,
+			StringSerializer.INSTANCE,
+			priorityQueueSetFactory);
 
 		timerService.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, mock(Triggerable.class));
 
@@ -123,7 +134,7 @@ public class HeapInternalTimerServiceTest {
 			int keyGroupIdx =  KeyGroupRangeAssignment.assignToKeyGroup(timer.getKey(), totalNoOfKeyGroups);
 
 			// add it in the adequate expected set of timers per keygroup
-			Set<InternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
+			Set<TimerHeapInternalTimer<Integer, String>> timerSet = expectedNonEmptyTimerSets[keyGroupIdx];
 			if (timerSet == null) {
 				timerSet = new HashSet<>();
 				expectedNonEmptyTimerSets[keyGroupIdx] = timerSet;
@@ -136,16 +147,16 @@ public class HeapInternalTimerServiceTest {
 			timerService.registerProcessingTimeTimer(timer.getNamespace(), timer.getTimestamp());
 		}
 
-		List<Set<InternalTimer<Integer, String>>> eventTimeTimers =
+		List<Set<TimerHeapInternalTimer<Integer, String>>> eventTimeTimers =
 			timerService.getEventTimeTimersPerKeyGroup();
-		List<Set<InternalTimer<Integer, String>>> processingTimeTimers =
+		List<Set<TimerHeapInternalTimer<Integer, String>>> processingTimeTimers =
 			timerService.getProcessingTimeTimersPerKeyGroup();
 
 		// finally verify that the actual timers per key group sets are the expected ones.
 		for (int i = 0; i < expectedNonEmptyTimerSets.length; i++) {
-			Set<InternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
-			Set<InternalTimer<Integer, String>> actualEvent = eventTimeTimers.get(i);
-			Set<InternalTimer<Integer, String>> actualProcessing = processingTimeTimers.get(i);
+			Set<TimerHeapInternalTimer<Integer, String>> expected = expectedNonEmptyTimerSets[i];
+			Set<TimerHeapInternalTimer<Integer, String>> actualEvent = eventTimeTimers.get(i);
+			Set<TimerHeapInternalTimer<Integer, String>> actualProcessing = processingTimeTimers.get(i);
 
 			if (expected == null) {
 				Assert.assertTrue(actualEvent.isEmpty());
@@ -169,9 +180,10 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
-
+		PriorityQueueSetFactory priorityQueueSetFactory =
+			new HeapPriorityQueueSetFactory(testKeyGroupRange, maxParallelism, 128);
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, priorityQueueSetFactory);
 
 		int key = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
 		keyContext.setCurrentKey(key);
@@ -233,7 +245,7 @@ public class HeapInternalTimerServiceTest {
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		int key = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
 
@@ -266,7 +278,7 @@ public class HeapInternalTimerServiceTest {
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 
 		final HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		int key = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
 
@@ -317,7 +329,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		processingTimeService.setCurrentTime(17L);
 		assertEquals(17, timerService.currentProcessingTime());
@@ -335,7 +347,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		timerService.advanceWatermark(17);
 		assertEquals(17, timerService.currentWatermark());
@@ -355,7 +367,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		// get two different keys
 		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -400,7 +412,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		// get two different keys
 		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -447,7 +459,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		// get two different keys
 		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -504,7 +516,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-				createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+				createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		// get two different keys
 		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -579,7 +591,7 @@ public class HeapInternalTimerServiceTest {
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
 		HeapInternalTimerService<Integer, String> timerService =
-			createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+			createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, createQueueFactory());
 
 		// get two different keys
 		int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
@@ -631,7 +643,7 @@ public class HeapInternalTimerServiceTest {
 			keyContext,
 			processingTimeService,
 			testKeyGroupRange,
-			maxParallelism);
+			createQueueFactory());
 
 		processingTimeService.setCurrentTime(10);
 		timerService.advanceWatermark(10);
@@ -652,8 +664,9 @@ public class HeapInternalTimerServiceTest {
 
 		TestKeyContext keyContext = new TestKeyContext();
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		final PriorityQueueSetFactory queueFactory = createQueueFactory();
 		HeapInternalTimerService<Integer, String> timerService =
-			createTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, maxParallelism);
+			createAndStartInternalTimerService(mockTriggerable, keyContext, processingTimeService, testKeyGroupRange, queueFactory);
 
 		int midpoint = testKeyGroupRange.getStartKeyGroup() +
 			(testKeyGroupRange.getEndKeyGroup() - testKeyGroupRange.getStartKeyGroup()) / 2;
@@ -724,7 +737,7 @@ public class HeapInternalTimerServiceTest {
 			keyContext1,
 			processingTimeService1,
 			subKeyGroupRange1,
-			maxParallelism);
+			queueFactory);
 
 		HeapInternalTimerService<Integer, String> timerService2 = restoreTimerService(
 			snapshot2,
@@ -733,7 +746,7 @@ public class HeapInternalTimerServiceTest {
 			keyContext2,
 			processingTimeService2,
 			subKeyGroupRange2,
-			maxParallelism);
+			queueFactory);
 
 		processingTimeService1.setCurrentTime(10);
 		timerService1.advanceWatermark(10);
@@ -793,18 +806,19 @@ public class HeapInternalTimerServiceTest {
 		return result;
 	}
 
-	private static HeapInternalTimerService<Integer, String> createTimerService(
+	private static HeapInternalTimerService<Integer, String> createAndStartInternalTimerService(
 			Triggerable<Integer, String> triggerable,
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			KeyGroupRange keyGroupList,
-			int maxParallelism) {
-		HeapInternalTimerService<Integer, String> service =
-			new HeapInternalTimerService<>(
-					maxParallelism,
-					keyGroupList,
-					keyContext,
-					processingTimeService);
+			PriorityQueueSetFactory priorityQueueSetFactory) {
+		HeapInternalTimerService<Integer, String> service = createInternalTimerService(
+			keyGroupList,
+			keyContext,
+			processingTimeService,
+			IntSerializer.INSTANCE,
+			StringSerializer.INSTANCE,
+			priorityQueueSetFactory);
 
 		service.startTimerService(IntSerializer.INSTANCE, StringSerializer.INSTANCE, triggerable);
 		return service;
@@ -817,15 +831,16 @@ public class HeapInternalTimerServiceTest {
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			KeyGroupRange keyGroupsList,
-			int maxParallelism) throws Exception {
+			PriorityQueueSetFactory priorityQueueSetFactory) throws Exception {
 
 		// create an empty service
-		HeapInternalTimerService<Integer, String> service =
-			new HeapInternalTimerService<>(
-					maxParallelism,
-					keyGroupsList,
-					keyContext,
-					processingTimeService);
+		HeapInternalTimerService<Integer, String> service = createInternalTimerService(
+			keyGroupsList,
+			keyContext,
+			processingTimeService,
+			IntSerializer.INSTANCE,
+			StringSerializer.INSTANCE,
+			priorityQueueSetFactory);
 
 		// restore the timers
 		for (Integer keyGroupIndex : keyGroupsList) {
@@ -846,6 +861,14 @@ public class HeapInternalTimerServiceTest {
 		return service;
 	}
 
+	private PriorityQueueSetFactory createQueueFactory() {
+		return createQueueFactory(testKeyGroupRange, maxParallelism);
+	}
+
+	protected PriorityQueueSetFactory createQueueFactory(KeyGroupRange keyGroupRange, int numKeyGroups) {
+		return new HeapPriorityQueueSetFactory(keyGroupRange, numKeyGroups, 128);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Parametrization for testing with different key-group ranges
 	// ------------------------------------------------------------------------
@@ -861,5 +884,32 @@ public class HeapInternalTimerServiceTest {
 						{2, 5, 100},
 						{2, 5, 6}
 		});
+	}
+
+	private static <K, N> HeapInternalTimerService<K, N> createInternalTimerService(
+		KeyGroupRange keyGroupsList,
+		KeyContext keyContext,
+		ProcessingTimeService processingTimeService,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<N> namespaceSerializer,
+		PriorityQueueSetFactory priorityQueueSetFactory) {
+
+		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
+
+		return new HeapInternalTimerService<>(
+			keyGroupsList,
+			keyContext,
+			processingTimeService,
+			createTimerQueue("__test_processing_timers", timerSerializer, priorityQueueSetFactory),
+			createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory));
+	}
+
+	private static <K, N> KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerQueue(
+		String name,
+		TimerSerializer<K, N> timerSerializer,
+		PriorityQueueSetFactory priorityQueueSetFactory) {
+		return priorityQueueSetFactory.create(
+			name,
+			timerSerializer);
 	}
 }

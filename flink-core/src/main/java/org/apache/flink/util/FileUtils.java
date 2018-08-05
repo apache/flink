@@ -32,6 +32,9 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -330,27 +333,90 @@ public final class FileUtils {
 		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
 		if (!tFS.exists(targetPath)) {
 			if (sFS.getFileStatus(sourcePath).isDir()) {
-				tFS.mkdirs(targetPath);
-				FileStatus[] contents = sFS.listStatus(sourcePath);
-				for (FileStatus content : contents) {
-					String distPath = content.getPath().toString();
-					if (content.isDir()) {
-						if (distPath.endsWith("/")) {
-							distPath = distPath.substring(0, distPath.length() - 1);
-						}
-					}
-					String localPath = targetPath.toString() + distPath.substring(distPath.lastIndexOf("/"));
-					copy(content.getPath(), new Path(localPath), executable);
-				}
+				internalCopyDirectory(sourcePath, targetPath, executable, sFS, tFS);
 			} else {
-				try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
-					IOUtils.copyBytes(fsInput, lfsOutput);
-					//noinspection ResultOfMethodCallIgnored
-					new File(targetPath.toString()).setExecutable(executable);
-				} catch (IOException ignored) {
-				}
+				internalCopyFile(sourcePath, targetPath, executable, sFS, tFS);
 			}
 		}
+	}
+
+	private static void internalCopyDirectory(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		tFS.mkdirs(targetPath);
+		FileStatus[] contents = sFS.listStatus(sourcePath);
+		for (FileStatus content : contents) {
+			String distPath = content.getPath().toString();
+			if (content.isDir()) {
+				if (distPath.endsWith("/")) {
+					distPath = distPath.substring(0, distPath.length() - 1);
+				}
+			}
+			String localPath = targetPath + distPath.substring(distPath.lastIndexOf("/"));
+			copy(content.getPath(), new Path(localPath), executable);
+		}
+	}
+
+	private static void internalCopyFile(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+			IOUtils.copyBytes(fsInput, lfsOutput);
+			//noinspection ResultOfMethodCallIgnored
+			new File(targetPath.toString()).setExecutable(executable);
+		}
+	}
+
+	public static Path compressDirectory(Path directory, Path target) throws IOException {
+		FileSystem sourceFs = directory.getFileSystem();
+		FileSystem targetFs = target.getFileSystem();
+
+		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
+			addToZip(directory, sourceFs, directory.getParent(), out);
+		}
+		return target;
+	}
+
+	private static void addToZip(Path fileOrDirectory, FileSystem fs, Path rootDir, ZipOutputStream out) throws IOException {
+		String relativePath = fileOrDirectory.getPath().replace(rootDir.getPath() + '/', "");
+		if (fs.getFileStatus(fileOrDirectory).isDir()) {
+			out.putNextEntry(new ZipEntry(relativePath + '/'));
+			for (FileStatus containedFile : fs.listStatus(fileOrDirectory)) {
+				addToZip(containedFile.getPath(), fs, rootDir, out);
+			}
+		} else {
+			ZipEntry entry = new ZipEntry(relativePath);
+			out.putNextEntry(entry);
+
+			try (FSDataInputStream in = fs.open(fileOrDirectory)) {
+				IOUtils.copyBytes(in, out, false);
+			}
+			out.closeEntry();
+		}
+	}
+
+	public static Path expandDirectory(Path file, Path targetDirectory) throws IOException {
+		FileSystem sourceFs = file.getFileSystem();
+		FileSystem targetFs = targetDirectory.getFileSystem();
+		Path rootDir = null;
+		try (ZipInputStream zis = new ZipInputStream(sourceFs.open(file))) {
+			ZipEntry entry;
+			while ((entry = zis.getNextEntry()) != null) {
+				Path relativePath = new Path(entry.getName());
+				if (rootDir == null) {
+					// the first entry contains the name of the original directory that was zipped
+					rootDir = relativePath;
+				}
+
+				Path newFile = new Path(targetDirectory, relativePath);
+				if (entry.isDirectory()) {
+					targetFs.mkdirs(newFile);
+				} else {
+					try (FSDataOutputStream fileStream = targetFs.create(newFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+						// do not close the streams here as it prevents access to further zip entries
+						IOUtils.copyBytes(zis, fileStream, false);
+					}
+				}
+				zis.closeEntry();
+			}
+		}
+		return new Path(targetDirectory, rootDir);
 	}
 
 	// ------------------------------------------------------------------------

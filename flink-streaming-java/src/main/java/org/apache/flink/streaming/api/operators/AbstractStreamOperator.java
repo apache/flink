@@ -402,7 +402,11 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
-		if (getKeyedStateBackend() != null) {
+		final KeyedStateBackend<?> keyedStateBackend = getKeyedStateBackend();
+		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
+		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
+			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
+
 			KeyedStateCheckpointOutputStream out;
 
 			try {
@@ -730,9 +734,11 @@ public abstract class AbstractStreamOperator<OUT>
 		checkTimerServiceInitialization();
 
 		// the following casting is to overcome type restrictions.
-		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
+		KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+		TypeSerializer<K> keySerializer = keyedStateBackend.getKeySerializer();
 		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
-		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
+		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
+		return keyedTimeServiceHandler.getInternalTimerService(name, timerSerializer, triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

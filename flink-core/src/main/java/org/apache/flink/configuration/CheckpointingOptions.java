@@ -115,15 +115,4 @@ public class CheckpointingOptions {
 			.defaultValue(1024)
 			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
 				" inline in the root checkpoint metadata file.");
-
-	// ------------------------------------------------------------------------
-	//  Options specific to the RocksDB state backend
-	// ------------------------------------------------------------------------
-
-	/** The local directory (on the TaskManager) where RocksDB puts its files. */
-	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
-			.key("state.backend.rocksdb.localdir")
-			.noDefaultValue()
-			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
-			.withDescription("The local directory (on the TaskManager) where RocksDB puts its files.");
 }

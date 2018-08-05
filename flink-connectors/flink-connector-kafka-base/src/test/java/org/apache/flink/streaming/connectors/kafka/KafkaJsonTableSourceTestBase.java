@@ -35,8 +35,12 @@ import static org.junit.Assert.assertNull;
 
 /**
  * Abstract test base for all Kafka JSON table sources.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
-public abstract class KafkaJsonTableSourceTestBase extends KafkaTableSourceTestBase {
+@Deprecated
+public abstract class KafkaJsonTableSourceTestBase extends KafkaTableSourceBuilderTestBase {
 
 	@Test
 	public void testJsonEqualsTableSchema() {

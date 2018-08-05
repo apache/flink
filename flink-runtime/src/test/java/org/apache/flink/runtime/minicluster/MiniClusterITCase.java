@@ -54,7 +54,7 @@ public class MiniClusterITCase extends TestLogger {
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+			.setRpcServiceSharing(RpcServiceSharing.SHARED)
 			.setConfiguration(configuration)
 			.build();
 
@@ -71,7 +71,7 @@ public class MiniClusterITCase extends TestLogger {
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
-			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.DEDICATED)
+			.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 			.setConfiguration(configuration)
 			.build();
 

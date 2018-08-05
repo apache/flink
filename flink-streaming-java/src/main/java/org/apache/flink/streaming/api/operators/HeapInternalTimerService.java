@@ -22,11 +22,17 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
@@ -46,12 +52,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	/**
 	 * Processing time timers that are currently in-flight.
 	 */
-	private final InternalTimerHeap<K, N> processingTimeTimersQueue;
+	private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue;
 
 	/**
 	 * Event time timers that are currently in-flight.
 	 */
-	private final InternalTimerHeap<K, N> eventTimeTimersQueue;
+	private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
 	 * Information concerning the local key-group range.
@@ -90,14 +96,17 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	private InternalTimersSnapshot<K, N> restoredTimersSnapshot;
 
 	HeapInternalTimerService(
-		int totalKeyGroups,
 		KeyGroupRange localKeyGroupRange,
 		KeyContext keyContext,
-		ProcessingTimeService processingTimeService) {
+		ProcessingTimeService processingTimeService,
+		KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> processingTimeTimersQueue,
+		KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue) {
 
 		this.keyContext = checkNotNull(keyContext);
 		this.processingTimeService = checkNotNull(processingTimeService);
 		this.localKeyGroupRange = checkNotNull(localKeyGroupRange);
+		this.processingTimeTimersQueue = checkNotNull(processingTimeTimersQueue);
+		this.eventTimeTimersQueue = checkNotNull(eventTimeTimersQueue);
 
 		// find the starting index of the local key-group range
 		int startIdx = Integer.MAX_VALUE;
@@ -105,9 +114,6 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			startIdx = Math.min(keyGroupIdx, startIdx);
 		}
 		this.localKeyGroupRangeStartIdx = startIdx;
-
-		this.eventTimeTimersQueue = new InternalTimerHeap<>(128, localKeyGroupRange, totalKeyGroups);
-		this.processingTimeTimersQueue = new InternalTimerHeap<>(128, localKeyGroupRange, totalKeyGroups);
 	}
 
 	/**
@@ -188,7 +194,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	@Override
 	public void registerProcessingTimeTimer(N namespace, long time) {
 		InternalTimer<K, N> oldHead = processingTimeTimersQueue.peek();
-		if (processingTimeTimersQueue.scheduleTimer(time, (K) keyContext.getCurrentKey(), namespace)) {
+		if (processingTimeTimersQueue.add(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace))) {
 			long nextTriggerTime = oldHead != null ? oldHead.getTimestamp() : Long.MAX_VALUE;
 			// check if we need to re-schedule our timer to earlier
 			if (time < nextTriggerTime) {
@@ -202,17 +208,17 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	@Override
 	public void registerEventTimeTimer(N namespace, long time) {
-		eventTimeTimersQueue.scheduleTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		eventTimeTimersQueue.add(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
 	public void deleteProcessingTimeTimer(N namespace, long time) {
-		processingTimeTimersQueue.stopTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		processingTimeTimersQueue.remove(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
 	public void deleteEventTimeTimer(N namespace, long time) {
-		eventTimeTimersQueue.stopTimer(time, (K) keyContext.getCurrentKey(), namespace);
+		eventTimeTimersQueue.remove(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
 	}
 
 	@Override
@@ -221,16 +227,20 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		// inside the callback.
 		nextTimer = null;
 
-		InternalTimer<K, N> timer;
+		processingTimeTimersQueue.bulkPoll(
+			(timer) -> (timer.getTimestamp() <= time),
+			(timer) -> {
+				keyContext.setCurrentKey(timer.getKey());
+				try {
+					triggerTarget.onProcessingTime(timer);
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Problem in trigger target.", e);
+				}
+			});
 
-		while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-			processingTimeTimersQueue.poll();
-			keyContext.setCurrentKey(timer.getKey());
-			triggerTarget.onProcessingTime(timer);
-		}
-
-		if (timer != null) {
-			if (nextTimer == null) {
+		if (nextTimer == null) {
+			final TimerHeapInternalTimer<K, N> timer = processingTimeTimersQueue.peek();
+			if (timer != null) {
 				nextTimer = processingTimeService.registerTimer(timer.getTimestamp(), this);
 			}
 		}
@@ -238,14 +248,16 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
-
-		InternalTimer<K, N> timer;
-
-		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-			eventTimeTimersQueue.poll();
-			keyContext.setCurrentKey(timer.getKey());
-			triggerTarget.onEventTime(timer);
-		}
+		eventTimeTimersQueue.bulkPoll(
+			(timer) -> (timer.getTimestamp() <= time),
+			(timer) -> {
+				keyContext.setCurrentKey(timer.getKey());
+				try {
+					triggerTarget.onEventTime(timer);
+				} catch (Exception e) {
+					throw new FlinkRuntimeException("Problem in trigger target.", e);
+				}
+			});
 	}
 
 	/**
@@ -256,12 +268,12 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 */
 	public InternalTimersSnapshot<K, N> snapshotTimersForKeyGroup(int keyGroupIdx) {
 		return new InternalTimersSnapshot<>(
-				keySerializer,
-				keySerializer.snapshotConfiguration(),
-				namespaceSerializer,
-				namespaceSerializer.snapshotConfiguration(),
-				eventTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx),
-				processingTimeTimersQueue.getTimersForKeyGroup(keyGroupIdx));
+			keySerializer,
+			keySerializer.snapshotConfiguration(),
+			namespaceSerializer,
+			namespaceSerializer.snapshotConfiguration(),
+			eventTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx),
+			processingTimeTimersQueue.getSubsetForKeyGroup(keyGroupIdx));
 	}
 
 	/**
@@ -287,36 +299,43 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
 		// restore the event time timers
-		eventTimeTimersQueue.bulkAddRestoredTimers(restoredTimersSnapshot.getEventTimeTimers());
+		eventTimeTimersQueue.addAll(restoredTimersSnapshot.getEventTimeTimers());
 
 		// restore the processing time timers
-		processingTimeTimersQueue.bulkAddRestoredTimers(restoredTimersSnapshot.getProcessingTimeTimers());
+		processingTimeTimersQueue.addAll(restoredTimersSnapshot.getProcessingTimeTimers());
 	}
 
+	@VisibleForTesting
 	public int numProcessingTimeTimers() {
 		return this.processingTimeTimersQueue.size();
 	}
 
+	@VisibleForTesting
 	public int numEventTimeTimers() {
 		return this.eventTimeTimersQueue.size();
 	}
 
+	@VisibleForTesting
 	public int numProcessingTimeTimers(N namespace) {
-		int count = 0;
-		for (InternalTimer<K, N> timer : processingTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
-		return count;
+		return countTimersInNamespaceInternal(namespace, processingTimeTimersQueue);
 	}
 
+	@VisibleForTesting
 	public int numEventTimeTimers(N namespace) {
+		return countTimersInNamespaceInternal(namespace, eventTimeTimersQueue);
+	}
+
+	private int countTimersInNamespaceInternal(N namespace, InternalPriorityQueue<TimerHeapInternalTimer<K, N>> queue) {
 		int count = 0;
-		for (InternalTimer<K, N> timer : eventTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
+		try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator = queue.iterator()) {
+			while (iterator.hasNext()) {
+				final TimerHeapInternalTimer<K, N> timer = iterator.next();
+				if (timer.getNamespace().equals(namespace)) {
+					count++;
+				}
 			}
+		} catch (Exception e) {
+			throw new FlinkRuntimeException("Exception when closing iterator.", e);
 		}
 		return count;
 	}
@@ -327,13 +346,21 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	@VisibleForTesting
-	List<Set<InternalTimer<K, N>>> getEventTimeTimersPerKeyGroup() {
-		return eventTimeTimersQueue.getTimersByKeyGroup();
+	List<Set<TimerHeapInternalTimer<K, N>>> getEventTimeTimersPerKeyGroup() {
+		return partitionElementsByKeyGroup(eventTimeTimersQueue);
 	}
 
 	@VisibleForTesting
-	List<Set<InternalTimer<K, N>>> getProcessingTimeTimersPerKeyGroup() {
-		return processingTimeTimersQueue.getTimersByKeyGroup();
+	List<Set<TimerHeapInternalTimer<K, N>>> getProcessingTimeTimersPerKeyGroup() {
+		return partitionElementsByKeyGroup(processingTimeTimersQueue);
+	}
+
+	private <T> List<Set<T>> partitionElementsByKeyGroup(KeyGroupedInternalPriorityQueue<T> keyGroupedQueue) {
+		List<Set<T>> result = new ArrayList<>(localKeyGroupRange.getNumberOfKeyGroups());
+		for (int keyGroup : localKeyGroupRange) {
+			result.add(Collections.unmodifiableSet(keyGroupedQueue.getSubsetForKeyGroup(keyGroup)));
+		}
+		return result;
 	}
 
 	private boolean areSnapshotSerializersIncompatible(InternalTimersSnapshot<?, ?> restoredSnapshot) {

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -33,6 +34,8 @@ import org.apache.flink.util.FlinkException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.function.Predicate;
 
 import static org.apache.flink.runtime.jobgraph.JobStatus.FINISHED;
 import static org.hamcrest.Matchers.equalTo;
@@ -85,9 +88,11 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 		eg.scheduleForExecution();
 
+		Predicate<Execution> isDeploying = ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
+
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
-			ExecutionGraphTestUtils.hasResourceAssigned,
+			isDeploying,
 			timeout);
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -102,7 +107,7 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
 		ExecutionGraphTestUtils.waitForAllExecutionsPredicate(
 			eg,
-			ExecutionGraphTestUtils.hasResourceAssigned,
+			isDeploying,
 			timeout);
 
 		//checking execution vertex properties

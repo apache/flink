@@ -302,11 +302,11 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		final int taskManagerMemory = 7331;
 		final int slotsPerTaskManager = 30;
 
-		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory);
-		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory);
+		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
+		configuration.setString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory + "m");
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {"-yjm", String.valueOf(jobManagerMemory), "-ytm", String.valueOf(taskManagerMemory), "-ys", String.valueOf(slotsPerTaskManager)};
+		final String[] args = {"-yjm", String.valueOf(jobManagerMemory) + "m", "-ytm", String.valueOf(taskManagerMemory) + "m", "-ys", String.valueOf(slotsPerTaskManager)};
 		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
 			configuration,
 			tmp.getRoot().getAbsolutePath(),
@@ -330,9 +330,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	public void testConfigurationClusterSpecification() throws Exception {
 		final Configuration configuration = new Configuration();
 		final int jobManagerMemory = 1337;
-		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory);
+		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, jobManagerMemory + "m");
 		final int taskManagerMemory = 7331;
-		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory);
+		configuration.setString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, taskManagerMemory + "m");
 		final int slotsPerTaskManager = 42;
 		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
@@ -351,6 +351,105 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
 		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
 	}
+
+	/**
+	 * Tests the specifying heap memory without unit for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithoutUnit() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1024", "-ytm", "2048" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with unit (MB) for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1024m", "-ytm", "2048m" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with arbitrary unit for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
+		final String[] args = new String[] { "-yn", "2", "-yjm", "1g", "-ytm", "2g" };
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+	}
+
+	/**
+	 * Tests the specifying heap memory with old config key for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
+		Configuration configuration = new Configuration();
+		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
+		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
+
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			configuration,
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
+	}
+
+	/**
+	 * Tests the specifying heap memory with config default value for job manager and task manager.
+	 */
+	@Test
+	public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
+		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
+			new Configuration(),
+			tmp.getRoot().getAbsolutePath(),
+			"y",
+			"yarn");
+
+		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[0], false);
+
+		final ClusterSpecification clusterSpecification = flinkYarnSessionCli.getClusterSpecification(commandLine);
+
+		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
+	}
+
 
 	///////////
 	// Utils //

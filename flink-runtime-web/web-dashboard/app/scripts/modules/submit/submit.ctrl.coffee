@@ -118,25 +118,32 @@ angular.module('flinkApp')
       $scope.state['plan-button'] = "Show Plan"
       $scope.error = null
 
+      request = {}
+      # legacy compatibility
       queryParameters = {}
 
       if $scope.state['entry-class']
+        request['entryClass'] = $scope.state['entry-class']
         queryParameters['entry-class'] = $scope.state['entry-class']
 
       if $scope.state.parallelism
+        request['parallelism'] = $scope.state['parallelism']
         queryParameters['parallelism'] = $scope.state['parallelism']
 
       if $scope.state['program-args']
+        request['programArgs'] = $scope.state['program-args']
         queryParameters['program-args'] = $scope.state['program-args']
 
       if $scope.state['savepointPath']
+        request['savepointPath'] = $scope.state['savepointPath']
         queryParameters['savepointPath'] = $scope.state['savepointPath']
 
       if $scope.state['allowNonRestoredState']
+        request['allowNonRestoredState'] = $scope.state['allowNonRestoredState']
         queryParameters['allowNonRestoredState'] = $scope.state['allowNonRestoredState']
 
       JobSubmitService.runJob(
-        $scope.state.selected, queryParameters
+        $scope.state.selected, request, queryParameters
       ).then (data) ->
         if action == $scope.state['action-time']
           $scope.state['submit-button'] = "Submit"

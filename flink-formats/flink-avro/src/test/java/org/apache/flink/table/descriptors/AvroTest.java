@@ -23,7 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +38,20 @@ public class AvroTest extends DescriptorTestBase {
 		removePropertyAndVerify(descriptors().get(0), "format.record-class");
 	}
 
+	@Test(expected = ValidationException.class)
+	public void testRecordClassAndAvroSchema() {
+		addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public List<Descriptor> descriptors() {
 		final Descriptor desc1 = new Avro().recordClass(User.class);
-		return Collections.singletonList(desc1);
+
+		final Descriptor desc2 = new Avro().avroSchema("{...}");
+
+		return Arrays.asList(desc1, desc2);
 	}
 
 	@Override
@@ -53,7 +61,12 @@ public class AvroTest extends DescriptorTestBase {
 		props1.put("format.property-version", "1");
 		props1.put("format.record-class", "org.apache.flink.formats.avro.generated.User");
 
-		return Collections.singletonList(props1);
+		final Map<String, String> props2 = new HashMap<>();
+		props2.put("format.type", "avro");
+		props2.put("format.property-version", "1");
+		props2.put("format.avro-schema", "{...}");
+
+		return Arrays.asList(props1, props2);
 	}
 
 	@Override

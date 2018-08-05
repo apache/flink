@@ -103,8 +103,7 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 					List<JarListInfo.JarEntryInfo> jarEntryList = new ArrayList<>();
 					String[] classes = new String[0];
-					try {
-						JarFile jar = new JarFile(f);
+					try (JarFile jar = new JarFile(f)) {
 						Manifest manifest = jar.getManifest();
 						String assemblerClass = null;
 

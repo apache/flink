@@ -24,6 +24,8 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSin
 # enable DEBUG logging level to retrieve truncate length later
 sed -i -e 's/#log4j.logger.org.apache.flink=INFO/log4j.logger.org.apache.flink=DEBUG/g' $FLINK_DIR/conf/log4j.properties
 
+backup_config
+set_conf_ssl
 start_cluster
 $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
@@ -45,7 +47,7 @@ JOB_ID=$($FLINK_DIR/bin/flink run -d -p 4 $TEST_PROGRAM_JAR -outputPath $TEST_DA
 
 wait_job_running ${JOB_ID}
 
-sleep 40
+wait_num_checkpoints "${JOB_ID}" 5
 
 echo "Killing TM"
 
@@ -70,7 +72,7 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 
 # the job should complete in under 60s because half of the work has been checkpointed
-sleep 100
+wait_job_terminal_state "${JOB_ID}" "FINISHED"
 
 # get truncate information
 # e.g. "xxx xxx DEBUG xxx.BucketingSink  - Writing valid-length file for xxx/out/result8/part-0-0 to specify valid length 74994"

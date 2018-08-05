@@ -72,6 +72,28 @@ class DistinctAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testDistinctAggregate(): Unit = {
+    val sqlQuery = "SELECT " +
+      "  c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) " +
+      "FROM MyTable " +
+      "GROUP BY c "
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "c", "a", "b")
+        ),
+        term("groupBy", "c"),
+        term("select", "c",
+          "SUM(DISTINCT a) AS EXPR$1", "SUM(a) AS EXPR$2", "COUNT(DISTINCT b) AS EXPR$3")
+      )
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
   def testDistinctAggregateOnTumbleWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(DISTINCT a), " +
       "  SUM(a) " +

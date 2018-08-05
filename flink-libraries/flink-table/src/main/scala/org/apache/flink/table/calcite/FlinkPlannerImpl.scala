@@ -19,10 +19,8 @@
 package org.apache.flink.table.calcite
 
 import java.util
-import java.util.Properties
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._

@@ -256,16 +256,28 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		File dbDir = temporaryFolder.newFolder();
 
+		final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType = RocksDBStateBackend.PriorityQueueStateType.valueOf(RocksDBOptions.TIMER_SERVICE_IMPL.defaultValue());
+
+		final int skipStreams;
+
+		if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.HEAP) {
+			// we skip the first created stream, because it is used to checkpoint the timer service, which is
+			// currently not asynchronous.
+			skipStreams = 1;
+		} else if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
+			skipStreams = 0;
+		} else {
+			throw new AssertionError(String.format("Unknown timer service priority queue type %s.", timerServicePriorityQueueType));
+		}
+
 		// this is the proper instance that we need to call.
 		BlockerCheckpointStreamFactory blockerCheckpointStreamFactory =
 			new BlockerCheckpointStreamFactory(4 * 1024 * 1024) {
 
-			int count = 1;
+			int count = skipStreams;
 
 			@Override
 			public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
-				// we skip the first created stream, because it is used to checkpoint the timer service, which is
-				// currently not asynchronous.
 				if (count > 0) {
 					--count;
 					return new BlockingCheckpointOutputStream(

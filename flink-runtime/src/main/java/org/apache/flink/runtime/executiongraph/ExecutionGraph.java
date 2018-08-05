@@ -989,14 +989,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					throw new CompletionException(resultThrowable);
 				});
 
-		currentSchedulingFuture.whenComplete(
-			(Void ignored, Throwable throwable) -> {
-				if (throwable instanceof CancellationException) {
-					// cancel the individual allocation futures
-					allAllocationsFuture.cancel(false);
-				}
-			});
-
 		return currentSchedulingFuture;
 	}
 

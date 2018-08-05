@@ -41,6 +41,8 @@ public final class PropertyStrings {
 
 	public static final String EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME = "processing-time";
 
+	public static final String EXECUTION_PERIODIC_WATERMARKS_INTERVAL = "periodic-watermarks-interval";
+
 	public static final String EXECUTION_MIN_STATE_RETENTION = "min-idle-state-retention";
 
 	public static final String EXECUTION_MAX_STATE_RETENTION = "max-idle-state-retention";

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -66,6 +66,12 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<artifactSet>
+								<includes>
+									<include>com.squareup.okhttp3:*</include>
+									<include>com.squareup.okio:*</include>
+								</includes>
+							</artifactSet>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<relocations combine.children="append">
 								<relocation>

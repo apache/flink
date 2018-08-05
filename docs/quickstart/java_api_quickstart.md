@@ -55,9 +55,9 @@ Use one of the following commands to __create a project__:
     <div class="tab-pane" id="quickstart-script">
     {% highlight bash %}
 {% if site.is_stable %}
-    $ curl https://flink.apache.org/q/quickstart.sh | bash
+    $ curl https://flink.apache.org/q/quickstart.sh | bash -s {{site.version}}
 {% else %}
-    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
+    $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash -s {{site.version}}
 {% endif %}
     {% endhighlight %}
 
@@ -132,6 +132,8 @@ take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/exa
 For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
+
+[Here]({{ site.baseurl }}/quickstart/setup_quickstart.html) you can find out how to run an application outside the IDE on a local cluster.
 
 If you have any trouble, ask on our
 [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
