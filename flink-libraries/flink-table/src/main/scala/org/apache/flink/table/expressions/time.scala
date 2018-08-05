@@ -397,12 +397,12 @@ case class TimestampDiff(
       .makeCall(intervalType, SqlStdOperatorTable.MINUS_DATE,
         List(timestamp2.toRexNode, timestamp1.toRexNode))
 
-    val intType = typeFactory.createSqlType(SqlTypeName.INTEGER)
+    val intType = typeFactory.createSqlType(SqlTypeName.BIGINT)
 
     relBuilder.getRexBuilder.makeCast(intType, rexCall)
   }
 
   override def toString: String = s"timestampDiff(${children.mkString(", ")})"
 
-  override private[flink] def resultType = INT_TYPE_INFO
+  override private[flink] def resultType = LONG_TYPE_INFO
 }

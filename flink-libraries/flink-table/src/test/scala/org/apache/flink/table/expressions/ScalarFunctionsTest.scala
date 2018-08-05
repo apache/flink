@@ -2092,6 +2092,30 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testTimestampDiff(): Unit = {
+    testTableApi(
+      "2018-07-05 11:11:11".toTimestamp - "2018-07-03 11:11:11".toTimestamp,
+      "'2018-07-05 11:11:11'.toTimestamp - '2018-07-03 11:11:11'.toTimestamp",
+      "172800000"
+    )
+
+    testTableApi(
+      "2018-07-05 11:11:11".toTimestamp - "2018-07-03".toDate,
+      "'2018-07-05 11:11:11'.toTimestamp - '2018-07-03'.toDate",
+      "213071000"
+    )
+
+    testTableApi(
+      "2018-07-03".toDate - "2018-07-05 11:11:11".toTimestamp,
+      "'2018-07-03'.toDate - '2018-07-05 11:11:11'.toTimestamp",
+      "-213071000"
+    )
+
+    testTableApi(
+      "2018-07-05".toDate - "2018-07-03".toDate,
+      "'2018-07-05'.toDate - '2018-07-03'.toDate",
+      "172800000"
+    )
+
     testAllApis(
       timestampDiff(
         TimeIntervalUnit.DAY,

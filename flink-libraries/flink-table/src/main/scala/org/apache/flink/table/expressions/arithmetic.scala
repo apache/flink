@@ -27,6 +27,7 @@ import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.validate._
 
 import scala.collection.JavaConversions._
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
 
 abstract class BinaryArithmetic extends BinaryExpression {
   private[flink] def sqlOperator: SqlOperator
@@ -95,7 +96,7 @@ case class Plus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationFailure(
         s"$this requires Numeric, String, Intervals of same type, " +
         s"or Interval and a time point input, " +
-        s"get $left : ${left.resultType} and $right : ${right.resultType}")
+        s"but get $left : ${left.resultType} and $right : ${right.resultType}")
     }
   }
 }
@@ -132,8 +133,16 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationSuccess
     } else if (isTimeInterval(left.resultType) && isTimePoint(right.resultType)) {
       ValidationSuccess
+    } else if (isTimePoint(left.resultType) && isTimePoint(right.resultType) &&
+      left.resultType != SqlTimeTypeInfo.TIME && right.resultType != SqlTimeTypeInfo.TIME) {
+      ValidationSuccess
+    } else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
+      ValidationSuccess
     } else {
-      super.validateInput()
+      ValidationFailure(
+        s"$this requires Numeric, Intervals of same type, Interval and a time point input" +
+        s"or time points input of timestamp or date, " +
+        s"but get $left : ${left.resultType} and $right : ${right.resultType}")
     }
   }
 }
