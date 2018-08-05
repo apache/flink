@@ -21,7 +21,7 @@ FROM debian:jessie
 RUN echo "deb http://http.debian.net/debian jessie-backports main" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y -t jessie-backports openjdk-8-jdk && \
-    apt-get install -y apt-utils bzip2 curl faketime iproute iptables iputils-ping less libzip2 logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo sysvinit sysvinit-core sysvinit-utils tar unzip vim wget
+    apt-get install -y apt-utils bzip2 curl faketime iproute iptables iputils-ping less libzip2 logrotate man man-db net-tools ntpdate psmisc python rsyslog runit sudo sysvinit sysvinit-core sysvinit-utils tar unzip vim wget
 
 RUN apt-get update && \
     apt-get -y install openssh-server && \
@@ -35,5 +35,12 @@ RUN mkdir -p /root/.ssh/ && \
     chmod 600 /root/.ssh/authorized_keys && \
     cat /root/id_rsa.pub >> /root/.ssh/authorized_keys
 
+COPY sshd-run /etc/sv/service/sshd/run
+RUN chmod +x /etc/sv/service/sshd/run && \
+    ln -sf /etc/sv/service/sshd /etc/service
+
 EXPOSE 22
-CMD exec /usr/sbin/sshd -D
+
+# Start runit process supervisor which will bring up sshd.
+# In our tests we can use runit to supervise more processes, e.g., Mesos.
+CMD runsvdir -P /etc/service /dev/null > /dev/null
