@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -232,6 +233,25 @@ public class PythonStreamExecutionEnvironment {
 	 */
 	public PythonStreamExecutionEnvironment set_parallelism(int parallelism) {
 		this.env.setParallelism(parallelism);
+		return this;
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#getStateBackend()}.
+	 *
+	 * @return The state backend.
+	 */
+	public StateBackend get_state_backend() {
+		return this.env.getStateBackend();
+	}
+
+	/**
+	 * A thin wrapper layer over {@link StreamExecutionEnvironment#setStateBackend(StateBackend)}.
+	 *
+	 * @return The same {@code PythonStreamExecutionEnvironment} instance of the caller
+	 */
+	public PythonStreamExecutionEnvironment set_state_backend(StateBackend stateBackend) {
+		this.env.setStateBackend(stateBackend);
 		return this;
 	}
 
