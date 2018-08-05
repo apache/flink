@@ -24,6 +24,14 @@ import org.apache.calcite.linq4j.tree.Types
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.table.runtime.functions.ScalarFunctions
 
+/**
+  * Contains references to built-in functions.
+  *
+  * NOTE: When adding functions here. Check if Calcite provides it in
+  * [[org.apache.calcite.util.BuiltInMethod]]. The function generator supports Java's auto casting
+  * so we don't need the full matrix of data types for every function. Only [[JBigDecimal]] needs
+  * special handling.
+  */
 object BuiltInMethods {
 
   val LOG = Types.lookupMethod(classOf[ScalarFunctions], "log", classOf[Double])
@@ -75,6 +83,17 @@ object BuiltInMethods {
   val ATAN = Types.lookupMethod(classOf[Math], "atan", classOf[Double])
   val ATAN_DEC = Types.lookupMethod(classOf[SqlFunctions], "atan", classOf[JBigDecimal])
 
+  val ATAN2_DOUBLE_DOUBLE = Types.lookupMethod(
+    classOf[Math],
+    "atan2",
+    classOf[Double],
+    classOf[Double])
+  val ATAN2_DEC_DEC = Types.lookupMethod(
+    classOf[SqlFunctions],
+    "atan2",
+    classOf[JBigDecimal],
+    classOf[JBigDecimal])
+
   val DEGREES = Types.lookupMethod(classOf[Math], "toDegrees", classOf[Double])
   val DEGREES_DEC = Types.lookupMethod(classOf[SqlFunctions], "degrees", classOf[JBigDecimal])
 
@@ -119,4 +138,6 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
 
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
+
+  val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
 }

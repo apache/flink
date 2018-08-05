@@ -21,9 +21,24 @@ under the License.
         <value>mapreduce_shuffle</value>
     </property>
 
+    <!-- this is ignored by the default scheduler but we have to set it because Flink would
+    complain if we didn't have it -->
     <property>
         <name>yarn.nodemanager.resource.cpu-vcores</name>
         <value>1</value>
+    </property>
+
+    <!-- the combination of this and the next setting ensures that the YARN/Kerberos test starts
+    containers on all available NMs. If the memory is to big it could happen that all containers
+    are scheduled on one NM, which wouldn't provoke a previously fixed Kerberos keytab bug. -->
+    <property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>4100</value>
+    </property>
+
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>2000</value>
     </property>
 
     <property>

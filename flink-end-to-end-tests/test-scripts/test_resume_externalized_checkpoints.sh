@@ -106,7 +106,7 @@ if [[ $SIMULATE_FAILURE == "true" ]]; then
   wait_job_terminal_state $DATASTREAM_JOB FAILED
 else
   wait_num_checkpoints $DATASTREAM_JOB 1
-  wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+  wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
   cancel_job $DATASTREAM_JOB
 fi
@@ -131,7 +131,7 @@ BASE_JOB_CMD=`buildBaseJobCmd $NEW_DOP`
 DATASTREAM_JOB=$($BASE_JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
 wait_job_running $DATASTREAM_JOB
-wait_oper_metric_num_in_records ArtificalKeyedStateMapper.0 200
+wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
 # if state is errorneous and the general purpose DataStream job produces alerting messages,
 # output would be non-empty and the test will not pass

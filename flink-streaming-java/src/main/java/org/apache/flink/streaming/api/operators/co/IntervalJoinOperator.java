@@ -152,6 +152,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	@Override
 	public void open() throws Exception {
 		super.open();
+
 		collector = new TimestampedCollector<>(output);
 		context = new ContextImpl(userFunction);
 		internalTimerService =
@@ -204,15 +205,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	}
 
 	@SuppressWarnings("unchecked")
-	private <OUR, OTHER> void processElement(
-			StreamRecord<OUR> record,
-			MapState<Long, List<BufferEntry<OUR>>> ourBuffer,
-			MapState<Long, List<BufferEntry<OTHER>>> otherBuffer,
-			long relativeLowerBound,
-			long relativeUpperBound,
-			boolean isLeft) throws Exception {
+	private <THIS, OTHER> void processElement(
+			final StreamRecord<THIS> record,
+			final MapState<Long, List<IntervalJoinOperator.BufferEntry<THIS>>> ourBuffer,
+			final MapState<Long, List<IntervalJoinOperator.BufferEntry<OTHER>>> otherBuffer,
+			final long relativeLowerBound,
+			final long relativeUpperBound,
+			final boolean isLeft) throws Exception {
 
-		final OUR ourValue = record.getValue();
+		final THIS ourValue = record.getValue();
 		final long ourTimestamp = record.getTimestamp();
 
 		if (ourTimestamp == Long.MIN_VALUE) {
@@ -257,14 +258,18 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	}
 
 	private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp) throws Exception {
-		long resultTimestamp = Math.max(leftTimestamp, rightTimestamp);
+		final long resultTimestamp = Math.max(leftTimestamp, rightTimestamp);
+
 		collector.setAbsoluteTimestamp(resultTimestamp);
-		context.leftTimestamp = leftTimestamp;
-		context.rightTimestamp = rightTimestamp;
+		context.updateTimestamps(leftTimestamp, rightTimestamp, resultTimestamp);
+
 		userFunction.processElement(left, right, context, collector);
 	}
 
-	private <T> void addToBuffer(MapState<Long, List<BufferEntry<T>>> buffer, T value, long timestamp) throws Exception {
+	private static <T> void addToBuffer(
+			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
+			final T value,
+			final long timestamp) throws Exception {
 		List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
 		if (elemsInBucket == null) {
 			elemsInBucket = new ArrayList<>();
@@ -313,12 +318,20 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	 */
 	private final class ContextImpl extends ProcessJoinFunction<T1, T2, OUT>.Context {
 
+		private long resultTimestamp = Long.MIN_VALUE;
+
 		private long leftTimestamp = Long.MIN_VALUE;
 
 		private long rightTimestamp = Long.MIN_VALUE;
 
 		private ContextImpl(ProcessJoinFunction<T1, T2, OUT> func) {
 			func.super();
+		}
+
+		private void updateTimestamps(long left, long right, long result) {
+			this.leftTimestamp = left;
+			this.rightTimestamp = right;
+			this.resultTimestamp = result;
 		}
 
 		@Override
@@ -333,7 +346,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		@Override
 		public long getTimestamp() {
-			return leftTimestamp;
+			return resultTimestamp;
 		}
 
 		@Override

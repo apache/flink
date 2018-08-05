@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.StateTtlConfiguration;
+import org.apache.flink.api.common.state.StateTtlConfig;
 
 /**
  * This class wraps reducing function with TTL logic.
@@ -32,7 +32,7 @@ class TtlReduceFunction<T>
 
 	TtlReduceFunction(
 		ReduceFunction<T> originalReduceFunction,
-		StateTtlConfiguration config,
+		StateTtlConfig config,
 		TtlTimeProvider timeProvider) {
 		super(originalReduceFunction, config, timeProvider);
 	}

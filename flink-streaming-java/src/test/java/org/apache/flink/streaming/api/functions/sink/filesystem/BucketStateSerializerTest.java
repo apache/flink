@@ -25,7 +25,7 @@ import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -75,8 +75,8 @@ public class BucketStateSerializerTest {
 		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(testBucket, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgress());
-		Assert.assertTrue(recoveredState.getPendingPerCheckpoint().isEmpty());
+		Assert.assertNull(recoveredState.getInProgressResumableFile());
+		Assert.assertTrue(recoveredState.getCommittableFilesPerCheckpoint().isEmpty());
 	}
 
 	@Test
@@ -166,7 +166,7 @@ public class BucketStateSerializerTest {
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
 
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getPendingPerCheckpoint();
+		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
 		Assert.assertEquals(5L, recoveredRecoverables.size());
 
 		// recover and commit
@@ -238,9 +238,9 @@ public class BucketStateSerializerTest {
 		final BucketState<String> recoveredState =  SimpleVersionedSerialization.readVersionAndDeSerialize(serializer, bytes);
 
 		Assert.assertEquals(bucketPath, recoveredState.getBucketPath());
-		Assert.assertNull(recoveredState.getInProgress());
+		Assert.assertNull(recoveredState.getInProgressResumableFile());
 
-		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getPendingPerCheckpoint();
+		final Map<Long, List<RecoverableWriter.CommitRecoverable>> recoveredRecoverables = recoveredState.getCommittableFilesPerCheckpoint();
 		Assert.assertEquals(5L, recoveredRecoverables.size());
 
 		// recover and commit

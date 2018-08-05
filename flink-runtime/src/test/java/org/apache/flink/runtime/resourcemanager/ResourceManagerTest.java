@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -67,7 +66,6 @@ public class ResourceManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testRequestTaskManagerInfo() throws Exception {
-		final Configuration configuration = new Configuration();
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),

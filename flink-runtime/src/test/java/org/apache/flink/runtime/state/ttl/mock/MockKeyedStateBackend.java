@@ -37,12 +37,13 @@ import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
-import org.apache.flink.runtime.state.KeyedStateFactory;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
@@ -57,6 +58,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
@@ -65,18 +67,26 @@ import java.util.stream.Stream;
 /** State backend which produces in memory mock state objects. */
 public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
+	private interface StateFactory {
+		<N, SV, S extends State, IS extends S> IS createInternalState(
+			TypeSerializer<N> namespaceSerializer,
+			StateDescriptor<S, SV> stateDesc) throws Exception;
+	}
+
 	@SuppressWarnings("deprecation")
-	private static final Map<Class<? extends StateDescriptor>, KeyedStateFactory> STATE_FACTORIES =
+	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
 		Stream.of(
-			Tuple2.of(ValueStateDescriptor.class, (KeyedStateFactory) MockInternalValueState::createState),
-			Tuple2.of(ListStateDescriptor.class, (KeyedStateFactory) MockInternalListState::createState),
-			Tuple2.of(MapStateDescriptor.class, (KeyedStateFactory) MockInternalMapState::createState),
-			Tuple2.of(ReducingStateDescriptor.class, (KeyedStateFactory) MockInternalReducingState::createState),
-			Tuple2.of(AggregatingStateDescriptor.class, (KeyedStateFactory) MockInternalAggregatingState::createState),
-			Tuple2.of(FoldingStateDescriptor.class, (KeyedStateFactory) MockInternalFoldingState::createState)
+			Tuple2.of(ValueStateDescriptor.class, (StateFactory) MockInternalValueState::createState),
+			Tuple2.of(ListStateDescriptor.class, (StateFactory) MockInternalListState::createState),
+			Tuple2.of(MapStateDescriptor.class, (StateFactory) MockInternalMapState::createState),
+			Tuple2.of(ReducingStateDescriptor.class, (StateFactory) MockInternalReducingState::createState),
+			Tuple2.of(AggregatingStateDescriptor.class, (StateFactory) MockInternalAggregatingState::createState),
+			Tuple2.of(FoldingStateDescriptor.class, (StateFactory) MockInternalFoldingState::createState)
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	private final Map<String, Map<K, Map<Object, Object>>> stateValues = new HashMap<>();
+
+	private final Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters = new HashMap<>();
 
 	MockKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
@@ -92,24 +102,48 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <N, SV, S extends State, IS extends S> IS createInternalState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, SV> stateDesc) throws Exception {
-		KeyedStateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+	@Nonnull
+	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull StateDescriptor<S, SV> stateDesc,
+		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
+		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), TtlStateFactory.class);
 			throw new FlinkRuntimeException(message);
 		}
 		IS state = stateFactory.createInternalState(namespaceSerializer, stateDesc);
+		stateSnapshotFilters.put(stateDesc.getName(),
+			(StateSnapshotTransformer<Object>) getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
 		((MockInternalKvState<K, N, SV>) state).values = () -> stateValues
 			.computeIfAbsent(stateDesc.getName(), n -> new HashMap<>())
 			.computeIfAbsent(getCurrentKey(), k -> new HashMap<>());
 		return state;
 	}
 
+	@SuppressWarnings("unchecked")
+	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+		StateDescriptor<?, SV> stateDesc,
+		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
+		if (original.isPresent()) {
+			if (stateDesc instanceof ListStateDescriptor) {
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+					.ListStateSnapshotTransformer<>(original.get());
+			} else if (stateDesc instanceof MapStateDescriptor) {
+				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+					.MapStateSnapshotTransformer<>(original.get());
+			} else {
+				return (StateSnapshotTransformer<SV>) original.get();
+			}
+		} else {
+			return null;
+		}
+	}
+
 	@Override
-	public int numStateEntries() {
+	public int numKeyValueStateEntries() {
 		int count = 0;
 		for (String state : stateValues.keySet()) {
 			for (K key : stateValues.get(state).keySet()) {
@@ -142,7 +176,8 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		long timestamp,
 		CheckpointStreamFactory streamFactory,
 		CheckpointOptions checkpointOptions) {
-		return new FutureTask<>(() -> SnapshotResult.of(new MockKeyedStateHandle<>(copy(stateValues))));
+		return new FutureTask<>(() ->
+			SnapshotResult.of(new MockKeyedStateHandle<>(copy(stateValues, stateSnapshotFilters))));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -153,23 +188,42 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		state.forEach(ksh -> stateValues.putAll(copy(((MockKeyedStateHandle<K>) ksh).snapshotStates)));
 	}
 
-	@SuppressWarnings("unchecked")
 	private static <K> Map<String, Map<K, Map<Object, Object>>> copy(
 		Map<String, Map<K, Map<Object, Object>>> stateValues) {
+		return copy(stateValues, Collections.emptyMap());
+	}
+
+	private static <K> Map<String, Map<K, Map<Object, Object>>> copy(
+		Map<String, Map<K, Map<Object, Object>>> stateValues, Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters) {
 		Map<String, Map<K, Map<Object, Object>>> snapshotStates = new HashMap<>();
 		for (String stateName : stateValues.keySet()) {
+			StateSnapshotTransformer<Object> stateSnapshotTransformer = stateSnapshotFilters.getOrDefault(stateName, null);
 			Map<K, Map<Object, Object>> keyedValues = snapshotStates.computeIfAbsent(stateName, s -> new HashMap<>());
 			for (K key : stateValues.get(stateName).keySet()) {
-				Map<Object, Object> values = keyedValues.computeIfAbsent(key, s -> new HashMap<>());
+				Map<Object, Object> snapshotedValues = keyedValues.computeIfAbsent(key, s -> new HashMap<>());
 				for (Object namespace : stateValues.get(stateName).get(key).keySet()) {
-					Object value = stateValues.get(stateName).get(key).get(namespace);
-					value = value instanceof List ? new ArrayList<>((List) value) : value;
-					value = value instanceof Map ? new HashMap<>((Map) value) : value;
-					values.put(namespace, value);
+					copyEntry(stateValues, snapshotedValues, stateName, key, namespace, stateSnapshotTransformer);
 				}
 			}
 		}
 		return snapshotStates;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <K> void copyEntry(
+		Map<String, Map<K, Map<Object, Object>>> stateValues,
+		Map<Object, Object> snapshotedValues,
+		String stateName,
+		K key,
+		Object namespace,
+		StateSnapshotTransformer<Object> stateSnapshotTransformer) {
+		Object value = stateValues.get(stateName).get(key).get(namespace);
+		value = value instanceof List ? new ArrayList<>((List) value) : value;
+		value = value instanceof Map ? new HashMap<>((Map) value) : value;
+		Object filteredValue = stateSnapshotTransformer == null ? value : stateSnapshotTransformer.filterOrTransform(value);
+		if (filteredValue != null) {
+			snapshotedValues.put(namespace, filteredValue);
+		}
 	}
 
 	@Nonnull
@@ -178,7 +232,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	create(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-		return new HeapPriorityQueueSet<T>(
+		return new HeapPriorityQueueSet<>(
 			PriorityComparator.forPriorityComparableObjects(),
 			KeyExtractorFunction.forKeyedObjects(),
 			0,

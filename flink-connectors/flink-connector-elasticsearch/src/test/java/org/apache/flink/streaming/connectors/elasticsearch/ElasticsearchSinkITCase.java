@@ -28,10 +28,12 @@ import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUti
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Test;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,26 +44,26 @@ import java.util.Map;
 /**
  * IT Cases for the {@link ElasticsearchSink}.
  */
-public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
+public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase<Client, InetSocketAddress> {
 
 	@Test
-	public void testTransportClient() throws Exception {
-		runTransportClientTest();
+	public void testElasticsearchSink() throws Exception {
+		runElasticsearchSinkTest();
 	}
 
 	@Test
-	public void testNullTransportClient() throws Exception {
-		runNullTransportClientTest();
+	public void testNullAddresses() throws Exception {
+		runNullAddressesTest();
 	}
 
 	@Test
-	public void testEmptyTransportClient() throws Exception {
-		runEmptyTransportClientTest();
+	public void testEmptyAddresses() throws Exception {
+		runEmptyAddressesTest();
 	}
 
 	@Test
-	public void testTransportClientFails() throws Exception{
-		runTransportClientFailsTest();
+	public void testInvalidElasticsearchCluster() throws Exception{
+		runInvalidElasticsearchClusterTest();
 	}
 
 	// -- Tests specific to Elasticsearch 1.x --
@@ -102,19 +104,28 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
-																List<InetSocketAddress> transportAddresses,
-																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		return new ElasticsearchSink<>(userConfig, ElasticsearchUtils.convertInetSocketAddresses(transportAddresses), elasticsearchSinkFunction);
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSink(
+			int bulkFlushMaxActions,
+			String clusterName,
+			List<InetSocketAddress> transportAddresses,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) {
+
+		return new ElasticsearchSink<>(
+				Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
+				ElasticsearchUtils.convertInetSocketAddresses(transportAddresses),
+				elasticsearchSinkFunction);
 	}
 
 	@Override
-	protected <T> ElasticsearchSinkBase<T> createElasticsearchSinkForEmbeddedNode(
-		Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) throws Exception {
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSinkForEmbeddedNode(
+			int bulkFlushMaxActions,
+			String clusterName,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception {
+
+		Map<String, String> userConfig = createUserConfig(bulkFlushMaxActions, clusterName);
 
 		// Elasticsearch 1.x requires this setting when using
 		// LocalTransportAddress to connect to a local embedded node
-		userConfig = new HashMap<>(userConfig);
 		userConfig.put("node.local", "true");
 
 		List<TransportAddress> transports = new ArrayList<>();
@@ -122,6 +133,22 @@ public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 		return new ElasticsearchSink<>(
 			Collections.unmodifiableMap(userConfig),
+			transports,
+			elasticsearchSinkFunction);
+	}
+
+	@Override
+	protected ElasticsearchSinkBase<Tuple2<Integer, String>, Client> createElasticsearchSinkForNode(
+			int bulkFlushMaxActions,
+			String clusterName,
+			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+			String ipAddress) throws Exception {
+
+		List<TransportAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketTransportAddress(InetAddress.getByName(ipAddress), 9300));
+
+		return new ElasticsearchSink<>(
+			Collections.unmodifiableMap(createUserConfig(bulkFlushMaxActions, clusterName)),
 			transports,
 			elasticsearchSinkFunction);
 	}

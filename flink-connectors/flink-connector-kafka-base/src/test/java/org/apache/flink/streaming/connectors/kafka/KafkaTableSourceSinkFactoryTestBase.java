@@ -153,6 +153,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 					.version(getKafkaVersion())
 					.topic(TOPIC)
 					.properties(KAFKA_PROPERTIES)
+					.sinkPartitionerRoundRobin() // test if accepted although not needed
 					.startFromSpecificOffsets(OFFSETS))
 			.withFormat(new TestTableFormat())
 			.withSchema(
@@ -194,7 +195,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			schema,
 			TOPIC,
 			KAFKA_PROPERTIES,
-			new FlinkFixedPartitioner<>(), // a custom partitioner is not support yet
+			Optional.of(new FlinkFixedPartitioner<>()),
 			new TestSerializationSchema(schema.toRowType()));
 
 		// construct table sink using descriptors and table sink factory
@@ -204,6 +205,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 					.version(getKafkaVersion())
 					.topic(TOPIC)
 					.properties(KAFKA_PROPERTIES)
+					.sinkPartitionerFixed()
 					.startFromSpecificOffsets(OFFSETS)) // test if they accepted although not needed
 			.withFormat(new TestTableFormat())
 			.withSchema(
@@ -299,6 +301,6 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		TableSchema schema,
 		String topic,
 		Properties properties,
-		FlinkKafkaPartitioner<Row> partitioner,
+		Optional<FlinkKafkaPartitioner<Row>> partitioner,
 		SerializationSchema<Row> serializationSchema);
 }

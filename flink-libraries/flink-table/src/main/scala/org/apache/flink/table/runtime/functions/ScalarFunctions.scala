@@ -26,6 +26,12 @@ import org.apache.commons.codec.binary.Base64
 
 /**
   * Built-in scalar runtime functions.
+  *
+  * NOTE: Before you add functions here, check if Calcite provides it in
+  * [[org.apache.calcite.runtime.SqlFunctions]]. Furthermore, make sure to implement the function
+  * efficiently. Sometimes it makes sense to create a
+  * [[org.apache.flink.table.codegen.calls.CallGenerator]] instead to avoid massive object
+  * creation and reuse instances.
   */
 class ScalarFunctions {}
 
@@ -206,4 +212,9 @@ object ScalarFunctions {
     * Returns the base string decoded with base64.
     */
   def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+
+  /**
+    * Returns the base64-encoded result of the input string.
+    */
+  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
 }

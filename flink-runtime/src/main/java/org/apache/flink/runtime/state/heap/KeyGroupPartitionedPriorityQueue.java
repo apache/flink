@@ -35,8 +35,6 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 /**
  * This implementation of {@link InternalPriorityQueue} is internally partitioned into sub-queues per key-group and
@@ -49,11 +47,9 @@ import java.util.function.Predicate;
 public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueue<T> & HeapPriorityQueueElement>
 	implements InternalPriorityQueue<T>, KeyGroupedInternalPriorityQueue<T> {
 
-	static final boolean ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION = false;
-
 	/** A heap of heap sets. Each sub-heap represents the partition for a key-group.*/
 	@Nonnull
-	private final HeapPriorityQueue<PQ> heapOfkeyGroupedHeaps;
+	private final HeapPriorityQueue<PQ> heapOfKeyGroupedHeaps;
 
 	/** All elements from keyGroupHeap, indexed by their key-group id, relative to firstKeyGroup. */
 	@Nonnull
@@ -83,55 +79,30 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		this.totalKeyGroups = totalKeyGroups;
 		this.firstKeyGroup = keyGroupRange.getStartKeyGroup();
 		this.keyGroupedHeaps = (PQ[]) new InternalPriorityQueue[keyGroupRange.getNumberOfKeyGroups()];
-		this.heapOfkeyGroupedHeaps = new HeapPriorityQueue<>(
+		this.heapOfKeyGroupedHeaps = new HeapPriorityQueue<>(
 			new InternalPriorityQueueComparator<>(elementPriorityComparator),
 			keyGroupRange.getNumberOfKeyGroups());
 		for (int i = 0; i < keyGroupedHeaps.length; i++) {
 			final PQ keyGroupSubHeap =
-				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, elementPriorityComparator);
+				orderedCacheFactory.create(firstKeyGroup + i, totalKeyGroups, keyExtractor, elementPriorityComparator);
 			keyGroupedHeaps[i] = keyGroupSubHeap;
-			heapOfkeyGroupedHeaps.add(keyGroupSubHeap);
-		}
-	}
-
-	@Override
-	public void bulkPoll(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
-		if (ENABLE_RELAXED_FIRING_ORDER_OPTIMIZATION) {
-			bulkPollRelaxedOrder(canConsume, consumer);
-		} else {
-			bulkPollStrictOrder(canConsume, consumer);
-		}
-	}
-
-	private void bulkPollRelaxedOrder(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
-		PQ headList = heapOfkeyGroupedHeaps.peek();
-		while (headList.peek() != null && canConsume.test(headList.peek())) {
-			headList.bulkPoll(canConsume, consumer);
-			heapOfkeyGroupedHeaps.adjustModifiedElement(headList);
-		}
-	}
-
-	private void bulkPollStrictOrder(@Nonnull Predicate<T> canConsume, @Nonnull Consumer<T> consumer) {
-		T element;
-		while ((element = peek()) != null && canConsume.test(element)) {
-			poll();
-			consumer.accept(element);
+			heapOfKeyGroupedHeaps.add(keyGroupSubHeap);
 		}
 	}
 
 	@Nullable
 	@Override
 	public T poll() {
-		final PQ headList = heapOfkeyGroupedHeaps.peek();
+		final PQ headList = heapOfKeyGroupedHeaps.peek();
 		final T head = headList.poll();
-		heapOfkeyGroupedHeaps.adjustModifiedElement(headList);
+		heapOfKeyGroupedHeaps.adjustModifiedElement(headList);
 		return head;
 	}
 
 	@Nullable
 	@Override
 	public T peek() {
-		return heapOfkeyGroupedHeaps.peek().peek();
+		return heapOfKeyGroupedHeaps.peek().peek();
 	}
 
 	@Override
@@ -140,7 +111,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 		// the branch checks if the head element has (potentially) changed.
 		if (list.add(toAdd)) {
-			heapOfkeyGroupedHeaps.adjustModifiedElement(list);
+			heapOfKeyGroupedHeaps.adjustModifiedElement(list);
 			// could we have a new head?
 			return toAdd.equals(peek());
 		} else {
@@ -157,7 +128,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 
 		// the branch checks if the head element has (potentially) changed.
 		if (list.remove(toRemove)) {
-			heapOfkeyGroupedHeaps.adjustModifiedElement(list);
+			heapOfKeyGroupedHeaps.adjustModifiedElement(list);
 			// could we have a new head?
 			return toRemove.equals(oldHead);
 		} else {
@@ -330,6 +301,7 @@ public class KeyGroupPartitionedPriorityQueue<T, PQ extends InternalPriorityQueu
 		PQS create(
 			@Nonnegative int keyGroupId,
 			@Nonnegative int numKeyGroups,
+			@Nonnull KeyExtractorFunction<T> keyExtractorFunction,
 			@Nonnull PriorityComparator<T> elementPriorityComparator);
 	}
 }

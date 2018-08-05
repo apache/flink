@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.CompatibilityUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
@@ -39,6 +40,8 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -81,16 +84,15 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TieBreakingPriorityComparator;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
-import org.apache.flink.runtime.state.heap.CachingInternalPriorityQueueSet;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
-import org.apache.flink.runtime.state.heap.TreeOrderedSetCache;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
@@ -110,12 +112,14 @@ import org.rocksdb.DBOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -135,6 +139,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
@@ -262,6 +267,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Factory for priority queue state. */
 	private final PriorityQueueSetFactory priorityQueueFactory;
 
+	/** Shared wrapper for batch writes to the RocksDB instance. */
 	private RocksDBWriteBatchWrapper writeBatchWrapper;
 
 	public RocksDBKeyedStateBackend(
@@ -458,6 +464,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return keyGroupPrefixBytes;
 	}
 
+	@VisibleForTesting
+	PriorityQueueSetFactory getPriorityQueueFactory() {
+		return priorityQueueFactory;
+	}
+
 	public WriteOptions getWriteOptions() {
 		return writeOptions;
 	}
@@ -480,6 +491,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory,
 		CheckpointOptions checkpointOptions) throws Exception {
+
+		// flush everything into db before taking a snapshot
+		writeBatchWrapper.flush();
 
 		return snapshotStrategy.performSnapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
 	}
@@ -1303,7 +1317,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, S>> tryRegisterKvStateInformation(
 			StateDescriptor<?, S> stateDesc,
-			TypeSerializer<N> namespaceSerializer) throws StateMigrationException {
+			TypeSerializer<N> namespaceSerializer,
+			@Nullable StateSnapshotTransformer<S> snapshotTransformer) throws StateMigrationException {
 
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo =
 			kvStateInformation.get(stateDesc.getName());
@@ -1311,7 +1326,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RegisteredKeyValueStateBackendMetaInfo<N, S> newMetaInfo;
 		if (stateInfo != null) {
 
-			@SuppressWarnings("unchecked")
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
 
 			Preconditions.checkState(
@@ -1322,7 +1336,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			newMetaInfo = RegisteredKeyValueStateBackendMetaInfo.resolveKvStateCompatibility(
 				restoredMetaInfoSnapshot,
 				namespaceSerializer,
-				stateDesc);
+				stateDesc,
+				snapshotTransformer);
 
 			stateInfo.f1 = newMetaInfo;
 		} else {
@@ -1332,7 +1347,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateDesc.getType(),
 				stateName,
 				namespaceSerializer,
-				stateDesc.getSerializer());
+				stateDesc.getSerializer(),
+				snapshotTransformer);
 
 			ColumnFamilyHandle columnFamily = createColumnFamily(stateName);
 
@@ -1361,18 +1377,41 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, SV, S extends State, IS extends S> IS createInternalState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, SV> stateDesc) throws Exception {
+	@Nonnull
+	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull StateDescriptor<S, SV> stateDesc,
+		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
-			tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult = tryRegisterKvStateInformation(
+			stateDesc, namespaceSerializer, getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
 		return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
+	}
+
+	@SuppressWarnings("unchecked")
+	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+		StateDescriptor<?, SV> stateDesc,
+		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		if (stateDesc instanceof ListStateDescriptor) {
+			Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
+			return original.map(est -> createRocksDBListStateTransformer(stateDesc, est)).orElse(null);
+		} else {
+			Optional<StateSnapshotTransformer<byte[]>> original = snapshotTransformFactory.createForSerializedState();
+			return (StateSnapshotTransformer<SV>) original.orElse(null);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private <SV, SEV> StateSnapshotTransformer<SV> createRocksDBListStateTransformer(
+		StateDescriptor<?, SV> stateDesc,
+		StateSnapshotTransformer<SEV> elementTransformer) {
+		return (StateSnapshotTransformer<SV>) new RocksDBListState.StateSnapshotTransformerWrapper<>(
+			elementTransformer, ((ListStateDescriptor<SEV>) stateDesc).getElementSerializer());
 	}
 
 	/**
@@ -1390,11 +1429,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@VisibleForTesting
 	@SuppressWarnings("unchecked")
 	@Override
-	public int numStateEntries() {
+	public int numKeyValueStateEntries() {
 		int count = 0;
 
 		for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> column : kvStateInformation.values()) {
-			//TODO maybe filter only for k/v states
+			//TODO maybe filterOrTransform only for k/v states
 			try (RocksIteratorWrapper rocksIterator = getRocksIterator(db, column.f0)) {
 				rocksIterator.seekToFirst();
 
@@ -1408,14 +1447,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return count;
 	}
 
-
-
 	/**
 	 * Iterator that merges multiple RocksDB iterators to partition all states into contiguous key-groups.
 	 * The resulting iteration sequence is ordered by (key-group, kv-state).
 	 */
 	@VisibleForTesting
-	static final class RocksDBMergeIterator implements AutoCloseable {
+	static class RocksDBMergeIterator implements AutoCloseable {
 
 		private final PriorityQueue<RocksDBKeyedStateBackend.MergeIterator> heap;
 		private final int keyGroupPrefixByteCount;
@@ -1423,7 +1460,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private boolean newKVState;
 		private boolean valid;
 
-		private MergeIterator currentSubIterator;
+		MergeIterator currentSubIterator;
 
 		private static final List<Comparator<MergeIterator>> COMPARATORS;
 
@@ -1432,18 +1469,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			COMPARATORS = new ArrayList<>(maxBytes);
 			for (int i = 0; i < maxBytes; ++i) {
 				final int currentBytes = i + 1;
-				COMPARATORS.add(new Comparator<MergeIterator>() {
-					@Override
-					public int compare(MergeIterator o1, MergeIterator o2) {
-						int arrayCmpRes = compareKeyGroupsForByteArrays(
-							o1.currentKey, o2.currentKey, currentBytes);
-						return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
-					}
+				COMPARATORS.add((o1, o2) -> {
+					int arrayCmpRes = compareKeyGroupsForByteArrays(
+						o1.currentKey, o2.currentKey, currentBytes);
+					return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
 				});
 			}
 		}
 
-		RocksDBMergeIterator(List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators, final int keyGroupPrefixByteCount) throws RocksDBException {
+		RocksDBMergeIterator(
+			List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+			final int keyGroupPrefixByteCount) {
 			Preconditions.checkNotNull(kvStateIterators);
 			Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
 
@@ -1484,7 +1520,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * Advance the iterator. Should only be called if {@link #isValid()} returned true. Valid can only chance after
 		 * calls to {@link #next()}.
 		 */
-		public void next() throws RocksDBException {
+		public void next() {
 			newKeyGroup = false;
 			newKVState = false;
 
@@ -1604,7 +1640,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to the iterator.
 	 * Used by #MergeIterator.
 	 */
-	private static final class MergeIterator implements AutoCloseable {
+	@VisibleForTesting
+	protected static final class MergeIterator implements AutoCloseable {
 
 		/**
 		 * @param iterator  The #RocksIterator to wrap .
@@ -1639,6 +1676,57 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Override
 		public void close() {
 			IOUtils.closeQuietly(iterator);
+		}
+	}
+
+	private static final class TransformingRocksIteratorWrapper extends RocksIteratorWrapper {
+		@Nonnull
+		private final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
+		private byte[] current;
+
+		public TransformingRocksIteratorWrapper(
+			@Nonnull RocksIterator iterator,
+			@Nonnull StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
+			super(iterator);
+			this.stateSnapshotTransformer = stateSnapshotTransformer;
+		}
+
+		@Override
+		public void seekToFirst() {
+			super.seekToFirst();
+			filterOrTransform(super::next);
+		}
+
+		@Override
+		public void seekToLast() {
+			super.seekToLast();
+			filterOrTransform(super::prev);
+		}
+
+		@Override
+		public void next() {
+			super.next();
+			filterOrTransform(super::next);
+		}
+
+		@Override
+		public void prev() {
+			super.prev();
+			filterOrTransform(super::prev);
+		}
+
+		private void filterOrTransform(Runnable advance) {
+			while (isValid() && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
+				advance.run();
+			}
+		}
+
+		@Override
+		public byte[] value() {
+			if (!isValid()) {
+				throw new IllegalStateException("value() method cannot be called if isValid() is false");
+			}
+			return current;
 		}
 	}
 
@@ -1774,9 +1862,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						primaryStreamFactory);
 
 			final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
-
-			// flush everything into db before taking a snapshot
-			writeBatchWrapper.flush();
 
 			final RocksDBFullSnapshotOperation<K> snapshotOperation =
 				new RocksDBFullSnapshotOperation<>(
@@ -1967,7 +2052,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		/**
 		 * The copied column handle.
 		 */
-		private List<ColumnFamilyHandle> copiedColumnFamilyHandles;
+		private List<Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase>> copiedMeta;
 
 		private List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators;
 
@@ -1995,15 +2080,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			this.stateMetaInfoSnapshots = new ArrayList<>(stateBackend.kvStateInformation.size());
 
-			this.copiedColumnFamilyHandles = new ArrayList<>(stateBackend.kvStateInformation.size());
+			this.copiedMeta = new ArrayList<>(stateBackend.kvStateInformation.size());
 
 			for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tuple2 :
 				stateBackend.kvStateInformation.values()) {
 				// snapshot meta info
 				this.stateMetaInfoSnapshots.add(tuple2.f1.snapshot());
-
-				// copy column family handle
-				this.copiedColumnFamilyHandles.add(tuple2.f0);
+				this.copiedMeta.add(tuple2);
 			}
 			this.snapshot = stateBackend.db.getSnapshot();
 		}
@@ -2090,7 +2173,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void writeKVStateMetaData() throws IOException {
 
-			this.kvStateIterators = new ArrayList<>(copiedColumnFamilyHandles.size());
+			this.kvStateIterators = new ArrayList<>(copiedMeta.size());
 
 			int kvStateId = 0;
 
@@ -2098,11 +2181,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			readOptions = new ReadOptions();
 			readOptions.setSnapshot(snapshot);
 
-			for (ColumnFamilyHandle columnFamilyHandle : copiedColumnFamilyHandles) {
-
-				kvStateIterators.add(
-					new Tuple2<>(getRocksIterator(stateBackend.db, columnFamilyHandle, readOptions), kvStateId));
-
+			for (Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tuple2 : copiedMeta) {
+				RocksIteratorWrapper rocksIteratorWrapper =
+					getRocksIterator(stateBackend.db, tuple2.f0, tuple2.f1, readOptions);
+				kvStateIterators.add(new Tuple2<>(rocksIteratorWrapper, kvStateId));
 				++kvStateId;
 			}
 
@@ -2119,8 +2201,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			serializationProxy.write(outputView);
 		}
 
-		private void writeKVStateData() throws IOException, InterruptedException, RocksDBException {
-
+		private void writeKVStateData() throws IOException, InterruptedException {
 			byte[] previousKey = null;
 			byte[] previousValue = null;
 			DataOutputView kgOutView = null;
@@ -2630,11 +2711,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
 	}
 
-	public static RocksIteratorWrapper getRocksIterator(
+	@SuppressWarnings("unchecked")
+	private static RocksIteratorWrapper getRocksIterator(
 		RocksDB db,
 		ColumnFamilyHandle columnFamilyHandle,
+		RegisteredStateMetaInfoBase metaInfo,
 		ReadOptions readOptions) {
-		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
+		StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+		if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+			stateSnapshotTransformer = (StateSnapshotTransformer<byte[]>)
+				((RegisteredKeyValueStateBackendMetaInfo<?, ?>) metaInfo).getSnapshotTransformer();
+		}
+		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+		return stateSnapshotTransformer == null ?
+			new RocksIteratorWrapper(rocksIterator) :
+			new TransformingRocksIteratorWrapper(rocksIterator, stateSnapshotTransformer);
 	}
 
 	/**
@@ -2643,84 +2734,111 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
 		/** Default cache size per key-group. */
-		private static final int DEFAULT_CACHES_SIZE = 1024;
+		private static final int DEFAULT_CACHES_SIZE = 128; //TODO make this configurable
 
 		/** A shared buffer to serialize elements for the priority queue. */
 		@Nonnull
-		private final ByteArrayOutputStreamWithPos elementSerializationOutStream;
+		private final ByteArrayDataOutputView sharedElementOutView;
 
-		/** A shared adapter wrapper around elementSerializationOutStream to become a {@link DataOutputView}. */
+		/** A shared buffer to de-serialize elements for the priority queue. */
 		@Nonnull
-		private final DataOutputViewStreamWrapper elementSerializationOutView;
+		private final ByteArrayDataInputView sharedElementInView;
 
 		RocksDBPriorityQueueSetFactory() {
-			this.elementSerializationOutStream = new ByteArrayOutputStreamWithPos();
-			this.elementSerializationOutView = new DataOutputViewStreamWrapper(elementSerializationOutStream);
+			this.sharedElementOutView = new ByteArrayDataOutputView();
+			this.sharedElementInView = new ByteArrayDataInputView();
 		}
 
 		@Nonnull
 		@Override
 		public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-		create(
-			@Nonnull String stateName,
-			@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+		create(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
-			final PriorityComparator<T> priorityComparator =
-				PriorityComparator.forPriorityComparableObjects();
+			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfoTuple =
+				tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);
 
-			Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> entry =
-				kvStateInformation.get(stateName);
-
-			if (entry == null) {
-				RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
-					new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
-
-				final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
-
-				entry = new Tuple2<>(columnFamilyHandle, metaInfo);
-				kvStateInformation.put(stateName, entry);
-			}
-
-			final ColumnFamilyHandle columnFamilyHandle = entry.f0;
-
-			@Nonnull
-			TieBreakingPriorityComparator<T> tieBreakingComparator =
-				new TieBreakingPriorityComparator<>(
-					priorityComparator,
-					byteOrderedElementSerializer,
-					elementSerializationOutStream,
-					elementSerializationOutView);
+			final ColumnFamilyHandle columnFamilyHandle = metaInfoTuple.f0;
 
 			return new KeyGroupPartitionedPriorityQueue<>(
 				KeyExtractorFunction.forKeyedObjects(),
-				priorityComparator,
-				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, CachingInternalPriorityQueueSet<T>>() {
+				PriorityComparator.forPriorityComparableObjects(),
+				new KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<T, RocksDBCachingPriorityQueueSet<T>>() {
 					@Nonnull
 					@Override
-					public CachingInternalPriorityQueueSet<T> create(
+					public RocksDBCachingPriorityQueueSet<T> create(
 						int keyGroupId,
 						int numKeyGroups,
+						@Nonnull KeyExtractorFunction<T> keyExtractor,
 						@Nonnull PriorityComparator<T> elementPriorityComparator) {
-
-						CachingInternalPriorityQueueSet.OrderedSetCache<T> cache =
-							new TreeOrderedSetCache<>(tieBreakingComparator, DEFAULT_CACHES_SIZE);
-						CachingInternalPriorityQueueSet.OrderedSetStore<T> store =
-							new RocksDBOrderedSetStore<>(
-								keyGroupId,
-								keyGroupPrefixBytes,
-								db,
-								columnFamilyHandle,
-								byteOrderedElementSerializer,
-								elementSerializationOutStream,
-								elementSerializationOutView,
-								writeBatchWrapper);
-
-						return new CachingInternalPriorityQueueSet<>(cache, store);
+						TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(DEFAULT_CACHES_SIZE);
+						return new RocksDBCachingPriorityQueueSet<>(
+							keyGroupId,
+							keyGroupPrefixBytes,
+							db,
+							columnFamilyHandle,
+							byteOrderedElementSerializer,
+							sharedElementOutView,
+							sharedElementInView,
+							writeBatchWrapper,
+							orderedSetCache
+						);
 					}
 				},
 				keyGroupRange,
 				numberOfKeyGroups);
 		}
+	}
+
+	@Nonnull
+	private <T> Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> tryRegisterPriorityQueueMetaInfo(
+		@Nonnull String stateName,
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+
+		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfoTuple =
+			kvStateInformation.get(stateName);
+
+		if (metaInfoTuple == null) {
+			final ColumnFamilyHandle columnFamilyHandle = createColumnFamily(stateName);
+
+			RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo =
+				new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
+
+			metaInfoTuple = new Tuple2<>(columnFamilyHandle, metaInfo);
+			kvStateInformation.put(stateName, metaInfoTuple);
+		} else {
+			// TODO we implement the simple way of supporting the current functionality, mimicking keyed state
+			// because this should be reworked in FLINK-9376 and then we should have a common algorithm over
+			// StateMetaInfoSnapshot that avoids this code duplication.
+			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateName);
+
+			Preconditions.checkState(
+				restoredMetaInfoSnapshot != null,
+				"Requested to check compatibility of a restored RegisteredKeyedBackendStateMetaInfo," +
+					" but its corresponding restored snapshot cannot be found.");
+
+			StateMetaInfoSnapshot.CommonSerializerKeys serializerKey =
+				StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER;
+
+			TypeSerializer<?> metaInfoTypeSerializer = restoredMetaInfoSnapshot.getTypeSerializer(serializerKey);
+
+			if (metaInfoTypeSerializer != byteOrderedElementSerializer) {
+				CompatibilityResult<T> compatibilityResult = CompatibilityUtil.resolveCompatibilityResult(
+					metaInfoTypeSerializer,
+					null,
+					restoredMetaInfoSnapshot.getTypeSerializerConfigSnapshot(serializerKey),
+					byteOrderedElementSerializer);
+
+				if (compatibilityResult.isRequiresMigration()) {
+					throw new FlinkRuntimeException(StateMigrationException.notSupported());
+				}
+
+				// update meta info with new serializer
+				metaInfoTuple.f1 =
+					new RegisteredPriorityQueueStateBackendMetaInfo<>(stateName, byteOrderedElementSerializer);
+			}
+		}
+
+		return metaInfoTuple;
 	}
 
 	@Override

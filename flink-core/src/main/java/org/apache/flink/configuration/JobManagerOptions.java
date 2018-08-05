@@ -145,11 +145,17 @@ public class JobManagerOptions {
 		.defaultValue(60L * 60L)
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
+	/**
+	 * The timeout in milliseconds for requesting a slot from Slot Pool.
+	 */
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
 		key("slot.request.timeout")
 		.defaultValue(5L * 60L * 1000L)
 		.withDescription("The timeout in milliseconds for requesting a slot from Slot Pool.");
 
+	/**
+	 * The timeout in milliseconds for a idle slot in Slot Pool.
+	 */
 	public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
 		key("slot.idle.timeout")
 			// default matches heartbeat.timeout so that sticky allocation is not lost on timeouts for local recovery

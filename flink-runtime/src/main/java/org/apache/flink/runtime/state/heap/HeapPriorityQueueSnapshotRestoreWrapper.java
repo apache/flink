@@ -68,16 +68,6 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 	@Override
 	public StateSnapshot stateSnapshot() {
 		final T[] queueDump = (T[]) priorityQueue.toArray(new HeapPriorityQueueElement[priorityQueue.size()]);
-
-		final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
-
-		// turn the flat copy into a deep copy if required.
-		if (!elementSerializer.isImmutableType()) {
-			for (int i = 0; i < queueDump.length; ++i) {
-				queueDump[i] = elementSerializer.copy(queueDump[i]);
-			}
-		}
-
 		return new HeapPriorityQueueStateSnapshot<>(
 			queueDump,
 			keyExtractorFunction,
@@ -98,5 +88,27 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
 	@Nonnull
 	public HeapPriorityQueueSet<T> getPriorityQueue() {
 		return priorityQueue;
+	}
+
+	@Nonnull
+	public RegisteredPriorityQueueStateBackendMetaInfo<T> getMetaInfo() {
+		return metaInfo;
+	}
+
+	/**
+	 * Returns a deep copy of the snapshot, where the serializer is changed to the given serializer.
+	 */
+	public HeapPriorityQueueSnapshotRestoreWrapper<T> forUpdatedSerializer(
+		@Nonnull TypeSerializer<T> updatedSerializer) {
+
+		RegisteredPriorityQueueStateBackendMetaInfo<T> updatedMetaInfo =
+			new RegisteredPriorityQueueStateBackendMetaInfo<>(metaInfo.getName(), updatedSerializer);
+
+		return new HeapPriorityQueueSnapshotRestoreWrapper<>(
+			priorityQueue,
+			updatedMetaInfo,
+			keyExtractorFunction,
+			localKeyGroupRange,
+			totalKeyGroups);
 	}
 }

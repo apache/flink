@@ -22,8 +22,7 @@ import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -59,7 +58,7 @@ public class BucketsTest {
 
 		final Buckets<String, String> buckets = StreamingFileSink
 				.<String>forRowFormat(new Path(outDir.toURI()), new SimpleStringEncoder<>())
-				.withBucketer(new VarifyingBucketer(expectedTimestamp, expectedWatermark, expectedProcessingTime))
+				.withBucketAssigner(new VarifyingBucketer(expectedTimestamp, expectedWatermark, expectedProcessingTime))
 				.createBuckets(2);
 
 		buckets.onElement("TEST", new SinkFunction.Context() {
@@ -80,7 +79,7 @@ public class BucketsTest {
 		});
 	}
 
-	private static class VarifyingBucketer implements Bucketer<String, String> {
+	private static class VarifyingBucketer implements BucketAssigner<String, String> {
 
 		private static final long serialVersionUID = 7729086510972377578L;
 

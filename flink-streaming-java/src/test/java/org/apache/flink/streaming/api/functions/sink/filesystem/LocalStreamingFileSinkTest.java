@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rolling.policies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -323,7 +323,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					Assert.assertEquals("test1@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test2")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-1", fileContents.getKey().getName());
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test3")) {
 					bucketCounter++;
@@ -346,11 +346,11 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test3")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-2", fileContents.getKey().getName());
 					Assert.assertEquals("test3@1\n", fileContents.getValue());
 				} else if (fileContents.getKey().getParentFile().getName().equals("test4")) {
 					bucketCounter++;
-					Assert.assertEquals("part-0-0", fileContents.getKey().getName());
+					Assert.assertEquals("part-0-3", fileContents.getKey().getName());
 					Assert.assertEquals("test4@1\n", fileContents.getValue());
 				}
 			}
@@ -437,8 +437,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 							inProgressFilename.contains(".part-1-0.inprogress")
 						)
 				) {
-						counter++;
-				} else if (parentFilename.equals("test2") && inProgressFilename.contains(".part-1-0.inprogress")) {
+					counter++;
+				} else if (parentFilename.equals("test2") && inProgressFilename.contains(".part-1-1.inprogress")) {
 					counter++;
 				}
 			}
@@ -476,7 +476,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 						counter++;
 						Assert.assertTrue(fileContents.getValue().equals("test1@1\n") || fileContents.getValue().equals("test1@0\n"));
 					}
-				} else if (parentFilename.equals("test2") && filename.contains(".part-1-0.inprogress")) {
+				} else if (parentFilename.equals("test2") && filename.contains(".part-1-1.inprogress")) {
 					counter++;
 					Assert.assertEquals("test2@1\n", fileContents.getValue());
 				}
@@ -491,8 +491,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 		OperatorSubtaskState mergedSnapshot;
 
-		final TestBucketFactory first = new TestBucketFactory();
-		final TestBucketFactory second = new TestBucketFactory();
+		final TestBucketFactoryImpl first = new TestBucketFactoryImpl();
+		final TestBucketFactoryImpl second = new TestBucketFactoryImpl();
 
 		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy = DefaultRollingPolicy
 				.create()
@@ -526,8 +526,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 			);
 		}
 
-		final TestBucketFactory firstRecovered = new TestBucketFactory();
-		final TestBucketFactory secondRecovered = new TestBucketFactory();
+		final TestBucketFactoryImpl firstRecovered = new TestBucketFactoryImpl();
+		final TestBucketFactoryImpl secondRecovered = new TestBucketFactoryImpl();
 
 		try (
 				OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Object> testHarness1 = TestUtils.createCustomRescalingTestSink(
@@ -559,7 +559,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
 	//////////////////////			Helper Methods			//////////////////////
 
-	static class TestBucketFactory extends DefaultBucketFactory<Tuple2<String, Integer>, String> {
+	static class TestBucketFactoryImpl extends DefaultBucketFactoryImpl<Tuple2<String, Integer>, String> {
 
 		private static final long serialVersionUID = 2794824980604027930L;
 
@@ -572,7 +572,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 				final String bucketId,
 				final Path bucketPath,
 				final long initialPartCounter,
-				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory) {
+				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
+				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy) {
 
 			this.initialCounter = initialPartCounter;
 
@@ -582,7 +583,8 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					bucketId,
 					bucketPath,
 					initialPartCounter,
-					partFileWriterFactory);
+					partFileWriterFactory,
+					rollingPolicy);
 		}
 
 		@Override
@@ -591,6 +593,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 				final int subtaskIndex,
 				final long initialPartCounter,
 				final PartFileWriter.PartFileFactory<Tuple2<String, Integer>, String> partFileWriterFactory,
+				final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy,
 				final BucketState<String> bucketState) throws IOException {
 
 			this.initialCounter = initialPartCounter;
@@ -600,6 +603,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 					subtaskIndex,
 					initialPartCounter,
 					partFileWriterFactory,
+					rollingPolicy,
 					bucketState);
 		}
 

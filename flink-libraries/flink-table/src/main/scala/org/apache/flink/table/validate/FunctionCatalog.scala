@@ -203,6 +203,7 @@ object FunctionCatalog {
     "lpad" -> classOf[Lpad],
     "rpad" -> classOf[Rpad],
     "fromBase64" -> classOf[FromBase64],
+    "toBase64" -> classOf[ToBase64],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -228,6 +229,7 @@ object FunctionCatalog {
     "asin" -> classOf[Asin],
     "acos" -> classOf[Acos],
     "atan" -> classOf[Atan],
+    "atan2" -> classOf[Atan2],
     "degrees" -> classOf[Degrees],
     "radians" -> classOf[Radians],
     "sign" -> classOf[Sign],
@@ -425,6 +427,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ASIN,
     SqlStdOperatorTable.ACOS,
     SqlStdOperatorTable.ATAN,
+    SqlStdOperatorTable.ATAN2,
     SqlStdOperatorTable.DEGREES,
     SqlStdOperatorTable.RADIANS,
     SqlStdOperatorTable.SIGN,
@@ -449,6 +452,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.SHA512,
     ScalarSqlFunctions.SHA2,
     ScalarSqlFunctions.FROM_BASE64,
+    ScalarSqlFunctions.TO_BASE64,
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,

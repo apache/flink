@@ -36,6 +36,8 @@ export EXIT_CODE=0
 
 echo "Flink dist directory: $FLINK_DIR"
 
+FLINK_VERSION=$(cat ${END_TO_END_DIR}/pom.xml | sed -n 's/.*<version>\(.*\)<\/version>/\1/p')
+
 USE_SSL=OFF # set via set_conf_ssl(), reset via revert_default_config()
 TEST_ROOT=`pwd -P`
 TEST_INFRA_DIR="$END_TO_END_DIR/test-scripts/"
@@ -146,6 +148,27 @@ function create_ha_config() {
 EOL
 }
 
+function get_node_ip {
+    local ip_addr
+
+    if [[ ${OS_TYPE} == "linux" ]]; then
+        ip_addr=$(hostname -I)
+    elif [[ ${OS_TYPE} == "mac" ]]; then
+        ip_addr=$(
+            ifconfig |
+            grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}" | # grep IPv4 addresses only
+            grep -v 127.0.0.1 |                     # do not use 127.0.0.1 (to be consistent with hostname -I)
+            awk '{ print $2 }' |                    # extract ip from row
+            paste -sd " " -                         # combine everything to one line
+        )
+    else
+        echo "Warning: Unsupported OS_TYPE '${OS_TYPE}' for 'get_node_ip'. Falling back to 'hostname -I' (linux)"
+        ip_addr=$(hostname -I)
+    fi
+
+    echo ${ip_addr}
+}
+
 function set_conf_ssl {
 
     # clean up the dir that will be used for SSL certificates and trust stores
@@ -154,11 +177,14 @@ function set_conf_ssl {
        rm -rf "${TEST_DATA_DIR}/ssl"
     fi
     mkdir -p "${TEST_DATA_DIR}/ssl"
+
     NODENAME=`hostname -f`
     SANSTRING="dns:${NODENAME}"
-    for NODEIP in `hostname -I | cut -d' ' -f1` ; do
+    for NODEIP in $(get_node_ip) ; do
         SANSTRING="${SANSTRING},ip:${NODEIP}"
     done
+
+    echo "Using SAN ${SANSTRING}"
 
     # create certificates
     keytool -genkeypair -alias ca -keystore "${TEST_DATA_DIR}/ssl/ca.keystore" -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
@@ -512,6 +538,16 @@ function setup_flink_slf4j_metric_reporter() {
 
 function rollback_flink_slf4j_metric_reporter() {
   rm $FLINK_DIR/lib/flink-metrics-slf4j-*.jar
+}
+
+function get_job_metric {
+  local job_id=$1
+  local metric_name=$2
+
+  local json=$(curl -s http://localhost:8081/jobs/${job_id}/metrics?get=${metric_name})
+  local metric_value=$(echo ${json} | sed -n 's/.*"value":"\(.*\)".*/\1/p')
+
+  echo ${metric_value}
 }
 
 function get_metric_processed_records {
