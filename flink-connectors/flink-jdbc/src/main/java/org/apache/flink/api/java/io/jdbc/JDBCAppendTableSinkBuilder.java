@@ -36,7 +36,7 @@ public class JDBCAppendTableSinkBuilder {
 	private String query;
 	private int batchSize = DEFAULT_BATCH_INTERVAL;
 	private int[] parameterTypes;
-	private long idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
+	private int idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
 	private int idleConnectionCheckTimeout = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
 
 	/**
@@ -121,10 +121,10 @@ public class JDBCAppendTableSinkBuilder {
 
 	/**
 	 * Specify the interval that the idle connection will be checked.
-	 * @param idleConnectionCheckInterval the interval in milliseconds that the
+	 * @param idleConnectionCheckInterval the interval in seconds that the
 	 *                                    idle connection will be checked.
 	 */
-	public JDBCAppendTableSinkBuilder setIdleConnectionCheckInterval(long idleConnectionCheckInterval) {
+	public JDBCAppendTableSinkBuilder setIdleConnectionCheckInterval(int idleConnectionCheckInterval) {
 		this.idleConnectionCheckInterval = idleConnectionCheckInterval;
 		return this;
 	}

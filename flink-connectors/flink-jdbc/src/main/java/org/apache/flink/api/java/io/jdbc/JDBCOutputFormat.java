@@ -30,8 +30,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * OutputFormat to write Rows into a JDBC database.
@@ -43,7 +44,7 @@ import java.util.TimerTask;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
-	static final long DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL = 30 * 60 * 1000L;
+	static final int DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL = 30 * 60;
 	static final int DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT = 0;
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
@@ -58,11 +59,11 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private Connection dbConn;
 	private PreparedStatement upload;
 
-	//the interval in milliseconds that the idle connection will be checked
-	private long idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
+	//the interval in seconds that the idle connection will be checked, 30 min default
+	private int idleConnectionCheckInterval = DEFAULT_IDLE_CONNECTION_CHECK_INTERVAL;
 	//time in seconds to wait while validating the connection
 	private int idleConnectionCheckTimeout = DEFAULT_IDLE_CONNECTION_CHECK_TIMEOUT;
-	private transient Timer timer;
+	private transient ScheduledExecutorService timerService;
 
 	private int batchCount = 0;
 
@@ -101,19 +102,14 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		} else {
 			dbConn = DriverManager.getConnection(dbURL, username, password);
 		}
-		timer = new Timer();
-		timer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				try {
-					if (!dbConn.isValid(idleConnectionCheckTimeout)) {
-						throw new RuntimeException("JDBC connection is invalid.");
-					}
-				} catch (SQLException e) {
-					throw new RuntimeException("Error validating JDBC connection.", e);
-				}
+		timerService = Executors.newSingleThreadScheduledExecutor();
+		timerService.scheduleAtFixedRate(() -> {
+			try {
+				dbConn.isValid(idleConnectionCheckTimeout);
+			} catch (SQLException e) {
+				throw new RuntimeException("Error validating JDBC connection.", e);
 			}
-		}, idleConnectionCheckInterval, idleConnectionCheckInterval);
+		}, idleConnectionCheckInterval, idleConnectionCheckInterval, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -256,8 +252,8 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	 */
 	@Override
 	public void close() throws IOException {
-		if (timer != null) {
-			timer.cancel();
+		if (timerService != null) {
+			timerService.shutdown();
 		}
 		if (upload != null) {
 			flush();
@@ -331,7 +327,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			return this;
 		}
 
-		public JDBCOutputFormatBuilder setIdleConnectionCheckInterval(long interval) {
+		public JDBCOutputFormatBuilder setIdleConnectionCheckInterval(int interval) {
 			format.idleConnectionCheckInterval = interval;
 			return this;
 		}
