@@ -2070,27 +2070,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testQuarter(): Unit = {
-    testAllApis(
-      "1997-01-27".toDate.quarter(),
-      "'1997-01-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-01-27')",
-      "1")
-
-    testAllApis(
-      "1997-04-27".toDate.quarter(),
-      "'1997-04-27'.toDate.quarter()",
-      "QUARTER(DATE '1997-04-27')",
-      "2")
-
-    testAllApis(
-      "1997-12-31".toDate.quarter(),
-      "'1997-12-31'.toDate.quarter()",
-      "QUARTER(DATE '1997-12-31')",
-      "4")
-  }
-
-  @Test
   def testTimestampDiff(): Unit = {
     testTableApi(
       "2018-07-05 11:11:11".toTimestamp - "2018-07-03 11:11:11".toTimestamp,
