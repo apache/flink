@@ -200,9 +200,10 @@ public class KinesisProxyTest {
 		final ListShardsResult expectedResult = new ListShardsResult();
 		expectedResult.withShards(shard);
 
-		MutableInt retries = new MutableInt();
+		MutableInt exceptionCount = new MutableInt();
 		final Throwable[] retriableExceptions = new Throwable[]{
-			new AmazonKinesisException("mock"),
+			new AmazonKinesisException("attempt1"),
+			new AmazonKinesisException("attempt2"),
 		};
 
 		AmazonKinesisClient mockClient = mock(AmazonKinesisClient.class);
@@ -210,9 +211,9 @@ public class KinesisProxyTest {
 
 			@Override
 			public ListShardsResult answer(InvocationOnMock invocation) throws Throwable {
-				if (retries.intValue() < retriableExceptions.length) {
-					retries.increment();
-					throw retriableExceptions[retries.intValue() - 1];
+				if (exceptionCount.intValue() < retriableExceptions.length) {
+					exceptionCount.increment();
+					throw retriableExceptions[exceptionCount.intValue() - 1];
 				}
 				return expectedResult;
 			}
@@ -224,9 +225,20 @@ public class KinesisProxyTest {
 		HashMap<String, String> streamNames = new HashMap();
 		streamNames.put("fake-stream", null);
 		GetShardListResult result = kinesisProxy.getShardList(streamNames);
-		assertEquals(retriableExceptions.length, retries.intValue());
+		assertEquals(retriableExceptions.length, exceptionCount.intValue());
 		assertEquals(true, result.hasRetrievedShards());
 		assertEquals(shard.getShardId(), result.getLastSeenShardOfStream("fake-stream").getShard().getShardId());
+
+		// test max attempt count exceeded
+		int maxRetries = 0;
+		exceptionCount.setValue(0);
+		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_RETRIES, String.valueOf(maxRetries));
+		kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
+		Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
+		result = kinesisProxy.getShardList(streamNames);
+		assertEquals(maxRetries + 1, exceptionCount.intValue());
+		assertEquals(false, result.hasRetrievedShards());
+
 	}
 
 	@Test
