@@ -34,6 +34,9 @@ import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
+import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -42,7 +45,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.core.memory.ByteArrayDataOutputView;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -131,16 +133,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.Spliterator;
@@ -383,7 +381,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIteratorWrapper iterator = getRocksIterator(db, columnInfo.f0);
 		iterator.seekToFirst();
 
-		final RocksIteratorForKeysWrapper<K> iteratorWrapper = new RocksIteratorForKeysWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes,
+		final RocksStateKeysIterator<K> iteratorWrapper = new RocksStateKeysIterator<>(iterator, state, keySerializer, keyGroupPrefixBytes,
 			ambiguousKeyPossible, nameSpaceBytes);
 
 		Stream<K> targetStream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iteratorWrapper, Spliterator.ORDERED), false);
@@ -391,7 +389,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@VisibleForTesting
-	ColumnFamilyHandle getColumnFamilyHandle(String state) {
+	public ColumnFamilyHandle getColumnFamilyHandle(String state) {
 		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
 		return columnInfo != null ? columnInfo.f0 : null;
 	}
@@ -1451,385 +1449,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return count;
 	}
 
-	/**
-	 * Iterator that merges multiple RocksDB iterators to partition all states into contiguous key-groups.
-	 * The resulting iteration sequence is ordered by (key-group, kv-state).
-	 */
-	@VisibleForTesting
-	static class RocksDBMergeIterator implements AutoCloseable {
-
-		private final PriorityQueue<RocksDBKeyedStateBackend.MergeIterator> heap;
-		private final int keyGroupPrefixByteCount;
-		private boolean newKeyGroup;
-		private boolean newKVState;
-		private boolean valid;
-
-		MergeIterator currentSubIterator;
-
-		private static final List<Comparator<MergeIterator>> COMPARATORS;
-
-		static {
-			int maxBytes = 2;
-			COMPARATORS = new ArrayList<>(maxBytes);
-			for (int i = 0; i < maxBytes; ++i) {
-				final int currentBytes = i + 1;
-				COMPARATORS.add((o1, o2) -> {
-					int arrayCmpRes = compareKeyGroupsForByteArrays(
-						o1.currentKey, o2.currentKey, currentBytes);
-					return arrayCmpRes == 0 ? o1.getKvStateId() - o2.getKvStateId() : arrayCmpRes;
-				});
-			}
-		}
-
-		RocksDBMergeIterator(
-			List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-			final int keyGroupPrefixByteCount) {
-			Preconditions.checkNotNull(kvStateIterators);
-			Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
-
-			this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
-
-			Comparator<MergeIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount - 1);
-
-			if (kvStateIterators.size() > 0) {
-				PriorityQueue<MergeIterator> iteratorPriorityQueue =
-					new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
-
-				for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
-					final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
-					rocksIterator.seekToFirst();
-					if (rocksIterator.isValid()) {
-						iteratorPriorityQueue.offer(new MergeIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
-					} else {
-						IOUtils.closeQuietly(rocksIterator);
-					}
-				}
-
-				kvStateIterators.clear();
-
-				this.heap = iteratorPriorityQueue;
-				this.valid = !heap.isEmpty();
-				this.currentSubIterator = heap.poll();
-			} else {
-				// creating a PriorityQueue of size 0 results in an exception.
-				this.heap = null;
-				this.valid = false;
-			}
-
-			this.newKeyGroup = true;
-			this.newKVState = true;
-		}
-
-		/**
-		 * Advance the iterator. Should only be called if {@link #isValid()} returned true. Valid can only chance after
-		 * calls to {@link #next()}.
-		 */
-		public void next() {
-			newKeyGroup = false;
-			newKVState = false;
-
-			final RocksIteratorWrapper rocksIterator = currentSubIterator.getIterator();
-			rocksIterator.next();
-
-			byte[] oldKey = currentSubIterator.getCurrentKey();
-			if (rocksIterator.isValid()) {
-
-				currentSubIterator.currentKey = rocksIterator.key();
-
-				if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
-					heap.offer(currentSubIterator);
-					currentSubIterator = heap.poll();
-					newKVState = currentSubIterator.getIterator() != rocksIterator;
-					detectNewKeyGroup(oldKey);
-				}
-			} else {
-				IOUtils.closeQuietly(rocksIterator);
-
-				if (heap.isEmpty()) {
-					currentSubIterator = null;
-					valid = false;
-				} else {
-					currentSubIterator = heap.poll();
-					newKVState = true;
-					detectNewKeyGroup(oldKey);
-				}
-			}
-		}
-
-		private boolean isDifferentKeyGroup(byte[] a, byte[] b) {
-			return 0 != compareKeyGroupsForByteArrays(a, b, keyGroupPrefixByteCount);
-		}
-
-		private void detectNewKeyGroup(byte[] oldKey) {
-			if (isDifferentKeyGroup(oldKey, currentSubIterator.currentKey)) {
-				newKeyGroup = true;
-			}
-		}
-
-		/**
-		 * @return key-group for the current key
-		 */
-		public int keyGroup() {
-			int result = 0;
-			//big endian decode
-			for (int i = 0; i < keyGroupPrefixByteCount; ++i) {
-				result <<= 8;
-				result |= (currentSubIterator.currentKey[i] & 0xFF);
-			}
-			return result;
-		}
-
-		public byte[] key() {
-			return currentSubIterator.getCurrentKey();
-		}
-
-		public byte[] value() {
-			return currentSubIterator.getIterator().value();
-		}
-
-		/**
-		 * @return Id of K/V state to which the current key belongs.
-		 */
-		public int kvStateId() {
-			return currentSubIterator.getKvStateId();
-		}
-
-		/**
-		 * Indicates if current key starts a new k/v-state, i.e. belong to a different k/v-state than it's predecessor.
-		 * @return true iff the current key belong to a different k/v-state than it's predecessor.
-		 */
-		public boolean isNewKeyValueState() {
-			return newKVState;
-		}
-
-		/**
-		 * Indicates if current key starts a new key-group, i.e. belong to a different key-group than it's predecessor.
-		 * @return true iff the current key belong to a different key-group than it's predecessor.
-		 */
-		public boolean isNewKeyGroup() {
-			return newKeyGroup;
-		}
-
-		/**
-		 * Check if the iterator is still valid. Getters like {@link #key()}, {@link #value()}, etc. as well as
-		 * {@link #next()} should only be called if valid returned true. Should be checked after each call to
-		 * {@link #next()} before accessing iterator state.
-		 * @return True iff this iterator is valid.
-		 */
-		public boolean isValid() {
-			return valid;
-		}
-
-		private static int compareKeyGroupsForByteArrays(byte[] a, byte[] b, int len) {
-			for (int i = 0; i < len; ++i) {
-				int diff = (a[i] & 0xFF) - (b[i] & 0xFF);
-				if (diff != 0) {
-					return diff;
-				}
-			}
-			return 0;
-		}
-
-		@Override
-		public void close() {
-			IOUtils.closeQuietly(currentSubIterator);
-			currentSubIterator = null;
-
-			IOUtils.closeAllQuietly(heap);
-			heap.clear();
-		}
-	}
-
-	/**
-	 * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to the iterator.
-	 * Used by #MergeIterator.
-	 */
-	@VisibleForTesting
-	protected static final class MergeIterator implements AutoCloseable {
-
-		/**
-		 * @param iterator  The #RocksIterator to wrap .
-		 * @param kvStateId Id of the K/V state to which this iterator belongs.
-		 */
-		MergeIterator(RocksIteratorWrapper iterator, int kvStateId) {
-			this.iterator = Preconditions.checkNotNull(iterator);
-			this.currentKey = iterator.key();
-			this.kvStateId = kvStateId;
-		}
-
-		private final RocksIteratorWrapper iterator;
-		private byte[] currentKey;
-		private final int kvStateId;
-
-		public byte[] getCurrentKey() {
-			return currentKey;
-		}
-
-		public void setCurrentKey(byte[] currentKey) {
-			this.currentKey = currentKey;
-		}
-
-		public RocksIteratorWrapper getIterator() {
-			return iterator;
-		}
-
-		public int getKvStateId() {
-			return kvStateId;
-		}
-
-		@Override
-		public void close() {
-			IOUtils.closeQuietly(iterator);
-		}
-	}
-
-	private static final class TransformingRocksIteratorWrapper extends RocksIteratorWrapper {
-		@Nonnull
-		private final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
-		private byte[] current;
-
-		public TransformingRocksIteratorWrapper(
-			@Nonnull RocksIterator iterator,
-			@Nonnull StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
-			super(iterator);
-			this.stateSnapshotTransformer = stateSnapshotTransformer;
-		}
-
-		@Override
-		public void seekToFirst() {
-			super.seekToFirst();
-			filterOrTransform(super::next);
-		}
-
-		@Override
-		public void seekToLast() {
-			super.seekToLast();
-			filterOrTransform(super::prev);
-		}
-
-		@Override
-		public void next() {
-			super.next();
-			filterOrTransform(super::next);
-		}
-
-		@Override
-		public void prev() {
-			super.prev();
-			filterOrTransform(super::prev);
-		}
-
-		private void filterOrTransform(Runnable advance) {
-			while (isValid() && (current = stateSnapshotTransformer.filterOrTransform(super.value())) == null) {
-				advance.run();
-			}
-		}
-
-		@Override
-		public byte[] value() {
-			if (!isValid()) {
-				throw new IllegalStateException("value() method cannot be called if isValid() is false");
-			}
-			return current;
-		}
-	}
-
-	/**
-	 * Adapter class to bridge between {@link RocksIteratorWrapper} and {@link Iterator} to iterate over the keys. This class
-	 * is not thread safe.
-	 *
-	 * @param <K> the type of the iterated objects, which are keys in RocksDB.
-	 */
-	static class RocksIteratorForKeysWrapper<K> implements Iterator<K>, AutoCloseable {
-		private final RocksIteratorWrapper iterator;
-		private final String state;
-		private final TypeSerializer<K> keySerializer;
-		private final int keyGroupPrefixBytes;
-		private final byte[] namespaceBytes;
-		private final boolean ambiguousKeyPossible;
-		private K nextKey;
-		private K previousKey;
-
-		RocksIteratorForKeysWrapper(
-			RocksIteratorWrapper iterator,
-			String state,
-			TypeSerializer<K> keySerializer,
-			int keyGroupPrefixBytes,
-			boolean ambiguousKeyPossible,
-			byte[] namespaceBytes) {
-			this.iterator = Preconditions.checkNotNull(iterator);
-			this.state = Preconditions.checkNotNull(state);
-			this.keySerializer = Preconditions.checkNotNull(keySerializer);
-			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
-			this.namespaceBytes = Preconditions.checkNotNull(namespaceBytes);
-			this.nextKey = null;
-			this.previousKey = null;
-			this.ambiguousKeyPossible = ambiguousKeyPossible;
-		}
-
-		@Override
-		public boolean hasNext() {
-			try {
-				while (nextKey == null && iterator.isValid()) {
-
-					byte[] key = iterator.key();
-
-					ByteArrayInputStreamWithPos inputStream =
-						new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
-
-					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
-
-					K value = RocksDBKeySerializationUtils.readKey(
-						keySerializer,
-						inputStream,
-						dataInput,
-						ambiguousKeyPossible);
-
-					int namespaceByteStartPos = inputStream.getPosition();
-
-					if (isMatchingNameSpace(key, namespaceByteStartPos) && !Objects.equals(previousKey, value)) {
-						previousKey = value;
-						nextKey = value;
-					}
-					iterator.next();
-				}
-			} catch (Exception e) {
-				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
-			}
-			return nextKey != null;
-		}
-
-		@Override
-		public K next() {
-			if (!hasNext()) {
-				throw new NoSuchElementException("Failed to access state [" + state + "]");
-			}
-
-			K tmpKey = nextKey;
-			nextKey = null;
-			return tmpKey;
-		}
-
-		private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
-			final int namespaceBytesLength = namespaceBytes.length;
-			final int basicLength = namespaceBytesLength + beginPos;
-			if (key.length >= basicLength) {
-				for (int i = 0; i < namespaceBytesLength; ++i) {
-					if (key[beginPos + i] != namespaceBytes[i]) {
-						return false;
-					}
-				}
-				return true;
-			}
-			return false;
-		}
-
-		@Override
-		public void close() {
-			iterator.close();
-		}
-	}
-
 	private class FullSnapshotStrategy implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>> {
 
 		@Override
@@ -2214,8 +1833,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				checkpointStreamWithResultProvider.getCheckpointOutputStream();
 
 			try {
-				// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
-				try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
+				// Here we transfer ownership of RocksIterators to the RocksStatesPerKeyGroupMergeIterator
+				try (RocksStatesPerKeyGroupMergeIterator mergeIterator = new RocksStatesPerKeyGroupMergeIterator(
 					kvStateIterators, stateBackend.keyGroupPrefixBytes)) {
 
 					// handover complete, null out to prevent double close
@@ -2729,7 +2348,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
 		return stateSnapshotTransformer == null ?
 			new RocksIteratorWrapper(rocksIterator) :
-			new TransformingRocksIteratorWrapper(rocksIterator, stateSnapshotTransformer);
+			new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
 	}
 
 	/**

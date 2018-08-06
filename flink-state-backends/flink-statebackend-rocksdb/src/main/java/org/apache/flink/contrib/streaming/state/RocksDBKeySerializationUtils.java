@@ -28,7 +28,7 @@ import java.io.IOException;
 /**
  * Utils for RocksDB state serialization and deserialization.
  */
-class RocksDBKeySerializationUtils {
+public class RocksDBKeySerializationUtils {
 
 	static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
 		int keyGroup = 0;
