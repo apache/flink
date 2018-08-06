@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.execution.Environment;
@@ -47,7 +48,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the RocksIteratorWrapper.
  */
-public class RocksDBRocksIteratorForKeysWrapperTest {
+public class RocksDBRocksStateKeysIteratorTest {
 
 	@Rule
 	public final TemporaryFolder tmp = new TemporaryFolder();
@@ -119,8 +120,8 @@ public class RocksDBRocksIteratorForKeysWrapperTest {
 			try (
 				ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 				RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(keyedStateBackend.db, handle);
-				RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<K> iteratorWrapper =
-					new RocksDBKeyedStateBackend.RocksIteratorForKeysWrapper<>(
+				RocksStateKeysIterator<K> iteratorWrapper =
+					new RocksStateKeysIterator<>(
 						iterator,
 						testStateName,
 						keySerializer,
