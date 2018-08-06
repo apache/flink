@@ -1450,6 +1450,20 @@ under the License.
 					<version>3.0.0</version>
 				</plugin>
 
+				<plugin>
+					<groupId>pl.project13.maven</groupId>
+					<artifactId>git-commit-id-plugin</artifactId>
+					<!-- Don't use 2.1.14 as it is incompatible with various maven versions --> 
+					<version>2.1.10</version>
+					<configuration>
+						<excludeProperties>
+							<excludeProperty>git.build.*</excludeProperty>
+							<excludeProperty>git.branch.*</excludeProperty>
+							<excludeProperty>git.remote.*</excludeProperty>
+						</excludeProperties>
+					</configuration>
+				</plugin>
+
 				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>

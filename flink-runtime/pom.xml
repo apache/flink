@@ -465,7 +465,6 @@ under the License.
 					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
-				<version>2.1.14</version>
 				<executions>
 					<execution>
 						<goals>
@@ -479,9 +478,6 @@ under the License.
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
 					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
-					<includeOnlyProperties>
-						<includeOnlyProperty>git.commit.*</includeOnlyProperty>
-					</includeOnlyProperties>
 					<gitDescribe>
 						<!-- don't generate the describe property -->
 						<skip>true</skip>
