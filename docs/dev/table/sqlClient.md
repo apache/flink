@@ -106,7 +106,9 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-The [configuration section](sqlClient.html#configuration) explains how to read from table sources and configure other table program properties.
+Both result modes can be useful during the prototyping of SQL queries.
+
+After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
 {% top %}
 
@@ -161,7 +163,7 @@ Every environment file is a regular [YAML file](http://yaml.org/). An example of
 # Define table sources here.
 
 tables:
-  - name: MyTableName
+  - name: MyTableSource
     type: source
     connector:
       type: filesystem
@@ -286,8 +288,8 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 {% top %}
 
-User-defined Functions
---------------------
+### User-defined Functions
+
 The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
 
 In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
@@ -313,7 +315,7 @@ functions:
 
 Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
 
-### Constructor Parameters
+#### Constructor Parameters
 
 Depending on the user-defined function, it might be necessary to parameterize the implementation before using it in SQL statements.
 
@@ -366,6 +368,62 @@ This process can be recursively performed until all the constructor parameters a
             - type: VARCHAR
               value: 3
 {% endhighlight %}
+
+{% top %}
+
+Detached SQL Queries
+------------------------
+
+In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
+
+{% highlight sql %}
+INSERT INTO MyTableSink SELECT * FROM MyTableSource
+{% endhighlight %}
+
+The table sink `MyTableSink` has to be declared in the environment file. See the [connection page](connect.html) for more information about supported external systems and their configuration. An example for an Apache Kafka table sink is shown below.
+
+{% highlight yaml %}
+tables:
+  - name: MyTableSink
+    type: sink
+    update-mode: append
+    connector:
+      property-version: 1
+      type: kafka
+      version: 0.11
+      topic: OutputTopic
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
+        - key: group.id
+          value: testGroup
+    format:
+      property-version: 1
+      type: json
+      derive-schema: true
+    schema:
+      - name: rideId
+        type: LONG
+      - name: lon
+        type: FLOAT
+      - name: lat
+        type: FLOAT
+      - name: rideTime
+        type: TIMESTAMP
+{% endhighlight %}
+
+The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
+
+{% highlight text %}
+[INFO] Table update statement has been successfully submitted to the cluster:
+Cluster ID: StandaloneClusterId
+Job ID: 6f922fe5cba87406ff23ae4a7bb79044
+Web interface: http://localhost:8081
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 
