@@ -149,6 +149,10 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("execution.max-idle-state-retention", "0");
 		expectedProperties.put("execution.min-idle-state-retention", "0");
 		expectedProperties.put("execution.result-mode", "table");
+		expectedProperties.put("execution.restart-strategy.type", "failure-rate");
+		expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
+		expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
+		expectedProperties.put("execution.restart-strategy.delay", "1000");
 		expectedProperties.put("deployment.response-timeout", "5000");
 
 		assertEquals(expectedProperties, actualProperties);

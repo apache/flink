@@ -74,6 +74,12 @@ execution:
   min-idle-state-retention: 0
   # maximum idle state retention in ms
   max-idle-state-retention: 0
+  # controls how table programs are restarted in case of a failures
+  restart-strategy:
+    # strategy type
+    # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
+    type: fallback
+
 
 #==============================================================================
 # Deployment properties
