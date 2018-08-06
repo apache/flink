@@ -50,7 +50,7 @@ under the License.
 			This ensures that all modules we actually need (as defined by the
  			dependency-plugin configuration) are built before this module. -->
 		<dependency>
-			<!-- Used by dependency-plugin -->
+			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
@@ -58,7 +58,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<!-- Used by dependency-plugin -->
+			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
@@ -66,7 +66,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<!-- Used by dependency-plugin -->
+			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -74,7 +74,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<!-- Used by dependency-plugin -->
+			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -82,7 +82,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<!-- Used by dependency-plugin -->
+			<!-- Used by maven-dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.11_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
