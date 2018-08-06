@@ -28,12 +28,12 @@ import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
+/**
+ * Tests for {@link EvictingBoundedList}.
+ */
 public class EvictingBoundedListTest {
 
 	@Test
@@ -162,98 +162,6 @@ public class EvictingBoundedListTest {
 			fail("Concurrent modification not detected.");
 		} catch (ConcurrentModificationException ignored) {
 
-		}
-	}
-
-	@Test
-	public void testMapWithHalfFullList() {
-		final Object[] originals = { new Object(), new Object(), new Object() };
-		final Object defaultValue = new Object();
-
-		final EvictingBoundedList<Object> original = new EvictingBoundedList<>(5, defaultValue);
-		for (Object o : originals) {
-			original.add(o);
-		}
-
-		final EvictingBoundedList<TransformedObject> transformed = original.map(new Mapper());
-
-		assertEquals(original.size(), transformed.size());
-		assertEquals(original.getSizeLimit(), transformed.getSizeLimit());
-		assertEquals(defaultValue, transformed.getDefaultElement().original);
-
-		int i = 0;
-		for (TransformedObject to : transformed) {
-			assertEquals(originals[i++], to.original); 
-		}
-
-		try {
-			transformed.get(originals.length);
-			fail("should have failed with an exception");
-		} catch (IndexOutOfBoundsException e) {
-			// expected
-		}
-	}
-
-	@Test
-	public void testMapWithEvictedElements() {
-		final Object[] originals = { new Object(), new Object(), new Object(), new Object(), new Object() };
-		final Object defaultValue = new Object();
-
-		final EvictingBoundedList<Object> original = new EvictingBoundedList<>(2, defaultValue);
-		for (Object o : originals) {
-			original.add(o);
-		}
-
-		final EvictingBoundedList<TransformedObject> transformed = original.map(new Mapper());
-
-		assertEquals(originals.length, transformed.size());
-		assertEquals(original.size(), transformed.size());
-		assertEquals(original.getSizeLimit(), transformed.getSizeLimit());
-		assertEquals(defaultValue, transformed.getDefaultElement().original);
-
-		for (int i = 0; i < originals.length; i++) {
-			if (i < originals.length - transformed.getSizeLimit()) {
-				assertEquals(transformed.getDefaultElement(), transformed.get(i));
-			} else {
-				assertEquals(originals[i], transformed.get(i).original);
-			}
-		}
-
-		try {
-			transformed.get(originals.length);
-			fail("should have failed with an exception");
-		} catch (IndexOutOfBoundsException e) {
-			// expected
-		}
-	}
-
-	@Test
-	public void testMapWithNullDefault() {
-		final EvictingBoundedList<Object> original = new EvictingBoundedList<>(5, null);
-		final EvictingBoundedList<TransformedObject> transformed = original.map(new Mapper());
-
-		assertEquals(original.size(), transformed.size());
-		assertNull(transformed.getDefaultElement());
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static final class TransformedObject {
-
-		final Object original;
-
-		TransformedObject(Object original) {
-			this.original = checkNotNull(original);
-		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static final class Mapper implements EvictingBoundedList.Function<Object, TransformedObject> {
-
-		@Override
-		public TransformedObject apply(Object value) {
-			return new TransformedObject(value);
 		}
 	}
 }

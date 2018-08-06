@@ -40,7 +40,7 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 
 	public ArchivedExecutionVertex(ExecutionVertex vertex) {
 		this.subTaskIndex = vertex.getParallelSubtaskIndex();
-		this.priorExecutions = vertex.getCopyOfPriorExecutionsList().map(ARCHIVER);
+		this.priorExecutions = vertex.getCopyOfPriorExecutionsList();
 		this.taskNameWithSubtask = vertex.getTaskNameWithSubtaskIndex();
 		this.currentExecution = vertex.getCurrentExecutionAttempt().archive();
 	}
@@ -101,17 +101,4 @@ public class ArchivedExecutionVertex implements AccessExecutionVertex, Serializa
 			throw new IllegalArgumentException("attempt does not exist");
 		}
 	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static final EvictingBoundedList.Function<Execution, ArchivedExecution> ARCHIVER =
-			new EvictingBoundedList.Function<Execution, ArchivedExecution>() {
-
-		@Override
-		public ArchivedExecution apply(Execution value) {
-			return value.archive();
-		}
-	};
 }

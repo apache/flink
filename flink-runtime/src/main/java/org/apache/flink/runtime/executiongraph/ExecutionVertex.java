@@ -92,7 +92,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final int subTaskIndex;
 
-	private final EvictingBoundedList<Execution> priorExecutions;
+	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
 	private final Time timeout;
 
@@ -287,7 +287,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	@Override
-	public Execution getPriorExecutionAttempt(int attemptNumber) {
+	public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
 		synchronized (priorExecutions) {
 			if (attemptNumber >= 0 && attemptNumber < priorExecutions.size()) {
 				return priorExecutions.get(attemptNumber);
@@ -297,7 +297,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public Execution getLatestPriorExecution() {
+	public ArchivedExecution getLatestPriorExecution() {
 		synchronized (priorExecutions) {
 			final int size = priorExecutions.size();
 			if (size > 0) {
@@ -316,16 +316,16 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return The latest prior execution location, or null, if there is none, yet.
 	 */
 	public TaskManagerLocation getLatestPriorLocation() {
-		Execution latestPriorExecution = getLatestPriorExecution();
+		ArchivedExecution latestPriorExecution = getLatestPriorExecution();
 		return latestPriorExecution != null ? latestPriorExecution.getAssignedResourceLocation() : null;
 	}
 
 	public AllocationID getLatestPriorAllocation() {
-		Execution latestPriorExecution = getLatestPriorExecution();
+		ArchivedExecution latestPriorExecution = getLatestPriorExecution();
 		return latestPriorExecution != null ? latestPriorExecution.getAssignedAllocationID() : null;
 	}
 
-	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {
+	EvictingBoundedList<ArchivedExecution> getCopyOfPriorExecutionsList() {
 		synchronized (priorExecutions) {
 			return new EvictingBoundedList<>(priorExecutions);
 		}
@@ -577,7 +577,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			final ExecutionState oldState = oldExecution.getState();
 
 			if (oldState.isTerminal()) {
-				priorExecutions.add(oldExecution);
+				priorExecutions.add(oldExecution.archive());
 
 				final Execution newExecution = new Execution(
 					getExecutionGraph().getFutureExecutor(),
