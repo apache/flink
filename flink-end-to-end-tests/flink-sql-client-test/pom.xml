@@ -42,6 +42,13 @@ under the License.
 			<artifactId>scala-compiler</artifactId>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- The following dependencies are for connector/format sql-jars that
+			we copy using the maven-dependency-plugin. When extending the test
+ 			to cover more connectors/formats, add a dependency here and an entry
+			to the dependency-plugin configuration below.
+			This ensures that all modules we actually need (as defined by the
+ 			dependency-plugin configuration) are built before this module. -->
 		<dependency>
 			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
