@@ -42,7 +42,66 @@ under the License.
 			<artifactId>scala-compiler</artifactId>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- The following dependencies are for connector/format sql-jars that
+			we copy using the maven-dependency-plugin. When extending the test
+ 			to cover more connectors/formats, add a dependency here and an entry
+			to the dependency-plugin configuration below.
+			This ensures that all modules we actually need (as defined by the
+ 			dependency-plugin configuration) are built before this module. -->
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-json</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.11_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<classifier>sql-jar</classifier>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Pick an arbitrary version here to satisfy the enforcer-plugin,
+					as we neither access nor package the kafka dependencies -->
+				<groupId>org.apache.kafka</groupId>
+				<artifactId>kafka-clients</artifactId>
+				<version>0.11.0.2</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
@@ -76,7 +135,9 @@ under the License.
 						</goals>
 						<configuration>
 							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
-							<!-- List of currently provided SQL jars. -->
+							<!-- List of currently provided SQL jars. 
+								When extending this list please also add a dependency
+								for the respective module. -->
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
