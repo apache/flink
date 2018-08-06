@@ -108,7 +108,7 @@ Greg, 1
 
 Both result modes can be useful during the prototyping of SQL queries.
 
-After a query is defined, it can be submitted to the cluster as a long-running Flink job. For this, a target table sink that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#long-running-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
+After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
 {% top %}
 
@@ -371,16 +371,16 @@ This process can be recursively performed until all the constructor parameters a
 
 {% top %}
 
-Long-running SQL Queries
+Detached SQL Queries
 ------------------------
 
-In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running queries to a Flink cluster.
+In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
 
 {% highlight sql %}
 INSERT INTO MyTableSink SELECT * FROM MyTableSource
 {% endhighlight %}
 
-The table sink `MyTableSink` has to be declared in the environment file. See the [connection page](connect.html) for more information about supported table sinks and their configuration. An example for an Apache Kafka table sink is shown below.
+The table sink `MyTableSink` has to be declared in the environment file. See the [connection page](connect.html) for more information about supported external systems and their configuration. An example for an Apache Kafka table sink is shown below.
 
 {% highlight yaml %}
 tables:
@@ -423,7 +423,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the long-running query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 
