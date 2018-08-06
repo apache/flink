@@ -116,7 +116,8 @@ The RocksDBStateBackend is encouraged for:
 Note that the amount of state that you can keep is only limited by the amount of disk space available.
 This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
-this state backend.
+this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
+on-heap representation as the heap-based backends are doing.
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
 
