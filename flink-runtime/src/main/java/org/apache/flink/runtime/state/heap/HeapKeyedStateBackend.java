@@ -643,7 +643,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public void logOperationCompleted(CheckpointStreamFactory streamFactory, long startTime) {
-			LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+			LOG.debug("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
 				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 		}
 
@@ -838,7 +838,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			finalizeSnapshotBeforeReturnHook(task);
 
-			LOG.info("Heap backend snapshot (" + primaryStreamFactory + ", synchronous part) in thread " +
+			LOG.debug("Heap backend snapshot (" + primaryStreamFactory + ", synchronous part) in thread " +
 				Thread.currentThread() + " took " + (System.currentTimeMillis() - syncStartTime) + " ms.");
 
 			return task;
