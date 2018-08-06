@@ -593,7 +593,6 @@ under the License.
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
-				<version>2.1.5</version>
 				<executions>
 					<execution>
 						<goals>
