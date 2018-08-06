@@ -43,6 +43,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-avro</artifactId>
 			<version>${project.version}</version>
@@ -50,6 +51,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-json</artifactId>
 			<version>${project.version}</version>
@@ -57,6 +59,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.9_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -64,6 +67,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -71,6 +75,7 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<!-- Used by dependency-plugin -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.11_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
@@ -123,7 +128,9 @@ under the License.
 						</goals>
 						<configuration>
 							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
-							<!-- List of currently provided SQL jars. -->
+							<!-- List of currently provided SQL jars. 
+								When extending this list please also add a dependency
+								for the respective module. -->
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
