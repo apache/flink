@@ -1400,6 +1400,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		if (stateDesc instanceof ListStateDescriptor) {
 			Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
 			return original.map(est -> createRocksDBListStateTransformer(stateDesc, est)).orElse(null);
+		} else if (stateDesc instanceof MapStateDescriptor) {
+			Optional<StateSnapshotTransformer<byte[]>> original = snapshotTransformFactory.createForSerializedState();
+			return (StateSnapshotTransformer<SV>) original
+				.map(RocksDBMapState.StateSnapshotTransformerWrapper::new).orElse(null);
 		} else {
 			Optional<StateSnapshotTransformer<byte[]>> original = snapshotTransformFactory.createForSerializedState();
 			return (StateSnapshotTransformer<SV>) original.orElse(null);

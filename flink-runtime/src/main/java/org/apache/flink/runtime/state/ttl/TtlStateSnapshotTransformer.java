@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -55,9 +54,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 	}
 
 	private static long deserializeTs(
-		byte[] value, int offset) throws IOException {
+		byte[] value) throws IOException {
 		return LongSerializer.INSTANCE.deserialize(
-			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offset, Long.BYTES)));
+			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, 0, Long.BYTES)));
 	}
 
 	@Override
@@ -88,10 +87,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 			if (value == null) {
 				return null;
 			}
-			Preconditions.checkArgument(value.length >= Long.BYTES);
 			long ts;
 			try {
-				ts = deserializeTs(value, value.length - Long.BYTES);
+				ts = deserializeTs(value);
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Unexpected timestamp deserialization failure");
 			}

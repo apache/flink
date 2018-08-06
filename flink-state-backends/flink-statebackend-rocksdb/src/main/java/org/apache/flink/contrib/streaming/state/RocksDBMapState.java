@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -31,6 +32,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -44,9 +46,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -624,5 +629,72 @@ class RocksDBMapState<K, N, UK, UV>
 			(TypeSerializer<Map<UK, UV>>) registerResult.f1.getStateSerializer(),
 			(Map<UK, UV>) stateDesc.getDefaultValue(),
 			backend);
+	}
+
+	/**
+	 * RocksDB map state specific byte value transformer wrapper.
+	 *
+	 * <p>This specific transformer wrapper checks the first byte to detect null user value entries
+	 * and if not null forward the rest of byte array to the original byte value transformer.
+	 */
+	static class StateSnapshotTransformerWrapper implements StateSnapshotTransformer<byte[]> {
+		private static final byte[] NULL_VALUE;
+		private static final byte NON_NULL_VALUE_PREFIX;
+		static {
+			ByteArrayDataOutputView dov = new ByteArrayDataOutputView(1);
+			try {
+				dov.writeBoolean(true);
+				NULL_VALUE = dov.toByteArray();
+				dov.reset();
+				dov.writeBoolean(false);
+				NON_NULL_VALUE_PREFIX = dov.toByteArray()[0];
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to serialize boolean flag of map user null value", e);
+			}
+		}
+
+		private final StateSnapshotTransformer<byte[]> elementTransformer;
+
+		StateSnapshotTransformerWrapper(StateSnapshotTransformer<byte[]> originalTransformer) {
+			this.elementTransformer = originalTransformer;
+		}
+
+		@Override
+		@Nullable
+		public byte[] filterOrTransform(@Nullable byte[] value) {
+			if (value == null || isNull(value)) {
+				return NULL_VALUE;
+			} else {
+				// we have to skip the first byte indicating null user value
+				// TODO: optimization here cauld be to work with slices and not byte arrays
+				// and copy slice sub-array only when needed
+				byte[] woNullByte = Arrays.copyOfRange(value, 1, value.length);
+				byte[] filteredValue = elementTransformer.filterOrTransform(woNullByte);
+				if (filteredValue == null) {
+					filteredValue = NULL_VALUE;
+				} else if (filteredValue != woNullByte) {
+					filteredValue = prependWithNonNullByte(filteredValue, value);
+				} else {
+					filteredValue = value;
+				}
+				return filteredValue;
+			}
+		}
+
+		private boolean isNull(byte[] value) {
+			try {
+				return new DataInputViewStreamWrapper(new ByteArrayInputStream(value, 0, 1)).readBoolean();
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to deserialize boolean flag of map user null value", e);
+			}
+		}
+
+		private static byte[] prependWithNonNullByte(byte[] value, byte[] reuse) {
+			int len = 1 + value.length;
+			byte[] result = reuse.length == len ? reuse : new byte[len];
+			result[0] = NON_NULL_VALUE_PREFIX;
+			System.arraycopy(value, 0, result, 1, value.length);
+			return result;
+		}
 	}
 }
