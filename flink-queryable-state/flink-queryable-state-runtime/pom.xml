@@ -37,7 +37,13 @@ under the License.
 	<dependencies>
 
 		<!-- core dependencies -->
-
+		<dependency>
+			<groupId>org.hamcrest</groupId>
+			<artifactId>hamcrest-all</artifactId>
+			<version>${hamcrest.version}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
