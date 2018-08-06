@@ -19,16 +19,14 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -36,10 +34,12 @@ import java.util.Optional;
 abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshotTransformer<T> {
 	private final TtlTimeProvider ttlTimeProvider;
 	final long ttl;
+	private final ByteArrayDataInputView div;
 
 	TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.ttl = ttl;
+		this.div = new ByteArrayDataInputView();
 	}
 
 	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
@@ -54,10 +54,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 		return TtlUtils.expired(ts, ttl, ttlTimeProvider);
 	}
 
-	private static long deserializeTs(
-		byte[] value, int offset) throws IOException {
-		return LongSerializer.INSTANCE.deserialize(
-			new DataInputViewStreamWrapper(new ByteArrayInputStream(value, offset, Long.BYTES)));
+	long deserializeTs(byte[] value) throws IOException {
+		div.setData(value, 0, Long.BYTES);
+		return LongSerializer.INSTANCE.deserialize(div);
 	}
 
 	@Override
@@ -88,10 +87,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 			if (value == null) {
 				return null;
 			}
-			Preconditions.checkArgument(value.length >= Long.BYTES);
 			long ts;
 			try {
-				ts = deserializeTs(value, value.length - Long.BYTES);
+				ts = deserializeTs(value);
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Unexpected timestamp deserialization failure");
 			}
