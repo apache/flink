@@ -34,10 +34,12 @@ import java.util.Optional;
 abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshotTransformer<T> {
 	private final TtlTimeProvider ttlTimeProvider;
 	final long ttl;
+	private final ByteArrayDataInputView div;
 
 	TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.ttl = ttl;
+		this.div = new ByteArrayDataInputView();
 	}
 
 	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
@@ -52,9 +54,9 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 		return TtlUtils.expired(ts, ttl, ttlTimeProvider);
 	}
 
-	private static long deserializeTs(
-		byte[] value) throws IOException {
-		return LongSerializer.INSTANCE.deserialize(new ByteArrayDataInputView(value, 0, Long.BYTES));
+	long deserializeTs(byte[] value) throws IOException {
+		div.setData(value, 0, Long.BYTES);
+		return LongSerializer.INSTANCE.deserialize(div);
 	}
 
 	@Override

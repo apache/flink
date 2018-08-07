@@ -654,9 +654,11 @@ class RocksDBMapState<K, N, UK, UV>
 		}
 
 		private final StateSnapshotTransformer<byte[]> elementTransformer;
+		private final ByteArrayDataInputView div;
 
 		StateSnapshotTransformerWrapper(StateSnapshotTransformer<byte[]> originalTransformer) {
 			this.elementTransformer = originalTransformer;
+			this.div = new ByteArrayDataInputView();
 		}
 
 		@Override
@@ -683,7 +685,8 @@ class RocksDBMapState<K, N, UK, UV>
 
 		private boolean isNull(byte[] value) {
 			try {
-				return new ByteArrayDataInputView(value, 0, 1).readBoolean();
+				div.setData(value, 0, 1);
+				return div.readBoolean();
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Failed to deserialize boolean flag of map user null value", e);
 			}
