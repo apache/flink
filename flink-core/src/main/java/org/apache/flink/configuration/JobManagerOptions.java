@@ -102,12 +102,14 @@ public class JobManagerOptions {
 			.withDescription("The maximum number of prior execution attempts kept in history.");
 
 	/**
-	 * The maximum number of prior execution attempts kept in history.
+	 * The failover strategy which decide how the job computation recovers from task failures.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
-			.withDescription("The maximum number of prior execution attempts kept in history.");
+			.withDescription("The failover strategy which decide how the job computation recovers from task failures." +
+				"Currently it supports 3 values: full stands for RestartAllStrategy, individual stands for RestartIndividualStrategy and " +
+				"region stands for RestartPipelinedRegionStrategy.");
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
