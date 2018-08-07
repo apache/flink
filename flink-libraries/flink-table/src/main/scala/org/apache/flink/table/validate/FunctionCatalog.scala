@@ -206,6 +206,7 @@ object FunctionCatalog {
     "toBase64" -> classOf[ToBase64],
     "uuid" -> classOf[UUID],
     "ltrim" -> classOf[LTrim],
+    "rtrim" -> classOf[RTrim],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -457,6 +458,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.TO_BASE64,
     ScalarSqlFunctions.UUID,
     ScalarSqlFunctions.LTRIM,
+    ScalarSqlFunctions.RTRIM,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

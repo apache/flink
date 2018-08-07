@@ -653,6 +653,33 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
   }
 
+  @Test
+  def testRTrim(): Unit = {
+    testAllApis(
+      'f8.rtrim(),
+      "f8.rtrim",
+      "RTRIM(f8)",
+      " This is a test String.")
+
+    testAllApis(
+      'f0.rtrim(),
+      "f0.rtrim",
+      "RTRIM(f0)",
+      "This is a test String.")
+
+    testAllApis(
+      "".rtrim(),
+      "''.rtrim()",
+      "RTRIM('')",
+      "")
+
+    testAllApis(
+      'f33.rtrim(),
+      "f33.rtrim",
+      "RTRIM(f33)",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------

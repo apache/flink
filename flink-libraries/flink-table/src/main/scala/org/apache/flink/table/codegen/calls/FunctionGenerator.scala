@@ -170,6 +170,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethod.LTRIM.method)
 
+  addSqlFunctionMethod(
+    RTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.RTRIM.method)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------

@@ -137,6 +137,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("TRIM(LEADING 'x' FROM 'xxxxSTRINGxxxx')", "STRINGxxxx")
     testSqlApi("TRIM(TRAILING 'x' FROM 'xxxxSTRINGxxxx')", "xxxxSTRING")
     testSqlApi("LTRIM(' This is a test String.')", "This is a test String.")
+    testSqlApi("RTRIM('This is a test String. ')", "This is a test String.")
     testSqlApi(
       "OVERLAY('This is an old string' PLACING ' new' FROM 10 FOR 5)",
       "This is a new string")

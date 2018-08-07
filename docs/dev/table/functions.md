@@ -2392,6 +2392,18 @@ LTRIM(string)
     <tr>
       <td>
         {% highlight text %}
+RTRIM(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>string</i>.</p> 
+        <p>E.g., <code>RTRIM('This is a test String. ')</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2588,6 +2600,18 @@ STRING.ltrim()
       <td>
         <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.rtrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>'This is a test String. '.rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
     
@@ -2791,6 +2815,18 @@ STRING.ltrim()
       <td>
         <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>" This is a test String.".ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.rtrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
+        <p>E.g., <code>"This is a test String. ".rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
 

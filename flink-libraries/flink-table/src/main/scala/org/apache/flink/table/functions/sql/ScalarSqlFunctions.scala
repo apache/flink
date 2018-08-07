@@ -214,4 +214,12 @@ object ScalarSqlFunctions {
     OperandTypes.STRING,
     SqlFunctionCategory.STRING)
 
+  val RTRIM = new SqlFunction(
+    "RTRIM",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING)
+
 }
