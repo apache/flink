@@ -80,7 +80,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
 	 */
-	private final MigrationVersion flinkGenerateSavepointVersion = null;
+	private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_5;
 
 	private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
@@ -93,7 +93,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4);
+		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4, MigrationVersion.v1_5);
 	}
 
 	public FlinkKafkaConsumerBaseMigrationTest(MigrationVersion testMigrateVersion) {
