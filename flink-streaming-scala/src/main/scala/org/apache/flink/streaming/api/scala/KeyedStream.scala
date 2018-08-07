@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce
+import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.TimestampStrategy
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -174,6 +175,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     private var lowerBoundInclusive = true
     private var upperBoundInclusive = true
 
+    private var timestampStrategy = TimestampStrategy.MAX
+
     /**
       * Set the lower bound to be exclusive
       */
@@ -189,6 +192,30 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     @PublicEvolving
     def upperBoundExclusive(): IntervalJoined[IN1, IN2, KEY] = {
       this.upperBoundInclusive = false
+      this
+    }
+
+    @Public
+    def assignMaxTimestamp(): IntervalJoined[IN1, IN2, KEY] = {
+      this.timestampStrategy = TimestampStrategy.MAX
+      this
+    }
+
+    @Public
+    def assignMinTimestamp(): IntervalJoined[IN1, IN2, KEY] = {
+      this.timestampStrategy = TimestampStrategy.MIN
+      this
+    }
+
+    @Public
+    def assignLeftTimestamp(): IntervalJoined[IN1, IN2, KEY] = {
+      this.timestampStrategy = TimestampStrategy.LEFT
+      this
+    }
+
+    @Public
+    def assignRightTimestamp(): IntervalJoined[IN1, IN2, KEY] = {
+      this.timestampStrategy = TimestampStrategy.RIGHT
       this
     }
 
@@ -208,7 +235,8 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
         lowerBound,
         upperBound,
         lowerBoundInclusive,
-        upperBoundInclusive)
+        upperBoundInclusive,
+        timestampStrategy)
       asScalaStream(javaJoined.process(processJoinFunction))
     }
   }

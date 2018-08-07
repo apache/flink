@@ -463,7 +463,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				lowerBound.toMilliseconds(),
 				upperBound.toMilliseconds(),
 				true,
-				true
+				true,
+				IntervalJoinOperator.TimestampStrategy.MAX
 			);
 		}
 	}
@@ -490,14 +491,16 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		private boolean lowerBoundInclusive;
 		private boolean upperBoundInclusive;
+		private IntervalJoinOperator.TimestampStrategy timestampStrategy;
 
 		public IntervalJoined(
-				KeyedStream<IN1, KEY> left,
-				KeyedStream<IN2, KEY> right,
-				long lowerBound,
-				long upperBound,
-				boolean lowerBoundInclusive,
-				boolean upperBoundInclusive) {
+			KeyedStream<IN1, KEY> left,
+			KeyedStream<IN2, KEY> right,
+			long lowerBound,
+			long upperBound,
+			boolean lowerBoundInclusive,
+			boolean upperBoundInclusive,
+			IntervalJoinOperator.TimestampStrategy timestampStrategy) {
 
 			this.left = checkNotNull(left);
 			this.right = checkNotNull(right);
@@ -510,6 +513,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 			this.keySelector1 = left.getKeySelector();
 			this.keySelector2 = right.getKeySelector();
+
+			this.timestampStrategy = timestampStrategy;
 		}
 
 		/**
@@ -529,6 +534,31 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			this.lowerBoundInclusive = false;
 			return this;
 		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> assignMaxTimestamp() {
+			this.timestampStrategy = IntervalJoinOperator.TimestampStrategy.MAX;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> assignMinTimestamp() {
+			this.timestampStrategy = IntervalJoinOperator.TimestampStrategy.MIN;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> assignLeftTimestamp() {
+			this.timestampStrategy = IntervalJoinOperator.TimestampStrategy.LEFT;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> assignRightTimestamp() {
+			this.timestampStrategy = IntervalJoinOperator.TimestampStrategy.RIGHT;
+			return this;
+		}
+
 
 		/**
 		 * Completes the join operation with the given user function that is executed for each joined pair
@@ -582,6 +612,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 					upperBound,
 					lowerBoundInclusive,
 					upperBoundInclusive,
+					timestampStrategy,
 					left.getType().createSerializer(left.getExecutionConfig()),
 					right.getType().createSerializer(right.getExecutionConfig()),
 					cleanedUdf

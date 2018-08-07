@@ -50,6 +50,11 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.TimestampStrategy.LEFT;
+import static org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.TimestampStrategy.MAX;
+import static org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.TimestampStrategy.MIN;
+import static org.apache.flink.streaming.api.operators.co.IntervalJoinOperator.TimestampStrategy.RIGHT;
+
 
 /**
  * Tests for {@link IntervalJoinOperator}.
@@ -59,16 +64,25 @@ import java.util.stream.Collectors;
 public class IntervalJoinOperatorTest {
 
 	private final boolean lhsFasterThanRhs;
+	private final IntervalJoinOperator.TimestampStrategy timestampStrategy;
 
-	@Parameters(name = "lhs faster than rhs: {0}")
+	@Parameters(name = "lhs faster than rhs: {0}, timestamp strategy: {1}")
 	public static Collection<Object[]> data() {
 		return Arrays.asList(new Object[][]{
-			{true}, {false}
+			{true, MAX},
+			{false, MAX},
+			{true, MIN},
+			{false, MIN},
+			{true, LEFT},
+			{false, LEFT},
+			{true, RIGHT},
+			{false, RIGHT},
 		});
 	}
 
-	public IntervalJoinOperatorTest(boolean lhsFasterThanRhs) {
+	public IntervalJoinOperatorTest(boolean lhsFasterThanRhs, IntervalJoinOperator.TimestampStrategy timestampStrategy) {
 		this.lhsFasterThanRhs = lhsFasterThanRhs;
+		this.timestampStrategy = timestampStrategy;
 	}
 
 	@Test
@@ -83,22 +97,22 @@ public class IntervalJoinOperatorTest {
 		setupHarness(lowerBound, lowerBoundInclusive, upperBound, upperBoundInclusive)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(1, 2),
-				streamRecordOf(1, 3),
-				streamRecordOf(2, 3),
-				streamRecordOf(2, 4),
-				streamRecordOf(3, 4))
+				streamRecordOf(1, 2, timestampStrategy),
+				streamRecordOf(1, 3, timestampStrategy),
+				streamRecordOf(2, 3, timestampStrategy),
+				streamRecordOf(2, 4, timestampStrategy),
+				streamRecordOf(3, 4, timestampStrategy))
 			.noLateRecords()
 			.close();
 
 		setupHarness(-1 * upperBound, upperBoundInclusive, -1 * lowerBound, lowerBoundInclusive)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(2, 1),
-				streamRecordOf(3, 1),
-				streamRecordOf(3, 2),
-				streamRecordOf(4, 2),
-				streamRecordOf(4, 3))
+				streamRecordOf(2, 1, timestampStrategy),
+				streamRecordOf(3, 1, timestampStrategy),
+				streamRecordOf(3, 2, timestampStrategy),
+				streamRecordOf(4, 2, timestampStrategy),
+				streamRecordOf(4, 3, timestampStrategy))
 			.noLateRecords()
 			.close();
 	}
@@ -109,11 +123,11 @@ public class IntervalJoinOperatorTest {
 		setupHarness(-2, true, -1, true)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(2, 1),
-				streamRecordOf(3, 1),
-				streamRecordOf(3, 2),
-				streamRecordOf(4, 2),
-				streamRecordOf(4, 3)
+				streamRecordOf(2, 1, timestampStrategy),
+				streamRecordOf(3, 1, timestampStrategy),
+				streamRecordOf(3, 2, timestampStrategy),
+				streamRecordOf(4, 2, timestampStrategy),
+				streamRecordOf(4, 3, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -125,16 +139,16 @@ public class IntervalJoinOperatorTest {
 		setupHarness(-1, true, 1, true)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(1, 1),
-				streamRecordOf(1, 2),
-				streamRecordOf(2, 1),
-				streamRecordOf(2, 2),
-				streamRecordOf(2, 3),
-				streamRecordOf(3, 2),
-				streamRecordOf(3, 3),
-				streamRecordOf(3, 4),
-				streamRecordOf(4, 3),
-				streamRecordOf(4, 4)
+				streamRecordOf(1, 1, timestampStrategy),
+				streamRecordOf(1, 2, timestampStrategy),
+				streamRecordOf(2, 1, timestampStrategy),
+				streamRecordOf(2, 2, timestampStrategy),
+				streamRecordOf(2, 3, timestampStrategy),
+				streamRecordOf(3, 2, timestampStrategy),
+				streamRecordOf(3, 3, timestampStrategy),
+				streamRecordOf(3, 4, timestampStrategy),
+				streamRecordOf(4, 3, timestampStrategy),
+				streamRecordOf(4, 4, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -146,11 +160,11 @@ public class IntervalJoinOperatorTest {
 		setupHarness(1, true, 2, true)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(1, 2),
-				streamRecordOf(1, 3),
-				streamRecordOf(2, 3),
-				streamRecordOf(2, 4),
-				streamRecordOf(3, 4)
+				streamRecordOf(1, 2, timestampStrategy),
+				streamRecordOf(1, 3, timestampStrategy),
+				streamRecordOf(2, 3, timestampStrategy),
+				streamRecordOf(2, 4, timestampStrategy),
+				streamRecordOf(3, 4, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -162,8 +176,8 @@ public class IntervalJoinOperatorTest {
 		setupHarness(-3, false, -1, false)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(3, 1),
-				streamRecordOf(4, 2)
+				streamRecordOf(3, 1, timestampStrategy),
+				streamRecordOf(4, 2, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -175,10 +189,10 @@ public class IntervalJoinOperatorTest {
 		setupHarness(-1, false, 1, false)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(1, 1),
-				streamRecordOf(2, 2),
-				streamRecordOf(3, 3),
-				streamRecordOf(4, 4)
+				streamRecordOf(1, 1, timestampStrategy),
+				streamRecordOf(2, 2, timestampStrategy),
+				streamRecordOf(3, 3, timestampStrategy),
+				streamRecordOf(4, 4, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -190,11 +204,49 @@ public class IntervalJoinOperatorTest {
 		setupHarness(1, false, 3, false)
 			.processElementsAndWatermarks(1, 4)
 			.andExpect(
-				streamRecordOf(1, 3),
-				streamRecordOf(2, 4)
+				streamRecordOf(1, 3, timestampStrategy),
+				streamRecordOf(2, 4, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
+	}
+
+	@Test
+	public void testNoLateDataLeftAndMin() throws Exception {
+		// This testcase would fail if we wouldn't delay the watermark
+		// for the TimestampStrategies MIN and LEFT
+		setupHarness(-1, true, 1, true)
+			.processElement1(1)
+			.processWatermark1(1)
+
+			.processElement1(2)
+			.processWatermark1(2)
+
+			.processElement2(1)
+			.processWatermark2(1)
+
+			.processElement2(2)
+			.processWatermark2(2)
+
+			.noLateRecords();
+	}
+
+	@Test
+	public void testNoLateDateRightAndMin() throws Exception {
+		setupHarness(-1, true, 1, true)
+			.processElement2(1)
+			.processWatermark2(1)
+
+			.processElement2(2)
+			.processWatermark2(2)
+
+			.processElement1(1)
+			.processWatermark1(1)
+
+			.processElement1(2)
+			.processWatermark1(2)
+
+			.noLateRecords();
 	}
 
 	@Test
@@ -389,13 +441,13 @@ public class IntervalJoinOperatorTest {
 			testHarness.close();
 
 			expectedOutput = Lists.newArrayList(
-				streamRecordOf(1, 1),
-				streamRecordOf(1, 2),
-				streamRecordOf(2, 1),
-				streamRecordOf(2, 2),
-				streamRecordOf(2, 3),
-				streamRecordOf(3, 2),
-				streamRecordOf(3, 3)
+				streamRecordOf(1, 1, timestampStrategy),
+				streamRecordOf(1, 2, timestampStrategy),
+				streamRecordOf(2, 1, timestampStrategy),
+				streamRecordOf(2, 2, timestampStrategy),
+				streamRecordOf(2, 3, timestampStrategy),
+				streamRecordOf(3, 2, timestampStrategy),
+				streamRecordOf(3, 3, timestampStrategy)
 			);
 
 			TestHarnessUtil.assertNoLateRecords(testHarness.getOutput());
@@ -423,9 +475,9 @@ public class IntervalJoinOperatorTest {
 
 			// assert expected output
 			expectedOutput = Lists.newArrayList(
-				streamRecordOf(3, 4),
-				streamRecordOf(4, 3),
-				streamRecordOf(4, 4)
+				streamRecordOf(3, 4, timestampStrategy),
+				streamRecordOf(4, 3, timestampStrategy),
+				streamRecordOf(4, 4, timestampStrategy)
 			);
 
 			TestHarnessUtil.assertNoLateRecords(newTestHarness.getOutput());
@@ -442,6 +494,7 @@ public class IntervalJoinOperatorTest {
 				1,
 				true,
 				true,
+				this.timestampStrategy,
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -478,6 +531,7 @@ public class IntervalJoinOperatorTest {
 				1,
 				true,
 				true,
+				this.timestampStrategy,
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -490,7 +544,26 @@ public class IntervalJoinOperatorTest {
 						TestElem right,
 						Context ctx,
 						Collector<Tuple2<TestElem, TestElem>> out) throws Exception {
-						Assert.assertEquals(Math.max(left.ts, right.ts), ctx.getTimestamp());
+
+						long expected;
+						switch (timestampStrategy) {
+							case MIN:
+								expected = Math.min(left.ts, right.ts);
+								break;
+							case MAX:
+								expected = Math.max(left.ts, right.ts);
+								break;
+							case LEFT:
+								expected = left.ts;
+								break;
+							case RIGHT:
+								expected = right.ts;
+								break;
+							default:
+								throw new RuntimeException("Unsupported timestamp strategy: " + timestampStrategy);
+						}
+
+						Assert.assertEquals(expected, ctx.getTimestamp());
 					}
 				}
 			);
@@ -518,6 +591,7 @@ public class IntervalJoinOperatorTest {
 				1,
 				true,
 				true,
+				this.timestampStrategy,
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
@@ -586,23 +660,23 @@ public class IntervalJoinOperatorTest {
 			.processElement1(5)
 			.processElement2(5)
 			.andExpect(
-				streamRecordOf(1, 1),
-				streamRecordOf(1, 2),
+				streamRecordOf(1, 1, timestampStrategy),
+				streamRecordOf(1, 2, timestampStrategy),
 
-				streamRecordOf(2, 1),
-				streamRecordOf(2, 2),
-				streamRecordOf(2, 3),
+				streamRecordOf(2, 1, timestampStrategy),
+				streamRecordOf(2, 2, timestampStrategy),
+				streamRecordOf(2, 3, timestampStrategy),
 
-				streamRecordOf(3, 2),
-				streamRecordOf(3, 3),
-				streamRecordOf(3, 4),
+				streamRecordOf(3, 2, timestampStrategy),
+				streamRecordOf(3, 3, timestampStrategy),
+				streamRecordOf(3, 4, timestampStrategy),
 
-				streamRecordOf(4, 3),
-				streamRecordOf(4, 4),
-				streamRecordOf(4, 5),
+				streamRecordOf(4, 3, timestampStrategy),
+				streamRecordOf(4, 4, timestampStrategy),
+				streamRecordOf(4, 5, timestampStrategy),
 
-				streamRecordOf(5, 4),
-				streamRecordOf(5, 5)
+				streamRecordOf(5, 4, timestampStrategy),
+				streamRecordOf(5, 5, timestampStrategy)
 			)
 			.noLateRecords()
 			.close();
@@ -656,6 +730,7 @@ public class IntervalJoinOperatorTest {
 				upperBound,
 				lowerBoundInclusive,
 				upperBoundInclusive,
+				timestampStrategy,
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new PassthroughFunction()
@@ -680,6 +755,7 @@ public class IntervalJoinOperatorTest {
 				upperBound,
 				lowerBoundInclusive,
 				upperBoundInclusive,
+				timestampStrategy,
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new PassthroughFunction()
@@ -833,12 +909,30 @@ public class IntervalJoinOperatorTest {
 
 	private StreamRecord<Tuple2<TestElem, TestElem>> streamRecordOf(
 		long lhsTs,
-		long rhsTs
+		long rhsTs,
+		IntervalJoinOperator.TimestampStrategy strategy
 	) {
 		TestElem lhs = new TestElem(lhsTs, "lhs");
 		TestElem rhs = new TestElem(rhsTs, "rhs");
 
-		long ts = Math.max(lhsTs, rhsTs);
+		long ts;
+		switch (timestampStrategy) {
+			case MIN:
+				ts = Math.min(lhsTs, rhsTs);
+				break;
+			case MAX:
+				ts = Math.max(lhsTs, rhsTs);
+				break;
+			case LEFT:
+				ts = lhsTs;
+				break;
+			case RIGHT:
+				ts = rhsTs;
+				break;
+			default:
+				throw new RuntimeException("Unsupported timestamp strategy: " + timestampStrategy);
+		}
+
 		return new StreamRecord<>(Tuple2.of(lhs, rhs), ts);
 	}
 
