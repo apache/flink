@@ -28,8 +28,7 @@ import java.util.concurrent.RunnableFuture;
  *
  * @param <S> type of the returned state object that represents the result of the snapshot operation.
  */
-@FunctionalInterface
-public interface SnapshotStrategy<S extends StateObject> {
+public interface SnapshotStrategy<S extends StateObject> extends CheckpointListener {
 
 	/**
 	 * Operation that writes a snapshot into a stream that is provided by the given {@link CheckpointStreamFactory} and

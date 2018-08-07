@@ -191,6 +191,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		allCreatedCloseables = new ArrayList<>();
 
 		keyedStateBackend.db = spy(keyedStateBackend.db);
+		keyedStateBackend.initializeSnapshotStrategy(null);
 
 		doAnswer(new Answer<Object>() {
 

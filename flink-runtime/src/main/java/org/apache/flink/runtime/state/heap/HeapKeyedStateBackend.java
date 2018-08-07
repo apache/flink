@@ -882,6 +882,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 			}
 		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			// nothing to do.
+		}
 	}
 
 	private interface StateFactory {
