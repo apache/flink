@@ -80,7 +80,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
 	 */
-	private final MigrationVersion flinkGenerateSavepointVersion = MigrationVersion.v1_5;
+	private final MigrationVersion flinkGenerateSavepointVersion = null;
 
 	private static final HashMap<KafkaTopicPartition, Long> PARTITION_STATE = new HashMap<>();
 
