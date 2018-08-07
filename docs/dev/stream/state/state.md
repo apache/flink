@@ -268,63 +268,28 @@ key if we had tuples with different values in the first field.
 
 ### State time-to-live (TTL)
 
-A time-to-live (TTL) can be assigned to the keyed state value. 
+A time-to-live (TTL) can be assigned to the keyed state of any type. 
 In this case it will expire after the configured TTL
 and its stored value will be cleaned up on the best effort basis which is discussed in details later.
 
 The state collection types support per-entry TTLs: list elements and map entries expire independently.
 
-To use state TTL you must first build a `StateTtlConfiguration` object:
+To use state TTL you must first build a `StateTtlConfig` object, 
+then TTL functionality can be enabled in any state descriptor passing this configuration:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-StateTtlConfiguration ttlConfig = StateTtlConfiguration
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+
+StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Time.seconds(1))
-    .setTtlUpdateType(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite)
-    .setStateVisibility(StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired)
+    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build();
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val ttlConfig = StateTtlConfiguration
-    .newBuilder(Time.seconds(1))
-    .setTtlUpdateType(StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite)
-    .setStateVisibility(StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired)
-    .build()
-{% endhighlight %}
-</div>
-</div>
-
-It has several options to consider. 
-The first parameter of `newBuilder` method is mandatory, it is the time-to-live value.
-
-The update type configures when the state TTL is refreshed (default `OnCreateAndWrite`):
-
- - `StateTtlConfiguration.TtlUpdateType.OnCreateAndWrite` - only on creation and write access,
- - `StateTtlConfiguration.TtlUpdateType.OnReadAndWrite` - also on read access.
- 
-The state visibility configures whether the expired value is returned on read access 
-if it is not cleaned up yet (default `NeverReturnExpired`):
-
- - `StateTtlConfiguration.TtlStateVisibility.NeverReturnExpired` - expired value is never returned,
- - `StateTtlConfiguration.TtlStateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available.
- 
- In case of `NeverReturnExpired`, the expired state behaves as if it does not exist any more, 
- even if it has yet to be removed. The option can be useful for the use cases 
- where data has to become unavailable for read access strictly after TTL, 
- e.g. application working with privacy sensitive data.
- 
-Another option `ReturnExpiredIfNotCleanedUp` allows to return the expired state before its cleanup.
-
-TTL functionality can be enabled in the descriptor of any type of state:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-StateTtlConfiguration ttlConfig = StateTtlConfiguration.newBuilder(Time.seconds(1)).build();
+    
 ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("text state", String.class);
 stateDescriptor.enableTimeToLive(ttlConfig);
 {% endhighlight %}
@@ -332,34 +297,100 @@ stateDescriptor.enableTimeToLive(ttlConfig);
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val ttlConfig = StateTtlConfiguration.newBuilder(Time.seconds(1)).build()
+import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.state.ValueStateDescriptor
+
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+    .build
+    
 val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[String])
 stateDescriptor.enableTimeToLive(ttlConfig)
 {% endhighlight %}
 </div>
 </div>
 
+The configuration has several options to consider. 
+The first parameter of `newBuilder` method is mandatory, it is the time-to-live value.
+
+The update type configures when the state TTL is refreshed (default `OnCreateAndWrite`):
+
+ - `StateTtlConfig.UpdateType.OnCreateAndWrite` - only on creation and write access,
+ - `StateTtlConfig.UpdateType.OnReadAndWrite` - also on read access.
+ 
+The state visibility configures whether the expired value is returned on read access 
+if it is not cleaned up yet (default `NeverReturnExpired`):
+
+ - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned,
+ - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available.
+ 
+ In case of `NeverReturnExpired`, the expired state behaves as if it does not exist anymore, 
+ even if it has yet to be removed. The option can be useful for the use cases 
+ where data has to become unavailable for read access strictly after TTL, 
+ e.g. application working with privacy sensitive data.
+ 
+Another option `ReturnExpiredIfNotCleanedUp` allows to return the expired state before its cleanup.
+
 **Notes:** 
 
 - The state backends store the timestamp of last modification along with the user value, 
 which means that enabling this feature increases consumption of state storage. 
-Heap state backend stores an additional java object with a reference to the user state object 
-and a primitive long in memory. RocksDB state backend adds 8 bytes per stored value, list entry or map entry.
-
-- Currently expired values are only removed when they are read out explicitly, 
-e.g. by calling ValueState.value(). 
-Note that this means that under the current implementation if expired state is not read, 
-it won't be removed, possibly leading to ever growing state. 
-This should change in future releases. 
-Additional strategies should be added that clean up expired state automatically in the background.
+Heap state backend stores an additional Java object with a reference to the user state object 
+and a primitive long value in memory. The RocksDB state backend adds 8 bytes per stored value, list entry or map entry.
 
 - Only TTLs in reference to *processing time* are currently supported.
 
 - Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
 will lead to compatibility failure and `StateMigrationException`.
 
-- The TTL configuration is not part of check- or savepoint 
+- The TTL configuration is not part of check- or savepoints 
 but rather a way how Flink treats it in the currently running job.
+
+#### Cleanup of expired state
+
+Currently expired values are always removed when they are read out explicitly, 
+e.g. by calling `ValueState.value()`.
+
+<span class="label label-danger">Attention!</span> This means that by default if expired state is not read, 
+it won't be removed, possibly leading to ever growing state. This might change in future releases. 
+
+Additionally you can activate the cleanup at the moment of taking the full state snapshot which 
+will reduce its size. The local state is not cleaned up under current implementation 
+but it will not include the removed expired state in case of restoration from the previous snapshot.
+It can be configured in `StateTtlConfig`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
+
+StateTtlConfig ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupFullSnapshot()
+    .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.api.common.state.StateTtlConfig
+import org.apache.flink.api.common.time.Time
+
+val ttlConfig = StateTtlConfig
+    .newBuilder(Time.seconds(1))
+    .cleanupFullSnapshot
+    .build
+{% endhighlight %}
+</div>
+</div>
+
+This option is not applicable for the incremental checkpointing in the RocksDB state backend.
+
+More strategies will be added in future that clean up expired state automatically in the background.
 
 ### State in the Scala DataStream API
 
