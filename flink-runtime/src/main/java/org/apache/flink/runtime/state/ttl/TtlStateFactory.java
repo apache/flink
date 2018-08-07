@@ -190,9 +190,10 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 
 	/** Serializer for user state value with TTL. */
 	private static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
+		private static final long serialVersionUID = 131020282727167064L;
 
 		TtlSerializer(TypeSerializer<T> userValueSerializer) {
-			super(true, userValueSerializer, LongSerializer.INSTANCE);
+			super(true, LongSerializer.INSTANCE, userValueSerializer);
 		}
 
 		TtlSerializer(PrecomputedParameters precomputed, TypeSerializer<?> ... fieldSerializers) {
@@ -203,7 +204,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 		@Override
 		public TtlValue<T> createInstance(@Nonnull Object ... values) {
 			Preconditions.checkArgument(values.length == 2);
-			return new TtlValue<>((T) values[0], (long) values[1]);
+			return new TtlValue<>((T) values[1], (long) values[0]);
 		}
 
 		@Override
@@ -213,7 +214,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 
 		@Override
 		protected Object getField(@Nonnull TtlValue<T> v, int index) {
-			return index == 0 ? v.getUserValue() : v.getLastAccessTimestamp();
+			return index == 0 ? v.getLastAccessTimestamp() : v.getUserValue();
 		}
 
 		@SuppressWarnings("unchecked")
@@ -223,7 +224,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			TypeSerializer<?> ... originalSerializers) {
 			Preconditions.checkNotNull(originalSerializers);
 			Preconditions.checkArgument(originalSerializers.length == 2);
-			return new TtlSerializer<>(precomputed, (TypeSerializer<T>) originalSerializers[0]);
+			return new TtlSerializer<>(precomputed, (TypeSerializer<T>) originalSerializers[1]);
 		}
 	}
 }
