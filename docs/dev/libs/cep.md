@@ -250,9 +250,9 @@ For a pattern named `start`, the following are valid quantifiers:
 
 #### Conditions
 
-For every pattern you can specify a condition that incoming event has to met in order to be "accepted" into the pattern e.g. its value should be larger than 5,
+For every pattern you can specify a condition that an incoming event has to meet in order to be "accepted" into the pattern e.g. its value should be larger than 5,
 or larger than the average value of the previously accepted events.
-You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or the `pattern.until()` method. 
+You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or `pattern.until()` method.
 These can be either `IterativeCondition`s or `SimpleCondition`s.
 
 **Iterative Conditions:** This is the most general type of condition. This is how you can specify a condition that
@@ -778,15 +778,15 @@ next.within(Time.seconds(10))
 
 You can apply the same contiguity condition as discussed in the previous [section](#combining-patterns) within a looping pattern.
 The contiguity will be applied between elements accepted into such a pattern.
-To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by one or more `"b"`'s followed by a `"c"`) with
+To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) one or more `"b"`'s followed by a `"c"`) with
 input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
 
- 1. **Strict Contiguity**: `{a b3}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
+ 1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
 
- 2. **Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b2 b3 c}` -- `"d"`'s are ignored.
+ 2. **Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` - `"d"`'s are ignored.
 
- 3. **Non-Deterministic Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b3 c}`, `{a b1 b2 b3 c}` - notice the `{a b1 b3 c}`, which is the result of
-    relaxing contiguity between `"b"`'s. 
+ 3. **Non-Deterministic Relaxed Contiguity**: `{a b1 c}`, `{a b1 b2 c}`, `{a b1 b3 c}`, `{a b1 b2 b3 c}`, `{a b2 c}`, `{a b2 b3 c}`, `{a b3 c}` -
+    notice the `{a b1 b3 c}`, which is the result of relaxing contiguity between `"b"`'s.
 
 For looping patterns (e.g. `oneOrMore()` and `times()`) the default is *relaxed contiguity*. If you want
 strict contiguity, you have to explicitly specify it by using the `consecutive()` call, and if you want
