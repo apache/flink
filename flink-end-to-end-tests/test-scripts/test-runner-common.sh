@@ -37,6 +37,7 @@ function run_test {
     export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
+    backup_config
     start_timer
     ${command}
     exit_code="$?"

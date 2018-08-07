@@ -55,7 +55,6 @@ else
   NUM_SLOTS=$NEW_DOP
 fi
 
-backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
 
 if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
