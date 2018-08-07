@@ -252,7 +252,7 @@ For a pattern named `start`, the following are valid quantifiers:
 
 For every pattern you can specify a condition that an incoming event has to meet in order to be "accepted" into the pattern e.g. its value should be larger than 5,
 or larger than the average value of the previously accepted events.
-You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or `pattern.until()` method.
+You can specify conditions on the event properties via the `pattern.where()`, `pattern.or()` or `pattern.until()` methods.
 These can be either `IterativeCondition`s or `SimpleCondition`s.
 
 **Iterative Conditions:** This is the most general type of condition. This is how you can specify a condition that
@@ -778,7 +778,7 @@ next.within(Time.seconds(10))
 
 You can apply the same contiguity condition as discussed in the previous [section](#combining-patterns) within a looping pattern.
 The contiguity will be applied between elements accepted into such a pattern.
-To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) one or more `"b"`'s followed by a `"c"`) with
+To illustrate the above with an example, a pattern sequence `"a b+ c"` (`"a"` followed by any(non-deterministic relaxed) sequence of one or more `"b"`'s followed by a `"c"`) with
 input `"a", "b1", "d1", "b2", "d2", "b3" "c"` will have the following results:
 
  1. **Strict Contiguity**: `{a b3 c}` -- the `"d1"` after `"b1"` causes `"b1"` to be discarded, the same happens for `"b2"` because of `"d2"`.
