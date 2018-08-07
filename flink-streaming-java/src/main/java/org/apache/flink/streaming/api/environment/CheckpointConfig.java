@@ -152,8 +152,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	/**
 	 * Gets the minimal pause between successful checkpointing attempts. This setting defines how soon the
 	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
-	 * another checkpoint with respect to the maximum number of concurrent checkpoints. If current checkpoint
-	 * is failed or expired, the minimal pause would be ignored to trigger another checkpoint.
+	 * another checkpoint with respect to the maximum number of concurrent checkpoints
 	 * (see {@link #getMaxConcurrentCheckpoints()}).
 	 *
 	 * @return The minimal pause before the next checkpoint is triggered.
