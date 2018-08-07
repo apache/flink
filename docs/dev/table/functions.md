@@ -2674,7 +2674,18 @@ STRING.toBase64()
          <p>E.g., <code>'hello world'.toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
-    
+
+    <tr>
+      <td>
+        {% highlight text %}
+RTRIM(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the result string which trimmed the right spaces from the base string; returns NULL if <i>string</i> is NULL.</p> 
+        <p>E.g., <code>RTRIM('This is a test String. ')</code> returns "This is a test String.".</p>
+      </td>
+    </tr>    
   </tbody>
 </table>
 </div>
