@@ -120,6 +120,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/** A local actor system for using the helper actors. */
 	private final ActorSystem actorSystem;
 
+	/** Web url to show in mesos page. */
+	@Nullable
+	private final String webUiUrl;
+
 	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
 
@@ -158,7 +162,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			MesosServices mesosServices,
 			MesosConfiguration mesosConfig,
 			MesosTaskManagerParameters taskManagerParameters,
-			ContainerSpecification taskManagerContainerSpec) {
+			ContainerSpecification taskManagerContainerSpec,
+			@Nullable String webUiUrl) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -181,6 +186,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 		this.taskManagerParameters = Preconditions.checkNotNull(taskManagerParameters);
 		this.taskManagerContainerSpec = Preconditions.checkNotNull(taskManagerContainerSpec);
+		this.webUiUrl = webUiUrl;
 
 		this.workersInNew = new HashMap<>(8);
 		this.workersInLaunch = new HashMap<>(8);
@@ -237,6 +243,10 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		Protos.FrameworkInfo.Builder frameworkInfo = mesosConfig.frameworkInfo()
 			.clone()
 			.setCheckpoint(true);
+		if (webUiUrl != null) {
+			frameworkInfo.setWebuiUrl(webUiUrl);
+		}
+
 		try {
 			Option<Protos.FrameworkID> frameworkID = workerStore.getFrameworkID();
 			if (frameworkID.isEmpty()) {

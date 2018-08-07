@@ -135,8 +135,8 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			mesosServices,
 			mesosConfig,
 			taskManagerParameters,
-			taskManagerContainerSpec
-			);
+			taskManagerContainerSpec,
+			webInterfaceUrl);
 	}
 
 	@Override

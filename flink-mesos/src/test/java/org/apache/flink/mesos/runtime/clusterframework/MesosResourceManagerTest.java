@@ -188,7 +188,8 @@ public class MesosResourceManagerTest extends TestLogger {
 				mesosServices,
 				mesosConfig,
 				taskManagerParameters,
-				taskManagerContainerSpec);
+				taskManagerContainerSpec,
+				null);
 		}
 
 		@Override
