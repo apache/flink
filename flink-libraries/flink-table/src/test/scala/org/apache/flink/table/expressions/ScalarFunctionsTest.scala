@@ -1853,12 +1853,56 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "315")
 
     testSqlApi(
+      "EXTRACT(EPOCH FROM f18)",
+      "847608883")
+
+    testSqlApi(
+      "EXTRACT(EPOCH FROM TIMESTAMP '2018-10-11 12:23:12.345')",
+      "1539260582")
+
+    // TODO looks like a Calcite issue for cases like extract(millisecond from date)
+    //  should be 0 but not
+    //testSqlApi(
+    //  "EXTRACT(MILLISECOND FROM f16)",
+    //  "0")
+
+    testSqlApi(
+      "EXTRACT(MILLISECOND FROM TIMESTAMP '2018-10-11 12:23:12.345')",
+      "345")
+
+    testSqlApi(
+      "EXTRACT(MILLISECOND FROM TIME '10:54:41.096')",
+      "96")
+
+    // TODO looks like a Calcite issue for cases like extract(microsecond from date)
+    //  should be 0 but not
+    //testSqlApi(
+    //  "EXTRACT(MICROSECOND FROM f16)",
+    //  "0")
+
+    testSqlApi(
+      "EXTRACT(MICROSECOND FROM TIMESTAMP '2018-10-11 12:23:12.345')",
+      "345000")
+
+    testSqlApi(
+      "EXTRACT(MICROSECOND FROM TIME '10:54:41.096')",
+      "96000")
+
+    testSqlApi(
       "EXTRACT(DOW FROM f18)",
       "1")
 
     testSqlApi(
       "EXTRACT(DOW FROM f16)",
       "1")
+
+    testSqlApi(
+      "EXTRACT(ISODOW FROM f16)",
+      "7")
+
+    testSqlApi(
+      "EXTRACT(ISODOW FROM f18)",
+      "7")
 
     testSqlApi(
       "EXTRACT(WEEK FROM f18)",
@@ -1875,6 +1919,22 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "YEAR(f16)",
       "1996")
+
+    testSqlApi(
+      "EXTRACT(ISOYEAR FROM f16)",
+      "1996")
+
+    testSqlApi(
+      "EXTRACT(ISOYEAR FROM f18)",
+      "1996")
+
+    testSqlApi(
+      "EXTRACT(DECADE FROM f16)",
+      "199")
+
+    testSqlApi(
+      "EXTRACT(DECADE FROM f18)",
+      "199")
 
     testSqlApi(
       "QUARTER(f18)",

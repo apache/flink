@@ -3102,6 +3102,9 @@ EXTRACT(timeintervalunit FROM temporal)
       <td>
         <p>Returns a long value extracted from the <i>timeintervalunit</i> part of <i>temporal</i>.</p>
         <p>E.g., <code>EXTRACT(DAY FROM DATE '2006-06-05')</code> returns 5.</p>
+        <p>Where <i>timeintervalunit<i> is <code>
+           MILLENNIUM | CENTURY | DECADE | YEAR | QUARTER | MONTH | WEEK | DOY | ISOYEAR | 
+           DOW | ISODOW | DAY | HOUR | MINUTE | SECOND | EPOCH | MILLISECOND | MICROSECOND</code></p>
       </td>
     </tr>
 

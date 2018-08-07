@@ -91,6 +91,11 @@ public class DateTimeUtils {
 	public static final long MILLIS_PER_DAY = 86400000; // = 24 * 60 * 60 * 1000
 
 	/**
+	 * The number of seconds in a day.
+	 */
+	public static final long SECONDS_PER_DAY = 86_400; // = 24 * 60 * 60
+
+	/**
 	 * Calendar set to the epoch (1970-01-01 00:00:00 UTC). Useful for
 	 * initializing other values. Calendars are not immutable, so be careful not
 	 * to screw up this object for everyone else.
@@ -719,7 +724,13 @@ public class DateTimeUtils {
 	}
 
 	public static long unixDateExtract(TimeUnitRange range, long date) {
-		return julianExtract(range, (int) date + EPOCH_JULIAN);
+		switch (range) {
+			case EPOCH:
+				// no need to extract year/month/day, just multiply
+				return date * SECONDS_PER_DAY;
+			default:
+				return julianExtract(range, (int) date + EPOCH_JULIAN);
+		}
 	}
 
 	private static int julianExtract(TimeUnitRange range, int julian) {
@@ -743,6 +754,14 @@ public class DateTimeUtils {
 		switch (range) {
 			case YEAR:
 				return year;
+			case ISOYEAR:
+				int weekNumber = getIso8601WeekNumber(julian, year, month, day);
+				if (weekNumber == 1 && month == 12) {
+					return year + 1;
+				} else if (month == 1 && weekNumber > 50) {
+					return year - 1;
+				}
+				return year;
 			case QUARTER:
 				return (month + 2) / 3;
 			case MONTH:
@@ -751,15 +770,15 @@ public class DateTimeUtils {
 				return day;
 			case DOW:
 				return (int) floorMod(julian + 1, 7) + 1; // sun=1, sat=7
+			case ISODOW:
+				return (int) floorMod(julian, 7) + 1; // mon=1, sun=7
 			case WEEK:
-				long fmofw = firstMondayOfFirstWeek(year);
-				if (julian < fmofw) {
-					fmofw = firstMondayOfFirstWeek(year - 1);
-				}
-				return (int) (julian - fmofw) / 7 + 1;
+				return getIso8601WeekNumber(julian, year, month, day);
 			case DOY:
 				final long janFirst = ymdToJulian(year, 1, 1);
 				return (int) (julian - janFirst) + 1;
+			case DECADE:
+				return year / 10;
 			case CENTURY:
 				return year > 0
 					? (year + 99) / 100
@@ -781,6 +800,30 @@ public class DateTimeUtils {
 		final long janFirst = ymdToJulian(year, 1, 1);
 		final long janFirstDow = floorMod(janFirst + 1, 7); // sun=0, sat=6
 		return janFirst + (11 - janFirstDow) % 7 - 3;
+	}
+
+	/** Returns the ISO-8601 week number based on year, month, day.
+	 * Per ISO-8601 it is the Monday of the week that contains Jan 4,
+	 * or equivalently, it is a Monday between Dec 29 and Jan 4.
+	 * Sometimes it is in the year before the given year, sometimes after. */
+	private static int getIso8601WeekNumber(int julian, int year, int month, int day) {
+		long fmofw = firstMondayOfFirstWeek(year);
+		if (month == 12 && day > 28) {
+			if (31 - day + 4 > 7 - ((int) floorMod(julian, 7) + 1)
+				&& 31 - day + (int) (floorMod(julian, 7) + 1) >= 4) {
+				return (int) (julian - fmofw) / 7 + 1;
+			} else {
+				return 1;
+			}
+		} else if (month == 1 && day < 5) {
+			if (4 - day <= 7 - ((int) floorMod(julian, 7) + 1)
+				&& day - ((int) (floorMod(julian, 7) + 1)) >= -3) {
+				return 1;
+			} else {
+				return (int) (julian - firstMondayOfFirstWeek(year - 1)) / 7 + 1;
+			}
+		}
+		return (int) (julian - fmofw) / 7 + 1;
 	}
 
 	/** Extracts a time unit from a UNIX date (milliseconds since epoch). */
