@@ -78,7 +78,9 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+			Tuple2.of(MigrationVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+			Tuple2.of(MigrationVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
 	}
 
 	private final MigrationVersion testMigrateVersion;
