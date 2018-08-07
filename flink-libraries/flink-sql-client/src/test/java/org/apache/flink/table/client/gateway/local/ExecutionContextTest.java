@@ -19,6 +19,7 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
@@ -41,6 +42,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link ExecutionContext}.
@@ -53,7 +55,16 @@ public class ExecutionContextTest {
 	public void testExecutionConfig() throws Exception {
 		final ExecutionContext<?> context = createExecutionContext();
 		final ExecutionConfig config = context.createEnvironmentInstance().getExecutionConfig();
+
 		assertEquals(99, config.getAutoWatermarkInterval());
+
+		final RestartStrategies.RestartStrategyConfiguration restartConfig = config.getRestartStrategy();
+		assertTrue(restartConfig instanceof RestartStrategies.FailureRateRestartStrategyConfiguration);
+		final RestartStrategies.FailureRateRestartStrategyConfiguration failureRateStrategy =
+			(RestartStrategies.FailureRateRestartStrategyConfiguration) restartConfig;
+		assertEquals(10, failureRateStrategy.getMaxFailureRate());
+		assertEquals(99_000, failureRateStrategy.getFailureInterval().toMilliseconds());
+		assertEquals(1_000, failureRateStrategy.getDelayBetweenAttemptsInterval().toMilliseconds());
 	}
 
 	@Test
