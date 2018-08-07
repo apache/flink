@@ -69,7 +69,7 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		String expected = "3,World,false,1944-12-24,12.5444444500000000\n" +
 			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
 			// Calcite converts to decimals and strings with equal length
-			"1,Test ,true,1944-02-24,12.4444444444444445\n";
+			"1,Test,true,1944-02-24,12.4444444444444445\n";
 		compareResultAsText(results, expected);
 	}
 

@@ -370,14 +370,31 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "If(f9 > f8, f9 - 1, f9)",
       "9"
     )
+
+    // case when
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi(
       "CASE 1 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 THEN '3' " +
       "ELSE 'none of the above' END",
-      "1 or 2           ")
+      "1 or 2")
+    testSqlApi(
+      "CASE 2 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 " +
+        "THEN '3' ELSE 'none of the above' END",
+      "1 or 2")
+    testSqlApi(
+      "CASE 3 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 " +
+        "THEN '3' ELSE 'none of the above' END",
+      "3")
+    testSqlApi(
+      "CASE 4 WHEN 1, 2 THEN '1 or 2' WHEN 2 THEN 'not possible' WHEN 3, 2 " +
+        "THEN '3' ELSE 'none of the above' END",
+      "none of the above")
     testSqlApi("CASE WHEN 'a'='a' THEN 1 END", "1")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "bcd")
+    testSqlApi("CASE 1 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "a")
+    testSqlApi("CASE 1 WHEN 1 THEN CAST('a' AS VARCHAR(1)) WHEN 2 THEN " +
+      "CAST('bcd' AS VARCHAR(3)) END", "a")
     testSqlApi("CASE f2 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "11")
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "null")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "null")

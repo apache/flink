@@ -48,4 +48,8 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       super.getDefaultPrecision(typeName)
   }
 
+  // Convert return type to VARCHAR if union CHAR columns of different lengths.
+  // By default, i.e., return false, the behavior was to return a CHAR column whose length is the
+  // longest of the inputs.
+  override def shouldConvertRaggedUnionTypesToVarying(): Boolean = true
 }
