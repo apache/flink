@@ -232,7 +232,7 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-left">When migrating from Flink 1.2.x to Flink 1.3.x+, changing parallelism at the same
           time is not supported. Users have to first take a savepoint after migrating to Flink 1.3.x+, and then change
-          parallelism. Savepoints taken by the CEP library cannot be restored in 1.4.x+.</td>
+          parallelism. Savepoints created for CEP applications cannot be restored in 1.4.x+.</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.3.x</strong></td>
