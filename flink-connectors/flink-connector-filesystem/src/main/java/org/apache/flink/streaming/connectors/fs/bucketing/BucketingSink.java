@@ -1001,7 +1001,7 @@ public class BucketingSink<T>
 	}
 
 	/**
-	 * Sets the suffix of in-progress part files. The default is {@code "in-progress"}.
+	 * Sets the suffix of in-progress part files. The default is {@code ".in-progress"}.
 	 */
 	public BucketingSink<T> setInProgressSuffix(String inProgressSuffix) {
 		this.inProgressSuffix = inProgressSuffix;
