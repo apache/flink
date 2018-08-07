@@ -240,7 +240,7 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-left">Migrating from Flink 1.3.0 to Flink 1.4.[0,1] will fail if the savepoint contains scala case classes. Users have to either first upgrade to 1.3.1, or directly to 1.4.2+.</td>
+          <td class="text-left">Migrating from Flink 1.3.0 to Flink 1.4.[0,1] will fail if the savepoint contains scala case classes. Users have to directly migrate to 1.4.2+ instead.</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.4.x</strong></td>
