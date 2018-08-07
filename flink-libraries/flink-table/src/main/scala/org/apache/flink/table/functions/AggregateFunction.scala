@@ -136,4 +136,11 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     *         accumulator type should be automatically inferred.
     */
   def getAccumulatorType: TypeInformation[ACC] = null
+
+  private[flink] var isDistinctAgg: Boolean = false
+
+  private[flink] def distinct: AggregateFunction[T, ACC] = {
+    this.isDistinctAgg = true
+    this
+  }
 }

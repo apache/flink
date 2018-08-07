@@ -235,6 +235,13 @@ case class Aggregate(
     groupingExprs.foreach(validateGroupingExpression)
 
     def validateAggregateExpression(expr: Expression): Unit = expr match {
+      case distinctExpr: DistinctAgg =>
+        distinctExpr.child match {
+          case _: AggFunctionCall =>
+            failValidation("UDAGG should prepend 'distinct' modifier before arguments")
+          case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
+          case _ => failValidation("This should never happen!")
+        }
       // check aggregate function
       case aggExpr: Aggregation
         if aggExpr.getSqlAggFunction.requiresOver =>
