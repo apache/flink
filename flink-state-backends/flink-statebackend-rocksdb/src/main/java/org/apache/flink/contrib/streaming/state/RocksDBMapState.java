@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -48,7 +49,6 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -683,7 +683,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 		private boolean isNull(byte[] value) {
 			try {
-				return new DataInputViewStreamWrapper(new ByteArrayInputStream(value, 0, 1)).readBoolean();
+				return new ByteArrayDataInputView(value, 0, 1).readBoolean();
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Failed to deserialize boolean flag of map user null value", e);
 			}
