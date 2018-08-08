@@ -22,5 +22,13 @@ under the License.
 
 These release notes discuss important aspects, such as configuration, behavior, or dependencies, that changed between Flink 1.5 and Flink 1.6. Please read these notes carefully if you are planning to upgrade your Flink version to 1.6.
 
+### Changed Configuration Default Values
+
+The default value of the slot idle timeout `slot.idle.timeout` is set to the default value of the heartbeat timeout (`50 s`). 
+
+### Changed ElasticSearch 5.x Sink API
+
+Previous APIs in the Flink ElasticSearch 5.x Sink's `RequestIndexer` interface have been deprecated in favor of new signatures. 
+When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`. 
 
 {% top %}
