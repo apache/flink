@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
+
 import javax.management.MBeanServer;
 
 import java.lang.management.BufferPoolMXBean;
@@ -56,6 +60,21 @@ public class MemoryLogger extends Thread {
 	private final ActorSystem monitored;
 	
 	private volatile boolean running = true;
+
+	public static void startIfConfigured(
+			Logger logger,
+			Configuration configuration,
+			ActorSystem taskManagerSystem) {
+		if (!logger.isInfoEnabled() || !configuration.getBoolean(TaskManagerOptions.DEBUG_MEMORY_LOG)) {
+			return;
+		}
+		logger.info("Starting periodic memory usage logger");
+
+		new MemoryLogger(
+			logger,
+			configuration.getLong(TaskManagerOptions.DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS),
+			taskManagerSystem).start();
+	}
 	
 	/**
 	 * Creates a new memory logger that logs in the given interval and lives as long as the
