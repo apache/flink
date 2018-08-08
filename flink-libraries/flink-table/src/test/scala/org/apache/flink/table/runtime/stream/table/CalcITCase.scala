@@ -388,7 +388,6 @@ class CalcITCase extends AbstractTestBase {
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).select(uuid())
 
     val results = ds.toAppendStream[Row]
-    results.print()
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
