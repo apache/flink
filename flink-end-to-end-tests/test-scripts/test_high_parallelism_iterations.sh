@@ -28,9 +28,9 @@ TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 set_conf "taskmanager.heap.mb" "52" # 52Mb x 100 TMs = 5Gb total heap
 
 set_conf "taskmanager.memory.size" "8" # 8Mb
-set_conf "taskmanager.network.memory.min" "8388608" # 8Mb
-set_conf "taskmanager.network.memory.max" "8388608" # 8Mb
-set_conf "taskmanager.memory.segment-size" "8192" # 8Kb
+set_conf "taskmanager.network.memory.min" "8mb"
+set_conf "taskmanager.network.memory.max" "8mb"
+set_conf "taskmanager.memory.segment-size" "8kb"
 
 set_conf "taskmanager.network.netty.server.numThreads" "1"
 set_conf "taskmanager.network.netty.client.numThreads" "1"

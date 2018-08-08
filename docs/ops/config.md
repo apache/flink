@@ -211,10 +211,10 @@ Previously, the number of network buffers was set manually which became a quite 
 network buffers with the following configuration parameters:
 
 - `taskmanager.network.memory.fraction`: Fraction of JVM memory to use for network buffers (DEFAULT: 0.1),
-- `taskmanager.network.memory.min`: Minimum memory size for network buffers in bytes (DEFAULT: 64 MB),
-- `taskmanager.network.memory.max`: Maximum memory size for network buffers in bytes (DEFAULT: 1 GB), and
+- `taskmanager.network.memory.min`: Minimum memory size for network buffers (DEFAULT: 64MB),
+- `taskmanager.network.memory.max`: Maximum memory size for network buffers (DEFAULT: 1GB), and
 - `taskmanager.memory.segment-size`: Size of memory buffers used by the memory manager and the
-network stack in bytes (DEFAULT: 32768 (= 32 KiBytes)).
+network stack in bytes (DEFAULT: 32KB).
 
 #### Setting the Number of Network Buffers directly
 

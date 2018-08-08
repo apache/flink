@@ -184,8 +184,8 @@ rest.port: 8081
 # of network buffers" error. The default min is 64MB, teh default max is 1GB.
 # 
 # taskmanager.network.memory.fraction: 0.1
-# taskmanager.network.memory.min: 67108864
-# taskmanager.network.memory.max: 1073741824
+# taskmanager.network.memory.min: 64mb
+# taskmanager.network.memory.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration
