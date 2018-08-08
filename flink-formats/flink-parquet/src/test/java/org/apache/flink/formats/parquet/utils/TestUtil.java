@@ -143,7 +143,7 @@ public class TestUtil {
 		int recordNum) throws IOException {
 		File root = temporaryFolder.getRoot();
 		Path path = new Path(root.getPath(), UUID.randomUUID().toString());
-		ParquetWriter writer = AvroParquetWriter.builder(
+		ParquetWriter<IndexedRecord> writer = AvroParquetWriter.<IndexedRecord>builder(
 			new org.apache.hadoop.fs.Path(path.toUri())).withSchema(schema).build();
 
 		for (int i = 0; i < recordNum; i++) {

@@ -124,7 +124,7 @@ public class ParquetInputFormatTest {
 		fieldList.add(new PojoField(simple.f0.getField("bar"), BasicTypeInfo.STRING_TYPE_INFO));
 
 		ParquetPojoInputFormat<SimpleRecord> pojoInputFormat =
-			new ParquetPojoInputFormat(path, new PojoTypeInfo<SimpleRecord>(SimpleRecord.class, fieldList));
+			new ParquetPojoInputFormat<SimpleRecord>(path, new PojoTypeInfo<SimpleRecord>(SimpleRecord.class, fieldList));
 
 		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
 		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
@@ -140,6 +140,7 @@ public class ParquetInputFormatTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testReadMapFromNestedRecord() throws IOException {
 		temp.create();
 		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested = TestUtil.getNestedRecordTestData();

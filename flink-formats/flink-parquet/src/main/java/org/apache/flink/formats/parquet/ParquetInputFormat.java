@@ -48,6 +48,8 @@ import java.io.IOException;
  *
  * <P>Using {@link ParquetRecordReader} to Read files instead of {@link org.apache.flink.core.fs.FSDataInputStream},
  * we override {@link #open(FileInputSplit)} and {@link #close()} to change the behaviors.
+ *
+ * @param <E> The type of record to read.
  */
 public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implements
 	CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
