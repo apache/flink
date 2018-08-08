@@ -39,7 +39,9 @@
         run-script (str service-dir "/run")]
     (c/su
       (c/exec :mkdir :-p service-dir)
-      (c/exec :echo (clojure.string/join "\n" ["#!/bin/sh" cmd]) :> run-script)
+      (c/exec :echo (clojure.string/join "\n" ["#!/bin/sh"
+                                               "exec 2>&1"
+                                               (str "exec " cmd)]) :> run-script)
       (c/exec :chmod :+x run-script)
       (c/exec :ln :-sf service-dir (str "/etc/service/" service-name)))))
 
@@ -72,7 +74,7 @@
   "Returns the command to run the mesos master."
   [test node]
   (clojure.string/join " "
-                       ["GLOG_v=1"
+                       ["env GLOG_v=1"
                         master-bin
                         (str "--hostname=" (name node))
                         (str "--log_dir=" log-dir)
@@ -87,7 +89,7 @@
   "Returns the command to run the mesos agent."
   [test node]
   (clojure.string/join " "
-                       ["GLOG_v=1"
+                       ["env GLOG_v=1"
                         slave-bin
                         (str "--hostname=" (name node))
                         (str "--log_dir=" log-dir)
@@ -165,7 +167,8 @@
                        [marathon-bin
                         (str "--hostname " node)
                         (str "--master " (zookeeper-uri test zk-namespace))
-                        (str "--zk " (zookeeper-uri test zk-marathon-namespace))]))
+                        (str "--zk " (zookeeper-uri test zk-marathon-namespace))
+                        (str ">> " log-dir "/marathon.out")]))
 
 (defn create-marathon-supervised-service!
   [test node]
