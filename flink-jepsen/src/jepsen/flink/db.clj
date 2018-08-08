@@ -97,7 +97,7 @@
   (if (cu/exists? log-dir) (cu/ls-full log-dir) []))
 
 (defn flink-db
-  [test]
+  []
   (reify db/DB
     (setup! [_ test node]
       (c/su
@@ -131,7 +131,7 @@
   []
   (let [zk (zk/db deb-zookeeper-package)
         hadoop (hadoop/db hadoop-dist-url)
-        flink (flink-db test)]
+        flink (flink-db)]
     (combined-db [hadoop zk flink])))
 
 (defn exec-flink!
@@ -192,7 +192,7 @@
   (let [zk (zk/db deb-zookeeper-package)
         hadoop (hadoop/db hadoop-dist-url)
         mesos (mesos/db deb-mesos-package deb-marathon-package)
-        flink (flink-db test)]
+        flink (flink-db)]
     (combined-db [hadoop zk mesos flink])))
 
 (defn submit-job-with-retry!
