@@ -40,10 +40,11 @@ import java.util.Objects;
  * Compound meta information for a registered state in a keyed state backend. This combines all serializers and the
  * state name.
  *
+ * @param <K> Type of key
  * @param <N> Type of namespace
  * @param <S> Type of state value
  */
-public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
+public class RegisteredKeyValueStateBackendMetaInfo<K, N, S> extends RegisteredStateMetaInfoBase {
 
 	@Nonnull
 	private final StateDescriptor.Type stateType;
@@ -52,7 +53,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	@Nonnull
 	private final TypeSerializer<S> stateSerializer;
 	@Nullable
-	private final StateSnapshotTransformer<S> snapshotTransformer;
+	private final StateSnapshotTransformer<K, N, S> snapshotTransformer;
 
 	public RegisteredKeyValueStateBackendMetaInfo(
 		@Nonnull StateDescriptor.Type stateType,
@@ -67,7 +68,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 		@Nonnull String name,
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull TypeSerializer<S> stateSerializer,
-		@Nullable StateSnapshotTransformer<S> snapshotTransformer) {
+		@Nullable StateSnapshotTransformer<K, N, S> snapshotTransformer) {
 
 		super(name);
 		this.stateType = stateType;
@@ -104,7 +105,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	}
 
 	@Nullable
-	public StateSnapshotTransformer<S> getSnapshotTransformer() {
+	public StateSnapshotTransformer<K, N, S> getSnapshotTransformer() {
 		return snapshotTransformer;
 	}
 
@@ -118,7 +119,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			return false;
 		}
 
-		RegisteredKeyValueStateBackendMetaInfo<?, ?> that = (RegisteredKeyValueStateBackendMetaInfo<?, ?>) o;
+		RegisteredKeyValueStateBackendMetaInfo<?, ?, ?> that = (RegisteredKeyValueStateBackendMetaInfo<?, ?, ?>) o;
 
 		if (!stateType.equals(that.stateType)) {
 			return false;
@@ -157,11 +158,11 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	 * serializers that are compatible for the restored k/v state bytes.
 	 */
 	@Nonnull
-	public static <N, S> RegisteredKeyValueStateBackendMetaInfo<N, S> resolveKvStateCompatibility(
+	public static <K, N, S> RegisteredKeyValueStateBackendMetaInfo<K, N, S> resolveKvStateCompatibility(
 		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
 		TypeSerializer<N> newNamespaceSerializer,
 		StateDescriptor<?, S> newStateDescriptor,
-		@Nullable StateSnapshotTransformer<S> snapshotTransformer) throws StateMigrationException {
+		@Nullable StateSnapshotTransformer<K, N, S> snapshotTransformer) throws StateMigrationException {
 
 		Preconditions.checkState(restoredStateMetaInfoSnapshot.getBackendStateType()
 				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,

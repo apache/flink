@@ -87,6 +87,11 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	}
 
 	@Override
+	public final N getCurrentNamespace() {
+		return currentNamespace;
+	}
+
+	@Override
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,

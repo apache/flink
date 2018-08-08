@@ -610,7 +610,7 @@ class RocksDBMapState<K, N, UK, UV>
 	@SuppressWarnings("unchecked")
 	static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
 		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<K, N, SV>> registerResult,
 		RocksDBKeyedStateBackend<K> backend) {
 		return (IS) new RocksDBMapState<>(
 			registerResult.f0,
@@ -626,12 +626,11 @@ class RocksDBMapState<K, N, UK, UV>
 	 * <p>This specific transformer wrapper checks the first byte to detect null user value entries
 	 * and if not null forward the rest of byte array to the original byte value transformer.
 	 */
-	static class StateSnapshotTransformerWrapper implements StateSnapshotTransformer<byte[]> {
+	static class StateSnapshotTransformerWrapper<K, N> implements StateSnapshotTransformer<K, N, byte[]> {
 		private static final byte[] NULL_VALUE;
 		private static final byte NON_NULL_VALUE_PREFIX;
 		static {
-			ByteArrayDataOutputView dov = new ByteArrayDataOutputView(1);
-			try {
+			try (ByteArrayDataOutputView dov = new ByteArrayDataOutputView(1)) {
 				dov.writeBoolean(true);
 				NULL_VALUE = dov.toByteArray();
 				dov.reset();
@@ -642,17 +641,17 @@ class RocksDBMapState<K, N, UK, UV>
 			}
 		}
 
-		private final StateSnapshotTransformer<byte[]> elementTransformer;
+		private final StateSnapshotTransformer<K, N, byte[]> elementTransformer;
 		private final ByteArrayDataInputView div;
 
-		StateSnapshotTransformerWrapper(StateSnapshotTransformer<byte[]> originalTransformer) {
+		StateSnapshotTransformerWrapper(StateSnapshotTransformer<K, N, byte[]> originalTransformer) {
 			this.elementTransformer = originalTransformer;
 			this.div = new ByteArrayDataInputView();
 		}
 
 		@Override
 		@Nullable
-		public byte[] filterOrTransform(@Nullable byte[] value) {
+		public byte[] filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable byte[] value) {
 			if (value == null || isNull(value)) {
 				return NULL_VALUE;
 			} else {
@@ -660,7 +659,7 @@ class RocksDBMapState<K, N, UK, UV>
 				// TODO: optimization here could be to work with slices and not byte arrays
 				// and copy slice sub-array only when needed
 				byte[] woNullByte = Arrays.copyOfRange(value, 1, value.length);
-				byte[] filteredValue = elementTransformer.filterOrTransform(woNullByte);
+				byte[] filteredValue = elementTransformer.filterOrTransform(key, namespace, woNullByte);
 				if (filteredValue == null) {
 					filteredValue = NULL_VALUE;
 				} else if (filteredValue != woNullByte) {

@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.KeyedStateFactory;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -46,44 +46,46 @@ import java.util.stream.Stream;
 /**
  * This state factory wraps state objects, produced by backends, with TTL logic.
  */
-public class TtlStateFactory<N, SV, S extends State, IS extends S> {
-	public static <N, SV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
+public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
+	public static <K, N, SV, S extends State, IS extends S> IS createStateAndWrapWithTtlIfEnabled(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc,
-		KeyedStateFactory originalStateFactory,
+		KeyedStateBackend<K> stateBackend,
 		TtlTimeProvider timeProvider) throws Exception {
 		Preconditions.checkNotNull(namespaceSerializer);
 		Preconditions.checkNotNull(stateDesc);
-		Preconditions.checkNotNull(originalStateFactory);
+		Preconditions.checkNotNull(stateBackend);
 		Preconditions.checkNotNull(timeProvider);
 		return  stateDesc.getTtlConfig().isEnabled() ?
-			new TtlStateFactory<N, SV, S, IS>(
-				namespaceSerializer, stateDesc, originalStateFactory, timeProvider)
+			new TtlStateFactory<K, N, SV, S, IS>(
+				namespaceSerializer, stateDesc, stateBackend, timeProvider)
 				.createState() :
-			originalStateFactory.createInternalState(namespaceSerializer, stateDesc);
+			stateBackend.createInternalState(namespaceSerializer, stateDesc);
 	}
 
 	private final Map<Class<? extends StateDescriptor>, SupplierWithException<IS, Exception>> stateFactories;
 
 	private final TypeSerializer<N> namespaceSerializer;
 	private final StateDescriptor<S, SV> stateDesc;
-	private final KeyedStateFactory originalStateFactory;
+	private final KeyedStateBackend<K> stateBackend;
 	private final StateTtlConfig ttlConfig;
 	private final TtlTimeProvider timeProvider;
 	private final long ttl;
+	private final TtlIncrementalCleanup<K, N> incrementalCleanup;
 
 	private TtlStateFactory(
 		TypeSerializer<N> namespaceSerializer,
 		StateDescriptor<S, SV> stateDesc,
-		KeyedStateFactory originalStateFactory,
+		KeyedStateBackend<K> stateBackend,
 		TtlTimeProvider timeProvider) {
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateDesc = stateDesc;
-		this.originalStateFactory = originalStateFactory;
+		this.stateBackend = stateBackend;
 		this.ttlConfig = stateDesc.getTtlConfig();
 		this.timeProvider = timeProvider;
 		this.ttl = ttlConfig.getTtl().toMilliseconds();
 		this.stateFactories = createStateFactories();
+		this.incrementalCleanup = getTtlIncrementalCleanup();
 	}
 
 	@SuppressWarnings("deprecation")
@@ -98,6 +100,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 	}
 
+	@SuppressWarnings("unchecked")
 	private IS createState() throws Exception {
 		SupplierWithException<IS, Exception> stateFactory = stateFactories.get(stateDesc.getClass());
 		if (stateFactory == null) {
@@ -105,16 +108,18 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 				stateDesc.getClass(), TtlStateFactory.class);
 			throw new FlinkRuntimeException(message);
 		}
-		return stateFactory.get();
+		IS state = stateFactory.get();
+		if (incrementalCleanup != null) {
+			incrementalCleanup.setTtlState((AbstractTtlState<K, N, ?, ?, ?>) state);
+		}
+		return state;
 	}
 
 	@SuppressWarnings("unchecked")
 	private IS createValueState() throws Exception {
 		ValueStateDescriptor<TtlValue<SV>> ttlDescriptor = new ValueStateDescriptor<>(
 			stateDesc.getName(), new TtlSerializer<>(stateDesc.getSerializer()));
-		return (IS) new TtlValueState<>(
-			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, stateDesc.getSerializer());
+		return (IS) new TtlValueState<>(createTtlStateContext(ttlDescriptor));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -122,10 +127,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 		ListStateDescriptor<T> listStateDesc = (ListStateDescriptor<T>) stateDesc;
 		ListStateDescriptor<TtlValue<T>> ttlDescriptor = new ListStateDescriptor<>(
 			stateDesc.getName(), new TtlSerializer<>(listStateDesc.getElementSerializer()));
-		return (IS) new TtlListState<>(
-			originalStateFactory.createInternalState(
-				namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, listStateDesc.getSerializer());
+		return (IS) new TtlListState<>(createTtlStateContext(ttlDescriptor));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -135,9 +137,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			stateDesc.getName(),
 			mapStateDesc.getKeySerializer(),
 			new TtlSerializer<>(mapStateDesc.getValueSerializer()));
-		return (IS) new TtlMapState<>(
-			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, mapStateDesc.getSerializer());
+		return (IS) new TtlMapState<>(createTtlStateContext(ttlDescriptor));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -147,9 +147,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			stateDesc.getName(),
 			new TtlReduceFunction<>(reducingStateDesc.getReduceFunction(), ttlConfig, timeProvider),
 			new TtlSerializer<>(stateDesc.getSerializer()));
-		return (IS) new TtlReducingState<>(
-			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, stateDesc.getSerializer());
+		return (IS) new TtlReducingState<>(createTtlStateContext(ttlDescriptor));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -160,9 +158,7 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			aggregatingStateDescriptor.getAggregateFunction(), ttlConfig, timeProvider);
 		AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor = new AggregatingStateDescriptor<>(
 			stateDesc.getName(), ttlAggregateFunction, new TtlSerializer<>(stateDesc.getSerializer()));
-		return (IS) new TtlAggregatingState<>(
-			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, stateDesc.getSerializer(), ttlAggregateFunction);
+		return (IS) new TtlAggregatingState<>(createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
 	}
 
 	@SuppressWarnings({"deprecation", "unchecked"})
@@ -175,17 +171,37 @@ public class TtlStateFactory<N, SV, S extends State, IS extends S> {
 			ttlInitAcc,
 			new TtlFoldFunction<>(foldingStateDescriptor.getFoldFunction(), ttlConfig, timeProvider, initAcc),
 			new TtlSerializer<>(stateDesc.getSerializer()));
-		return (IS) new TtlFoldingState<>(
-			originalStateFactory.createInternalState(namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory()),
-			ttlConfig, timeProvider, stateDesc.getSerializer());
+		return (IS) new TtlFoldingState<>(createTtlStateContext(ttlDescriptor));
 	}
 
-	private StateSnapshotTransformFactory<?> getSnapshotTransformFactory() {
+	@SuppressWarnings("unchecked")
+	private <OIS, TTLCON, TTLDES> TTLCON createTtlStateContext(TTLDES ttlDescriptor) throws Exception {
+		OIS origianlState = (OIS) stateBackend.createInternalState(
+			namespaceSerializer, (StateDescriptor<S, TtlValue<SV>>) ttlDescriptor, getSnapshotTransformFactory());
+		return (TTLCON) new TtlStateContext<>(
+			origianlState, ttlConfig, timeProvider, stateDesc.getSerializer(), getTtlIncrementalCleanupCallback());
+	}
+
+	private StateSnapshotTransformFactory<K, N, TtlValue<SV>> getSnapshotTransformFactory() {
 		if (!ttlConfig.getCleanupStrategies().inFullSnapshot()) {
 			return StateSnapshotTransformFactory.noTransform();
 		} else {
-			return new TtlStateSnapshotTransformer.Factory<>(timeProvider, ttl);
+			return new TtlStateSnapshotTransformer.Factory<>(timeProvider, ttl, incrementalCleanup);
 		}
+	}
+
+	private TtlIncrementalCleanup<K, N> getTtlIncrementalCleanup() {
+		StateTtlConfig.FullSnapshotCleanupStrategy config =
+			ttlConfig.getCleanupStrategies().getFullSnapshotCleanupStrategy();
+		TtlIncrementalCleanup<K, N> incrementalCleanup = null;
+		if (config != null && config.isIncrementalCleanupActive()) {
+			incrementalCleanup = new TtlIncrementalCleanup<>(config.getQueueSizePerState(), config.getCleanupSize(), stateBackend);
+		}
+		return incrementalCleanup;
+	}
+
+	private Runnable getTtlIncrementalCleanupCallback() {
+		return incrementalCleanup == null ? () -> { } : incrementalCleanup::stateAccessed;
 	}
 
 	/** Serializer for user state value with TTL. */

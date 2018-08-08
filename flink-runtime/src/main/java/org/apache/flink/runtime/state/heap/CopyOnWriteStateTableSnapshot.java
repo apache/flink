@@ -147,7 +147,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 					localKeySerializer.serialize(element.key, dov);
 					localStateSerializer.serialize(element.state, dov);
 				};
-			StateSnapshotTransformer<S> stateSnapshotTransformer = owningStateTable.metaInfo.getSnapshotTransformer();
+			StateSnapshotTransformer<K, N, S> stateSnapshotTransformer = owningStateTable.metaInfo.getSnapshotTransformer();
 			StateTableKeyGroupPartitioner<K, N, S> stateTableKeyGroupPartitioner = stateSnapshotTransformer != null ?
 				new TransformingStateTableKeyGroupPartitioner<>(
 					snapshotData,
@@ -246,7 +246,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 	 */
 	protected static final class TransformingStateTableKeyGroupPartitioner<K, N, S>
 		extends StateTableKeyGroupPartitioner<K, N, S> {
-		private final StateSnapshotTransformer<S> stateSnapshotTransformer;
+		private final StateSnapshotTransformer<K, N, S> stateSnapshotTransformer;
 
 		TransformingStateTableKeyGroupPartitioner(
 			@Nonnull CopyOnWriteStateTable.StateTableEntry<K, N, S>[] snapshotData,
@@ -254,7 +254,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 			@Nonnull KeyGroupRange keyGroupRange,
 			int totalKeyGroups,
 			@Nonnull ElementWriterFunction<CopyOnWriteStateTable.StateTableEntry<K, N, S>> elementWriterFunction,
-			@Nonnull StateSnapshotTransformer<S> stateSnapshotTransformer) {
+			@Nonnull StateSnapshotTransformer<K, N, S> stateSnapshotTransformer) {
 			super(
 				snapshotData,
 				stateTableSize,
@@ -275,7 +275,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 
 		private CopyOnWriteStateTable.StateTableEntry<K, N, S> filterEntry(
 			CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
-			S transformedValue = stateSnapshotTransformer.filterOrTransform(entry.state);
+			S transformedValue = stateSnapshotTransformer.filterOrTransform(entry.key, entry.namespace, entry.state);
 			if (transformedValue != null) {
 				CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = entry;
 				if (transformedValue != entry.state) {

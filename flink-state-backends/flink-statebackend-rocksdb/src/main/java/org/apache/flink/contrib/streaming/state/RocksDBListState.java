@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -266,7 +267,7 @@ class RocksDBListState<K, N, V>
 	@SuppressWarnings("unchecked")
 	static <E, K, N, SV, S extends State, IS extends S> IS create(
 		StateDescriptor<S, SV> stateDesc,
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<K, N, SV>> registerResult,
 		RocksDBKeyedStateBackend<K> backend) {
 		return (IS) new RocksDBListState<>(
 			registerResult.f0,
@@ -277,23 +278,30 @@ class RocksDBListState<K, N, V>
 			backend);
 	}
 
-	static class StateSnapshotTransformerWrapper<T> implements StateSnapshotTransformer<byte[]> {
-		private final StateSnapshotTransformer<T> elementTransformer;
+	static class StateSnapshotTransformerWrapper<K, N, T> implements StateSnapshotTransformer<K, N, byte[]> {
+		@Nonnull
+		private final StateSnapshotTransformer<K, N, T> elementTransformer;
+		@Nonnull
 		private final TypeSerializer<T> elementSerializer;
-		private final ByteArrayDataOutputView out = new ByteArrayDataOutputView(128);
+		@Nonnull
+		private final ByteArrayDataOutputView out;
+		@Nonnull
 		private final CollectionStateSnapshotTransformer.TransformStrategy transformStrategy;
 
-		StateSnapshotTransformerWrapper(StateSnapshotTransformer<T> elementTransformer, TypeSerializer<T> elementSerializer) {
+		StateSnapshotTransformerWrapper(
+			@Nonnull StateSnapshotTransformer<K, N, T> elementTransformer,
+			@Nonnull TypeSerializer<T> elementSerializer) {
 			this.elementTransformer = elementTransformer;
 			this.elementSerializer = elementSerializer;
 			this.transformStrategy = elementTransformer instanceof CollectionStateSnapshotTransformer ?
 				((CollectionStateSnapshotTransformer) elementTransformer).getFilterStrategy() :
 				CollectionStateSnapshotTransformer.TransformStrategy.TRANSFORM_ALL;
+			out = new ByteArrayDataOutputView(128);
 		}
 
 		@Override
 		@Nullable
-		public byte[] filterOrTransform(@Nullable byte[] value) {
+		public byte[] filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable byte[] value) {
 			if (value == null) {
 				return null;
 			}
@@ -302,7 +310,7 @@ class RocksDBListState<K, N, V>
 			T next;
 			int prevPosition = 0;
 			while ((next = deserializeNextElement(in, elementSerializer)) != null) {
-				T transformedElement = elementTransformer.filterOrTransform(next);
+				T transformedElement = elementTransformer.filterOrTransform(key, namespace, next);
 				if (transformedElement != null) {
 					if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
 						return Arrays.copyOfRange(value, prevPosition, value.length);

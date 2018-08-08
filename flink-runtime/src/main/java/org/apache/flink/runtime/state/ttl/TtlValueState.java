@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 
 import java.io.IOException;
@@ -34,21 +32,24 @@ import java.io.IOException;
 class TtlValueState<K, N, T>
 	extends AbstractTtlState<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
 	implements InternalValueState<K, N, T> {
-	TtlValueState(
-		InternalValueState<K, N, TtlValue<T>> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<T> valueSerializer) {
-		super(originalState, config, timeProvider, valueSerializer);
+	TtlValueState(TtlStateContext<InternalValueState<K, N, TtlValue<T>>, T> ttlStateContext) {
+		super(ttlStateContext);
 	}
 
 	@Override
 	public T value() throws IOException {
+		accessCallback.run();
 		return getWithTtlCheckAndUpdate(original::value, original::update);
 	}
 
 	@Override
 	public void update(T value) throws IOException {
+		accessCallback.run();
 		original.update(wrapWithTs(value));
+	}
+
+	@Override
+	void cleanupIfExpired() throws Exception {
+		cleanupIfExpired(original.value());
 	}
 }

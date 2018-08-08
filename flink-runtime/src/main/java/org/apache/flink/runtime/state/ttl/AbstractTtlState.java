@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -38,10 +37,12 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	extends AbstractTtlDecorator<S>
 	implements InternalKvState<K, N, SV> {
 	private final TypeSerializer<SV> valueSerializer;
+	final Runnable accessCallback;
 
-	AbstractTtlState(S original, StateTtlConfig config, TtlTimeProvider timeProvider, TypeSerializer<SV> valueSerializer) {
-		super(original, config, timeProvider);
-		this.valueSerializer = valueSerializer;
+	AbstractTtlState(TtlStateContext<S, SV> ttlStateContext) {
+		super(ttlStateContext.original, ttlStateContext.config, ttlStateContext.timeProvider);
+		this.valueSerializer = ttlStateContext.valueSerializer;
+		this.accessCallback = ttlStateContext.accessCallback;
 	}
 
 	<SE extends Throwable, CE extends Throwable, T> T getWithTtlCheckAndUpdate(
@@ -71,6 +72,11 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	}
 
 	@Override
+	public final N getCurrentNamespace() {
+		return original.getCurrentNamespace();
+	}
+
+	@Override
 	public byte[] getSerializedValue(
 		byte[] serializedKeyAndNamespace,
 		TypeSerializer<K> safeKeySerializer,
@@ -82,5 +88,14 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 	@Override
 	public void clear() {
 		original.clear();
+		accessCallback.run();
+	}
+
+	abstract void cleanupIfExpired() throws Exception;
+
+	<V> void cleanupIfExpired(TtlValue<V> ttlValue) {
+		if (expired(ttlValue)) {
+			clear();
+		}
 	}
 }

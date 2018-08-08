@@ -314,6 +314,11 @@ public class KvStateRegistryTest extends TestLogger {
 		}
 
 		@Override
+		public final VoidNamespace getCurrentNamespace() {
+			return null;
+		}
+
+		@Override
 		public byte[] getSerializedValue(
 				final byte[] serializedKeyAndNamespace,
 				final TypeSerializer<Integer> safeKeySerializer,

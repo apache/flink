@@ -73,7 +73,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param keyContext the key context.
 	 * @param metaInfo the meta information for this state table.
 	 */
-	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	public NestedMapsStateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<K, N, S> metaInfo) {
 		super(keyContext, metaInfo);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 
@@ -335,9 +335,11 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		private final TypeSerializer<K> keySerializer;
 		private final TypeSerializer<N> namespaceSerializer;
 		private final TypeSerializer<S> stateSerializer;
-		private final StateSnapshotTransformer<S> snapshotFilter;
+		private final StateSnapshotTransformer<K, N, S> snapshotFilter;
 
-		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable, StateSnapshotTransformer<S> snapshotFilter) {
+		NestedMapsStateTableSnapshot(
+			NestedMapsStateTable<K, N, S> owningTable,
+			StateSnapshotTransformer<K, N, S> snapshotFilter) {
 			super(owningTable);
 			this.snapshotFilter = snapshotFilter;
 			this.keySerializer = owningStateTable.keyContext.getKeySerializer();
@@ -402,7 +404,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 				Map<K, S> filteredNamespaceMap = filtered.computeIfAbsent(namespace, n -> new HashMap<>());
 				for (Map.Entry<K, S> keyEntry : namespaceEntry.getValue().entrySet()) {
 					K key = keyEntry.getKey();
-					S transformedvalue = snapshotFilter.filterOrTransform(keyEntry.getValue());
+					S transformedvalue = snapshotFilter.filterOrTransform(keyEntry.getKey(), namespace, keyEntry.getValue());
 					if (transformedvalue != null) {
 						filteredNamespaceMap.put(key, transformedvalue);
 					}

@@ -37,6 +37,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper;
+import org.apache.flink.contrib.streaming.state.iterator.RocksTransformingIteratorWrapper.RocksDBSnapshotTransformContext;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -183,7 +184,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private interface StateFactory {
 		<K, N, SV, S extends State, IS extends S> IS createState(
 			StateDescriptor<S, SV> stateDesc,
-			Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult,
+			Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<K, N, SV>> registerResult,
 			RocksDBKeyedStateBackend<K> backend) throws Exception;
 	}
 
@@ -358,8 +359,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return Stream.empty();
 		}
 
-		RegisteredKeyValueStateBackendMetaInfo<N, ?> registeredKeyValueStateBackendMetaInfo =
-			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.f1;
+		RegisteredKeyValueStateBackendMetaInfo<K, N, ?> registeredKeyValueStateBackendMetaInfo =
+			(RegisteredKeyValueStateBackendMetaInfo<K, N, ?>) columnInfo.f1;
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
 		final ByteArrayDataOutputView namespaceOutputView = new ByteArrayDataOutputView(8);
@@ -1311,15 +1312,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * already have a registered entry for that and return it (after some necessary state compatibility checks)
 	 * or create a new one if it does not exist.
 	 */
-	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, S>> tryRegisterKvStateInformation(
+	private <N, S> Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<K, N, S>> tryRegisterKvStateInformation(
 			StateDescriptor<?, S> stateDesc,
 			TypeSerializer<N> namespaceSerializer,
-			@Nullable StateSnapshotTransformer<S> snapshotTransformer) throws StateMigrationException {
+			@Nullable StateSnapshotTransformer<K, N, S> snapshotTransformer) throws StateMigrationException {
 
 		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> stateInfo =
 			kvStateInformation.get(stateDesc.getName());
 
-		RegisteredKeyValueStateBackendMetaInfo<N, S> newMetaInfo;
+		RegisteredKeyValueStateBackendMetaInfo<K, N, S> newMetaInfo;
 		if (stateInfo != null) {
 
 			StateMetaInfoSnapshot restoredMetaInfoSnapshot = restoredKvStateMetaInfos.get(stateDesc.getName());
@@ -1377,40 +1378,40 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
+		@Nonnull StateSnapshotTransformFactory<K, N, SEV> snapshotTransformFactory) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
-		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult = tryRegisterKvStateInformation(
+		Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<K, N, SV>> registerResult = tryRegisterKvStateInformation(
 			stateDesc, namespaceSerializer, getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
 		return stateFactory.createState(stateDesc, registerResult, RocksDBKeyedStateBackend.this);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+	private <N, SV, SEV> StateSnapshotTransformer<K, N, SV> getStateSnapshotTransformer(
 		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		StateSnapshotTransformFactory<K, N, SEV> snapshotTransformFactory) {
 		if (stateDesc instanceof ListStateDescriptor) {
-			Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
+			Optional<StateSnapshotTransformer<K, N, SEV>> original = snapshotTransformFactory.createForDeserializedState();
 			return original.map(est -> createRocksDBListStateTransformer(stateDesc, est)).orElse(null);
 		} else if (stateDesc instanceof MapStateDescriptor) {
-			Optional<StateSnapshotTransformer<byte[]>> original = snapshotTransformFactory.createForSerializedState();
-			return (StateSnapshotTransformer<SV>) original
+			Optional<StateSnapshotTransformer<K, N, byte[]>> original = snapshotTransformFactory.createForSerializedState();
+			return (StateSnapshotTransformer<K, N, SV>) original
 				.map(RocksDBMapState.StateSnapshotTransformerWrapper::new).orElse(null);
 		} else {
-			Optional<StateSnapshotTransformer<byte[]>> original = snapshotTransformFactory.createForSerializedState();
-			return (StateSnapshotTransformer<SV>) original.orElse(null);
+			Optional<StateSnapshotTransformer<K, N, byte[]>> original = snapshotTransformFactory.createForSerializedState();
+			return (StateSnapshotTransformer<K, N, SV>) original.orElse(null);
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	private <SV, SEV> StateSnapshotTransformer<SV> createRocksDBListStateTransformer(
+	private <N, SV, SEV> StateSnapshotTransformer<K, N, SV> createRocksDBListStateTransformer(
 		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformer<SEV> elementTransformer) {
-		return (StateSnapshotTransformer<SV>) new RocksDBListState.StateSnapshotTransformerWrapper<>(
+		StateSnapshotTransformer<K, N, SEV> elementTransformer) {
+		return (StateSnapshotTransformer<K, N, SV>) new RocksDBListState.StateSnapshotTransformerWrapper<>(
 			elementTransformer, ((ListStateDescriptor<SEV>) stateDesc).getElementSerializer());
 	}
 
@@ -1820,6 +1821,39 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						stateBackend.keyGroupCompressionDecorator));
 
 			serializationProxy.write(outputView);
+		}
+
+		@SuppressWarnings("unchecked")
+		private <N> RocksIteratorWrapper getRocksIterator(
+			RocksDB db,
+			ColumnFamilyHandle columnFamilyHandle,
+			RegisteredStateMetaInfoBase metaInfo,
+			ReadOptions readOptions) {
+			RocksDBSnapshotTransformContext<K, N, byte[]> transformContext = getSnapshotTransformContext(metaInfo);
+			RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+			return transformContext == null ?
+				new RocksIteratorWrapper(rocksIterator) :
+				new RocksTransformingIteratorWrapper<>(rocksIterator, transformContext);
+		}
+
+		@SuppressWarnings("unchecked")
+		private <N> RocksDBSnapshotTransformContext<K, N, byte[]> getSnapshotTransformContext(
+			RegisteredStateMetaInfoBase metaInfo) {
+			RocksDBSnapshotTransformContext<K, N, byte[]> transformContext = null;
+			if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+				RegisteredKeyValueStateBackendMetaInfo<K, N, ?> kvMetaInfo =
+					(RegisteredKeyValueStateBackendMetaInfo<K, N, ?>) metaInfo;
+				StateSnapshotTransformer<K, N, byte[]> transformer =
+					(StateSnapshotTransformer<K, N, byte[]>) kvMetaInfo.getSnapshotTransformer();
+				if (transformer != null) {
+					transformContext = new RocksDBSnapshotTransformContext<>(
+						stateBackend.keyGroupPrefixBytes,
+						stateBackend.getKeySerializer(),
+						kvMetaInfo.getNamespaceSerializer(),
+						transformer);
+				}
+			}
+			return transformContext;
 		}
 
 		private void writeKVStateData() throws IOException, InterruptedException {
@@ -2330,23 +2364,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksDB db,
 		ColumnFamilyHandle columnFamilyHandle) {
 		return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
-	}
-
-	@SuppressWarnings("unchecked")
-	private static RocksIteratorWrapper getRocksIterator(
-		RocksDB db,
-		ColumnFamilyHandle columnFamilyHandle,
-		RegisteredStateMetaInfoBase metaInfo,
-		ReadOptions readOptions) {
-		StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-		if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-			stateSnapshotTransformer = (StateSnapshotTransformer<byte[]>)
-				((RegisteredKeyValueStateBackendMetaInfo<?, ?>) metaInfo).getSnapshotTransformer();
-		}
-		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
-		return stateSnapshotTransformer == null ?
-			new RocksIteratorWrapper(rocksIterator) :
-			new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
 	}
 
 	/**

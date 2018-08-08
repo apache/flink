@@ -47,7 +47,7 @@ public class StateTableSnapshotCompatibilityTest {
 	@Test
 	public void checkCompatibleSerializationFormats() throws IOException {
 		final Random r = new Random(42);
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, ArrayList<Integer>> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
@@ -213,7 +214,29 @@ public class StateTtlConfig implements Serializable {
 		public Builder cleanupFullSnapshot() {
 			cleanupStrategies.strategies.put(
 				CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
-				new CleanupStrategies.CleanupStrategy() {  });
+				FullSnapshotCleanupStrategy.NO_INC_CLEANUP);
+			return this;
+		}
+
+		/** Cleanup expired state in full snapshot on checkpoint and incrementally cleanup local state.
+		 *
+		 * <p>This cleanup strategy is similar to {@code cleanupFullSnapshot()}, but during full state scan
+		 * it additionally pushes discovered expired state keys into an internal queue of limited size
+		 * {@code queueSizePerState} if the queue is not full. The main thread, which processes stream records,
+		 * pulls up to {@code cleanupSize} potentially expired keys every time, this state is touched for any key.
+		 * The state for the pulled keys is checked and cleared locally if it is still expired
+		 * (basically has been untouched since it was pushed from the snapshotting thread).
+		 *
+		 * @param queueSizePerState size of the cleanup queue, negative value means unlimited (not recommended)
+		 * @param cleanupSize max number of pulled from queue keys for clean up upon state touch for any key
+		 */
+		@Nonnull
+		public Builder cleanupFullSnapshotAndLocalState(int queueSizePerState, @Nonnegative int cleanupSize) {
+			if (queueSizePerState != 0 && cleanupSize != 0) {
+				cleanupStrategies.strategies.put(
+					CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
+					new FullSnapshotCleanupStrategy(true, queueSizePerState, cleanupSize));
+			}
 			return this;
 		}
 
@@ -262,6 +285,39 @@ public class StateTtlConfig implements Serializable {
 
 		public boolean inFullSnapshot() {
 			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
+		}
+
+		public FullSnapshotCleanupStrategy getFullSnapshotCleanupStrategy() {
+			return (FullSnapshotCleanupStrategy) strategies.get(Strategies.FULL_STATE_SCAN_SNAPSHOT);
+		}
+	}
+
+	/** Configuration of cleanup strategy while taking the full snapshot.  */
+	public static class FullSnapshotCleanupStrategy implements CleanupStrategies.CleanupStrategy {
+		private static final long serialVersionUID = 3109278696501988780L;
+		private static final FullSnapshotCleanupStrategy NO_INC_CLEANUP =
+			new FullSnapshotCleanupStrategy(false, 0, 0);
+
+		private final boolean incrementalCleanupActive;
+		private final int queueSizePerState;
+		private final int cleanupSize;
+
+		private FullSnapshotCleanupStrategy(boolean incrementalCleanupActive, int queueSizePerState, int cleanupSize) {
+			this.incrementalCleanupActive = incrementalCleanupActive;
+			this.queueSizePerState = queueSizePerState;
+			this.cleanupSize = cleanupSize;
+		}
+
+		public boolean isIncrementalCleanupActive() {
+			return incrementalCleanupActive;
+		}
+
+		public int getQueueSizePerState() {
+			return queueSizePerState;
+		}
+
+		public int getCleanupSize() {
+			return cleanupSize;
 		}
 	}
 }

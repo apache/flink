@@ -48,14 +48,14 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	/**
 	 * Combined meta information such as name and serializers for this state.
 	 */
-	protected RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo;
+	protected RegisteredKeyValueStateBackendMetaInfo<K, N, S> metaInfo;
 
 	/**
 	 *
 	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
 	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
 	 */
-	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	public StateTable(InternalKeyContext<K> keyContext, RegisteredKeyValueStateBackendMetaInfo<K, N, S> metaInfo) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
@@ -176,11 +176,11 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredKeyValueStateBackendMetaInfo<N, S> getMetaInfo() {
+	public RegisteredKeyValueStateBackendMetaInfo<K, N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
-	public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+	public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<K, N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 

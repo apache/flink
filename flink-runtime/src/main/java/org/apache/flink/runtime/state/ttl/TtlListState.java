@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
@@ -41,27 +39,26 @@ import java.util.stream.StreamSupport;
 class TtlListState<K, N, T> extends
 	AbstractTtlState<K, N, List<T>, List<TtlValue<T>>, InternalListState<K, N, TtlValue<T>>>
 	implements InternalListState<K, N, T> {
-	TtlListState(
-		InternalListState<K, N, TtlValue<T>> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<List<T>> valueSerializer) {
-		super(originalState, config, timeProvider, valueSerializer);
+	TtlListState(TtlStateContext<InternalListState<K, N, TtlValue<T>>, List<T>> ttlStateContext) {
+		super(ttlStateContext);
 	}
 
 	@Override
 	public void update(List<T> values) throws Exception {
+		accessCallback.run();
 		updateInternal(values);
 	}
 
 	@Override
 	public void addAll(List<T> values) throws Exception {
 		Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+		accessCallback.run();
 		original.addAll(withTs(values));
 	}
 
 	@Override
 	public Iterable<T> get() throws Exception {
+		accessCallback.run();
 		Iterable<TtlValue<T>> ttlValue = original.get();
 		ttlValue = ttlValue == null ? Collections.emptyList() : ttlValue;
 		if (updateTsOnRead) {
@@ -86,12 +83,23 @@ class TtlListState<K, N, T> extends
 	@Override
 	public void add(T value) throws Exception {
 		Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
+		accessCallback.run();
 		original.add(wrapWithTs(value));
 	}
 
 	@Override
-	public void clear() {
-		original.clear();
+	void cleanupIfExpired() throws Exception {
+		Iterable<TtlValue<T>> ttlValue = original.get();
+		if (ttlValue != null) {
+			List<TtlValue<T>> unexpired = collect(ttlValue).stream()
+				.filter(v -> !expired(v))
+				.collect(Collectors.toList());
+			if (!unexpired.isEmpty()) {
+				original.update(unexpired);
+			} else {
+				original.clear();
+			}
+		}
 	}
 
 	@Override

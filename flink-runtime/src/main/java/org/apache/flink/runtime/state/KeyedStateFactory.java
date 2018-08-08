@@ -26,8 +26,12 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 
 import javax.annotation.Nonnull;
 
-/** This factory produces concrete internal state objects. */
-public interface KeyedStateFactory {
+/**
+ * This factory produces concrete internal state objects.
+ *
+ * @param <K> type of state key
+ */
+public interface KeyedStateFactory<K> {
 
 	/**
 	 * Creates and returns a new {@link InternalKvState}.
@@ -64,5 +68,5 @@ public interface KeyedStateFactory {
 	<N, SV, SEV, S extends State, IS extends S> IS createInternalState(
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception;
+		@Nonnull StateSnapshotTransformFactory<K, N, SEV> snapshotTransformFactory) throws Exception;
 }

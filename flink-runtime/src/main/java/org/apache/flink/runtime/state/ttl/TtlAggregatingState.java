@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 
 import java.util.Collection;
@@ -39,29 +37,28 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 	implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
 	TtlAggregatingState(
-		InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT> originalState,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<ACC> valueSerializer,
+		TtlStateContext<InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>, ACC> ttlStateContext,
 		TtlAggregateFunction<IN, ACC, OUT> aggregateFunction) {
-		super(originalState, config, timeProvider, valueSerializer);
-		aggregateFunction.stateClear = originalState::clear;
-		aggregateFunction.updater = originalState::updateInternal;
+		super(ttlStateContext);
+		aggregateFunction.stateClear = ttlStateContext.original::clear;
+		aggregateFunction.updater = ttlStateContext.original::updateInternal;
 	}
 
 	@Override
 	public OUT get() throws Exception {
+		accessCallback.run();
 		return original.get();
 	}
 
 	@Override
 	public void add(IN value) throws Exception {
+		accessCallback.run();
 		original.add(value);
 	}
 
 	@Override
-	public void clear() {
-		original.clear();
+	void cleanupIfExpired() throws Exception {
+		cleanupIfExpired(original.getInternal());
 	}
 
 	@Override

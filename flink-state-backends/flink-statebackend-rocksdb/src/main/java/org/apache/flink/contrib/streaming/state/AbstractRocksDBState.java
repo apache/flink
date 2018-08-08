@@ -122,6 +122,11 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 	}
 
 	@Override
+	public final N getCurrentNamespace() {
+		return currentNamespace;
+	}
+
+	@Override
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,

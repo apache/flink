@@ -53,7 +53,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testPutGetRemoveContainsTransform() throws Exception {
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, ArrayList<Integer>> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
@@ -125,7 +125,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testIncrementalRehash() {
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, ArrayList<Integer>> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
@@ -170,7 +170,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	@Test
 	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		final RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		final RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, ArrayList<Integer>> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
@@ -325,7 +325,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	 */
 	@Test
 	public void testCopyOnWriteContracts() {
-		RegisteredKeyValueStateBackendMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, ArrayList<Integer>> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.UNKNOWN,
 				"test",
@@ -400,7 +400,7 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();
 		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();
 
-		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer> metaInfo =
+		RegisteredKeyValueStateBackendMetaInfo<Integer, Integer, Integer> metaInfo =
 			new RegisteredKeyValueStateBackendMetaInfo<>(
 				StateDescriptor.Type.VALUE,
 				"test",

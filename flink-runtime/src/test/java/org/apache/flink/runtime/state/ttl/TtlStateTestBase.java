@@ -399,6 +399,35 @@ public abstract class TtlStateTestBase {
 		sbetc.createState(ctx().createStateDescriptor(), "");
 	}
 
+	@Test
+	public void testFullSnapshotCleanupQueue() throws Exception {
+		initTest(getConfBuilder(TTL).cleanupFullSnapshotAndLocalState(10, 5).build());
+
+		timeProvider.time = 0;
+		sbetc.setCurrentKey("k1");
+		ctx().update(ctx().updateEmpty);
+		sbetc.setCurrentKey("k2");
+		ctx().update(ctx().updateEmpty);
+
+		timeProvider.time = 50;
+		sbetc.setCurrentKey("k1");
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+		sbetc.setCurrentKey("k2");
+		assertEquals("Unexpired state should be available", ctx().getUpdateEmpty, ctx().get());
+
+		// push expired into the queue
+		timeProvider.time = 120;
+		sbetc.takeSnapshot();
+
+		// touch k1
+		sbetc.setCurrentKey("k1");
+		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+		// after k1 access k2 should be also cleared from cleanup queue
+		sbetc.setCurrentKey("k2");
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+	}
+
 	@After
 	public void tearDown() {
 		sbetc.disposeKeyedStateBackend();

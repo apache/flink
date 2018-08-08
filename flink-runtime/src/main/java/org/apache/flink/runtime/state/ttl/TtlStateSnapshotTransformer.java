@@ -31,16 +31,36 @@ import java.io.IOException;
 import java.util.Optional;
 
 /** State snapshot filter of expired values with TTL. */
-abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshotTransformer<T> {
+abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSnapshotTransformer<K, N, T> {
 	private final TtlTimeProvider ttlTimeProvider;
 	final long ttl;
 	private final ByteArrayDataInputView div;
+	private final TtlIncrementalCleanup<K, N> ttlIncrementalCleanup;
 
-	TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
+	TtlStateSnapshotTransformer(
+		@Nonnull TtlTimeProvider ttlTimeProvider,
+		long ttl,
+		@Nullable TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.ttl = ttl;
+		this.ttlIncrementalCleanup = ttlIncrementalCleanup;
 		this.div = new ByteArrayDataInputView();
 	}
+
+	@Override
+	@Nullable
+	public T filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable T value) {
+		if (value == null) {
+			return null;
+		}
+		T filteredValue = doFilter(value);
+		if (ttlIncrementalCleanup != null) {
+			ttlIncrementalCleanup.addIfExpired(key, namespace, value, filteredValue);
+		}
+		return filteredValue;
+	}
+
+	abstract T doFilter(T value);
 
 	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
 		return expired(value) ? null : value;
@@ -64,26 +84,31 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 		return TransformStrategy.STOP_ON_FIRST_INCLUDED;
 	}
 
-	static class TtlDeserializedValueStateSnapshotTransformer<T> extends TtlStateSnapshotTransformer<TtlValue<T>> {
-		TtlDeserializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
-			super(ttlTimeProvider, ttl);
+	static class TtlDeserializedValueStateSnapshotTransformer<K, N, T>
+		extends TtlStateSnapshotTransformer<K, N, TtlValue<T>> {
+		TtlDeserializedValueStateSnapshotTransformer(
+			TtlTimeProvider ttlTimeProvider,
+			long ttl,
+			TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
+			super(ttlTimeProvider, ttl, ttlIncrementalCleanup);
 		}
 
 		@Override
-		@Nullable
-		public TtlValue<T> filterOrTransform(@Nullable TtlValue<T> value) {
+		TtlValue<T> doFilter(TtlValue<T> value) {
 			return filterTtlValue(value);
 		}
 	}
 
-	static class TtlSerializedValueStateSnapshotTransformer extends TtlStateSnapshotTransformer<byte[]> {
-		TtlSerializedValueStateSnapshotTransformer(TtlTimeProvider ttlTimeProvider, long ttl) {
-			super(ttlTimeProvider, ttl);
+	static class TtlSerializedValueStateSnapshotTransformer<K, N> extends TtlStateSnapshotTransformer<K, N, byte[]> {
+		TtlSerializedValueStateSnapshotTransformer(
+			TtlTimeProvider ttlTimeProvider,
+			long ttl,
+			TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
+			super(ttlTimeProvider, ttl, ttlIncrementalCleanup);
 		}
 
 		@Override
-		@Nullable
-		public byte[] filterOrTransform(@Nullable byte[] value) {
+		byte[] doFilter(byte[] value) {
 			if (value == null) {
 				return null;
 			}
@@ -97,23 +122,29 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 		}
 	}
 
-	static class Factory<T> implements StateSnapshotTransformFactory<TtlValue<T>> {
+	static class Factory<K, N, T> implements StateSnapshotTransformFactory<K, N, TtlValue<T>> {
 		private final TtlTimeProvider ttlTimeProvider;
 		private final long ttl;
+		final TtlIncrementalCleanup<K, N> ttlIncrementalCleanup;
 
-		Factory(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
+		Factory(@Nonnull TtlTimeProvider ttlTimeProvider,
+				long ttl,
+				@Nullable TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
 			this.ttlTimeProvider = ttlTimeProvider;
 			this.ttl = ttl;
+			this.ttlIncrementalCleanup = ttlIncrementalCleanup;
 		}
 
 		@Override
-		public Optional<StateSnapshotTransformer<TtlValue<T>>> createForDeserializedState() {
-			return Optional.of(new TtlDeserializedValueStateSnapshotTransformer<>(ttlTimeProvider, ttl));
+		public Optional<StateSnapshotTransformer<K, N, TtlValue<T>>> createForDeserializedState() {
+			return Optional.of(new TtlDeserializedValueStateSnapshotTransformer<>(
+				ttlTimeProvider, ttl, ttlIncrementalCleanup));
 		}
 
 		@Override
-		public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
-			return Optional.of(new TtlSerializedValueStateSnapshotTransformer(ttlTimeProvider, ttl));
+		public Optional<StateSnapshotTransformer<K, N, byte[]>> createForSerializedState() {
+			return Optional.of(new TtlSerializedValueStateSnapshotTransformer<>(
+				ttlTimeProvider, ttl, ttlIncrementalCleanup));
 		}
 	}
 }

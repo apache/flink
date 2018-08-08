@@ -86,7 +86,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private final Map<String, Map<K, Map<Object, Object>>> stateValues = new HashMap<>();
 
-	private final Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters = new HashMap<>();
+	private final Map<String, StateSnapshotTransformer<K, Object, Object>> stateSnapshotFilters = new HashMap<>();
 
 	MockKeyedStateBackend(
 		TaskKvStateRegistry kvStateRegistry,
@@ -106,7 +106,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
+		@Nonnull StateSnapshotTransformFactory<K, N, SEV> snapshotTransformFactory) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
@@ -114,8 +114,8 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw new FlinkRuntimeException(message);
 		}
 		IS state = stateFactory.createInternalState(namespaceSerializer, stateDesc);
-		stateSnapshotFilters.put(stateDesc.getName(),
-			(StateSnapshotTransformer<Object>) getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
+		stateSnapshotFilters.put(stateDesc.getName(), (StateSnapshotTransformer<K, Object, Object>)
+				getStateSnapshotTransformer(stateDesc, snapshotTransformFactory));
 		((MockInternalKvState<K, N, SV>) state).values = () -> stateValues
 			.computeIfAbsent(stateDesc.getName(), n -> new HashMap<>())
 			.computeIfAbsent(getCurrentKey(), k -> new HashMap<>());
@@ -123,19 +123,19 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@SuppressWarnings("unchecked")
-	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
+	private <N, SV, SEV> StateSnapshotTransformer<K, N, SV> getStateSnapshotTransformer(
 		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
-		Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
+		StateSnapshotTransformFactory<K, N, SEV> snapshotTransformFactory) {
+		Optional<StateSnapshotTransformer<K, N, SEV>> original = snapshotTransformFactory.createForDeserializedState();
 		if (original.isPresent()) {
 			if (stateDesc instanceof ListStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+				return (StateSnapshotTransformer<K, N, SV>) new StateSnapshotTransformer
 					.ListStateSnapshotTransformer<>(original.get());
 			} else if (stateDesc instanceof MapStateDescriptor) {
-				return (StateSnapshotTransformer<SV>) new StateSnapshotTransformer
+				return (StateSnapshotTransformer<K, N, SV>) new StateSnapshotTransformer
 					.MapStateSnapshotTransformer<>(original.get());
 			} else {
-				return (StateSnapshotTransformer<SV>) original.get();
+				return (StateSnapshotTransformer<K, N, SV>) original.get();
 			}
 		} else {
 			return null;
@@ -194,10 +194,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	private static <K> Map<String, Map<K, Map<Object, Object>>> copy(
-		Map<String, Map<K, Map<Object, Object>>> stateValues, Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters) {
+		Map<String, Map<K, Map<Object, Object>>> stateValues,
+		Map<String, StateSnapshotTransformer<K , Object, Object>> stateSnapshotFilters) {
 		Map<String, Map<K, Map<Object, Object>>> snapshotStates = new HashMap<>();
 		for (String stateName : stateValues.keySet()) {
-			StateSnapshotTransformer<Object> stateSnapshotTransformer = stateSnapshotFilters.getOrDefault(stateName, null);
+			StateSnapshotTransformer<K, Object, Object> stateSnapshotTransformer = stateSnapshotFilters.getOrDefault(stateName, null);
 			Map<K, Map<Object, Object>> keyedValues = snapshotStates.computeIfAbsent(stateName, s -> new HashMap<>());
 			for (K key : stateValues.get(stateName).keySet()) {
 				Map<Object, Object> snapshotedValues = keyedValues.computeIfAbsent(key, s -> new HashMap<>());
@@ -216,11 +217,12 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		String stateName,
 		K key,
 		Object namespace,
-		StateSnapshotTransformer<Object> stateSnapshotTransformer) {
+		StateSnapshotTransformer<K, Object, Object> stateSnapshotTransformer) {
 		Object value = stateValues.get(stateName).get(key).get(namespace);
 		value = value instanceof List ? new ArrayList<>((List) value) : value;
 		value = value instanceof Map ? new HashMap<>((Map) value) : value;
-		Object filteredValue = stateSnapshotTransformer == null ? value : stateSnapshotTransformer.filterOrTransform(value);
+		Object filteredValue = stateSnapshotTransformer == null ? value :
+			stateSnapshotTransformer.filterOrTransform(key, namespace, value);
 		if (filteredValue != null) {
 			snapshotedValues.put(namespace, filteredValue);
 		}

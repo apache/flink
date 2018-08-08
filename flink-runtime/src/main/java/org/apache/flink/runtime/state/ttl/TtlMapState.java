@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -44,26 +42,25 @@ import java.util.function.Function;
 class TtlMapState<K, N, UK, UV>
 	extends AbstractTtlState<K, N, Map<UK, UV>, Map<UK, TtlValue<UV>>, InternalMapState<K, N, UK, TtlValue<UV>>>
 	implements InternalMapState<K, N, UK, UV> {
-	TtlMapState(
-		InternalMapState<K, N, UK, TtlValue<UV>> original,
-		StateTtlConfig config,
-		TtlTimeProvider timeProvider,
-		TypeSerializer<Map<UK, UV>> valueSerializer) {
-		super(original, config, timeProvider, valueSerializer);
+	TtlMapState(TtlStateContext<InternalMapState<K, N, UK, TtlValue<UV>>, Map<UK, UV>> ttlStateContext) {
+		super(ttlStateContext);
 	}
 
 	@Override
 	public UV get(UK key) throws Exception {
+		accessCallback.run();
 		return getWithTtlCheckAndUpdate(() -> original.get(key), v -> original.put(key, v), () -> original.remove(key));
 	}
 
 	@Override
 	public void put(UK key, UV value) throws Exception {
+		accessCallback.run();
 		original.put(key, wrapWithTs(value));
 	}
 
 	@Override
 	public void putAll(Map<UK, UV> map) throws Exception {
+		accessCallback.run();
 		if (map == null) {
 			return;
 		}
@@ -76,6 +73,7 @@ class TtlMapState<K, N, UK, UV>
 
 	@Override
 	public void remove(UK key) throws Exception {
+		accessCallback.run();
 		original.remove(key);
 	}
 
@@ -91,6 +89,7 @@ class TtlMapState<K, N, UK, UV>
 
 	private <R> Iterable<R> entries(
 		Function<Map.Entry<UK, UV>, R> resultMapper) throws Exception {
+		accessCallback.run();
 		Iterable<Map.Entry<UK, TtlValue<UV>>> withTs = original.entries();
 		return () -> new EntriesIterator<>(withTs == null ? Collections.emptyList() : withTs, resultMapper);
 	}
@@ -111,8 +110,16 @@ class TtlMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public void clear() {
-		original.clear();
+	void cleanupIfExpired() throws Exception {
+		Iterable<Map.Entry<UK, TtlValue<UV>>> ttlValue = original.entries();
+		if (ttlValue != null) {
+			for (Iterator<Map.Entry<UK, TtlValue<UV>>> iterator = ttlValue.iterator(); iterator.hasNext(); ) {
+				Map.Entry<UK, TtlValue<UV>> e = iterator.next();
+				if (expired(e.getValue())) {
+					iterator.remove();
+				}
+			}
+		}
 	}
 
 	private class EntriesIterator<R> implements Iterator<R> {

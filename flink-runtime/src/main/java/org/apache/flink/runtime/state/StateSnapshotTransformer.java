@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer.TransformStrategy;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -41,21 +42,25 @@ import static org.apache.flink.runtime.state.StateSnapshotTransformer.Collection
  * <p>Unless specified differently, the transformer should be applied per entry
  * for collection types of state, like list or map.
  *
+ * @param <K> type of key
+ * @param <N> type of namespace
  * @param <T> type of state
  */
 @FunctionalInterface
-public interface StateSnapshotTransformer<T> {
+public interface StateSnapshotTransformer<K, N, T> {
 	/**
 	 * Transform or filter out state values which are included or skipped in the snapshot.
 	 *
-	 * @param value non-serialized form of value
+	 * @param key state key
+	 * @param namespace state namespace
+	 * @param value state entry to filter or transform
 	 * @return value to snapshot or null which means the entry is not included
 	 */
 	@Nullable
-	T filterOrTransform(@Nullable T value);
+	T filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable T value);
 
 	/** Collection state specific transformer which says how to transform entries of the collection. */
-	interface CollectionStateSnapshotTransformer<T> extends StateSnapshotTransformer<T> {
+	interface CollectionStateSnapshotTransformer<K, N, T> extends StateSnapshotTransformer<K, N, T> {
 		enum TransformStrategy {
 			/** Transform all entries. */
 			TRANSFORM_ALL,
@@ -82,11 +87,11 @@ public interface StateSnapshotTransformer<T> {
 	 * If the wrapped per entry transformer is {@link CollectionStateSnapshotTransformer},
 	 * it respects its {@link TransformStrategy}.
 	 */
-	class ListStateSnapshotTransformer<T> implements StateSnapshotTransformer<List<T>> {
-		private final StateSnapshotTransformer<T> entryValueTransformer;
+	class ListStateSnapshotTransformer<K, N, T> implements StateSnapshotTransformer<K, N, List<T>> {
+		private final StateSnapshotTransformer<K, N, T> entryValueTransformer;
 		private final TransformStrategy transformStrategy;
 
-		public ListStateSnapshotTransformer(StateSnapshotTransformer<T> entryValueTransformer) {
+		public ListStateSnapshotTransformer(StateSnapshotTransformer<K, N, T> entryValueTransformer) {
 			this.entryValueTransformer = entryValueTransformer;
 			this.transformStrategy = entryValueTransformer instanceof CollectionStateSnapshotTransformer ?
 				((CollectionStateSnapshotTransformer) entryValueTransformer).getFilterStrategy() :
@@ -95,7 +100,7 @@ public interface StateSnapshotTransformer<T> {
 
 		@Override
 		@Nullable
-		public List<T> filterOrTransform(@Nullable List<T> list) {
+		public List<T> filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable List<T> list) {
 			if (list == null) {
 				return null;
 			}
@@ -103,7 +108,7 @@ public interface StateSnapshotTransformer<T> {
 			boolean anyChange = false;
 			for (int i = 0; i < list.size(); i++) {
 				T entry = list.get(i);
-				T transformedEntry = entryValueTransformer.filterOrTransform(entry);
+				T transformedEntry = entryValueTransformer.filterOrTransform(key, namespace, entry);
 				if (transformedEntry != null) {
 					if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
 						transformedList = list.subList(i, list.size());
@@ -126,23 +131,23 @@ public interface StateSnapshotTransformer<T> {
 	 * <p>This transformer wraps a transformer per-entry
 	 * and transforms the whole map state.
 	 */
-	class MapStateSnapshotTransformer<K, V> implements StateSnapshotTransformer<Map<K, V>> {
-		private final StateSnapshotTransformer<V> entryValueTransformer;
+	class MapStateSnapshotTransformer<K, N, UK, UV> implements StateSnapshotTransformer<K, N, Map<UK, UV>> {
+		private final StateSnapshotTransformer<K, N, UV> entryValueTransformer;
 
-		public MapStateSnapshotTransformer(StateSnapshotTransformer<V> entryValueTransformer) {
+		public MapStateSnapshotTransformer(StateSnapshotTransformer<K, N, UV> entryValueTransformer) {
 			this.entryValueTransformer = entryValueTransformer;
 		}
 
 		@Nullable
 		@Override
-		public Map<K, V> filterOrTransform(@Nullable Map<K, V> map) {
+		public Map<UK, UV> filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable Map<UK, UV> map) {
 			if (map == null) {
 				return null;
 			}
-			Map<K, V> transformedMap = new HashMap<>();
+			Map<UK, UV> transformedMap = new HashMap<>();
 			boolean anyChange = false;
-			for (Map.Entry<K, V> entry : map.entrySet()) {
-				V transformedValue = entryValueTransformer.filterOrTransform(entry.getValue());
+			for (Map.Entry<UK, UV> entry : map.entrySet()) {
+				UV transformedValue = entryValueTransformer.filterOrTransform(key, namespace, entry.getValue());
 				if (transformedValue != null) {
 					transformedMap.put(entry.getKey(), transformedValue);
 				}
@@ -157,30 +162,30 @@ public interface StateSnapshotTransformer<T> {
 	 *
 	 * <p>If there is no transforming needed, the factory methods return {@code Optional.empty()}.
 	 */
-	interface StateSnapshotTransformFactory<T> {
-		StateSnapshotTransformFactory<?> NO_TRANSFORM = createNoTransform();
+	interface StateSnapshotTransformFactory<K, N, T> {
+		StateSnapshotTransformFactory<?, ?, ?> NO_TRANSFORM = createNoTransform();
 
 		@SuppressWarnings("unchecked")
-		static <T> StateSnapshotTransformFactory<T> noTransform() {
-			return (StateSnapshotTransformFactory<T>) NO_TRANSFORM;
+		static <K, N, T> StateSnapshotTransformFactory<K, N, T> noTransform() {
+			return (StateSnapshotTransformFactory<K, N, T>) NO_TRANSFORM;
 		}
 
-		static <T> StateSnapshotTransformFactory<T> createNoTransform() {
-			return new StateSnapshotTransformFactory<T>() {
+		static <K, N, T> StateSnapshotTransformFactory<K, N, T> createNoTransform() {
+			return new StateSnapshotTransformFactory<K, N, T>() {
 				@Override
-				public Optional<StateSnapshotTransformer<T>> createForDeserializedState() {
+				public Optional<StateSnapshotTransformer<K, N, T>> createForDeserializedState() {
 					return Optional.empty();
 				}
 
 				@Override
-				public Optional<StateSnapshotTransformer<byte[]>> createForSerializedState() {
+				public Optional<StateSnapshotTransformer<K, N, byte[]>> createForSerializedState() {
 					return Optional.empty();
 				}
 			};
 		}
 
-		Optional<StateSnapshotTransformer<T>> createForDeserializedState();
+		Optional<StateSnapshotTransformer<K, N, T>> createForDeserializedState();
 
-		Optional<StateSnapshotTransformer<byte[]>> createForSerializedState();
+		Optional<StateSnapshotTransformer<K, N, byte[]>> createForSerializedState();
 	}
 }
