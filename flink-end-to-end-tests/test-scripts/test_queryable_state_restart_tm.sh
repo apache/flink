@@ -55,7 +55,6 @@ function run_test() {
     clean_log_files
     clean_stdout_files
 
-    backup_config
     # speeds up TM loss detection
     set_conf "heartbeat.interval" "2000"
     set_conf "heartbeat.timeout" "10000"

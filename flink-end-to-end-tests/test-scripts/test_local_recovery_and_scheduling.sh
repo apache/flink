@@ -77,8 +77,7 @@ function run_local_recovery_test {
         kill JVM: ${kill_jvm}"
 
     TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-local-recovery-and-allocation-test/target/StickyAllocationAndLocalRecoveryTestJob.jar
-    # Backup conf and configure for HA
-    backup_config
+    # configure for HA
     create_ha_config
 
     # Enable debug logging
