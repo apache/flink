@@ -37,7 +37,6 @@ else
  NUM_SLOTS=$NEW_DOP
 fi
 
-backup_config
 change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
 setup_flink_slf4j_metric_reporter
 start_cluster

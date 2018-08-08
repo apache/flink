@@ -102,8 +102,6 @@ function change_conf() {
 
 function create_ha_config() {
 
-    backup_config
-
     # clean up the dir that will be used for zookeeper storage
     # (see high-availability.zookeeper.storageDir below)
     if [ -e $TEST_DATA_DIR/recovery ]; then
