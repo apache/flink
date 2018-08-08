@@ -1399,7 +1399,6 @@ Thus, in order to infer the metric identifier:
       <td>stream, shardId</td>
       <td>The number of milliseconds the consumer spends sleeping before fetching records from Kinesis.
       A particular shard's metric can be specified by stream name and shard id.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1409,7 +1408,6 @@ Thus, in order to infer the metric identifier:
       <td>stream, shardId</td>
       <td>The maximum number of records requested by the consumer in a single getRecords call to Kinesis. If ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS
       is set to true, this value is adaptively calculated to maximize the 2 Mbps read limits from Kinesis.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1418,7 +1416,6 @@ Thus, in order to infer the metric identifier:
       <td>numberOfAggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
       <td>The number of aggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1427,7 +1424,6 @@ Thus, in order to infer the metric identifier:
       <td>numberOfDeggregatedRecordsPerFetch</td>
       <td>stream, shardId</td>
       <td>The number of deaggregated Kinesis records fetched by the consumer in a single getRecords call to Kinesis.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1436,7 +1432,6 @@ Thus, in order to infer the metric identifier:
       <td>averageRecordSizeBytes</td>
       <td>stream, shardId</td>
       <td>The average size of a Kinesis record in bytes, fetched by the consumer in a single getRecords call.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1445,7 +1440,6 @@ Thus, in order to infer the metric identifier:
       <td>runLoopTimeNanos</td>
       <td>stream, shardId</td>
       <td>The actual time taken, in nanoseconds, by the consumer in the run loop.
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1454,7 +1448,6 @@ Thus, in order to infer the metric identifier:
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
       <td> The number of calls to getRecords in one second. 
-      A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
     </tr>
@@ -1463,8 +1456,6 @@ Thus, in order to infer the metric identifier:
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
       <td> The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
-      A value of -1 indicates that there is no reported value for the metric, yet.
-      </td>
       <td>Gauge</td>
     </tr>
   </tbody>
