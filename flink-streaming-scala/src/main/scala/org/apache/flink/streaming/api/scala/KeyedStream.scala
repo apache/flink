@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.state.{FoldingStateDescriptor, ReducingStateDescriptor, ValueStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.streaming.api.datastream.{QueryableStateStream, DataStream => JavaStream, KeyedStream => KeyedJavaStream, WindowedStream => WindowedJavaStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
@@ -176,6 +177,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     private var upperBoundInclusive = true
 
     private var timestampStrategy = TimestampStrategy.MAX
+    private var joinType = JoinType.INNER
 
     /**
       * Set the lower bound to be exclusive
@@ -219,6 +221,24 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
       this
     }
 
+    @Public
+    def leftOuter(): IntervalJoined[IN1, IN2, KEY] = {
+      this.joinType = JoinType.LEFT_OUTER
+      this
+    }
+
+    @Public
+    def rightOuter(): IntervalJoined[IN1, IN2, KEY] = {
+      this.joinType = JoinType.RIGHT_OUTER
+      this
+    }
+
+    @Public
+    def fullOuter(): IntervalJoined[IN1, IN2, KEY] = {
+      this.joinType = JoinType.FULL_OUTER
+      this
+    }
+
     /**
       * Completes the join operation with the user function that is executed for each joined pair
       * of elements.
@@ -236,6 +256,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
         upperBound,
         lowerBoundInclusive,
         upperBoundInclusive,
+        joinType,
         timestampStrategy)
       asScalaStream(javaJoined.process(processJoinFunction))
     }

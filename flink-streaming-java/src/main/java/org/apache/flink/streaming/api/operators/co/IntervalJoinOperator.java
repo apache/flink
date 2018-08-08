@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -58,6 +59,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.flink.api.java.operators.join.JoinType.FULL_OUTER;
+import static org.apache.flink.api.java.operators.join.JoinType.INNER;
+import static org.apache.flink.api.java.operators.join.JoinType.LEFT_OUTER;
+import static org.apache.flink.api.java.operators.join.JoinType.RIGHT_OUTER;
 
 /**
  * An {@link TwoInputStreamOperator operator} to execute time-bounded stream inner joins.
@@ -105,6 +111,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private final long upperBound;
 
 	private final IntervalJoinOperator.TimestampStrategy timestampStrategy;
+	private final JoinType joinType;
 
 	private final TypeSerializer<T1> leftTypeSerializer;
 	private final TypeSerializer<T2> rightTypeSerializer;
@@ -135,6 +142,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			boolean lowerBoundInclusive,
 			boolean upperBoundInclusive,
 			TimestampStrategy timestampStrategy,
+			JoinType joinType,
 			TypeSerializer<T1> leftTypeSerializer,
 			TypeSerializer<T2> rightTypeSerializer,
 			ProcessJoinFunction<T1, T2, OUT> udf
@@ -147,12 +155,24 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		Preconditions.checkNotNull(timestampStrategy);
 
-		// Move buffer by +1 / -1 depending on inclusiveness in order not needing
+		// Move boundaries by +1 / -1 depending on inclusiveness in order not needing
 		// to check for inclusiveness later on
 		this.lowerBound = (lowerBoundInclusive) ? lowerBound : lowerBound + 1L;
 		this.upperBound = (upperBoundInclusive) ? upperBound : upperBound - 1L;
 
 		this.timestampStrategy = timestampStrategy;
+		this.joinType = joinType;
+
+		if (this.joinType == LEFT_OUTER && this.timestampStrategy == TimestampStrategy.RIGHT ||
+			this.joinType == RIGHT_OUTER && this.timestampStrategy == TimestampStrategy.LEFT ||
+			this.joinType == FULL_OUTER && this.timestampStrategy == TimestampStrategy.RIGHT ||
+			this.joinType == FULL_OUTER && this.timestampStrategy == TimestampStrategy.LEFT) {
+
+			throw new FlinkRuntimeException(
+				"Cannot use JoinType." + joinType +
+				" with TimestampStrategy." + timestampStrategy
+			);
+		}
 
 		this.leftTypeSerializer = Preconditions.checkNotNull(leftTypeSerializer);
 		this.rightTypeSerializer = Preconditions.checkNotNull(rightTypeSerializer);
@@ -220,7 +240,8 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			final MapState<Long, List<IntervalJoinOperator.BufferEntry<OTHER>>> otherBuffer,
 			final long relativeLowerBound,
 			final long relativeUpperBound,
-			final boolean isLeft) throws Exception {
+			final boolean isLeft
+	) throws Exception {
 
 		final THIS ourValue = record.getValue();
 		final long ourTimestamp = record.getTimestamp();
@@ -234,24 +255,41 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 			return;
 		}
 
-		addToBuffer(ourBuffer, ourValue, ourTimestamp);
+		// we use this flag to indicate that the whole bucket needs to be written
+		// back into the state in order to persist the information that an element
+		// has been joined, which we need for outer joins in order to not emit
+		// duplicates during cleanup
+		boolean hasBeenJoined = false;
 
 		for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket: otherBuffer.entries()) {
+
 			final long timestamp  = bucket.getKey();
+			final List<BufferEntry<OTHER>> otherEntries = bucket.getValue();
 
 			if (timestamp < ourTimestamp + relativeLowerBound ||
 					timestamp > ourTimestamp + relativeUpperBound) {
 				continue;
 			}
 
-			for (BufferEntry<OTHER> entry: bucket.getValue()) {
+			for (BufferEntry<OTHER> entry : otherEntries) {
 				if (isLeft) {
 					collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
+					entry.hasBeenJoined = true;
+					hasBeenJoined = true;
 				} else {
 					collect((T1) entry.element, (T2) ourValue, timestamp, ourTimestamp);
+					entry.hasBeenJoined = true;
+					hasBeenJoined = true;
 				}
 			}
+
+			if (hasBeenJoined && joinType != INNER) {
+				// write bucket back to state
+				bucket.setValue(otherEntries);
+			}
 		}
+
+		addToBuffer(ourBuffer, ourValue, ourTimestamp, hasBeenJoined);
 
 		long cleanupTime = (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
 		if (isLeft) {
@@ -281,7 +319,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		return currentWatermark != Long.MIN_VALUE && timestamp < currentWatermark;
 	}
 
-	private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp) throws Exception {
+	private void collect(T1 left, T2 right, Long leftTimestamp, Long rightTimestamp) throws Exception {
 		final long resultTimestamp = calculateResultTimestamp(leftTimestamp, rightTimestamp);
 
 		collector.setAbsoluteTimestamp(resultTimestamp);
@@ -290,12 +328,25 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		userFunction.processElement(left, right, context, collector);
 	}
 
-	private long calculateResultTimestamp(long leftTs, long rightTs) {
+	private long calculateResultTimestamp(Long leftTs, Long rightTs) {
+
 		switch (this.timestampStrategy) {
 			case MIN:
-				return Math.min(leftTs, rightTs);
+				if (leftTs == null) {
+					return rightTs;
+				} else if (rightTs == null) {
+					return leftTs;
+				} else {
+					return Math.min(leftTs, rightTs);
+				}
 			case MAX:
-				return Math.max(leftTs, rightTs);
+				if (leftTs == null) {
+					return rightTs;
+				} else if (rightTs == null) {
+					return leftTs;
+				} else {
+					return Math.max(leftTs, rightTs);
+				}
 			case LEFT:
 				return leftTs;
 			case RIGHT:
@@ -308,12 +359,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private static <T> void addToBuffer(
 			final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
 			final T value,
-			final long timestamp) throws Exception {
+			final long timestamp,
+			boolean hasBeenJoined
+	) throws Exception {
+
 		List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
 		if (elemsInBucket == null) {
 			elemsInBucket = new ArrayList<>();
 		}
-		elemsInBucket.add(new BufferEntry<>(value, false));
+		elemsInBucket.add(new BufferEntry<>(value, hasBeenJoined));
 		buffer.put(timestamp, elemsInBucket);
 	}
 
@@ -328,12 +382,37 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 		switch (namespace) {
 			case CLEANUP_NAMESPACE_LEFT: {
 				long timestamp = (upperBound <= 0L) ? timerTimestamp : timerTimestamp - upperBound;
+
+				if (joinType == LEFT_OUTER || joinType == FULL_OUTER) {
+					List<BufferEntry<T1>> leftElems = leftBuffer.get(timestamp);
+					if (leftElems != null) {
+						for (BufferEntry<T1> entry : leftElems) {
+							if (!entry.hasBeenJoined) {
+								collect(entry.element, null, timestamp, null);
+							}
+						}
+					}
+				}
+
 				logger.trace("Removing from left buffer @ {}", timestamp);
 				leftBuffer.remove(timestamp);
+
 				break;
 			}
 			case CLEANUP_NAMESPACE_RIGHT: {
 				long timestamp = (lowerBound <= 0L) ? timerTimestamp + lowerBound : timerTimestamp;
+
+				if (joinType == RIGHT_OUTER || joinType == FULL_OUTER) {
+					List<BufferEntry<T2>> rightElems = rightBuffer.get(timestamp);
+					if (rightElems != null) {
+						for (BufferEntry<T2> entry : rightElems) {
+							if (!entry.hasBeenJoined) {
+								collect(null, entry.element, null, timestamp);
+							}
+						}
+					}
+				}
+
 				logger.trace("Removing from right buffer @ {}", timestamp);
 				rightBuffer.remove(timestamp);
 				break;
@@ -378,32 +457,32 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
 		private long resultTimestamp = Long.MIN_VALUE;
 
-		private long leftTimestamp = Long.MIN_VALUE;
+		private Long leftTimestamp = Long.MIN_VALUE;
 
-		private long rightTimestamp = Long.MIN_VALUE;
+		private Long rightTimestamp = Long.MIN_VALUE;
 
 		private ContextImpl(ProcessJoinFunction<T1, T2, OUT> func) {
 			func.super();
 		}
 
-		private void updateTimestamps(long left, long right, long result) {
+		private void updateTimestamps(Long left, Long right, Long result) {
 			this.leftTimestamp = left;
 			this.rightTimestamp = right;
 			this.resultTimestamp = result;
 		}
 
 		@Override
-		public long getLeftTimestamp() {
+		public Long getLeftTimestamp() {
 			return leftTimestamp;
 		}
 
 		@Override
-		public long getRightTimestamp() {
+		public Long getRightTimestamp() {
 			return rightTimestamp;
 		}
 
 		@Override
-		public long getTimestamp() {
+		public Long getTimestamp() {
 			return resultTimestamp;
 		}
 
@@ -453,7 +532,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 	private static class BufferEntry<T> {
 
 		private final T element;
-		private final boolean hasBeenJoined;
+		private boolean hasBeenJoined;
 
 		BufferEntry(T element, boolean hasBeenJoined) {
 			this.element = element;

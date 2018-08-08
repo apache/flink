@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.join.JoinType;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
@@ -464,6 +465,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 				upperBound.toMilliseconds(),
 				true,
 				true,
+				JoinType.INNER,
 				IntervalJoinOperator.TimestampStrategy.MAX
 			);
 		}
@@ -492,6 +494,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		private boolean lowerBoundInclusive;
 		private boolean upperBoundInclusive;
 		private IntervalJoinOperator.TimestampStrategy timestampStrategy;
+		private JoinType joinType;
 
 		public IntervalJoined(
 			KeyedStream<IN1, KEY> left,
@@ -500,6 +503,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			long upperBound,
 			boolean lowerBoundInclusive,
 			boolean upperBoundInclusive,
+			JoinType joinType,
 			IntervalJoinOperator.TimestampStrategy timestampStrategy) {
 
 			this.left = checkNotNull(left);
@@ -514,6 +518,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			this.keySelector1 = left.getKeySelector();
 			this.keySelector2 = right.getKeySelector();
 
+			this.joinType = joinType;
 			this.timestampStrategy = timestampStrategy;
 		}
 
@@ -532,6 +537,24 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		@PublicEvolving
 		public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive() {
 			this.lowerBoundInclusive = false;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> leftOuter() {
+			this.joinType = JoinType.LEFT_OUTER;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> rightOuter() {
+			this.joinType = JoinType.RIGHT_OUTER;
+			return this;
+		}
+
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> fullOuter() {
+			this.joinType = JoinType.FULL_OUTER;
 			return this;
 		}
 
@@ -613,6 +636,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 					lowerBoundInclusive,
 					upperBoundInclusive,
 					timestampStrategy,
+					this.joinType,
 					left.getType().createSerializer(left.getExecutionConfig()),
 					right.getType().createSerializer(right.getExecutionConfig()),
 					cleanedUdf

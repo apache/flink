@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -52,6 +53,216 @@ public class IntervalJoinITCase {
 	@Before
 	public void setup() {
 		testResults = new ArrayList<>();
+	}
+
+	@Test
+	public void testLeftOuterJoin() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 2),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.leftOuter()
+			.process(new CombineToStringJoinFunction())
+			.addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,0):(key,0)",
+			"(key,1):(key,1)",
+			"(key,2):null",
+			"(key,3):(key,3)"
+		);
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testLeftOuterJoinCantUseTimestampStrategyRight() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0))
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.leftOuter()
+			.assignRightTimestamp()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
+	}
+
+	@Test
+	public void testRightOuterJoin() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 2),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.rightOuter()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,0):(key,0)",
+			"(key,1):(key,1)",
+			"null:(key,2)",
+			"(key,3):(key,3)"
+		);
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testRightOuterJoinCantUseTimestampStrategyLeft() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0))
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.rightOuter()
+			.assignLeftTimestamp()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
+	}
+
+	@Test
+	public void testFullOuterJoin() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 1),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0),
+			Tuple2.of("key", 2),
+			Tuple2.of("key", 3)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.fullOuter()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
+
+		env.execute();
+
+		expectInAnyOrder(
+			"(key,0):(key,0)",
+			"(key,1):null",
+			"null:(key,2)",
+			"(key,3):(key,3)"
+		);
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testFullOuterJoinCantUseTimestampStrategyLeft() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0))
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.fullOuter()
+			.assignLeftTimestamp()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
+	}
+
+	@Test(expected = FlinkRuntimeException.class)
+	public void testFullOuterJoinCantUseTimestampStrategyRight() throws Exception {
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(1);
+
+		KeyedStream<Tuple2<String, Integer>, String> leftStream = env.fromElements(
+			Tuple2.of("key", 0))
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		KeyedStream<Tuple2<String, Integer>, String> rightStream = env.fromElements(
+			Tuple2.of("key", 0)
+		)
+			.assignTimestampsAndWatermarks(new AscendingTuple2TimestampExtractor())
+			.keyBy(new Tuple2KeyExtractor());
+
+		leftStream.intervalJoin(rightStream)
+			.between(Time.milliseconds(0), Time.milliseconds(0))
+			.fullOuter()
+			.assignRightTimestamp()
+			.process(new CombineToStringJoinFunction()).addSink(new ResultSink());
 	}
 
 	@Test
@@ -443,7 +654,8 @@ public class IntervalJoinITCase {
 			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override
 				public void processElement(Tuple2<String, Integer> left, Tuple2<String, Integer> right, Context ctx, Collector<String> out) throws Exception {
-					Assert.assertEquals(ctx.getTimestamp(), Math.max(ctx.getRightTimestamp(), ctx.getLeftTimestamp()));
+					Long expected = Math.max(ctx.getRightTimestamp(), ctx.getLeftTimestamp());
+					Assert.assertEquals(ctx.getTimestamp(), expected);
 				}
 			})
 			.addSink(new ResultSink());
@@ -476,7 +688,8 @@ public class IntervalJoinITCase {
 			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
 				@Override
 				public void processElement(Tuple2<String, Integer> left, Tuple2<String, Integer> right, Context ctx, Collector<String> out) throws Exception {
-					Assert.assertEquals(ctx.getTimestamp(), Math.min(ctx.getRightTimestamp(), ctx.getLeftTimestamp()));
+					Long expected = Math.min(ctx.getRightTimestamp(), ctx.getLeftTimestamp());
+					Assert.assertEquals(ctx.getTimestamp(), expected);
 				}
 			})
 			.addSink(new ResultSink());
@@ -496,14 +709,7 @@ public class IntervalJoinITCase {
 		streamOne.keyBy(new Tuple2KeyExtractor())
 			.intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
 			.between(Time.milliseconds(0), Time.milliseconds(0))
-			.process(new ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
-				@Override
-				public void processElement(Tuple2<String, Integer> left,
-					Tuple2<String, Integer> right, Context ctx,
-					Collector<String> out) throws Exception {
-					out.collect(left + ":" + right);
-				}
-			});
+			.process(new CombineToStringJoinFunction());
 	}
 
 	private static void expectInAnyOrder(String... expected) {
@@ -529,9 +735,18 @@ public class IntervalJoinITCase {
 
 	private static class CombineToStringJoinFunction extends ProcessJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
 		@Override
-		public void processElement(Tuple2<String, Integer> left,
-			Tuple2<String, Integer> right, Context ctx, Collector<String> out) {
-			out.collect(left + ":" + right);
+		public void processElement(
+			Tuple2<String, Integer> left,
+			Tuple2<String, Integer> right, Context ctx,
+			Collector<String> out
+		) throws Exception {
+			if (left == null) {
+				out.collect("null:" + right);
+			} else if (right == null) {
+				out.collect(left + ":null");
+			} else {
+				out.collect(left + ":" + right);
+			}
 		}
 	}
 

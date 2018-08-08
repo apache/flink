@@ -65,17 +65,17 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
 		/**
 		 * @return The timestamp of the left element of a joined pair
 		 */
-		public abstract long getLeftTimestamp();
+		public abstract Long getLeftTimestamp();
 
 		/**
 		 * @return The timestamp of the right element of a joined pair
 		 */
-		public abstract long getRightTimestamp();
+		public abstract Long getRightTimestamp();
 
 		/**
 		 * @return The timestamp of the joined pair.
 		 */
-		public abstract long getTimestamp();
+		public abstract Long getTimestamp();
 
 		/**
 		 * Emits a record to the side output identified by the {@link OutputTag}.
