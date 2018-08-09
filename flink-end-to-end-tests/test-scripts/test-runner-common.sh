@@ -24,12 +24,16 @@ source "${END_TO_END_DIR}"/test-scripts/common.sh
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
+#   $3: optional name for the test. Will be constructed from script name and arguments if not provided
 #######################################
 function run_test {
     description="$1"
     command="$2"
+    name="$3"
 
-    name=$(basename "${command}" | sed -e 's/[_ ]/-/g' | sed -n 's/\.sh//p')
+    if [[ ${name} == "" ]]; then
+        name=$(basename "${command}" | sed -e 's/[_ ]/-/g' | sed -e 's/\.sh//g')
+    fi
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
