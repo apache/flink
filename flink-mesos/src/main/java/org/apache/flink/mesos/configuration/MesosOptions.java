@@ -20,6 +20,7 @@ package org.apache.flink.mesos.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.LinkElement;
 import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -35,7 +36,10 @@ public class MesosOptions {
 	public static final ConfigOption<Integer> INITIAL_TASKS =
 		key("mesos.initial-tasks")
 			.defaultValue(0)
-			.withDescription("The initial workers to bring up when the master starts");
+			.withDescription(Description.builder()
+				.text("The initial workers to bring up when the master starts. ")
+				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
+				.build());
 
 	/**
 	 * The maximum number of failed Mesos tasks before entirely stopping
@@ -46,8 +50,10 @@ public class MesosOptions {
 	public static final ConfigOption<Integer> MAX_FAILED_TASKS =
 		key("mesos.maximum-failed-tasks")
 			.defaultValue(-1)
-			.withDescription("The maximum number of failed workers before the cluster fails. May be set to -1 to disable" +
-				" this feature");
+			.withDescription(Description.builder()
+				.text("The maximum number of failed workers before the cluster fails. May be set to -1 to disable this feature. ")
+				.text("This option is ignored unless Flink is in %s.", LinkElement.link("#legacy", "legacy mode"))
+				.build());
 
 	/**
 	 * The Mesos master URL.
