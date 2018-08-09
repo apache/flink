@@ -200,8 +200,6 @@ For example:
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
 In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/ops/jobmanager_high_availability.html)
 
-For the reconciliation of tasks to work correctly, please also set `high-availability.zookeeper.path.mesos-workers` to a valid Zookeeper path.
-
 #### Marathon
 
 Marathon needs to be set up to launch the `bin/mesos-appmaster.sh` script.
