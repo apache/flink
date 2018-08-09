@@ -52,7 +52,7 @@ stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 is_stable: true
 
 # Flag to indicate whether an outdated warning should be shown.
-show_outdated_warning: false
+show_outdated_warning: true
 
 previous_docs:
   1.4: http://ci.apache.org/projects/flink/flink-docs-release-1.4
