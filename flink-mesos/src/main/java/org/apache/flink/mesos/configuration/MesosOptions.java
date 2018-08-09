@@ -19,6 +19,8 @@
 package org.apache.flink.mesos.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -63,9 +65,14 @@ public class MesosOptions {
 	public static final ConfigOption<String> MASTER_URL =
 		key("mesos.master")
 			.noDefaultValue()
-			.withDescription("The Mesos master URL. The value should be in one of the following forms:" +
-				" \"host:port\", \"zk://host1:port1,host2:port2,.../path\"," +
-				" \"zk://username:password@host1:port1,host2:port2,.../path\" or \"file:///path/to/file\"");
+			.withDescription(Description.builder()
+				.text("The Mesos master URL. The value should be in one of the following forms: ")
+				.list(
+					TextElement.text("host:port"),
+					TextElement.text("zk://host1:port1,host2:port2,.../path"),
+					TextElement.text("zk://username:password@host1:port1,host2:port2,.../path"),
+					TextElement.text("file:///path/to/file"))
+				.build());
 
 	/**
 	 * The failover timeout for the Mesos scheduler, after which running tasks are automatically shut down.
@@ -125,7 +132,9 @@ public class MesosOptions {
 	 */
 	public static final ConfigOption<String> PORT_ASSIGNMENTS = key("mesos.resourcemanager.tasks.port-assignments")
 		.defaultValue("")
-		.withDescription("Comma-separated list of configuration keys which represent a configurable port." +
-			"All port keys will dynamically get a port assigned through Mesos.");
+		.withDescription(Description.builder()
+			.text("Comma-separated list of configuration keys which represent a configurable port. " +
+				"All port keys will dynamically get a port assigned through Mesos.")
+			.build());
 
 }

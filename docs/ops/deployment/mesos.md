@@ -218,60 +218,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 ### Configuration parameters
 
-`mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
-
-`mesos.constraints.hard.hostattribute`: Constraints for task placement on Mesos based on agent attributes (**DEFAULT**: None).
-Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target
-mesos agents.  Example: `az:eu-west-1a,series:t2`
-
-`mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
-May be set to -1 to disable this feature.
-
-`mesos.master`: The Mesos master URL. The value should be in one of the following forms:
-
-* `host:port`
-* `zk://host1:port1,host2:port2,.../path`
-* `zk://username:password@host1:port1,host2:port2,.../path`
-* `file:///path/to/file`
-
-`mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down (**DEFAULT:** 600).
-
-`mesos.resourcemanager.artifactserver.port`:The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.
-
-`mesos.resourcemanager.framework.name`: Mesos framework name (**DEFAULT:** Flink)
-
-`mesos.resourcemanager.framework.role`: Mesos framework role definition (**DEFAULT:** *)
-
-`high-availability.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
-
-`mesos.resourcemanager.framework.principal`: Mesos framework principal (**NO DEFAULT**)
-
-`mesos.resourcemanager.framework.secret`: Mesos framework secret (**NO DEFAULT**)
-
-`mesos.resourcemanager.framework.user`: Mesos framework user (**DEFAULT:**"")
-
-`mesos.resourcemanager.artifactserver.ssl.enabled`: Enables SSL for the Flink artifact server (**DEFAULT**: true). Note that `security.ssl.enabled` also needs to be set to `true` encryption to enable encryption.
-
-`mesos.resourcemanager.tasks.mem`: Memory to assign to the Mesos workers in MB (**DEFAULT**: 1024)
-
-`mesos.resourcemanager.tasks.cpus`: CPUs to assign to the Mesos workers (**DEFAULT**: 0.0)
-
-`mesos.resourcemanager.tasks.gpus`: GPUs to assign to the Mesos workers (**DEFAULT**: 0.0)
-
-`mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
-
-`mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.container.volumes`: A comma separated list of `[host_path:]`container_path`[:RO|RW]`. This allows for mounting additional volumes into your container. (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.container.docker.parameters`: Custom parameters to be passed into docker run command when using the docker containerizer. Comma separated list of `key=value` pairs. `value` may contain '=' (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.uris`: A comma separated list of URIs of custom artifacts to be downloaded into the sandbox of Mesos workers. (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.container.docker.force-pull-image`: Instruct the docker containerizer to forcefully pull the image rather than reuse a cached version. (**DEFAULT**: false)
-
-`mesos.resourcemanager.tasks.hostname`: Optional value to define the TaskManager's hostname. The pattern `_TASK_` is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. `_TASK_.flink-service.mesos`) for name lookups. (**NO DEFAULT**)
-
-`mesos.resourcemanager.tasks.bootstrap-cmd`: A command which is executed before the TaskManager is started (**NO DEFAULT**).
+For a list of Mesos specific configuration, refer to the [Mesos section]({{ site.baseurl }}/ops/config.html#mesos)
+of the configuration documentation.
 
 {% top %}
