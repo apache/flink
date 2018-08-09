@@ -20,8 +20,10 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Configuration options for the JobManager.
@@ -107,7 +109,14 @@ public class JobManagerOptions {
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
-			.withDescription("The maximum number of prior execution attempts kept in history.");
+			.withDescription(Description.builder()
+				.text("This option specifies how the job computation recovers from task failures. " +
+					"Accepted values are:")
+				.list(
+					text("'full': Restarts all tasks."),
+					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
+					text("'region': Restarts all tasks that could be affected by the task failure.")
+				).build());
 
 	/**
 	 * This option specifies the interval in order to trigger a resource manager reconnection if the connection
