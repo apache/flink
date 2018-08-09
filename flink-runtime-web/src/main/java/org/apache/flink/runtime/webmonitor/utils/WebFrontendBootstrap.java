@@ -31,6 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -101,7 +102,8 @@ public class WebFrontendBootstrap {
 		this.bootstrap
 			.group(bossGroup, workerGroup)
 			.channel(NioServerSocketChannel.class)
-			.childHandler(initializer);
+			.childHandler(initializer)
+			.option(ChannelOption.SO_REUSEADDR, true);
 
 		ChannelFuture ch;
 		if (configuredAddress == null) {
