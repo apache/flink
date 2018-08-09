@@ -110,7 +110,7 @@ public class JobManagerOptions {
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
 			.withDescription(Description.builder()
-				.text("This option specifies how the job computation recovers from task failures." +
+				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
 				.list(
 					text("'full': Restarts all tasks."),
