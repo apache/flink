@@ -38,8 +38,8 @@ function test_cleanup {
   # don't call ourselves again for normal exit
   trap "" EXIT
 
-  stop_kafka_cluster
   stop_confluent_schema_registry
+  stop_kafka_cluster
 }
 
 trap test_cleanup INT
