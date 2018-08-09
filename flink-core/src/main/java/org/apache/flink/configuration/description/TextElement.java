@@ -20,6 +20,7 @@ package org.apache.flink.configuration.description;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -28,6 +29,7 @@ import java.util.List;
 public class TextElement implements BlockElement, InlineElement {
 	private final String format;
 	private final List<InlineElement> elements;
+	private final EnumSet<TextStyle> textStyles = EnumSet.noneOf(TextStyle.class);
 
 	/**
 	 * Creates a block of text with placeholders ("%s") that will be replaced with proper string representation of
@@ -35,7 +37,7 @@ public class TextElement implements BlockElement, InlineElement {
 	 *
 	 * <p>{@code text("This is a text with a link %s", link("https://somepage", "to here"))}
 	 *
-	 * @param format   text with placeholders for elements
+	 * @param format text with placeholders for elements
 	 * @param elements elements to be put in the text
 	 * @return block of text
 	 */
@@ -53,12 +55,28 @@ public class TextElement implements BlockElement, InlineElement {
 		return new TextElement(text, Collections.emptyList());
 	}
 
+	/**
+	 * Creates a block of text formatted as code.
+	 *
+	 * @param text a block of text that will be formatted as code
+	 * @return block of text formatted as code
+	 */
+	public static TextElement code(String text) {
+		TextElement element = text(text);
+		element.textStyles.add(TextStyle.CODE);
+		return element;
+	}
+
 	public String getFormat() {
 		return format;
 	}
 
 	public List<InlineElement> getElements() {
 		return elements;
+	}
+
+	public EnumSet<TextStyle> getStyles() {
+		return textStyles;
 	}
 
 	private TextElement(String format, List<InlineElement> elements) {
@@ -69,5 +87,12 @@ public class TextElement implements BlockElement, InlineElement {
 	@Override
 	public void format(Formatter formatter) {
 		formatter.format(this);
+	}
+
+	/**
+	 * Styles that can be applied to {@link TextElement} e.g. code, bold etc.
+	 */
+	public enum TextStyle {
+		CODE
 	}
 }
