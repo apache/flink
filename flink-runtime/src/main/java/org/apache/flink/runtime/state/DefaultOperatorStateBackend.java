@@ -196,6 +196,20 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 	}
 
+	public void deleteBroadCastState(String name) {
+		restoredBroadcastStateMetaInfos.remove(name);
+		if (registeredBroadcastStates.remove(name) != null) {
+			accessedBroadcastStatesByName.remove(name);
+		}
+	}
+
+	public void deleteOperatorState(String name) {
+		restoredOperatorStateMetaInfos.remove(name);
+		if (registeredOperatorStates.remove(name) != null) {
+			accessedStatesByName.remove(name);
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public <K, V> BroadcastState<K, V> getBroadcastState(final MapStateDescriptor<K, V> stateDescriptor) throws StateMigrationException {

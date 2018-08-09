@@ -105,8 +105,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/** Configuration key to define the consumer's partition discovery interval, in milliseconds. */
 	public static final String KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS = "flink.partition-discovery.interval-millis";
 
+	/** For backwards compatibility. */
+	private static final String OLD_OFFSETS_STATE_NAME = "topic-partition-offset-states";
+
 	/** State name of the consumer's partition offset states. */
-	private static final String OFFSETS_STATE_NAME = "topic-partition-offset-states";
+	private static final String OFFSETS_STATE_NAME = "kafka-consumer-offsets";
 
 	// ------------------------------------------------------------------------
 	//  configuration state, set on the client relevant for all subtasks
@@ -180,13 +183,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private transient volatile TreeMap<KafkaTopicPartition, Long> restoredState;
 
 	/** Accessor for state in the operator state backend. */
-	private transient ListState<Tuple2<KafkaTopicPartition, Long>> unionOffsetStates;
-
-	/**
-	 * Flag indicating whether the consumer is restored from older state written with Flink 1.1 or 1.2.
-	 * When the current run is restored from older state, partition discovery is disabled.
-	 */
-	private boolean restoredFromOldState;
+	private transient ListState<Tuple2<KafkaTopicPartition, Long>> offsetsState;
 
 	/** Discovery loop, executed in a separate thread. */
 	private transient volatile Thread discoveryLoopThread;
@@ -480,7 +477,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			}
 
 			for (Map.Entry<KafkaTopicPartition, Long> restoredStateEntry : restoredState.entrySet()) {
-				if (!restoredFromOldState) {
+				if (discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
 					// seed the partition discoverer with the union state while filtering out
 					// restored partitions that should not be subscribed by this subtask
 					if (KafkaTopicPartitionAssigner.assign(
@@ -489,8 +486,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 					}
 				} else {
-					// when restoring from older 1.1 / 1.2 state, the restored state would not be the union state;
-					// in this case, just use the restored state as the subscribed partitions
+					// just restore from assigned partitions
 					subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 				}
 			}
@@ -783,30 +779,26 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		OperatorStateStore stateStore = context.getOperatorStateStore();
 
-		ListState<Tuple2<KafkaTopicPartition, Long>> oldRoundRobinListState =
-			stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+		final TypeInformation<Tuple2<KafkaTopicPartition, Long>> offsetStateTypeInfo =
+			TypeInformation.of(new TypeHint<Tuple2<KafkaTopicPartition, Long>>() {});
 
-		this.unionOffsetStates = stateStore.getUnionListState(new ListStateDescriptor<>(
-				OFFSETS_STATE_NAME,
-				TypeInformation.of(new TypeHint<Tuple2<KafkaTopicPartition, Long>>() {})));
+		ListStateDescriptor<Tuple2<KafkaTopicPartition, Long>> offsetStateDescriptor =
+			new ListStateDescriptor<>(OFFSETS_STATE_NAME, offsetStateTypeInfo);
 
-		if (context.isRestored() && !restoredFromOldState) {
+		this.offsetsState =
+			discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED ?
+				stateStore.getUnionListState(offsetStateDescriptor) : stateStore.getListState(offsetStateDescriptor);
+
+		if (context.isRestored()) {
+
 			restoredState = new TreeMap<>(new KafkaTopicPartition.Comparator());
 
-			// migrate from 1.2 state, if there is any
-			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : oldRoundRobinListState.get()) {
-				restoredFromOldState = true;
-				unionOffsetStates.add(kafkaOffset);
-			}
-			oldRoundRobinListState.clear();
-
-			if (restoredFromOldState && discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
-				throw new IllegalArgumentException(
-					"Topic / partition discovery cannot be enabled if the job is restored from a savepoint from Flink 1.2.x.");
-			}
+			// backwards compatibility
+			handleMigration_1_2(stateStore);
+			handleMigration_1_6(stateStore, offsetStateTypeInfo);
 
 			// populate actual holder for restored state
-			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : unionOffsetStates.get()) {
+			for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsState.get()) {
 				restoredState.put(kafkaOffset.f0, kafkaOffset.f1);
 			}
 
@@ -816,19 +808,60 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 	}
 
+	private void handleMigration_1_2(
+		OperatorStateStore stateStore) throws Exception {
+		boolean restoredFromOldState = false;
+		ListState<Tuple2<KafkaTopicPartition, Long>> oldRoundRobinListState =
+			stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+		for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : oldRoundRobinListState.get()) {
+			restoredFromOldState = true;
+			offsetsState.add(kafkaOffset);
+		}
+
+		// we remove this state again immediately so it will no longer exist in future check/savepoints
+		oldRoundRobinListState.clear();
+		stateStore.removeOperatorState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
+
+		if (restoredFromOldState) {
+			if (discoveryIntervalMillis != PARTITION_DISCOVERY_DISABLED) {
+				throw new IllegalArgumentException(
+					"Topic / partition discovery cannot be enabled if the job is restored from a savepoint from Flink 1.2.x.");
+			}
+		}
+	}
+
+	private void handleMigration_1_6(
+		OperatorStateStore stateStore,
+		TypeInformation<Tuple2<KafkaTopicPartition, Long>> offsetStateTypeInfo) throws Exception {
+
+		ListStateDescriptor<Tuple2<KafkaTopicPartition, Long>> oldUnionStateDescriptor =
+			new ListStateDescriptor<>(OLD_OFFSETS_STATE_NAME, offsetStateTypeInfo);
+
+		ListState<Tuple2<KafkaTopicPartition, Long>> oldUnionListState =
+			stateStore.getUnionListState(oldUnionStateDescriptor);
+
+		for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : oldUnionListState.get()) {
+			offsetsState.add(kafkaOffset);
+		}
+
+		// we remove this state again immediately so it will no longer exist in future check/savepoints
+		oldUnionListState.clear();
+		stateStore.removeOperatorState(oldUnionStateDescriptor.getName());
+	}
+
 	@Override
 	public final void snapshotState(FunctionSnapshotContext context) throws Exception {
 		if (!running) {
 			LOG.debug("snapshotState() called on closed source");
 		} else {
-			unionOffsetStates.clear();
+			offsetsState.clear();
 
 			final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;
 			if (fetcher == null) {
 				// the fetcher has not yet been initialized, which means we need to return the
 				// originally restored offsets or the assigned partitions
 				for (Map.Entry<KafkaTopicPartition, Long> subscribedPartition : subscribedPartitionsToStartOffsets.entrySet()) {
-					unionOffsetStates.add(Tuple2.of(subscribedPartition.getKey(), subscribedPartition.getValue()));
+					offsetsState.add(Tuple2.of(subscribedPartition.getKey(), subscribedPartition.getValue()));
 				}
 
 				if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
@@ -846,7 +879,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
-					unionOffsetStates.add(
+					offsetsState.add(
 							Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 				}
 			}
