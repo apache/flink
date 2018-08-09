@@ -1553,7 +1553,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.5.0</version>
+								<version>1.6.0</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>
