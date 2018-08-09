@@ -164,7 +164,7 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final double DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
-	public static final int DEFAULT_LIST_SHARDS_RETRIES = 3;
+	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
 
 	public static final int DEFAULT_SHARD_GETRECORDS_MAX = 10000;
 
