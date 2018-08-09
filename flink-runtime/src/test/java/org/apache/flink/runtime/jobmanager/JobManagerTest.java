@@ -132,6 +132,7 @@ import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
@@ -940,7 +941,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue(savepointFile.exists());
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -956,7 +957,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1130,7 +1131,7 @@ public class JobManagerTest extends TestLogger {
 			}
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1243,7 +1244,7 @@ public class JobManagerTest extends TestLogger {
 			assertEquals(1, targetDirectory.listFiles().length);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1259,7 +1260,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1416,7 +1417,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue("Unexpected response: " + response, response instanceof JobSubmitSuccess);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1432,7 +1433,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.ready(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1516,8 +1517,8 @@ public class JobManagerTest extends TestLogger {
 
 		} finally {
 			// cleanup the actor system and with it all of the started actors if not already terminated
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			actorSystem.terminate();
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 		}
 	}
 

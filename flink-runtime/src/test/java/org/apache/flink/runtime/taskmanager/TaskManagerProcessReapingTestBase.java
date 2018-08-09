@@ -218,7 +218,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 				taskManagerProcess.destroy();
 			}
 			if (jmActorSystem != null) {
-				jmActorSystem.shutdown();
+				jmActorSystem.terminate();
 			}
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();

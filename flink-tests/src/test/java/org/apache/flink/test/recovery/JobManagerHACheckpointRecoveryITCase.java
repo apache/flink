@@ -94,7 +94,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
+import scala.concurrent.Await;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
@@ -425,8 +427,8 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 				miniCluster.awaitTermination();
 			}
 
-			system.shutdown();
-			system.awaitTermination();
+			system.terminate();
+			Await.ready(system.whenTerminated(), Duration.Inf());
 
 			testingServer.stop();
 			testingServer.close();
