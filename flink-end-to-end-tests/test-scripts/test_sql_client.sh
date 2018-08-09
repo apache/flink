@@ -57,6 +57,10 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
   rm -r $EXTRACTED_JAR/*
 done
 
+# randomize JAR list for detecting classloading issues due to JAR order
+SQL_JARS_PARAMETERS=$(find $SQL_JARS_DIR -type f | sort -R | awk '{ print "--jar \""$0"\""}' | tr '\n' ' ')
+echo "Using randomized SQL JAR list: $SQL_JARS_PARAMETERS"
+
 ################################################################################
 # Run a SQL statement
 ################################################################################
@@ -254,7 +258,7 @@ echo "Executing SQL: Kafka JSON -> Kafka Avro"
 echo "$SQL_STATEMENT_1"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  $SQL_JARS_PARAMETERS \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_1"
@@ -269,7 +273,7 @@ echo "Executing SQL: Kafka Avro -> Filesystem CSV"
 echo "$SQL_STATEMENT_2"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  $SQL_JARS_PARAMETERS \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_2"

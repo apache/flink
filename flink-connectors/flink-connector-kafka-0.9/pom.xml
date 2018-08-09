@@ -219,6 +219,10 @@ under the License.
 											<include>org.apache.flink:flink-connector-kafka-base_${scala.binary.version}</include>
 										</includes>
 									</artifactSet>
+									<!-- Update service files for table factories. -->
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+									</transformers>
 									<filters>
 										<filter>
 											<artifact>*:*</artifact>
@@ -227,10 +231,15 @@ under the License.
 											</excludes>
 										</filter>
 									</filters>
+									<!-- Relocate all version-specific classes. -->
 									<relocations>
 										<relocation>
 											<pattern>org.apache.kafka</pattern>
 											<shadedPattern>org.apache.flink.kafka09.shaded.org.apache.kafka</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.apache.flink.streaming.connectors.kafka</pattern>
+											<shadedPattern>org.apache.flink.kafka09.shaded.org.apache.flink.streaming.connectors.kafka</shadedPattern>
 										</relocation>
 									</relocations>
 								</configuration>

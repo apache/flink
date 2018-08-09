@@ -234,6 +234,7 @@ under the License.
 								<configuration>
 									<shadedArtifactAttached>true</shadedArtifactAttached>
 									<shadedClassifierName>sql-jar</shadedClassifierName>
+									<!-- Flink's Kafka 0.11 connector depends on Flink's Kafka 0.9 and 0.10 connector. -->
 									<artifactSet>
 										<includes combine.children="append">
 											<include>org.apache.kafka:*</include>
@@ -242,6 +243,11 @@ under the License.
 											<include>org.apache.flink:flink-connector-kafka-0.10_${scala.binary.version}</include>
 										</includes>
 									</artifactSet>
+									<!-- Update service files for table factories. -->
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+									</transformers>
+									<!-- Remove version-specific resources not needed by Flink's Kafka 0.11 connector. -->
 									<filters>
 										<filter>
 											<artifact>*:*</artifact>
@@ -249,11 +255,28 @@ under the License.
 												<exclude>kafka/kafka-version.properties</exclude>
 											</excludes>
 										</filter>
+										<filter>
+											<artifact>org.apache.flink:flink-connector-kafka-0.9_${scala.binary.version}</artifact>
+											<excludes>
+												<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>org.apache.flink:flink-connector-kafka-0.10_${scala.binary.version}</artifact>
+											<excludes>
+												<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+											</excludes>
+										</filter>
 									</filters>
+									<!-- Relocate all version-specific classes. -->
 									<relocations>
 										<relocation>
 											<pattern>org.apache.kafka</pattern>
 											<shadedPattern>org.apache.flink.kafka011.shaded.org.apache.kafka</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.apache.flink.streaming.connectors.kafka</pattern>
+											<shadedPattern>org.apache.flink.kafka011.shaded.org.apache.flink.streaming.connectors.kafka</shadedPattern>
 										</relocation>
 									</relocations>
 								</configuration>
