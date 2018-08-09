@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
+import org.apache.flink.contrib.streaming.state.snapshot.RocksDBSnapshotStrategyBase;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksFullSnapshotStrategy;
 import org.apache.flink.contrib.streaming.state.snapshot.RocksIncrementalSnapshotStrategy;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -46,8 +47,8 @@ import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -70,7 +71,6 @@ import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInf
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -229,8 +229,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The configuration of local recovery. */
 	private final LocalRecoveryConfig localRecoveryConfig;
 
-	/** The snapshot strategy, e.g., if we use full or incremental checkpoints, local state, and so on. */
-	private SnapshotStrategy<SnapshotResult<KeyedStateHandle>> snapshotStrategy;
+	/** The checkpoint snapshot strategy, e.g., if we use full or incremental checkpoints, local state, and so on. */
+	private RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
+
+	/** The savepoint snapshot strategy. */
+	private RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
 
 	/** Factory for priority queue state. */
 	private final PriorityQueueSetFactory priorityQueueFactory;
@@ -444,17 +447,29 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * @return Future to the state handle of the snapshot data.
 	 * @throws Exception indicating a problem in the synchronous part of the checkpoint.
 	 */
+	@Nonnull
 	@Override
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		final long checkpointId,
 		final long timestamp,
-		final CheckpointStreamFactory streamFactory,
-		CheckpointOptions checkpointOptions) throws Exception {
+		@Nonnull final CheckpointStreamFactory streamFactory,
+		@Nonnull CheckpointOptions checkpointOptions) throws Exception {
+
+		long startTime = System.currentTimeMillis();
 
 		// flush everything into db before taking a snapshot
 		writeBatchWrapper.flush();
 
-		return snapshotStrategy.performSnapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+		RocksDBSnapshotStrategyBase<K> chosenSnapshotStrategy =
+			CheckpointType.SAVEPOINT == checkpointOptions.getCheckpointType() ?
+				savepointSnapshotStrategy : checkpointSnapshotStrategy;
+
+		RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunner =
+			chosenSnapshotStrategy.snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+
+		chosenSnapshotStrategy.logSyncCompleted(streamFactory, startTime);
+
+		return snapshotRunner;
 	}
 
 	@Override
@@ -497,7 +512,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	void initializeSnapshotStrategy(
 		@Nullable RocksDBIncrementalRestoreOperation<K> incrementalRestoreOperation) {
 
-		final RocksFullSnapshotStrategy<K> fullSnapshotStrategy =
+		this.savepointSnapshotStrategy =
 			new RocksFullSnapshotStrategy<>(
 				db,
 				rocksDBResourceGuard,
@@ -525,7 +540,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				Preconditions.checkState(lastCompletedCheckpointId >= 0L);
 			}
 			// TODO eventually we might want to separate savepoint and snapshot strategy, i.e. having 2 strategies.
-			this.snapshotStrategy = new RocksIncrementalSnapshotStrategy<>(
+			this.checkpointSnapshotStrategy = new RocksIncrementalSnapshotStrategy<>(
 				db,
 				rocksDBResourceGuard,
 				keySerializer,
@@ -537,17 +552,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				instanceBasePath,
 				backendUID,
 				materializedSstFiles,
-				lastCompletedCheckpointId,
-				fullSnapshotStrategy);
+				lastCompletedCheckpointId);
 		} else {
-			this.snapshotStrategy = fullSnapshotStrategy;
+			this.checkpointSnapshotStrategy = savepointSnapshotStrategy;
 		}
 	}
 
 	@Override
 	public void notifyCheckpointComplete(long completedCheckpointId) throws Exception {
-		if (snapshotStrategy != null) {
-			snapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
+
+		if (checkpointSnapshotStrategy != null) {
+			checkpointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
+		}
+
+		if (savepointSnapshotStrategy != null) {
+			savepointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
 		}
 	}
 

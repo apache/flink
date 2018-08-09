@@ -170,12 +170,13 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			.map(Map.Entry::getKey);
 	}
 
+	@Nonnull
 	@Override
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		long checkpointId,
 		long timestamp,
-		CheckpointStreamFactory streamFactory,
-		CheckpointOptions checkpointOptions) {
+		@Nonnull CheckpointStreamFactory streamFactory,
+		@Nonnull CheckpointOptions checkpointOptions) {
 		return new FutureTask<>(() ->
 			SnapshotResult.of(new MockKeyedStateHandle<>(copy(stateValues, stateSnapshotFilters))));
 	}
