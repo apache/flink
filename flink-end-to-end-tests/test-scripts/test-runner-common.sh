@@ -29,12 +29,14 @@ function run_test {
     description="$1"
     command="$2"
 
+    name=$(basename "${command}" | sed -e 's/[_ ]/-/g' | sed -n 's/\.sh//p')
+
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
     printf "==============================================================================\n"
 
     # used to randomize created directories
-    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
+    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-${name}-$(date +%S%N)
     echo "TEST_DATA_DIR: $TEST_DATA_DIR"
 
     backup_config
