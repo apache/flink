@@ -97,7 +97,7 @@
   (if (cu/exists? log-dir) (cu/ls-full log-dir) []))
 
 (defn flink-db
-  [test]
+  []
   (reify db/DB
     (setup! [_ test node]
       (c/su
@@ -131,7 +131,7 @@
   []
   (let [zk (zk/db deb-zookeeper-package)
         hadoop (hadoop/db hadoop-dist-url)
-        flink (flink-db test)]
+        flink (flink-db)]
     (combined-db [hadoop zk flink])))
 
 (defn exec-flink!
@@ -192,7 +192,7 @@
   (let [zk (zk/db deb-zookeeper-package)
         hadoop (hadoop/db hadoop-dist-url)
         mesos (mesos/db deb-mesos-package deb-marathon-package)
-        flink (flink-db test)]
+        flink (flink-db)]
     (combined-db [hadoop zk mesos flink])))
 
 (defn submit-job-with-retry!
@@ -209,24 +209,25 @@
     (let [r (fu/retry (fn []
                         (http/post
                           (str (mesos/marathon-base-url test) "/v2/apps")
-                          {:form-params  {:id   "flink"
-                                          :cmd  (str "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
-                                                     "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir " "
-                                                     install-dir "/bin/mesos-appmaster.sh "
-                                                     "-Dmesos.master=" (zookeeper-uri
-                                                                         test
-                                                                         mesos/zk-namespace) " "
-                                                     "-Djobmanager.rpc.address=$(hostname -f) "
-                                                     "-Djobmanager.heap.mb=2048 "
-                                                     "-Djobmanager.rpc.port=6123 "
-                                                     "-Djobmanager.web.port=8081 "
-                                                     "-Dmesos.resourcemanager.tasks.mem=2048 "
-                                                     "-Dtaskmanager.heap.mb=2048 "
-                                                     "-Dtaskmanager.numberOfTaskSlots=2 "
-                                                     "-Dmesos.resourcemanager.tasks.cpus=1 "
-                                                     "-Drest.bind-address=$(hostname -f) ")
-                                          :cpus 1.0
-                                          :mem  2048}
+                          {:form-params  {:id                    "flink"
+                                          :cmd                   (str "HADOOP_CLASSPATH=`" hadoop/install-dir "/bin/hadoop classpath` "
+                                                                      "HADOOP_CONF_DIR=" hadoop/hadoop-conf-dir " "
+                                                                      install-dir "/bin/mesos-appmaster.sh "
+                                                                      "-Dmesos.master=" (zookeeper-uri
+                                                                                          test
+                                                                                          mesos/zk-namespace) " "
+                                                                      "-Djobmanager.rpc.address=$(hostname -f) "
+                                                                      "-Djobmanager.heap.mb=2048 "
+                                                                      "-Djobmanager.rpc.port=6123 "
+                                                                      "-Djobmanager.web.port=8081 "
+                                                                      "-Dmesos.resourcemanager.tasks.mem=2048 "
+                                                                      "-Dtaskmanager.heap.mb=2048 "
+                                                                      "-Dtaskmanager.numberOfTaskSlots=2 "
+                                                                      "-Dmesos.resourcemanager.tasks.cpus=1 "
+                                                                      "-Drest.bind-address=$(hostname -f) ")
+                                          :cpus                  1.0
+                                          :mem                   2048
+                                          :maxLaunchDelaySeconds 3}
                            :content-type :json})))]
       (info "Submitted Flink Application via Marathon" r)
       (c/on (-> test :nodes sort first)
