@@ -171,8 +171,6 @@ which manage the Flink processes in a Mesos cluster:
    It is automatically launched by the Mesos worker node to bring up a new TaskManager.
 
 In order to run the `mesos-appmaster.sh` script you have to define `mesos.master` in the `flink-conf.yaml` or pass it via `-Dmesos.master=...` to the Java process.
-Additionally, you should define the number of task managers which are started by Mesos via `mesos.initial-tasks`.
-This value can also be defined in the `flink-conf.yaml` or passed as a Java property.
 
 When executing `mesos-appmaster.sh`, it will create a job manager on the machine where you executed the script.
 In contrast to that, the task managers will be run as Mesos tasks in the Mesos cluster.
@@ -188,12 +186,16 @@ For example:
         -Djobmanager.heap.mb=1024 \
         -Djobmanager.rpc.port=6123 \
         -Drest.port=8081 \
-        -Dmesos.initial-tasks=10 \
         -Dmesos.resourcemanager.tasks.mem=4096 \
         -Dtaskmanager.heap.mb=3500 \
         -Dtaskmanager.numberOfTaskSlots=2 \
         -Dparallelism.default=10
 
+<div class="alert alert-info">
+  <strong>Note:</strong> If Flink is in <a href="{{ site.baseurl }}/ops/config.html#legacy">legacy mode</a>,
+  you should additionally define the number of task managers that are started by Mesos via
+  <a href="{{ site.baseurl }}/ops/config.html#mesos-initial-tasks"><code>mesos.initial-tasks</code></a>.
+</div>
 
 ### High Availability
 
@@ -209,7 +211,7 @@ Here is an example configuration for Marathon:
 
     {
         "id": "flink",
-        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.initial-tasks=1 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Drest.port=8081 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
         "cpus": 1.0,
         "mem": 1024
     }
