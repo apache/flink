@@ -110,9 +110,9 @@ import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -189,7 +189,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getTaskKvStateRegistry(),
-			    TtlTimeProvider.DEFAULT);
+				TtlTimeProvider.DEFAULT);
 
 		backend.restore(null);
 
@@ -4015,7 +4015,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			try {
 				snapshot.get();
 				fail("Close was not propagated.");
-			} catch (ExecutionException ex) {
+			} catch (CancellationException ex) {
 				//ignore
 			}
 
