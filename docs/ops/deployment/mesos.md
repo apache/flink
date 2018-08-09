@@ -139,7 +139,7 @@ More information about the deployment scripts can be found [here](http://mesos.a
 
 ### Installing Marathon
 
-Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which will be necessary to run Flink in high availability (HA) mode.
+Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which enables you to run Flink in [high availability (HA) mode](#high-availability).
 
 ### Pre-installing Flink vs Docker/Mesos containers
 
