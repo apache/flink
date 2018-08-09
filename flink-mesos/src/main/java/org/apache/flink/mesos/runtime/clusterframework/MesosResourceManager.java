@@ -121,7 +121,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	private final ActorSystem actorSystem;
 
 	/** Web url for to show in mesos page.*/
-	@Nullable private final String webUiUrl;
+	@Nullable
+	private final String webUiUrl;
 
 	/** Mesos scheduler driver. */
 	private SchedulerDriver schedulerDriver;
