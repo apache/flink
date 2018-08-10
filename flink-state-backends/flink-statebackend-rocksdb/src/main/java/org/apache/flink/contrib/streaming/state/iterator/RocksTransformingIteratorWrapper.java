@@ -26,7 +26,7 @@ import org.rocksdb.RocksIterator;
 import javax.annotation.Nonnull;
 
 /**
- * Wrapper around {@link RocksIteratorWrapper} that applies a given {@link StateSnapshotTransformer} to the elements
+ * Wrapper around {@link RocksIterator} that applies a given {@link StateSnapshotTransformer} to the elements
  * during the iteration.
  */
 public class RocksTransformingIteratorWrapper extends RocksIteratorWrapper {

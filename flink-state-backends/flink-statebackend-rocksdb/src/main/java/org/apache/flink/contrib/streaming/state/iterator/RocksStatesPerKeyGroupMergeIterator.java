@@ -64,27 +64,11 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
 		this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-		Comparator<RocksSingleStateIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount - 1);
-
 		if (kvStateIterators.size() > 0) {
-			PriorityQueue<RocksSingleStateIterator> iteratorPriorityQueue =
-				new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
-
-			for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
-				final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
-				rocksIterator.seekToFirst();
-				if (rocksIterator.isValid()) {
-					iteratorPriorityQueue.offer(new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
-				} else {
-					IOUtils.closeQuietly(rocksIterator);
-				}
-			}
-
-			kvStateIterators.clear();
-
-			this.heap = iteratorPriorityQueue;
+			this.heap = buildIteratorHeap(kvStateIterators);
 			this.valid = !heap.isEmpty();
 			this.currentSubIterator = heap.poll();
+			kvStateIterators.clear();
 		} else {
 			// creating a PriorityQueue of size 0 results in an exception.
 			this.heap = null;
@@ -96,8 +80,8 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 	}
 
 	/**
-	 * Advance the iterator. Should only be called if {@link #isValid()} returned true. Valid can only chance after
-	 * calls to {@link #next()}.
+	 * Advances the iterator. Should only be called if {@link #isValid()} returned true.
+	 * Valid flag can only change after calling {@link #next()}.
 	 */
 	public void next() {
 		newKeyGroup = false;
@@ -129,6 +113,27 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 				detectNewKeyGroup(oldKey);
 			}
 		}
+	}
+
+	private PriorityQueue<RocksSingleStateIterator> buildIteratorHeap(
+		List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) {
+
+		Comparator<RocksSingleStateIterator> iteratorComparator = COMPARATORS.get(keyGroupPrefixByteCount - 1);
+
+		PriorityQueue<RocksSingleStateIterator> iteratorPriorityQueue =
+			new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
+
+		for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
+			final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
+			rocksIterator.seekToFirst();
+			if (rocksIterator.isValid()) {
+				iteratorPriorityQueue.offer(
+					new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
+			} else {
+				IOUtils.closeQuietly(rocksIterator);
+			}
+		}
+		return iteratorPriorityQueue;
 	}
 
 	private boolean isDifferentKeyGroup(byte[] a, byte[] b) {

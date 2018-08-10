@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 class RocksSingleStateIterator implements AutoCloseable {
 
 	/**
-	 * @param iterator  The #RocksIterator to wrap .
+	 * @param iterator underlying {@link RocksIteratorWrapper}
 	 * @param kvStateId Id of the K/V state to which this iterator belongs.
 	 */
 	RocksSingleStateIterator(@Nonnull RocksIteratorWrapper iterator, int kvStateId) {

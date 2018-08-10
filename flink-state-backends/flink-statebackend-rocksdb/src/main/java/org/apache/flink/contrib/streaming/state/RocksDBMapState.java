@@ -26,10 +26,6 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.core.memory.ByteArrayDataOutputView;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
@@ -263,8 +259,7 @@ class RocksDBMapState<K, N, UK, UV>
 
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(128);
-		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
+		ByteArrayDataOutputView outputView = new ByteArrayDataOutputView(128);
 
 		writeKeyWithGroupAndNamespace(
 				keyGroup,
@@ -272,10 +267,9 @@ class RocksDBMapState<K, N, UK, UV>
 				safeKeySerializer,
 				keyAndNamespace.f1,
 				safeNamespaceSerializer,
-				outputStream,
 				outputView);
 
-		final byte[] keyPrefixBytes = outputStream.toByteArray();
+		final byte[] keyPrefixBytes = outputView.toByteArray();
 
 		final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
 
@@ -309,14 +303,14 @@ class RocksDBMapState<K, N, UK, UV>
 	private byte[] serializeCurrentKeyAndNamespace() throws IOException {
 		writeCurrentKeyWithGroupAndNamespace();
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.toByteArray();
 	}
 
 	private byte[] serializeUserKeyWithCurrentKeyAndNamespace(UK userKey) throws IOException {
 		serializeCurrentKeyAndNamespace();
-		userKeySerializer.serialize(userKey, keySerializationDataOutputView);
+		userKeySerializer.serialize(userKey, dataOutputView);
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.toByteArray();
 	}
 
 	private byte[] serializeUserValue(UV userValue) throws IOException {
@@ -328,34 +322,29 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	private byte[] serializeUserValue(UV userValue, TypeSerializer<UV> valueSerializer) throws IOException {
-		keySerializationStream.reset();
+		dataOutputView.reset();
 
 		if (userValue == null) {
-			keySerializationDataOutputView.writeBoolean(true);
+			dataOutputView.writeBoolean(true);
 		} else {
-			keySerializationDataOutputView.writeBoolean(false);
-			valueSerializer.serialize(userValue, keySerializationDataOutputView);
+			dataOutputView.writeBoolean(false);
+			valueSerializer.serialize(userValue, dataOutputView);
 		}
 
-		return keySerializationStream.toByteArray();
+		return dataOutputView.toByteArray();
 	}
 
 	private UK deserializeUserKey(int userKeyOffset, byte[] rawKeyBytes, TypeSerializer<UK> keySerializer) throws IOException {
-		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawKeyBytes);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-
-		in.skipBytes(userKeyOffset);
-
-		return keySerializer.deserialize(in);
+		dataInputView.setData(rawKeyBytes, userKeyOffset, rawKeyBytes.length - userKeyOffset);
+		return keySerializer.deserialize(dataInputView);
 	}
 
 	private UV deserializeUserValue(byte[] rawValueBytes, TypeSerializer<UV> valueSerializer) throws IOException {
-		ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos(rawValueBytes);
-		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+		dataInputView.setData(rawValueBytes);
 
-		boolean isNull = in.readBoolean();
+		boolean isNull = dataInputView.readBoolean();
 
-		return isNull ? null : valueSerializer.deserialize(in);
+		return isNull ? null : valueSerializer.deserialize(dataInputView);
 	}
 
 	private boolean startWithKeyPrefix(byte[] keyPrefixBytes, byte[] rawKeyBytes) {

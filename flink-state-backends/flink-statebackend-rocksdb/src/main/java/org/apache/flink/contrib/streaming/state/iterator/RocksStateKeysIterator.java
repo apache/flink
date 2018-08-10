@@ -21,12 +21,12 @@ package org.apache.flink.contrib.streaming.state.iterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeySerializationUtils;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -53,6 +53,7 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 
 	private final boolean ambiguousKeyPossible;
 	private final int keyGroupPrefixBytes;
+	private final ByteArrayDataInputView byteArrayDataInputView;
 	private K nextKey;
 	private K previousKey;
 
@@ -71,6 +72,7 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 		this.nextKey = null;
 		this.previousKey = null;
 		this.ambiguousKeyPossible = ambiguousKeyPossible;
+		this.byteArrayDataInputView = new ByteArrayDataInputView();
 	}
 
 	@Override
@@ -78,24 +80,13 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 		try {
 			while (nextKey == null && iterator.isValid()) {
 
-				byte[] key = iterator.key();
+				final byte[] keyBytes = iterator.key();
+				final K currentKey = deserializeKey(keyBytes, byteArrayDataInputView);
+				final int namespaceByteStartPos = byteArrayDataInputView.getPosition();
 
-				ByteArrayInputStreamWithPos inputStream =
-					new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes);
-
-				DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(inputStream);
-
-				K value = RocksDBKeySerializationUtils.readKey(
-					keySerializer,
-					inputStream,
-					dataInput,
-					ambiguousKeyPossible);
-
-				int namespaceByteStartPos = inputStream.getPosition();
-
-				if (isMatchingNameSpace(key, namespaceByteStartPos) && !Objects.equals(previousKey, value)) {
-					previousKey = value;
-					nextKey = value;
+				if (isMatchingNameSpace(keyBytes, namespaceByteStartPos) && !Objects.equals(previousKey, currentKey)) {
+					previousKey = currentKey;
+					nextKey = currentKey;
 				}
 				iterator.next();
 			}
@@ -114,6 +105,14 @@ public class RocksStateKeysIterator<K> implements Iterator<K>, AutoCloseable {
 		K tmpKey = nextKey;
 		nextKey = null;
 		return tmpKey;
+	}
+
+	private K deserializeKey(byte[] keyBytes, ByteArrayDataInputView readView) throws IOException {
+		readView.setData(keyBytes, keyGroupPrefixBytes, keyBytes.length - keyGroupPrefixBytes);
+		return RocksDBKeySerializationUtils.readKey(
+			keySerializer,
+			byteArrayDataInputView,
+			ambiguousKeyPossible);
 	}
 
 	private boolean isMatchingNameSpace(@Nonnull byte[] key, int beginPos) {
