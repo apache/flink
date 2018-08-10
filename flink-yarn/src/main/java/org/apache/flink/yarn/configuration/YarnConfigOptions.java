@@ -19,8 +19,10 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.TextElement.code;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -63,9 +65,14 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<Integer> VCORES =
 		key("yarn.containers.vcores")
-		.defaultValue(-1)
-		.withDescription("The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
-			" is set to the number of slots per TaskManager, if set, or to 1, otherwise.");
+			.defaultValue(-1)
+			.withDescription(Description.builder().text(
+					"The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
+					" is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this" +
+					" parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting" +
+					" the %s.",
+				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
+				.build());
 
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
