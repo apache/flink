@@ -35,7 +35,10 @@ rolling policy. This is useful to prevent individual bucket files from getting
 too big. This is also configurable but the default policy rolls files based on
 file size and a timeout, i.e if no new data was written to a part file. 
 
-#### Usage
+The `StreamingFileSink` supports both row-wise encoding formats and
+bulk-encoding formats, such as [Apache Parquet](http://parquet.apache.org).
+
+#### Using Row-encoded Output Formats
 
 The only required configuration are the base path were we want to output our
 data and an
@@ -112,9 +115,9 @@ instead of `StreamingFileSink.forRowFormat()` you would use
 has static methods for creating a `BulkWriter.Factory` for various types.
 
 <div class="alert alert-info">
-  <strong>Note:</strong> With Bulk Writers, only the
-  <code>OnCheckpointRollingPolicy</code>, which rolls the part file on every
-  checkpoint, is supported.
+    <b>IMPORTANT:</b> Bulk-encoding formats can only be combined with the
+    `OnCheckpointRollingPolicy`, which rolls the in-progress part file on
+    every checkpoint.
 </div>
 
 {% top %}
