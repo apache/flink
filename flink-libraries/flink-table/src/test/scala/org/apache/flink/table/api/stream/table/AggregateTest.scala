@@ -59,7 +59,7 @@ class AggregateTest extends TableTestBase {
 
     val resultTable = table
       .groupBy('c)
-      .select(weightedAvg.distinct('a, 'b))
+      .select(weightedAvg.distinct('a, 'b), weightedAvg('a, 'b))
 
     val expected =
       unaryNode(
@@ -68,9 +68,13 @@ class AggregateTest extends TableTestBase {
           "DataStreamGroupAggregate",
           streamTableNode(0),
           term("groupBy", "c"),
-          term("select", "c", "WeightedAvg(DISTINCT a, b) AS TMP_0")
+          term(
+            "select",
+            "c",
+            "WeightedAvg(DISTINCT a, b) AS TMP_0",
+            "WeightedAvg(a, b) AS TMP_1")
         ),
-        term("select", "TMP_0")
+        term("select", "TMP_0", "TMP_1")
       )
     util.verifyTable(resultTable, expected)
   }

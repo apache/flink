@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.functions
 
+import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.ValidationException
 
 /**
   * Base class for User-Defined Aggregates.
@@ -137,10 +139,11 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     */
   def getAccumulatorType: TypeInformation[ACC] = null
 
-  private[flink] var isDistinctAgg: Boolean = false
-
-  private[flink] def distinct: AggregateFunction[T, ACC] = {
-    this.isDistinctAgg = true
-    this
-  }
+  /**
+    * Returns an aggregation function that requires distinct accumulator.
+    * @return distinct aggregate version of the [[AggregateFunction]].
+    */
+  def distinct: DistinctAggregateFunction[T, ACC] = DistinctAggregateFunction(this)
 }
+
+case class DistinctAggregateFunction[T, ACC](aggFunction: AggregateFunction[T, ACC])

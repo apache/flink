@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.MultisetTypeInfo
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
@@ -391,14 +392,19 @@ case class AggFunctionCall(
 
   override def toAggCall(
       name: String, isDistinct: Boolean)(implicit relBuilder: RelBuilder): AggCall = {
-    throw new UnsupportedOperationException(
-      s"Aggregate Function call cannot be modified using suffix distinct modifier.")
+    relBuilder.aggregateCall(
+      this.getSqlAggFunction(),
+      isDistinct,
+      false,
+      null,
+      name,
+      args.map(_.toRexNode): _*)
   }
 
   override def toAggCall(name: String)(implicit relBuilder: RelBuilder): AggCall = {
     relBuilder.aggregateCall(
       this.getSqlAggFunction(),
-      aggregateFunction.isDistinctAgg,
+      false,
       false,
       null,
       name,

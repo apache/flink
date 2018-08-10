@@ -237,8 +237,8 @@ case class Aggregate(
     def validateAggregateExpression(expr: Expression): Unit = expr match {
       case distinctExpr: DistinctAgg =>
         distinctExpr.child match {
-          case _: AggFunctionCall =>
-            failValidation("UDAGG should prepend 'distinct' modifier before arguments")
+          case distinctAggExpr: DistinctAgg => failValidation(
+            "Chained distinct operators are not supported!")
           case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
           case _ => failValidation("This should never happen!")
         }

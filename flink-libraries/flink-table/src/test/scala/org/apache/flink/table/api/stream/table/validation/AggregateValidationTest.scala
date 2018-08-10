@@ -34,7 +34,6 @@ class AggregateValidationTest extends TableTestBase {
     val func = new WeightedAvg
 
     val ds = table
-      // must fail. '_foo is not a valid field
       .groupBy('c)
       .select(func.distinct('a, 'b).distinct)
   }
