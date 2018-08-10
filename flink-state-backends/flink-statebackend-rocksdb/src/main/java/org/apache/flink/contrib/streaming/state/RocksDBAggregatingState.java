@@ -25,8 +25,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -121,17 +119,15 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
-					writeKeyWithGroupAndNamespace(
-							keyGroup, key, source,
-							keySerializationStream, keySerializationDataOutputView);
+					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
 
-					final byte[] sourceKey = keySerializationStream.toByteArray();
+					final byte[] sourceKey = dataOutputView.toByteArray();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
-						ACC value = valueSerializer.deserialize(
-								new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+						dataInputView.setData(valueBytes);
+						ACC value = valueSerializer.deserialize(dataInputView);
 
 						if (current != null) {
 							current = aggFunction.merge(current, value);
@@ -146,27 +142,25 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 			// if something came out of merging the sources, merge it or write it to the target
 			if (current != null) {
 				// create the target full-binary-key
-				writeKeyWithGroupAndNamespace(
-						keyGroup, key, target,
-						keySerializationStream, keySerializationDataOutputView);
+				writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
 
-				final byte[] targetKey = keySerializationStream.toByteArray();
+				final byte[] targetKey = dataOutputView.toByteArray();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {
 					// target also had a value, merge
-					ACC value = valueSerializer.deserialize(
-							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
+					dataInputView.setData(targetValueBytes);
+					ACC value = valueSerializer.deserialize(dataInputView);
 
 					current = aggFunction.merge(current, value);
 				}
 
 				// serialize the resulting value
-				keySerializationStream.reset();
-				valueSerializer.serialize(current, keySerializationDataOutputView);
+				dataOutputView.reset();
+				valueSerializer.serialize(current, dataOutputView);
 
 				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
+				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.toByteArray());
 			}
 		}
 		catch (Exception e) {

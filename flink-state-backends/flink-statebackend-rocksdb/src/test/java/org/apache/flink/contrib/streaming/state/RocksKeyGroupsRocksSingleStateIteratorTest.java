@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.contrib.streaming.state.iterator.RocksStatesPerKeyGroupMergeIterator;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.util.IOUtils;
 
@@ -39,9 +40,9 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Tests for the RocksDBMergeIterator.
+ * Tests for the RocksStatesPerKeyGroupMergeIterator.
  */
-public class RocksDBMergeIteratorTest {
+public class RocksKeyGroupsRocksSingleStateIteratorTest {
 
 	private static final int NUM_KEY_VAL_STATES = 50;
 	private static final int MAX_NUM_KEYS = 20;
@@ -51,8 +52,8 @@ public class RocksDBMergeIteratorTest {
 
 	@Test
 	public void testEmptyMergeIterator() throws Exception {
-		RocksDBKeyedStateBackend.RocksDBMergeIterator emptyIterator =
-				new RocksDBKeyedStateBackend.RocksDBMergeIterator(Collections.emptyList(), 2);
+		RocksStatesPerKeyGroupMergeIterator emptyIterator =
+				new RocksStatesPerKeyGroupMergeIterator(Collections.emptyList(), 2);
 		Assert.assertFalse(emptyIterator.isValid());
 	}
 
@@ -111,7 +112,7 @@ public class RocksDBMergeIteratorTest {
 				++id;
 			}
 
-			try (RocksDBKeyedStateBackend.RocksDBMergeIterator mergeIterator = new RocksDBKeyedStateBackend.RocksDBMergeIterator(
+			try (RocksStatesPerKeyGroupMergeIterator mergeIterator = new RocksStatesPerKeyGroupMergeIterator(
 				rocksIteratorsWithKVStateId,
 				maxParallelism <= Byte.MAX_VALUE ? 1 : 2)) {
 

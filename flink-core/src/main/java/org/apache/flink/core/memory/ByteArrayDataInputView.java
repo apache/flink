@@ -53,4 +53,8 @@ public class ByteArrayDataInputView extends DataInputViewStreamWrapper {
 	public void setData(@Nonnull byte[] buffer, int offset, int length) {
 		inStreamWithPos.setBuffer(buffer, offset, length);
 	}
+
+	public void setData(@Nonnull byte[] buffer) {
+		setData(buffer, 0, buffer.length);
+	}
 }
