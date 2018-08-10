@@ -68,7 +68,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() throws InterruptedException, TimeoutException {
 
-		final ActorSystem system = new RobustActorSystem("Testkit", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = RobustActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
 
 		final int numTMs = 3;

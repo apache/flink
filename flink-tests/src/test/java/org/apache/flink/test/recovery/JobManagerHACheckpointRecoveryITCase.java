@@ -352,7 +352,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		final int sequenceEnd = 5000;
 		final long expectedSum = Parallelism * sequenceEnd * (sequenceEnd + 1) / 2;
 
-		final ActorSystem system = new RobustActorSystem("Test", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = RobustActorSystem.create("Test", AkkaUtils.getDefaultAkkaConfig());
 		final TestingServer testingServer = new TestingServer();
 		final TemporaryFolder temporaryFolder = new TemporaryFolder();
 		temporaryFolder.create();
