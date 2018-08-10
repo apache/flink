@@ -285,9 +285,9 @@ For the monitoring to work, the user accessing the stream needs access to the Cl
 {% highlight java %}
 Properties producerConfig = new Properties();
 // Required configs
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
 producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+producerConfig.put("Region", "us-east-1");
 // Optional configs
 producerConfig.put("AggregationMaxCount", "4294967295");
 producerConfig.put("CollectionMaxCount", "1000");
@@ -313,9 +313,9 @@ simpleStringStream.addSink(kinesis);
 {% highlight scala %}
 val producerConfig = new Properties()
 // Required configs
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+producerConfig.put("Region", "us-east-1")
 // Optional KPL configs
 producerConfig.put("AggregationMaxCount", "4294967295")
 producerConfig.put("CollectionMaxCount", "1000")
@@ -399,19 +399,19 @@ The following example shows how one might supply the `AWSConfigConstants.AWS_END
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Properties producerConfig = new Properties();
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
 producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+producerConfig.put("Region", "us-east-1");
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val producerConfig = new Properties()
-producerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 producerConfig.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 producerConfig.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 producerConfig.put(AWSConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
+producerConfig.put("Region", "us-east-1")
 {% endhighlight %}
 </div>
 </div>
