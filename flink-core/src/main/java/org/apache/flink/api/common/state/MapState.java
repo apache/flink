@@ -20,6 +20,7 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -52,6 +53,16 @@ public interface MapState<UK, UV> extends State {
 	UV get(UK key) throws Exception;
 
 	/**
+	 * Returns the current values associated for the given keys.
+	 *
+	 * @param keys The keys of the mappings
+	 * @return The key-value map of the mapping with the given keys
+	 *
+	 * @throws Exception Throw if the system cannot access the state.
+	 */
+	Map<UK, UV> getAll(Collection<UK> keys) throws Exception;
+
+	/**
 	 * Associates a new value with the given key.
 	 *
 	 * @param key The key of the mapping
@@ -78,6 +89,15 @@ public interface MapState<UK, UV> extends State {
 	 * @throws Exception Thrown if the system cannot access the state.
 	 */
 	void remove(UK key) throws Exception;
+
+	/**
+	 * Deletes the mapping of the given keys.
+	 *
+	 * @param keys The keys of the mapping
+	 *
+	 * @throws Exception Throw if the system cannot access the state.
+	 */
+	void removeAll(Collection<UK> keys) throws Exception;
 
 	/**
 	 * Returns whether there exists the given mapping.

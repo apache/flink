@@ -28,6 +28,8 @@ import org.apache.flink.queryablestate.client.state.serialization.KvStateSeriali
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -82,7 +84,7 @@ class HeapMapState<K, N, UK, UV>
 	@Override
 	public UV get(UK userKey) {
 
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 
 		if (userMap == null) {
 			return null;
@@ -92,9 +94,25 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Map<UK, UV> getAll(Collection<UK> keys) {
+
+		Map<UK, UV> userMap = getUserMap();
+
+		if (userMap == null) {
+			return Collections.emptyMap();
+		}
+
+		Map<UK, UV> maps = new HashMap<>(keys.size());
+		for (UK key : keys) {
+			maps.put(key, userMap.get(key));
+		}
+		return maps;
+	}
+
+	@Override
 	public void put(UK userKey, UV userValue) {
 
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		if (userMap == null) {
 			userMap = new HashMap<>();
 			stateTable.put(currentNamespace, userMap);
@@ -106,7 +124,7 @@ class HeapMapState<K, N, UK, UV>
 	@Override
 	public void putAll(Map<UK, UV> value) {
 
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 
 		if (userMap == null) {
 			userMap = new HashMap<>();
@@ -119,7 +137,7 @@ class HeapMapState<K, N, UK, UV>
 	@Override
 	public void remove(UK userKey) {
 
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		if (userMap == null) {
 			return;
 		}
@@ -132,32 +150,49 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public void removeAll(Collection<UK> keys) {
+
+		Map<UK, UV> userMap = getUserMap();
+
+		if (userMap == null) {
+			return;
+		}
+		for (UK key : keys) {
+			userMap.remove(key);
+		}
+
+		if (userMap.isEmpty()) {
+			clear();
+		}
+	}
+
+	@Override
 	public boolean contains(UK userKey) {
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		return userMap != null && userMap.containsKey(userKey);
 	}
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		return userMap == null ? null : userMap.entrySet();
 	}
 
 	@Override
 	public Iterable<UK> keys() {
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		return userMap == null ? null : userMap.keySet();
 	}
 
 	@Override
 	public Iterable<UV> values() {
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		return userMap == null ? null : userMap.values();
 	}
 
 	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() {
-		Map<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = getUserMap();
 		return userMap == null ? null : userMap.entrySet().iterator();
 	}
 
@@ -201,5 +236,9 @@ class HeapMapState<K, N, UK, UV>
 			(TypeSerializer<Map<UK, UV>>) stateTable.getStateSerializer(),
 			stateTable.getNamespaceSerializer(),
 			(Map<UK, UV>) stateDesc.getDefaultValue());
+	}
+
+	private Map<UK, UV> getUserMap() {
+		return stateTable.get(currentNamespace);
 	}
 }

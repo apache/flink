@@ -37,6 +37,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -152,6 +153,16 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 				}
 
 				@Override
+				public Map<UK, UV> getAll(Collection<UK> keys) throws Exception {
+					Map<UK, UV> maps = new HashMap<>(keys.size());
+
+					for (UK key : keys) {
+						maps.put(key, get(key));
+					}
+					return maps;
+				}
+
+				@Override
 				public void put(UK key, UV value) throws Exception {
 					stateWrites++;
 					getOrSetMap().put(key, value);
@@ -171,6 +182,13 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 
 					stateWrites++;
 					values.remove(key);
+				}
+
+				@Override
+				public void removeAll(Collection<UK> keys) throws Exception {
+					for (UK key : keys) {
+						remove(key);
+					}
 				}
 
 				@Override

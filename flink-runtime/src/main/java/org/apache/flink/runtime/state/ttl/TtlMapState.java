@@ -26,6 +26,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import javax.annotation.Nonnull;
 
 import java.util.AbstractMap;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,6 +59,23 @@ class TtlMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Map<UK, UV> getAll(Collection<UK> keys) throws Exception {
+		Map<UK, TtlValue<UV>> ttlValueMap = original.getAll(keys);
+		if (ttlValueMap.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<UK, UV> maps = new HashMap<>();
+		for (UK key : keys) {
+			TtlValue<UV> ttlValue = ttlValueMap.get(key);
+			UV value = getWithTtlCheckAndUpdate(() -> ttlValue, v -> original.put(key, ttlValue), () -> original.remove(key));
+			maps.put(key, value);
+		}
+
+		return maps;
+	}
+
+	@Override
 	public void put(UK key, UV value) throws Exception {
 		original.put(key, wrapWithTs(value));
 	}
@@ -77,6 +95,11 @@ class TtlMapState<K, N, UK, UV>
 	@Override
 	public void remove(UK key) throws Exception {
 		original.remove(key);
+	}
+
+	@Override
+	public void removeAll(Collection<UK> keys) throws Exception {
+		original.removeAll(keys);
 	}
 
 	@Override

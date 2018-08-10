@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.MapState;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,6 +49,11 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	}
 
 	@Override
+	public Map<K, V> getAll(Collection<K> keys) throws Exception {
+		return originalState.getAll(keys);
+	}
+
+	@Override
 	public void put(K key, V value) throws Exception {
 		originalState.put(key, value);
 	}
@@ -65,6 +71,11 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	@Override
 	public void remove(K key) throws Exception {
 		originalState.remove(key);
+	}
+
+	@Override
+	public void removeAll(Collection<K> keys) throws Exception {
+		originalState.removeAll(keys);
 	}
 
 	@Override

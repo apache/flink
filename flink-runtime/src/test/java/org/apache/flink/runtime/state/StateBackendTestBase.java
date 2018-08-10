@@ -2872,6 +2872,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertTrue(entry.getValue().endsWith(updateSuffix));
 		}
 
+		// getAll
+		backend.setCurrentKey("3");
+		Map<Integer, String> kv = new HashMap<>();
+		for (int i = 0; i < 10; ++i) {
+			kv.put(i, String.valueOf(i));
+		}
+		state.putAll(kv);
+
+		Map<Integer, String> actural = state.getAll(kv.keySet());
+		assertEquals(kv, actural);
+
+		state.removeAll(kv.keySet());
+		for (Integer key : kv.keySet()) {
+			assertNull(state.get(key));
+		}
+
 		backend.dispose();
 		// restore the first snapshot and validate it
 		backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot1);

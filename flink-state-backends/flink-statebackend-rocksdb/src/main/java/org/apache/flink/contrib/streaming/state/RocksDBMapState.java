@@ -48,7 +48,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -126,6 +129,36 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Map<UK, UV> getAll(Collection<UK> keys) throws IOException, RocksDBException {
+
+		Map<UK, byte[]> keyBytesMap = new HashMap<>(keys.size());
+		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(keys.size());
+		List<byte[]> keyBytesList = new ArrayList<>(keys.size());
+
+		for (UK key : keys) {
+			columnFamilyHandles.add(columnFamily);
+			byte[] keyByte = serializeUserKeyWithCurrentKeyAndNamespace(key);
+			keyBytesList.add(keyByte);
+			keyBytesMap.put(key, keyByte);
+		}
+
+		Map<byte[], byte[]> result = backend.db.multiGet(columnFamilyHandles, keyBytesList);
+		Map<UK, UV> maps = new HashMap<>();
+		for (UK key : keys) {
+			byte[] keyByte = keyBytesMap.get(key);
+
+			byte[] valueByte = result.get(keyByte);
+
+			if (valueByte != null) {
+				maps.put(key, deserializeUserValue(valueByte));
+			} else {
+				maps.put(key, null);
+			}
+		}
+		return maps;
+	}
+
+	@Override
 	public void put(UK userKey, UV userValue) throws IOException, RocksDBException {
 
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
@@ -154,6 +187,13 @@ class RocksDBMapState<K, N, UK, UV>
 		byte[] rawKeyBytes = serializeUserKeyWithCurrentKeyAndNamespace(userKey);
 
 		backend.db.delete(columnFamily, writeOptions, rawKeyBytes);
+	}
+
+	@Override
+	public void removeAll(Collection<UK> keys) throws Exception {
+		for (UK key : keys) {
+			remove(key);
+		}
 	}
 
 	@Override

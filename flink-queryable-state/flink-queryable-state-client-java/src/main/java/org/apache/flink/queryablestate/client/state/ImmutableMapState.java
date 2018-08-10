@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,16 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 	}
 
 	@Override
+	public Map<K, V> getAll(Collection<K> keys) {
+
+		Map<K, V> maps = new HashMap<>(keys.size());
+		for (K key : keys) {
+			maps.put(key, state.get(key));
+		}
+		return maps;
+	}
+
+	@Override
 	public void put(K key, V value) {
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
@@ -64,6 +75,11 @@ public final class ImmutableMapState<K, V> extends ImmutableState implements Map
 
 	@Override
 	public void remove(K key) {
+		throw MODIFICATION_ATTEMPT_ERROR;
+	}
+
+	@Override
+	public void removeAll(Collection<K> keys) {
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 

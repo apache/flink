@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -47,6 +48,18 @@ public class MockInternalMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public Map<UK, UV> getAll(Collection<UK> keys) {
+
+		Map<UK, UV> userMaps = getInternal();
+
+		Map<UK, UV> maps = new HashMap<>(keys.size());
+		for (UK key : keys) {
+			maps.put(key, userMaps.get(key));
+		}
+		return maps;
+	}
+
+	@Override
 	public void put(UK key, UV value) {
 		this.getInternal().put(key, value);
 	}
@@ -59,6 +72,15 @@ public class MockInternalMapState<K, N, UK, UV>
 	@Override
 	public void remove(UK key) {
 		getInternal().remove(key);
+	}
+
+	@Override
+	public void removeAll(Collection<UK> keys) {
+
+		Map<UK, UV> internalMaps = getInternal();
+		for (UK key : keys) {
+			internalMaps.remove(key);
+		}
 	}
 
 	@Override
