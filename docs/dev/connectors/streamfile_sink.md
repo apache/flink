@@ -100,4 +100,21 @@ on the sink builder. Please check out the JavaDoc for
 for more configuration options and more documentation about the workings and
 interactions of bucket assigners and rolling policies.
 
+#### Using Bulk-encoded Output Formats
+
+In the above example we used an `Encoder` that can encode or serialize each
+record individually. The streaming file sink also supports bulk-encoded output
+formats such as [Apache Parquet](http://parquet.apache.org). To use these,
+instead of `StreamingFileSink.forRowFormat()` you would use
+`StreamingFileSink.forBulkFormat()` and specify a `BulkWriter.Factory`.
+
+[ParquetAvroWriters](http://flink.apache.org/docs/latest/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
+has static methods for creating a `BulkWriter.Factory` for various types.
+
+<div class="alert alert-info">
+  <strong>Note:</strong> With Bulk Writers, only the
+  <code>OnCheckpointRollingPolicy</code>, which rolls the part file on every
+  checkpoint, is supported.
+</div>
+
 {% top %}
