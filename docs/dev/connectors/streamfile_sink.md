@@ -48,6 +48,10 @@ Basic usage thus looks like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
+import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+
 DataStream<String> input = ...;
 
 final StreamingFileSink<String> sink = StreamingFileSink
@@ -63,6 +67,10 @@ input.addSink(sink);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+import org.apache.flink.api.common.serialization.Encoder
+import org.apache.flink.core.fs.Path
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+
 val input: DataStream[String] = ...
 
 final StreamingFileSink[String] sink = StreamingFileSink
