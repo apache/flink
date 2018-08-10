@@ -31,8 +31,6 @@ version: "1.7-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
 version_title: "1.7-SNAPSHOT"
-version_javadocs: "1.7-SNAPSHOT"
-version_scaladocs: "1.7-SNAPSHOT"
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
@@ -47,6 +45,8 @@ download_url: "http://flink.apache.org/downloads.html"
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-master
 stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
+
+javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
 
 # Flag whether this is a stable version or not. Used for the quickstart page.
 is_stable: false
