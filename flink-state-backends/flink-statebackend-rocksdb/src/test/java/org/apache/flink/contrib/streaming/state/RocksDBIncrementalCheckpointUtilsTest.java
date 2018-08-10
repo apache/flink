@@ -18,9 +18,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -114,35 +112,30 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 			int currentGroupRangeStart = currentGroupRange.getStartKeyGroup();
 			int currentGroupRangeEnd = currentGroupRange.getEndKeyGroup();
 
+			ByteArrayDataOutputView outputView = new ByteArrayDataOutputView(32);
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
-				ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);
-				DataOutputView outputView = new DataOutputViewStreamWrapper(outputStreamWithPos);
 				for (int j = 0; j < 100; ++j) {
-					outputStreamWithPos.reset();
+					outputView.reset();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
-						outputStreamWithPos,
-						new DataOutputViewStreamWrapper(outputStreamWithPos),
+						outputView,
 						false);
-					rocksDB.put(columnFamilyHandle, outputStreamWithPos.toByteArray(), String.valueOf(j).getBytes());
+					rocksDB.put(columnFamilyHandle, outputView.toByteArray(), String.valueOf(j).getBytes());
 				}
 			}
 
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
-				ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);
-				DataOutputView outputView = new DataOutputViewStreamWrapper(outputStreamWithPos);
 				for (int j = 0; j < 100; ++j) {
-					outputStreamWithPos.reset();
+					outputView.reset();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
-						outputStreamWithPos,
-						new DataOutputViewStreamWrapper(outputStreamWithPos),
+						outputView,
 						false);
-					byte[] value = rocksDB.get(columnFamilyHandle, outputStreamWithPos.toByteArray());
+					byte[] value = rocksDB.get(columnFamilyHandle, outputView.toByteArray());
 					Assert.assertEquals(String.valueOf(j), new String(value));
 				}
 			}
@@ -155,19 +148,15 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 				keyGroupPrefixBytes);
 
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
-				ByteArrayOutputStreamWithPos outputStreamWithPos = new ByteArrayOutputStreamWithPos(32);
-				DataOutputView outputView = new DataOutputViewStreamWrapper(outputStreamWithPos);
 				for (int j = 0; j < 100; ++j) {
-					outputStreamWithPos.reset();
+					outputView.reset();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
-						outputStreamWithPos,
-						new DataOutputViewStreamWrapper(outputStreamWithPos),
+						outputView,
 						false);
-					byte[] value = rocksDB.get(
-						columnFamilyHandle, outputStreamWithPos.toByteArray());
+					byte[] value = rocksDB.get(columnFamilyHandle, outputView.toByteArray());
 					if (targetGroupRange.contains(i)) {
 						Assert.assertEquals(String.valueOf(j), new String(value));
 					} else {

@@ -45,7 +45,6 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.core.memory.ByteArrayDataOutputView;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -363,17 +362,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.f1;
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
-		final ByteArrayOutputStreamWithPos namespaceOutputStream = new ByteArrayOutputStreamWithPos(8);
+		final ByteArrayDataOutputView namespaceOutputView = new ByteArrayDataOutputView(8);
 		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 		final byte[] nameSpaceBytes;
 		try {
 			RocksDBKeySerializationUtils.writeNameSpace(
 				namespace,
 				namespaceSerializer,
-				namespaceOutputStream,
-				new DataOutputViewStreamWrapper(namespaceOutputStream),
+				namespaceOutputView,
 				ambiguousKeyPossible);
-			nameSpaceBytes = namespaceOutputStream.toByteArray();
+			nameSpaceBytes = namespaceOutputView.toByteArray();
 		} catch (IOException ex) {
 			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
