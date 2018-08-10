@@ -39,7 +39,7 @@ file size and a timeout, i.e if no new data was written to a part file.
 
 The only required configuration are the base path were we want to output our
 data and an
-[Encoder](http://flink.apache.org/docs/latest/api/java/org/apache/flink/api/common/serialization/Encoder.html)
+[Encoder]({{ site.baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html)
 that is used for serializing records to the `OutputStream` for each file.
 
 Basic usage thus looks like this:
@@ -88,15 +88,15 @@ input.addSink(sink)
 
 This will create a streaming sink that creates hourly buckets and uses a
 default rolling policy. The default bucket assigner is
-[DateTimeBucketAssigner](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/DateTimeBucketAssigner.html)
+[DateTimeBucketAssigner]({{ site.baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/DateTimeBucketAssigner.html)
 and the default rolling policy is
-[DefaultRollingPolicy](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/rollingpolicies/DefaultRollingPolicy.html).
+[DefaultRollingPolicy]({{ site.baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/rollingpolicies/DefaultRollingPolicy.html).
 You can specify a custom
-[BucketAssigner](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/BucketAssigner.html)
+[BucketAssigner]({{ site.baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/BucketAssigner.html)
 and
-[RollingPolicy](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html)
+[RollingPolicy]({{ site.baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html)
 on the sink builder. Please check out the JavaDoc for
-[StreamingFileSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.html)
+[StreamingFileSink]({{ site.baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.html)
 for more configuration options and more documentation about the workings and
 interactions of bucket assigners and rolling policies.
 
@@ -108,7 +108,7 @@ formats such as [Apache Parquet](http://parquet.apache.org). To use these,
 instead of `StreamingFileSink.forRowFormat()` you would use
 `StreamingFileSink.forBulkFormat()` and specify a `BulkWriter.Factory`.
 
-[ParquetAvroWriters](http://flink.apache.org/docs/latest/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
+[ParquetAvroWriters]({{ site.baseurl }}/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
 has static methods for creating a `BulkWriter.Factory` for various types.
 
 <div class="alert alert-info">
