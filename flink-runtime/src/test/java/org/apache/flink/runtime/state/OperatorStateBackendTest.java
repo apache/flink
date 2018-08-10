@@ -54,6 +54,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -944,6 +945,50 @@ public class OperatorStateBackendTest {
 		static MutableType of(int value) {
 			return new MutableType(value);
 		}
+	}
+
+	@Test
+	public void testDeleteBroadcastState() throws Exception {
+		final OperatorStateBackend operatorStateBackend =
+			new DefaultOperatorStateBackend(classLoader, new ExecutionConfig(), false);
+
+		MapStateDescriptor<Integer, Integer> broadcastStateDesc1 = new MapStateDescriptor<>(
+			"test-broadcast-1", IntSerializer.INSTANCE, IntSerializer.INSTANCE);
+
+		MapStateDescriptor<Integer, Integer> broadcastStateDesc2 = new MapStateDescriptor<>(
+			"test-broadcast-2", IntSerializer.INSTANCE, IntSerializer.INSTANCE);
+
+		operatorStateBackend.getBroadcastState(broadcastStateDesc1);
+		operatorStateBackend.getBroadcastState(broadcastStateDesc2);
+
+		Assert.assertEquals(2, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+
+		operatorStateBackend.removeBroadcastState(broadcastStateDesc2.getName());
+		Assert.assertEquals(1, operatorStateBackend.getRegisteredBroadcastStateNames().size());
+		Assert.assertTrue(operatorStateBackend.getRegisteredBroadcastStateNames().contains(broadcastStateDesc1.getName()));
+	}
+
+	@Test
+	public void testDeleteOperatorState() throws Exception {
+		final OperatorStateBackend operatorStateBackend =
+			new DefaultOperatorStateBackend(classLoader, new ExecutionConfig(), false);
+
+		ListStateDescriptor<Integer> listStateDesc1 = new ListStateDescriptor<>("test-broadcast-1", IntSerializer.INSTANCE);
+		ListStateDescriptor<Integer> listStateDesc2 = new ListStateDescriptor<>("test-broadcast-2", IntSerializer.INSTANCE);
+
+		operatorStateBackend.getListState(listStateDesc1);
+		operatorStateBackend.getUnionListState(listStateDesc2);
+
+		Set<String> registeredStateNames = operatorStateBackend.getRegisteredStateNames();
+
+		Assert.assertEquals(2, registeredStateNames.size());
+
+		operatorStateBackend.removeOperatorState(listStateDesc1.getName());
+		Assert.assertEquals(1, registeredStateNames.size());
+		Assert.assertTrue(registeredStateNames.contains(listStateDesc2.getName()));
+
+		operatorStateBackend.removeOperatorState(listStateDesc2.getName());
+		Assert.assertEquals(0, registeredStateNames.size());
 	}
 
 	// ------------------------------------------------------------------------
