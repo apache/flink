@@ -79,6 +79,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -249,13 +250,24 @@ public class CliFrontend {
 					LOG.info("Could not properly shut down the client.", e);
 				}
 			} else {
+				final ClusterShutdownHook shutdownHook;
 				if (clusterId != null) {
 					client = clusterDescriptor.retrieve(clusterId);
+					shutdownHook = null;
 				} else {
 					// also in job mode we have to deploy a session cluster because the job
 					// might consist of multiple parts (e.g. when using collect)
 					final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
 					client = clusterDescriptor.deploySessionCluster(clusterSpecification);
+					// if not running in detached mode, add a shutdown hook to shut down cluster if client exits
+					// there's a race-condition here if cli is killed before shutdown hook is installed
+					if (!runOptions.getDetachedMode()) {
+						shutdownHook = new ClusterShutdownHook(client);
+						Runtime.getRuntime().addShutdownHook(shutdownHook);
+						LOG.info("Shutdown hook registered");
+					} else {
+						shutdownHook = null;
+					}
 				}
 
 				try {
@@ -278,12 +290,12 @@ public class CliFrontend {
 
 					executeProgram(program, client, userParallelism);
 				} finally {
-					if (clusterId == null && !client.isDetached()) {
+					if (shutdownHook != null) {
 						// terminate the cluster only if we have started it before and if it's not detached
 						try {
-							client.shutDownCluster();
-						} catch (final Exception e) {
-							LOG.info("Could not properly terminate the Flink cluster.", e);
+							shutdownHook.run();
+						} finally {
+							Runtime.getRuntime().removeShutdownHook(shutdownHook);
 						}
 					}
 
@@ -1219,4 +1231,21 @@ public class CliFrontend {
 		return constructor.newInstance(params);
 	}
 
+	private static class ClusterShutdownHook extends Thread {
+		private final ClusterClient<?> client;
+
+		ClusterShutdownHook(ClusterClient<?> client) {
+			this.client = Objects.requireNonNull(client);
+		}
+
+		@Override
+		public void run() {
+			try {
+				LOG.info("Shutdown hook attempting to shutdown cluster");
+				client.shutDownCluster();
+			} catch (final Exception e) {
+				LOG.warn("Could not properly terminate the Flink cluster.", e);
+			}
+		}
+	}
 }
