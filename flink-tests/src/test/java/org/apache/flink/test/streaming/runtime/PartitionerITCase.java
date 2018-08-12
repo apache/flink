@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -162,7 +163,7 @@ public class PartitionerITCase extends AbstractTestBase {
 		verifyHashPartitioning(hashPartitionResult);
 		verifyCustomPartitioning(customPartitionResult);
 		verifyBroadcastPartitioning(broadcastPartitionResult);
-		verifyRebalancePartitioning(forwardPartitionResult);
+		verifyForwardPartitioning(forwardPartitionResult);
 		verifyRebalancePartitioning(rebalancePartitionResult);
 		verifyGlobalPartitioning(globalPartitionResult);
 	}
@@ -218,7 +219,7 @@ public class PartitionerITCase extends AbstractTestBase {
 				new HashSet<Tuple2<Integer, String>>(broadcastPartitionResult));
 	}
 
-	private static void verifyRebalancePartitioning(List<Tuple2<Integer, String>> rebalancePartitionResult) {
+	private static void verifyForwardPartitioning(List<Tuple2<Integer, String>> forwardPartitionResult) {
 		List<Tuple2<Integer, String>> expected = Arrays.asList(
 				new Tuple2<Integer, String>(0, "a"),
 				new Tuple2<Integer, String>(1, "b"),
@@ -230,7 +231,42 @@ public class PartitionerITCase extends AbstractTestBase {
 
 		assertEquals(
 				new HashSet<Tuple2<Integer, String>>(expected),
-				new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult));
+				new HashSet<Tuple2<Integer, String>>(forwardPartitionResult));
+	}
+
+	private static void verifyRebalancePartitioning(List<Tuple2<Integer, String>> rebalancePartitionResult) {
+		List<Tuple2<Integer, String>> expected0 = Arrays.asList(
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "c"),
+				new Tuple2<Integer, String>(0, "a"));
+
+		List<Tuple2<Integer, String>> expected1 = Arrays.asList(
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "c"),
+				new Tuple2<Integer, String>(1, "a"));
+
+		List<Tuple2<Integer, String>> expected2 = Arrays.asList(
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "c"),
+				new Tuple2<Integer, String>(2, "a"));
+
+		assertTrue(
+				new HashSet<Tuple2<Integer, String>>(expected0).equals(new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult)) ||
+				new HashSet<Tuple2<Integer, String>>(expected1).equals(new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult)) ||
+				new HashSet<Tuple2<Integer, String>>(expected2).equals(new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult))
+		);
 	}
 
 	private static void verifyGlobalPartitioning(List<Tuple2<Integer, String>> globalPartitionResult) {
