@@ -163,7 +163,7 @@ public class PartitionerITCase extends AbstractTestBase {
 		verifyHashPartitioning(hashPartitionResult);
 		verifyCustomPartitioning(customPartitionResult);
 		verifyBroadcastPartitioning(broadcastPartitionResult);
-		verifyForwardPartitioning(forwardPartitionResult);
+		verifyRebalancePartitioning(forwardPartitionResult);
 		verifyRebalancePartitioning(rebalancePartitionResult);
 		verifyGlobalPartitioning(globalPartitionResult);
 	}
@@ -217,21 +217,6 @@ public class PartitionerITCase extends AbstractTestBase {
 		assertEquals(
 				new HashSet<Tuple2<Integer, String>>(expected),
 				new HashSet<Tuple2<Integer, String>>(broadcastPartitionResult));
-	}
-
-	private static void verifyForwardPartitioning(List<Tuple2<Integer, String>> forwardPartitionResult) {
-		List<Tuple2<Integer, String>> expected = Arrays.asList(
-				new Tuple2<Integer, String>(0, "a"),
-				new Tuple2<Integer, String>(1, "b"),
-				new Tuple2<Integer, String>(2, "b"),
-				new Tuple2<Integer, String>(0, "a"),
-				new Tuple2<Integer, String>(1, "a"),
-				new Tuple2<Integer, String>(2, "c"),
-				new Tuple2<Integer, String>(0, "a"));
-
-		assertEquals(
-				new HashSet<Tuple2<Integer, String>>(expected),
-				new HashSet<Tuple2<Integer, String>>(forwardPartitionResult));
 	}
 
 	private static void verifyRebalancePartitioning(List<Tuple2<Integer, String>> rebalancePartitionResult) {
