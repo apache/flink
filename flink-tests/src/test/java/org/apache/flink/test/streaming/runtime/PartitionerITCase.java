@@ -219,18 +219,42 @@ public class PartitionerITCase extends AbstractTestBase {
 	}
 
 	private static void verifyRebalancePartitioning(List<Tuple2<Integer, String>> rebalancePartitionResult) {
-		List<Tuple2<Integer, String>> expected = Arrays.asList(
+		List<List<Tuple2<Integer, String>>> expected = Arrays.asList(
+			Arrays.asList(
 				new Tuple2<Integer, String>(0, "a"),
 				new Tuple2<Integer, String>(1, "b"),
 				new Tuple2<Integer, String>(2, "b"),
 				new Tuple2<Integer, String>(0, "a"),
 				new Tuple2<Integer, String>(1, "a"),
 				new Tuple2<Integer, String>(2, "c"),
-				new Tuple2<Integer, String>(0, "a"));
+				new Tuple2<Integer, String>(0, "a")),
 
-		assertEquals(
-				new HashSet<Tuple2<Integer, String>>(expected),
-				new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult));
+			Arrays.asList(
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "b"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(1, "a"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "c"),
+				new Tuple2<Integer, String>(1, "a")),
+
+			Arrays.asList(
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "b"),
+				new Tuple2<Integer, String>(1, "b"),
+				new Tuple2<Integer, String>(2, "a"),
+				new Tuple2<Integer, String>(0, "a"),
+				new Tuple2<Integer, String>(1, "c"),
+				new Tuple2<Integer, String>(2, "a")));
+
+		int matchedNum = 0;
+		for (List<Tuple2<Integer, String>> e : expected) {
+			if (new HashSet<Tuple2<Integer, String>>(e).equals(new HashSet<Tuple2<Integer, String>>(rebalancePartitionResult))) {
+				++matchedNum;
+			}
+		}
+
+		assertEquals(1, matchedNum);
 	}
 
 	private static void verifyGlobalPartitioning(List<Tuple2<Integer, String>> globalPartitionResult) {
