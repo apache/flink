@@ -38,6 +38,9 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
   private var commentPrefix: Option[String] = None
   private var isIgnoreFirstLine: Option[Boolean] = None
   private var lenient: Option[Boolean] = None
+  private var arrayElementDelim: Option[String] = None
+  private var escapeCharacter: Option[Character] = None
+  private var bytesCharset: Option[String] = None
 
   /**
     * Sets the field delimiter, "," by default.
@@ -137,6 +140,30 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     */
   def ignoreParseErrors(): Csv = {
     this.lenient = Some(true)
+    this
+  }
+
+  /**
+    * Set delimiter of array elements, ';' by default.
+    */
+  def arrayElementDelim(delim: String): Csv = {
+    this.arrayElementDelim = Some(delim)
+    this
+  }
+
+  /**
+    * Set escape character, none by default.
+    */
+  def escapeCharacter(escape: Character): Csv = {
+    this.escapeCharacter = Some(escape)
+    this
+  }
+
+  /**
+    * Set charset of byte[], 'UTF-8' by defaut.
+    */
+  def bytesCharset(charset: String): Csv = {
+    this.bytesCharset = Some(charset)
     this
   }
 

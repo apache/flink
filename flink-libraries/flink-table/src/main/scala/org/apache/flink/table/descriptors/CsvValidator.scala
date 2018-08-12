@@ -33,6 +33,9 @@ class CsvValidator extends FormatDescriptorValidator {
     properties.validateString(FORMAT_LINE_DELIMITER, isOptional = true, minLen = 1)
     properties.validateString(FORMAT_QUOTE_CHARACTER, isOptional = true, minLen = 1, maxLen = 1)
     properties.validateString(FORMAT_COMMENT_PREFIX, isOptional = true, minLen = 1)
+    properties.validateString(FORMAT_ARRAY_ELEMENT_DELIMITER, isOptional = true, minLen = 1)
+    properties.validateString(FORMAT_ESCAPE_CHARACTER, isOptional = true, minLen = 1, maxLen = 1)
+    properties.validateString(FORMAT_BYTES_CHARSET, isOptional = true, minLen = 1)
     properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, isOptional = true)
     properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, isOptional = true)
     properties.validateTableSchema(FORMAT_FIELDS, isOptional = false)
@@ -49,4 +52,7 @@ object CsvValidator {
   val FORMAT_IGNORE_FIRST_LINE = "format.ignore-first-line"
   val FORMAT_IGNORE_PARSE_ERRORS = "format.ignore-parse-errors"
   val FORMAT_FIELDS = "format.fields"
+  val FORMAT_ARRAY_ELEMENT_DELIMITER = "format.array-element-delimiter"
+  val FORMAT_ESCAPE_CHARACTER = "format.escape-character"
+  val FORMAT_BYTES_CHARSET = "format.bytes-charset"
 }
