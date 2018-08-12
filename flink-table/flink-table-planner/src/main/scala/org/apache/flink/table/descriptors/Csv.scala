@@ -41,6 +41,10 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
   private var commentPrefix: Option[String] = None
   private var isIgnoreFirstLine: Option[Boolean] = None
   private var lenient: Option[Boolean] = None
+  private var arrayElementDelim: Option[String] = None
+  private var escapeCharacter: Option[Character] = None
+  private var bytesCharset: Option[String] = None
+  private var derived: Option[Boolean] = None
 
   /**
     * Sets the field delimiter, "," by default.
@@ -143,9 +147,40 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, 1) {
     this
   }
 
+  /**
+    * Set delimiter of array elements, ';' by default.
+    */
+  def arrayElementDelim(delim: String): Csv = {
+    this.arrayElementDelim = Some(delim)
+    this
+  }
+
+  /**
+    * Set escape character, none by default.
+    */
+  def escapeCharacter(escape: Character): Csv = {
+    this.escapeCharacter = Some(escape)
+    this
+  }
+
+  /**
+    * Set charset of byte[], 'UTF-8' by defaut.
+    */
+  def bytesCharset(charset: String): Csv = {
+    this.bytesCharset = Some(charset)
+    this
+  }
+
+  /**
+    * Set true if format schema derives from table schema.
+    */
+  def derived(derived: Boolean): Csv = {
+    this.derived = Some(derived)
+    this
+  }
+
   override protected def toFormatProperties: util.Map[String, String] = {
     val properties = new DescriptorProperties()
-
     fieldDelim.foreach(properties.putString(FORMAT_FIELD_DELIMITER, _))
     lineDelim.foreach(properties.putString(FORMAT_LINE_DELIMITER, _))
 

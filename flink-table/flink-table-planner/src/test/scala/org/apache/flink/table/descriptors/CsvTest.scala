@@ -47,6 +47,16 @@ class CsvTest extends DescriptorTestBase {
     addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testTwoSchemas(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "format.derive-schema", "true")
+  }
+
+  @Test
+  def testOneSchema(): Unit = {
+    addPropertyAndVerify(descriptors().get(0), "format.derive-schema", "false")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
