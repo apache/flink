@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -31,6 +32,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration
@@ -43,11 +47,15 @@ public final class GlobalConfiguration {
 
 	public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
 
+	public static final String FLINK_HISTORY_SERVER_CONF_FILENAME = "flink-historyserver-conf.yaml";
+
 	// the keys whose values should be hidden
 	private static final String[] SENSITIVE_KEYS = new String[] {"password", "secret"};
 
 	// the hidden content to be displayed
 	public static final String HIDDEN_CONTENT = "******";
+
+	public static final String HISTORY_SERVER_OPTION_KEY_PREFIX = "historyserver";
 
 	// --------------------------------------------------------------------------------------------
 
@@ -71,6 +79,22 @@ public final class GlobalConfiguration {
 	}
 
 	/**
+	 * Loads the history server global configuration from the environment. Fails if an error occurs during loading.
+	 * Returns an empty configuration object if the environment variable is not set. In production this variable is set but
+	 * tests and local execution/debugging don't have this environment variable set. That's why we should fail
+	 * if it is not set.
+	 * @return Returns the Configuration
+	 */
+	public static Configuration loadHistoryServerConfiguration() {
+		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		if (configDir == null) {
+			return new Configuration();
+		}
+
+		return loadHistoryServerConfiguration(configDir);
+	}
+
+	/**
 	 * Loads the configuration files from the specified directory.
 	 *
 	 * <p>YAML files are supported as configuration files.
@@ -83,6 +107,40 @@ public final class GlobalConfiguration {
 	}
 
 	/**
+	 * Loads the history server configuration files from the specified directory.
+	 * If exists history server config file then load it,
+	 * otherwise switch to backward compatibility mode (load from old file).
+	 *
+	 * <p>YAML files are supported as configuration files.
+	 *
+	 * @param configDir
+	 *        the directory which contains the configuration files
+	 */
+	public static Configuration loadHistoryServerConfiguration(final String configDir) {
+		Path hsConfPath = Paths.get(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME);
+		Path flinkConfPath = Paths.get(configDir, FLINK_CONF_FILENAME);
+
+		if (checkExistsMultiHSConfiguration(hsConfPath, flinkConfPath)) {
+			LOG.warn("Two configuration information about the history server is detected, " +
+					"which exists in both {} and {}, " +
+					"and the configuration items in {} file take precedence.",
+				FLINK_HISTORY_SERVER_CONF_FILENAME,
+				FLINK_CONF_FILENAME,
+				FLINK_HISTORY_SERVER_CONF_FILENAME);
+			return loadConfiguration(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME, null);
+		}
+
+		if (Files.exists(hsConfPath)) {
+			return loadConfiguration(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME, null);
+		} else {
+			LOG.warn("The old configuration mode is being used, " +
+				"and the configuration related to the history server " +
+				"has been placed independently in the {} file.", FLINK_HISTORY_SERVER_CONF_FILENAME);
+			return loadConfiguration(configDir, null);
+		}
+	}
+
+	/**
 	 * Loads the configuration files from the specified directory. If the dynamic properties
 	 * configuration is not null, then it is added to the loaded configuration.
 	 *
@@ -91,34 +149,41 @@ public final class GlobalConfiguration {
 	 * @return The configuration loaded from the given configuration directory
 	 */
 	public static Configuration loadConfiguration(final String configDir, @Nullable final Configuration dynamicProperties) {
+		return loadConfiguration(configDir, FLINK_CONF_FILENAME, dynamicProperties);
+	}
 
-		if (configDir == null) {
-			throw new IllegalArgumentException("Given configuration directory is null, cannot load configuration");
+	/**
+	 * Loads the history server configuration files from the specified directory. If the dynamic properties
+	 * configuration is not null, then it is added to the loaded configuration.
+	 * If exists history server config file then load it,
+	 * otherwise switch to backward compatibility mode (load from old file).
+	 *
+	 * @param configDir directory to load the configuration from
+	 * @param dynamicProperties configuration file containing the dynamic properties. Null if none.
+	 * @return The configuration loaded from the given configuration directory
+	 */
+	public static Configuration loadHistoryServerConfiguration(final String configDir, @Nullable final Configuration dynamicProperties) {
+		Path hsConfPath = Paths.get(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME);
+		Path flinkConfPath = Paths.get(configDir, FLINK_CONF_FILENAME);
+
+		if (checkExistsMultiHSConfiguration(hsConfPath, flinkConfPath)) {
+			LOG.warn("Two configuration information about the history server is detected, " +
+					"which exists in both {} and {}, " +
+					"and the configuration items in {} file take precedence.",
+				FLINK_HISTORY_SERVER_CONF_FILENAME,
+				FLINK_CONF_FILENAME,
+				FLINK_HISTORY_SERVER_CONF_FILENAME);
+			return loadConfiguration(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME, dynamicProperties);
 		}
 
-		final File confDirFile = new File(configDir);
-		if (!(confDirFile.exists())) {
-			throw new IllegalConfigurationException(
-				"The given configuration directory name '" + configDir +
-					"' (" + confDirFile.getAbsolutePath() + ") does not describe an existing directory.");
+		if (Files.exists(hsConfPath)) {
+			return loadConfiguration(configDir, FLINK_HISTORY_SERVER_CONF_FILENAME, dynamicProperties);
+		} else {
+			LOG.warn("The old configuration mode is being used, " +
+				"and the configuration related to the history server " +
+				"has been placed independently in the {} file.", FLINK_HISTORY_SERVER_CONF_FILENAME);
+			return loadConfiguration(configDir, dynamicProperties);
 		}
-
-		// get Flink yaml configuration file
-		final File yamlConfigFile = new File(confDirFile, FLINK_CONF_FILENAME);
-
-		if (!yamlConfigFile.exists()) {
-			throw new IllegalConfigurationException(
-				"The Flink config file '" + yamlConfigFile +
-					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
-		}
-
-		Configuration configuration = loadYAMLResource(yamlConfigFile);
-
-		if (dynamicProperties != null) {
-			configuration.addAll(dynamicProperties);
-		}
-
-		return configuration;
 	}
 
 	/**
@@ -135,6 +200,63 @@ public final class GlobalConfiguration {
 		}
 
 		return loadConfiguration(configDir, dynamicProperties);
+	}
+
+	/**
+	 * Loads the history server global configuration and adds the given dynamic properties
+	 * configuration. If exists history server config file then load it,
+	 * otherwise switch to backward compatibility mode (load from old file).
+	 *
+	 * @param dynamicProperties The given dynamic properties
+	 * @return Returns the loaded global configuration with dynamic properties
+	 */
+	public static Configuration loadHistoryServerConfigurationWithDynamicProperties(Configuration dynamicProperties) {
+		final String configDir = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+		if (configDir == null) {
+			return new Configuration(dynamicProperties);
+		}
+
+		return loadHistoryServerConfiguration(configDir, dynamicProperties);
+	}
+
+	/**
+	 * Loads the configuration files from the specified directory. If the dynamic properties
+	 * configuration is not null, then it is added to the loaded configuration.
+	 *
+	 * @param configDir directory to load the configuration from
+	 * @param configFileName configuration file name
+	 * @param dynamicProperties configuration file containing the dynamic properties. Null if none.
+	 * @return The configuration loaded from the given configuration directory
+	 */
+	private static Configuration loadConfiguration(final String configDir, final String configFileName, @Nullable final Configuration dynamicProperties) {
+
+		if (configDir == null) {
+			throw new IllegalArgumentException("Given configuration directory is null, cannot load configuration");
+		}
+
+		final File confDirFile = new File(configDir);
+		if (!(confDirFile.exists())) {
+			throw new IllegalConfigurationException(
+				"The given configuration directory name '" + configDir +
+					"' (" + confDirFile.getAbsolutePath() + ") does not describe an existing directory.");
+		}
+
+		// get Flink yaml configuration file
+		final File yamlConfigFile = new File(confDirFile, configFileName);
+
+		if (!yamlConfigFile.exists()) {
+			throw new IllegalConfigurationException(
+				"The Flink config file '" + yamlConfigFile +
+					"' (" + confDirFile.getAbsolutePath() + ") does not exist.");
+		}
+
+		Configuration configuration = loadYAMLResource(yamlConfigFile);
+
+		if (dynamicProperties != null) {
+			configuration.addAll(dynamicProperties);
+		}
+
+		return configuration;
 	}
 
 	/**
@@ -198,6 +320,40 @@ public final class GlobalConfiguration {
 		}
 
 		return config;
+	}
+
+	/**
+	 * Check if both flink config file and history server config file are contain configuration
+	 * keys start with "historyserver".
+	 *
+	 * @return if both exists specific key returns true, otherwise returns false.
+	 */
+	@VisibleForTesting
+	public static boolean checkExistsMultiHSConfiguration(Path hsConfFilePath, Path flinkConfFilePath) {
+		if (Files.exists(hsConfFilePath) && Files.exists(flinkConfFilePath)) {
+			Configuration hsConfig = loadYAMLResource(hsConfFilePath.toFile());
+			Configuration flinkConfig = loadYAMLResource(flinkConfFilePath.toFile());
+
+			boolean hsConfigExists = false;
+			for (String key : hsConfig.keySet()) {
+				if (key.startsWith(HISTORY_SERVER_OPTION_KEY_PREFIX)) {
+					hsConfigExists = true;
+					break;
+				}
+			}
+
+			boolean flinkConfigExists = false;
+			for (String key : flinkConfig.keySet()) {
+				if (key.startsWith(HISTORY_SERVER_OPTION_KEY_PREFIX)) {
+					flinkConfigExists = true;
+					break;
+				}
+			}
+
+			return hsConfigExists && flinkConfigExists;
+		}
+
+		return false;
 	}
 
 	/**

@@ -100,7 +100,7 @@ public class HistoryServer {
 		String configDir = pt.getRequired("configDir");
 
 		LOG.info("Loading configuration from {}", configDir);
-		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
+		final Configuration flinkConfig = GlobalConfiguration.loadHistoryServerConfiguration(configDir);
 
 		try {
 			FileSystem.initialize(flinkConfig);

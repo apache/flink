@@ -58,6 +58,13 @@ under the License.
 			<outputDirectory>conf</outputDirectory>
 			<fileMode>0644</fileMode>
 		</file>
+
+		<!-- copy the history server config file -->
+		<file>
+			<source>src/main/resources/flink-historyserver-conf.yaml</source>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</file>
 	</files>
 
 	<fileSets>

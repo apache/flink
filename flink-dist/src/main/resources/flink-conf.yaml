@@ -225,6 +225,11 @@ rest.port: 8081
 # HistoryServer
 #==============================================================================
 
+# History Server related configuration items have been moved to the `flink-historyserver-conf.yaml` file.
+# Flink will read the configuration in the `flink-historyserver-conf.yaml` file first,
+# and Flink will attempt to read the relevant configuration items from `flink-conf.yaml` only if it does not exist.
+# Keeping these configuration items in `flink-conf.yaml` is for backward compatibility purposes only.
+
 # The HistoryServer is started and stopped via bin/historyserver.sh (start|stop)
 
 # Directory to upload completed jobs to. Add this directory to the list of

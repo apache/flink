@@ -164,6 +164,8 @@ The configuration keys in this section are independent of the used resource mana
 
 ### History Server
 
+**Note:** History Server related configuration items have been moved to the `flink-historyserver-conf.yaml` file. Flink will read the configuration in the `flink-historyserver-conf.yaml` file first, and Flink will attempt to read the relevant configuration items from `flink-conf.yaml` only if it does not exist. Keeping these configuration items in `flink-conf.yaml` is for backward compatibility purposes only.
+
 You have to configure `jobmanager.archive.fs.dir` in order to archive terminated jobs and add it to the list of monitored directories via `historyserver.archive.fs.dir` if you want to display them via the HistoryServer's web frontend.
 
 - `jobmanager.archive.fs.dir`: Directory to upload information about terminated jobs to. You have to add this directory to the list of monitored directories of the history server via `historyserver.archive.fs.dir`.

@@ -130,4 +130,110 @@ public class GlobalConfigurationTest extends TestLogger {
 		assertTrue(GlobalConfiguration.isSensitive("Secret"));
 		assertFalse(GlobalConfiguration.isSensitive("Hello"));
 	}
+
+	@Test
+	public void testCheckExistsMultiHSConfiguration() {
+		File tmpDir = tempFolder.getRoot();
+		File flinkConfFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		File hsConfFlie = new File(tmpDir, GlobalConfiguration.FLINK_HISTORY_SERVER_CONF_FILENAME);
+
+		try {
+			try (final PrintWriter pw = new PrintWriter(flinkConfFile)) {
+				pw.println("historyserver.a: a");
+				pw.println("historyserver.b: b");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+
+			try (final PrintWriter pw = new PrintWriter(hsConfFlie)) {
+				pw.println("historyserver.a: a");
+				pw.println("historyserver.c: c");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+
+			assertTrue(
+				GlobalConfiguration.checkExistsMultiHSConfiguration(
+					hsConfFlie.toPath(),
+					flinkConfFile.toPath())
+			);
+
+			try (final PrintWriter pw = new PrintWriter(hsConfFlie)) {
+				pw.println("jobmanager.a: a");
+				pw.println("jobmanager.c: c");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+
+			assertFalse(
+				GlobalConfiguration.checkExistsMultiHSConfiguration(
+					hsConfFlie.toPath(),
+					flinkConfFile.toPath())
+			);
+
+			hsConfFlie.delete();
+
+			assertFalse(
+				GlobalConfiguration.checkExistsMultiHSConfiguration(
+					hsConfFlie.toPath(),
+					flinkConfFile.toPath())
+			);
+		} finally {
+			flinkConfFile.delete();
+			hsConfFlie.delete();
+			tmpDir.delete();
+		}
+	}
+
+	@Test
+	public void testLoadHistoryServerConfiguration() {
+		File tmpDir = tempFolder.getRoot();
+		String configDir = tmpDir.getAbsolutePath();
+		File flinkConfFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+		File hsConfFlie = new File(tmpDir, GlobalConfiguration.FLINK_HISTORY_SERVER_CONF_FILENAME);
+
+		try {
+			try (final PrintWriter pw = new PrintWriter(flinkConfFile)) {
+				pw.println("historyserver.a: a");
+				pw.println("historyserver.b: b");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+
+			try (final PrintWriter pw = new PrintWriter(hsConfFlie)) {
+				pw.println("historyserver.a: a");
+				pw.println("historyserver.c: c");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+
+			//read from history server config file
+			Configuration hsConfig = GlobalConfiguration.loadHistoryServerConfiguration(configDir);
+			assertEquals(true, hsConfig.containsKey("historyserver.c"));
+			assertEquals("c", hsConfig.getString("historyserver.c", null));
+			assertEquals(false, hsConfig.containsKey("historyserver.b"));
+
+			//combine dynamic properties
+			Configuration dynamicConfig = new Configuration();
+			dynamicConfig.setString("historyserver.d", "d");
+
+			hsConfig = GlobalConfiguration.loadHistoryServerConfiguration(configDir, dynamicConfig);
+			assertEquals("d", hsConfig.getString("historyserver.d", null));
+
+			//delete history server config file, make it use old mode
+			hsConfFlie.delete();
+			hsConfig = GlobalConfiguration.loadHistoryServerConfiguration(configDir);
+			assertEquals(true, hsConfig.containsKey("historyserver.b"));
+			assertEquals("b", hsConfig.getString("historyserver.b", null));
+			assertEquals(false, hsConfig.containsKey("historyserver.c"));
+
+			hsConfig = GlobalConfiguration.loadHistoryServerConfiguration(configDir, dynamicConfig);
+			assertEquals("d", hsConfig.getString("historyserver.d", null));
+		} finally {
+			flinkConfFile.delete();
+			hsConfFlie.delete();
+			tmpDir.delete();
+		}
+	}
+
 }
