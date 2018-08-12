@@ -25,6 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link RebalancePartitioner}.
@@ -52,9 +53,11 @@ public class RebalancePartitionerTest {
 	@Test
 	public void testSelectChannelsInterval() {
 		sd.setInstance(streamRecord);
-		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(1, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(2, distributePartitioner.selectChannels(sd, 3)[0]);
-		assertEquals(0, distributePartitioner.selectChannels(sd, 3)[0]);
+		int initialChannel = distributePartitioner.selectChannels(sd, 3)[0];
+		assertTrue(0 <= initialChannel);
+		assertTrue(3 > initialChannel);
+		assertEquals((initialChannel + 1) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertEquals((initialChannel + 2) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
+		assertEquals((initialChannel + 3) % 3, distributePartitioner.selectChannels(sd, 3)[0]);
 	}
 }
