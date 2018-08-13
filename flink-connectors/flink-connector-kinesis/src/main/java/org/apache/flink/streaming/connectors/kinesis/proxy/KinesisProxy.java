@@ -91,8 +91,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Exponential backoff power constant for the list shards operation. */
 	private final double listShardsExpConstant;
 
-	/** Maximum attempts for the list shards operation. */
-	private final int listShardsMaxAttempts;
+	/** Maximum retry attempts for the list shards operation. */
+	private final int listShardsMaxRetries;
 
 	// ------------------------------------------------------------------------
 	//  getRecords() related performance settings
@@ -107,8 +107,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Exponential backoff power constant for the get records operation. */
 	private final double getRecordsExpConstant;
 
-	/** Maximum attempts for the get records operation. */
-	private final int getRecordsMaxAttempts;
+	/** Maximum retry attempts for the get records operation. */
+	private final int getRecordsMaxRetries;
 
 	// ------------------------------------------------------------------------
 	//  getShardIterator() related performance settings
@@ -123,8 +123,8 @@ public class KinesisProxy implements KinesisProxyInterface {
 	/** Exponential backoff power constant for the get shard iterator operation. */
 	private final double getShardIteratorExpConstant;
 
-	/** Maximum attempts for the get shard iterator operation. */
-	private final int getShardIteratorMaxAttempts;
+	/** Maximum retry attempts for the get shard iterator operation. */
+	private final int getShardIteratorMaxRetries;
 
 	/**
 	 * Create a new KinesisProxy based on the supplied configuration properties.
@@ -149,7 +149,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.listShardsMaxAttempts = Integer.valueOf(
+		this.listShardsMaxRetries = Integer.valueOf(
 			configProps.getProperty(
 				ConsumerConfigConstants.LIST_SHARDS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_LIST_SHARDS_RETRIES)));
@@ -166,7 +166,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.getRecordsMaxAttempts = Integer.valueOf(
+		this.getRecordsMaxRetries = Integer.valueOf(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_RETRIES)));
@@ -183,7 +183,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT,
 				Double.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT)));
-		this.getShardIteratorMaxAttempts = Integer.valueOf(
+		this.getShardIteratorMaxRetries = Integer.valueOf(
 			configProps.getProperty(
 				ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES,
 				Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETITERATOR_RETRIES)));
@@ -224,14 +224,14 @@ public class KinesisProxy implements KinesisProxyInterface {
 
 		GetRecordsResult getRecordsResult = null;
 
-		int attempt = 0;
-		while (attempt <= getRecordsMaxAttempts && getRecordsResult == null) {
+		int retryCount = 0;
+		while (retryCount <= getRecordsMaxRetries && getRecordsResult == null) {
 			try {
 				getRecordsResult = kinesisClient.getRecords(getRecordsRequest);
 			} catch (SdkClientException ex) {
 				if (isRecoverableSdkClientException(ex)) {
 					long backoffMillis = fullJitterBackoff(
-						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, attempt++);
+						getRecordsBaseBackoffMillis, getRecordsMaxBackoffMillis, getRecordsExpConstant, retryCount++);
 					LOG.warn("Got recoverable SdkClientException. Backing off for "
 						+ backoffMillis + " millis (" + ex.getMessage() + ")");
 					Thread.sleep(backoffMillis);
@@ -242,7 +242,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getRecordsResult == null) {
-			throw new RuntimeException("Rate Exceeded for getRecords operation - all " + getRecordsMaxAttempts +
+			throw new RuntimeException("Rate Exceeded for getRecords operation - all " + getRecordsMaxRetries +
 				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 
@@ -299,14 +299,14 @@ public class KinesisProxy implements KinesisProxyInterface {
 	private String getShardIterator(GetShardIteratorRequest getShardIteratorRequest) throws InterruptedException {
 		GetShardIteratorResult getShardIteratorResult = null;
 
-		int attempt = 0;
-		while (attempt <= getShardIteratorMaxAttempts && getShardIteratorResult == null) {
+		int retryCount = 0;
+		while (retryCount <= getShardIteratorMaxRetries && getShardIteratorResult == null) {
 			try {
 					getShardIteratorResult = kinesisClient.getShardIterator(getShardIteratorRequest);
 			} catch (AmazonServiceException ex) {
 				if (isRecoverableException(ex)) {
 					long backoffMillis = fullJitterBackoff(
-						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, attempt++);
+						getShardIteratorBaseBackoffMillis, getShardIteratorMaxBackoffMillis, getShardIteratorExpConstant, retryCount++);
 					LOG.warn("Got recoverable AmazonServiceException. Backing off for "
 						+ backoffMillis + " millis (" + ex.getErrorMessage() + ")");
 					Thread.sleep(backoffMillis);
@@ -317,7 +317,7 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		if (getShardIteratorResult == null) {
-			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxAttempts +
+			throw new RuntimeException("Rate Exceeded for getShardIterator operation - all " + getShardIteratorMaxRetries +
 				" retry attempts returned ProvisionedThroughputExceededException.");
 		}
 		return getShardIteratorResult.getShardIterator();
@@ -413,16 +413,16 @@ public class KinesisProxy implements KinesisProxyInterface {
 		ListShardsResult listShardsResults = null;
 
 		// Call ListShards, with full-jitter backoff (if we get LimitExceededException).
-		int attemptCount = 0;
+		int retryCount = 0;
 		// List Shards returns just the first 1000 shard entries. Make sure that all entries
 		// are taken up.
-		while (attemptCount <= listShardsMaxAttempts && listShardsResults == null) { // retry until we get a result
+		while (retryCount <= listShardsMaxRetries && listShardsResults == null) { // retry until we get a result
 			try {
 
 				listShardsResults = kinesisClient.listShards(listShardsRequest);
 			} catch (LimitExceededException le) {
 				long backoffMillis = fullJitterBackoff(
-						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, attemptCount++);
+						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, retryCount++);
 					LOG.warn("Got LimitExceededException when listing shards from stream " + streamName
 									+ ". Backing off for " + backoffMillis + " millis.");
 				Thread.sleep(backoffMillis);
@@ -441,13 +441,15 @@ public class KinesisProxy implements KinesisProxyInterface {
 				LOG.warn("List Shards has an expired token. Reusing the previous state.");
 				break;
 			} catch (SdkClientException ex) {
-				if (isRecoverableSdkClientException(ex)) {
+				if (retryCount < listShardsMaxRetries && isRecoverableSdkClientException(ex)) {
 					long backoffMillis = fullJitterBackoff(
-						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, attemptCount++);
+						listShardsBaseBackoffMillis, listShardsMaxBackoffMillis, listShardsExpConstant, retryCount++);
 					LOG.warn("Got SdkClientException when listing shards from stream {}. Backing off for {} millis.",
 						streamName, backoffMillis);
 					Thread.sleep(backoffMillis);
 				} else {
+					// propagate if retries exceeded or not recoverable
+					// (otherwise would return null result and keep trying forever)
 					throw ex;
 				}
 			}

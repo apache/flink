@@ -27,6 +27,7 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonServiceException.ErrorType;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
+import com.amazonaws.SdkClientException;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.AmazonKinesisException;
@@ -230,15 +231,18 @@ public class KinesisProxyTest {
 		assertEquals(shard.getShardId(), result.getLastSeenShardOfStream("fake-stream").getShard().getShardId());
 
 		// test max attempt count exceeded
-		int maxRetries = 0;
+		int maxRetries = 1;
 		exceptionCount.setValue(0);
 		kinesisConsumerConfig.setProperty(ConsumerConfigConstants.LIST_SHARDS_RETRIES, String.valueOf(maxRetries));
 		kinesisProxy = new KinesisProxy(kinesisConsumerConfig);
 		Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
-		result = kinesisProxy.getShardList(streamNames);
+		try {
+			kinesisProxy.getShardList(streamNames);
+			Assert.fail("exception expected");
+		} catch (SdkClientException ex) {
+			assertEquals(retriableExceptions[maxRetries], ex);
+		}
 		assertEquals(maxRetries + 1, exceptionCount.intValue());
-		assertEquals(false, result.hasRetrievedShards());
-
 	}
 
 	@Test
