@@ -20,7 +20,7 @@ The files contain the following variables:
 - `${FLINK_JOB_PARALLELISM}`: Degree of parallelism with which to start the Flink job and the number of required task managers
 
 One way to substitute the variables is to use `envsubst`.
-See [here]((https://stackoverflow.com/a/23622446/4815083)) for a guide to install it on Mac OS X.
+See [here](https://stackoverflow.com/a/23622446/4815083) for a guide to install it on Mac OS X.
 
 In non HA mode, you should first start the job cluster service:
 
