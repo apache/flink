@@ -21,8 +21,8 @@ package org.apache.flink.streaming.tests.artificialstate.builder;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 
@@ -35,7 +35,7 @@ public class ArtificialListStateBuilder<IN, STATE> extends ArtificialStateBuilde
 
 	private transient ListState<STATE> listOperatorState;
 	private transient ListState<STATE> listKeyedState;
-	private final TypeSerializer<STATE> typeSerializer;
+	private final ListStateDescriptor<STATE> listStateDescriptor;
 	private final JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator;
 	private final JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator;
 
@@ -43,11 +43,11 @@ public class ArtificialListStateBuilder<IN, STATE> extends ArtificialStateBuilde
 		String stateName,
 		JoinFunction<IN, Iterable<STATE>, List<STATE>> keyedStateGenerator,
 		JoinFunction<IN, Iterable<STATE>, List<STATE>> operatorStateGenerator,
-		TypeSerializer<STATE> typeSerializer) {
+		ListStateDescriptor<STATE> listStateDescriptor) {
 		super(stateName);
-		this.typeSerializer = typeSerializer;
-		this.keyedStateGenerator = keyedStateGenerator;
-		this.operatorStateGenerator = operatorStateGenerator;
+		this.listStateDescriptor = Preconditions.checkNotNull(listStateDescriptor);
+		this.keyedStateGenerator = Preconditions.checkNotNull(keyedStateGenerator);
+		this.operatorStateGenerator = Preconditions.checkNotNull(operatorStateGenerator);
 	}
 
 	@Override
@@ -58,7 +58,6 @@ public class ArtificialListStateBuilder<IN, STATE> extends ArtificialStateBuilde
 
 	@Override
 	public void initialize(FunctionInitializationContext initializationContext) throws Exception {
-		ListStateDescriptor<STATE> listStateDescriptor = new ListStateDescriptor<>(stateName, typeSerializer);
 		listOperatorState = initializationContext.getOperatorStateStore().getListState(listStateDescriptor);
 		listKeyedState = initializationContext.getKeyedStateStore().getListState(listStateDescriptor);
 	}

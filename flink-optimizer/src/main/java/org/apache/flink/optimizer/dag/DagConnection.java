@@ -54,13 +54,14 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 	private boolean breakPipeline;  // whether this connection should break the pipeline due to potential deadlocks
 
 	/**
-	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>NONE</tt>.
-	 * The temp mode is by default <tt>NONE</tt>.
+	 * Creates a new Connection between two nodes. The shipping strategy is by default <tt>null</tt>.
 	 * 
 	 * @param source
 	 *        The source node.
 	 * @param target
 	 *        The target node.
+	 * @param exchangeMode
+	 *        The data exchange mode (pipelined / batch / batch only for shuffles / ... )
 	 */
 	public DagConnection(OptimizerNode source, OptimizerNode target, ExecutionMode exchangeMode) {
 		this(source, target, null, exchangeMode);
@@ -96,10 +97,12 @@ public class DagConnection implements EstimateProvider, DumpableConnection<Optim
 	 * 
 	 * @param source
 	 *        The source node.
+	 * @param exchangeMode
+	 *        The data exchange mode (pipelined / batch / batch only for shuffles / ... )
 	 */
 	public DagConnection(OptimizerNode source, ExecutionMode exchangeMode) {
 		if (source == null) {
-			throw new NullPointerException("Source and target must not be null.");
+			throw new NullPointerException("Source must not be null.");
 		}
 		this.source = source;
 		this.target = null;

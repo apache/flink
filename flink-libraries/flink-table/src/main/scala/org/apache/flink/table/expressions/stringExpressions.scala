@@ -382,4 +382,31 @@ case class FromBase64(child: Expression) extends UnaryExpression with InputTypeS
   }
 
   override def toString: String = s"($child).fromBase64"
+
+}
+
+/**
+  * Returns the base64-encoded result of the input string.
+  */
+case class ToBase64(child: Expression) extends UnaryExpression with InputTypeSpec {
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO)
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == STRING_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"ToBase64 operator requires a String input, " +
+        s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.TO_BASE64, child.toRexNode)
+  }
+
+  override def toString: String = s"($child).toBase64"
+
 }

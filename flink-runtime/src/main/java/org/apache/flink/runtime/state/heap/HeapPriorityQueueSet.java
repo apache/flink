@@ -106,11 +106,7 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement>
 	@Nullable
 	public T poll() {
 		final T toRemove = super.poll();
-		if (toRemove != null) {
-			return getDedupMapForElement(toRemove).remove(toRemove);
-		} else {
-			return null;
-		}
+		return toRemove != null ? getDedupMapForElement(toRemove).remove(toRemove) : null;
 	}
 
 	/**

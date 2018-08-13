@@ -260,7 +260,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// the new serializer; we're deliberately failing here for now to have equal functionality with
 				// the RocksDB backend to avoid confusion for users.
 
-				throw new StateMigrationException("State migration isn't supported, yet.");
+				throw StateMigrationException.notSupported();
 			}
 		}
 
@@ -459,7 +459,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 					}
 
 					if (asynchronousSnapshots) {
-						LOG.info("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+						LOG.debug("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
 							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
 					}
 
@@ -474,7 +474,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			task.run();
 		}
 
-		LOG.info("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
+		LOG.debug("DefaultOperatorStateBackend snapshot ({}, synchronous part) in thread {} took {} ms.",
 				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - syncStartTime));
 
 		return task;
@@ -781,7 +781,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				// the new serializer; we're deliberately failing here for now to have equal functionality with
 				// the RocksDB backend to avoid confusion for users.
 
-				throw new StateMigrationException("State migration isn't supported, yet.");
+				throw StateMigrationException.notSupported();
 			}
 		}
 

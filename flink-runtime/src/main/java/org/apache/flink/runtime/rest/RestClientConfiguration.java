@@ -94,7 +94,7 @@ public final class RestClientConfiguration {
 			try {
 				sslEngineFactory = SSLUtils.createRestClientSSLEngineFactory(config);
 			} catch (Exception e) {
-				throw new ConfigurationException("Failed to initialize SSLContext for the web frontend", e);
+				throw new ConfigurationException("Failed to initialize SSLContext for the REST client", e);
 			}
 		} else {
 			sslEngineFactory = null;

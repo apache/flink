@@ -38,8 +38,11 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
+import scala.concurrent.Await;
 import scala.concurrent.ExecutionContext$;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.forkjoin.ForkJoinPool;
 import scala.concurrent.impl.ExecutionContextImpl;
 
@@ -62,7 +65,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 	};
 
 	@Test
-	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() {
+	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() throws InterruptedException, TimeoutException {
 
 		final ActorSystem system = ActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
@@ -117,7 +120,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 			}
 
 			JavaTestKit.shutdownActorSystem(system);
-			system.awaitTermination();
+			Await.ready(system.whenTerminated(), Duration.Inf());
 		}
 
 		// shut down the global execution context, to make sure it does not affect this testing

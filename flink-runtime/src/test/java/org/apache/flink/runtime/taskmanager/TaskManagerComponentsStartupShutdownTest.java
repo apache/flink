@@ -62,6 +62,8 @@ import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertTrue;
@@ -205,8 +207,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			jobManager.tell(Kill.getInstance(), ActorRef.noSender());
 
 			// shut down the actors and the actor system
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			actorSystem.terminate();
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 			actorSystem = null;
 
 			// now that the TaskManager is shut down, the components should be shut down as well
@@ -215,9 +217,9 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			assertTrue(memManager.isShutdown());
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.ready(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 
 			highAvailabilityServices.closeAndCleanupAllData();

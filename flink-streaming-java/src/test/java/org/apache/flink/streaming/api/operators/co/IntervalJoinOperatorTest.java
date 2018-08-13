@@ -481,13 +481,16 @@ public class IntervalJoinOperatorTest {
 				TestElem.serializer(),
 				TestElem.serializer(),
 				new ProcessJoinFunction<TestElem, TestElem, Tuple2<TestElem, TestElem>>() {
+
+					private static final long serialVersionUID = 1L;
+
 					@Override
 					public void processElement(
 						TestElem left,
 						TestElem right,
 						Context ctx,
 						Collector<Tuple2<TestElem, TestElem>> out) throws Exception {
-						Assert.assertEquals(left.ts, ctx.getTimestamp());
+						Assert.assertEquals(Math.max(left.ts, right.ts), ctx.getTimestamp());
 					}
 				}
 			);

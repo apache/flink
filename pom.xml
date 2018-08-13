@@ -299,8 +299,14 @@ under the License.
 				<version>1.1.4</version>
 			</dependency>
 
+			<dependency>
+				<groupId>com.github.oshi</groupId>
+				<artifactId>oshi-core</artifactId>
+				<version>3.4.0</version>
+			</dependency>
+
 			<!-- Make sure we use a consistent avro version between Flink and Hadoop -->		
- 			<dependency>
+			<dependency>
 				<groupId>org.apache.avro</groupId>
 				<artifactId>avro</artifactId>
 				<version>${avro.version}</version>
@@ -1426,6 +1432,20 @@ under the License.
 					<version>3.0.0</version>
 				</plugin>
 
+				<plugin>
+					<groupId>pl.project13.maven</groupId>
+					<artifactId>git-commit-id-plugin</artifactId>
+					<!-- Don't use 2.1.14 as it is incompatible with various maven versions --> 
+					<version>2.1.10</version>
+					<configuration>
+						<excludeProperties>
+							<excludeProperty>git.build.*</excludeProperty>
+							<excludeProperty>git.branch.*</excludeProperty>
+							<excludeProperty>git.remote.*</excludeProperty>
+						</excludeProperties>
+					</configuration>
+				</plugin>
+
 				<!-- Disable certain plugins in Eclipse -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
@@ -1533,7 +1553,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.5.0</version>
+								<version>1.6.0</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>

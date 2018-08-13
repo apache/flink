@@ -724,17 +724,19 @@ A `ProcessWindowFunction` can be defined and used like this:
 DataStream<Tuple2<String, Long>> input = ...;
 
 input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .process(new MyProcessWindowFunction());
+  .keyBy(t -> t.f0)
+  .timeWindow(Time.minutes(5))
+  .process(new MyProcessWindowFunction());
 
 /* ... */
 
-public class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+public class MyProcessWindowFunction 
+    extends ProcessWindowFunction<Tuple2<String, Long>, String, String, TimeWindow> {
 
-  void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
+  @Override
+  public void process(String key, Context context, Iterable<Tuple2<String, Long>> input, Collector<String> out) {
     long count = 0;
-    for (Tuple<String, Long> in: input) {
+    for (Tuple2<String, Long> in: input) {
       count++;
     }
     out.collect("Window: " + context.window() + "count: " + count);
@@ -749,9 +751,9 @@ public class MyProcessWindowFunction extends ProcessWindowFunction<Tuple<String,
 val input: DataStream[(String, Long)] = ...
 
 input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .process(new MyProcessWindowFunction())
+  .keyBy(_._1)
+  .timeWindow(Time.minutes(5))
+  .process(new MyProcessWindowFunction())
 
 /* ... */
 
@@ -969,7 +971,7 @@ private static class MyFoldFunction
 
   public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
       Integer cur = acc.getField(2);
-      acc.setField(2, cur + 1);
+      acc.setField(cur + 1, 2);
       return acc;
   }
 }

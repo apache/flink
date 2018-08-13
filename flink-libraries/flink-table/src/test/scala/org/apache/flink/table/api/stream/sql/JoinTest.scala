@@ -63,7 +63,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+              "<=(proctime, +(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -101,7 +101,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+              "<=(c, +(c0, 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -139,7 +139,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+              "<=(proctime, +(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "InnerJoin")
         ),
@@ -177,7 +177,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+              "<=(c, +(c0, 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "InnerJoin")
         ),
@@ -281,7 +281,7 @@ class JoinTest extends TableTestBase {
             term("select", "a", "c", "proctime", "12 AS nullField")
           ),
           term("where", "AND(=(a, a0), =(nullField, nullField0), >=(proctime, " +
-            "-(proctime0, 5000)), <=(proctime, DATETIME_PLUS(proctime0, 5000)))"),
+            "-(proctime0, 5000)), <=(proctime, +(proctime0, 5000)))"),
           term("join", "a", "c", "proctime", "nullField", "a0", "c0", "proctime0", "nullField0"),
           term("joinType", "InnerJoin")
         ),
@@ -321,7 +321,7 @@ class JoinTest extends TableTestBase {
             ),
             term("where",
               "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-                "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+                "<=(c, +(c0, 3600000)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -366,7 +366,7 @@ class JoinTest extends TableTestBase {
             ),
             term("where",
               "AND(=(a, a0), >=(c, -(c0, 600000)), " +
-                "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+                "<=(c, +(c0, 3600000)))"),
             term("join", "a, b, c, a0, b0, c0"),
             term("joinType", "InnerJoin")
           ),
@@ -409,7 +409,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+              "<=(proctime, +(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -447,7 +447,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+              "<=(c, +(c0, 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -486,7 +486,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+              "<=(proctime, +(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -524,7 +524,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+              "<=(c, +(c0, 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "RightOuterJoin")
         ),
@@ -563,7 +563,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(proctime, -(proctime0, 3600000)), " +
-              "<=(proctime, DATETIME_PLUS(proctime0, 3600000)))"),
+              "<=(proctime, +(proctime0, 3600000)))"),
           term("join", "a, proctime, a0, b, proctime0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -601,7 +601,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+              "<=(c, +(c0, 3600000)))"),
           term("join", "a, c, a0, b, c0"),
           term("joinType", "FullOuterJoin")
         ),
@@ -641,7 +641,7 @@ class JoinTest extends TableTestBase {
           ),
           term("where",
             "AND(=(a, a0), >=(c, -(c0, 10000)), " +
-              "<=(c, DATETIME_PLUS(c0, 3600000)), LIKE(b, b0))"),
+              "<=(c, +(c0, 3600000)), LIKE(b, b0))"),
           term("join", "a, b, c, a0, b0, c0"),
           // Since we filter on attributes b and b0 after the join, the full outer join
           // will be automatically optimized to inner join.

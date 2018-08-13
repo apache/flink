@@ -313,7 +313,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * Returns the total number of state entries across all keys/namespaces.
 	 */
 	@VisibleForTesting
-	public abstract int numStateEntries();
+	public abstract int numKeyValueStateEntries();
 
 	// TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
 	public boolean requiresLegacySynchronousTimerSnapshots() {

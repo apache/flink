@@ -361,12 +361,14 @@ public class ExecutionContext<T> {
 
 		private ExecutionEnvironment createExecutionEnvironment() {
 			final ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
+			execEnv.setRestartStrategy(mergedEnv.getExecution().getRestartStrategy());
 			execEnv.setParallelism(mergedEnv.getExecution().getParallelism());
 			return execEnv;
 		}
 
 		private StreamExecutionEnvironment createStreamExecutionEnvironment() {
 			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setRestartStrategy(mergedEnv.getExecution().getRestartStrategy());
 			env.setParallelism(mergedEnv.getExecution().getParallelism());
 			env.setMaxParallelism(mergedEnv.getExecution().getMaxParallelism());
 			env.setStreamTimeCharacteristic(mergedEnv.getExecution().getTimeCharacteristic());

@@ -67,6 +67,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
+
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
  */
@@ -114,8 +117,8 @@ public class ClientTest extends TestLogger {
 	public void shutDownActorSystem() {
 		if (jobManagerSystem != null) {
 			try {
-				jobManagerSystem.shutdown();
-				jobManagerSystem.awaitTermination();
+				jobManagerSystem.terminate();
+				Await.ready(jobManagerSystem.whenTerminated(), Duration.Inf());
 			} catch (Exception e) {
 				e.printStackTrace();
 				fail(e.getMessage());

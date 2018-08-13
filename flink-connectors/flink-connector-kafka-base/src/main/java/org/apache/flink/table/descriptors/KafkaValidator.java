@@ -48,12 +48,27 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_PROPERTIES = "connector.properties";
 	public static final String CONNECTOR_PROPERTIES_KEY = "key";
 	public static final String CONNECTOR_PROPERTIES_VALUE = "value";
+	public static final String CONNECTOR_SINK_PARTITIONER = "connector.sink-partitioner";
+	public static final String CONNECTOR_SINK_PARTITIONER_VALUE_FIXED = "fixed";
+	public static final String CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN = "round-robin";
+	public static final String CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM = "custom";
+	public static final String CONNECTOR_SINK_PARTITIONER_CLASS = "connector.sink-partitioner-class";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
 		super.validate(properties);
 		properties.validateValue(CONNECTOR_TYPE(), CONNECTOR_TYPE_VALUE_KAFKA, false);
 
+		validateVersion(properties);
+
+		validateStartupMode(properties);
+
+		validateKafkaProperties(properties);
+
+		validateSinkPartitioner(properties);
+	}
+
+	private void validateVersion(DescriptorProperties properties) {
 		final List<String> versions = Arrays.asList(
 			CONNECTOR_VERSION_VALUE_08,
 			CONNECTOR_VERSION_VALUE_09,
@@ -61,7 +76,9 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 			CONNECTOR_VERSION_VALUE_011);
 		properties.validateEnumValues(CONNECTOR_VERSION(), false, versions);
 		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
+	}
 
+	private void validateStartupMode(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
 		specificOffsetValidators.put(
 			CONNECTOR_SPECIFIC_OFFSETS_PARTITION,
@@ -86,15 +103,27 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 			CONNECTOR_STARTUP_MODE_VALUE_SPECIFIC_OFFSETS,
 			prefix -> properties.validateFixedIndexedProperties(CONNECTOR_SPECIFIC_OFFSETS, false, specificOffsetValidators));
 		properties.validateEnum(CONNECTOR_STARTUP_MODE, true, startupModeValidation);
+	}
 
+	private void validateKafkaProperties(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> propertyValidators = new HashMap<>();
 		propertyValidators.put(
 			CONNECTOR_PROPERTIES_KEY,
-			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_KEY, false, 1, Integer.MAX_VALUE));
+			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_KEY, false, 1));
 		propertyValidators.put(
 			CONNECTOR_PROPERTIES_VALUE,
-			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_VALUE, false, 0, Integer.MAX_VALUE));
+			prefix -> properties.validateString(prefix + CONNECTOR_PROPERTIES_VALUE, false, 0));
 		properties.validateFixedIndexedProperties(CONNECTOR_PROPERTIES, true, propertyValidators);
+	}
+
+	private void validateSinkPartitioner(DescriptorProperties properties) {
+		final Map<String, Consumer<String>> sinkPartitionerValidators = new HashMap<>();
+		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_FIXED, properties.noValidation());
+		sinkPartitionerValidators.put(CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN, properties.noValidation());
+		sinkPartitionerValidators.put(
+			CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM,
+			prefix -> properties.validateString(CONNECTOR_SINK_PARTITIONER_CLASS, false, 1));
+		properties.validateEnum(CONNECTOR_SINK_PARTITIONER, true, sinkPartitionerValidators);
 	}
 
 	// utilities

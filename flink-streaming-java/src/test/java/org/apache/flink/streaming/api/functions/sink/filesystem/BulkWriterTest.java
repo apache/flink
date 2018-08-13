@@ -59,7 +59,7 @@ public class BulkWriterTest extends TestLogger {
 								10L,
 								new TestUtils.TupleToStringBucketer(),
 								new TestBulkWriterFactory(),
-								new DefaultBucketFactory<>())
+								new DefaultBucketFactoryImpl<>())
 		) {
 
 			testHarness.setup();

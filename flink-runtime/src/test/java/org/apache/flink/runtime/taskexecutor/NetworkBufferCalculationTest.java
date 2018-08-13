@@ -27,6 +27,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.util.Optional;
 
 import static org.apache.flink.util.MathUtils.checkedDownCast;
 import static org.junit.Assert.assertEquals;
@@ -108,6 +109,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			memType,
 			false,
 			managedMemoryFraction,
-			0);
+			0,
+			Optional.empty());
 	}
 }

@@ -88,7 +88,7 @@ class ExternalCatalogTable(
     * Returns whether this external table is declared as table sink.
     */
   def isTableSink: Boolean = {
-    isSource
+    isSink
   }
 
   /**

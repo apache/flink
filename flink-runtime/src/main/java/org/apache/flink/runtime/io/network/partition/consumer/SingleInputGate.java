@@ -62,10 +62,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An input gate consumes one or more partitions of a single produced intermediate result.
  *
- * <p> Each intermediate result is partitioned over its producing parallel subtasks; each of these
+ * <p>Each intermediate result is partitioned over its producing parallel subtasks; each of these
  * partitions is furthermore partitioned into one or more subpartitions.
  *
- * <p> As an example, consider a map-reduce program, where the map operator produces data and the
+ * <p>As an example, consider a map-reduce program, where the map operator produces data and the
  * reduce operator consumes the produced data.
  *
  * <pre>{@code
@@ -74,7 +74,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * +-----+              +---------------------+              +--------+
  * }</pre>
  *
- * <p> When deploying such a program in parallel, the intermediate result will be partitioned over its
+ * <p>When deploying such a program in parallel, the intermediate result will be partitioned over its
  * producing parallel subtasks; each of these partitions is furthermore partitioned into one or more
  * subpartitions.
  *
@@ -95,7 +95,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *               +-----------------------------------------+
  * }</pre>
  *
- * <p> In the above example, two map subtasks produce the intermediate result in parallel, resulting
+ * <p>In the above example, two map subtasks produce the intermediate result in parallel, resulting
  * in two partitions (Partition 1 and 2). Each of these partitions is further partitioned into two
  * subpartitions -- one for each parallel reduce subtask.
  */
@@ -274,6 +274,11 @@ public class SingleInputGate implements InputGate {
 		return 0;
 	}
 
+	@Override
+	public String getOwningTaskName() {
+		return owningTaskName;
+	}
+
 	// ------------------------------------------------------------------------
 	// Setup/Life-cycle
 	// ------------------------------------------------------------------------
@@ -364,7 +369,7 @@ public class SingleInputGate implements InputGate {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");
 				}
 
-				LOG.debug("Updated unknown input channel to {}.", newChannel);
+				LOG.debug("{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
 
 				inputChannels.put(partitionId, newChannel);
 
@@ -393,7 +398,7 @@ public class SingleInputGate implements InputGate {
 
 				checkNotNull(ch, "Unknown input channel with ID " + partitionId);
 
-				LOG.debug("Retriggering partition request {}:{}.", ch.partitionId, consumedSubpartitionIndex);
+				LOG.debug("{}: Retriggering partition request {}:{}.", owningTaskName, ch.partitionId, consumedSubpartitionIndex);
 
 				if (ch.getClass() == RemoteInputChannel.class) {
 					final RemoteInputChannel rch = (RemoteInputChannel) ch;
@@ -432,7 +437,8 @@ public class SingleInputGate implements InputGate {
 							inputChannel.releaseAllResources();
 						}
 						catch (IOException e) {
-							LOG.warn("Error during release of channel resources: " + e.getMessage(), e);
+							LOG.warn("{}: Error during release of channel resources: {}.",
+								owningTaskName, e.getMessage(), e);
 						}
 					}
 
@@ -725,7 +731,8 @@ public class SingleInputGate implements InputGate {
 			inputGate.setInputChannel(partitionId.getPartitionId(), inputChannels[i]);
 		}
 
-		LOG.debug("Created {} input channels (local: {}, remote: {}, unknown: {}).",
+		LOG.debug("{}: Created {} input channels (local: {}, remote: {}, unknown: {}).",
+			owningTaskName,
 			inputChannels.length,
 			numLocalChannels,
 			numRemoteChannels,

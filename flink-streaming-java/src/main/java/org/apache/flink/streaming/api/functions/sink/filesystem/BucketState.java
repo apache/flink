@@ -32,64 +32,90 @@ import java.util.Map;
  * The state of the {@link Bucket} that is to be checkpointed.
  */
 @Internal
-public class BucketState<BucketID> {
+class BucketState<BucketID> {
 
 	private final BucketID bucketId;
 
-	/**
-	 * The base path for the bucket, i.e. the directory where all the part files are stored.
-	 */
+	/** The directory where all the part files of the bucket are stored. */
 	private final Path bucketPath;
 
 	/**
-	 * The creation time of the currently open part file, or {@code Long.MAX_VALUE} if there is no open part file.
+	 * The creation time of the currently open part file,
+	 * or {@code Long.MAX_VALUE} if there is no open part file.
 	 */
-	private final long creationTime;
+	private final long inProgressFileCreationTime;
 
 	/**
-	 * A {@link RecoverableWriter.ResumeRecoverable} for the currently open part file, or null
-	 * if there is no currently open part file.
+	 * A {@link RecoverableWriter.ResumeRecoverable} for the currently open
+	 * part file, or null if there is no currently open part file.
 	 */
 	@Nullable
-	private final RecoverableWriter.ResumeRecoverable inProgress;
+	private final RecoverableWriter.ResumeRecoverable inProgressResumableFile;
 
 	/**
-	 * The {@link RecoverableWriter.CommitRecoverable files} pending to be committed, organized by checkpoint id.
+	 * The {@link RecoverableWriter.CommitRecoverable files} pending to be
+	 * committed, organized by checkpoint id.
 	 */
-	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPerCheckpoint;
+	private final Map<Long, List<RecoverableWriter.CommitRecoverable>> committableFilesPerCheckpoint;
 
-	public BucketState(
+	BucketState(
 			final BucketID bucketId,
 			final Path bucketPath,
-			final long creationTime,
-			@Nullable final RecoverableWriter.ResumeRecoverable inProgress,
-			final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingPerCheckpoint
+			final long inProgressFileCreationTime,
+			@Nullable final RecoverableWriter.ResumeRecoverable inProgressResumableFile,
+			final Map<Long, List<RecoverableWriter.CommitRecoverable>> pendingCommittablesPerCheckpoint
 	) {
 		this.bucketId = Preconditions.checkNotNull(bucketId);
 		this.bucketPath = Preconditions.checkNotNull(bucketPath);
-		this.creationTime = creationTime;
-		this.inProgress = inProgress;
-		this.pendingPerCheckpoint = Preconditions.checkNotNull(pendingPerCheckpoint);
+		this.inProgressFileCreationTime = inProgressFileCreationTime;
+		this.inProgressResumableFile = inProgressResumableFile;
+		this.committableFilesPerCheckpoint = Preconditions.checkNotNull(pendingCommittablesPerCheckpoint);
 	}
 
-	public BucketID getBucketId() {
+	BucketID getBucketId() {
 		return bucketId;
 	}
 
-	public Path getBucketPath() {
+	Path getBucketPath() {
 		return bucketPath;
 	}
 
-	public long getCreationTime() {
-		return creationTime;
+	long getInProgressFileCreationTime() {
+		return inProgressFileCreationTime;
+	}
+
+	boolean hasInProgressResumableFile() {
+		return inProgressResumableFile != null;
 	}
 
 	@Nullable
-	public RecoverableWriter.ResumeRecoverable getInProgress() {
-		return inProgress;
+	RecoverableWriter.ResumeRecoverable getInProgressResumableFile() {
+		return inProgressResumableFile;
 	}
 
-	public Map<Long, List<RecoverableWriter.CommitRecoverable>> getPendingPerCheckpoint() {
-		return pendingPerCheckpoint;
+	Map<Long, List<RecoverableWriter.CommitRecoverable>> getCommittableFilesPerCheckpoint() {
+		return committableFilesPerCheckpoint;
+	}
+
+	@Override
+	public String toString() {
+		final StringBuilder strBuilder = new StringBuilder();
+
+		strBuilder
+				.append("BucketState for bucketId=").append(bucketId)
+				.append(" and bucketPath=").append(bucketPath);
+
+		if (hasInProgressResumableFile()) {
+			strBuilder.append(", has open part file created @ ").append(inProgressFileCreationTime);
+		}
+
+		if (!committableFilesPerCheckpoint.isEmpty()) {
+			strBuilder.append(", has pending files for checkpoints: {");
+			for (long checkpointId: committableFilesPerCheckpoint.keySet()) {
+				strBuilder.append(checkpointId).append(' ');
+			}
+			strBuilder.append('}');
+		}
+		return strBuilder.toString();
 	}
 }

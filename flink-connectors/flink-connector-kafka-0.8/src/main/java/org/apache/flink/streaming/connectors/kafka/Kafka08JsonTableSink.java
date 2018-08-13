@@ -26,6 +26,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.types.Row;
 
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -92,17 +93,24 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	}
 
 	@Override
-	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, FlinkKafkaPartitioner<Row> partitioner) {
+	protected FlinkKafkaProducerBase<Row> createKafkaProducer(
+			String topic,
+			Properties properties,
+			SerializationSchema<Row> serializationSchema,
+			Optional<FlinkKafkaPartitioner<Row>> partitioner) {
 		return new FlinkKafkaProducer08<>(
 			topic,
 			serializationSchema,
 			properties,
-			partitioner);
+			partitioner.orElse(new FlinkFixedPartitioner<>()));
 	}
 
 	@Override
 	protected Kafka08JsonTableSink createCopy() {
-		return new Kafka08JsonTableSink(topic, properties, partitioner);
+		return new Kafka08JsonTableSink(
+			topic,
+			properties,
+			partitioner.orElse(new FlinkFixedPartitioner<>()));
 	}
 }
 

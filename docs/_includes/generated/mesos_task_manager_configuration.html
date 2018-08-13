@@ -10,12 +10,12 @@
         <tr>
             <td><h5>mesos.constraints.hard.hostattribute</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>Constraints for task placement on mesos.</td>
+            <td>Constraints for task placement on Mesos based on agent attributes. Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target mesos agents. Example: az:eu-west-1a,series:t2</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.bootstrap-cmd</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>A command which is executed before the TaskManager is started.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.container.docker.force-pull-image</h5></td>
@@ -50,12 +50,12 @@
         <tr>
             <td><h5>mesos.resourcemanager.tasks.gpus</h5></td>
             <td style="word-wrap: break-word;">0</td>
-            <td></td>
+            <td>GPUs to assign to the Mesos workers.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.hostname</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>Optional value to define the TaskManager’s hostname. The pattern _TASK_ is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. _TASK_.flink-service.mesos) for name lookups.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.mem</h5></td>

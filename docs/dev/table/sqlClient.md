@@ -106,7 +106,11 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-The [configuration section](sqlClient.html#configuration) explains how to read from table sources and configure other table program properties.
+Both result modes can be useful during the prototyping of SQL queries.
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
+
+After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
 {% top %}
 
@@ -161,13 +165,8 @@ Every environment file is a regular [YAML file](http://yaml.org/). An example of
 # Define table sources here.
 
 tables:
-  - name: MyTableName
+  - name: MyTableSource
     type: source
-    schema:
-      - name: MyField1
-        type: INT
-      - name: MyField2
-        type: VARCHAR
     connector:
       type: filesystem
       path: "/path/to/something.csv"
@@ -180,6 +179,21 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+    schema:
+      - name: MyField1
+        type: INT
+      - name: MyField2
+        type: VARCHAR
+
+# Define user-defined functions here.
+
+functions:
+  - name: myUDF
+    from: class
+    class: foo.bar.AggregateUDF
+    constructor:
+      - 7.6
+      - false
 
 # Execution properties allow for changing the behavior of a table program.
 
@@ -192,6 +206,8 @@ execution:
   max-parallelism: 16               # optional: Flink's maximum parallelism (128 by default)
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
+  restart-strategy:                 # optional: restart strategy
+    type: fallback                  #           "fallback" to global restart strategy by default
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
@@ -202,6 +218,7 @@ deployment:
 This configuration:
 
 - defines an environment with a table source `MyTableName` that reads from a CSV file,
+- defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
 - runs queries in the `table` result mode.
@@ -214,7 +231,35 @@ Depending on the use case, a configuration can be split into multiple files. The
 CLI commands > session environment file > defaults environment file
 {% endhighlight %}
 
-Queries that are executed in a batch environment, can only be retrieved using the `table` result mode. 
+#### Restart Strategies
+
+Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({{ site.baseurl }}/dev/restart_strategies.html) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+
+The following strategies are supported:
+
+{% highlight yaml %}
+execution:
+  # falls back to the global strategy defined in flink-conf.yaml
+  restart-strategy:
+    type: fallback
+
+  # job fails directly and no restart is attempted
+  restart-strategy:
+    type: none
+
+  # attempts a given number of times to restart the job
+  restart-strategy:
+    type: fixed-delay
+    attempts: 3      # retries before job is declared as failed (default: Integer.MAX_VALUE)
+    delay: 10000     # delay in ms between retries (default: 10 s)
+
+  # attempts as long as the maximum number of failures per time interval is not exceeded
+  restart-strategy:
+    type: failure-rate
+    max-failures-per-interval: 1   # retries in interval until failing (default: 1)
+    failure-rate-interval: 60000   # measuring interval in ms for failure rate
+    delay: 10000                   # delay in ms between retries (default: 10 s)
+{% endhighlight %}
 
 {% top %}
 
@@ -222,50 +267,32 @@ Queries that are executed in a batch environment, can only be retrieved using th
 
 The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON), Flink provides **ready-to-use JAR bundles**. These JAR files are suffixed with `sql-jar` and can be downloaded for each release from the Maven central repository.
 
-{% if site.is_stable %}
+The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page](connect.html).
 
-#### Connectors
-
-| Name              | Version       | Download               |
-| :---------------- | :------------ | :--------------------- |
-| Filesystem        |               | Built-in               |
-| Apache Kafka      | 0.9           | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.9{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.9{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
-| Apache Kafka      | 0.10          | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
-| Apache Kafka      | 0.11          | [Download](http://central.maven.org/maven2/org/apache/flink/flink-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
-
-#### Formats
-
-| Name              | Download               |
-| :---------------- | :--------------------- |
-| CSV               | Built-in               |
-| JSON              | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
-| Apache Avro       | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
-
-{% endif %}
-
-{% top %}
-
-Table Sources
--------------
-
-Sources are defined using a set of [YAML properties](http://yaml.org/). Similar to a SQL `CREATE TABLE` statement you define the name of the table, the final schema of the table, connector, and a data format if necessary. Additionally, you have to specify its type (source, sink, or both).
-
-{% highlight yaml %}
-name: MyTable     # required: string representing the table name
-type: source      # required: currently only 'source' is supported
-schema: ...       # required: final table schema
-connector: ...    # required: connector configuration
-format: ...       # optional: format that depends on the connector
-{% endhighlight %}
-
-<span class="label label-danger">Attention</span> Not every combination of connector and format is supported. Internally, your YAML file is translated into a set of string-based properties by which the SQL Client tries to resolve a matching table source. If a table source can be resolved also depends on the JAR files available in the classpath.
-
-The following example shows an environment file that defines a table source reading JSON data from Apache Kafka. All properties are explained in the following subsections. 
+The following example shows an environment file that defines a table source reading JSON data from Apache Kafka.
 
 {% highlight yaml %}
 tables:
   - name: TaxiRides
     type: source
+    update-mode: append
+    connector:
+      property-version: 1
+      type: kafka
+      version: 0.11
+      topic: TaxiRides
+      startup-mode: earliest-offset
+      properties:
+        - key: zookeeper.connect
+          value: localhost:2181
+        - key: bootstrap.servers
+          value: localhost:9092
+        - key: group.id
+          value: testGroup
+    format:
+      property-version: 1
+      type: json
+      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
     schema:
       - name: rideId
         type: LONG
@@ -285,12 +312,118 @@ tables:
       - name: procTime
         type: TIMESTAMP
         proctime: true
+{% endhighlight %}
+
+The resulting schema of the `TaxiRide` table contains most of the fields of the JSON schema. Furthermore, it adds a rowtime attribute `rowTime` and processing-time attribute `procTime`.
+
+Both `connector` and `format` allow to define a property version (which is currently version `1`) for future backwards compatibility.
+
+{% top %}
+
+### User-defined Functions
+
+The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
+
+In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+
+All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
+
+- a `name` under which the function is registered,
+- the source of the function using `from` (restricted to be `class` for now),
+- the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+
+{% highlight yaml %}
+functions:
+  - name: ...               # required: name of the function
+    from: class             # required: source of the function (can only be "class" for now)
+    class: ...              # required: fully qualified class name of the function
+    constructor:            # optimal: constructor parameters of the function class
+      - ...                 # optimal: a literal parameter with implicit type
+      - class: ...          # optimal: full class name of the parameter
+        constructor:        # optimal: constructor parameters of the parameter's class
+          - type: ...       # optimal: type of the literal parameter
+            value: ...      # optimal: value of the literal parameter
+{% endhighlight %}
+
+Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+
+#### Constructor Parameters
+
+Depending on the user-defined function, it might be necessary to parameterize the implementation before using it in SQL statements.
+
+As shown in the example before, when declaring a user-defined function, a class can be configured using constructor parameters in one of the following three ways:
+
+**A literal value with implicit type:** The SQL Client will automatically derive the type according to the literal value itself. Currently, only values of `BOOLEAN`, `INT`, `DOUBLE` and `VARCHAR` are supported here.
+If the automatic derivation does not work as expected (e.g., you need a VARCHAR `false`), use explicit types instead.
+
+{% highlight yaml %}
+- true         # -> BOOLEAN (case sensitive)
+- 42           # -> INT
+- 1234.222     # -> DOUBLE
+- foo          # -> VARCHAR
+{% endhighlight %}
+
+**A literal value with explicit type:** Explicitly declare the parameter with `type` and `value` properties for type-safety.
+
+{% highlight yaml %}
+- type: DECIMAL
+  value: 11111111111111111
+{% endhighlight %}
+
+The table below illustrates the supported Java parameter types and the corresponding SQL type strings.
+
+| Java type               |  SQL type         |
+| :---------------------- | :---------------- |
+| `java.math.BigDecimal`  | `DECIMAL`         |
+| `java.lang.Boolean`     | `BOOLEAN`         |
+| `java.lang.Byte`        | `TINYINT`         |
+| `java.lang.Double`      | `DOUBLE`          |
+| `java.lang.Float`       | `REAL`, `FLOAT`   |
+| `java.lang.Integer`     | `INTEGER`, `INT`  |
+| `java.lang.Long`        | `BIGINT`          |
+| `java.lang.Short`       | `SMALLINT`        |
+| `java.lang.String`      | `VARCHAR`         |
+
+More types (e.g., `TIMESTAMP` or `ARRAY`), primitive types, and `null` are not supported yet.
+
+**A (nested) class instance:** Besides literal values, you can also create (nested) class instances for constructor parameters by specifying the `class` and `constructor` properties.
+This process can be recursively performed until all the constructor parameters are represented with literal values.
+
+{% highlight yaml %}
+- class: foo.bar.paramClass
+  constructor:
+    - StarryName
+    - class: java.lang.Integer
+      constructor:
+        - class: java.lang.String
+          constructor:
+            - type: VARCHAR
+              value: 3
+{% endhighlight %}
+
+{% top %}
+
+Detached SQL Queries
+------------------------
+
+In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
+
+{% highlight sql %}
+INSERT INTO MyTableSink SELECT * FROM MyTableSource
+{% endhighlight %}
+
+The table sink `MyTableSink` has to be declared in the environment file. See the [connection page](connect.html) for more information about supported external systems and their configuration. An example for an Apache Kafka table sink is shown below.
+
+{% highlight yaml %}
+tables:
+  - name: MyTableSink
+    type: sink
+    update-mode: append
     connector:
       property-version: 1
       type: kafka
       version: 0.11
-      topic: TaxiRides
-      startup-mode: earliest-offset
+      topic: OutputTopic
       properties:
         - key: zookeeper.connect
           value: localhost:2181
@@ -301,335 +434,28 @@ tables:
     format:
       property-version: 1
       type: json
-      schema: "ROW(rideId LONG, lon FLOAT, lat FLOAT, rideTime TIMESTAMP)"
+      derive-schema: true
+    schema:
+      - name: rideId
+        type: LONG
+      - name: lon
+        type: FLOAT
+      - name: lat
+        type: FLOAT
+      - name: rideTime
+        type: TIMESTAMP
 {% endhighlight %}
 
-The resulting schema of the `TaxiRide` table contains most of the fields of the JSON schema. Furthermore, it adds a rowtime attribute `rowTime` and processing-time attribute `procTime`. Both `connector` and `format` allow to define a property version (which is currently version `1`) for future backwards compatibility.
+The SQL Client makes sure that a statement is successfully submitted to the cluster. Once the query is submitted, the CLI will show information about the Flink job.
 
-{% top %}
-
-### Schema Properties
-
-The schema allows for describing the final appearance of a table. It specifies the final name, final type, and the origin of a field. The origin of a field might be important if the name of the field should differ from the input format. For instance, a field `name&field` should reference `nameField` from an Avro format.
-
-{% highlight yaml %}
-schema:
-  - name: MyField1
-    type: ...
-  - name: MyField2
-    type: ...
-  - name: MyField3
-    type: ...
+{% highlight text %}
+[INFO] Table update statement has been successfully submitted to the cluster:
+Cluster ID: StandaloneClusterId
+Job ID: 6f922fe5cba87406ff23ae4a7bb79044
+Web interface: http://localhost:8081
 {% endhighlight %}
 
-For *each field*, the following properties can be used:
-
-{% highlight yaml %}
-name: ...         # required: final name of the field
-type: ...         # required: final type of the field represented as a type string
-proctime: ...     # optional: boolean flag whether this field should be a processing-time attribute
-rowtime: ...      # optional: wether this field should be a event-time attribute
-from: ...         # optional: original field in the input that is referenced/aliased by this field
-{% endhighlight %}
-
-#### Type Strings
-
-The following type strings are supported for being defined in an environment file:
-
-{% highlight yaml %}
-VARCHAR
-BOOLEAN
-TINYINT
-SMALLINT
-INT
-BIGINT
-FLOAT
-DOUBLE
-DECIMAL
-DATE
-TIME
-TIMESTAMP
-ROW(fieldtype, ...)              # unnamed row; e.g. ROW(VARCHAR, INT) that is mapped to Flink's RowTypeInfo
-                                 # with indexed fields names f0, f1, ...
-ROW(fieldname fieldtype, ...)    # named row; e.g., ROW(myField VARCHAR, myOtherField INT) that
-                                 # is mapped to Flink's RowTypeInfo
-POJO(class)                      # e.g., POJO(org.mycompany.MyPojoClass) that is mapped to Flink's PojoTypeInfo
-ANY(class)                       # e.g., ANY(org.mycompany.MyClass) that is mapped to Flink's GenericTypeInfo
-ANY(class, serialized)           # used for type information that is not supported by Flink's Table & SQL API
-{% endhighlight %}
-
-#### Rowtime Properties
-
-In order to control the event-time behavior for table sources, the SQL Client provides predefined timestamp extractors and watermark strategies. For more information about time handling in Flink and especially event-time, we recommend the general [event-time section](streaming.html#time-attributes). 
-
-The following timestamp extractors are supported:
-
-{% highlight yaml %}
-# Converts an existing BIGINT or TIMESTAMP field in the input into the rowtime attribute.
-rowtime:
-  timestamps:
-    type: from-field
-    from: ...                 # required: original field name in the input
-
-# Converts the assigned timestamps from a DataStream API record into the rowtime attribute 
-# and thus preserves the assigned timestamps from the source.
-rowtime:
-  timestamps:
-    type: from-source
-{% endhighlight %}
-
-The following watermark strategies are supported:
-
-{% highlight yaml %}
-# Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum 
-# observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
-# are not late.
-rowtime:
-  watermarks:
-    type: periodic-ascending
-
-# Sets a built-in watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
-# Emits watermarks which are the maximum observed timestamp minus the specified delay.
-rowtime:
-  watermarks:
-    type: periodic-bounded
-    delay: ...                # required: delay in milliseconds
-
-# Sets a built-in watermark strategy which indicates the watermarks should be preserved from the
-# underlying DataStream API and thus preserves the assigned watermarks from the source.
-rowtime:
-  watermarks:
-    type: from-source
-{% endhighlight %}
-
-{% top %}
-
-### Connector Properties
-
-Flink provides a set of connectors that can be defined in the environment file.
-
-<span class="label label-danger">Attention</span> Currently, connectors can only be used as table sources not sinks.
-
-#### Filesystem Connector
-
-The filesystem connector allows for reading from a local or distributed filesystem. A filesystem can be defined as:
-
-{% highlight yaml %}
-connector:
-  type: filesystem
-  path: "file:///path/to/whatever"       # required
-{% endhighlight %}
-
-Currently, only files with CSV format can be read from a filesystem. The filesystem connector is included in Flink and does not require an additional JAR file.
-
-#### Kafka Connector
-
-The Kafka connector allows for reading from a Apache Kafka topic. It can be defined as follows:
-
-{% highlight yaml %}
-connector:
-  type: kafka
-  version: 0.11       # required: valid connector versions are "0.8", "0.9", "0.10", and "0.11"
-  topic: ...          # required: topic name from which the table is read
-  startup-mode: ...   # optional: valid modes are "earliest-offset", "latest-offset",
-                      # "group-offsets", or "specific-offsets"
-  specific-offsets:   # optional: used in case of startup mode with specific offsets
-    - partition: 0
-      offset: 42
-    - partition: 1
-      offset: 300
-  properties:         # optional: connector specific properties
-    - key: zookeeper.connect
-      value: localhost:2181
-    - key: bootstrap.servers
-      value: localhost:9092
-    - key: group.id
-      value: testGroup
-{% endhighlight %}
-
-Make sure to download the [Kafka SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
-
-{% top %}
-
-### Format Properties
-
-Flink provides a set of formats that can be defined in the environment file.
-
-#### CSV Format
-
-The CSV format allows to read comma-separated rows. Currently, this is only supported for the filesystem connector.
-
-{% highlight yaml %}
-format:
-  type: csv
-  fields:                    # required: format fields
-    - name: field1
-      type: VARCHAR
-    - name: field2
-      type: TIMESTAMP
-  field-delimiter: ","      # optional: string delimiter "," by default 
-  line-delimiter: "\n"       # optional: string delimiter "\n" by default 
-  quote-character: '"'       # optional: single character for string values, empty by default
-  comment-prefix: '#'        # optional: string to indicate comments, empty by default
-  ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
-  ignore-parse-errors: true  # optional: skip records with parse error instead to fail by default
-{% endhighlight %}
-
-The CSV format is included in Flink and does not require an additional JAR file.
-
-#### JSON Format
-
-The JSON format allows to read and write JSON data that corresponds to a given format schema. The format schema can be defined either as a Flink [type string](sqlClient.html#type-strings), as a JSON schema, or derived from the desired table schema. A type string enables a more SQL-like definition and mapping to the corresponding SQL data types. The JSON schema allows for more complex and nested structures.
-
-If the format schema is equal to the table schema, the schema can also be automatically derived. This allows for defining schema information only once. The names, types, and field order of the format are determined by the table's schema. Time attributes are ignored. A `from` definition in the table schema is interpreted as a field renaming in the format.
-
-{% highlight yaml %}
-format:
-  type: json
-  fail-on-missing-field: true   # optional: flag whether to fail if a field is missing or not 
-
-  # required: define the schema either by using a type string which parses numbers to corresponding types
-  schema: "ROW(lon FLOAT, rideTime TIMESTAMP)"
-
-  # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
-  json-schema: >
-    {
-      type: 'object',
-      properties: {
-        lon: {
-          type: 'number'
-        },
-        rideTime: {
-          type: 'string',
-          format: 'date-time'
-        }
-      }
-    }
-
-  # or use the tables schema
-  derive-schema: true
-{% endhighlight %}
-
-The following table shows the mapping of JSON schema types to Flink SQL types:
-
-| JSON schema                       | Flink SQL               |
-| :-------------------------------- | :---------------------- |
-| `object`                          | `ROW`                   |
-| `boolean`                         | `BOOLEAN`               |
-| `array`                           | `ARRAY[_]`              |
-| `number`                          | `DECIMAL`               |
-| `integer`                         | `DECIMAL`               |
-| `string`                          | `VARCHAR`               |
-| `string` with `format: date-time` | `TIMESTAMP`             |
-| `string` with `format: date`      | `DATE`                  |
-| `string` with `format: time`      | `TIME`                  |
-| `string` with `encoding: base64`  | `ARRAY[TINYINT]`        |
-| `null`                            | `NULL` (unsupported yet)|
-
-
-Currently, Flink supports only a subset of the [JSON schema specification](http://json-schema.org/) `draft-07`. Union types (as well as `allOf`, `anyOf`, `not`) are not supported yet. `oneOf` and arrays of types are only supported for specifying nullability.
-
-Simple references that link to a common definition in the document are supported as shown in the more complex example below:
-
-{% highlight json %}
-{
-  "definitions": {
-    "address": {
-      "type": "object",
-      "properties": {
-        "street_address": {
-          "type": "string"
-        },
-        "city": {
-          "type": "string"
-        },
-        "state": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "street_address",
-        "city",
-        "state"
-      ]
-    }
-  },
-  "type": "object",
-  "properties": {
-    "billing_address": {
-      "$ref": "#/definitions/address"
-    },
-    "shipping_address": {
-      "$ref": "#/definitions/address"
-    },
-    "optional_address": {
-      "oneOf": [
-        {
-          "type": "null"
-        },
-        {
-          "$ref": "#/definitions/address"
-        }
-      ]
-    }
-  }
-}
-{% endhighlight %}
-
-Make sure to download the [JSON SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
-
-#### Apache Avro Format
-
-The [Apache Avro](https://avro.apache.org/) format allows to read and write Avro data that corresponds to a given format schema. The format schema can be defined either as a fully qualified class name of an Avro specific record or as an Avro schema string. If a class name is used, the class must be available in the classpath during runtime.
-
-{% highlight yaml %}
-format:
-  type: avro
-
-  # required: define the schema either by using an Avro specific record class
-  record-class: "org.organization.types.User"
-
-  # or by using an Avro schema
-  avro-schema: >
-    {
-      "type": "record",
-      "name": "test",
-      "fields" : [
-        {"name": "a", "type": "long"},
-        {"name": "b", "type": "string"}
-      ]
-    }
-{% endhighlight %}
-
-Avro types are mapped to the corresponding SQL data types. Union types are only supported for specifying nullability otherwise they are converted to an `ANY` type. The following table shows the mapping:
-
-| Avro schema                                 | Flink SQL               |
-| :------------------------------------------ | :---------------------- |
-| `record`                                    | `ROW`                   |
-| `enum`                                      | `VARCHAR`               |
-| `array`                                     | `ARRAY[_]`              |
-| `map`                                       | `MAP[VARCHAR, _]`       |
-| `union`                                     | non-null type or `ANY`  |
-| `fixed`                                     | `ARRAY[TINYINT]`        |
-| `string`                                    | `VARCHAR`               |
-| `bytes`                                     | `ARRAY[TINYINT]`        |
-| `int`                                       | `INT`                   |
-| `long`                                      | `BIGINT`                |
-| `float`                                     | `FLOAT`                 |
-| `double`                                    | `DOUBLE`                |
-| `boolean`                                   | `BOOLEAN`               |
-| `int` with `logicalType: date`              | `DATE`                  |
-| `int` with `logicalType: time-millis`       | `TIME`                  |
-| `int` with `logicalType: time-micros`       | `INT`                   |
-| `long` with `logicalType: timestamp-millis` | `TIMESTAMP`             |
-| `long` with `logicalType: timestamp-micros` | `BIGINT`                |
-| `bytes` with `logicalType: decimal`         | `DECIMAL`               |
-| `fixed` with `logicalType: decimal`         | `DECIMAL`               |
-| `null`                                      | `NULL` (unsupported yet)|
-
-Avro uses [Joda-Time](http://www.joda.org/joda-time/) for representing logical date and time types in specific record classes. The Joda-Time dependency is not part of Flink's SQL JAR distribution. Therefore, make sure that Joda-Time is in your classpath together with your specific record class during runtime. Avro formats specified via a schema string do not require Joda-Time to be present.
-
-Make sure to download the [Apache Avro SQL JAR](sqlClient.html#dependencies) file and pass it to the SQL Client.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 

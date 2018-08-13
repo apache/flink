@@ -23,7 +23,6 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketers.Bucketer;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -67,7 +66,7 @@ final class BulkPartWriter<IN, BucketID> extends PartFileWriter<IN, BucketID> {
 	/**
 	 * A factory that creates {@link BulkPartWriter BulkPartWriters}.
 	 * @param <IN> The type of input elements.
-	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link Bucketer}.
+	 * @param <BucketID> The type of ids for the buckets, as returned by the {@link BucketAssigner}.
 	 */
 	static class Factory<IN, BucketID> implements PartFileWriter.PartFileFactory<IN, BucketID> {
 

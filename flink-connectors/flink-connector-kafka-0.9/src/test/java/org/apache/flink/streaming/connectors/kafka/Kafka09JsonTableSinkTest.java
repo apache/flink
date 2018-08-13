@@ -40,7 +40,10 @@ public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 			Properties properties,
 			FlinkKafkaPartitioner<Row> partitioner) {
 
-		return new Kafka09JsonTableSink(topic, properties, partitioner);
+		return new Kafka09JsonTableSink(
+			topic,
+			properties,
+			partitioner);
 	}
 
 	@Override

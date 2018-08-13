@@ -1133,7 +1133,7 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>fullRestarts</td>
-      <td>The total number of full restarts since this job was submitted (in milliseconds).</td>
+      <td>The total number of full restarts since this job was submitted.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1392,6 +1392,150 @@ Thus, in order to infer the metric identifier:
       to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
       <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
+### System resources
+
+System resources reporting is disabled by default. When `metrics.system-resource`
+is enabled additional metrics listed below will be available on Job- and TaskManager.
+System resources metrics are updated periodically and they present average values for a
+configured interval (`metrics.system-resource-probing-interval`).
+
+System resources reporting requires an optional dependency to be present on the
+classpath (for example placed in Flink's `lib` directory):
+
+  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+
+Including it's transitive dependencies:
+
+  - `net.java.dev.jna:jna-platform:jar:4.2.2`
+  - `net.java.dev.jna:jna:jar:4.2.2`
+
+Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
+logged by `SystemResourcesMetricsInitializer` during the startup.
+
+#### System CPU
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="12">System.CPU</td>
+      <td>Usage</td>
+      <td>Overall % of CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>Idle</td>
+      <td>% of CPU Idle usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>Sys</td>
+      <td>% of System CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>User</td>
+      <td>% of User CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>IOWait</td>
+      <td>% of IOWait CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>Irq</td>
+      <td>% of Irq CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>SoftIrq</td>
+      <td>% of SoftIrq CPU usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>Nice</td>
+      <td>% of Nice Idle usage on the machine.</td>
+    </tr>
+    <tr>
+      <td>Load1min</td>
+      <td>Average CPU load over 1 minute</td>
+    </tr>
+    <tr>
+      <td>Load5min</td>
+      <td>Average CPU load over 5 minute</td>
+    </tr>
+    <tr>
+      <td>Load15min</td>
+      <td>Average CPU load over 15 minute</td>
+    </tr>
+    <tr>
+      <td>UsageCPU*</td>
+      <td>% of CPU usage per each processor</td>
+    </tr>
+  </tbody>
+</table>
+
+#### System memory
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">System.Memory</td>
+      <td>Available</td>
+      <td>Available memory in bytes</td>
+    </tr>
+    <tr>
+      <td>Total</td>
+      <td>Total memory in bytes</td>
+    </tr>
+    <tr>
+      <td rowspan="2">System.Swap</td>
+      <td>Used</td>
+      <td>Used swap bytes</td>
+    </tr>
+    <tr>
+      <td>Total</td>
+      <td>Total swap in bytes</td>
+    </tr>
+  </tbody>
+</table>
+
+#### System network
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">System.Network.INTERFACE_NAME</td>
+      <td>ReceiveRate</td>
+      <td>Average receive rate in bytes per second</td>
+    </tr>
+    <tr>
+      <td>SendRate</td>
+      <td>Average send rate in bytes per second</td>
     </tr>
   </tbody>
 </table>

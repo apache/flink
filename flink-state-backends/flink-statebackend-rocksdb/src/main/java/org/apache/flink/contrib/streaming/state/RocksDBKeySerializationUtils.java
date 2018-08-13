@@ -18,8 +18,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -28,7 +28,7 @@ import java.io.IOException;
 /**
  * Utils for RocksDB state serialization and deserialization.
  */
-class RocksDBKeySerializationUtils {
+public class RocksDBKeySerializationUtils {
 
 	static int readKeyGroup(int keyGroupPrefixBytes, DataInputView inputView) throws IOException {
 		int keyGroup = 0;
@@ -41,13 +41,12 @@ class RocksDBKeySerializationUtils {
 
 	public static <K> K readKey(
 		TypeSerializer<K> keySerializer,
-		ByteArrayInputStreamWithPos inputStream,
-		DataInputView inputView,
+		ByteArrayDataInputView inputView,
 		boolean ambiguousKeyPossible) throws IOException {
-		int beforeRead = inputStream.getPosition();
+		int beforeRead = inputView.getPosition();
 		K key = keySerializer.deserialize(inputView);
 		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
+			int length = inputView.getPosition() - beforeRead;
 			readVariableIntBytes(inputView, length);
 		}
 		return key;
@@ -55,13 +54,12 @@ class RocksDBKeySerializationUtils {
 
 	public static <N> N readNamespace(
 		TypeSerializer<N> namespaceSerializer,
-		ByteArrayInputStreamWithPos inputStream,
-		DataInputView inputView,
+		ByteArrayDataInputView inputView,
 		boolean ambiguousKeyPossible) throws IOException {
-		int beforeRead = inputStream.getPosition();
+		int beforeRead = inputView.getPosition();
 		N namespace = namespaceSerializer.deserialize(inputView);
 		if (ambiguousKeyPossible) {
-			int length = inputStream.getPosition() - beforeRead;
+			int length = inputView.getPosition() - beforeRead;
 			readVariableIntBytes(inputView, length);
 		}
 		return namespace;
@@ -70,17 +68,15 @@ class RocksDBKeySerializationUtils {
 	public static <N> void writeNameSpace(
 		N namespace,
 		TypeSerializer<N> namespaceSerializer,
-		ByteArrayOutputStreamWithPos keySerializationStream,
-		DataOutputView keySerializationDataOutputView,
+		ByteArrayDataOutputView keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 
-		int beforeWrite = keySerializationStream.getPosition();
+		int beforeWrite = keySerializationDataOutputView.getPosition();
 		namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
 			//write length of namespace
-			writeLengthFrom(beforeWrite, keySerializationStream,
-				keySerializationDataOutputView);
+			writeLengthFrom(beforeWrite, keySerializationDataOutputView);
 		}
 	}
 
@@ -100,17 +96,15 @@ class RocksDBKeySerializationUtils {
 	public static <K> void writeKey(
 		K key,
 		TypeSerializer<K> keySerializer,
-		ByteArrayOutputStreamWithPos keySerializationStream,
-		DataOutputView keySerializationDataOutputView,
+		ByteArrayDataOutputView keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 		//write key
-		int beforeWrite = keySerializationStream.getPosition();
+		int beforeWrite = keySerializationDataOutputView.getPosition();
 		keySerializer.serialize(key, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
 			//write size of key
-			writeLengthFrom(beforeWrite, keySerializationStream,
-				keySerializationDataOutputView);
+			writeLengthFrom(beforeWrite, keySerializationDataOutputView);
 		}
 	}
 
@@ -123,9 +117,8 @@ class RocksDBKeySerializationUtils {
 
 	private static void writeLengthFrom(
 		int fromPosition,
-		ByteArrayOutputStreamWithPos keySerializationStream,
-		DataOutputView keySerializationDateDataOutputView) throws IOException {
-		int length = keySerializationStream.getPosition() - fromPosition;
+		ByteArrayDataOutputView keySerializationDateDataOutputView) throws IOException {
+		int length = keySerializationDateDataOutputView.getPosition() - fromPosition;
 		writeVariableIntBytes(length, keySerializationDateDataOutputView);
 	}
 

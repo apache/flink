@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,17 +51,29 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	private final TypeSerializer<N> namespaceSerializer;
 	@Nonnull
 	private final TypeSerializer<S> stateSerializer;
+	@Nullable
+	private final StateSnapshotTransformer<S> snapshotTransformer;
 
 	public RegisteredKeyValueStateBackendMetaInfo(
-			@Nonnull StateDescriptor.Type stateType,
-			@Nonnull String name,
-			@Nonnull TypeSerializer<N> namespaceSerializer,
-			@Nonnull TypeSerializer<S> stateSerializer) {
+		@Nonnull StateDescriptor.Type stateType,
+		@Nonnull String name,
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull TypeSerializer<S> stateSerializer) {
+		this(stateType, name, namespaceSerializer, stateSerializer, null);
+	}
+
+	public RegisteredKeyValueStateBackendMetaInfo(
+		@Nonnull StateDescriptor.Type stateType,
+		@Nonnull String name,
+		@Nonnull TypeSerializer<N> namespaceSerializer,
+		@Nonnull TypeSerializer<S> stateSerializer,
+		@Nullable StateSnapshotTransformer<S> snapshotTransformer) {
 
 		super(name);
 		this.stateType = stateType;
 		this.namespaceSerializer = namespaceSerializer;
 		this.stateSerializer = stateSerializer;
+		this.snapshotTransformer = snapshotTransformer;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -71,7 +84,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 			(TypeSerializer<N>) Preconditions.checkNotNull(
 				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER)),
 			(TypeSerializer<S>) Preconditions.checkNotNull(
-				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)));
+				snapshot.getTypeSerializer(StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER)), null);
 		Preconditions.checkState(StateMetaInfoSnapshot.BackendStateType.KEY_VALUE == snapshot.getBackendStateType());
 	}
 
@@ -88,6 +101,11 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	@Nonnull
 	public TypeSerializer<S> getStateSerializer() {
 		return stateSerializer;
+	}
+
+	@Nullable
+	public StateSnapshotTransformer<S> getSnapshotTransformer() {
+		return snapshotTransformer;
 	}
 
 	@Override
@@ -142,7 +160,14 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 	public static <N, S> RegisteredKeyValueStateBackendMetaInfo<N, S> resolveKvStateCompatibility(
 		StateMetaInfoSnapshot restoredStateMetaInfoSnapshot,
 		TypeSerializer<N> newNamespaceSerializer,
-		StateDescriptor<?, S> newStateDescriptor) throws StateMigrationException {
+		StateDescriptor<?, S> newStateDescriptor,
+		@Nullable StateSnapshotTransformer<S> snapshotTransformer) throws StateMigrationException {
+
+		Preconditions.checkState(restoredStateMetaInfoSnapshot.getBackendStateType()
+				== StateMetaInfoSnapshot.BackendStateType.KEY_VALUE,
+			"Incompatible state types. " +
+				"Was [" + restoredStateMetaInfoSnapshot.getBackendStateType() + "], " +
+				"registered as [" + StateMetaInfoSnapshot.BackendStateType.KEY_VALUE + "].");
 
 		Preconditions.checkState(
 			Objects.equals(newStateDescriptor.getName(), restoredStateMetaInfoSnapshot.getName()),
@@ -160,7 +185,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 			Preconditions.checkState(
 				newStateDescriptor.getType() == restoredType,
-				"Incompatible state types. " +
+				"Incompatible key/value state types. " +
 					"Was [" + restoredType + "], " +
 					"registered with [" + newStateDescriptor.getType() + "].");
 		}
@@ -184,13 +209,14 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
 
 		if (namespaceCompatibility.isRequiresMigration() || stateCompatibility.isRequiresMigration()) {
 			// TODO state migration currently isn't possible.
-			throw new StateMigrationException("State migration isn't supported, yet.");
+			throw StateMigrationException.notSupported();
 		} else {
 			return new RegisteredKeyValueStateBackendMetaInfo<>(
 				newStateDescriptor.getType(),
 				newStateDescriptor.getName(),
 				newNamespaceSerializer,
-				newStateSerializer);
+				newStateSerializer,
+				snapshotTransformer);
 		}
 	}
 

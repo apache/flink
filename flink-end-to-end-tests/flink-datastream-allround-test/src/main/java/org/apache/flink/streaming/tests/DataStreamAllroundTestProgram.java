@@ -22,14 +22,18 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
+import org.apache.flink.streaming.tests.avro.ComplexPayloadAvro;
+import org.apache.flink.streaming.tests.avro.InnerPayLoadAvro;
 import org.apache.flink.util.Collector;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
@@ -72,6 +76,7 @@ public class DataStreamAllroundTestProgram {
 
 		setupEnvironment(env, pt);
 
+		// add a keyed stateful map operator, which uses Kryo for state serialization
 		DataStream<Event> eventStream = env.addSource(createEventSource(pt))
 			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
 			.keyBy(Event::getKey)
@@ -79,18 +84,45 @@ public class DataStreamAllroundTestProgram {
 					// map function simply forwards the inputs
 					(MapFunction<Event, Event>) in -> in,
 					// state is verified and updated per event as a wrapped ComplexPayload state object
-					(Event first, ComplexPayload second) -> {
-							if (second != null && !second.getStrPayload().equals(KEYED_STATE_OPER_NAME)) {
+					(Event event, ComplexPayload lastState) -> {
+							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_NAME)
+									&& lastState.getInnerPayLoad().getSequenceNumber() == (event.getSequenceNumber() - 1)) {
 								System.out.println("State is set or restored incorrectly");
 							}
-							return new ComplexPayload(first, KEYED_STATE_OPER_NAME);
+							return new ComplexPayload(event, KEYED_STATE_OPER_NAME);
 						},
 					Collections.singletonList(
-						new KryoSerializer<>(ComplexPayload.class, env.getConfig()))
+						new KryoSerializer<>(ComplexPayload.class, env.getConfig())), // custom KryoSerializer
+					Collections.singletonList(ComplexPayload.class) // KryoSerializer via type extraction
 				)
-			)
-			.name(KEYED_STATE_OPER_NAME)
-			.returns(Event.class);
+			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Kryo");
+
+		// add a keyed stateful map operator, which uses Avro for state serialization
+		eventStream = eventStream
+			.keyBy(Event::getKey)
+			.map(createArtificialKeyedStateMapper(
+					// map function simply forwards the inputs
+					(MapFunction<Event, Event>) in -> in,
+					// state is verified and updated per event as a wrapped ComplexPayloadAvro state object
+					(Event event, ComplexPayloadAvro lastState) -> {
+							if (lastState != null && !lastState.getStrPayload().equals(KEYED_STATE_OPER_NAME)
+									&& lastState.getInnerPayLoad().getSequenceNumber() == (event.getSequenceNumber() - 1)) {
+								System.out.println("State is set or restored incorrectly");
+							}
+
+							ComplexPayloadAvro payload = new ComplexPayloadAvro();
+							payload.setEventTime(event.getEventTime());
+							payload.setInnerPayLoad(new InnerPayLoadAvro(event.getSequenceNumber()));
+							payload.setStrPayload(KEYED_STATE_OPER_NAME);
+							payload.setStringList(Arrays.asList(String.valueOf(event.getKey()), event.getPayload()));
+
+							return payload;
+						},
+					Collections.singletonList(
+						new AvroSerializer<>(ComplexPayloadAvro.class)), // custom AvroSerializer
+					Collections.singletonList(ComplexPayloadAvro.class) // AvroSerializer via type extraction
+				)
+			).returns(Event.class).name(KEYED_STATE_OPER_NAME + "_Avro");
 
 		DataStream<Event> eventStream2 = eventStream
 			.map(createArtificialOperatorStateMapper((MapFunction<Event, Event>) in -> in))

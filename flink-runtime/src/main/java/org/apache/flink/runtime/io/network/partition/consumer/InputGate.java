@@ -69,6 +69,8 @@ public interface InputGate {
 
 	int getNumberOfInputChannels();
 
+	String getOwningTaskName();
+
 	boolean isFinished();
 
 	void requestPartitions() throws IOException, InterruptedException;

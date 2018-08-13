@@ -96,7 +96,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	/** Name for queries against state created from this StateDescriptor. */
 	@Nonnull
-	private StateTtlConfiguration ttlConfig = StateTtlConfiguration.DISABLED;
+	private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
 	/** The default value returned by the state when no other value is bound to a key. */
 	@Nullable
@@ -210,7 +210,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	public void setQueryable(String queryableStateName) {
 		Preconditions.checkArgument(
-			ttlConfig.getTtlUpdateType() == StateTtlConfiguration.TtlUpdateType.Disabled,
+			ttlConfig.getUpdateType() == StateTtlConfig.UpdateType.Disabled,
 			"Queryable state is currently not supported with TTL");
 		if (this.queryableStateName == null) {
 			this.queryableStateName = Preconditions.checkNotNull(queryableStateName, "Registration name");
@@ -243,14 +243,14 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 * Configures optional activation of state time-to-live (TTL).
 	 *
 	 * <p>State user value will expire, become unavailable and be cleaned up in storage
-	 * depending on configured {@link StateTtlConfiguration}.
+	 * depending on configured {@link StateTtlConfig}.
 	 *
 	 * @param ttlConfig configuration of state TTL
 	 */
-	public void enableTimeToLive(StateTtlConfiguration ttlConfig) {
+	public void enableTimeToLive(StateTtlConfig ttlConfig) {
 		Preconditions.checkNotNull(ttlConfig);
 		Preconditions.checkArgument(
-			ttlConfig.getTtlUpdateType() != StateTtlConfiguration.TtlUpdateType.Disabled &&
+			ttlConfig.getUpdateType() != StateTtlConfig.UpdateType.Disabled &&
 				queryableStateName == null,
 			"Queryable state is currently not supported with TTL");
 		this.ttlConfig = ttlConfig;
@@ -258,7 +258,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	@Nonnull
 	@Internal
-	public StateTtlConfiguration getTtlConfig() {
+	public StateTtlConfig getTtlConfig() {
 		return ttlConfig;
 	}
 
