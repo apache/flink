@@ -43,7 +43,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -90,7 +90,8 @@ public class HistoryServer {
 
 	private final HistoryServerArchiveFetcher archiveFetcher;
 
-	private final SSLContext serverSSLContext;
+	@Nullable
+	private final SSLUtils.SSLContext serverSSLContext;
 	private WebFrontendBootstrap netty;
 
 	private final Object startupShutdownLock = new Object();

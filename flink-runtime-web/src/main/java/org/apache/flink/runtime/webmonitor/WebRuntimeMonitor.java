@@ -92,7 +92,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -130,7 +130,8 @@ public class WebRuntimeMonitor implements WebMonitor {
 	/** Service which retrieves the currently leading JobManager and opens a JobManagerGateway. */
 	private final LeaderGatewayRetriever<JobManagerGateway> retriever;
 
-	private final SSLContext serverSSLContext;
+	@Nullable
+	private final SSLUtils.SSLContext serverSSLContext;
 
 	private final CompletableFuture<String> localRestAddress = new CompletableFuture<>();
 

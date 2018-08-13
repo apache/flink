@@ -26,12 +26,14 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.InetAddress;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -42,17 +44,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
+		NettyProtocol protocol = getEmptyNettyProtocol();
 
 		NettyConfig nettyConfig = new NettyConfig(
 			InetAddress.getLoopbackAddress(),
@@ -64,6 +56,50 @@ public class NettyClientServerSslTest {
 		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
 
 		Channel ch = NettyTestUtil.connect(serverAndClient);
+
+		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
+		assertTrue("default value (-1) should not be propagated", sslHandler.getHandshakeTimeoutMillis() >= 0);
+		assertTrue("default value (-1) should not be propagated", sslHandler.getCloseNotifyTimeoutMillis() >= 0);
+
+		// should be able to send text data
+		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
+		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+
+		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	/**
+	 * Verify valid (advanced) ssl configuration and connection.
+	 */
+	@Test
+	public void testValidSslConnectionAdvanced() throws Exception {
+		final int sessionCacheSize = 1;
+		final int sessionTimeout = 1_000;
+		final int handshakeTimeout = 1_000;
+		final int closeNotifyFlushTimeout = 1_000;
+
+		Configuration sslConfig = createSslConfig();
+		sslConfig.setInteger("security.ssl.session-cache-size", sessionCacheSize);
+		sslConfig.setInteger("security.ssl.session-timeout", sessionTimeout);
+		sslConfig.setInteger("security.ssl.handshake-timeout", handshakeTimeout);
+		sslConfig.setInteger("security.ssl.close-notify-flush-timeout", closeNotifyFlushTimeout);
+
+		NettyProtocol protocol = getEmptyNettyProtocol();
+
+		NettyConfig nettyConfig = new NettyConfig(
+			InetAddress.getLoopbackAddress(),
+			NetUtils.getAvailablePort(),
+			NettyTestUtil.DEFAULT_SEGMENT_SIZE,
+			1,
+			sslConfig);
+
+		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+
+		Channel ch = NettyTestUtil.connect(serverAndClient);
+
+		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
+		assertEquals(sslHandler.getHandshakeTimeoutMillis(), handshakeTimeout);
+		assertEquals(sslHandler.getCloseNotifyTimeoutMillis(), closeNotifyFlushTimeout);
 
 		// should be able to send text data
 		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
@@ -77,17 +113,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testInvalidSslConfiguration() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
+		NettyProtocol protocol = getEmptyNettyProtocol();
 
 		Configuration config = createSslConfig();
 		// Modify the keystore password to an incorrect one
@@ -116,17 +142,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testSslHandshakeError() throws Exception {
-		NettyProtocol protocol = new NettyProtocol(null, null, true) {
-			@Override
-			public ChannelHandler[] getServerChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new ChannelHandler[0];
-			}
-		};
+		NettyProtocol protocol = getEmptyNettyProtocol();
 
 		Configuration config = createSslConfig();
 
@@ -161,5 +177,19 @@ public class NettyClientServerSslTest {
 		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		flinkConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 		return flinkConfig;
+	}
+
+	private static NettyProtocol getEmptyNettyProtocol() {
+		return new NettyProtocol(null, null, true) {
+			@Override
+			public ChannelHandler[] getServerChannelHandlers() {
+				return new ChannelHandler[0];
+			}
+
+			@Override
+			public ChannelHandler[] getClientChannelHandlers() {
+				return new ChannelHandler[0];
+			}
+		};
 	}
 }

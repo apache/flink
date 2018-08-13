@@ -24,7 +24,6 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
 
@@ -33,6 +32,7 @@ import java.util.Arrays;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -58,7 +58,7 @@ public class SSLUtilsTest {
 		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE, "src/test/resources/local127.truststore");
 		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-		SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
+		SSLUtils.SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 		Assert.assertNotNull(clientContext);
 	}
 
@@ -71,7 +71,7 @@ public class SSLUtilsTest {
 		Configuration clientConfig = new Configuration();
 		clientConfig.setBoolean(SecurityOptions.SSL_ENABLED, false);
 
-		SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
+		SSLUtils.SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 		Assert.assertNull(clientContext);
 	}
 
@@ -87,7 +87,7 @@ public class SSLUtilsTest {
 		clientConfig.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "badpassword");
 
 		try {
-			SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
+			SSLUtils.SSLContext clientContext = SSLUtils.createSSLClientContext(clientConfig);
 			Assert.fail("SSL client context created even with bad SSL configuration ");
 		} catch (Exception e) {
 			// Exception here is valid
@@ -106,7 +106,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password");
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "password");
 
-		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		Assert.assertNotNull(serverContext);
 	}
 
@@ -119,7 +119,7 @@ public class SSLUtilsTest {
 		Configuration serverConfig = new Configuration();
 		serverConfig.setBoolean(SecurityOptions.SSL_ENABLED, false);
 
-		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		Assert.assertNull(serverContext);
 	}
 
@@ -136,7 +136,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_KEY_PASSWORD, "badpassword");
 
 		try {
-			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+			SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 			Assert.fail("SSL server context created even with bad SSL configuration ");
 		} catch (Exception e) {
 			// Exception here is valid
@@ -157,7 +157,7 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1,TLSv1.2");
 
 		try {
-			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+			SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 			Assert.fail("SSL server context created even with multiple protocols set ");
 		} catch (Exception e) {
 			// Exception here is valid
@@ -178,10 +178,9 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
 		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
-		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
-		ServerSocket socket = null;
-		try {
-			socket = serverContext.getServerSocketFactory().createServerSocket(0);
+		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		assertNotNull(serverContext);
+		try (ServerSocket socket = serverContext.sslContext.getServerSocketFactory().createServerSocket(0)) {
 
 			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
 			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
@@ -198,10 +197,6 @@ public class SSLUtilsTest {
 			Assert.assertEquals(2, algorithms.length);
 			Assert.assertTrue(algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
 			Assert.assertTrue(algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
-		} finally {
-			if (socket != null) {
-				socket.close();
-			}
 		}
 	}
 
@@ -219,8 +214,9 @@ public class SSLUtilsTest {
 		serverConfig.setString(SecurityOptions.SSL_PROTOCOL, "TLSv1");
 		serverConfig.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
 
-		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
-		SSLEngine engine = serverContext.createSSLEngine();
+		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		assertNotNull(serverContext);
+		SSLEngine engine = serverContext.sslContext.createSSLEngine();
 
 		String[] protocols = engine.getEnabledProtocols();
 		String[] algorithms = engine.getEnabledCipherSuites();

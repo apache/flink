@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 
@@ -91,7 +90,7 @@ public final class BlobClient implements Closeable {
 
 		try {
 			// Check if ssl is enabled
-			SSLContext clientSSLContext = null;
+			SSLUtils.SSLContext clientSSLContext = null;
 			if (clientConfig != null &&
 				clientConfig.getBoolean(BlobServerOptions.SSL_ENABLED)) {
 
@@ -102,7 +101,7 @@ public final class BlobClient implements Closeable {
 
 				LOG.info("Using ssl connection to the blob server");
 
-				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
+				SSLSocket sslSocket = (SSLSocket) clientSSLContext.sslContext.getSocketFactory().createSocket(
 					serverAddress.getAddress(),
 					serverAddress.getPort());
 
