@@ -24,7 +24,6 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
   * Generates a UUID function call.
-  *
   */
 class UUIDCallGen extends CallGenerator {
 

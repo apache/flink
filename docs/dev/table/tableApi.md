@@ -2325,11 +2325,11 @@ randInteger(seed integer, bound integer)
     <tr>
      <td>
        {% highlight java %}
-uuid()
+UUID()
 {% endhighlight %}
      </td>
     <td>
-      <p>Returns a uuid string according to RFC 4122.</p>
+      <p>Returns a uuid string like '3d3c68f7-f608-473f-b60c-b0c44ad4cc4e' according to RFC 4122.</p>
     </td>
    </tr>
    
@@ -3924,11 +3924,11 @@ randInteger(seed integer, bound integer)
     <tr>
      <td>
        {% highlight scala %}
-uuid()
+UUID()
 {% endhighlight %}
      </td>
     <td>
-      <p>Returns a uuid string according to RFC 4122.</p>
+      <p>Returns a uuid string like '3d3c68f7-f608-473f-b60c-b0c44ad4cc4e' according to RFC 4122.</p>
     </td>
    </tr>
    
