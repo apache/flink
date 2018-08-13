@@ -58,6 +58,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("12 NOT BETWEEN ASYMMETRIC 13 AND 11", "true")
     testSqlApi("12 NOT BETWEEN SYMMETRIC 13 AND 11", "false")
     testSqlApi("'TEST' LIKE '%EST'", "true")
+    // The ESCAPE char has not been supported yet.
     //testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "true") // TODO
     testSqlApi("'TEST' NOT LIKE '%EST'", "false")
     //testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "false") // TODO
@@ -175,7 +176,11 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi(
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
       "true")
-//    testSqlApi("DATE_FORMAT(TIMESTAMP '1991-01-02 03:04:06', '%m/%d/%Y')", "01/02/1991")
+    testSqlApi(
+      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:55:01', INTERVAL '1' HOUR)",
+      "false")
+    // The DATE_FORMAT function need to be fixed. See FLINK-10032
+    // testSqlApi("DATE_FORMAT(TIMESTAMP '1991-01-02 03:04:06', '%m/%d/%Y')", "01/02/1991")
     testSqlApi("TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')", "2003-01-09")
   }
 
