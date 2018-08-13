@@ -24,7 +24,7 @@ under the License.
 
 Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
 If a function that you need is not supported yet, you can implement a <a href="udfs.html">user-defined function</a>.
-If you think that the function is general enough, please open a Jira issue for it with a detailed description.
+If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
 
 * This will be replaced by the TOC
 {:toc}
