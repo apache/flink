@@ -404,7 +404,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f2.hex(),
       "f2.hex()",
       "HEX(f2)",
-      "2a")
+      "2A")
 
     testAllApis(
       Null(Types.BYTE).hex(),
@@ -416,13 +416,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f3.hex(),
       "f3.hex()",
       "HEX(f3)",
-      "2b")
+      "2B")
 
     testAllApis(
       'f4.hex(),
       "f4.hex()",
       "HEX(f4)",
-      "2c")
+      "2C")
 
     testAllApis(
       'f7.hex(),
@@ -434,13 +434,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       12.hex(),
       "12.hex()",
       "HEX(12)",
-      "c")
+      "C")
 
     testAllApis(
       10.hex(),
       "10.hex()",
       "HEX(10)",
-      "a")
+      "A")
 
     testAllApis(
       0.hex(),
@@ -452,31 +452,31 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f32.hex(),
       "f32.hex()",
       "HEX(f32)",
-      "ffffffffffffffff")
+      "FFFFFFFFFFFFFFFF")
 
     testAllApis(
       'f0.hex(),
       "f0.hex()",
       "HEX(f0)",
-      "546869732069732061207465737420537472696e672e")
+      "546869732069732061207465737420537472696E672E")
 
     testAllApis(
       'f8.hex(),
       "f8.hex()",
       "HEX(f8)",
-      "20546869732069732061207465737420537472696e672e20")
+      "20546869732069732061207465737420537472696E672E20")
 
     testAllApis(
       'f23.hex(),
       "f23.hex()",
       "HEX(f23)",
-      "25546869732069732061207465737420537472696e672e")
+      "25546869732069732061207465737420537472696E672E")
 
     testAllApis(
       'f24.hex(),
       "f24.hex()",
       "HEX(f24)",
-      "2a5f546869732069732061207465737420537472696e672e")
+      "2A5F546869732069732061207465737420537472696E672E")
   }
 
   @Test

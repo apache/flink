@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.functions
 
 import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
-import java.lang.StringBuilder
+import java.lang.{Long => JLong, StringBuilder}
 
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.codec.binary.Base64
@@ -200,7 +200,9 @@ object ScalarFunctions {
   /**
     * Returns the string str that is encoded as hex string of x.
     */
-  def hex(x: String): String = Hex.encodeHexString(x.getBytes)
+  def hex(x: Long): String = JLong.toHexString(x).toUpperCase()
+
+  def hexString(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
 
   /**
     * Returns the base string decoded with base64.

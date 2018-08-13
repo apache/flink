@@ -406,13 +406,13 @@ case class Bin(child: Expression) extends UnaryExpression {
 case class Hex(child: Expression) extends UnaryExpression {
   override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
 
-  override private[flink] def validateInput(): ValidationResult = child.resultType match {
-    case _: IntegerTypeInfo[_] =>
+  override private[flink] def validateInput(): ValidationResult = {
+    if (TypeCheckUtils.isIntegerFamily(child.resultType) ||
+      TypeCheckUtils.isString(child.resultType)) {
       ValidationSuccess
-    case BasicTypeInfo.STRING_TYPE_INFO =>
-      ValidationSuccess
-    case _ =>
+    } else {
       ValidationFailure(s"hex requires integer or string types but was '${child.resultType}'.")
+    }
   }
   override def toString: String = s"hex($child)"
 
