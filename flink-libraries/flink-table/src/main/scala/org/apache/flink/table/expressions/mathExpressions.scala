@@ -422,3 +422,21 @@ case class Bin(child: Expression) extends UnaryExpression {
     relBuilder.call(ScalarSqlFunctions.BIN, child.toRexNode)
   }
 }
+
+case class Hex(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (TypeCheckUtils.isIntegerFamily(child.resultType) ||
+      TypeCheckUtils.isString(child.resultType)) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"hex requires integer or string types but was '${child.resultType}'.")
+    }
+  }
+  override def toString: String = s"hex($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.HEX, child.toRexNode)
+  }
+}

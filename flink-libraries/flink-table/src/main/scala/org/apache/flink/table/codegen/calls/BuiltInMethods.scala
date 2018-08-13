@@ -132,6 +132,11 @@ object BuiltInMethods {
 
   val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 
+  val HEX = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[Long])
+
+  val HEX_STRING =
+    Types.lookupMethod(classOf[ScalarFunctions], "hexString", classOf[String])
+
   val FROMBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "fromBase64", classOf[String])
 
   val TOBASE64 = Types.lookupMethod(classOf[ScalarFunctions], "toBase64", classOf[String])
