@@ -370,7 +370,8 @@ class SimpleConsumerThread<T> extends Thread {
 							}
 
 							final T value = deserializer.deserialize(keyBytes, valueBytes,
-									currentPartition.getTopic(), currentPartition.getPartition(), offset);
+									currentPartition.getTopic(), currentPartition.getPartition(), offset,
+									Long.MIN_VALUE, KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
 
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.

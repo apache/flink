@@ -72,6 +72,31 @@ public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSc
 	}
 
 	@Override
+	public ObjectNode deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, long timestamp, TimestampType timestampType) throws IOException {
+		if (mapper == null) {
+			mapper = new ObjectMapper();
+		}
+		ObjectNode node = mapper.createObjectNode();
+		if (messageKey != null) {
+			node.set("key", mapper.readValue(messageKey, JsonNode.class));
+		}
+		if (message != null) {
+			node.set("value", mapper.readValue(message, JsonNode.class));
+		}
+		if (includeMetadata) {
+			ObjectNode metadataNode = node.putObject("metadata");
+			metadataNode.put("offset", offset)
+						.put("topic", topic)
+						.put("partition", partition);
+			if (timestampType != TimestampType.NO_TIMESTAMP) {
+				metadataNode.put("timestamp", timestamp)
+							.put("timestampType", timestampType.toString());
+			}
+		}
+		return node;
+	}
+
+	@Override
 	public boolean isEndOfStream(ObjectNode nextElement) {
 		return false;
 	}

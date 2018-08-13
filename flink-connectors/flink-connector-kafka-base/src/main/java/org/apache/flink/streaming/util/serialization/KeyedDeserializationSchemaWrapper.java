@@ -45,6 +45,11 @@ public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializatio
 	}
 
 	@Override
+	public T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, long timestamp, TimestampType timestampType) throws IOException {
+		return deserializationSchema.deserialize(message);
+	}
+
+	@Override
 	public boolean isEndOfStream(T nextElement) {
 		return deserializationSchema.isEndOfStream(nextElement);
 	}

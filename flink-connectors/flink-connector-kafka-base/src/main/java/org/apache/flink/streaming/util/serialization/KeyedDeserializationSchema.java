@@ -46,6 +46,22 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
 
 	/**
+	 * Deserializes the byte message.
+	 *
+	 * @param messageKey the key as a byte array (null if no key has been set).
+	 * @param message The message, as a byte array (null if the message was empty or deleted).
+	 * @param partition The partition the message has originated from.
+	 * @param offset the offset of the message in the original source (for example the Kafka offset).
+	 * @param timestamp the timestamp of the consumer record
+	 * @param timestampType The timestamp type, could be NO_TIMESTAMP, CREATE_TIME or INGEST_TIME.
+	 *
+	 * @return The deserialized message as an object (null if the message cannot be deserialized).
+	 */
+	default T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, long timestamp, TimestampType timestampType) throws IOException {
+		return deserialize(messageKey, message, topic, partition, offset);
+	}
+
+	/**
 	 * Method to decide whether the element signals the end of the stream. If
 	 * true is returned the element won't be emitted.
 	 *
@@ -54,4 +70,12 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
 	boolean isEndOfStream(T nextElement);
+
+	/**
+	 * The TimestampType is introduced in the kafka clients 0.10+. This interface is also used for the Kafka connector 0.9
+	 * so a local enumeration is needed.
+	 */
+	enum TimestampType {
+		NO_TIMESTAMP, CREATE_TIME, INGEST_TIME
+	}
 }

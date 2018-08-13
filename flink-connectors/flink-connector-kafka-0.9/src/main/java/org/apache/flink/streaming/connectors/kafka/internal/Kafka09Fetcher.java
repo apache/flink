@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +61,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	// ------------------------------------------------------------------------
 
 	/** The schema to convert between Kafka's byte messages, and Flink's objects. */
-	private final KeyedDeserializationSchema<T> deserializer;
+	protected final KeyedDeserializationSchema<T> deserializer;
 
 	/** The handover of data and exceptions between the consumer thread and the task thread. */
 	private final Handover handover;
@@ -139,9 +140,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-								record.key(), record.value(),
-								record.topic(), record.partition(), record.offset());
+						final T value = deserialize(record);
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -170,6 +169,13 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			// we ignore this here and only restore the interruption state
 			Thread.currentThread().interrupt();
 		}
+	}
+
+	protected T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
+		return deserializer.deserialize(
+			record.key(), record.value(),
+			record.topic(), record.partition(), record.offset(), Long.MIN_VALUE,
+			KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
 	}
 
 	@Override

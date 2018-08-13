@@ -32,6 +32,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
@@ -76,6 +77,26 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				subtaskMetricGroup,
 				consumerMetricGroup,
 				useMetrics);
+	}
+
+	@Override
+	protected T deserialize(ConsumerRecord<byte[], byte[]> record) throws IOException {
+		KeyedDeserializationSchema.TimestampType localTimestampType;
+		switch(record.timestampType()) {
+			case CREATE_TIME:
+				localTimestampType = KeyedDeserializationSchema.TimestampType.CREATE_TIME;
+				break;
+			case LOG_APPEND_TIME:
+				localTimestampType = KeyedDeserializationSchema.TimestampType.INGEST_TIME;
+				break;
+			default:
+				localTimestampType = KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP;
+				break;
+		}
+		return deserializer.deserialize(
+			record.key(), record.value(),
+			record.topic(), record.partition(), record.offset(),
+			record.timestamp(), localTimestampType);
 	}
 
 	@Override

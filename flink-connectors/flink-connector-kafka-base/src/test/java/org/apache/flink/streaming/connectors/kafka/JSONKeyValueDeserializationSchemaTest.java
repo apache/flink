@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -43,7 +44,7 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
-		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
+		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0, 0, KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
 
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
@@ -65,6 +66,12 @@ public class JSONKeyValueDeserializationSchemaTest {
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertTrue(deserializedValue.get("key") == null);
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+
+		deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0, 0, KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertTrue(deserializedValue.get("key") == null);
+		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
 	}
 
 	@Test
@@ -78,6 +85,12 @@ public class JSONKeyValueDeserializationSchemaTest {
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
 		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+		Assert.assertTrue(deserializedValue.get("value") == null);
+
+		deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0, 0, KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
 
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
@@ -96,12 +109,37 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
-		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "topic#1", 3, 4);
+		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "topic#1", 3, 4, 5, KeyedDeserializationSchema.TimestampType.INGEST_TIME);
 
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
 		Assert.assertEquals("topic#1", deserializedValue.get("metadata").get("topic").asText());
 		Assert.assertEquals(4, deserializedValue.get("metadata").get("offset").asInt());
 		Assert.assertEquals(3, deserializedValue.get("metadata").get("partition").asInt());
+		Assert.assertEquals(5, deserializedValue.get("metadata").get("timestamp").asInt());
+		Assert.assertEquals("INGEST_TIME", deserializedValue.get("metadata").get("timestampType").asText());
+	}
+
+	@Test
+	public void testDeserializeWithMetadataWithoutTimestamp() throws IOException {
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode initialKey = mapper.createObjectNode();
+		initialKey.put("index", 4);
+		byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+
+		ObjectNode initialValue = mapper.createObjectNode();
+		initialValue.put("word", "world");
+		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+
+		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
+		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "topic#1", 3, 4, 5, KeyedDeserializationSchema.TimestampType.NO_TIMESTAMP);
+
+		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+		Assert.assertEquals("topic#1", deserializedValue.get("metadata").get("topic").asText());
+		Assert.assertEquals(4, deserializedValue.get("metadata").get("offset").asInt());
+		Assert.assertEquals(3, deserializedValue.get("metadata").get("partition").asInt());
+		Assert.assertNull(deserializedValue.get("metadata").get("timestamp"));
+		Assert.assertNull(deserializedValue.get("metadata").get("timestampType"));
 	}
 }
