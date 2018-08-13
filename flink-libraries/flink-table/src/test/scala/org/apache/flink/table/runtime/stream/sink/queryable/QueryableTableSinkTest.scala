@@ -118,6 +118,12 @@ class QueryableTableSinkTest extends QueryableSinkTestBase {
       assertEquals(2, deanMoney)
     } finally {
       try {
+        client.shutdownAndWait()
+      } catch {
+        case t: Throwable => log.warn("Failed to close client.", t)
+      }
+
+      try {
         autoCancellableJob.close()
       } catch {
         case t: Throwable => log.warn("Failed to close job.", t)

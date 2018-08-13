@@ -112,6 +112,3 @@ class QueryableTableSink(
   }
 }
 
-
-
-
