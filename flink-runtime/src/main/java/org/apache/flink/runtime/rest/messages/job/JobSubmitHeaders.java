@@ -72,9 +72,9 @@ public class JobSubmitHeaders implements MessageHeaders<JobSubmitRequestBody, Jo
 
 	@Override
 	public String getDescription() {
-		return "Submits a job. This call is primarily intended to be used by the Flink client. This call expects a" +
-			"multipart/form-data request that consists of file uploads for the serialized JobGraph, jars and" +
-			"distributed cache artifacts and an attribute named \"" + FileUploadHandler.HTTP_ATTRIBUTE_REQUEST + "\"for " +
+		return "Submits a job. This call is primarily intended to be used by the Flink client. This call expects a " +
+			"multipart/form-data request that consists of file uploads for the serialized JobGraph, jars and " +
+			"distributed cache artifacts and an attribute named \"" + FileUploadHandler.HTTP_ATTRIBUTE_REQUEST + "\" for " +
 			"the JSON payload.";
 	}
 
