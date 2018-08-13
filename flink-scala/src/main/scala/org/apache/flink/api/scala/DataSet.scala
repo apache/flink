@@ -23,7 +23,8 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.{Keys, Order, ResourceSpec}
+import org.apache.flink.api.common.operators.{Order, ResourceSpec}
+import org.apache.flink.api.common.operators.Keys.{ExpressionKeys, SelectorFunctionKeys}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -32,7 +33,6 @@ import org.apache.flink.api.java.Utils.CountHelper
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
 import org.apache.flink.api.java.io.{PrintingOutputFormat, TextOutputFormat}
-import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
@@ -837,7 +837,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     }
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.SelectorFunctionKeys[T, K](
+      new SelectorFunctionKeys[T, K](
         keyExtractor, javaSet.getType, implicitly[TypeInformation[K]]),
         getCallLocationName()))
   }
@@ -865,7 +865,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def distinct(fields: Int*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
+      new ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName()))
   }
 
@@ -888,7 +888,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def distinct(firstField: String, otherFields: String*): DataSet[T] = {
     wrap(new DistinctOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
+      new ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
       getCallLocationName()))
   }
 
@@ -911,7 +911,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
       def getKey(in: T) = cleanFun(in)
     }
     new GroupedDataSet[T](this,
-      new Keys.SelectorFunctionKeys[T, K](keyExtractor, javaSet.getType, keyType))
+      new SelectorFunctionKeys[T, K](keyExtractor, javaSet.getType, keyType))
   }
 
   /**
@@ -926,7 +926,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def groupBy(fields: Int*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
       this,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType))
+      new ExpressionKeys[T](fields.toArray, javaSet.getType))
   }
 
   /**
@@ -940,11 +940,11 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def groupBy(firstField: String, otherFields: String*): GroupedDataSet[T] = {
     new GroupedDataSet[T](
       this,
-      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType))
+      new ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType))
   }
 
   //  public UnsortedGrouping<T> groupBy(String... fields) {
-  //    new UnsortedGrouping<T>(this, new Keys.ExpressionKeys<T>(fields, getType()));
+  //    new UnsortedGrouping<T>(this, new ExpressionKeys<T>(fields, getType()));
   //  }
 
   // --------------------------------------------------------------------------------------------
@@ -1420,7 +1420,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
+      new ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1435,7 +1435,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
+      new ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1454,7 +1454,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.HASH,
-      new Keys.SelectorFunctionKeys[T, K](
+      new SelectorFunctionKeys[T, K](
         keyExtractor,
         javaSet.getType,
         implicitly[TypeInformation[K]]),
@@ -1474,7 +1474,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.RANGE,
-      new Keys.ExpressionKeys[T](fields.toArray, javaSet.getType),
+      new ExpressionKeys[T](fields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1490,7 +1490,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.RANGE,
-      new Keys.ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
+      new ExpressionKeys[T](firstField +: otherFields.toArray, javaSet.getType),
       getCallLocationName())
     wrap(op)
   }
@@ -1510,7 +1510,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val op = new PartitionOperator[T](
       javaSet,
       PartitionMethod.RANGE,
-      new Keys.SelectorFunctionKeys[T, K](
+      new SelectorFunctionKeys[T, K](
         keyExtractor,
         javaSet.getType,
         implicitly[TypeInformation[K]]),
@@ -1528,7 +1528,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], field: Int) : DataSet[T] = {
     val op = new PartitionOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](Array[Int](field), javaSet.getType),
+      new ExpressionKeys[T](Array[Int](field), javaSet.getType),
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
@@ -1547,7 +1547,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     : DataSet[T] = {
     val op = new PartitionOperator[T](
       javaSet,
-      new Keys.ExpressionKeys[T](Array[String](field), javaSet.getType),
+      new ExpressionKeys[T](Array[String](field), javaSet.getType),
       partitioner,
       implicitly[TypeInformation[K]],
       getCallLocationName())
@@ -1574,7 +1574,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
 
     val op = new PartitionOperator[T](
       javaSet,
-      new Keys.SelectorFunctionKeys[T, K](
+      new SelectorFunctionKeys[T, K](
         keyExtractor,
         javaSet.getType,
         keyType),
@@ -1639,7 +1639,7 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     val keyType = implicitly[TypeInformation[K]]
     new PartitionSortedDataSet[T](
       new SortPartitionOperator[T](javaSet,
-        new Keys.SelectorFunctionKeys[T, K](
+        new SelectorFunctionKeys[T, K](
           keyExtractor,
           javaSet.getType,
           keyType),

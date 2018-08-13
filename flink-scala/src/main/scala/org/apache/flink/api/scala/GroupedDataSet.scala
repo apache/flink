@@ -22,10 +22,10 @@ import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{GroupCombineFunction, GroupReduceFunction, Partitioner, ReduceFunction}
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.common.operators.{Keys, Order}
+import org.apache.flink.api.common.operators.Keys.{ExpressionKeys, SelectorFunctionKeys}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.functions.{FirstReducer, KeySelector}
-import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.scala.operators.ScalaAggregateOperator
@@ -54,7 +54,7 @@ class GroupedDataSet[T: ClassTag](
 
   private var partitioner : Partitioner[_] = _
 
-  private var groupSortKeySelector: Option[Keys.SelectorFunctionKeys[T, _]] = None
+  private var groupSortKeySelector: Option[SelectorFunctionKeys[T, _]] = None
 
   /**
    * Adds a secondary sort key to this [[GroupedDataSet]]. This will only have an effect if you
@@ -63,7 +63,7 @@ class GroupedDataSet[T: ClassTag](
    * This only works on Tuple DataSets.
    */
   def sortGroup(field: Int, order: Order): GroupedDataSet[T] = {
-    if (keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+    if (keys.isInstanceOf[SelectorFunctionKeys[_, _]]) {
       throw new InvalidProgramException("KeySelector grouping keys and field index group-sorting " +
         "keys cannot be used together.")
     }
@@ -90,7 +90,7 @@ class GroupedDataSet[T: ClassTag](
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
         "supported.")
     }
-    if (keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+    if (keys.isInstanceOf[SelectorFunctionKeys[_, _]]) {
       throw new InvalidProgramException("KeySelector grouping keys and field expression " +
         "group-sorting keys cannot be used together.")
     }
@@ -113,7 +113,7 @@ class GroupedDataSet[T: ClassTag](
       throw new InvalidProgramException("Chaining sortGroup with KeySelector sorting is not" +
         "supported.")
     }
-    if (!keys.isInstanceOf[Keys.SelectorFunctionKeys[_, _]]) {
+    if (!keys.isInstanceOf[SelectorFunctionKeys[_, _]]) {
       throw new InvalidProgramException("Sorting on KeySelector keys only works with KeySelector " +
         "grouping.")
     }
@@ -123,7 +123,7 @@ class GroupedDataSet[T: ClassTag](
     val keyExtractor = new KeySelector[T, K] {
       def getKey(in: T) = fun(in)
     }
-    groupSortKeySelector = Some(new Keys.SelectorFunctionKeys[T, K](
+    groupSortKeySelector = Some(new SelectorFunctionKeys[T, K](
       keyExtractor,
       set.javaSet.getType,
       keyType))

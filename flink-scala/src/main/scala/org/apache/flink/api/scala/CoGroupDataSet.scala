@@ -23,9 +23,9 @@ import org.apache.flink.annotation.{Internal, Public}
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.{CoGroupFunction, Partitioner, RichCoGroupFunction}
 import org.apache.flink.api.common.operators.{Keys, Order}
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import Keys.ExpressionKeys
 import org.apache.flink.api.java.operators._
 import org.apache.flink.util.Collector
 
