@@ -18,7 +18,7 @@
 
 # Extensions to flink-container/docker/docker-compose.yml that mounts volumes needed for tests
 
-version: "2.1"
+version: "2.2"
 services:
   job-cluster:
     volumes:
