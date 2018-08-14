@@ -120,7 +120,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	/** A local actor system for using the helper actors. */
 	private final ActorSystem actorSystem;
 
-	/** Web url for to show in mesos page.*/
+	/** Web url to show in mesos page. */
 	@Nullable
 	private final String webUiUrl;
 
@@ -186,12 +186,11 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 		this.taskManagerParameters = Preconditions.checkNotNull(taskManagerParameters);
 		this.taskManagerContainerSpec = Preconditions.checkNotNull(taskManagerContainerSpec);
+		this.webUiUrl = webUiUrl;
 
 		this.workersInNew = new HashMap<>(8);
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
-
-		this.webUiUrl = webUiUrl;
 	}
 
 	protected ActorRef createSelfActor() {
@@ -245,7 +244,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			.clone()
 			.setCheckpoint(true);
 		if (webUiUrl != null) {
-			frameworkInfo = frameworkInfo.setWebuiUrl(webUiUrl);
+			frameworkInfo.setWebuiUrl(webUiUrl);
 		}
 
 		try {
