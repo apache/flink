@@ -309,7 +309,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		}
 		return dump.toString();
 	}
-	
+
 	private static class UnboundedSource implements SourceFunction<String> {
 		private volatile boolean running = true;
 
