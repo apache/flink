@@ -40,7 +40,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
@@ -53,12 +52,13 @@ import akka.actor.ActorSystem;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
@@ -68,7 +68,6 @@ import scala.Option;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.apache.flink.runtime.testutils.CommonTestUtils.createTempDirectory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
@@ -95,33 +94,21 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	private static final FiniteDuration TestTimeOut = new FiniteDuration(5, TimeUnit.MINUTES);
 
-	private static final File FileStateBackendBasePath;
-
-	static {
-		try {
-			FileStateBackendBasePath = CommonTestUtils.createTempDirectory();
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Error in test setup. Could not create directory.", e);
-		}
-	}
+	@Rule
+	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	
+	private File zookeeperStoragePath;
 
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (ZooKeeper != null) {
 			ZooKeeper.shutdown();
 		}
-
-		if (FileStateBackendBasePath != null) {
-			FileUtils.deleteDirectory(FileStateBackendBasePath);
-		}
 	}
 
 	@Before
 	public void cleanUp() throws Exception {
 		ZooKeeper.deleteAll();
-
-		FileUtils.cleanDirectory(FileStateBackendBasePath);
 	}
 
 	protected static final String READY_MARKER_FILE_PREFIX = "ready_";
@@ -159,7 +146,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 		config.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkQuorum);
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, FileStateBackendBasePath.getAbsolutePath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, zookeeperStoragePath.getAbsolutePath());
 
 		ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
 				"leader", 1, config);
@@ -228,6 +215,8 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	@Test
 	public void testJobManagerProcessFailure() throws Exception {
+		zookeeperStoragePath = temporaryFolder.newFolder();
+
 		// Config
 		final int numberOfJobManagers = 2;
 		final int numberOfTaskManagers = 2;
@@ -256,11 +245,11 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 			final Deadline deadline = TestTimeOut.fromNow();
 
 			// Coordination directory
-			coordinateTempDir = createTempDirectory();
+			coordinateTempDir = temporaryFolder.newFolder();
 
 			// Job Managers
 			Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
-					ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
+					ZooKeeper.getConnectString(), zookeeperStoragePath.getPath());
 
 			// Start first process
 			jmProcess[0] = new JobManagerProcess(0, config);
