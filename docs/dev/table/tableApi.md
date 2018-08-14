@@ -1577,8 +1577,13 @@ The Table API is built on top of Flink's DataSet and DataStream APIs. Internally
 | `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
 | `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 | `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
+| `Types.ROW`            | `ROW`                       | `org.apache.flink.types.Row` |
 
-Generic types and composite types (e.g., POJOs or Tuples) can be fields of a row as well. Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html). Composite types can be accessed with [built-in functions](#built-in-functions) (see *Value access functions* section).
+Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
+
+Fields of composite types with arbitrary nesting can be accessed with [value access functions](functions.html#value-access-functions).
+
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html).
 
 {% top %}
 

@@ -891,8 +891,13 @@ The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internal
 | `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
 | `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 | `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
+| `Types.ROW`            | `ROW`                       | `org.apache.flink.types.Row` |
 
-Generic types and composite types (e.g., POJOs or Tuples) can be fields of a row as well. Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html). Composite types can be accessed with [built-in functions](#built-in-functions) (see *Value access functions* section).
+Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
+
+Fields of composite types with arbitrary nesting can be accessed with [value access functions](functions.html#value-access-functions).
+
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html).
 
 {% top %}
 
@@ -906,118 +911,6 @@ Although not every SQL feature is implemented yet, some string combinations are 
 A, ABS, ABSOLUTE, ACTION, ADA, ADD, ADMIN, AFTER, ALL, ALLOCATE, ALLOW, ALTER, ALWAYS, AND, ANY, ARE, ARRAY, AS, ASC, ASENSITIVE, ASSERTION, ASSIGNMENT, ASYMMETRIC, AT, ATOMIC, ATTRIBUTE, ATTRIBUTES, AUTHORIZATION, AVG, BEFORE, BEGIN, BERNOULLI, BETWEEN, BIGINT, BINARY, BIT, BLOB, BOOLEAN, BOTH, BREADTH, BY, C, CALL, CALLED, CARDINALITY, CASCADE, CASCADED, CASE, CAST, CATALOG, CATALOG_NAME, CEIL, CEILING, CENTURY, CHAIN, CHAR, CHARACTER, CHARACTERISTICS, CHARACTERS, CHARACTER_LENGTH, CHARACTER_SET_CATALOG, CHARACTER_SET_NAME, CHARACTER_SET_SCHEMA, CHAR_LENGTH, CHECK, CLASS_ORIGIN, CLOB, CLOSE, COALESCE, COBOL, COLLATE, COLLATION, COLLATION_CATALOG, COLLATION_NAME, COLLATION_SCHEMA, COLLECT, COLUMN, COLUMN_NAME, COMMAND_FUNCTION, COMMAND_FUNCTION_CODE, COMMIT, COMMITTED, CONDITION, CONDITION_NUMBER, CONNECT, CONNECTION, CONNECTION_NAME, CONSTRAINT, CONSTRAINTS, CONSTRAINT_CATALOG, CONSTRAINT_NAME, CONSTRAINT_SCHEMA, CONSTRUCTOR, CONTAINS, CONTINUE, CONVERT, CORR, CORRESPONDING, COUNT, COVAR_POP, COVAR_SAMP, CREATE, CROSS, CUBE, CUME_DIST, CURRENT, CURRENT_CATALOG, CURRENT_DATE, CURRENT_DEFAULT_TRANSFORM_GROUP, CURRENT_PATH, CURRENT_ROLE, CURRENT_SCHEMA, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_TRANSFORM_GROUP_FOR_TYPE, CURRENT_USER, CURSOR, CURSOR_NAME, CYCLE, DATA, DATABASE, DATE, DATETIME_INTERVAL_CODE, DATETIME_INTERVAL_PRECISION, DAY, DEALLOCATE, DEC, DECADE, DECIMAL, DECLARE, DEFAULT, DEFAULTS, DEFERRABLE, DEFERRED, DEFINED, DEFINER, DEGREE, DELETE, DENSE_RANK, DEPTH, DEREF, DERIVED, DESC, DESCRIBE, DESCRIPTION, DESCRIPTOR, DETERMINISTIC, DIAGNOSTICS, DISALLOW, DISCONNECT, DISPATCH, DISTINCT, DOMAIN, DOUBLE, DOW, DOY, DROP, DYNAMIC, DYNAMIC_FUNCTION, DYNAMIC_FUNCTION_CODE, EACH, ELEMENT, ELSE, END, END-EXEC, EPOCH, EQUALS, ESCAPE, EVERY, EXCEPT, EXCEPTION, EXCLUDE, EXCLUDING, EXEC, EXECUTE, EXISTS, EXP, EXPLAIN, EXTEND, EXTERNAL, EXTRACT, FALSE, FETCH, FILTER, FINAL, FIRST, FIRST_VALUE, FLOAT, FLOOR, FOLLOWING, FOR, FOREIGN, FORTRAN, FOUND, FRAC_SECOND, FREE, FROM, FULL, FUNCTION, FUSION, G, GENERAL, GENERATED, GET, GLOBAL, GO, GOTO, GRANT, GRANTED, GROUP, GROUPING, HAVING, HIERARCHY, HOLD, HOUR, IDENTITY, IMMEDIATE, IMPLEMENTATION, IMPORT, IN, INCLUDING, INCREMENT, INDICATOR, INITIALLY, INNER, INOUT, INPUT, INSENSITIVE, INSERT, INSTANCE, INSTANTIABLE, INT, INTEGER, INTERSECT, INTERSECTION, INTERVAL, INTO, INVOKER, IS, ISOLATION, JAVA, JOIN, K, KEY, KEY_MEMBER, KEY_TYPE, LABEL, LANGUAGE, LARGE, LAST, LAST_VALUE, LATERAL, LEADING, LEFT, LENGTH, LEVEL, LIBRARY, LIKE, LIMIT, LN, LOCAL, LOCALTIME, LOCALTIMESTAMP, LOCATOR, LOWER, M, MAP, MATCH, MATCHED, MAX, MAXVALUE, MEMBER, MERGE, MESSAGE_LENGTH, MESSAGE_OCTET_LENGTH, MESSAGE_TEXT, METHOD, MICROSECOND, MILLENNIUM, MIN, MINUTE, MINVALUE, MOD, MODIFIES, MODULE, MONTH, MORE, MULTISET, MUMPS, NAME, NAMES, NATIONAL, NATURAL, NCHAR, NCLOB, NESTING, NEW, NEXT, NO, NONE, NORMALIZE, NORMALIZED, NOT, NULL, NULLABLE, NULLIF, NULLS, NUMBER, NUMERIC, OBJECT, OCTETS, OCTET_LENGTH, OF, OFFSET, OLD, ON, ONLY, OPEN, OPTION, OPTIONS, OR, ORDER, ORDERING, ORDINALITY, OTHERS, OUT, OUTER, OUTPUT, OVER, OVERLAPS, OVERLAY, OVERRIDING, PAD, PARAMETER, PARAMETER_MODE, PARAMETER_NAME, PARAMETER_ORDINAL_POSITION, PARAMETER_SPECIFIC_CATALOG, PARAMETER_SPECIFIC_NAME, PARAMETER_SPECIFIC_SCHEMA, PARTIAL, PARTITION, PASCAL, PASSTHROUGH, PATH, PERCENTILE_CONT, PERCENTILE_DISC, PERCENT_RANK, PLACING, PLAN, PLI, POSITION, POWER, PRECEDING, PRECISION, PREPARE, PRESERVE, PRIMARY, PRIOR, PRIVILEGES, PROCEDURE, PUBLIC, QUARTER, RANGE, RANK, READ, READS, REAL, RECURSIVE, REF, REFERENCES, REFERENCING, REGR_AVGX, REGR_AVGY, REGR_COUNT, REGR_INTERCEPT, REGR_R2, REGR_SLOPE, REGR_SXX, REGR_SXY, REGR_SYY, RELATIVE, RELEASE, REPEATABLE, RESET, RESTART, RESTRICT, RESULT, RETURN, RETURNED_CARDINALITY, RETURNED_LENGTH, RETURNED_OCTET_LENGTH, RETURNED_SQLSTATE, RETURNS, REVOKE, RIGHT, ROLE, ROLLBACK, ROLLUP, ROUTINE, ROUTINE_CATALOG, ROUTINE_NAME, ROUTINE_SCHEMA, ROW, ROWS, ROW_COUNT, ROW_NUMBER, SAVEPOINT, SCALE, SCHEMA, SCHEMA_NAME, SCOPE, SCOPE_CATALOGS, SCOPE_NAME, SCOPE_SCHEMA, SCROLL, SEARCH, SECOND, SECTION, SECURITY, SELECT, SELF, SENSITIVE, SEQUENCE, SERIALIZABLE, SERVER, SERVER_NAME, SESSION, SESSION_USER, SET, SETS, SIMILAR, SIMPLE, SIZE, SMALLINT, SOME, SOURCE, SPACE, SPECIFIC, SPECIFICTYPE, SPECIFIC_NAME, SQL, SQLEXCEPTION, SQLSTATE, SQLWARNING, SQL_TSI_DAY, SQL_TSI_FRAC_SECOND, SQL_TSI_HOUR, SQL_TSI_MICROSECOND, SQL_TSI_MINUTE, SQL_TSI_MONTH, SQL_TSI_QUARTER, SQL_TSI_SECOND, SQL_TSI_WEEK, SQL_TSI_YEAR, SQRT, START, STATE, STATEMENT, STATIC, STDDEV_POP, STDDEV_SAMP, STREAM, STRUCTURE, STYLE, SUBCLASS_ORIGIN, SUBMULTISET, SUBSTITUTE, SUBSTRING, SUM, SYMMETRIC, SYSTEM, SYSTEM_USER, TABLE, TABLESAMPLE, TABLE_NAME, TEMPORARY, THEN, TIES, TIME, TIMESTAMP, TIMESTAMPADD, TIMESTAMPDIFF, TIMEZONE_HOUR, TIMEZONE_MINUTE, TINYINT, TO, TOP_LEVEL_COUNT, TRAILING, TRANSACTION, TRANSACTIONS_ACTIVE, TRANSACTIONS_COMMITTED, TRANSACTIONS_ROLLED_BACK, TRANSFORM, TRANSFORMS, TRANSLATE, TRANSLATION, TREAT, TRIGGER, TRIGGER_CATALOG, TRIGGER_NAME, TRIGGER_SCHEMA, TRIM, TRUE, TYPE, UESCAPE, UNBOUNDED, UNCOMMITTED, UNDER, UNION, UNIQUE, UNKNOWN, UNNAMED, UNNEST, UPDATE, UPPER, UPSERT, USAGE, USER, USER_DEFINED_TYPE_CATALOG, USER_DEFINED_TYPE_CODE, USER_DEFINED_TYPE_NAME, USER_DEFINED_TYPE_SCHEMA, USING, VALUE, VALUES, VARBINARY, VARCHAR, VARYING, VAR_POP, VAR_SAMP, VERSION, VIEW, WEEK, WHEN, WHENEVER, WHERE, WIDTH_BUCKET, WINDOW, WITH, WITHIN, WITHOUT, WORK, WRAPPER, WRITE, XML, YEAR, ZONE
 
 {% endhighlight %}
-
-#### Date Format Specifier
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">Specifier</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-  <tr><td>{% highlight text %}%a{% endhighlight %}</td>
-  <td>Abbreviated weekday name (<code>Sun</code> .. <code>Sat</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%b{% endhighlight %}</td>
-  <td>Abbreviated month name (<code>Jan</code> .. <code>Dec</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%c{% endhighlight %}</td>
-  <td>Month, numeric (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%D{% endhighlight %}</td>
-  <td>Day of the month with English suffix (<code>0th</code>, <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ...)</td>
-  </tr>
-  <tr><td>{% highlight text %}%d{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>01</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%e{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>1</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%f{% endhighlight %}</td>
-  <td>Fraction of second (6 digits for printing: <code>000000</code> .. <code>999000</code>; 1 - 9 digits for parsing: <code>0</code> .. <code>999999999</code>) (Timestamp is truncated to milliseconds.) </td>
-  </tr>
-  <tr><td>{% highlight text %}%H{% endhighlight %}</td>
-  <td>Hour (<code>00</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%h{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%I{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%i{% endhighlight %}</td>
-  <td>Minutes, numeric (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%j{% endhighlight %}</td>
-  <td>Day of year (<code>001</code> .. <code>366</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%k{% endhighlight %}</td>
-  <td>Hour (<code>0</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%l{% endhighlight %}</td>
-  <td>Hour (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%M{% endhighlight %}</td>
-  <td>Month name (<code>January</code> .. <code>December</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%m{% endhighlight %}</td>
-  <td>Month, numeric (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%p{% endhighlight %}</td>
-  <td><code>AM</code> or <code>PM</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%r{% endhighlight %}</td>
-  <td>Time, 12-hour (<code>hh:mm:ss</code> followed by <code>AM</code> or <code>PM</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%S{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%s{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%T{% endhighlight %}</td>
-  <td>Time, 24-hour (<code>hh:mm:ss</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%U{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%u{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Monday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%V{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Sunday is the first day of the week; used with <code>%X</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%v{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%w{% endhighlight %}</td>
-  <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%X{% endhighlight %}</td>
-  <td>Year for the week where Sunday is the first day of the week, numeric, four digits; used with <code>%V</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td>Year for the week, where Monday is the first day of the week, numeric, four digits; used with <code>%v</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%Y{% endhighlight %}</td>
-  <td>Year, numeric, four digits</td>
-  </tr>
-  <tr><td>{% highlight text %}%y{% endhighlight %}</td>
-  <td>Year, numeric (two digits) </td>
-  </tr>
-  <tr><td>{% highlight text %}%%{% endhighlight %}</td>
-  <td>A literal <code>%</code> character</td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td><code>x</code>, for any <code>x</code> not listed above</td>
-  </tr>
-  </tbody>
-</table>
 
 {% top %}
 
