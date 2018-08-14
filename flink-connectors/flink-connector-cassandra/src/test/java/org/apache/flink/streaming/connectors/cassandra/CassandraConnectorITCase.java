@@ -119,7 +119,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	private static final ArrayList<Tuple3<String, Integer, Integer>> collection = new ArrayList<>(20);
 	private static final ArrayList<Row> rowCollection = new ArrayList<>(20);
 
-	private static final String[] FIELD_NAMES = {"id", "counter", "batch_id"};
 	private static final TypeInformation[] FIELD_TYPES = {
 		BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO};
 
