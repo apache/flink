@@ -325,9 +325,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void onContainersCompleted(final List<ContainerStatus> list) {
+	public void onContainersCompleted(final List<ContainerStatus> statuses) {
 		runAsync(() -> {
-				for (final ContainerStatus containerStatus : list) {
+				log.debug("YARN ResourceManager reported the following containers completed: {}.", statuses);
+				for (final ContainerStatus containerStatus : statuses) {
 
 					final ResourceID resourceId = new ResourceID(containerStatus.getContainerId().toString());
 					final YarnWorkerNode yarnWorkerNode = workerNodeMap.remove(resourceId);
