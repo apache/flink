@@ -1,8 +1,10 @@
 ---
-title: "Linking with Optional Modules"
-layout: redirect
-redirect: /dev/projectsetup/dependencies.html
-permalink: /dev/linking.html
+section-break: true
+nav-title: '<i class="fa fa-cogs title dessert" aria-hidden="true"></i> Flink Development'
+title: "Flink Development"
+nav-id: "flinkdev"
+nav-parent_id: root
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +24,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-

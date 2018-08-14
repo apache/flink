@@ -1,10 +1,8 @@
 ---
-section-break: true
-nav-title: '<i class="fa fa-cogs title maindish" aria-hidden="true"></i> Project Setup'
-title: "Project Setup"
-nav-id: "start"
-nav-parent_id: root
-nav-pos: 4
+title: "Project Template for Java"
+layout: redirect
+redirect: /dev/projectsetup/java_api_quickstart.html
+permalink: /quickstart/java_api_quickstart.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

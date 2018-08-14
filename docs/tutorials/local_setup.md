@@ -1,8 +1,8 @@
 ---
-title: "Quickstart"
-nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> Quickstart'
-nav-parent_id: root
-nav-pos: 2
+title: "Local Setup Tutorial"
+nav-title: 'Local Setup'
+nav-parent_id: setuptutorials
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -30,7 +30,7 @@ Get a Flink example program up and running in a few simple steps.
 
 ## Setup: Download and Start Flink
 
-Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/start/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
+Flink runs on __Linux, Mac OS X, and Windows__. To be able to run Flink, the only requirement is to have a working __Java 8.x__ installation. Windows users, please take a look at the [Flink on Windows]({{ site.baseurl }}/tutorials/flink_on_windows.html) guide which describes how to run Flink on Windows for local setups.
 
 You can check the correct installation of Java by issuing the following command:
 

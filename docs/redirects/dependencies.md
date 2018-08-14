@@ -1,8 +1,8 @@
 ---
-title: "Linking with Optional Modules"
+title: "Configuring Dependencies, Connectors, Libraries"
 layout: redirect
 redirect: /dev/projectsetup/dependencies.html
-permalink: /dev/linking.html
+permalink: /start/dependencies.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +22,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
