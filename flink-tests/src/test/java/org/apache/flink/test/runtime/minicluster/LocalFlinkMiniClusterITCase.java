@@ -31,6 +31,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 import org.junit.Test;
 
@@ -67,7 +68,7 @@ public class LocalFlinkMiniClusterITCase extends TestLogger {
 	@Test
 	public void testLocalFlinkMiniClusterWithMultipleTaskManagers() throws InterruptedException, TimeoutException {
 
-		final ActorSystem system = ActorSystem.create("Testkit", AkkaUtils.getDefaultAkkaConfig());
+		final ActorSystem system = new RobustActorSystem("Testkit", AkkaUtils.getDefaultAkkaConfig());
 		LocalFlinkMiniCluster miniCluster = null;
 
 		final int numTMs = 3;

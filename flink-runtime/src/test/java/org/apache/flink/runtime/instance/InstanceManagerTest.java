@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.instance;
 
 import akka.actor.ActorSystem;
+import akka.actor.RobustActorSystem;
 import akka.testkit.JavaTestKit;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -55,7 +56,7 @@ public class InstanceManagerTest{
 
 	@BeforeClass
 	public static void setup(){
-		system = ActorSystem.create("TestingActorSystem", TestingUtils.testConfig());
+		system = new RobustActorSystem("TestingActorSystem", TestingUtils.testConfig());
 	}
 
 	@AfterClass
