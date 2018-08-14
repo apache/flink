@@ -48,7 +48,6 @@ public class IOMetrics implements Serializable {
 		this.numRecordsInPerSecond = recordsIn.getRate();
 		this.numRecordsOut = recordsOut.getCount();
 		this.numRecordsOutPerSecond = recordsOut.getRate();
-
 		this.numBytesInLocal = bytesLocalIn.getCount();
 		this.numBytesInLocalPerSecond = bytesLocalIn.getRate();
 		this.numBytesInRemote = bytesRemoteIn.getCount();

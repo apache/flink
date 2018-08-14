@@ -179,12 +179,11 @@ public class MutableIOMetrics extends IOMetrics {
 
 		gen.writeObjectFieldStart("metrics");
 
-		long numBytesIn = this.numBytesInLocal + this.numBytesInRemote;
+		Long numBytesIn = this.numBytesInLocal + this.numBytesInRemote;
 		gen.writeNumberField("read-bytes", numBytesIn);
 		gen.writeBooleanField("read-bytes-complete", (this.numBytesInLocalComplete && this.numBytesInRemoteComplete));
 		gen.writeNumberField("write-bytes", this.numBytesOut);
 		gen.writeBooleanField("write-bytes-complete", this.numBytesOutComplete);
-
 		gen.writeNumberField("read-records", this.numRecordsIn);
 		gen.writeBooleanField("read-records-complete", this.numRecordsInComplete);
 		gen.writeNumberField("write-records", this.numRecordsOut);

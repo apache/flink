@@ -82,7 +82,6 @@ public final class IOMetricsInfo {
 		this.bytesReadComplete = bytesReadComplete;
 		this.bytesWritten = bytesWritten;
 		this.bytesWrittenComplete = bytesWrittenComplete;
-
 		this.recordsRead = recordsRead;
 		this.recordsReadComplete = recordsReadComplete;
 		this.recordsWritten = recordsWritten;
