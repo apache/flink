@@ -43,23 +43,7 @@ public class IOMetrics implements Serializable {
 	protected double numBytesInRemotePerSecond;
 	protected double numBytesOutPerSecond;
 
-	protected long numBuffersInLocal;
-	protected long numBuffersInRemote;
-	protected long numBuffersOut;
-
-	protected double numBuffersInLocalPerSecond;
-	protected double numBuffersInRemotePerSecond;
-	protected double numBuffersOutPerSecond;
-
-	public IOMetrics(
-			Meter recordsIn,
-			Meter recordsOut,
-			Meter bytesLocalIn,
-			Meter bytesRemoteIn,
-			Meter bytesOut,
-			Meter buffersLocalIn,
-			Meter buffersRemoteIn,
-			Meter buffersOut) {
+	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
 		this.numRecordsInPerSecond = recordsIn.getRate();
 		this.numRecordsOut = recordsOut.getCount();
@@ -71,46 +55,27 @@ public class IOMetrics implements Serializable {
 		this.numBytesInRemotePerSecond = bytesRemoteIn.getRate();
 		this.numBytesOut = bytesOut.getCount();
 		this.numBytesOutPerSecond = bytesOut.getRate();
-
-		this.numBuffersInLocal = buffersLocalIn.getCount();
-		this.numBuffersInLocalPerSecond = buffersLocalIn.getRate();
-		this.numBuffersInRemote = buffersRemoteIn.getCount();
-		this.numBuffersInRemotePerSecond = buffersRemoteIn.getRate();
-		this.numBuffersOut = buffersOut.getCount();
-		this.numBuffersOutPerSecond = buffersOut.getRate();
 	}
 
 	public IOMetrics(
 			long numBytesInLocal,
 			long numBytesInRemote,
 			long numBytesOut,
-			long numBuffersInLocal,
-			long numBuffersInRemote,
-			long numBuffersOut,
 			long numRecordsIn,
 			long numRecordsOut,
 			double numBytesInLocalPerSecond,
 			double numBytesInRemotePerSecond,
 			double numBytesOutPerSecond,
-			double numBuffersInLocalPerSecond,
-			double numBuffersInRemotePerSecond,
-			double numBuffersOutPerSecond,
 			double numRecordsInPerSecond,
 			double numRecordsOutPerSecond) {
 		this.numBytesInLocal = numBytesInLocal;
 		this.numBytesInRemote = numBytesInRemote;
 		this.numBytesOut = numBytesOut;
-		this.numBuffersInLocal = numBuffersInLocal;
-		this.numBuffersInRemote = numBuffersInRemote;
-		this.numBuffersOut = numBuffersOut;
 		this.numRecordsIn = numRecordsIn;
 		this.numRecordsOut = numRecordsOut;
 		this.numBytesInLocalPerSecond = numBytesInLocalPerSecond;
 		this.numBytesInRemotePerSecond = numBytesInRemotePerSecond;
 		this.numBytesOutPerSecond = numBytesOutPerSecond;
-		this.numBuffersInLocalPerSecond = numBuffersInLocalPerSecond;
-		this.numBuffersInRemotePerSecond = numBuffersInRemotePerSecond;
-		this.numBuffersOutPerSecond = numBuffersOutPerSecond;
 		this.numRecordsInPerSecond = numRecordsInPerSecond;
 		this.numRecordsOutPerSecond = numRecordsOutPerSecond;
 	}
@@ -139,22 +104,6 @@ public class IOMetrics implements Serializable {
 		return numBytesOut;
 	}
 
-	public long getNumBuffersInLocal() {
-		return numBuffersInLocal;
-	}
-
-	public long getNumBuffersInRemote() {
-		return numBuffersInRemote;
-	}
-
-	public long getNumBuffersInTotal() {
-		return numBuffersInLocal + numBuffersInRemote;
-	}
-
-	public long getNumBuffersOut() {
-		return numBuffersOut;
-	}
-
 	public double getNumRecordsInPerSecond() {
 		return numRecordsInPerSecond;
 	}
@@ -173,17 +122,5 @@ public class IOMetrics implements Serializable {
 
 	public double getNumBytesOutPerSecond() {
 		return numBytesOutPerSecond;
-	}
-
-	public double getNumBuffersInLocalPerSecond() {
-		return numBuffersInLocalPerSecond;
-	}
-
-	public double getNumBuffersInRemotePerSecond() {
-		return numBuffersInRemotePerSecond;
-	}
-
-	public double getNumBuffersOutPerSecond() {
-		return numBuffersOutPerSecond;
 	}
 }

@@ -81,7 +81,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	}
 
 	public IOMetrics createSnapshot() {
-		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRateLocal, numBytesInRateRemote, numBytesOutRate, numBuffersInRateLocal, numBuffersInRateRemote, numBuffersOutRate);
+		return new IOMetrics(numRecordsInRate, numRecordsOutRate, numBytesInRateLocal, numBytesInRateRemote, numBytesOutRate);
 	}
 
 	// ============================================================================================
@@ -130,6 +130,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 	public Meter getNumBytesOutRateMeter() {
 		return numBytesOutRate;
 	}
+
 	// ============================================================================================
 	// Buffer metrics
 	// ============================================================================================

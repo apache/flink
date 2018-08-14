@@ -47,14 +47,11 @@ public class MutableIOMetrics extends IOMetrics {
 	private boolean numBytesInLocalComplete = true;
 	private boolean numBytesInRemoteComplete = true;
 	private boolean numBytesOutComplete = true;
-	private boolean numBuffersInLocalComplete = true;
-	private boolean numBuffersInRemoteComplete = true;
-	private boolean numBuffersOutComplete = true;
 	private boolean numRecordsInComplete = true;
 	private boolean numRecordsOutComplete = true;
 
 	public MutableIOMetrics() {
-		super(0, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+		super(0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
 	}
 
 	public boolean isNumBytesInLocalComplete() {
@@ -67,18 +64,6 @@ public class MutableIOMetrics extends IOMetrics {
 
 	public boolean isNumBytesOutComplete() {
 		return numBytesOutComplete;
-	}
-
-	public boolean isNumBuffersInLocalComplete() {
-		return numBuffersInLocalComplete;
-	}
-
-	public boolean isNumBuffersInRemoteComplete() {
-		return numBuffersInRemoteComplete;
-	}
-
-	public boolean isNumBuffersOutComplete() {
-		return numBuffersOutComplete;
 	}
 
 	public boolean isNumRecordsInComplete() {
@@ -106,9 +91,6 @@ public class MutableIOMetrics extends IOMetrics {
 				this.numBytesInLocal += ioMetrics.getNumBytesInLocal();
 				this.numBytesInRemote += ioMetrics.getNumBytesInRemote();
 				this.numBytesOut += ioMetrics.getNumBytesOut();
-				this.numBuffersInLocal += ioMetrics.getNumBuffersInLocal();
-				this.numBuffersInRemote += ioMetrics.getNumBuffersInRemote();
-				this.numBuffersOut += ioMetrics.getNumBuffersOut();
 				this.numRecordsIn += ioMetrics.getNumRecordsIn();
 				this.numRecordsOut += ioMetrics.getNumRecordsOut();
 			}
@@ -145,27 +127,6 @@ public class MutableIOMetrics extends IOMetrics {
 						this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT));
 					}
 
-					if (metrics.getMetric(MetricNames.IO_NUM_BUFFERS_IN_LOCAL) == null){
-						this.numBuffersInLocalComplete = false;
-					}
-					else {
-						this.numBuffersInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BUFFERS_IN_LOCAL));
-					}
-
-					if (metrics.getMetric(MetricNames.IO_NUM_BUFFERS_IN_REMOTE) == null){
-						this.numBuffersInRemoteComplete = false;
-					}
-					else {
-						this.numBuffersInRemote += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BUFFERS_IN_REMOTE));
-					}
-
-					if (metrics.getMetric(MetricNames.IO_NUM_BUFFERS_OUT) == null){
-						this.numBuffersOutComplete = false;
-					}
-					else {
-						this.numBuffersOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BUFFERS_OUT));
-					}
-
 					if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN) == null){
 						this.numRecordsInComplete = false;
 					}
@@ -184,9 +145,6 @@ public class MutableIOMetrics extends IOMetrics {
 					this.numBytesInLocalComplete = false;
 					this.numBytesInRemoteComplete = false;
 					this.numBytesOutComplete = false;
-					this.numBuffersInLocalComplete = false;
-					this.numBuffersInRemoteComplete = false;
-					this.numBuffersOutComplete = false;
 					this.numRecordsInComplete = false;
 					this.numRecordsOutComplete = false;
 				}
@@ -203,13 +161,9 @@ public class MutableIOMetrics extends IOMetrics {
 	 *     "read-bytes-complete": true,
 	 *     "write-bytes": 2,
 	 *     "write-bytes-complete": true,
-	 *     "read-buffers": 3,
-	 *     "read-buffers-complete": true,
-	 *     "write-buffers": 4,
-	 *     "write-buffers-complete": true,
-	 *     "read-records": 5,
+	 *     "read-records": 3,
 	 *     "read-records-complete": true,
-	 *     "write-records": 6,
+	 *     "write-records": 4,
 	 *     "write-records-complete": true
 	 * }
 	 *
@@ -230,12 +184,6 @@ public class MutableIOMetrics extends IOMetrics {
 		gen.writeBooleanField("read-bytes-complete", (this.numBytesInLocalComplete && this.numBytesInRemoteComplete));
 		gen.writeNumberField("write-bytes", this.numBytesOut);
 		gen.writeBooleanField("write-bytes-complete", this.numBytesOutComplete);
-
-		long numBuffersIn = this.numBuffersInLocal + this.numBuffersInRemote;
-		gen.writeNumberField("read-buffers", numBuffersIn);
-		gen.writeBooleanField("read-buffers-complete", (this.numBuffersInLocalComplete && this.numBuffersInRemoteComplete));
-		gen.writeNumberField("write-buffers", this.numBuffersOut);
-		gen.writeBooleanField("write-buffers-complete", this.numBuffersOutComplete);
 
 		gen.writeNumberField("read-records", this.numRecordsIn);
 		gen.writeBooleanField("read-records-complete", this.numRecordsInComplete);

@@ -115,10 +115,7 @@ public class ArchivedExecutionBuilder {
 				new MeterView(new TestCounter(2), 0),
 				new MeterView(new TestCounter(3), 0),
 				new MeterView(new TestCounter(4), 0),
-				new MeterView(new TestCounter(5), 0),
-				new MeterView(new TestCounter(6), 0),
-				new MeterView(new TestCounter(7), 0),
-				new MeterView(new TestCounter(8), 0));
+				new MeterView(new TestCounter(5), 0));
 		}
 	}
 

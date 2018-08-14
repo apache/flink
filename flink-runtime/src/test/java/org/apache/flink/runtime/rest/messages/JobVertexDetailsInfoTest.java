@@ -46,10 +46,6 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			random.nextLong(),
 			random.nextBoolean(),
 			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
 			random.nextBoolean());
 		List<JobVertexDetailsInfo.VertexTaskDetail> vertexTaskDetailList = new ArrayList<>();
 		vertexTaskDetailList.add(new JobVertexDetailsInfo.VertexTaskDetail(
