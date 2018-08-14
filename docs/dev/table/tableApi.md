@@ -385,6 +385,36 @@ Table result = orders.distinct();
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>Distinct Aggregation</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL DISTINCT AGGREGATION clause such as COUNT(DISTINCT a). Returns aggregation results with a following running aggregation operator to aggregate over rows with only distinct value. Distinct aggregations can operator with <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
+{% highlight java %}
+Table orders = tableEnv.scan("Orders");
+// Distinct aggregation on group by
+Table groupByDistinctResult = orders
+    .groupBy("a")
+    .select("a, b.sum.distinct as d");
+// Distinct aggregation on time window group by
+Table groupByWindowDistinctResult = orders
+    .window(Tumble.over("5.minutes").on("rowtime").as("w")).groupBy("a, w")
+    .select("a, b.sum.distinct as d");
+// Distinct aggregation on over window
+Table result = orders
+    .window(Over
+        .partitionBy("a")
+        .orderBy("rowtime")
+        .preceding("UNBOUNDED_RANGE")
+        .following("CURRENT_RANGE")
+        .as("w"))
+    .select("a, b.avg.distinct over w, b.max over w, b.min over w");
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -463,6 +493,36 @@ val result: Table = orders
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.distinct()
+{% endhighlight %}
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Distinct Aggregation</strong><br>
+        <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Similar to a SQL DISTINCT AGGREGATION clause such as COUNT(DISTINCT a). Returns aggregation results with a following running aggregation operator to aggregate over rows with only distinct value. Distinct aggregations can operator with <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
+{% highlight scala %}
+val orders: Table = tableEnv.scan("Orders");
+// Distinct aggregation on group by
+val groupByDistinctResult = orders
+    .groupBy('a)
+    .select('a, 'b.sum.distinct as 'd)
+// Distinct aggregation on time window group by
+val groupByWindowDistinctResult = orders
+    .window(Tumble over 5.minutes on 'rowtime as 'w).groupBy('a, 'w)
+    .select('a, 'b.sum.distinct as 'd)
+// Distinct aggregation on over window
+val result = orders
+    .window(Over
+        partitionBy 'a
+        orderBy 'rowtime
+        preceding UNBOUNDED_RANGE
+        following CURRENT_RANGE
+        as 'w)
+    .select('a, 'b.avg.distinct over 'w, 'b.max over 'w, 'b.min over 'w)
 {% endhighlight %}
         <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>

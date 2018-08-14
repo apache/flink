@@ -650,6 +650,36 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 </div>
 </div>
 
+User-defined aggregation function can be used with `distinct` modifiers. To calculate the aggregate results only for distinct values, simply add the distinct modifier towards the aggregation function.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+StreamTableEnvironment tEnv = ...
+Table orders = tEnv.scan("Orders");
+
+// Use distinct aggregation in Table API
+tEnv.registerFunction("myUdagg", new MyUdagg());
+orders.groupBy("users").select("users, myUdagg.distinct(points) as myDistinctResult");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val tEnv: StreamTableEnvironment = ???
+val orders: Table = tEnv.scan("Orders");
+
+// Use distinct aggregation in Table API
+val myUdagg = new MyUdagg();
+orders.groupBy('users).select('users, myUdagg.distinct('points) as 'myDistinctResult);
+
+{% endhighlight %}
+</div>
+</div>
+
 
 {% top %}
 
