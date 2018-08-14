@@ -61,7 +61,7 @@ class UnknownInputChannel extends InputChannel {
 			int maxBackoff,
 			TaskIOMetricGroup metrics) {
 
-		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null);
+		super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
 
 		this.partitionManager = checkNotNull(partitionManager);
 		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
