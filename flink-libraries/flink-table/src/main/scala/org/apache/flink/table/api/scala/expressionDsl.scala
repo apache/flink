@@ -1247,4 +1247,17 @@ object concat_ws {
   }
 }
 
+/**
+  * Returns the uuid according to RFC 4122.
+  */
+object uuid {
+
+  /**
+    * Returns the uuid according to RFC 4122.
+    */
+  def apply(): Expression = {
+    UUID()
+  }
+}
+
 // scalastyle:on object.name

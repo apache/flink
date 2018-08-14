@@ -158,6 +158,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.TOBASE64)
 
+  addSqlFunction(
+    UUID,
+    Seq(),
+    new UUIDCallGen()
+  )
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------

@@ -2325,6 +2325,17 @@ randInteger(seed integer, bound integer)
     <tr>
      <td>
        {% highlight java %}
+UUID()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a uuid string like '3d3c68f7-f608-473f-b60c-b0c44ad4cc4e' according to RFC 4122.</p>
+    </td>
+   </tr>
+   
+    <tr>
+     <td>
+       {% highlight java %}
 NUMERIC.bin()
 {% endhighlight %}
      </td>
@@ -3910,6 +3921,17 @@ randInteger(seed integer, bound integer)
     </td>
    </tr>
 
+    <tr>
+     <td>
+       {% highlight scala %}
+UUID()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a uuid string like '3d3c68f7-f608-473f-b60c-b0c44ad4cc4e' according to RFC 4122.</p>
+    </td>
+   </tr>
+   
     <tr>
      <td>
        {% highlight scala %}
