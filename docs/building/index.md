@@ -1,10 +1,10 @@
 ---
-title: "Application Development"
-nav-id: dev
-nav-title: '<i class="fa fa-code title maindish" aria-hidden="true"></i> Application Development'
-nav-parent_id: root
-nav-pos: 5
 section-break: true
+nav-title: '<i class="fa fa-cogs title dessert" aria-hidden="true"></i> Building & Developing Flink'
+title: "Developing Flink"
+nav-id: "building"
+nav-parent_id: root
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

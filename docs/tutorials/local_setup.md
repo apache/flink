@@ -1,8 +1,8 @@
 ---
-title: "Quickstart"
-nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> Quickstart'
-nav-parent_id: root
-nav-pos: 2
+title: "Local Setup"
+nav-title: 'Local Setup'
+nav-parent_id: setuptutorials
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

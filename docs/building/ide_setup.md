@@ -1,6 +1,6 @@
 ---
-title: "IDE Setup"
-nav-parent_id: start
+title: "Importing Flink into an IDE"
+nav-parent_id: building
 nav-pos: 3
 ---
 <!--

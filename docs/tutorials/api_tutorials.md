@@ -1,10 +1,9 @@
 ---
-section-break: true
-nav-title: '<i class="fa fa-cogs title maindish" aria-hidden="true"></i> Project Setup'
-title: "Project Setup"
-nav-id: "start"
-nav-parent_id: root
-nav-pos: 4
+title: "API Tutorials"
+nav-id: apitutorials
+nav-title: 'API Tutorials'
+nav-parent_id: tutorials
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

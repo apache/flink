@@ -1,7 +1,7 @@
 ---
 title: "Project Template for Scala"
 nav-title: Project Template for Scala
-nav-parent_id: start
+nav-parent_id: projectsetup
 nav-pos: 1
 ---
 <!--

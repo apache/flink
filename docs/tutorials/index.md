@@ -1,10 +1,9 @@
 ---
-title: "Application Development"
-nav-id: dev
-nav-title: '<i class="fa fa-code title maindish" aria-hidden="true"></i> Application Development'
+title: "Tutorials"
+nav-id: tutorials
+nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> Tutorials'
 nav-parent_id: root
-nav-pos: 5
-section-break: true
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
