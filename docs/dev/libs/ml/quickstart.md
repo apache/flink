@@ -146,8 +146,8 @@ create a classifier.
 ## Classification
 
 After importing the training and test dataset, they need to be prepared for the classification. 
-Because Flink SVM only supports threshold binary values of `+1.0` and `-1.0`, a conversion is 
-needed after loading the LibSVM dataset since it is labelled using `1`s and `0`s.
+Since Flink SVM only supports threshold binary values of `+1.0` and `-1.0`, a conversion is 
+needed after loading the LibSVM dataset because it is labelled using `1`s and `0`s.
 
 A conversion can be done using a simple normalizer mapping function:
  
@@ -161,7 +161,7 @@ val astroTest: DataSet[(Vector, Double)] = astroTestLibSVM.map(normalizer).map(x
 
 {% endhighlight %}
 
-Once we have the converted the dataset we can train a `Predictor` such as a linear SVM classifier.
+Once we have converted the dataset we can train a `Predictor` such as a linear SVM classifier.
 We can set a number of parameters for the classifier. Here we set the `Blocks` parameter,
 which is used to split the input by the underlying CoCoA algorithm [[2]](#jaggi) uses. The
 regularization parameter determines the amount of $l_2$ regularization applied, which is used
