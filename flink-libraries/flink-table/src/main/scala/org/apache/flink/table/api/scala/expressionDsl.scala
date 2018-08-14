@@ -219,8 +219,7 @@ trait ImplicitExpressionOperations {
   def collect = Collect(expr)
 
   /**
-    * Return a distinct field reference to a given expression
-    * @return
+    * Returns a distinct field reference to a given expression
     */
   def distinct = DistinctAgg(expr)
 
@@ -979,7 +978,8 @@ trait ImplicitExpressionConversions {
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
   implicit def userDefinedDistinctAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
-      (udagg: DistinctAggregateFunction[T, ACC]): UDAGGDistinctExpression[T, ACC] = UDAGGDistinctExpression(udagg)
+      (udagg: DistinctAggregateFunction[T, ACC]): UDAGGDistinctExpression[T, ACC] =
+    UDAGGDistinctExpression(udagg)
 }
 
 // ------------------------------------------------------------------------------------------------

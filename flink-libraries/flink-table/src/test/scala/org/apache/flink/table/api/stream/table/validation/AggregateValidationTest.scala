@@ -28,6 +28,16 @@ import org.junit.Test
 class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
+  def testMultipleDistinctModifiers(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    val ds = table
+      .groupBy('c)
+      .select('a.count.distinct.distinct)
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testDistinctModifierOnBothSide(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)

@@ -77,8 +77,9 @@ case class DistinctAgg(child: Expression) extends Aggregation {
       case agg: Aggregation =>
         child.validateInput()
       case _ =>
-        ValidationFailure(s"Distinct modifier cannot be applied to $child. " +
-          s"It can only be applied to an aggregation expression!")
+        ValidationFailure(s"Distinct modifier cannot be applied to $child! " +
+          s"It can only be applied to an aggregation expression, for example, " +
+          s"'a.count.distinct which is equivalent with COUNT(DISTINCT a).")
     }
   }
 

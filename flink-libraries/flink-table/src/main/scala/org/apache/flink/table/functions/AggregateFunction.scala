@@ -143,7 +143,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedFunction {
     * Returns an aggregation function that requires distinct accumulator.
     * @return distinct aggregate version of the [[AggregateFunction]].
     */
-  def distinct: DistinctAggregateFunction[T, ACC] = DistinctAggregateFunction(this)
+  private[flink] def distinct: DistinctAggregateFunction[T, ACC] = DistinctAggregateFunction(this)
 }
 
-case class DistinctAggregateFunction[T, ACC](aggFunction: AggregateFunction[T, ACC])
+private[flink] case class DistinctAggregateFunction[T, ACC](aggFunction: AggregateFunction[T, ACC])
