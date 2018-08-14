@@ -22,26 +22,29 @@ The files contain the following variables:
 One way to substitute the variables is to use `envsubst`.
 See [here](https://stackoverflow.com/a/23622446/4815083) for a guide to install it on Mac OS X.
 
+Alternatively, copy the template files (suffixed with `*.template`) and replace the variables.
+
 In non HA mode, you should first start the job cluster service:
 
 `kubectl create -f job-cluster-service.yaml`
 
 In order to deploy the job cluster entrypoint run:
 
-`FLINK_IMAGE_NAME=<job-image> FLINK_JOB=<job-name> FLINK_JOB_PARALLELISM=<parallelism> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
+`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB=<JOB_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < job-cluster-job.yaml.template | kubectl create -f -`
 
 Now you should see the `flink-job-cluster` job being started by calling `kubectl get job`.
 
 At last, you should start the task manager deployment:
 
-`FLINK_IMAGE_NAME=<job-image> FLINK_JOB_PARALLELISM=<parallelism> envsubst < task-manager-deployment.yaml.template | kubectl create -f -`
+`FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < task-manager-deployment.yaml.template | kubectl create -f -`
 
 ## Interact with Flink job cluster
 
-After starting the job cluster service, the web UI will be available under `<NodeIP>:30081`.
+After starting the job cluster service, the web UI will be available under `<NODE_IP>:30081`.
+In the case of Minikube, `<NODE_IP>` equals `minikube ip`.
 You can then use the Flink client to send Flink commands to the cluster:
 
-`bin/flink list -m <NodeIP:30081>`
+`bin/flink list -m <NODE_IP:30081>`
 
 ## Terminate Flink job cluster
 
