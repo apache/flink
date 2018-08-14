@@ -1218,6 +1218,27 @@ Thus, in order to infer the metric identifier:
       <td>Meter</td>
     </tr>
     <tr>
+      <th rowspan="6"><strong>Task</strong></th>
+      <td>numBuffersInLocal</td>
+      <td>The total number of network buffers this task has read from a local source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInLocalPerSecond</td>
+      <td>The number of network buffers this task reads from a local source per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInRemote</td>
+      <td>The total number of network buffers this task has read from a remote source.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBuffersInRemotePerSecond</td>
+      <td>The number of network buffers this task reads from a remote source per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
       <td>numBytesOut</td>
       <td>The total number of bytes this task has emitted.</td>
       <td>Counter</td>
@@ -1225,6 +1246,16 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>numBytesOutPerSecond</td>
       <td>The number of bytes this task emits per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
+      <td>numBuffersOut</td>
+      <td>The total number of network buffers this task has emitted.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numBuffersOutPerSecond</td>
+      <td>The number of network buffers this task emits per second.</td>
       <td>Meter</td>
     </tr>
     <tr>
