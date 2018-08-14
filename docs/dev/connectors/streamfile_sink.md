@@ -40,7 +40,7 @@ bulk-encoding formats, such as [Apache Parquet](http://parquet.apache.org).
 
 #### Using Row-encoded Output Formats
 
-The only required configuration are the base path were we want to output our
+The only required configuration are the base path where we want to output our
 data and an
 [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html)
 that is used for serializing records to the `OutputStream` for each file.
