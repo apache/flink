@@ -124,7 +124,8 @@ class SimpleConsumerThread<T> extends Thread {
 		this.fetchSize = getInt(config, "fetch.message.max.bytes", 1048576);
 		this.bufferSize = getInt(config, "socket.receive.buffer.bytes", 65536);
 		this.reconnectLimit = getInt(config, "flink.simple-consumer-reconnectLimit", 3);
-		this.clientId = config.getProperty("group.id", "flink-kafka-consumer-legacy-" + broker.id());
+		String groupId = config.getProperty("group.id", "flink-kafka-consumer-legacy-" + broker.id());
+		this.clientId = config.getProperty("client.id", groupId);
 	}
 
 	public ClosableBlockingQueue<KafkaTopicPartitionState<TopicAndPartition>> getNewPartitionsQueue() {
