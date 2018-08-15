@@ -31,6 +31,8 @@ version: "1.7-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
 version_title: "1.7-SNAPSHOT"
+# Branch on Github for this version
+github_branch: "master"
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
