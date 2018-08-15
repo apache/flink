@@ -19,10 +19,34 @@
 @echo off
 rem Start a Flink service as a console application.
 
-setlocal
+setlocal EnableDelayedExpansion
 
 rem Get first argument
 SET SERVICE=%1
+
+IF "%SERVICE%"=="jobmanager" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.jobmanager.JobManager
+) ELSE IF "%SERVICE%"=="taskmanager" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.taskmanager.TaskManager
+) ELSE IF "%SERVICE%"=="taskexecutor" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.taskexecutor.TaskManagerRunner
+) ELSE IF "%SERVICE%"=="historyserver" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.webmonitor.history.HistoryServer
+) ELSE IF "%SERVICE%"=="zookeeper" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.zookeeper.FlinkZooKeeperQuorumPeer
+) ELSE IF "%SERVICE%"=="standalonesession" (
+    SET CLASS_TO_RUN=org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint
+) ELSE (
+    ECHO Unknown service %SERVICE%. Usage: flink-console.bat ^(jobmanager^|taskmanager^|historyserver^|zookeeper^|standalonesession^) ^[args^]
+    exit /b 1
+)
+
+for %%X in (java.exe) do (set FOUND=%%~$PATH:X)
+if not defined FOUND (
+    echo java.exe was not found in PATH variable
+    goto :eof
+)
+
 rem Get remaining arguments
 SET _all=%*
 IF NOT "%~2"=="" (
@@ -39,49 +63,26 @@ SET FLINK_CONF_DIR=%FLINK_ROOT_DIR%\conf
 SET FLINK_LOG_DIR=%FLINK_ROOT_DIR%\log
 SET JVM_ARGS=-Xms1024m -Xmx1024m
 
-SET logname_tm=flink-%username%-taskmanager.log
-SET log_tm=%FLINK_LOG_DIR%\%logname_tm%
-SET outname_tm=flink-%username%-taskmanager.out
-SET out_tm=%FLINK_LOG_DIR%\%outname_tm%
-SET log_setting_tm=-Dlog.file="%log_tm%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%\logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%\log4j.properties"
+SET logname=flink-%username%-taskmanager.log
+SET log=%FLINK_LOG_DIR%\%logname%
+SET outname=flink-%username%-taskmanager.out
+SET out=%FLINK_LOG_DIR%\%outname%
+SET log_setting=-Dlog.file="%log%" -Dlogback.configurationFile=file:"%FLINK_CONF_DIR%\logback.xml" -Dlog4j.configuration=file:"%FLINK_CONF_DIR%\log4j.properties"
 
 :: Log rotation (quick and dirty)
 CD "%FLINK_LOG_DIR%"
-for /l %%x in (5, -1, 1) do (
-SET /A y = %%x+1
-RENAME "%logname_jm%.%%x" "%logname_jm%.!y!" 2> nul
-RENAME "%logname_tm%.%%x" "%logname_tm%.!y!" 2> nul
-RENAME "%outname_jm%.%%x" "%outname_jm%.!y!"  2> nul
-RENAME "%outname_tm%.%%x" "%outname_tm%.!y!"  2> nul
+for /l %%x in (5, -1, 1) do ( 
+SET /A y = %%x+1 
+RENAME "%logname%.%%x" "%logname%.!y!" 2> nul
+RENAME "%outname%.%%x" "%outname%.!y!"  2> nul
 )
-RENAME "%logname_jm%" "%logname_jm%.0"  2> nul
-RENAME "%logname_tm%" "%logname_tm%.0"  2> nul
-RENAME "%outname_jm%" "%outname_jm%.0"  2> nul
-RENAME "%outname_tm%" "%outname_tm%.0"  2> nul
-DEL "%logname_jm%.6"  2> nul
-DEL "%logname_tm%.6"  2> nul
-DEL "%outname_jm%.6"  2> nul
-DEL "%outname_tm%.6"  2> nul
-
-IF "%SERVICE%"=="jobmanager" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.jobmanager.JobManager
-) ELSE IF "%SERVICE%"=="taskmanager" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.taskmanager.TaskManager
-) ELSE IF "%SERVICE%"=="taskexecutor" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.taskexecutor.TaskManagerRunner
-) ELSE IF "%SERVICE%"=="historyserver" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.webmonitor.history.HistoryServer
-) ELSE IF "%SERVICE%"=="zookeeper" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.zookeeper.FlinkZooKeeperQuorumPeer
-) ELSE IF "%SERVICE%"=="standalonesession" (
-    SET CLASS_TO_RUN=org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint
-) ELSE (
-    ECHO Unknown service %SERVICE%. Usage: flink-console.bat ^(jobmanager^|taskmanager^|historyserver^|zookeeper^) ^[args^]
-    exit /b 1
-)
+RENAME "%logname%" "%logname%.0"  2> nul
+RENAME "%outname%" "%outname%.0"  2> nul
+DEL "%logname%.6"  2> nul
+DEL "%outname%.6"  2> nul
 
 echo Starting %SERVICE% as a console application on host %computername%.
-start java %JVM_ARGS% %log_setting_tm% -cp "%FLINK_CLASSPATH%"; %CLASS_TO_RUN% --configDir "%FLINK_CONF_DIR%" %ARGS% > "%out_tm%" 2>&1
-
+echo You can terminate the processes via CTRL-C in the spawned shell windows.
+start java %JVM_ARGS% %log_setting% -cp "%FLINK_CLASSPATH%"; %CLASS_TO_RUN% --configDir "%FLINK_CONF_DIR%" %ARGS% > "%out%" 2>&1
 
 endlocal
