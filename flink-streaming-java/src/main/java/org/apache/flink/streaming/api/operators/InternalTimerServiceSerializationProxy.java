@@ -104,9 +104,14 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 				.getReaderForVersion(readerVersion, userCodeClassLoader)
 				.readTimersSnapshot(in);
 
-			InternalTimerServiceImpl<K, ?> timerService = registerOrGetTimerService(
-				serviceName,
-				restoredTimersSnapshot);
+			InternalTimerServiceImpl<K, ?> timerService;
+			try {
+				timerService = registerOrGetTimerService(
+					serviceName,
+					restoredTimersSnapshot);
+			} catch (Exception e) {
+				throw new IOException("Could not create timer service in restore.", e);
+			}
 
 			timerService.restoreTimersForKeyGroup(restoredTimersSnapshot, keyGroupIdx);
 		}
@@ -114,7 +119,7 @@ public class InternalTimerServiceSerializationProxy<K> extends PostVersionedIORe
 
 	@SuppressWarnings("unchecked")
 	private <N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
-		String serviceName, InternalTimersSnapshot<?, ?> restoredTimersSnapshot) {
+		String serviceName, InternalTimersSnapshot<?, ?> restoredTimersSnapshot) throws Exception {
 		final TypeSerializer<K> keySerializer = (TypeSerializer<K>) restoredTimersSnapshot.getKeySerializer();
 		final TypeSerializer<N> namespaceSerializer = (TypeSerializer<N>) restoredTimersSnapshot.getNamespaceSerializer();
 		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.util.Disposable;
 
+import javax.annotation.Nonnull;
+
 import java.util.stream.Stream;
 
 /**
@@ -103,6 +105,16 @@ public interface KeyedStateBackend<K>
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+
+	/**
+	 * Removes the operator state with the given name from the state store, if it exists.
+	 */
+	void removeKeyedState(@Nonnull String stateName) throws Exception;
+
+	/**
+	 * Removes the queue state with the given name from the state store, if it exists.
+	 */
+	void removeQueueState(@Nonnull String name) throws Exception;
 
 	@Override
 	void dispose();

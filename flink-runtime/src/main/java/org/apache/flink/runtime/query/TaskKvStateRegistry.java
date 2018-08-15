@@ -25,8 +25,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A helper for KvState registrations of a single task.
@@ -43,7 +43,7 @@ public class TaskKvStateRegistry {
 	private final JobVertexID jobVertexId;
 
 	/** List of all registered KvState instances of this task. */
-	private final List<KvStateInfo> registeredKvStates = new ArrayList<>();
+	private final Map<String, KvStateInfo> registeredKvStates = new HashMap<>();
 
 	TaskKvStateRegistry(KvStateRegistry registry, JobID jobId, JobVertexID jobVertexId) {
 		this.registry = Preconditions.checkNotNull(registry, "KvStateRegistry");
@@ -61,17 +61,33 @@ public class TaskKvStateRegistry {
 	 * @param kvState          The
 	 */
 	public void registerKvState(KeyGroupRange keyGroupRange, String registrationName, InternalKvState<?, ?, ?> kvState) {
+		unregisterKvState(registrationName);
 		KvStateID kvStateId = registry.registerKvState(jobId, jobVertexId, keyGroupRange, registrationName, kvState);
-		registeredKvStates.add(new KvStateInfo(keyGroupRange, registrationName, kvStateId));
+		registeredKvStates.put(registrationName, new KvStateInfo(keyGroupRange, registrationName, kvStateId));
+	}
+
+	/**
+	 *
+	 * @param registrationName
+	 */
+	public void unregisterKvState(String registrationName) {
+		KvStateInfo kvStateInfo = registeredKvStates.get(registrationName);
+		if (kvStateInfo != null) {
+			unregisterInternal(kvStateInfo);
+		}
 	}
 
 	/**
 	 * Unregisters all registered KvState instances from the KvStateRegistry.
 	 */
 	public void unregisterAll() {
-		for (KvStateInfo kvState : registeredKvStates) {
-			registry.unregisterKvState(jobId, jobVertexId, kvState.keyGroupRange, kvState.registrationName, kvState.kvStateId);
+		for (KvStateInfo kvState : registeredKvStates.values()) {
+			unregisterInternal(kvState);
 		}
+	}
+
+	private void unregisterInternal(KvStateInfo kvState) {
+		registry.unregisterKvState(jobId, jobVertexId, kvState.keyGroupRange, kvState.registrationName, kvState.kvStateId);
 	}
 
 	/**

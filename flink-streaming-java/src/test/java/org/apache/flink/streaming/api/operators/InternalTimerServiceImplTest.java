@@ -79,7 +79,7 @@ public class InternalTimerServiceImplTest {
 	}
 
 	@Test
-	public void testKeyGroupStartIndexSetting() {
+	public void testKeyGroupStartIndexSetting() throws Exception {
 
 		int startKeyGroupIdx = 7;
 		int endKeyGroupIdx = 21;
@@ -101,7 +101,7 @@ public class InternalTimerServiceImplTest {
 	}
 
 	@Test
-	public void testTimerAssignmentToKeyGroups() {
+	public void testTimerAssignmentToKeyGroups() throws Exception {
 		int totalNoOfTimers = 100;
 
 		int totalNoOfKeyGroups = 100;
@@ -811,7 +811,7 @@ public class InternalTimerServiceImplTest {
 			KeyContext keyContext,
 			ProcessingTimeService processingTimeService,
 			KeyGroupRange keyGroupList,
-			PriorityQueueSetFactory priorityQueueSetFactory) {
+			PriorityQueueSetFactory priorityQueueSetFactory) throws Exception {
 		InternalTimerServiceImpl<Integer, String> service = createInternalTimerService(
 			keyGroupList,
 			keyContext,
@@ -892,7 +892,7 @@ public class InternalTimerServiceImplTest {
 		ProcessingTimeService processingTimeService,
 		TypeSerializer<K> keySerializer,
 		TypeSerializer<N> namespaceSerializer,
-		PriorityQueueSetFactory priorityQueueSetFactory) {
+		PriorityQueueSetFactory priorityQueueSetFactory) throws Exception {
 
 		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
 
@@ -907,8 +907,8 @@ public class InternalTimerServiceImplTest {
 	private static <K, N> KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerQueue(
 		String name,
 		TimerSerializer<K, N> timerSerializer,
-		PriorityQueueSetFactory priorityQueueSetFactory) {
-		return priorityQueueSetFactory.create(
+		PriorityQueueSetFactory priorityQueueSetFactory) throws Exception {
+		return priorityQueueSetFactory.createQueueState(
 			name,
 			timerSerializer);
 	}

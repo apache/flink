@@ -85,7 +85,6 @@ import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
-import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -353,6 +352,33 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@Override
+	public void removeQueueState(@Nonnull String stateName) throws RocksDBException {
+		removeInternal(stateName);
+	}
+
+	@Override
+	public void removeKeyedState(@Nonnull String stateName) throws RocksDBException {
+		removeInternal(stateName);
+	}
+
+	private void removeInternal(@Nonnull String name) throws RocksDBException {
+		restoredKvStateMetaInfos.remove(name);
+		Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> removedStateMetaInfo = kvStateInformation.remove(name);
+		if (removedStateMetaInfo != null) {
+			if (kvStateRegistry != null) {
+				kvStateRegistry.unregisterKvState(name);
+			}
+			keyValueStatesByName.remove(name);
+			ColumnFamilyHandle removeColumnFamily = removedStateMetaInfo.f0;
+			try {
+				db.dropColumnFamily(removeColumnFamily);
+			} finally {
+				IOUtils.closeQuietly(removeColumnFamily);
+			}
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public <N> Stream<K> getKeys(String state, N namespace) {
@@ -444,10 +470,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Nonnull
 	@Override
 	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-	create(
+	createQueueState(
 		@Nonnull String stateName,
-		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-		return priorityQueueFactory.create(stateName, byteOrderedElementSerializer);
+		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) throws Exception {
+		return priorityQueueFactory.createQueueState(stateName, byteOrderedElementSerializer);
 	}
 
 	private void cleanInstanceBasePath() {
@@ -1381,7 +1407,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public <N, SV, SEV, S extends State, IS extends S> IS createInternalState(
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
-		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
+		@Nonnull StateSnapshotTransformer.StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
@@ -1396,7 +1422,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@SuppressWarnings("unchecked")
 	private <SV, SEV> StateSnapshotTransformer<SV> getStateSnapshotTransformer(
 		StateDescriptor<?, SV> stateDesc,
-		StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
+		StateSnapshotTransformer.StateSnapshotTransformFactory<SEV> snapshotTransformFactory) {
 		if (stateDesc instanceof ListStateDescriptor) {
 			Optional<StateSnapshotTransformer<SEV>> original = snapshotTransformFactory.createForDeserializedState();
 			return original.map(est -> createRocksDBListStateTransformer(stateDesc, est)).orElse(null);
@@ -2756,7 +2782,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull
 		@Override
 		public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-		create(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+		createQueueState(@Nonnull String stateName, @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
 			final Tuple2<ColumnFamilyHandle, RegisteredStateMetaInfoBase> metaInfoTuple =
 				tryRegisterPriorityQueueMetaInfo(stateName, byteOrderedElementSerializer);

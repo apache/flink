@@ -1160,7 +1160,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				InternalPriorityQueueTestBase.TestElementSerializer.INSTANCE;
 
 			KeyGroupedInternalPriorityQueue<InternalPriorityQueueTestBase.TestElement> priorityQueue =
-				keyedBackend.create(stateName, serializer);
+				keyedBackend.createQueueState(stateName, serializer);
 
 			priorityQueue.add(new InternalPriorityQueueTestBase.TestElement(42L, 0L));
 
@@ -1177,7 +1177,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			serializer = new ModifiedTestElementSerializer();
 
-			priorityQueue = keyedBackend.create(stateName, serializer);
+			priorityQueue = keyedBackend.createQueueState(stateName, serializer);
 
 			final InternalPriorityQueueTestBase.TestElement checkElement =
 				new InternalPriorityQueueTestBase.TestElement(4711L, 1L);
@@ -1192,7 +1192,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			// test that the modified serializer was actually used ---------------------------
 
 			keyedBackend = restoreKeyedBackend(IntSerializer.INSTANCE, keyedStateHandle);
-			priorityQueue = keyedBackend.create(stateName, serializer);
+			priorityQueue = keyedBackend.createQueueState(stateName, serializer);
 
 			priorityQueue.poll();
 
@@ -1217,7 +1217,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			try {
 				// this is expected to fail, because the old and new serializer shoulbe be incompatible through
 				// different revision numbers.
-				keyedBackend.create("test", serializer);
+				keyedBackend.createQueueState("test", serializer);
 				Assert.fail("Expected exception from incompatible serializer.");
 			} catch (Exception e) {
 				Assert.assertTrue("Exception was not caused by state migration: " + e,
@@ -4126,6 +4126,39 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		} finally {
 			backend.dispose();
 			executorService.shutdown();
+		}
+	}
+
+	@Test
+	public void testDeleteKeyedState() throws Exception {
+
+		Environment env = new DummyEnvironment();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+		try {
+			ValueStateDescriptor<Integer> kv1 = new ValueStateDescriptor<>("kv_1", IntSerializer.INSTANCE);
+			ValueStateDescriptor<Integer> kv2 = new ValueStateDescriptor<>("kv_2", IntSerializer.INSTANCE);
+			ValueState<Integer> state1 = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kv1);
+			ValueState<Integer> state2 = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kv2);
+
+			backend.removeKeyedState(kv2.getName());
+		} finally {
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testDeletePriorityQueueState() throws Exception {
+
+		Environment env = new DummyEnvironment();
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
+		try {
+			String state1 = "state_1";
+			String state2 = "state_2";
+			backend.createQueueState(state1, InternalPriorityQueueTestBase.TestElementSerializer.INSTANCE);
+			backend.createQueueState(state2, InternalPriorityQueueTestBase.TestElementSerializer.INSTANCE);
+			backend.removeQueueState(state2);
+		} finally {
+			backend.dispose();
 		}
 	}
 
