@@ -33,6 +33,8 @@ version: "1.6.0"
 version_title: "1.6"
 version_javadocs: "1.6"
 version_scaladocs: "1.6"
+# Branch on Github for this version
+github_branch: "release-1.6"
 
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
