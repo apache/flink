@@ -39,15 +39,18 @@ class DateTimeFunctionTest extends ExpressionTestBase {
   @Test
   def testStrToDate(): Unit = {
     val fmt = DateTimeFormat.forPattern("yyyy-MM-dd").withZone(LOCAL_ZONE)
+    testSqlApi("STR_TO_DATE('12 22:29:44', '%d %H:%i:%s')", "2000-01-12 22:29:44.0")
+    testSqlApi("STR_TO_DATE('22:29', '%H:%i')", "22:29:00")
+    testSqlApi("STR_TO_DATE('22:29:44', '%H:%i:%s')", "22:29:44")
     testSqlApi("STR_TO_DATE('20170203', '%Y%m%d')", "2017-02-03")
     testSqlApi("STR_TO_DATE('01,5,2013', '%d,%m,%Y')", "2013-05-01")
-    testSqlApi("STR_TO_DATE('20110303 am03:29:44', '%Y%m%d %p%h:%i:%s')", "2011-03-03")
-    testSqlApi("STR_TO_DATE('20110303 03:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
-    testSqlApi("STR_TO_DATE('20110303 14:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
-    testSqlApi("STR_TO_DATE('20110303 22:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03")
+    testSqlApi("STR_TO_DATE('20110303 am03:29:44', '%Y%m%d %p%h:%i:%s')", "2011-03-03 03:29:44.0")
+    testSqlApi("STR_TO_DATE('20110303 03:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03 03:29:44.0")
+    testSqlApi("STR_TO_DATE('20110303 14:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03 14:29:44.0")
+    testSqlApi("STR_TO_DATE('20110303 22:29:44', '%Y%m%d %H:%i:%s')", "2011-03-03 22:29:44.0")
     testSqlApi(
       "STR_TO_DATE('02/03/2017', f1)",
-      fmt.parseDateTime("2017-02-03").toDateTime(DateTimeZone.UTC).toString("yyyy-MM-dd HH:mm:ss.S")
+      fmt.parseLocalDateTime("2017-02-03").toString("yyyy-MM-dd HH:mm:ss.S")
     )
   }
 

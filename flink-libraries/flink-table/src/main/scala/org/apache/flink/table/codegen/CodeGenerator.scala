@@ -684,7 +684,7 @@ abstract class CodeGenerator(
         val escapedValue = StringEscapeUtils.escapeJava(
           StringEscapeUtils.unescapeJava(value.toString)
         )
-        generateNonNullLiteral(resultType, "\"" + escapedValue + "\"")
+        generateNonNullLiteral(resultType, "\"" + escapedValue + "\"", Some(escapedValue))
 
       case SYMBOL =>
         generateSymbol(value.asInstanceOf[Enum[_]])
@@ -1264,7 +1264,8 @@ abstract class CodeGenerator(
         |""".stripMargin
 
       // mark this expression as a constant literal
-      GeneratedExpression(resultTerm, ALWAYS_NULL, wrappedCode, resultType, literal = true)
+      GeneratedExpression(resultTerm, ALWAYS_NULL, wrappedCode, resultType,
+        literal = true, literalValue = Some(defaultValue))
     } else {
       throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
     }
@@ -1272,11 +1273,12 @@ abstract class CodeGenerator(
 
   private[flink] def generateNonNullLiteral(
       literalType: TypeInformation[_],
-      literalCode: String)
+      literalCode: String,
+      literalValue: Option[Any] = None)
     : GeneratedExpression = {
 
     // mark this expression as a constant literal
-    generateTerm(literalType, literalCode).copy(literal = true)
+    generateTerm(literalType, literalCode).copy(literal = true, literalValue = literalValue)
   }
 
   private[flink] def generateSymbol(enum: Enum[_]): GeneratedExpression = {

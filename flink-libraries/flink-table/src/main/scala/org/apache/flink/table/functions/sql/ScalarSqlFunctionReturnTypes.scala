@@ -20,6 +20,7 @@ package org.apache.flink.table.functions.sql
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.SqlOperatorBinding
 import org.apache.calcite.sql.`type`.{SqlReturnTypeInference, SqlTypeName}
+import org.apache.flink.table.runtime.functions.DateTimeFunctions
 
 /**
   * Customized [[SqlReturnTypeInference]] for those whose [[SqlReturnTypeInference]] cannot
@@ -31,7 +32,17 @@ object ScalarSqlFunctionReturnTypes {
     override def inferReturnType(opBinding: SqlOperatorBinding): RelDataType = {
       val typeFactory = opBinding.getTypeFactory
       if (opBinding.isOperandLiteral(1, true)) {
-        typeFactory.createSqlType(SqlTypeName.DATE)
+        val format = opBinding.getOperandLiteralValue(1, classOf[String])
+        DateTimeFunctions.checkOutputFormat(format) match {
+          case DateTimeFunctions.ONLY_DATE_FORMAT =>
+            typeFactory.createSqlType(SqlTypeName.DATE)
+          case DateTimeFunctions.ONLY_TIME_FORMAT =>
+            typeFactory.createSqlType(SqlTypeName.TIME)
+          case DateTimeFunctions.DATETIME_FORMAT =>
+            typeFactory.createSqlType(SqlTypeName.TIMESTAMP)
+          case _ =>
+            throw new RuntimeException(s"Unable to support format $format")
+        }
       } else {
         typeFactory.createSqlType(SqlTypeName.TIMESTAMP)
       }

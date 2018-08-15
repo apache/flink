@@ -30,11 +30,37 @@ class StrToDateCallGen extends CallGenerator {
   override def generate(codeGenerator: CodeGenerator,
                         operands: Seq[GeneratedExpression]): GeneratedExpression = {
     if (operands.last.literal) {
-      generateCallIfArgsNotNull(codeGenerator.nullCheck, SqlTimeTypeInfo.DATE, operands) {
-        terms => s"""
-                    |org.apache.flink.table.runtime.functions.
-                    |DateTimeFunctions$$.MODULE$$.strToDate(${terms.head}, ${terms.last})
+      val literalValue = operands.last.literalValue
+      if (literalValue.nonEmpty) {
+        val format = literalValue.get.toString
+        DateTimeFunctions.checkOutputFormat(format) match {
+          case DateTimeFunctions.ONLY_DATE_FORMAT =>
+            generateCallIfArgsNotNull(codeGenerator.nullCheck, SqlTimeTypeInfo.DATE, operands) {
+              terms => s"""
+                          |org.apache.flink.table.runtime.functions.
+                          |DateTimeFunctions$$.MODULE$$.strToDate(${terms.head}, ${terms.last})
               """.stripMargin
+            }
+          case DateTimeFunctions.ONLY_TIME_FORMAT =>
+            generateCallIfArgsNotNull(codeGenerator.nullCheck, SqlTimeTypeInfo.TIME, operands) {
+              terms => s"""
+                          |org.apache.flink.table.runtime.functions.
+                          |DateTimeFunctions$$.MODULE$$.strToTime(${terms.head}, ${terms.last})
+              """.stripMargin
+            }
+          case DateTimeFunctions.DATETIME_FORMAT =>
+            generateCallIfArgsNotNull(codeGenerator.nullCheck,
+              SqlTimeTypeInfo.TIMESTAMP, operands) {
+              terms => s"""
+                          |org.apache.flink.table.runtime.functions.
+                          |DateTimeFunctions$$.MODULE$$.strToTimestamp(${terms.head}, ${terms.last})
+              """.stripMargin
+            }
+          case _ =>
+            throw new RuntimeException(s"Unable to support format $format")
+        }
+      } else {
+        throw new RuntimeException("LiteralValue in GeneratedExpression should not be null !")
       }
     } else {
       generateCallIfArgsNotNull(codeGenerator.nullCheck, SqlTimeTypeInfo.TIMESTAMP, operands) {

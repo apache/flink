@@ -29,6 +29,15 @@ object DateTimeFunctions {
     = createDateTimeFormatter(format)
   }
 
+  private val timeCharacters = Seq('f', 'H', 'h', 'I', 'i', 'l', 'r', 'S', 's', 'p', 'T')
+  private val dateCharacters = Seq('a', 'b', 'c', 'd', 'e', 'j', 'k', 'M',
+                                   'm', 'v', 'x', 'W', 'Y', 'y')
+
+  val UNKNOWN = 0
+  val ONLY_TIME_FORMAT = 1
+  val ONLY_DATE_FORMAT = 2
+  val DATETIME_FORMAT = 3
+
   def dateFormat(ts: Long, formatString: String): String = {
     val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
     formatter.print(ts)
@@ -41,9 +50,14 @@ object DateTimeFunctions {
     days.getDays
   }
 
+  def strToTime(str: String, formatString: String): Int = {
+    val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
+    formatter.parseLocalTime(str).toDateTimeToday(DateTimeZone.UTC).getMillisOfDay
+  }
+
   def strToTimestamp(str: String, formatString: String): Long = {
     val formatter = DATETIME_FORMATTER_CACHE.get(formatString)
-    formatter.parseDateTime(str).getMillis
+    formatter.parseLocalDateTime(str).toDateTime(DateTimeZone.UTC).getMillis
   }
 
   def createDateTimeFormatter(format: String): DateTimeFormatter = {
@@ -127,5 +141,19 @@ object DateTimeFunctions {
       else { builder.appendLiteral(character) }
     }
     builder.toFormatter
+  }
+
+  def checkOutputFormat(format: String): Int = {
+    format.toCharArray.foldLeft[Int](UNKNOWN) {
+      case (UNKNOWN, char) =>
+        if (timeCharacters.contains(char)) ONLY_TIME_FORMAT
+        else if (dateCharacters.contains(char)) ONLY_DATE_FORMAT
+        else UNKNOWN
+      case (ONLY_TIME_FORMAT, char) => if (dateCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_TIME_FORMAT
+      case (ONLY_DATE_FORMAT, char) => if (timeCharacters.contains(char)) DATETIME_FORMAT
+                                       else ONLY_DATE_FORMAT
+      case (DATETIME_FORMAT, _) => DATETIME_FORMAT
+    }
   }
 }
