@@ -346,10 +346,12 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		final String portKeys = config.getString(PORT_ASSIGNMENTS);
 
-		Arrays.stream(portKeys.split(","))
-			.map(String::trim)
-			.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
-			.forEach(tmPortKeys::add);
+		if (portKeys != null) {
+			Arrays.stream(portKeys.split(","))
+				.map(String::trim)
+				.peek(key -> LOG.debug("Adding port key " + key + " to mesos request"))
+				.forEach(tmPortKeys::add);
+		}
 
 		return tmPortKeys;
 	}

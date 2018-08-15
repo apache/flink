@@ -52,4 +52,19 @@ public class LaunchableMesosWorkerTest extends TestLogger {
 		assertEquals("port key must be correct", "anotherport", iterator.next());
 	}
 
+	@Test
+	public void canGetNoPortKeys() {
+		// Setup
+		Configuration config = new Configuration();
+
+		// Act
+		Set<String> portKeys = LaunchableMesosWorker.extractPortKeys(config);
+
+		// Assert
+		assertEquals("Must get right number of port keys", 2, portKeys.size());
+		Iterator<String> iterator = portKeys.iterator();
+		assertEquals("port key must be correct", LaunchableMesosWorker.TM_PORT_KEYS[0], iterator.next());
+		assertEquals("port key must be correct", LaunchableMesosWorker.TM_PORT_KEYS[1], iterator.next());
+	}
+
 }
