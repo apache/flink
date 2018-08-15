@@ -90,6 +90,12 @@ object TypeCheckUtils {
   def isComparable(dataType: TypeInformation[_]): Boolean =
     classOf[Comparable[_]].isAssignableFrom(dataType.getTypeClass) && !isArray(dataType)
 
+  /**
+    * Types that can be easily converted into a string without ambiguity.
+    */
+  def isSimpleStringRepresentation(dataType: TypeInformation[_]): Boolean =
+    isNumeric(dataType) || isString(dataType) || isTemporal(dataType) || isBoolean(dataType)
+
   def assertNumericExpr(
       dataType: TypeInformation[_],
       caller: String)

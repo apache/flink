@@ -46,4 +46,4 @@ $FLINK_DIR/bin/flink run -p 1 $TEST_ES_JAR \
   --type type
 
 # 40 index requests and 20 final update requests
-verify_result 60 index
+verify_result_line_number 60 index

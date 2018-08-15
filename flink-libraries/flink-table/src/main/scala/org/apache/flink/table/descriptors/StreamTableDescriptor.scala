@@ -93,9 +93,5 @@ class StreamTableDescriptor(
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
     super.addProperties(properties)
     updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
-
-    // this performs only basic validation
-    // more validation can only happen within a factory
-    new StreamTableDescriptorValidator().validate(properties)
   }
 }

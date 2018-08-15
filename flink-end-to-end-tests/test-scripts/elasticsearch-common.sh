@@ -60,7 +60,7 @@ function verify_elasticsearch_process_exist {
     exit 1
 }
 
-function verify_result {
+function verify_result_line_number {
     local numRecords=$1
     local index=$2
 
@@ -79,6 +79,29 @@ function verify_result {
           sleep 1
       fi
     done
+}
+
+function verify_result_hash {
+  local name=$1
+  local index=$2
+  local numRecords=$3
+  local hash=$4
+
+  while : ; do
+    curl "localhost:9200/${index}/_search?q=*&pretty" > $TEST_DATA_DIR/es_output
+
+    if [ -n "$(grep "\"total\" : $numRecords" $TEST_DATA_DIR/es_output)" ]; then
+      break
+    else
+      echo "Waiting for Elasticsearch records ..."
+      sleep 1
+    fi
+  done
+
+  # remove meta information
+  sed '2,9d' $TEST_DATA_DIR/es_output > $TEST_DATA_DIR/es_content
+
+  check_result_hash "$name" $TEST_DATA_DIR/es_content "$hash"
 }
 
 function shutdown_elasticsearch_cluster {

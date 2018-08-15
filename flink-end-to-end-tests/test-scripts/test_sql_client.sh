@@ -19,6 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka-common.sh
+source "$(dirname "$0")"/elasticsearch-common.sh
 
 SQL_TOOLBOX_JAR=$END_TO_END_DIR/flink-sql-client-test/target/SqlToolbox.jar
 SQL_JARS_DIR=$END_TO_END_DIR/flink-sql-client-test/target/sql-jars
@@ -58,10 +59,10 @@ for SQL_JAR in $SQL_JARS_DIR/*.jar; do
 done
 
 ################################################################################
-# Run a SQL statement
+# Prepare connectors
 ################################################################################
 
-echo "Testing SQL statement..."
+ELASTICSEARCH_INDEX='my_users'
 
 function sql_cleanup() {
   # don't call ourselves again for another signal interruption
@@ -70,6 +71,7 @@ function sql_cleanup() {
   trap "" EXIT
 
   stop_kafka_cluster
+  shutdown_elasticsearch_cluster "$ELASTICSEARCH_INDEX"
 }
 trap sql_cleanup INT
 trap sql_cleanup EXIT
@@ -100,11 +102,26 @@ send_messages_to_kafka '{"timestamp": "2018-03-12 09:30:00", "user": null, "even
 # pending in results
 send_messages_to_kafka '{"timestamp": "2018-03-12 10:40:00", "user": "Bob", "event": { "type": "ERROR", "message": "This is an error."}}' test-json
 
+# prepare Elasticsearch
+echo "Preparing Elasticsearch..."
+
+ELASTICSEARCH_VERSION=6
+DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.1.tar.gz'
+
+setup_elasticsearch $DOWNLOAD_URL
+verify_elasticsearch_process_exist
+
+################################################################################
+# Run a SQL statement
+################################################################################
+
+echo "Testing SQL statement..."
+
 # prepare Flink
 echo "Preparing Flink..."
 
 start_cluster
-start_taskmanagers 1
+start_taskmanagers 2
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
@@ -230,6 +247,54 @@ tables:
           type: BIGINT
         - name: constant
           type: VARCHAR
+  - name: ElasticsearchUpsertSinkTable
+    type: sink
+    update-mode: upsert
+    schema:
+      - name: user_id
+        type: INT
+      - name: user_name
+        type: VARCHAR
+      - name: user_count
+        type: BIGINT
+    connector:
+      type: elasticsearch
+      version: 6
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
+      index: "$ELASTICSEARCH_INDEX"
+      document-type: "user"
+      bulk-flush:
+        max-actions: 1
+    format:
+      type: json
+      derive-schema: true
+  - name: ElasticsearchAppendSinkTable
+    type: sink
+    update-mode: append
+    schema:
+      - name: user_id
+        type: INT
+      - name: user_name
+        type: VARCHAR
+      - name: user_count
+        type: BIGINT
+    connector:
+      type: elasticsearch
+      version: 6
+      hosts:
+        - hostname: "localhost"
+          port: 9200
+          protocol: "http"
+      index: "$ELASTICSEARCH_INDEX"
+      document-type: "user"
+      bulk-flush:
+        max-actions: 1
+    format:
+      type: json
+      derive-schema: true
 
 functions:
   - name: RegReplace
@@ -238,6 +303,8 @@ functions:
 EOF
 
 # submit SQL statements
+
+echo "Executing SQL: Kafka JSON -> Kafka Avro"
 
 read -r -d '' SQL_STATEMENT_1 << EOF
 INSERT INTO AvroBothTable
@@ -254,7 +321,6 @@ INSERT INTO AvroBothTable
     TUMBLE(rowtime, INTERVAL '1' HOUR)
 EOF
 
-echo "Executing SQL: Kafka JSON -> Kafka Avro"
 echo "$SQL_STATEMENT_1"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
@@ -263,13 +329,14 @@ $FLINK_DIR/bin/sql-client.sh embedded \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_1"
 
+echo "Executing SQL: Kafka Avro -> Filesystem CSV"
+
 read -r -d '' SQL_STATEMENT_2 << EOF
 INSERT INTO CsvSinkTable
   SELECT AvroBothTable.*, RegReplace('Test constant folding.', 'Test', 'Success') AS constant
   FROM AvroBothTable
 EOF
 
-echo "Executing SQL: Kafka Avro -> Filesystem CSV"
 echo "$SQL_STATEMENT_2"
 
 $FLINK_DIR/bin/sql-client.sh embedded \
@@ -289,4 +356,51 @@ for i in {1..10}; do
   sleep 5
 done
 
-check_result_hash "SQLClient" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
+check_result_hash "SQL Client Kafka" $RESULT "0a1bf8bf716069b7269f575f87a802c0"
+
+echo "Executing SQL: Values -> Elasticsearch (upsert)"
+
+read -r -d '' SQL_STATEMENT_3 << EOF
+INSERT INTO ElasticsearchUpsertSinkTable
+  SELECT user_id, user_name, COUNT(*) AS user_count
+  FROM (VALUES (1, 'Bob'), (22, 'Alice'), (42, 'Greg'), (42, 'Greg'), (42, 'Greg'), (1, 'Bob'))
+    AS UserCountTable(user_id, user_name)
+  GROUP BY user_id, user_name
+EOF
+
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+  --library $SQL_JARS_DIR \
+  --jar $SQL_TOOLBOX_JAR \
+  --environment $SQL_CONF \
+  --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
+
+wait_job_terminal_state "$JOB_ID" "FINISHED"
+
+verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "982cb32908def9801e781381c1b8a8db"
+
+echo "Executing SQL: Values -> Elasticsearch (append, no key)"
+
+read -r -d '' SQL_STATEMENT_4 << EOF
+INSERT INTO ElasticsearchAppendSinkTable
+  SELECT *
+  FROM (
+    VALUES
+      (1, 'Bob', CAST(0 AS BIGINT)),
+      (22, 'Alice', CAST(0 AS BIGINT)),
+      (42, 'Greg', CAST(0 AS BIGINT)),
+      (42, 'Greg', CAST(0 AS BIGINT)),
+      (42, 'Greg', CAST(0 AS BIGINT)),
+      (1, 'Bob', CAST(0 AS BIGINT)))
+    AS UserCountTable(user_id, user_name, user_count)
+EOF
+
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+  --library $SQL_JARS_DIR \
+  --jar $SQL_TOOLBOX_JAR \
+  --environment $SQL_CONF \
+  --update "$SQL_STATEMENT_4" | grep "Job ID:" | sed 's/.* //g')
+
+wait_job_terminal_state "$JOB_ID" "FINISHED"
+
+# 3 upsert results and 6 append results
+verify_result_line_number 9 "$ELASTICSEARCH_INDEX"
