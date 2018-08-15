@@ -21,14 +21,14 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
-/** Test suite for heap state TTL. */
-public class HeapTtlStateTest extends TtlStateTestBase {
+/** Test suite for heap state TTL with asynchronous snapshotting. */
+public class HeapAsyncSnapshotTtlStateTest extends TtlStateTestBase {
 	@Override
 	protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
 		return new StateBackendTestContext(timeProvider) {
 			@Override
 			protected StateBackend createStateBackend() {
-				return new MemoryStateBackend(false);
+				return new MemoryStateBackend(true);
 			}
 		};
 	}
