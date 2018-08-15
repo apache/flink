@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.streaming.connectors.pubsub;
 
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
@@ -5,7 +22,11 @@ import com.google.pubsub.v1.PubsubMessage;
 
 import java.io.IOException;
 
-class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
+/**
+ * A bounded PubSub Source, similar to {@link PubSubSource} but this will stop at some point. For example after a period of idle or and after n amount of messages have been received.
+ *
+ */
+public class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 	private Bound<OUT> bound;
 
 	private BoundedPubSubSource() {
@@ -28,11 +49,19 @@ class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 		bound.receivedMessage();
 	}
 
+	/**
+	 * Creates a {@link BoundedPubSubSourceBuilder}.
+	 * @param <OUT> Type of Object which will be read by the produced {@link BoundedPubSubSource}
+	 */
 	@SuppressWarnings("unchecked")
 	public static <OUT> BoundedPubSubSourceBuilder<OUT, ? extends PubSubSource, ? extends BoundedPubSubSourceBuilder> newBuilder() {
 		return new BoundedPubSubSourceBuilder<>(new BoundedPubSubSource<OUT>());
 	}
 
+	/**
+	 * Builder to create BoundedPubSubSource.
+	 * @param <OUT> Type of Object which will be read by the BoundedPubSubSource
+	 */
 	@SuppressWarnings("unchecked")
 	public static class BoundedPubSubSourceBuilder<OUT, PSS extends BoundedPubSubSource<OUT>, BUILDER extends BoundedPubSubSourceBuilder<OUT, PSS, BUILDER>> extends PubSubSourceBuilder<OUT, PSS, BUILDER> {
 		private Long boundedByAmountOfMessages;
@@ -52,7 +81,7 @@ class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 			return (BUILDER) this;
 		}
 
-		private Bound <OUT> createBound() {
+		private Bound<OUT> createBound() {
 			if (boundedByAmountOfMessages != null && boundedByTimeSinceLastMessage != null) {
 				return Bound.boundByAmountOfMessagesOrTimeSinceLastMessage(boundedByAmountOfMessages, boundedByTimeSinceLastMessage);
 			}

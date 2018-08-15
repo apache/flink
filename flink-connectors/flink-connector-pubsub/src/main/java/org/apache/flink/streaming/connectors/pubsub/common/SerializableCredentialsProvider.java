@@ -40,7 +40,9 @@ public class SerializableCredentialsProvider implements CredentialsProvider, Ser
 	}
 
 	/**
-	 * Creates a SerializableCredentialsProvider for a PubSubSubscription based on environment variables. {@link com.google.cloud.pubsub.v1.SubscriptionAdminSettings}
+	 * Creates a SerializableCredentialsProvider for a PubSubSubscription based on environment variables.
+	 * {@link com.google.cloud.pubsub.v1.SubscriptionAdminSettings}
+	 *
 	 * @return serializableCredentialsProvider
 	 * @throws IOException thrown by {@link Credentials}
 	 */
@@ -50,11 +52,12 @@ public class SerializableCredentialsProvider implements CredentialsProvider, Ser
 	}
 
 	/**
-	 * Creates a SerializableCredentialsProvider for a PubSubSubscription without any credentials. {@link com.google.cloud.pubsub.v1.SubscriptionAdminSettings}
+	 * Creates a SerializableCredentialsProvider for a PubSubSubscription without any credentials.
+	 * {@link com.google.cloud.pubsub.v1.SubscriptionAdminSettings}
 	 * This is ONLY useful when running tests locally against Mockito or the Google PubSub emulator
-	 * @see <a href="https://cloud.google.com/pubsub/docs/emulator" target="_top">https://cloud.google.com/pubsub/docs/emulator</a>.
+	 * @see <a href="https://cloud.google.com/pubsub/docs/emulator" target="_top">https://cloud.google.com/pubsub/docs/emulator</a>
 	 * @return serializableCredentialsProvider
-	 * @throws IOException thrown by {@link Credentials}
+	 * @see <a href="https://cloud.google.com/pubsub/docs/emulator" target="_top">https://cloud.google.com/pubsub/docs/emulator</a>
 	 */
 	public static SerializableCredentialsProvider withoutCredentials() {
 		return new SerializableCredentialsProvider(NoCredentials.getInstance());
