@@ -20,7 +20,7 @@ package org.apache.flink.streaming.examples.pubsub;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.pubsub.PubSubSink;
-import org.apache.flink.streaming.connectors.pubsub.PubSubSourceBuilder;
+import org.apache.flink.streaming.connectors.pubsub.PubSubSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +45,7 @@ public class PubSubExample {
 			System.out.println("Missing parameters!\n" +
 								"Usage: flink run PubSub.jar --input-subscription <subscription> --input-topicName <topic> --output-topicName " +
 								"--google-project <google project name> ");
-			//return;
+			return;
 		}
 
 		String projectName = parameterTool.getRequired("google-project");
@@ -62,10 +62,9 @@ public class PubSubExample {
 	private static void runFlinkJob(String projectName, String subscriptionName, String outputTopicName) throws Exception {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.addSource(PubSubSourceBuilder.<Integer>builder()
+		env.addSource(PubSubSource.<Integer>newBuilder()
 										.withProjectSubscriptionName(projectName, subscriptionName)
 										.withDeserializationSchema(new IntegerSerializer())
-										.withMode(PubSubSourceBuilder.Mode.NONE)
 										.build())
 			.map(PubSubExample::printAndReturn).disableChaining()
 			.addSink(PubSubSink.<Integer>newBuilder()

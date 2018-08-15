@@ -33,13 +33,13 @@ import java.io.Serializable;
 
 class SubscriberWrapper implements Serializable {
 	private final SerializableCredentialsProvider serializableCredentialsProvider;
-	private final String                          projectId;
-	private final String                          subscriptionId;
-	private       String                          hostAndPort = null;
+	private final String projectId;
+	private final String subscriptionId;
+	private String hostAndPort = null;
 
-	private transient Subscriber       subscriber;
-	private transient ManagedChannel   managedChannel = null;
-	private transient TransportChannel channel        = null;
+	private transient Subscriber subscriber;
+	private transient ManagedChannel managedChannel = null;
+	private transient TransportChannel channel = null;
 
 	SubscriberWrapper(SerializableCredentialsProvider serializableCredentialsProvider, ProjectSubscriptionName projectSubscriptionName) {
 		this.serializableCredentialsProvider = serializableCredentialsProvider;
@@ -49,14 +49,14 @@ class SubscriberWrapper implements Serializable {
 
 	void initialize(MessageReceiver messageReceiver) {
 		Subscriber.Builder builder = Subscriber
-				.newBuilder(ProjectSubscriptionName.of(projectId, subscriptionId), messageReceiver)
-				.setCredentialsProvider(serializableCredentialsProvider);
+			.newBuilder(ProjectSubscriptionName.of(projectId, subscriptionId), messageReceiver)
+			.setCredentialsProvider(serializableCredentialsProvider);
 
 		if (hostAndPort != null) {
 			managedChannel = ManagedChannelBuilder
-					.forTarget(hostAndPort)
-					.usePlaintext(true) // This is 'Ok' because this is ONLY used for testing.
-					.build();
+				.forTarget(hostAndPort)
+				.usePlaintext(true) // This is 'Ok' because this is ONLY used for testing.
+				.build();
 			channel = GrpcTransportChannel.newBuilder().setManagedChannel(managedChannel).build();
 			builder.setChannelProvider(FixedTransportChannelProvider.create(channel));
 		}

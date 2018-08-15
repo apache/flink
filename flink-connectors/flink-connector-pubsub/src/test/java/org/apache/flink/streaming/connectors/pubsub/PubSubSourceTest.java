@@ -42,7 +42,6 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
 
-
 /**
  * Test for {@link SourceFunction}.
  */
@@ -142,7 +141,7 @@ public class PubSubSourceTest {
 
 	private PubsubMessage pubSubMessage() {
 		return PubsubMessage.newBuilder()
-							.setData(ByteString.copyFrom(SERIALIZED_MESSAGE))
-							.build();
+			.setData(ByteString.copyFrom(SERIALIZED_MESSAGE))
+			.build();
 	}
 }
