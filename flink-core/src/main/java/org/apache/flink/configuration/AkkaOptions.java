@@ -194,4 +194,81 @@ public class AkkaOptions {
 		.key("akka.retry-gate-closed-for")
 		.defaultValue(50L)
 		.withDescription("Milliseconds a gate should be closed for after a remote connection was disconnected.");
+
+	// ==================================================
+	// Configurations for fork-join-executor.
+	// ==================================================
+
+	public static final ConfigOption<Double> FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR = ConfigOptions
+		.key("akka.fork-join-executor.parallelism-factor")
+		.defaultValue(2.0)
+		.withDescription(Description.builder()
+			.text("The parallelism factor is used to determine thread pool size using the" +
+				" following formula: ceil(available processors * factor). Resulting size" +
+				" is then bounded by the parallelism-min and parallelism-max values."
+			).build());
+
+	public static final ConfigOption<Integer> FORK_JOIN_EXECUTOR_PARALLELISM_MIN = ConfigOptions
+		.key("akka.fork-join-executor.parallelism-min")
+		.defaultValue(8)
+		.withDescription(Description.builder()
+			.text("Min number of threads to cap factor-based parallelism number to.").build());
+
+	public static final ConfigOption<Integer> FORK_JOIN_EXECUTOR_PARALLELISM_MAX = ConfigOptions
+		.key("akka.fork-join-executor.parallelism-max")
+		.defaultValue(64)
+		.withDescription(Description.builder()
+			.text("Max number of threads to cap factor-based parallelism number to.").build());
+
+	// ==================================================
+	// Configurations for client-socket-work-pool.
+	// ==================================================
+
+	public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MIN = ConfigOptions
+		.key("akka.client-socket-worker-pool.pool-size-min")
+		.defaultValue(2)
+		.withDescription(Description.builder()
+			.text("Min number of threads to cap factor-based number to.").build());
+
+	public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MAX = ConfigOptions
+		.key("akka.client-socket-worker-pool.pool-size-max")
+		.defaultValue(2)
+		.withDescription(Description.builder()
+			.text("Max number of threads to cap factor-based number to.").build());
+
+	public static final ConfigOption<Double> CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR = ConfigOptions
+		.key("akka.client-socket-worker-pool.pool-size-factor")
+		.defaultValue(1.0)
+		.withDescription(Description.builder()
+			.text("The pool size factor is used to determine thread pool size" +
+				" using the following formula: ceil(available processors * factor)." +
+				" Resulting size is then bounded by the pool-size-min and" +
+				" pool-size-max values."
+			).build());
+
+	// ==================================================
+	// Configurations for server-socket-work-pool.
+	// ==================================================
+
+	public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MIN = ConfigOptions
+		.key("akka.server-socket-worker-pool.pool-size-min")
+		.defaultValue(1)
+		.withDescription(Description.builder()
+			.text("Min number of threads to cap factor-based number to.").build());
+
+	public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MAX = ConfigOptions
+		.key("akka.server-socket-worker-pool.pool-size-max")
+		.defaultValue(2)
+		.withDescription(Description.builder()
+			.text("Max number of threads to cap factor-based number to.").build());
+
+	public static final ConfigOption<Double> SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR = ConfigOptions
+		.key("akka.server-socket-worker-pool.pool-size-factor")
+		.defaultValue(1.0)
+		.withDescription(Description.builder()
+			.text("The pool size factor is used to determine thread pool size" +
+				" using the following formula: ceil(available processors * factor)." +
+				" Resulting size is then bounded by the pool-size-min and" +
+				" pool-size-max values."
+			).build());
 }
