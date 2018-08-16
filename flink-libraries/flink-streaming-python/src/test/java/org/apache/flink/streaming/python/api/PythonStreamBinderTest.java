@@ -63,7 +63,7 @@ public class PythonStreamBinderTest extends AbstractTestBase {
 
 	@Test
 	public void testProgram() throws Exception {
-		Path testEntryPoint = new Path(getBaseTestPythonDir(), "run_all_tests.py");
+		Path testEntryPoint = new Path(getBaseTestPythonDir(), "examples/word_count.py");
 		List<String> testFiles = findTestFiles();
 
 		Preconditions.checkState(testFiles.size() > 0, "No test files were found in {}.", getBaseTestPythonDir());

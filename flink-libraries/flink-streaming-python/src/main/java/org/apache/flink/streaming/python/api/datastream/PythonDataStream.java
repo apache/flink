@@ -145,14 +145,6 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	}
 
 	/**
-	 * A thin wrapper layer over {@link DataStream#print(String)}.
-	 */
-	@PublicEvolving
-	public void output(String sinkIdentifier) {
-		stream.print(sinkIdentifier);
-	}
-
-	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String)}.
 	 *
 	 * @param path The path pointing to the location the text file is written to.
