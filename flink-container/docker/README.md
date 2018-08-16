@@ -39,6 +39,7 @@ The `docker-compose.yml` contains the following parameters:
 * `FLINK_JOB` - Name of the Flink job to execute (default: none)
 * `DEFAULT_PARALLELISM` - Default parallelism with which to start the job (default: 1)
 * `FLINK_JOB_ARGUMENTS` - Additional arguments which will be passed to the job cluster (default: none)
+* `SAVEPOINT_OPTIONS` - Savepoint options to start the cluster with (default: none)
 
 The parameters can be set by exporting the corresponding environment variable.
 
@@ -54,6 +55,11 @@ In order to start the job with a different default parallelism set `DEFAULT_PARA
 This will automatically start `DEFAULT_PARALLELISM` TaskManagers:
         
         FLINK_DOCKER_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB=<JOB_NAME> DEFAULT_PARALLELISM=<DEFAULT_PARALLELISM> docker-compose up
+        
+In order to resume the job from a savepoint set `SAVEPOINT_OPTIONS`.
+Supported options are `--fromSavepoint <SAVEPOINT_PATH>` and `--allowNonRestoredState` where `<SAVEPOINT_PATH>` is accessible from all containers.
+
+        FLINK_DOCKER_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB=<JOB_NAME> SAVEPOINT_OPTIONS="--fromSavepoint <SAVEPOINT_PATH> --allowNonRestoredState" docker-compose up 
         
 One can also provide additional job arguments via `FLINK_JOB_ARGUMENTS` which are passed to the job:
         
