@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
+import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
@@ -149,18 +150,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
 				// buffer is full => start deserializing
 				deserializer.setNextBuffer(serializationResult.buildBuffer());
 
-				while (!serializedRecords.isEmpty()) {
-					SerializationTestType expected = serializedRecords.poll();
-					SerializationTestType actual = expected.getClass().newInstance();
-
-					if (deserializer.getNextRecord(actual).isFullRecord()) {
-						Assert.assertEquals(expected, actual);
-						numRecords--;
-					} else {
-						serializedRecords.addFirst(expected);
-						break;
-					}
-				}
+				numRecords -= DeserializationUtils.deserializeRecords(serializedRecords, deserializer);
 
 				// move buffers as long as necessary (for long records)
 				while ((serializationResult = setNextBufferForSerializer(serializer, segmentSize)).isFullBuffer()) {

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
@@ -451,18 +452,7 @@ public class RecordWriterTest {
 				Buffer buffer = buildSingleBuffer(queues[i].remove());
 				deserializer.setNextBuffer(buffer);
 
-				while (!expectedRecords.isEmpty()) {
-					SerializationTestType expected = expectedRecords.poll();
-					SerializationTestType actual = expected.getClass().newInstance();
-
-					if (deserializer.getNextRecord(actual).isFullRecord()) {
-						Assert.assertEquals(expected, actual);
-						assertRecords++;
-					} else {
-						expectedRecords.addFirst(expected);
-						break;
-					}
-				}
+				assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
 			}
 			Assert.assertEquals(numValues, assertRecords);
 		}
@@ -621,20 +611,16 @@ public class RecordWriterTest {
 	private static class Broadcast<T extends IOReadableWritable> implements ChannelSelector<T> {
 
 		private int[] returnChannel;
-		boolean set;
-		int setNumber;
 
 		@Override
 		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
-			if (set && setNumber == numberOfOutputChannels) {
+			if (returnChannel != null && returnChannel.length == numberOfOutputChannels) {
 				return returnChannel;
 			} else {
 				this.returnChannel = new int[numberOfOutputChannels];
 				for (int i = 0; i < numberOfOutputChannels; i++) {
 					returnChannel[i] = i;
 				}
-				set = true;
-				setNumber = numberOfOutputChannels;
 				return returnChannel;
 			}
 		}

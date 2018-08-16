@@ -54,11 +54,11 @@ public class SpanningRecordSerializerTest {
 		Assert.assertFalse(serializer.hasSerializedData());
 
 		final BufferBuilder bufferBuilder2 = createBufferBuilder(8);
-		serializer.serializeRecord(randomIntRecord);
+		serializer.reset();
 		serializer.copyToBufferBuilder(bufferBuilder2);
 		Assert.assertFalse(serializer.hasSerializedData());
 
-		serializer.serializeRecord(randomIntRecord);
+		serializer.reset();
 		serializer.copyToBufferBuilder(bufferBuilder2);
 		// Buffer builder full!
 		Assert.assertTrue(serializer.hasSerializedData());
@@ -105,10 +105,10 @@ public class SpanningRecordSerializerTest {
 		serializer.serializeRecord(emptyRecord);
 		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, serializer.copyToBufferBuilder(bufferBuilder1));
 
-		serializer.serializeRecord(emptyRecord);
+		serializer.reset();
 		Assert.assertEquals(RecordSerializer.SerializationResult.FULL_RECORD, serializer.copyToBufferBuilder(bufferBuilder1));
 
-		serializer.serializeRecord(emptyRecord);
+		serializer.reset();
 		Assert.assertEquals(RecordSerializer.SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL,
 			serializer.copyToBufferBuilder(bufferBuilder1));
 
@@ -188,6 +188,8 @@ public class SpanningRecordSerializerTest {
 					bufferBuilder = createBufferBuilder(segmentSize);
 					result = serializer.copyToBufferBuilder(bufferBuilder);
 				}
+
+				Assert.assertTrue(result.isFullRecord());
 			}
 		}
 	}

@@ -22,8 +22,6 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
-import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -93,7 +91,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 *         whether this buffer is full
 	 */
 	@Override
-	public SerializationResult copyToBufferBuilder(@Nonnull BufferBuilder targetBuffer) {
+	public SerializationResult copyToBufferBuilder(BufferBuilder targetBuffer) {
 		boolean mustCommit = false;
 		if (lengthBuffer.hasRemaining()) {
 			targetBuffer.append(lengthBuffer);
