@@ -1,6 +1,6 @@
 ---
 title: Building Flink from Source
-nav-parent_id: building
+nav-parent_id: flinkdev
 nav-pos: 20
 ---
 <!--

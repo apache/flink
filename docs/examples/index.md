@@ -38,10 +38,10 @@ These [instructions]({{ site.baseurl }}/dev/batch/examples.html#running-an-examp
 
 ## Examples on the Web
 
-There are also a few blog posts publish online that discuss example applciations:
+There are also a few blog posts published online that discuss example applications:
 
 * [How to build stateful streaming applications with Apache Flink
-](https://www.infoworld.com/article/3293426/big-data/how-to-build-stateful-streaming-applications-with-apache-flink.html) presents an event-driven applications implement with the DataStream API and two SQL queries for streaming analytics.
+](https://www.infoworld.com/article/3293426/big-data/how-to-build-stateful-streaming-applications-with-apache-flink.html) presents an event-driven application implemented with the DataStream API and two SQL queries for streaming analytics.
 
 * [Building real-time dashboard applications with Apache Flink, Elasticsearch, and Kibana](https://www.elastic.co/blog/building-real-time-dashboard-applications-with-apache-flink-elasticsearch-and-kibana) is a blog post at elastic.co showing how to build a real-time dashboard solution for streaming data analytics using Apache Flink, Elasticsearch, and Kibana.
 

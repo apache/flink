@@ -1,6 +1,6 @@
 ---
 title: "Importing Flink into an IDE"
-nav-parent_id: building
+nav-parent_id: flinkdev
 nav-pos: 3
 ---
 <!--

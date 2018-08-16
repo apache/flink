@@ -1,8 +1,8 @@
 ---
 section-break: true
-nav-title: '<i class="fa fa-cogs title dessert" aria-hidden="true"></i> Building & Developing Flink'
-title: "Developing Flink"
-nav-id: "building"
+nav-title: '<i class="fa fa-cogs title dessert" aria-hidden="true"></i> Flink Development'
+title: "Flink Development"
+nav-id: "flinkdev"
 nav-parent_id: root
 nav-pos: 8
 ---
