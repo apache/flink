@@ -268,7 +268,7 @@ public class CopyOnWriteStateTableSnapshot<K, N, S>
 		int tryAddToSource(int currentIndex, CopyOnWriteStateTable.StateTableEntry<K, N, S> entry) {
 			CopyOnWriteStateTable.StateTableEntry<K, N, S> filteredEntry = filterEntry(entry);
 			if (filteredEntry != null) {
-				return tryAddToSource(currentIndex, filteredEntry);
+				return super.tryAddToSource(currentIndex, filteredEntry);
 			}
 			return currentIndex;
 		}
