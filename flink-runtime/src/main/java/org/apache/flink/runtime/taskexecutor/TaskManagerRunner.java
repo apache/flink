@@ -315,7 +315,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			clusterConfiguration = commandLineParser.parse(args);
 		} catch (FlinkParseException e) {
 			LOG.error("Could not parse the command line options.", e);
-			commandLineParser.printHelp();
+			commandLineParser.printHelp(TaskManagerRunner.class.getSimpleName());
 			throw e;
 		}
 
