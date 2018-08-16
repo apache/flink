@@ -18,7 +18,9 @@
 
 package org.apache.flink.container.entrypoint;
 
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -53,6 +55,8 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		options.addOption(REST_PORT_OPTION);
 		options.addOption(JOB_CLASS_NAME_OPTION);
 		options.addOption(DYNAMIC_PROPERTY_OPTION);
+		options.addOption(CliFrontendParser.SAVEPOINT_PATH_OPTION);
+		options.addOption(CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 
 		return options;
 	}
@@ -64,12 +68,14 @@ public class StandaloneJobClusterConfigurationParserFactory implements ParserRes
 		final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
 		final int restPort = Integer.parseInt(restPortString);
 		final String jobClassName = commandLine.getOptionValue(JOB_CLASS_NAME_OPTION.getOpt());
+		final SavepointRestoreSettings savepointRestoreSettings = CliFrontendParser.createSavepointRestoreSettings(commandLine);
 
 		return new StandaloneJobClusterConfiguration(
 			configDir,
 			dynamicProperties,
 			commandLine.getArgs(),
 			restPort,
-			jobClassName);
+			jobClassName,
+			savepointRestoreSettings);
 	}
 }
