@@ -29,6 +29,8 @@ public class JsonValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_SCHEMA = "format.schema";
 	public static final String FORMAT_JSON_SCHEMA = "format.json-schema";
 	public static final String FORMAT_FAIL_ON_MISSING_FIELD = "format.fail-on-missing-field";
+	public static final String FORMAT_NULL_ERROR_LINE = "format.null-error-line";
+	public static final String FORMAT_ADDITIONAL_ERROR_FIELD = "format.additional-error-field";
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -51,5 +53,7 @@ public class JsonValidator extends FormatDescriptorValidator {
 		}
 
 		properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
+		properties.validateBoolean(FORMAT_NULL_ERROR_LINE, true);
+		properties.validateBoolean(FORMAT_ADDITIONAL_ERROR_FIELD, true);
 	}
 }
