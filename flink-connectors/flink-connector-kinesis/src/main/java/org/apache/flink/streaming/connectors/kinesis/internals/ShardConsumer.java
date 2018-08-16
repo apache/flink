@@ -212,12 +212,16 @@ public class ShardConsumer<T> implements Runnable {
 					// we can close this consumer thread once we've reached the end of the subscribed shard
 					break;
 				} else {
-
+					shardMetricsReporter.setMaxNumberOfRecordsPerFetch(maxNumberOfRecordsPerFetch);
 					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
+
+					List<Record> aggregatedRecords = getRecordsResult.getRecords();
+					int numberOfAggregatedRecords = aggregatedRecords.size();
+					shardMetricsReporter.setNumberOfAggregatedRecords(numberOfAggregatedRecords);
 
 					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
 					List<UserRecord> fetchedRecords = deaggregateRecords(
-						getRecordsResult.getRecords(),
+						aggregatedRecords,
 						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
 						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
@@ -227,11 +231,15 @@ public class ShardConsumer<T> implements Runnable {
 						deserializeRecordForCollectionAndUpdateState(record);
 					}
 
+					int numberOfDeaggregatedRecords = fetchedRecords.size();
+					shardMetricsReporter.setNumberOfDeaggregatedRecords(numberOfDeaggregatedRecords);
+
 					nextShardItr = getRecordsResult.getNextShardIterator();
 
 					long adjustmentEndTimeNanos = adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());
 					long runLoopTimeNanos = adjustmentEndTimeNanos - processingStartTimeNanos;
 					maxNumberOfRecordsPerFetch = adaptRecordsToRead(runLoopTimeNanos, fetchedRecords.size(), recordBatchSizeBytes, maxNumberOfRecordsPerFetch);
+					shardMetricsReporter.setRunLoopTimeNanos(runLoopTimeNanos);
 					processingStartTimeNanos = adjustmentEndTimeNanos; // for next time through the loop
 				}
 			}
@@ -256,6 +264,7 @@ public class ShardConsumer<T> implements Runnable {
 			if (sleepTimeMillis > 0) {
 				Thread.sleep(sleepTimeMillis);
 				endTimeNanos = System.nanoTime();
+				shardMetricsReporter.setSleepTimeMillis(sleepTimeMillis);
 			}
 		}
 		return endTimeNanos;
@@ -280,6 +289,11 @@ public class ShardConsumer<T> implements Runnable {
 			maxNumberOfRecordsPerFetch = (int) (bytesPerRead / averageRecordSizeBytes);
 			// Ensure the value is not more than 10000L
 			maxNumberOfRecordsPerFetch = Math.min(maxNumberOfRecordsPerFetch, ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_MAX);
+
+			// Set metrics
+			shardMetricsReporter.setAverageRecordSizeBytes(averageRecordSizeBytes);
+			shardMetricsReporter.setLoopFrequencyHz(loopFrequencyHz);
+			shardMetricsReporter.setBytesPerRead(bytesPerRead);
 		}
 		return maxNumberOfRecordsPerFetch;
 	}
