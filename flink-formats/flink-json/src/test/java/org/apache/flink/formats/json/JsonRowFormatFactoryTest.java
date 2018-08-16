@@ -84,7 +84,8 @@ public class JsonRowFormatFactoryTest extends TestLogger {
 		final Map<String, String> properties = toMap(
 			new Json()
 				.jsonSchema(JSON_SCHEMA)
-				.failOnMissingField(true));
+				.failOnMissingField(true)
+				.failureHandler("fail"));
 
 		testJsonSchemaSerializationSchema(properties);
 

@@ -36,6 +36,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 /**
  * Tests for the {@link JsonRowDeserializationSchema}.
@@ -177,6 +179,41 @@ public class JsonRowDeserializationSchemaTest {
 		} catch (IOException e) {
 			Assert.assertTrue(e.getCause() instanceof IllegalStateException);
 		}
+	}
+
+	/**
+	 * Test deserialization with failure handlers "ignore".
+	 */
+	@Test
+	public void testFailureHandlerIgnore() throws IOException {
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+			Types.ROW_NAMED(
+				new String[] { "name" },
+				Types.STRING)
+		);
+
+		deserializationSchema.setFailureHandler("ignore");
+		final Row row = deserializationSchema.deserialize("zxvdd".getBytes());
+		assertNull(row);
+	}
+
+	/**
+	 * Test deserialization with failure handlers "error-field".
+	 */
+	@Test
+	public void testFailureHandlerErrorField() throws IOException {
+		final JsonRowDeserializationSchema deserializationSchema = new JsonRowDeserializationSchema(
+			Types.ROW_NAMED(
+				new String[] { "name", "age" },
+				Types.STRING, Types.INT)
+		);
+		deserializationSchema.setFailureHandler("error-field");
+
+		final Row row = deserializationSchema.deserialize("zxvdd".getBytes());
+		assertEquals(3, row.getArity());
+		assertNull(row.getField(0));
+		assertNull(row.getField(1));
+		assertNotNull(row.getField(2));
 	}
 
 	/**

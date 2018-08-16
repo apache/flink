@@ -70,6 +70,11 @@ public class JsonTest extends DescriptorTestBase {
 		addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
 	}
 
+	@Test(expected = ValidationException.class)
+	public void testUnknownFailureHandler() {
+		addPropertyAndVerify(descriptors().get(0), "format.failure-handler", "ABC");
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	@Override
@@ -83,7 +88,8 @@ public class JsonTest extends DescriptorTestBase {
 				Types.ROW(
 					new String[]{"test1", "test2"},
 					new TypeInformation[]{Types.STRING(), Types.SQL_TIMESTAMP()}))
-			.failOnMissingField(true);
+			.failOnMissingField(true)
+			.failureHandler("error-field");
 
 		final Descriptor desc4 = new Json().deriveSchema();
 
@@ -108,6 +114,7 @@ public class JsonTest extends DescriptorTestBase {
 		props3.put("format.property-version", "1");
 		props3.put("format.schema", "ROW<test1 VARCHAR, test2 TIMESTAMP>");
 		props3.put("format.fail-on-missing-field", "true");
+		props3.put("format.failure-handler", "error-field");
 
 		final Map<String, String> props4 = new HashMap<>();
 		props4.put("format.type", "json");

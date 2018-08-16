@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.descriptors.JsonValidator;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -62,6 +63,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	/** Flag indicating whether to fail on a missing field. */
 	private boolean failOnMissingField;
 
+	/** Failure handler that handles deserializing error. */
+	private String failureHandler;
+
 	/**
 	 * Creates a JSON deserialization schema for the given type information.
 	 *
@@ -94,7 +98,21 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			final JsonNode root = objectMapper.readTree(message);
 			return convertRow(root, (RowTypeInfo) typeInfo);
 		} catch (Throwable t) {
-			throw new IOException("Failed to deserialize JSON object.", t);
+			if (failureHandler != null && !failureHandler.equals(JsonValidator.FAILURE_HANDLER_FAIL)) {
+				switch (failureHandler) {
+					case JsonValidator.FAILURE_HANDLER_IGNORE:
+						return null;
+					case JsonValidator.FAILURE_HANDLER_ERROR_FIELD:
+						final int arity = typeInfo.getArity();
+						final Object[] array = new Object[arity + 1];
+						array[arity] = t.getMessage();
+						return Row.of(array);
+					default:
+						throw new IOException("Unable to recognize format.failure-handler: " + failureHandler);
+				}
+			} else {
+				throw new IOException("Failed to deserialize JSON object.", t);
+			}
 		}
 	}
 
@@ -117,6 +135,13 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 */
 	public void setFailOnMissingField(boolean failOnMissingField) {
 		this.failOnMissingField = failOnMissingField;
+	}
+
+	/**
+	 * Configures the failure handler that handles deserializing error.
+	 */
+	public void setFailureHandler(String failureHandler) {
+		this.failureHandler = failureHandler;
 	}
 
 	@Override

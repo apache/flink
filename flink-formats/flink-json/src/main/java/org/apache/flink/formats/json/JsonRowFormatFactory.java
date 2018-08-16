@@ -50,6 +50,7 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
 		properties.add(JsonValidator.FORMAT_SCHEMA);
 		properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
+		properties.add(JsonValidator.FORMAT_FAILURE_HANDLER);
 		return properties;
 	}
 
@@ -62,6 +63,8 @@ public class JsonRowFormatFactory extends TableFormatFactoryBase<Row>
 
 		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
 				.ifPresent(schema::setFailOnMissingField);
+		descriptorProperties.getOptionalString(JsonValidator.FORMAT_FAILURE_HANDLER)
+			.ifPresent(schema::setFailureHandler);
 
 		return schema;
 	}

@@ -21,6 +21,9 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
   * Validator for {@link Json}.
   */
@@ -31,6 +34,16 @@ public class JsonValidator extends FormatDescriptorValidator {
 	public static final String FORMAT_SCHEMA = "format.schema";
 	public static final String FORMAT_JSON_SCHEMA = "format.json-schema";
 	public static final String FORMAT_FAIL_ON_MISSING_FIELD = "format.fail-on-missing-field";
+	public static final String FORMAT_FAILURE_HANDLER = "format.failure-handler";
+
+	public static final String FAILURE_HANDLER_FAIL = "fail";
+	public static final String FAILURE_HANDLER_IGNORE = "ignore";
+	public static final String FAILURE_HANDLER_ERROR_FIELD = "error-field";
+
+	private final List<String> failureHandlers = Arrays.asList(
+		FAILURE_HANDLER_FAIL,
+		FAILURE_HANDLER_IGNORE,
+		FAILURE_HANDLER_ERROR_FIELD);
 
 	@Override
 	public void validate(DescriptorProperties properties) {
@@ -52,6 +65,7 @@ public class JsonValidator extends FormatDescriptorValidator {
 			properties.validateString(FORMAT_JSON_SCHEMA, false, 1);
 		}
 
+		properties.validateEnumValues(FORMAT_FAILURE_HANDLER, true, failureHandlers);
 		properties.validateBoolean(FORMAT_FAIL_ON_MISSING_FIELD, true);
 	}
 }
