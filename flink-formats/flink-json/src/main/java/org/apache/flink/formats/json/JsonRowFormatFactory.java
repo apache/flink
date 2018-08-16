@@ -60,6 +60,8 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 		properties.add(JsonValidator.FORMAT_JSON_SCHEMA);
 		properties.add(JsonValidator.FORMAT_SCHEMA);
 		properties.add(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD);
+		properties.add(JsonValidator.FORMAT_NULL_ERROR_LINE);
+		properties.add(JsonValidator.FORMAT_ADDITIONAL_ERROR_FIELD);
 		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA());
 		properties.addAll(SchemaValidator.getSchemaDerivationKeys());
 		return properties;
@@ -74,6 +76,10 @@ public class JsonRowFormatFactory implements SerializationSchemaFactory<Row>, De
 
 		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD)
 				.ifPresent(schema::setFailOnMissingField);
+		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_NULL_ERROR_LINE)
+			.ifPresent(schema::setNullErrorLine);
+		descriptorProperties.getOptionalBoolean(JsonValidator.FORMAT_ADDITIONAL_ERROR_FIELD)
+			.ifPresent(schema::setAdditionalErrorField);
 
 		return schema;
 	}

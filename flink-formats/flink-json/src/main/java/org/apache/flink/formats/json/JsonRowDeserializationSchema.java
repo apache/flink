@@ -62,6 +62,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	/** Flag indicating whether to fail on a missing field. */
 	private boolean failOnMissingField;
 
+	/** Flag indicating whether to ignore the line when exeption is thrown. */
+	private boolean nullErrorLine;
+
+	/** Flag indicating whether to add an additional field when exception is thrown. */
+	private boolean additionalErrorField;
+
 	/**
 	 * Creates a JSON deserialization schema for the given type information.
 	 *
@@ -94,7 +100,19 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 			final JsonNode root = objectMapper.readTree(message);
 			return convertRow(root, (RowTypeInfo) typeInfo);
 		} catch (Throwable t) {
-			throw new IOException("Failed to deserialize JSON object.", t);
+			if (nullErrorLine || additionalErrorField) {
+				final int arity = typeInfo.getArity();
+				final Object[] nullsArray = new Object[arity];
+				if (additionalErrorField) {
+					final Object[] addionalNullsArray = new Object[arity + 1];
+					System.arraycopy(nullsArray, 0, addionalNullsArray, 0, arity);
+					addionalNullsArray[arity] = t.getMessage();
+					return Row.of(addionalNullsArray);
+				}
+				return Row.of(nullsArray);
+			} else {
+				throw new IOException("Failed to deserialize JSON object.", t);
+			}
 		}
 	}
 
@@ -117,6 +135,20 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 */
 	public void setFailOnMissingField(boolean failOnMissingField) {
 		this.failOnMissingField = failOnMissingField;
+	}
+
+	/**
+	 * Configures whether to ignore the line when exeption is thrown. false by default.
+	 */
+	public void setNullErrorLine(boolean nullErrorLine) {
+		this.nullErrorLine = nullErrorLine;
+	}
+
+	/**
+	 * Configures whether to add an additional field when exeption is thrown. false by default.
+	 */
+	public void setAdditionalErrorField(boolean additionalErrorField) {
+		this.additionalErrorField = additionalErrorField;
 	}
 
 	@Override

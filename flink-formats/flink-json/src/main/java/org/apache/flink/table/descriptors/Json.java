@@ -24,8 +24,10 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
+import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_ADDITIONAL_ERROR_FIELD;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_JSON_SCHEMA;
+import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_NULL_ERROR_LINE;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_SCHEMA;
 import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE;
 
@@ -35,6 +37,8 @@ import static org.apache.flink.table.descriptors.JsonValidator.FORMAT_TYPE_VALUE
 public class Json extends FormatDescriptor {
 
 	private Boolean failOnMissingField;
+	private Boolean nullErrorLine;
+	private Boolean additionalErrorField;
 	private Boolean deriveSchema;
 	private String jsonSchema;
 	private String schema;
@@ -54,6 +58,27 @@ public class Json extends FormatDescriptor {
 	 */
 	public Json failOnMissingField(boolean failOnMissingField) {
 		this.failOnMissingField = failOnMissingField;
+		return this;
+	}
+
+	/**
+	 * Sets flag whether to ignore the line if exception is thrown.
+	 *
+	 * @param nullErrorLine If set to true, the line will be ignored if exception is thrown.
+	 */
+	public Json nullErrorLine(boolean nullErrorLine) {
+		this.nullErrorLine = nullErrorLine;
+		return this;
+	}
+
+	/**
+	 * Sets flag whether to add an additional field to store error messages if exception is thrown.
+	 *
+	 * @param additionalErrorField If set to true, there will be an additional field to store
+	 *                             if exception is thrown.
+	 */
+	public Json additionalErrorField(boolean additionalErrorField) {
+		this.additionalErrorField = additionalErrorField;
 		return this;
 	}
 
@@ -125,6 +150,14 @@ public class Json extends FormatDescriptor {
 
 		if (failOnMissingField != null) {
 			properties.putBoolean(FORMAT_FAIL_ON_MISSING_FIELD, failOnMissingField);
+		}
+
+		if (nullErrorLine != null) {
+			properties.putBoolean(FORMAT_NULL_ERROR_LINE, nullErrorLine);
+		}
+
+		if (additionalErrorField != null) {
+			properties.putBoolean(FORMAT_ADDITIONAL_ERROR_FIELD, additionalErrorField);
 		}
 	}
 }
