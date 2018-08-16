@@ -139,16 +139,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			int subtaskIndex) throws Exception {
 		this(
 			operator,
-			new MockEnvironmentBuilder()
-				.setTaskName("MockTask")
-				.setMemorySize(3 * 1024 * 1024)
-				.setInputSplitProvider(new MockInputSplitProvider())
-				.setBufferSize(1024)
-				.setMaxParallelism(maxParallelism)
-				.setParallelism(parallelism)
-				.setSubtaskIndex(subtaskIndex)
-				.build(),
-			true,
+			maxParallelism,
+			parallelism,
+			subtaskIndex,
 			new OperatorID());
 	}
 
