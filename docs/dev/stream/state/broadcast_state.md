@@ -172,8 +172,6 @@ exposes some functionality which is not available to the `BroadcastProcessFuncti
   `OnTimerContext` which exposes the same functionality as the `ReadOnlyContext` plus 
    - the ability to ask if the timer that fired was an event or processing time one and 
    - to query the key associated with the timer.
-
-  This is aligned with the `onTimer()` method of the `KeyedProcessFunction`. 
  2. the `Context` in the `processBroadcastElement()` method contains the method 
  `applyToKeyedState(StateDescriptor<S, VS> stateDescriptor, KeyedStateFunction<KS, S> function)`. This allows to 
   register a `KeyedStateFunction` to be **applied to all states of all keys** associated with the provided `stateDescriptor`. 
