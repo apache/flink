@@ -18,12 +18,12 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: standalone-job.sh ((start|start-foreground))|stop"
+USAGE="Usage: standalone-job.sh ((start|start-foreground))|stop [args]"
 
 STARTSTOP=$1
 ENTRY_POINT_NAME="standalonejob"
 
-if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] || [[ -z JOB_CLASSNAME ]]; then
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]]; then
   echo $USAGE
   exit 1
 fi
@@ -58,7 +58,7 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 fi
 
 if [[ $STARTSTOP == "start-foreground" ]]; then
-    exec "${FLINK_BIN_DIR}"/flink-console.sh $ENTRY_POINT_NAME "${ARGS[@]}"
+    exec "${FLINK_BIN_DIR}"/flink-console.sh ${ENTRY_POINT_NAME} "${ARGS[@]}"
 else
-    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP $ENTRY_POINT_NAME "${ARGS[@]}"
+    "${FLINK_BIN_DIR}"/flink-daemon.sh ${STARTSTOP} ${ENTRY_POINT_NAME} "${ARGS[@]}"
 fi
