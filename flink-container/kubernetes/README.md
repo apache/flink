@@ -38,6 +38,13 @@ At last, you should start the task manager deployment:
 
 `FLINK_IMAGE_NAME=<IMAGE_NAME> FLINK_JOB_PARALLELISM=<PARALLELISM> envsubst < task-manager-deployment.yaml.template | kubectl create -f -`
 
+## Resuming from a savepoint
+
+In order to resume from a savepoint, one needs to pass the savepoint path to the cluster entrypoint.
+This can be achieved by adding `"--fromSavepoint", "<SAVEPOINT_PATH>"` to the `args` field in the [job-cluster-job.yaml.template](job-cluster-job.yaml.template).
+Note that `<SAVEPOINT_PATH>` needs to be accessible from the `job-cluster-job` pod (e.g. adding it to the image or storing it on a DFS).
+Additionally one can specify `"--allowNonRestoredState"` to allow that savepoint state is skipped which cannot be restored.
+
 ## Interact with Flink job cluster
 
 After starting the job cluster service, the web UI will be available under `<NODE_IP>:30081`.
