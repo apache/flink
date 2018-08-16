@@ -92,7 +92,7 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 			entrypointClusterConfiguration = commandLineParser.parse(args);
 		} catch (FlinkParseException e) {
 			LOG.error("Could not parse command line arguments {}.", args, e);
-			commandLineParser.printHelp();
+			commandLineParser.printHelp(StandaloneSessionClusterEntrypoint.class.getSimpleName());
 			System.exit(1);
 		}
 
