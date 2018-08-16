@@ -34,9 +34,8 @@ Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in or
 If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 
-  promisc on'` before deploying a Flink cluster. Otherwise Flink components are not able to self reference 
-  themselves through a Kubernetes service. 
+  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. 
+  Otherwise Flink components are not able to self reference themselves through a Kubernetes service. 
 </div>
 
 ## Flink session cluster on Kubernetes
