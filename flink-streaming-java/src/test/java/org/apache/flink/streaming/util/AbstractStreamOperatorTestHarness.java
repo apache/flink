@@ -80,6 +80,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -359,6 +360,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		OperatorSubtaskState jmOperatorStateHandles,
 		OperatorSubtaskState tmOperatorStateHandles) throws Exception {
 
+		checkState(!initializeCalled, "TestHarness has already been initialized. Have you " +
+			"opened this harness before initializing it?");
 		if (!setupCalled) {
 			setup();
 		}
