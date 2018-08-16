@@ -111,6 +111,7 @@ public abstract class TypeInformation<T> implements Serializable {
 	 * fields, in the case of composite types. In the example below, the OuterType type has three
 	 * fields in total.
 	 *
+	 * <p>The total number of fields must be at least 1.
 	 *
 	 * @return The number of fields in this type, including its sub-fields (for composite types)
 	 */
