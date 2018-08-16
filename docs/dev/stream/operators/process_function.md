@@ -371,4 +371,4 @@ ctx.timerService.deleteEventTimeTimer(timestampOfTimerToStop)
 </div>
 </div>
 
-<span class="label label-info">Note</span> Stopping a timer has no effect if no such timer timer with the given timestamp is registered.
+<span class="label label-info">Note</span> Stopping a timer has no effect if no such timer with the given timestamp is registered.

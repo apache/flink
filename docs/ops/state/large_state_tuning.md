@@ -144,14 +144,14 @@ by default. To enable this feature, users can instantiate a `RocksDBStateBackend
 
 **RocksDB Timers**
 
-For RocksDB, user can chose whether timers are stored on the heap (default) or inside RocksDB. Heap-based timers can have a better performance for smaller amounts of
-timers, while storing timers inside RocksDB offers higher scalability as the amount of timers in RocksDB can exceed the available main memory (spilling to disk).
+For RocksDB, a user can chose whether timers are stored on the heap (default) or inside RocksDB. Heap-based timers can have a better performance for smaller numbers of
+timers, while storing timers inside RocksDB offers higher scalability as the number of timers in RocksDB can exceed the available main memory (spilling to disk).
 
-When using RockDB as state backend, the type of timer storage can be selected through Flink's configuration via option key `RocksDBOptions.TIMER_SERVICE_FACTORY`.
-Possible choices are `HEAP` (to store timers on the heap, default) and `ROCKSDB` (to store timers in RocksDB).
+When using RockDB as state backend, the type of timer storage can be selected through Flink's configuration via option key `state.backend.rocksdb.timer-service.factory`.
+Possible choices are `heap` (to store timers on the heap, default) and `rocksdb` (to store timers in RocksDB).
 
 <span class="label label-info">Note</span> *The combination RocksDB state backend / with incremental checkpoint / with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
-Other state like keyed state is still snapshotted asynchronously. Please not that this is no regression from previous versions and will be resolved with `FLINK-10026`.*
+Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*
 
 **Passing Options to RocksDB**
 
@@ -188,10 +188,10 @@ Flink provides some predefined collections of option for RocksDB for different s
 We expect to accumulate more such profiles over time. Feel free to contribute such predefined option profiles when you
 found a set of options that work well and seem representative for certain workloads.
 
-<span class="label label-info">Note</span> RocksDB is a native library, whose allocated memory not from the JVM, but directly from the process'
-native memory. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
+<span class="label label-info">Note</span> RocksDB is a native library that allocates memory directly from the process,
+and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
 of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
-allocating more memory than configures.
+allocating more memory than configured.
 
 ## Capacity Planning
 
