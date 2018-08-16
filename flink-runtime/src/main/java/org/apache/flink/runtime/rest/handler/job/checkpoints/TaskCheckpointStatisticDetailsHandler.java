@@ -178,6 +178,7 @@ public class TaskCheckpointStatisticDetailsHandler
 			} else {
 				result.add(new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics(
 					i,
+					subtask.getSubtaskLocation(),
 					subtask.getAckTimestamp(),
 					subtask.getEndToEndDuration(triggerTimestamp),
 					subtask.getStateSize(),

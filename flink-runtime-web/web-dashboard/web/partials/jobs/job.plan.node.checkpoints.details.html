@@ -135,6 +135,7 @@ limitations under the License.
             <thead>
               <tr>
                 <td><strong>Subtask #</strong></td>
+                <td><strong>Host</strong></td>
                 <td><strong>Acknowledgement Time</strong></td>
                 <td><strong>End to End Duration</strong></td>
                 <td><strong>State Size</strong></td>
@@ -147,6 +148,7 @@ limitations under the License.
             <tbody>
               <tr ng-repeat="subtask in subtaskDetails[v.id]['subtasks']">
                 <td>{{ subtask['index'] + 1 }}</td>
+                <td>{{ subtask['hostId'] }}</td>
                 <td ng-if-start="subtask['status'] == 'completed'">{{ subtask['ack_timestamp'] | amDateFormat:'H:mm:ss' }}</td>
                 <td>{{ subtask['end_to_end_duration'] | humanizeDuration }}</td>
                 <td>{{ subtask['state_size'] | humanizeBytes }}</td>

@@ -128,6 +128,7 @@ div(ng-if="checkpoint")
             thead
               tr
                 td #[strong Subtask #]
+                td #[strong Host]
                 td #[strong Acknowledgement Time]
                 td #[strong End to End Duration]
                 td #[strong State Size]
@@ -138,6 +139,7 @@ div(ng-if="checkpoint")
             tbody
               tr(ng-repeat="subtask in subtaskDetails[v.id]['subtasks']")
                 td {{ subtask['index'] + 1 }}
+                td {{ subtask['hostId'] }}
                 td(ng-if-start="subtask['status'] == 'completed'") {{ subtask['ack_timestamp'] | amDateFormat:'H:mm:ss' }}
                 td {{ subtask['end_to_end_duration'] | humanizeDuration }}
                 td {{ subtask['state_size'] | humanizeBytes }}

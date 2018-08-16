@@ -39,6 +39,9 @@ public class SubtaskStateStats implements Serializable {
 	/** Index of this sub task. */
 	private final int subtaskIndex;
 
+	/** Location of this sub task. */
+	private final String subtaskLocation;
+
 	/**
 	 * Timestamp when the ack from this sub task was received at the
 	 * coordinator.
@@ -64,6 +67,7 @@ public class SubtaskStateStats implements Serializable {
 	 * Creates the stats for a single subtask.
 	 *
 	 * @param subtaskIndex Index of the subtask.
+	 * @param subtaskLocation Location of the subtask.
 	 * @param ackTimestamp Timestamp when the acknowledgement of this subtask was received at the coordinator.
 	 * @param stateSize Size of the checkpointed state at this subtask.
 	 * @param syncCheckpointDuration Checkpoint duration at the task (synchronous part)
@@ -73,6 +77,7 @@ public class SubtaskStateStats implements Serializable {
 	 */
 	SubtaskStateStats(
 			int subtaskIndex,
+			String subtaskLocation,
 			long ackTimestamp,
 			long stateSize,
 			long syncCheckpointDuration,
@@ -82,6 +87,7 @@ public class SubtaskStateStats implements Serializable {
 
 		checkArgument(subtaskIndex >= 0, "Negative subtask index");
 		this.subtaskIndex = subtaskIndex;
+		this.subtaskLocation = subtaskLocation;
 		checkArgument(stateSize >= 0, "Negative state size");
 		this.stateSize = stateSize;
 		this.ackTimestamp = ackTimestamp;
@@ -98,6 +104,15 @@ public class SubtaskStateStats implements Serializable {
 	 */
 	public int getSubtaskIndex() {
 		return subtaskIndex;
+	}
+
+	/**
+	 * Returns the subtask location.
+	 *
+	 * @return Subtask Location.
+	 */
+	public String getSubtaskLocation() {
+		return subtaskLocation;
 	}
 
 	/**

@@ -87,6 +87,8 @@ public class SubtaskCheckpointStatistics {
 	 */
 	public static final class CompletedSubtaskCheckpointStatistics extends SubtaskCheckpointStatistics {
 
+		public static final String FIELD_NAME_LOCATION = "location";
+
 		public static final String FIELD_NAME_ACK_TIMESTAMP = "ack_timestamp";
 
 		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
@@ -96,6 +98,9 @@ public class SubtaskCheckpointStatistics {
 		public static final String FIELD_NAME_CHECKPOINT_DURATION = "checkpoint";
 
 		public static final String FIELD_NAME_ALIGNMENT = "alignment";
+
+		@JsonProperty(FIELD_NAME_LOCATION)
+		private final String location;
 
 		@JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
 		private final long ackTimestamp;
@@ -115,17 +120,23 @@ public class SubtaskCheckpointStatistics {
 		@JsonCreator
 		public CompletedSubtaskCheckpointStatistics(
 				@JsonProperty(FIELD_NAME_INDEX) int index,
+				@JsonProperty(FIELD_NAME_LOCATION) String location,
 				@JsonProperty(FIELD_NAME_ACK_TIMESTAMP) long ackTimestamp,
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
 				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
 				@JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
 				@JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment) {
 			super(index, "completed");
+			this.location = location;
 			this.ackTimestamp = ackTimestamp;
 			this.duration = duration;
 			this.stateSize = stateSize;
 			this.checkpointDuration = checkpointDuration;
 			this.alignment = alignment;
+		}
+
+		public String getLocation() {
+			return location;
 		}
 
 		public long getAckTimestamp() {

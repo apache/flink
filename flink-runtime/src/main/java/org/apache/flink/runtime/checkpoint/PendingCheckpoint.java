@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -327,6 +328,8 @@ public class PendingCheckpoint {
 
 			List<OperatorID> operatorIDs = vertex.getJobVertex().getOperatorIDs();
 			int subtaskIndex = vertex.getParallelSubtaskIndex();
+			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
+			String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
 			long ackTimestamp = System.currentTimeMillis();
 
 			long stateSize = 0L;
@@ -368,6 +371,7 @@ public class PendingCheckpoint {
 
 				SubtaskStateStats subtaskStateStats = new SubtaskStateStats(
 					subtaskIndex,
+					locationString,
 					ackTimestamp,
 					stateSize,
 					metrics.getSyncDurationMillis(),
