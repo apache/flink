@@ -54,6 +54,9 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Class containing helper functions to interact with ZooKeeper.
+ */
 public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
@@ -344,6 +347,9 @@ public class ZooKeeperUtils {
 		return root + namespace;
 	}
 
+	/**
+	 * Secure {@link ACLProvider} implementation.
+	 */
 	public static class SecureAclProvider implements ACLProvider {
 		@Override
 		public List<ACL> getDefaultAcl() {
@@ -356,6 +362,9 @@ public class ZooKeeperUtils {
 		}
 	}
 
+	/**
+	 * ZooKeeper client ACL mode enum.
+	 */
 	public enum ZkClientACLMode {
 		CREATOR,
 		OPEN;
