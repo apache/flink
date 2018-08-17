@@ -177,7 +177,7 @@ object RowtimeValidator {
 
       case ROWTIME_TIMESTAMPS_TYPE_VALUE_CUSTOM =>
         val clazz = properties.getClass(
-          ROWTIME_TIMESTAMPS_CLASS,
+          prefix + ROWTIME_TIMESTAMPS_CLASS,
           classOf[TimestampExtractor])
         DescriptorProperties.deserialize(
           properties.getString(prefix + ROWTIME_TIMESTAMPS_SERIALIZED),
