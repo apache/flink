@@ -2686,6 +2686,18 @@ STRING.toBase64()
          <p>E.g., <code>'hello world'.toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the result string which trimmed the left spaces from the base string; returns NULL if <i>string</i> is NULL.</p> 
+        <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
+      </td>
+    </tr>
     
   </tbody>
 </table>
@@ -2876,6 +2888,18 @@ STRING.toBase64()
       <td>
         <p>Returns the base64-encoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p>
          <p>E.g., <code>"hello world".toBase64()</code> returns "aGVsbG8gd29ybGQ=".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.ltrim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the result string which trimmed the left spaces from the base string; returns NULL if <i>string</i> is NULL.</p> 
+        <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
   </tbody>
