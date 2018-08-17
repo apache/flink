@@ -1,5 +1,5 @@
 ---
-title: "DataStream API"
+title: "DataStream API Tutorial"
 nav-title: DataStream API
 nav-parent_id: apitutorials
 nav-pos: 10
@@ -37,7 +37,7 @@ give you a good foundation from which to start building more complex analysis pr
 ## Setting up a Maven Project
 
 We are going to use a Flink Maven Archetype for creating our project structure. Please
-see [Java API Quickstart]({{ site.baseurl }}/quickstart/java_api_quickstart.html) for more details
+see [Java API Quickstart]({{ site.baseurl }}/dev/projectsetup/java_api_quickstart.html) for more details
 about this. For our purposes, the command to run is this:
 
 {% highlight bash %}
@@ -293,7 +293,7 @@ your own machine and writing results to [Kafka](http://kafka.apache.org).
 
 ## Bonus Exercise: Running on a Cluster and Writing to Kafka
 
-Please follow our [setup quickstart](setup_quickstart.html) for setting up a Flink distribution
+Please follow our [local setup tutorial](local_setup.html) for setting up a Flink distribution
 on your machine and refer to the [Kafka quickstart](https://kafka.apache.org/documentation.html#quickstart)
 for setting up a Kafka installation before we proceed.
 
