@@ -2451,6 +2451,18 @@ SUBSTRING(string FROM integer1 [ FOR integer2 ])
     <tr>
       <td>
         {% highlight text %}
+REPLACE(string, search, replacement)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string from <i>string</i> replaced <i>search</i>(non-overlapping) with <i>replacement</i>.</p>
+        <p>E.g., <code>REPLACE('hello world', 'world', 'flink')</code> returns "hello flink"; <code>REPLACE('ababab', 'abab', 'z')</code> returns "zab"</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 INITCAP(string)
 {% endhighlight %}
       </td>
@@ -2691,6 +2703,18 @@ STRING.substring(INT1, INT2)
     <tr>
       <td>
         {% highlight java %}
+STRING.replace(STRING1, STRING2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string from <i>STRING</i> replaced <i>STRING1</i>(non-overlapping) with <i>STRING2</i>.</p>
+        <p>E.g., <code>'hello world'.replace('world', 'flink')</code> returns 'hello flink'; <code>'ababab'.replace('abab', 'z')</code> returns "zab"</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 STRING.initCap()
 {% endhighlight %}
       </td>
@@ -2924,6 +2948,18 @@ STRING.substring(INT1, INT2)
       </td>
       <td>
         <p>Returns a substring of <i>STRING</i> starting from position <i>INT1</i> with length <i>INT2</i> (to the end by default).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.replace(STRING1, STRING2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a new string from <i>STRING</i> replaced <i>STRING1</i>(non-overlapping) with <i>STRING2</i>.</p>
+        <p>E.g., <code>'hello world'.replace('world', 'flink')</code> returns 'hello flink'; <code>'ababab'.replace('abab', 'z')</code> returns "zab"</p>
       </td>
     </tr>
 

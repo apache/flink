@@ -95,6 +95,21 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testReplace(): Unit = {
+    testAllApis(
+      'f0.replace("This", "That"),
+      "f0.replace('This', 'That')",
+      "REPLACE(f0, 'This', 'That')",
+      "That is a test String.")
+
+    testAllApis(
+      'f0.replace(" ", "_"),
+      "f0.replace(' ', '_')",
+      "REPLACE(f0, ' ', '_')",
+      "This_is_a_test_String.")
+  }
+
+  @Test
   def testTrim(): Unit = {
     testAllApis(
       'f8.trim(),
