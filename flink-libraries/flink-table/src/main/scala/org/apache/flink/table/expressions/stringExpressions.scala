@@ -511,3 +511,27 @@ case class Repeat(str: Expression, n: Expression) extends Expression with InputT
 
   override def toString: String = s"($str).repeat($n)"
 }
+
+/**
+  * Returns a new string which replaces all the occurrences of the search target
+  * with the replacement string (non-overlapping).
+  */
+case class Replace(str: Expression,
+  search: Expression,
+  replacement: Expression) extends Expression with InputTypeSpec {
+
+  def this(str: Expression, begin: Expression) = this(str, begin, CharLength(str))
+
+  override private[flink] def children: Seq[Expression] = str :: search :: replacement :: Nil
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, STRING_TYPE_INFO, STRING_TYPE_INFO)
+
+  override def toString: String = s"($str).replace($search, $replacement)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(SqlStdOperatorTable.REPLACE, children.map(_.toRexNode))
+  }
+}
