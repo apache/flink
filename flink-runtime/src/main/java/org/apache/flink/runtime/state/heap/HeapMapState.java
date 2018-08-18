@@ -47,6 +47,16 @@ class HeapMapState<K, N, UK, UV>
 	implements InternalMapState<K, N, UK, UV> {
 
 	/**
+	 * Current userMap for currentNamespace.
+	 */
+	private Map<UK, UV> userMaps;
+
+	/**
+	 * Current key for the state.
+	 */
+	private K currentKey;
+
+	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
 	 * @param stateTable The state table for which this state is associated to.
@@ -63,6 +73,8 @@ class HeapMapState<K, N, UK, UV>
 		Map<UK, UV> defaultValue) {
 		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 
+		currentKey = stateTable.keyContext.getCurrentKey();
+		userMaps = null;
 		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
 	}
 
@@ -197,6 +209,13 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public void clear() {
+		super.clear();
+		currentKey = stateTable.keyContext.getCurrentKey();
+		userMaps = stateTable.get(currentNamespace);
+	}
+
+	@Override
 	public byte[] getSerializedValue(
 			final byte[] serializedKeyAndNamespace,
 			final TypeSerializer<K> safeKeySerializer,
@@ -239,6 +258,12 @@ class HeapMapState<K, N, UK, UV>
 	}
 
 	private Map<UK, UV> getUserMap() {
-		return stateTable.get(currentNamespace);
+		if (userMaps == null) {
+			userMaps = stateTable.get(currentNamespace);
+		} else if (stateTable.keyContext.getCurrentKey() != currentKey) {
+			userMaps = stateTable.get(currentNamespace);
+			currentKey = stateTable.keyContext.getCurrentKey();
+		}
+		return userMaps;
 	}
 }
