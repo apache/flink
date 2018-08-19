@@ -639,7 +639,7 @@ public class FlinkKafkaConsumerBaseTest {
 					Collections.singletonList("dummy-topic"),
 					null,
 					(KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class),
-					PARTITION_DISCOVERY_DISABLED,
+					1L,
 					false);
 
 			this.testFetcher = testFetcher;
@@ -818,16 +818,16 @@ public class FlinkKafkaConsumerBaseTest {
 
 	private static class MockOperatorStateStore implements OperatorStateStore {
 
-		private final ListState<?> mockRestoredUnionListState;
+		private final ListState<?> mockListState;
 
 		private MockOperatorStateStore(ListState<?> restoredUnionListState) {
-			this.mockRestoredUnionListState = restoredUnionListState;
+			this.mockListState = restoredUnionListState;
 		}
 
 		@Override
 		@SuppressWarnings("unchecked")
 		public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			return (ListState<S>) mockRestoredUnionListState;
+			return (ListState<S>) mockListState;
 		}
 
 		@Override
@@ -848,9 +848,20 @@ public class FlinkKafkaConsumerBaseTest {
 			throw new UnsupportedOperationException();
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
-			throw new UnsupportedOperationException();
+			return (ListState<S>) mockListState;
+		}
+
+		@Override
+		public void removeOperatorState(String name) throws Exception {
+
+		}
+
+		@Override
+		public void removeBroadcastState(String name) throws Exception {
+
 		}
 
 		@Override

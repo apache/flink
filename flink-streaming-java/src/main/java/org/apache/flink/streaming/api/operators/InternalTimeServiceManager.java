@@ -82,7 +82,7 @@ public class InternalTimeServiceManager<K> {
 	public <N> InternalTimerService<N> getInternalTimerService(
 		String name,
 		TimerSerializer<K, N> timerSerializer,
-		Triggerable<K, N> triggerable) {
+		Triggerable<K, N> triggerable) throws Exception {
 
 		InternalTimerServiceImpl<K, N> timerService = registerOrGetTimerService(name, timerSerializer);
 
@@ -95,7 +95,10 @@ public class InternalTimeServiceManager<K> {
 	}
 
 	@SuppressWarnings("unchecked")
-	<N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(String name, TimerSerializer<K, N> timerSerializer) {
+	<N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
+		String name,
+		TimerSerializer<K, N> timerSerializer) throws Exception {
+
 		InternalTimerServiceImpl<K, N> timerService = (InternalTimerServiceImpl<K, N>) timerServices.get(name);
 		if (timerService == null) {
 
@@ -117,8 +120,8 @@ public class InternalTimeServiceManager<K> {
 
 	private <N> KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> createTimerPriorityQueue(
 		String name,
-		TimerSerializer<K, N> timerSerializer) {
-		return priorityQueueSetFactory.create(
+		TimerSerializer<K, N> timerSerializer) throws Exception {
+		return priorityQueueSetFactory.createQueueState(
 			name,
 			timerSerializer);
 	}

@@ -76,6 +76,16 @@ public interface OperatorStateStore {
 	<S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
+	 * Removes the operator state with the given name from the state store, if it exists.
+	 */
+	void removeOperatorState(String name) throws Exception;
+
+	/**
+	 * Removes the broadcast state with the given name from the state store, if it exists.
+	 */
+	void removeBroadcastState(String name) throws Exception;
+
+	/**
 	 * Creates (or restores) a list state. Each state is registered under a unique name.
 	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
 	 *

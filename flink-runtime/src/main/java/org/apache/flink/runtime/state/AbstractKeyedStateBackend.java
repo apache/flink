@@ -62,7 +62,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	private int currentKeyGroup;
 
 	/** So that we can give out state when the user uses the same key. */
-	private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
+	protected final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
 	/** For caching the last accessed partitioned state. */
 	private String lastName;
@@ -319,5 +319,4 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	public boolean requiresLegacySynchronousTimerSnapshots() {
 		return false;
 	}
-
 }

@@ -171,6 +171,16 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
+	public void removeKeyedState(@Nonnull String stateName) {
+
+	}
+
+	@Override
+	public void removeQueueState(@Nonnull String name) {
+
+	}
+
+	@Override
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		long checkpointId,
 		long timestamp,
@@ -229,7 +239,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Nonnull
 	@Override
 	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> KeyGroupedInternalPriorityQueue<T>
-	create(
+	createQueueState(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 		return new HeapPriorityQueueSet<>(

@@ -729,7 +729,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public <K, N> InternalTimerService<N> getInternalTimerService(
 			String name,
 			TypeSerializer<N> namespaceSerializer,
-			Triggerable<K, N> triggerable) {
+			Triggerable<K, N> triggerable) throws Exception {
 
 		checkTimerServiceInitialization();
 

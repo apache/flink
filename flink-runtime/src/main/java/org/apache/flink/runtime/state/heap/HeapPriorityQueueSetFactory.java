@@ -55,7 +55,7 @@ public class HeapPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
 	@Nonnull
 	@Override
-	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> HeapPriorityQueueSet<T> create(
+	public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed> HeapPriorityQueueSet<T> createQueueState(
 		@Nonnull String stateName,
 		@Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
 
