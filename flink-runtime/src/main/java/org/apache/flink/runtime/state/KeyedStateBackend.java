@@ -106,4 +106,25 @@ public interface KeyedStateBackend<K>
 
 	@Override
 	void dispose();
+
+	/** State backend will call {@link KeyChangeListener#keyChanged} when key context changes if supported. */
+	default void registerKeyChangeListener(KeyChangeListener<K> listener) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Stop calling listener registered in {@link #registerKeyChangeListener}.
+	 *
+	 * @return returns true iff listener was registered before.
+	 */
+	default boolean deregisterKeyChangeListener(KeyChangeListener<K> listener) {
+		throw new UnsupportedOperationException();
+	}
+
+	/** Listener is given a callback when {@link #setCurrentKey} is called (key context changes). */
+	@FunctionalInterface
+	interface KeyChangeListener<K> {
+		/** Callback when key context changes. */
+		void keyChanged(K newKey);
+	}
 }

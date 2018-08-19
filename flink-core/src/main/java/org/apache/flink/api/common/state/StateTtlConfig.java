@@ -223,19 +223,27 @@ public class StateTtlConfig implements Serializable {
 		 * <p>This cleanup strategy is similar to {@code cleanupFullSnapshot()}, but during full state scan
 		 * it additionally pushes discovered expired state keys into an internal queue of limited size
 		 * {@code queueSizePerState} if the queue is not full. The main thread, which processes stream records,
-		 * pulls up to {@code cleanupSize} potentially expired keys every time, this state is touched for any key.
+		 * pulls up to {@code cleanupSize} potentially expired keys every time, this state is read or written for any key.
 		 * The state for the pulled keys is checked and cleared locally if it is still expired
 		 * (basically has been untouched since it was pushed from the snapshotting thread).
+		 *
+		 * <p>Additionally to the incremental cleanup upon state access, it can also run per every record.
+		 * Caution: if there are a lot of registered states using this option,
+		 * they all will be iterated for every record to check if there is something to cleanup.
 		 *
 		 * @param queueSizePerState size of the cleanup queue, negative value means unlimited (not recommended)
 		 * @param cleanupSize max number of pulled from queue keys for clean up upon state touch for any key
 		 */
 		@Nonnull
-		public Builder cleanupFullSnapshotAndLocalState(int queueSizePerState, @Nonnegative int cleanupSize) {
+		public Builder cleanupFullSnapshotAndLocalState(
+			int queueSizePerState,
+			@Nonnegative int cleanupSize,
+			boolean runCleanupForEveryRecord) {
 			if (queueSizePerState != 0 && cleanupSize != 0) {
 				cleanupStrategies.strategies.put(
 					CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
-					new FullSnapshotCleanupStrategy(true, queueSizePerState, cleanupSize));
+					new FullSnapshotCleanupStrategy(
+						true, queueSizePerState, cleanupSize, runCleanupForEveryRecord));
 			}
 			return this;
 		}
@@ -296,16 +304,24 @@ public class StateTtlConfig implements Serializable {
 	public static class FullSnapshotCleanupStrategy implements CleanupStrategies.CleanupStrategy {
 		private static final long serialVersionUID = 3109278696501988780L;
 		private static final FullSnapshotCleanupStrategy NO_INC_CLEANUP =
-			new FullSnapshotCleanupStrategy(false, 0, 0);
+			new FullSnapshotCleanupStrategy(false, 0, 0, false);
 
 		private final boolean incrementalCleanupActive;
 		private final int queueSizePerState;
 		private final int cleanupSize;
+		private final boolean runCleanupForEveryRecord;
 
-		private FullSnapshotCleanupStrategy(boolean incrementalCleanupActive, int queueSizePerState, int cleanupSize) {
+		private FullSnapshotCleanupStrategy(
+			boolean incrementalCleanupActive,
+			int queueSizePerState,
+			int cleanupSize,
+			boolean runCleanupForEveryRecord) {
+			Preconditions.checkArgument(cleanupSize >= 0,
+				"Number of incrementally cleaned up state entries cannot be negative.");
 			this.incrementalCleanupActive = incrementalCleanupActive;
 			this.queueSizePerState = queueSizePerState;
 			this.cleanupSize = cleanupSize;
+			this.runCleanupForEveryRecord = runCleanupForEveryRecord;
 		}
 
 		public boolean isIncrementalCleanupActive() {
@@ -318,6 +334,10 @@ public class StateTtlConfig implements Serializable {
 
 		public int getCleanupSize() {
 			return cleanupSize;
+		}
+
+		public boolean runCleanupForEveryRecord() {
+			return runCleanupForEveryRecord;
 		}
 	}
 }

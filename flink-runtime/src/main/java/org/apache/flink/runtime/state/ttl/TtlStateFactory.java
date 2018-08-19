@@ -202,6 +202,10 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 		TtlIncrementalCleanup<K, N> incrementalCleanup = null;
 		if (config != null && config.isIncrementalCleanupActive()) {
 			incrementalCleanup = new TtlIncrementalCleanup<>(config.getQueueSizePerState(), config.getCleanupSize(), stateBackend);
+			if (config.runCleanupForEveryRecord()) {
+				TtlIncrementalCleanup<K, N> finalIncrementalCleanup = incrementalCleanup;
+				stateBackend.registerKeyChangeListener(stub -> finalIncrementalCleanup.stateAccessed());
+			}
 		}
 		return incrementalCleanup;
 	}

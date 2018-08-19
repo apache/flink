@@ -401,7 +401,7 @@ public abstract class  TtlStateTestBase {
 
 	@Test
 	public void testFullSnapshotCleanupQueue() throws Exception {
-		initTest(getConfBuilder(TTL).cleanupFullSnapshotAndLocalState(10, 5).build());
+		initTest(getConfBuilder(TTL).cleanupFullSnapshotAndLocalState(10, 5, false).build());
 
 		timeProvider.time = 0;
 		sbetc.setCurrentKey("k1");
@@ -424,6 +424,26 @@ public abstract class  TtlStateTestBase {
 		assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
 		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
 		// after k1 access k2 should be also cleared from cleanup queue
+		sbetc.setCurrentKey("k2");
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
+	}
+
+	@Test
+	public void testFullSnapshotCleanupQueueWithKeyChangedCallback() throws Exception {
+		initTest(getConfBuilder(TTL).cleanupFullSnapshotAndLocalState(10, 5, true).build());
+
+		timeProvider.time = 0;
+		sbetc.setCurrentKey("k1");
+		ctx().update(ctx().updateEmpty);
+		sbetc.setCurrentKey("k2");
+		ctx().update(ctx().updateEmpty);
+
+		timeProvider.time = 120;
+		sbetc.takeSnapshot();
+
+		// all state expired, check that storage is cleaned up
+		sbetc.setCurrentKey("k1");
+		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
 		sbetc.setCurrentKey("k2");
 		assertEquals("Original state should be cleared on access", ctx().emptyValue, ctx().getOriginal());
 	}
