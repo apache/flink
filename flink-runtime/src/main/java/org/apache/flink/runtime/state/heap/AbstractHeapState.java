@@ -77,7 +77,7 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void clear() {
+	public final void clear() {
 		stateTable.remove(currentNamespace);
 	}
 
