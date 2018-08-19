@@ -828,7 +828,7 @@ object ScalarOperators {
   def generateTemporalPlusMinus(
       plus: Boolean,
       nullCheck: Boolean,
-      typeName: SqlTypeName,
+      resultType: TypeInformation[_],
       left: GeneratedExpression,
       right: GeneratedExpression,
       config: TableConfig)
@@ -866,10 +866,10 @@ object ScalarOperators {
         }
 
       case (l: SqlTimeTypeInfo[_], r: SqlTimeTypeInfo[_]) if !plus =>
-        generateOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, left, right) {
-          (ll, rr) => typeName match {
-            case SqlTypeName.INTERVAL_YEAR | SqlTypeName.INTERVAL_MONTH =>
-              (l, r) match {
+        resultType match {
+          case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
                 case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE) =>
                   s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}" +
                     s"($ll, $rr * ${MILLIS_PER_DAY}L)"
@@ -878,10 +878,12 @@ object ScalarOperators {
                     s"($ll * ${MILLIS_PER_DAY}L, $rr)"
                 case _ =>
                   s"${qualifyMethod(BuiltInMethod.SUBTRACT_MONTHS.method)}($ll, $rr)"
-              }
+               }
+            }
 
-            case _ =>
-              (l, r) match {
+          case TimeIntervalTypeInfo.INTERVAL_MILLIS =>
+            generateOperatorIfNotNull(nullCheck, resultType, left, right) {
+              (ll, rr) => (l, r) match {
                 case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP) =>
                   s"$ll $op $rr"
                 case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE) =>
@@ -891,7 +893,17 @@ object ScalarOperators {
                 case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP) =>
                   s"($ll * ${MILLIS_PER_DAY}L) $op $rr"
               }
-          }
+            }
+
+          case SqlTimeTypeInfo.TIMESTAMP => // Timestamp arithmetic minus
+            generateOperatorIfNotNull(nullCheck, LONG_TYPE_INFO, left, right) {
+              (ll, rr) => s"(long)($ll $op $rr)"
+            }
+
+          case SqlTimeTypeInfo.DATE => // Date arithmetic minus
+            generateOperatorIfNotNull(nullCheck, INT_TYPE_INFO, left, right) {
+              (ll, rr) => s"(int)($ll $op $rr)"
+            }
         }
 
       case _ =>

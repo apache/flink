@@ -1107,16 +1107,16 @@ object dateFormat {
 /**
  * Returns the (signed) number of timeUnit intervals between timestamp1 and timestamp2.
  *
- * For example <code>timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate,
- *  "2016-06-18".toDate</code> results in integer as 3
+ * For example <code>timestampDiff(TimeIntervalUnit.DAY, `2016-06-15`.toDate,
+ *  `2016-06-18`.toDate</code> results in integer as 3
  */
 object timestampDiff {
 
   /**
     * Returns the (signed) number of timeUnit intervals between timestamp1 and timestamp2.
     *
-    * For example <code>timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate,
-    *  "2016-06-18".toDate</code> results in integer as 3
+    * For example timestampDiff(TimeIntervalUnit.DAY, "2016-06-15".toDate,
+    *  "2016-06-18".toDate results in integer as 3
     *
     * @param timeIntervalUnit The unit to compute diff.
     * @param timestamp1 The first time,

@@ -508,6 +508,29 @@ object FunctionGenerator {
     new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]),
+      SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.TIMESTAMP),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]),
+      SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.DATE),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]),
+      SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.TIMESTAMP),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
+    TIMESTAMP_DIFF,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.DATE),
+    new TimestampDiffCallGen)
+
+  addSqlFunction(
     FLOOR,
     Seq(SqlTimeTypeInfo.DATE, new GenericTypeInfo(classOf[TimeUnitRange])),
     new FloorCeilCallGen(

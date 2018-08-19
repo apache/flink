@@ -133,15 +133,15 @@ case class Minus(left: Expression, right: Expression) extends BinaryArithmetic {
       ValidationSuccess
     } else if (isTimeInterval(left.resultType) && isTimePoint(right.resultType)) {
       ValidationSuccess
-    } else if (isTimePoint(left.resultType) && isTimePoint(right.resultType) &&
-      left.resultType != SqlTimeTypeInfo.TIME && right.resultType != SqlTimeTypeInfo.TIME) {
+    } else if (isTimePoint(left.resultType) && left.resultType != SqlTimeTypeInfo.TIME
+        && left.resultType == right.resultType) {
       ValidationSuccess
     } else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
       ValidationSuccess
     } else {
       ValidationFailure(
         s"$this requires Numeric, Intervals of same type, Interval and a time point input" +
-        s"or time points input of timestamp or date, " +
+        s"or time points input of the same timestamp or date, " +
         s"but get $left : ${left.resultType} and $right : ${right.resultType}")
     }
   }

@@ -366,7 +366,9 @@ case class TimestampDiff(
 
     timeIntervalUnit match {
       case SymbolExpression(TimeIntervalUnit.YEAR)
+           | SymbolExpression(TimeIntervalUnit.QUARTER)
            | SymbolExpression(TimeIntervalUnit.MONTH)
+           | SymbolExpression(TimeIntervalUnit.WEEK)
            | SymbolExpression(TimeIntervalUnit.DAY)
            | SymbolExpression(TimeIntervalUnit.HOUR)
            | SymbolExpression(TimeIntervalUnit.MINUTE)
@@ -383,23 +385,8 @@ case class TimestampDiff(
     }
   }
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    val typeFactory = relBuilder
-      .asInstanceOf[FlinkRelBuilder]
-      .getTypeFactory
-
-    val intervalUnit = timeIntervalUnit.asInstanceOf[SymbolExpression].symbol
-      .enum.asInstanceOf[TimeUnitRange]
-    val intervalType = typeFactory.createSqlIntervalType(
-      new SqlIntervalQualifier(intervalUnit.startUnit, intervalUnit.endUnit, SqlParserPos.ZERO))
-
-    val rexCall = relBuilder
-      .getRexBuilder
-      .makeCall(intervalType, SqlStdOperatorTable.MINUS_DATE,
-        List(timestamp2.toRexNode, timestamp1.toRexNode))
-
-    val intType = typeFactory.createSqlType(SqlTypeName.BIGINT)
-
-    relBuilder.getRexBuilder.makeCast(intType, rexCall)
+    relBuilder.call(SqlStdOperatorTable.TIMESTAMP_DIFF,
+      timeIntervalUnit.toRexNode, timestamp2.toRexNode, timestamp1.toRexNode)
   }
 
   override def toString: String = s"timestampDiff(${children.mkString(", ")})"
