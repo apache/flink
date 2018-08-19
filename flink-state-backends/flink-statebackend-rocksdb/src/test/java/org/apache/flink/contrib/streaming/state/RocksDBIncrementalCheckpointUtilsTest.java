@@ -18,7 +18,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -112,30 +112,30 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 			int currentGroupRangeStart = currentGroupRange.getStartKeyGroup();
 			int currentGroupRangeEnd = currentGroupRange.getEndKeyGroup();
 
-			ByteArrayDataOutputView outputView = new ByteArrayDataOutputView(32);
+			DataOutputSerializer outputView = new DataOutputSerializer(32);
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
 				for (int j = 0; j < 100; ++j) {
-					outputView.reset();
+					outputView.clear();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
 						outputView,
 						false);
-					rocksDB.put(columnFamilyHandle, outputView.toByteArray(), String.valueOf(j).getBytes());
+					rocksDB.put(columnFamilyHandle, outputView.getCopyOfBuffer(), String.valueOf(j).getBytes());
 				}
 			}
 
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
 				for (int j = 0; j < 100; ++j) {
-					outputView.reset();
+					outputView.clear();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
 						outputView,
 						false);
-					byte[] value = rocksDB.get(columnFamilyHandle, outputView.toByteArray());
+					byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
 					Assert.assertEquals(String.valueOf(j), new String(value));
 				}
 			}
@@ -149,14 +149,14 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
 
 			for (int i = currentGroupRangeStart; i <= currentGroupRangeEnd; ++i) {
 				for (int j = 0; j < 100; ++j) {
-					outputView.reset();
+					outputView.clear();
 					RocksDBKeySerializationUtils.writeKeyGroup(i, keyGroupPrefixBytes, outputView);
 					RocksDBKeySerializationUtils.writeKey(
 						j,
 						IntSerializer.INSTANCE,
 						outputView,
 						false);
-					byte[] value = rocksDB.get(columnFamilyHandle, outputView.toByteArray());
+					byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
 					if (targetGroupRange.contains(i)) {
 						Assert.assertEquals(String.valueOf(j), new String(value));
 					} else {

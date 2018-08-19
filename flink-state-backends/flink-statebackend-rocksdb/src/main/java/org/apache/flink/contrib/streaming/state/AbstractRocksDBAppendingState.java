@@ -61,7 +61,7 @@ abstract class AbstractRocksDBAppendingState <K, N, IN, SV, OUT, S extends State
 			if (valueBytes == null) {
 				return null;
 			}
-			dataInputView.setData(valueBytes);
+			dataInputView.setBuffer(valueBytes);
 			return valueSerializer.deserialize(dataInputView);
 		} catch (IOException | RocksDBException e) {
 			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);

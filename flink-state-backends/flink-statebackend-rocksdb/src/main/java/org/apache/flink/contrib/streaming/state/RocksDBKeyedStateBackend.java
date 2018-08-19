@@ -43,10 +43,10 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -328,7 +328,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			(RegisteredKeyValueStateBackendMetaInfo<N, ?>) columnInfo.f1;
 
 		final TypeSerializer<N> namespaceSerializer = registeredKeyValueStateBackendMetaInfo.getNamespaceSerializer();
-		final ByteArrayDataOutputView namespaceOutputView = new ByteArrayDataOutputView(8);
+		final DataOutputSerializer namespaceOutputView = new DataOutputSerializer(8);
 		boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
 		final byte[] nameSpaceBytes;
 		try {
@@ -337,7 +337,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				namespaceSerializer,
 				namespaceOutputView,
 				ambiguousKeyPossible);
-			nameSpaceBytes = namespaceOutputView.toByteArray();
+			nameSpaceBytes = namespaceOutputView.getCopyOfBuffer();
 		} catch (IOException ex) {
 			throw new FlinkRuntimeException("Failed to get keys from RocksDB state backend.", ex);
 		}
@@ -1501,15 +1501,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		/** A shared buffer to serialize elements for the priority queue. */
 		@Nonnull
-		private final ByteArrayDataOutputView sharedElementOutView;
+		private final DataOutputSerializer sharedElementOutView;
 
 		/** A shared buffer to de-serialize elements for the priority queue. */
 		@Nonnull
-		private final ByteArrayDataInputView sharedElementInView;
+		private final DataInputDeserializer sharedElementInView;
 
 		RocksDBPriorityQueueSetFactory() {
-			this.sharedElementOutView = new ByteArrayDataOutputView();
-			this.sharedElementInView = new ByteArrayDataInputView();
+			this.sharedElementOutView = new DataOutputSerializer(128);
+			this.sharedElementInView = new DataInputDeserializer();
 		}
 
 		@Nonnull

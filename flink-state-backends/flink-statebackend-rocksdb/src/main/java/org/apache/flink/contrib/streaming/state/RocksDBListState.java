@@ -24,9 +24,8 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -115,7 +114,7 @@ class RocksDBListState<K, N, V>
 	public List<V> getInternal() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.toByteArray();
+			byte[] key = dataOutputView.getCopyOfBuffer();
 			byte[] valueBytes = backend.db.get(columnFamily, key);
 			return deserializeList(valueBytes);
 		} catch (IOException | RocksDBException e) {
@@ -129,7 +128,7 @@ class RocksDBListState<K, N, V>
 			return null;
 		}
 
-		dataInputView.setData(valueBytes);
+		dataInputView.setBuffer(valueBytes);
 
 		List<V> result = new ArrayList<>();
 		V next;
@@ -139,7 +138,7 @@ class RocksDBListState<K, N, V>
 		return result;
 	}
 
-	private static <V> V deserializeNextElement(DataInputViewStreamWrapper in, TypeSerializer<V> elementSerializer) {
+	private static <V> V deserializeNextElement(DataInputDeserializer in, TypeSerializer<V> elementSerializer) {
 		try {
 			if (in.available() > 0) {
 				V element = elementSerializer.deserialize(in);
@@ -160,10 +159,10 @@ class RocksDBListState<K, N, V>
 
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.toByteArray();
-			dataOutputView.reset();
+			byte[] key = dataOutputView.getCopyOfBuffer();
+			dataOutputView.clear();
 			elementSerializer.serialize(value, dataOutputView);
-			backend.db.merge(columnFamily, writeOptions, key, dataOutputView.toByteArray());
+			backend.db.merge(columnFamily, writeOptions, key, dataOutputView.getCopyOfBuffer());
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
 		}
@@ -182,14 +181,14 @@ class RocksDBListState<K, N, V>
 		try {
 			// create the target full-binary-key
 			writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
-			final byte[] targetKey = dataOutputView.toByteArray();
+			final byte[] targetKey = dataOutputView.getCopyOfBuffer();
 
 			// merge the sources to the target
 			for (N source : sources) {
 				if (source != null) {
 					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
 
-					byte[] sourceKey = dataOutputView.toByteArray();
+					byte[] sourceKey = dataOutputView.getCopyOfBuffer();
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
@@ -218,7 +217,7 @@ class RocksDBListState<K, N, V>
 		if (!values.isEmpty()) {
 			try {
 				writeCurrentKeyWithGroupAndNamespace();
-				byte[] key = dataOutputView.toByteArray();
+				byte[] key = dataOutputView.getCopyOfBuffer();
 				byte[] premerge = getPreMergedValue(values, elementSerializer, dataOutputView);
 				backend.db.put(columnFamily, writeOptions, key, premerge);
 			} catch (IOException | RocksDBException e) {
@@ -234,7 +233,7 @@ class RocksDBListState<K, N, V>
 		if (!values.isEmpty()) {
 			try {
 				writeCurrentKeyWithGroupAndNamespace();
-				byte[] key = dataOutputView.toByteArray();
+				byte[] key = dataOutputView.getCopyOfBuffer();
 				byte[] premerge = getPreMergedValue(values, elementSerializer, dataOutputView);
 				backend.db.merge(columnFamily, writeOptions, key, premerge);
 			} catch (IOException | RocksDBException e) {
@@ -246,9 +245,9 @@ class RocksDBListState<K, N, V>
 	private static <V> byte[] getPreMergedValue(
 		List<V> values,
 		TypeSerializer<V> elementSerializer,
-		ByteArrayDataOutputView keySerializationStream) throws IOException {
+		DataOutputSerializer keySerializationStream) throws IOException {
 
-		keySerializationStream.reset();
+		keySerializationStream.clear();
 		boolean first = true;
 		for (V value : values) {
 			Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
@@ -260,7 +259,7 @@ class RocksDBListState<K, N, V>
 			elementSerializer.serialize(value, keySerializationStream);
 		}
 
-		return keySerializationStream.toByteArray();
+		return keySerializationStream.getCopyOfBuffer();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -280,7 +279,7 @@ class RocksDBListState<K, N, V>
 	static class StateSnapshotTransformerWrapper<T> implements StateSnapshotTransformer<byte[]> {
 		private final StateSnapshotTransformer<T> elementTransformer;
 		private final TypeSerializer<T> elementSerializer;
-		private final ByteArrayDataOutputView out = new ByteArrayDataOutputView(128);
+		private final DataOutputSerializer out = new DataOutputSerializer(128);
 		private final CollectionStateSnapshotTransformer.TransformStrategy transformStrategy;
 
 		StateSnapshotTransformerWrapper(StateSnapshotTransformer<T> elementTransformer, TypeSerializer<T> elementSerializer) {
@@ -298,7 +297,7 @@ class RocksDBListState<K, N, V>
 				return null;
 			}
 			List<T> result = new ArrayList<>();
-			ByteArrayDataInputView in = new ByteArrayDataInputView(value);
+			DataInputDeserializer in = new DataInputDeserializer(value);
 			T next;
 			int prevPosition = 0;
 			while ((next = deserializeNextElement(in, elementSerializer)) != null) {

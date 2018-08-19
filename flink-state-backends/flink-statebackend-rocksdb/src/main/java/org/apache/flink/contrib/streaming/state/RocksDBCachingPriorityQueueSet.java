@@ -19,8 +19,8 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
@@ -84,11 +84,11 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 
 	/** Output view that helps to serialize elements. */
 	@Nonnull
-	private final ByteArrayDataOutputView outputView;
+	private final DataOutputSerializer outputView;
 
 	/** Input view that helps to de-serialize elements. */
 	@Nonnull
-	private final ByteArrayDataInputView inputView;
+	private final DataInputDeserializer inputView;
 
 	/** In memory cache that holds a head-subset of the elements stored in RocksDB. */
 	@Nonnull
@@ -114,8 +114,8 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 		@Nonnull RocksDB db,
 		@Nonnull ColumnFamilyHandle columnFamilyHandle,
 		@Nonnull TypeSerializer<E> byteOrderProducingSerializer,
-		@Nonnull ByteArrayDataOutputView outputStream,
-		@Nonnull ByteArrayDataInputView inputStream,
+		@Nonnull DataOutputSerializer outputStream,
+		@Nonnull DataInputDeserializer inputStream,
 		@Nonnull RocksDBWriteBatchWrapper batchWrapper,
 		@Nonnull OrderedByteArraySetCache orderedByteArraySetCache) {
 		this.db = db;
@@ -357,7 +357,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private byte[] createKeyGroupBytes(int keyGroupId, int numPrefixBytes) {
 
-		outputView.reset();
+		outputView.clear();
 
 		try {
 			RocksDBKeySerializationUtils.writeKeyGroup(keyGroupId, numPrefixBytes, outputView);
@@ -365,16 +365,16 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 			throw new FlinkRuntimeException("Could not write key-group bytes.", e);
 		}
 
-		return outputView.toByteArray();
+		return outputView.getCopyOfBuffer();
 	}
 
 	@Nonnull
 	private byte[] serializeElement(@Nonnull E element) {
 		try {
-			outputView.reset();
+			outputView.clear();
 			outputView.write(groupPrefixBytes);
 			byteOrderProducingSerializer.serialize(element, outputView);
-			return outputView.toByteArray();
+			return outputView.getCopyOfBuffer();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while serializing the element.", e);
 		}
@@ -383,7 +383,8 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
 	@Nonnull
 	private E deserializeElement(@Nonnull byte[] bytes) {
 		try {
-			inputView.setData(bytes, groupPrefixBytes.length, bytes.length);
+			final int numPrefixBytes = groupPrefixBytes.length;
+			inputView.setBuffer(bytes, numPrefixBytes, bytes.length - numPrefixBytes);
 			return byteOrderProducingSerializer.deserialize(inputView);
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while deserializing the element.", e);

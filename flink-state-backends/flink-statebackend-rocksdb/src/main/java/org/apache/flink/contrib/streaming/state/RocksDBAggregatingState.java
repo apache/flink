@@ -121,12 +121,12 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 				if (source != null) {
 					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
 
-					final byte[] sourceKey = dataOutputView.toByteArray();
+					final byte[] sourceKey = dataOutputView.getCopyOfBuffer();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
-						dataInputView.setData(valueBytes);
+						dataInputView.setBuffer(valueBytes);
 						ACC value = valueSerializer.deserialize(dataInputView);
 
 						if (current != null) {
@@ -144,23 +144,23 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
 				// create the target full-binary-key
 				writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
 
-				final byte[] targetKey = dataOutputView.toByteArray();
+				final byte[] targetKey = dataOutputView.getCopyOfBuffer();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {
 					// target also had a value, merge
-					dataInputView.setData(targetValueBytes);
+					dataInputView.setBuffer(targetValueBytes);
 					ACC value = valueSerializer.deserialize(dataInputView);
 
 					current = aggFunction.merge(current, value);
 				}
 
 				// serialize the resulting value
-				dataOutputView.reset();
+				dataOutputView.clear();
 				valueSerializer.serialize(current, dataOutputView);
 
 				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.toByteArray());
+				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
 			}
 		}
 		catch (Exception e) {
