@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.functions.sql
 
-import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
 import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind, SqlOperatorBinding}
 
 /**
   * All built-in scalar SQL functions.
@@ -206,4 +206,11 @@ object ScalarSqlFunctions {
     SqlFunctionCategory.STRING
   )
 
+  val STR_TO_DATE = new SqlFunction(
+    "STR_TO_DATE",
+    SqlKind.OTHER_FUNCTION,
+    ScalarSqlFunctionReturnTypes.STR_TO_DATE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+    SqlFunctionCategory.TIMEDATE)
 }
