@@ -88,7 +88,7 @@ class TtlListState<K, N, T> extends
 	}
 
 	@Override
-	void cleanupIfExpired() throws Exception {
+	public void cleanupIfExpired() throws Exception {
 		Iterable<TtlValue<T>> ttlValue = original.get();
 		if (ttlValue != null) {
 			List<TtlValue<T>> unexpired = collect(ttlValue).stream()

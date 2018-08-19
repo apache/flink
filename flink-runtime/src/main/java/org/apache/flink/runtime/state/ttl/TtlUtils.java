@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.state.ttl;
 
 /** Common functions related to State TTL. */
-class TtlUtils {
+public class TtlUtils {
 	static <V> boolean expired(TtlValue<V> ttlValue, long ttl, TtlTimeProvider timeProvider) {
 		return ttlValue != null && expired(ttlValue.getLastAccessTimestamp(), ttl, timeProvider);
 	}
 
-	static boolean expired(long ts, long ttl, TtlTimeProvider timeProvider) {
+	public static boolean expired(long ts, long ttl, TtlTimeProvider timeProvider) {
 		return getExpirationTimestamp(ts, ttl) <= timeProvider.currentTimestamp();
 	}
 

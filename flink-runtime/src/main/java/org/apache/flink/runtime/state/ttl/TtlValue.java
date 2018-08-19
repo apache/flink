@@ -27,7 +27,9 @@ import java.io.Serializable;
  *
  * @param <T> Type of the user value of state with TTL
  */
-class TtlValue<T> implements Serializable {
+public class TtlValue<T> implements Serializable {
+	private static final long serialVersionUID = -847779322371798744L;
+
 	private final T userValue;
 	private final long lastAccessTimestamp;
 
@@ -41,7 +43,7 @@ class TtlValue<T> implements Serializable {
 		return userValue;
 	}
 
-	long getLastAccessTimestamp() {
+	public long getLastAccessTimestamp() {
 		return lastAccessTimestamp;
 	}
 }

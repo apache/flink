@@ -110,7 +110,7 @@ class TtlMapState<K, N, UK, UV>
 	}
 
 	@Override
-	void cleanupIfExpired() throws Exception {
+	public void cleanupIfExpired() throws Exception {
 		Iterable<Map.Entry<UK, TtlValue<UV>>> ttlValue = original.entries();
 		if (ttlValue != null) {
 			for (Iterator<Map.Entry<UK, TtlValue<UV>>> iterator = ttlValue.iterator(); iterator.hasNext(); ) {

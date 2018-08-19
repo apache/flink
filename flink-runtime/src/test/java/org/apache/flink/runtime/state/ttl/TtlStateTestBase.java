@@ -44,7 +44,7 @@ import static org.junit.Assume.assumeThat;
 
 /** State TTL base test suite. */
 @RunWith(Parameterized.class)
-public abstract class TtlStateTestBase {
+public abstract class  TtlStateTestBase {
 	private static final long TTL = 100;
 
 	private MockTtlTimeProvider timeProvider;

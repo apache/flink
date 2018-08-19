@@ -33,7 +33,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
  * @param <TTLSV> The type of values kept internally in state with TTL
  * @param <S> Type of originally wrapped state object
  */
-abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N, TTLSV>>
+public abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N, TTLSV>>
 	extends AbstractTtlDecorator<S>
 	implements InternalKvState<K, N, SV> {
 	private final TypeSerializer<SV> valueSerializer;
@@ -91,7 +91,7 @@ abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKvState<K, N,
 		accessCallback.run();
 	}
 
-	abstract void cleanupIfExpired() throws Exception;
+	public abstract void cleanupIfExpired() throws Exception;
 
 	<V> void cleanupIfExpired(TtlValue<V> ttlValue) {
 		if (expired(ttlValue)) {

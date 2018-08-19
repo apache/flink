@@ -49,7 +49,7 @@ class TtlValueState<K, N, T>
 	}
 
 	@Override
-	void cleanupIfExpired() throws Exception {
+	public void cleanupIfExpired() throws Exception {
 		cleanupIfExpired(original.value());
 	}
 }

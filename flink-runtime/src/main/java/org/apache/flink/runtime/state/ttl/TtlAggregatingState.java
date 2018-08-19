@@ -57,7 +57,7 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 	}
 
 	@Override
-	void cleanupIfExpired() throws Exception {
+	public void cleanupIfExpired() throws Exception {
 		cleanupIfExpired(original.getInternal());
 	}
 

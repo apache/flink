@@ -50,7 +50,7 @@ class TtlFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	void cleanupIfExpired() throws Exception {
+	public void cleanupIfExpired() throws Exception {
 		cleanupIfExpired(original.getInternal());
 	}
 

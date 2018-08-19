@@ -33,6 +33,9 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
+import org.apache.flink.runtime.state.ttl.cleanup.StateTransformerWithIncCleanup;
+import org.apache.flink.runtime.state.ttl.cleanup.TtlIncrementalCleanup;
+import org.apache.flink.runtime.state.ttl.cleanup.TtlStateSnapshotTransformer;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.SupplierWithException;
@@ -186,7 +189,10 @@ public class TtlStateFactory<K, N, SV, S extends State, IS extends S> {
 		if (!ttlConfig.getCleanupStrategies().inFullSnapshot()) {
 			return StateSnapshotTransformFactory.noTransform();
 		} else {
-			return new TtlStateSnapshotTransformer.Factory<>(timeProvider, ttl, incrementalCleanup);
+			StateSnapshotTransformFactory<K, N, TtlValue<SV>> transformFactory =
+				new TtlStateSnapshotTransformer.Factory<>(timeProvider, ttl, incrementalCleanup);
+			return StateTransformerWithIncCleanup.Factory
+				.wrapWithIncCleanupIfEnabled(transformFactory, incrementalCleanup);
 		}
 	}
 

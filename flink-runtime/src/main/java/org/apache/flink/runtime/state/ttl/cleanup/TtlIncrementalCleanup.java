@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.cleanup;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.ttl.AbstractTtlState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -36,29 +37,29 @@ import java.util.concurrent.LinkedBlockingDeque;
  * whenever this state is accessed for any key. This service then pulls up to certain number of potentially expired keys,
  * checks their state and clears it if it is still expired since having been queued:
  *
- * Snapshot thread:
+ * <p>Snapshot thread:
  * snapshotting -> |state key/value| -> TtlStateSnapshotTransformer -> |expired state keys| -> TtlIncrementalCleanup -> queue
  *
- * Main record processing thread of operator:
+ * <p>Main record processing thread of operator:
  * touch state -> AbstractTtlState -> TtlIncrementalCleanup.stateAccessed() -> pull queue -> AbstractTtlState.cleanupIfExpired()
  *
  * @param <K> type of state key
  * @param <N> type of state namespace
  */
-class TtlIncrementalCleanup<K, N> {
+public class TtlIncrementalCleanup<K, N> {
 	private final BlockingDeque<Tuple2<K, N>> cleanupQueue;
 	private final int cleanupSize;
 	private final KeyedStateBackend<K> keyContext;
 	private AbstractTtlState<K, N, ?, ?, ?> ttlState;
 
 	/**
-	 * TtlIncrementalCleanup constructor
+	 * TtlIncrementalCleanup constructor.
 	 *
 	 * @param queueSize max cleanup queue size
 	 * @param cleanupSize max number of queued keys to incrementally cleanup upon state access
 	 * @param keyContext state backend to switch keys for cleanup
 	 */
-	TtlIncrementalCleanup(
+	public TtlIncrementalCleanup(
 		int queueSize,
 		int cleanupSize,
 		KeyedStateBackend<K> keyContext) {
@@ -82,7 +83,7 @@ class TtlIncrementalCleanup<K, N> {
 		}
 	}
 
-	void stateAccessed() {
+	public void stateAccessed() {
 		K currentKey = keyContext.getCurrentKey();
 		N currentNamespace = ttlState.getCurrentNamespace();
 		try {
@@ -110,7 +111,7 @@ class TtlIncrementalCleanup<K, N> {
 	 * As TTL state wrapper depends on this class through {@link TtlStateSnapshotTransformer.Factory},
 	 * it has to be set here after its construction is done.
 	 */
-	void setTtlState(AbstractTtlState<K, N, ?, ?, ?> ttlState) {
+	public void setTtlState(AbstractTtlState<K, N, ?, ?, ?> ttlState) {
 		this.ttlState = ttlState;
 	}
 }

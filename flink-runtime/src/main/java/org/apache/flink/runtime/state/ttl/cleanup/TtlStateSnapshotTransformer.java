@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.ttl.cleanup;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.ByteArrayDataInputView;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlUtils;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
@@ -30,37 +33,25 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Optional;
 
-/** State snapshot filter of expired values with TTL. */
-abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSnapshotTransformer<K, N, T> {
+/**
+ * State snapshot filter of expired values with TTL.
+ *
+ * @param <K> type of state key
+ * @param <N> type of state namespace
+ * @param <T> type of state
+ */
+public abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSnapshotTransformer<K, N, T> {
 	private final TtlTimeProvider ttlTimeProvider;
-	final long ttl;
+	private final long ttl;
 	private final ByteArrayDataInputView div;
-	private final TtlIncrementalCleanup<K, N> ttlIncrementalCleanup;
 
 	TtlStateSnapshotTransformer(
 		@Nonnull TtlTimeProvider ttlTimeProvider,
-		long ttl,
-		@Nullable TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
+		long ttl) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.ttl = ttl;
-		this.ttlIncrementalCleanup = ttlIncrementalCleanup;
 		this.div = new ByteArrayDataInputView();
 	}
-
-	@Override
-	@Nullable
-	public T filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable T value) {
-		if (value == null) {
-			return null;
-		}
-		T filteredValue = doFilter(value);
-		if (ttlIncrementalCleanup != null) {
-			ttlIncrementalCleanup.addIfExpired(key, namespace, value, filteredValue);
-		}
-		return filteredValue;
-	}
-
-	abstract T doFilter(T value);
 
 	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
 		return expired(value) ? null : value;
@@ -88,13 +79,13 @@ abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSn
 		extends TtlStateSnapshotTransformer<K, N, TtlValue<T>> {
 		TtlDeserializedValueStateSnapshotTransformer(
 			TtlTimeProvider ttlTimeProvider,
-			long ttl,
-			TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
-			super(ttlTimeProvider, ttl, ttlIncrementalCleanup);
+			long ttl) {
+			super(ttlTimeProvider, ttl);
 		}
 
 		@Override
-		TtlValue<T> doFilter(TtlValue<T> value) {
+		@Nullable
+		public TtlValue<T> filterOrTransform(@Nonnull K key, @Nonnull N namespace, @Nullable TtlValue<T> value) {
 			return filterTtlValue(value);
 		}
 	}
@@ -102,13 +93,13 @@ abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSn
 	static class TtlSerializedValueStateSnapshotTransformer<K, N> extends TtlStateSnapshotTransformer<K, N, byte[]> {
 		TtlSerializedValueStateSnapshotTransformer(
 			TtlTimeProvider ttlTimeProvider,
-			long ttl,
-			TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
-			super(ttlTimeProvider, ttl, ttlIncrementalCleanup);
+			long ttl) {
+			super(ttlTimeProvider, ttl);
 		}
 
 		@Override
-		byte[] doFilter(byte[] value) {
+		@Nullable
+		public byte[] filterOrTransform(@Nonnull K key, @Nonnull N namespace, byte[] value) {
 			if (value == null) {
 				return null;
 			}
@@ -122,12 +113,13 @@ abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSn
 		}
 	}
 
-	static class Factory<K, N, T> implements StateSnapshotTransformFactory<K, N, TtlValue<T>> {
+	/** Factory of TTL state transformer. */
+	public static class Factory<K, N, T> implements StateSnapshotTransformFactory<K, N, TtlValue<T>> {
 		private final TtlTimeProvider ttlTimeProvider;
 		private final long ttl;
 		final TtlIncrementalCleanup<K, N> ttlIncrementalCleanup;
 
-		Factory(@Nonnull TtlTimeProvider ttlTimeProvider,
+		public Factory(@Nonnull TtlTimeProvider ttlTimeProvider,
 				long ttl,
 				@Nullable TtlIncrementalCleanup<K, N> ttlIncrementalCleanup) {
 			this.ttlTimeProvider = ttlTimeProvider;
@@ -138,13 +130,13 @@ abstract class TtlStateSnapshotTransformer<K, N, T> implements CollectionStateSn
 		@Override
 		public Optional<StateSnapshotTransformer<K, N, TtlValue<T>>> createForDeserializedState() {
 			return Optional.of(new TtlDeserializedValueStateSnapshotTransformer<>(
-				ttlTimeProvider, ttl, ttlIncrementalCleanup));
+				ttlTimeProvider, ttl));
 		}
 
 		@Override
 		public Optional<StateSnapshotTransformer<K, N, byte[]>> createForSerializedState() {
 			return Optional.of(new TtlSerializedValueStateSnapshotTransformer<>(
-				ttlTimeProvider, ttl, ttlIncrementalCleanup));
+				ttlTimeProvider, ttl));
 		}
 	}
 }
