@@ -474,10 +474,6 @@ trait ImplicitExpressionOperations {
   /**
     * Create a new string of the given string with non-overlapping occurrences
     * of given search replaced with replacement.
-    *
-    * @param search
-    * @param replacement
-    * @return replaced string
     */
   def replace(search: Expression,
               replacement: Expression) = {

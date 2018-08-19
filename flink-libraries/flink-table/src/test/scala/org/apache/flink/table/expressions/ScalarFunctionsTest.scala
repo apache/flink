@@ -107,6 +107,30 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f0.replace(' ', '_')",
       "REPLACE(f0, ' ', '_')",
       "This_is_a_test_String.")
+
+    testAllApis(
+      'f0.replace("i", ""),
+      "f0.replace('i', '')",
+      "REPLACE(f0, 'i', '')",
+      "Ths s a test Strng.")
+
+    testAllApis(
+      'f33.replace("i", ""),
+      "f33.replace('i', '')",
+      "REPLACE(f33, 'i', '')",
+      "null")
+
+    testAllApis(
+      'f0.replace('f33, ""),
+      "f0.replace(f33, '')",
+      "REPLACE(f0, f33, '')",
+      "null")
+
+    testAllApis(
+      'f0.replace("", 'f33),
+      "f0.replace('', f33)",
+      "REPLACE(f0, '', f33)",
+      "null")
   }
 
   @Test

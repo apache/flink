@@ -96,6 +96,17 @@ object ScalarFunctions {
   }
 
   /**
+    * Returns the string str with all non-overlapping occurrences
+    * of search replaced with replacement.
+    */
+  def replace(str: String, search: String, replacement: String): String = {
+    if (str == null || search == null || replacement == null) {
+      return null
+    }
+    str.replace(search, replacement)
+  }
+
+  /**
     * Returns the natural logarithm of "x".
     */
   def log(x: Double): Double = {

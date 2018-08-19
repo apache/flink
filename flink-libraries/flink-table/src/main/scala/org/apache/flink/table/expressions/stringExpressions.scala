@@ -532,6 +532,6 @@ case class Repeat(str: Expression, n: Expression) extends Expression with InputT
   override def toString: String = s"($str).replace($search, $replacement)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(SqlStdOperatorTable.REPLACE, children.map(_.toRexNode))
+    relBuilder.call(ScalarSqlFunctions.REPLACE, children.map(_.toRexNode))
   }
 }

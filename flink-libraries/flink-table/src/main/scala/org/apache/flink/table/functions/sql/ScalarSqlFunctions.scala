@@ -67,6 +67,14 @@ object ScalarSqlFunctions {
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
 
+  val REPLACE = new SqlFunction(
+    "REPLACE",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE_VARYING,
+    null,
+    OperandTypes.STRING_STRING_STRING,
+    SqlFunctionCategory.STRING)
+
   val LOG = new SqlFunction(
     "LOG",
     SqlKind.OTHER_FUNCTION,
