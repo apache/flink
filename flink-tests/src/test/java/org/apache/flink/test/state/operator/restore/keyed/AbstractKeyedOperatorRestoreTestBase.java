@@ -41,7 +41,12 @@ public abstract class AbstractKeyedOperatorRestoreTestBase extends AbstractOpera
 
 	@Parameterized.Parameters(name = "Migrate Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters () {
-		return Arrays.asList(MigrationVersion.v1_2, MigrationVersion.v1_3, MigrationVersion.v1_4, MigrationVersion.v1_5);
+		return Arrays.asList(
+			MigrationVersion.v1_2,
+			MigrationVersion.v1_3,
+			MigrationVersion.v1_4,
+			MigrationVersion.v1_5,
+			MigrationVersion.v1_6);
 	}
 
 	public AbstractKeyedOperatorRestoreTestBase(MigrationVersion migrationVersion) {
