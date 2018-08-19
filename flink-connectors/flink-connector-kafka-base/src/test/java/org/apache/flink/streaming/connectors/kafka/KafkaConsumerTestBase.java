@@ -184,7 +184,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			stream.print();
 			see.execute("No broker test");
 		} catch (JobExecutionException jee) {
-			if (kafkaServer.getVersion().equals("0.9") || kafkaServer.getVersion().equals("0.10") || kafkaServer.getVersion().equals("0.11")) {
+			if (kafkaServer.getVersion().equals("0.9") ||
+				kafkaServer.getVersion().equals("0.10") ||
+				kafkaServer.getVersion().equals("0.11") ||
+				kafkaServer.getVersion().equals("1.0")) {
 				assertTrue(jee.getCause() instanceof TimeoutException);
 
 				TimeoutException te = (TimeoutException) jee.getCause();

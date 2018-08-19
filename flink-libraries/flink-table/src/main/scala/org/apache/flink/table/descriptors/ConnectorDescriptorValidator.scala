@@ -46,7 +46,7 @@ object ConnectorDescriptorValidator {
 
   /**
     * Key for describing the version of the connector. This property can be used for different
-    * connector versions (e.g. Kafka 0.8 or Kafka 0.11).
+    * connector versions (e.g. Kafka 0.8 or Kafka 1.0).
     */
   val CONNECTOR_VERSION = "connector.version"
 

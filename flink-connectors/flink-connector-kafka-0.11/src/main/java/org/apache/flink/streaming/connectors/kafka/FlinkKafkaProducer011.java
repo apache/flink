@@ -193,7 +193,7 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * User defined properties for the Producer.
 	 */
-	private final Properties producerConfig;
+	protected final Properties producerConfig;
 
 	/**
 	 * The name of the default topic this producer is writing data to.
@@ -239,7 +239,7 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * Semantic chosen for this instance.
 	 */
-	private Semantic semantic;
+	protected Semantic semantic;
 
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -893,6 +893,10 @@ public class FlinkKafkaProducer011<IN>
 		LOG.info("Recovered transactionalIds {}", getUserContext().get().transactionalIds);
 	}
 
+	protected FlinkKafkaProducer createProducer() {
+		return new FlinkKafkaProducer<>(this.producerConfig);
+	}
+
 	/**
 	 * After initialization make sure that all previous transactions from the current user context have been completed.
 	 */
@@ -958,7 +962,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	private FlinkKafkaProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
-		FlinkKafkaProducer<byte[], byte[]> producer = new FlinkKafkaProducer<>(this.producerConfig);
+		FlinkKafkaProducer<byte[], byte[]> producer = createProducer();
 
 		RuntimeContext ctx = getRuntimeContext();
 

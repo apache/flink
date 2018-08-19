@@ -106,10 +106,10 @@ import java.util.concurrent.TimeUnit;
 public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducer.class);
 
-	private final KafkaProducer<K, V> kafkaProducer;
+	protected final KafkaProducer<K, V> kafkaProducer;
 
 	@Nullable
-	private final String transactionalId;
+	protected final String transactionalId;
 
 	public FlinkKafkaProducer(Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
@@ -257,7 +257,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	private static Enum<?> getEnum(String enumFullName) {
+	protected static Enum<?> getEnum(String enumFullName) {
 		String[] x = enumFullName.split("\\.(?=[^\\.]+$)");
 		if (x.length == 2) {
 			String enumClassName = x[0];
@@ -272,7 +272,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		return null;
 	}
 
-	private static Object invoke(Object object, String methodName, Object... args) {
+	protected static Object invoke(Object object, String methodName, Object... args) {
 		Class<?>[] argTypes = new Class[args.length];
 		for (int i = 0; i < args.length; i++) {
 			argTypes[i] = args[i].getClass();
@@ -290,7 +290,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	private static Object getValue(Object object, String fieldName) {
+	protected static Object getValue(Object object, String fieldName) {
 		return getValue(object, object.getClass(), fieldName);
 	}
 
@@ -304,7 +304,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
-	private static void setValue(Object object, String fieldName, Object value) {
+	protected static void setValue(Object object, String fieldName, Object value) {
 		try {
 			Field field = object.getClass().getDeclaredField(fieldName);
 			field.setAccessible(true);
