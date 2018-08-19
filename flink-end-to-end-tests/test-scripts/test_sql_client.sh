@@ -128,7 +128,7 @@ tables:
       - name: user
         type: VARCHAR
       - name: event
-        type: ROW(type VARCHAR, message VARCHAR)
+        type: ROW<type VARCHAR, message VARCHAR>
     connector:
       type: kafka
       version: "0.10"
