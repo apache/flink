@@ -45,6 +45,8 @@ class TableDescriptorTest extends TableTestBase {
     val schema = Schema()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
+      .field("myfield3", Types.MAP(Types.STRING, Types.INT))
+      .field("myfield4", Types.MULTISET(Types.LONG))
     // CSV table source and sink do not support proctime yet
     //if (isStreaming) {
     //  schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
@@ -56,6 +58,8 @@ class TableDescriptorTest extends TableTestBase {
     val format = Csv()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
+      .field("myfield3", Types.MAP(Types.STRING, Types.INT))
+      .field("myfield4", Types.MULTISET(Types.LONG))
       .fieldDelimiter("#")
 
     val descriptor: RegistrableDescriptor = if (isStreaming) {
@@ -84,11 +88,19 @@ class TableDescriptorTest extends TableTestBase {
       "format.fields.0.type" -> "VARCHAR",
       "format.fields.1.name" -> "myfield2",
       "format.fields.1.type" -> "INT",
+      "format.fields.2.name" -> "myfield3",
+      "format.fields.2.type" -> "MAP<VARCHAR,INT>",
+      "format.fields.3.name" -> "myfield4",
+      "format.fields.3.type" -> "MULTISET<BIGINT>",
       "format.field-delimiter" -> "#",
       "schema.0.name" -> "myfield",
       "schema.0.type" -> "VARCHAR",
       "schema.1.name" -> "myfield2",
-      "schema.1.type" -> "INT"
+      "schema.1.type" -> "INT",
+      "schema.2.name" -> "myfield3",
+      "schema.2.type" -> "MAP<VARCHAR,INT>",
+      "schema.3.name" -> "myfield4",
+      "schema.3.type" -> "MULTISET<BIGINT>"
     )
 
     val expectedProperties = if (isStreaming) {

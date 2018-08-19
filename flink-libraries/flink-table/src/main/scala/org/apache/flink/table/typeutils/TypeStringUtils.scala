@@ -67,6 +67,8 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
   lazy val ROW: Keyword = Keyword("ROW")
   lazy val ANY: Keyword = Keyword("ANY")
   lazy val POJO: Keyword = Keyword("POJO")
+  lazy val MAP: Keyword = Keyword("MAP")
+  lazy val MULTISET: Keyword = Keyword("MULTISET")
 
   lazy val qualifiedName: Parser[String] =
     """\p{javaJavaIdentifierStart}[\p{javaJavaIdentifierPart}.]*""".r
@@ -140,8 +142,23 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
         typeInfo
     }
 
+  lazy val genericMap: PackratParser[TypeInformation[_]] =
+    MAP ~ "<" ~ typeInfo ~ "," ~ typeInfo ~ ">" ^^ {
+      case _ ~ _ ~ keyTypeInfo ~ _ ~ valueTypeInfo ~ _=>
+        Types.MAP(keyTypeInfo, valueTypeInfo)
+    }
+
+  lazy val multiSet: PackratParser[TypeInformation[_]] =
+    MULTISET ~ "<" ~ typeInfo ~ ">" ^^ {
+      case _ ~ _ ~ elementTypeInfo ~ _ =>
+        Types.MULTISET(elementTypeInfo)
+    }
+
+  lazy val map: PackratParser[TypeInformation[_]] =
+    genericMap | multiSet
+
   lazy val typeInfo: PackratParser[TypeInformation[_]] =
-    namedRow | unnamedRow | any | generic | pojo | atomic | failure("Invalid type.")
+    namedRow | unnamedRow | any | generic | pojo | atomic | map | failure("Invalid type.")
 
   def readTypeInfo(typeString: String): TypeInformation[_] = {
     parseAll(typeInfo, typeString) match {
@@ -209,8 +226,14 @@ object TypeStringUtils extends JavaTokenParsers with PackratParsers {
          _: PrimitiveArrayTypeInfo[_] =>
       throw new TableException("A string representation for array types is not supported yet.")
 
-    case _: MapTypeInfo[_, _] | _: MultisetTypeInfo[_] =>
-      throw new TableException("A string representation for map types is not supported yet.")
+    case set: MultisetTypeInfo[_] =>
+      val normalizedElement = normalizeTypeInfo(set.getElementTypeInfo)
+      s"${MULTISET.key}<${normalizedElement}>"
+
+    case map: MapTypeInfo[_, _] =>
+      val normalizedKey = normalizeTypeInfo(map.getKeyTypeInfo)
+      val normalizedValue = normalizeTypeInfo(map.getValueTypeInfo)
+      s"${MAP.key}<${normalizedKey},${normalizedValue}>"
 
     case any: TypeInformation[_] =>
       s"${ANY.key}(${any.getTypeClass.getName}, ${serialize(any)})"

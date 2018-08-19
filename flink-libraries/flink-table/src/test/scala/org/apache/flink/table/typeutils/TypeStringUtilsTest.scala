@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.typeutils
 
-import java.util
-
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.CommonTestData.{NonPojo, Person}
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{Assert, Test}
+import org.junit.{Test}
 
 /**
   * Tests for string-based representation of [[TypeInformation]].
@@ -82,6 +80,16 @@ class TypeStringUtilsTest {
     testReadAndWrite(
       "ANY(org.apache.flink.table.runtime.utils.CommonTestData$NonPojo)",
       TypeExtractor.createTypeInfo(classOf[NonPojo]))
+
+    testReadAndWrite(
+      "MAP<VARCHAR,ROW(f0 DECIMAL, f1 TINYINT)>",
+      Types.MAP(Types.STRING, Types.ROW(Types.DECIMAL, Types.BYTE))
+    )
+
+    testReadAndWrite(
+      "MULTISET<ROW(f0 DECIMAL, f1 TINYINT)>",
+      Types.MULTISET(Types.ROW(Types.DECIMAL, Types.BYTE))
+    )
 
     // test escaping
     assertTrue(
