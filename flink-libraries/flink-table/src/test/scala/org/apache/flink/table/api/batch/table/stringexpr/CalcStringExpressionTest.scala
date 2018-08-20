@@ -86,39 +86,6 @@ class CalcStringExpressionTest extends TableTestBase {
   }
 
   @Test
-  def testSelectWithOrdering(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
-
-    val t1 = t.select('_1 as 'a, '_2 as 'b, '_3 as 'c).orderBy('a)
-    val t2 = t.select("_1 as a, _2 as b, _3 as c").orderBy("a")
-
-    verifyTableEquals(t1, t2)
-  }
-
-  @Test
-  def testSelectWithAscendingOrdering(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
-
-    val t1 = t.select('_1, '_2).orderBy('_1.asc)
-    val t2 = t.select("_1, _2").orderBy("_1.asc")
-
-    verifyTableEquals(t1, t2)
-  }
-
-  @Test
-  def testSelectWithDescendingOrdering(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3")
-
-    val t1 = t.select('_1, '_2).orderBy('_1.desc)
-    val t2 = t.select("_1, _2").orderBy("_1.desc")
-
-    verifyTableEquals(t1, t2)
-  }
-
-  @Test
   def testAllRejectingFilter(): Unit = {
     val util = batchTestUtil()
     val ds = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
