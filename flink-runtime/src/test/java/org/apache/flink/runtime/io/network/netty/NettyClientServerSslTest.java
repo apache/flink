@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.util.NetUtils;
@@ -86,18 +87,8 @@ public class NettyClientServerSslTest {
 		Channel ch = NettyTestUtil.connect(serverAndClient);
 
 		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
-		int handshakeTimeout = sslConfig.getInteger(SSL_HANDSHAKE_TIMEOUT);
-		if (handshakeTimeout != -1) {
-			assertEquals(handshakeTimeout, sslHandler.getHandshakeTimeoutMillis());
-		} else {
-			assertTrue("default value (-1) should not be propagated", sslHandler.getHandshakeTimeoutMillis() >= 0);
-		}
-		int closeNotifyFlushTimeout = sslConfig.getInteger(SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT);
-		if (closeNotifyFlushTimeout != -1) {
-			assertEquals(closeNotifyFlushTimeout, sslHandler.getCloseNotifyTimeoutMillis());
-		} else {
-			assertTrue("default value (-1) should not be propagated", sslHandler.getCloseNotifyTimeoutMillis() >= 0);
-		}
+		assertEqualsOrDefault(sslConfig, SSL_HANDSHAKE_TIMEOUT, sslHandler.getHandshakeTimeoutMillis());
+		assertEqualsOrDefault(sslConfig, SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT, sslHandler.getCloseNotifyTimeoutMillis());
 
 		// should be able to send text data
 		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
@@ -106,12 +97,7 @@ public class NettyClientServerSslTest {
 		// session context is only be available after a session was setup -> this should be true after data was sent
 		SSLSessionContext sessionContext = sslHandler.engine().getSession().getSessionContext();
 		assertNotNull("bug in unit test setup: session context not available", sessionContext);
-		int sessionCacheSize = sslConfig.getInteger(SSL_SESSION_CACHE_SIZE);
-		if (sessionCacheSize != -1) {
-			assertEquals(sessionCacheSize, sessionContext.getSessionCacheSize());
-		} else {
-			assertTrue("default value (-1) should not be propagated", sessionContext.getSessionCacheSize() >= 0);
-		}
+		assertEqualsOrDefault(sslConfig, SSL_SESSION_CACHE_SIZE, sessionContext.getSessionCacheSize());
 		int sessionTimeout = sslConfig.getInteger(SSL_SESSION_TIMEOUT);
 		if (sessionTimeout != -1) {
 			// session timeout config is in milliseconds but the context returns it in seconds
@@ -121,6 +107,16 @@ public class NettyClientServerSslTest {
 		}
 
 		NettyTestUtil.shutdown(serverAndClient);
+	}
+
+	private static void assertEqualsOrDefault(Configuration sslConfig, ConfigOption<Integer> option, long actual) {
+		long expected = sslConfig.getInteger(option);
+		if (expected != option.defaultValue()) {
+			assertEquals(expected, actual);
+		} else {
+			assertTrue("default value (" + option.defaultValue() + ") should not be propagated",
+				actual >= 0);
+		}
 	}
 
 	/**
