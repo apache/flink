@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
@@ -101,12 +102,14 @@ public class NFAStateAccessTest {
 		NFA<Event> nfa = compile(pattern, false);
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			nfa.process(
-				sharedBuffer,
-				nfa.createInitialNFAState(),
-				inputEvent.getValue(),
-				inputEvent.getTimestamp());
+		try (SharedBufferAccessor accessor = sharedBuffer.getAccessor()) {
+			for (StreamRecord<Event> inputEvent : inputEvents) {
+				nfa.process(
+					accessor,
+					nfa.createInitialNFAState(),
+					inputEvent.getValue(),
+					inputEvent.getTimestamp());
+			}
 		}
 
 		assertEquals(2, sharedBuffer.getStateReads());
@@ -182,16 +185,18 @@ public class NFAStateAccessTest {
 		NFA<Event> nfa = compile(pattern, false);
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		for (StreamRecord<Event> inputEvent : inputEvents) {
-			nfa.process(
-				sharedBuffer,
-				nfa.createInitialNFAState(),
-				inputEvent.getValue(),
-				inputEvent.getTimestamp());
+		try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+			for (StreamRecord<Event> inputEvent : inputEvents) {
+				nfa.process(
+					accessor,
+					nfa.createInitialNFAState(),
+					inputEvent.getValue(),
+					inputEvent.getTimestamp());
+			}
 		}
 
 		assertEquals(8, sharedBuffer.getStateReads());
-		assertEquals(12, sharedBuffer.getStateWrites());
-		assertEquals(20, sharedBuffer.getStateAccesses());
+		assertEquals(6, sharedBuffer.getStateWrites());
+		assertEquals(14, sharedBuffer.getStateAccesses());
 	}
 }
