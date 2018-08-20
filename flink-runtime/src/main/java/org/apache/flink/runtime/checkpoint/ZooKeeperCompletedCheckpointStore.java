@@ -381,7 +381,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			String numberString;
 
 			// check if we have a leading slash
-			if ('/' == path.charAt(0) ) {
+			if ('/' == path.charAt(0)) {
 				numberString = path.substring(1);
 			} else {
 				numberString = path;
