@@ -96,8 +96,6 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-	
-	private File zookeeperStoragePath;
 
 	@AfterClass
 	public static void tearDown() throws Exception {
@@ -141,7 +139,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 	 * @param coordinateDir Coordination directory
 	 * @throws Exception
 	 */
-	public void testJobManagerFailure(String zkQuorum, final File coordinateDir) throws Exception {
+	public void testJobManagerFailure(String zkQuorum, final File coordinateDir, final File zookeeperStoragePath) throws Exception {
 		Configuration config = new Configuration();
 		config.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
@@ -215,7 +213,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 
 	@Test
 	public void testJobManagerProcessFailure() throws Exception {
-		zookeeperStoragePath = temporaryFolder.newFolder();
+		final File zookeeperStoragePath = temporaryFolder.newFolder();
 
 		// Config
 		final int numberOfJobManagers = 2;
@@ -311,7 +309,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 				@Override
 				public void run() {
 					try {
-						testJobManagerFailure(ZooKeeper.getConnectString(), coordinateDirClosure);
+						testJobManagerFailure(ZooKeeper.getConnectString(), coordinateDirClosure, zookeeperStoragePath);
 					}
 					catch (Throwable t) {
 						t.printStackTrace();
