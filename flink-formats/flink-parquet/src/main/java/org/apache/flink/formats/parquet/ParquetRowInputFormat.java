@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
  * It is mainly used to integrate with table API and batch SQL.
  */
 public class ParquetRowInputFormat extends ParquetInputFormat<Row> implements ResultTypeQueryable<Row> {
-	private static final long MILLISECONDS = 1000L;
 	private static final long serialVersionUID = 11L;
 	private static final Logger LOG = LoggerFactory.getLogger(ParquetRowInputFormat.class);
 	private RowTypeInfo returnType;

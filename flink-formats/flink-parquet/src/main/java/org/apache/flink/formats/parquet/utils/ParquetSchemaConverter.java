@@ -59,9 +59,6 @@ public class ParquetSchemaConverter {
 		List<TypeInformation<?>> types = new ArrayList<>();
 		List<String> names = new ArrayList<>();
 		for (Type field : parquetFields) {
-      /*if (field.isRepetition(Type.Repetition.REPEATED)) {
-          throw new UnsupportedOperationException("REPEATED not supported outside LIST or MAP. Type: " + field);
-      }*/
 			TypeInformation<?> subType = convertField(field);
 			if (subType != null) {
 				types.add(subType);
@@ -79,11 +76,6 @@ public class ParquetSchemaConverter {
 			PrimitiveType primitiveType = fieldType.asPrimitiveType();
 			switch (primitiveType.getPrimitiveTypeName()) {
 				case BINARY:
-          /*if (primitiveType.getOriginalType().equals(OriginalType.UTF8)) {
-              typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
-          } else {
-              typeInfo = BasicTypeInfo.BYTE_TYPE_INFO;
-          }*/
 					typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 					break;
 				case BOOLEAN:
@@ -145,7 +137,8 @@ public class ParquetSchemaConverter {
 						}
 						Type keyType = mapKeyValType.getType(0);
 						if (!keyType.isPrimitive()
-							|| !keyType.asPrimitiveType().getPrimitiveTypeName().equals(PrimitiveType.PrimitiveTypeName.BINARY)
+							|| !keyType.asPrimitiveType().getPrimitiveTypeName().equals(
+								PrimitiveType.PrimitiveTypeName.BINARY)
 							|| !keyType.getOriginalType().equals(OriginalType.UTF8)) {
 							throw new IllegalArgumentException("Map key type must be binary (UTF8): "
 								+ keyType);
@@ -154,7 +147,7 @@ public class ParquetSchemaConverter {
 						Type valueType = mapKeyValType.getType(1);
 						return new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, convertField(valueType));
 					default:
-						throw new RuntimeException("Unsupported schema: " + fieldType);
+						throw new UnsupportedOperationException("Unsupported schema: " + fieldType);
 				}
 			} else {
 				// if no original type than it is a record
