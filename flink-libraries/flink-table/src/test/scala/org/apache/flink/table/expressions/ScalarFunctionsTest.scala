@@ -2072,49 +2072,49 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testTimestampDiff(): Unit = {
     val dataMap = Map(
-      ("DAY", TimeIntervalUnit.DAY, "SQL_TSI_DAY") -> Seq(
+      ("DAY", TimePointUnit.DAY, "SQL_TSI_DAY") -> Seq(
         ("2018-07-03 11:11:11", "2018-07-05 11:11:11", "2"), //timestamp, timestamp
         ("2016-06-15", "2016-06-16 11:11:11", "1"), //date, timestamp
         ("2016-06-15 11:00:00", "2016-06-19", "3"), //timestamp, date
         ("2016-06-15", "2016-06-18", "3") //date, date
       ),
-      ("HOUR", TimeIntervalUnit.HOUR, "SQL_TSI_HOUR") -> Seq(
+      ("HOUR", TimePointUnit.HOUR, "SQL_TSI_HOUR") -> Seq(
         ("2018-07-03 11:11:11", "2018-07-04 12:12:11", "25"),
         ("2016-06-15", "2016-06-16 11:11:11", "35"),
         ("2016-06-15 11:00:00", "2016-06-19", "85"),
         ("2016-06-15", "2016-06-12", "-72")
       ),
-      ("MINUTE", TimeIntervalUnit.MINUTE, "SQL_TSI_MINUTE") -> Seq(
+      ("MINUTE", TimePointUnit.MINUTE, "SQL_TSI_MINUTE") -> Seq(
         ("2018-07-03 11:11:11", "2018-07-03 12:10:11", "59"),
         ("2016-06-15", "2016-06-16 11:11:11", "2111"),
         ("2016-06-15 11:00:00", "2016-06-19", "5100"),
         ("2016-06-15", "2016-06-18", "4320")
       ),
-      ("SECOND", TimeIntervalUnit.SECOND, "SQL_TSI_SECOND") -> Seq(
+      ("SECOND", TimePointUnit.SECOND, "SQL_TSI_SECOND") -> Seq(
         ("2018-07-03 11:11:11", "2018-07-03 11:12:12", "61"),
         ("2016-06-15", "2016-06-16 11:11:11", "126671"),
         ("2016-06-15 11:00:00", "2016-06-19", "306000"),
         ("2016-06-15", "2016-06-18", "259200")
       ),
-      ("WEEK", TimeIntervalUnit.WEEK, "SQL_TSI_WEEK") -> Seq(
+      ("WEEK", TimePointUnit.WEEK, "SQL_TSI_WEEK") -> Seq(
         ("2018-05-03 11:11:11", "2018-07-03 11:12:12", "8"),
         ("2016-04-15", "2016-07-16 11:11:11", "13"),
         ("2016-04-15 11:00:00", "2016-09-19", "22"),
         ("2016-08-15", "2016-06-18", "-8")
       ),
-      ("MONTH", TimeIntervalUnit.MONTH, "SQL_TSI_MONTH") -> Seq(
+      ("MONTH", TimePointUnit.MONTH, "SQL_TSI_MONTH") -> Seq(
         ("2018-07-03 11:11:11", "2018-09-05 11:11:11", "2"),
         ("2016-06-15", "2018-06-16 11:11:11", "24"),
         ("2016-06-15 11:00:00", "2018-05-19", "23"),
         ("2016-06-15", "2018-03-18", "21")
       ),
-      ("QUARTER", TimeIntervalUnit.QUARTER, "SQL_TSI_QUARTER") -> Seq(
+      ("QUARTER", TimePointUnit.QUARTER, "SQL_TSI_QUARTER") -> Seq(
         ("2018-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
         ("2016-06-15", "2018-06-16 11:11:11", "8"),
         ("2016-06-15 11:00:00", "2018-05-19", "7"),
         ("2016-06-15", "2018-03-18", "7")
       ),
-      ("YEAR", TimeIntervalUnit.YEAR, "SQL_TSI_YEAR") -> Seq(
+      ("YEAR", TimePointUnit.YEAR, "SQL_TSI_YEAR") -> Seq(
         ("2016-01-03 11:11:11", "2018-09-05 11:11:11", "2"),
         ("2010-06-15", "2018-06-16 11:11:11", "8"),
         ("2016-06-15 11:00:00", "2018-05-19", "1"),
@@ -2186,7 +2186,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
 
     testAllApis(
-      timestampDiff(TimeIntervalUnit.DAY, Null(Types.SQL_TIMESTAMP),
+      timestampDiff(TimePointUnit.DAY, Null(Types.SQL_TIMESTAMP),
         "2016-02-24 12:42:25".toTimestamp),
       "timestampDiff(DAY, Null(SQL_TIMESTAMP), '2016-02-24 12:42:25'.toTimestamp)",
       "TIMESTAMPDIFF(DAY, CAST(NULL AS TIMESTAMP), TIMESTAMP '2016-02-24 12:42:25')",
@@ -2194,7 +2194,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
 
     testAllApis(
-      timestampDiff(TimeIntervalUnit.DAY, "2016-02-24 12:42:25".toTimestamp,
+      timestampDiff(TimePointUnit.DAY, "2016-02-24 12:42:25".toTimestamp,
         Null(Types.SQL_TIMESTAMP)),
       "timestampDiff(DAY, '2016-02-24 12:42:25'.toTimestamp,  Null(SQL_TIMESTAMP))",
       "TIMESTAMPDIFF(DAY, TIMESTAMP '2016-02-24 12:42:25',  CAST(NULL AS TIMESTAMP))",

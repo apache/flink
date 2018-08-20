@@ -19,10 +19,8 @@ package org.apache.flink.table.codegen.calls
 
 import java.math.MathContext
 
-import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY
-import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
-import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnit, TimeUnitRange}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._

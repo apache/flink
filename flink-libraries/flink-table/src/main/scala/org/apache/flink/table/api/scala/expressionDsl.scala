@@ -26,6 +26,7 @@ import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, Unb
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
+import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
 
@@ -1124,11 +1125,11 @@ object timestampDiff {
     * @return The number of intervals.
     */
   def apply(
-    timeIntervalUnit: TimeIntervalUnit,
+    timePointUnit: TimePointUnit,
     timestamp1: Expression,
     timestamp2: Expression
   ): Expression = {
-    TimestampDiff(timeIntervalUnit, timestamp1, timestamp2)
+    TimestampDiff(timePointUnit, timestamp1, timestamp2)
   }
 }
 

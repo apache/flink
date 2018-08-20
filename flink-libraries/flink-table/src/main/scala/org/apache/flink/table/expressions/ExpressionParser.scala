@@ -371,7 +371,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     }
 
   lazy val prefixTimestampDiff: PackratParser[Expression] =
-    TIMESTAMPDIFF ~ "(" ~ timeIntervalUnit ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
+    TIMESTAMPDIFF ~ "(" ~ timePointUnit ~ "," ~ expression ~ "," ~ expression ~ ")" ^^ {
       case _ ~ _ ~ unit ~ _ ~ operand1 ~ _ ~ operand2 ~ _ => TimestampDiff(unit, operand1, operand2)
     }
 

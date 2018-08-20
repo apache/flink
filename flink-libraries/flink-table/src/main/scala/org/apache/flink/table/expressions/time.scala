@@ -345,13 +345,13 @@ case class DateFormat(timestamp: Expression, format: Expression) extends Express
 }
 
 case class TimestampDiff(
-    timeIntervalUnit: Expression,
+    timePointUnit: Expression,
     timestamp1: Expression,
     timestamp2: Expression)
   extends Expression {
 
   override private[flink] def children: Seq[Expression] =
-    timeIntervalUnit :: timestamp1 :: timestamp2 :: Nil
+    timePointUnit :: timestamp1 :: timestamp2 :: Nil
 
   override private[flink] def validateInput(): ValidationResult = {
     if (!TypeCheckUtils.isTimePoint(timestamp1.resultType)) {
@@ -364,15 +364,15 @@ case class TimestampDiff(
         s"but timestamp2 is of type ${timestamp2.resultType}")
     }
 
-    timeIntervalUnit match {
-      case SymbolExpression(TimeIntervalUnit.YEAR)
-           | SymbolExpression(TimeIntervalUnit.QUARTER)
-           | SymbolExpression(TimeIntervalUnit.MONTH)
-           | SymbolExpression(TimeIntervalUnit.WEEK)
-           | SymbolExpression(TimeIntervalUnit.DAY)
-           | SymbolExpression(TimeIntervalUnit.HOUR)
-           | SymbolExpression(TimeIntervalUnit.MINUTE)
-           | SymbolExpression(TimeIntervalUnit.SECOND)
+    timePointUnit match {
+      case SymbolExpression(TimePointUnit.YEAR)
+           | SymbolExpression(TimePointUnit.QUARTER)
+           | SymbolExpression(TimePointUnit.MONTH)
+           | SymbolExpression(TimePointUnit.WEEK)
+           | SymbolExpression(TimePointUnit.DAY)
+           | SymbolExpression(TimePointUnit.HOUR)
+           | SymbolExpression(TimePointUnit.MINUTE)
+           | SymbolExpression(TimePointUnit.SECOND)
         if timestamp1.resultType == SqlTimeTypeInfo.DATE
           || timestamp1.resultType == SqlTimeTypeInfo.TIMESTAMP
           || timestamp2.resultType == SqlTimeTypeInfo.DATE
@@ -380,16 +380,18 @@ case class TimestampDiff(
         ValidationSuccess
 
       case _ =>
-        ValidationFailure(s"TimestampDiff operator does not support unit '$timeIntervalUnit'" +
+        ValidationFailure(s"TimestampDiff operator does not support unit '$timePointUnit'" +
             s" for input of type ('${timestamp1.resultType}', '${timestamp2.resultType}').")
     }
   }
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder.call(SqlStdOperatorTable.TIMESTAMP_DIFF,
-      timeIntervalUnit.toRexNode, timestamp2.toRexNode, timestamp1.toRexNode)
+    relBuilder
+    .getRexBuilder
+    .makeCall(SqlStdOperatorTable.TIMESTAMP_DIFF,
+       Seq(timePointUnit.toRexNode, timestamp2.toRexNode, timestamp1.toRexNode))
   }
 
   override def toString: String = s"timestampDiff(${children.mkString(", ")})"
 
-  override private[flink] def resultType = LONG_TYPE_INFO
+  override private[flink] def resultType = INT_TYPE_INFO
 }

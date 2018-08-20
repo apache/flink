@@ -32,7 +32,7 @@ class TimestampDiffCallGen extends CallGenerator {
 
   override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression])
   : GeneratedExpression = {
-    val unit = getEnum(operands.head).asInstanceOf[TimeUnitRange].startUnit
+    val unit = getEnum(operands.head).asInstanceOf[TimeUnit]
     unit match {
       case TimeUnit.YEAR |
            TimeUnit.MONTH |

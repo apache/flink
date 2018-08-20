@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.validation
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.TimeIntervalUnit
+import org.apache.flink.table.expressions.{TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
@@ -100,24 +100,16 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
-  def testTimestampDiffWithWrongTimeIntervalUnit(): Unit = {
-    testTableApi(
-      timestampDiff(TimeIntervalUnit.YEAR_TO_MONTH,
-        "2016-02-24".toDate, "2016-02-27".toDate), "FAIL", "FAIL")
-  }
-
-  @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTime(): Unit = {
     testTableApi(
-      timestampDiff(TimeIntervalUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+      timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testTimestampDiffWithWrongTimeAndUnit(): Unit = {
     testTableApi(
-      timestampDiff(TimeIntervalUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
+      timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
   }
-
 
   @Test(expected = classOf[ValidationException])
   def testDOWWithTimeWhichIsUnsupported(): Unit = {
