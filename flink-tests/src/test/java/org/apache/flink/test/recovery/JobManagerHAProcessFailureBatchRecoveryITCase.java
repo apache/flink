@@ -139,7 +139,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 	 * @param coordinateDir Coordination directory
 	 * @throws Exception
 	 */
-	public void testJobManagerFailure(String zkQuorum, final File coordinateDir, final File zookeeperStoragePath) throws Exception {
+	private void testJobManagerFailure(String zkQuorum, final File coordinateDir, final File zookeeperStoragePath) throws Exception {
 		Configuration config = new Configuration();
 		config.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE);
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
