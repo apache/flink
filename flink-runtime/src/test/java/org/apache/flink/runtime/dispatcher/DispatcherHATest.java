@@ -41,6 +41,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -162,9 +163,13 @@ public class DispatcherHATest extends TestLogger {
 	}
 
 	@Nonnull
-	private JobGraph createNonEmptyJobGraph() {
+	public static JobGraph createNonEmptyJobGraph() {
 		final JobVertex noOpVertex = new JobVertex("NoOp vertex");
-		return new JobGraph(noOpVertex);
+		noOpVertex.setInvokableClass(NoOpInvokable.class);
+		final JobGraph jobGraph = new JobGraph(noOpVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		return jobGraph;
 	}
 
 	private static class HATestingDispatcher extends TestingDispatcher {
