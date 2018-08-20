@@ -62,6 +62,11 @@ Please read the documentation of each connector to understand the details of the
             <td></td>
         </tr>
         <tr>
+            <td>Google PubSub</td>
+            <td>at least once</td>
+            <td></td>
+        </tr>
+        <tr>
             <td>Collections</td>
             <td>exactly once</td>
             <td></td>
