@@ -164,6 +164,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.UUID)
 
+  addSqlFunctionMethod(
+    RTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.RTRIM.method)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
