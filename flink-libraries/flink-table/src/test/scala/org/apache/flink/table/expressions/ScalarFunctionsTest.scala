@@ -483,6 +483,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f24.hex()",
       "HEX(f24)",
       "2A5F546869732069732061207465737420537472696E672E")
+
+    testAllApis(
+      "你好".hex(),
+      "'你好'.hex()",
+      "HEX('你好')",
+      "E4BDA0E5A5BD"
+    )
   }
 
   @Test
@@ -563,6 +570,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.fromBase64()",
       "FROM_BASE64(f33)",
       "null")
+
+    testAllApis(
+      "5L2g5aW9".fromBase64(),
+      "'5L2g5aW9'.fromBase64()",
+      "FROM_BASE64('5L2g5aW9')",
+      "你好"
+    )
   }
 
   @Test
@@ -591,6 +605,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.toBase64()",
       "TO_BASE64(f33)",
       "null")
+
+    testAllApis(
+      "你好".toBase64(),
+      "'你好'.toBase64()",
+      "TO_BASE64('你好')",
+      "5L2g5aW9"
+    )
   }
 
   @Test
