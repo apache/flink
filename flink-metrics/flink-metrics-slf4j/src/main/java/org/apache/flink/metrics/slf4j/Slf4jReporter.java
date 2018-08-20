@@ -76,7 +76,8 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 	@Override
 	public void report() {
 		// initialize with previous size to avoid repeated resizing of backing array
-		StringBuilder builder = new StringBuilder(previousSize);
+		// pad the size to allow deviations in the final string, for example due to different double value representations
+		StringBuilder builder = new StringBuilder((int) (previousSize * 1.1));
 
 		builder
 			.append(lineSeparator)
