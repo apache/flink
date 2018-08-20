@@ -23,12 +23,14 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.net.SSLUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.net.InetAddress;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -189,26 +191,13 @@ public class NettyConfig {
 		}
 	}
 
-	public SSLContext createClientSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext clientSSLContext = null;
-		if (getSSLEnabled()) {
-			clientSSLContext = SSLUtils.createSSLClientContext(config);
-		}
-
-		return clientSSLContext;
+	@Nullable
+	public SSLUtils.SSLContext createClientSSLContext() throws Exception {
+		return SSLUtils.createSSLClientContext(config);
 	}
 
-	public SSLContext createServerSSLContext() throws Exception {
-
-		// Create SSL Context from config
-		SSLContext serverSSLContext = null;
-		if (getSSLEnabled()) {
-			serverSSLContext = SSLUtils.createSSLServerContext(config);
-		}
-
-		return serverSSLContext;
+	public SSLUtils.SSLContext createServerSSLContext() throws Exception {
+		return SSLUtils.createSSLServerContext(config);
 	}
 
 	public boolean getSSLEnabled() {

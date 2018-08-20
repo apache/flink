@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLUtils;
+
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -34,9 +36,10 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -52,7 +55,8 @@ class NettyClient {
 
 	private Bootstrap bootstrap;
 
-	private SSLContext clientSSLContext = null;
+	@Nullable
+	private SSLUtils.SSLContext clientSSLContext = null;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
@@ -178,7 +182,7 @@ class NettyClient {
 
 				// SSL handler should be added first in the pipeline
 				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
+					SSLEngine sslEngine = clientSSLContext.getSslContext().createSSLEngine(
 						serverSocketAddress.getAddress().getCanonicalHostName(),
 						serverSocketAddress.getPort());
 					sslEngine.setUseClientMode(true);
@@ -190,7 +194,14 @@ class NettyClient {
 						sslEngine.setSSLParameters(newSSLParameters);
 					}
 
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					SslHandler sslHandler = new SslHandler(sslEngine);
+					if (clientSSLContext.getHandshakeTimeoutMs() >= 0) {
+						sslHandler.setHandshakeTimeoutMillis(clientSSLContext.getHandshakeTimeoutMs());
+					}
+					if (clientSSLContext.getCloseNotifyFlushTimeoutMs() >= 0) {
+						sslHandler.setCloseNotifyTimeoutMillis(clientSSLContext.getCloseNotifyFlushTimeoutMs());
+					}
+					channel.pipeline().addLast("ssl", sslHandler);
 				}
 				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}

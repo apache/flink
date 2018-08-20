@@ -40,7 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandle
 
 import org.slf4j.Logger;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 
 import java.io.File;
@@ -55,7 +55,8 @@ public class WebFrontendBootstrap {
 	private final Router router;
 	private final Logger log;
 	private final File uploadDir;
-	private final SSLContext serverSSLContext;
+	@Nullable
+	private final SSLUtils.SSLContext serverSSLContext;
 	private final ServerBootstrap bootstrap;
 	private final Channel serverChannel;
 	private final String restAddress;
@@ -64,7 +65,7 @@ public class WebFrontendBootstrap {
 			Router router,
 			Logger log,
 			File directory,
-			SSLContext sslContext,
+			@Nullable SSLUtils.SSLContext sslContext,
 			String configuredAddress,
 			int configuredPort,
 			final Configuration config) throws InterruptedException, UnknownHostException {
@@ -81,7 +82,7 @@ public class WebFrontendBootstrap {
 
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLEngine sslEngine = serverSSLContext.getSslContext().createSSLEngine();
 					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
 					sslEngine.setUseClientMode(false);
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));

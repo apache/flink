@@ -160,4 +160,41 @@ public class SecurityOptions {
 		key("security.ssl.verify-hostname")
 			.defaultValue(true)
 			.withDescription("Flag to enable peer’s hostname verification during ssl handshake.");
+
+	/**
+	 * SSL session cache size.
+	 */
+	public static final ConfigOption<Integer> SSL_SESSION_CACHE_SIZE =
+		key("security.ssl.session-cache-size")
+			.defaultValue(-1)
+			.withDescription("The size of the cache used for storing SSL session objects. "
+				+ "According to https://github.com/netty/netty/issues/832, you should always set "
+				+ "this to an appropriate number to not run into a bug with stalling IO threads "
+				+ "during garbage collection. (-1 = use system default).");
+
+	/**
+	 * SSL session timeout.
+	 */
+	public static final ConfigOption<Integer> SSL_SESSION_TIMEOUT =
+		key("security.ssl.session-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) for the cached SSL session objects. (-1 = use system default)");
+
+	/**
+	 * SSL session timeout during handshakes.
+	 */
+	public static final ConfigOption<Integer> SSL_HANDSHAKE_TIMEOUT =
+		key("security.ssl.handshake-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) during SSL handshake. (-1 = use system default)");
+
+	/**
+	 * SSL session timeout after flushing the <tt>close_notify</tt> message.
+	 */
+	public static final ConfigOption<Integer> SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT =
+		key("security.ssl.close-notify-flush-timeout")
+			.defaultValue(-1)
+			.withDescription("The timeout (in ms) for flushing the `close_notify` that was triggered by closing a " +
+				"channel. If the `close_notify` was not flushed in the given timeout the channel will be closed " +
+				"forcibly. (-1 = use system default)");
 }

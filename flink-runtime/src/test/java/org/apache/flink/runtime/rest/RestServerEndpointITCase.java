@@ -164,9 +164,9 @@ public class RestServerEndpointITCase extends TestLogger {
 		config.setString(WebOptions.UPLOAD_DIR, temporaryFolder.newFolder().getCanonicalPath());
 
 		defaultSSLContext = SSLContext.getDefault();
-		final SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
+		final SSLUtils.SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
 		if (sslClientContext != null) {
-			SSLContext.setDefault(sslClientContext);
+			SSLContext.setDefault(sslClientContext.getSslContext());
 		}
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);

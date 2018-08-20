@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -79,7 +78,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	private final ServerSocket serverSocket;
 
 	/** The SSL server context if ssl is enabled for the connections. */
-	private final SSLContext serverSSLContext;
+	private final SSLUtils.SSLContext serverSSLContext;
 
 	/** Blob Server configuration. */
 	private final Configuration blobServiceConfiguration;
@@ -196,7 +195,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 					return new ServerSocket(port, finalBacklog);
 				} else {
 					LOG.info("Enabling ssl for the blob server");
-					return serverSSLContext.getServerSocketFactory().createServerSocket(port, finalBacklog);
+					return serverSSLContext.getSslContext().getServerSocketFactory().createServerSocket(port, finalBacklog);
 				}
 			}
 		});

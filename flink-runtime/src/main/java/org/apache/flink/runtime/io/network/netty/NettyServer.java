@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,7 +37,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
@@ -61,7 +62,8 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
+	@Nullable
+	private SSLUtils.SSLContext serverSSLContext = null;
 
 	private InetSocketAddress localAddress;
 
@@ -152,10 +154,17 @@ class NettyServer {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
 				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLEngine sslEngine = serverSSLContext.getSslContext().createSSLEngine();
 					config.setSSLVerAndCipherSuites(sslEngine);
 					sslEngine.setUseClientMode(false);
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					SslHandler sslHandler = new SslHandler(sslEngine);
+					if (serverSSLContext.getHandshakeTimeoutMs() >= 0) {
+						sslHandler.setHandshakeTimeoutMillis(serverSSLContext.getHandshakeTimeoutMs());
+					}
+					if (serverSSLContext.getCloseNotifyFlushTimeoutMs() >= 0) {
+						sslHandler.setCloseNotifyTimeoutMillis(serverSSLContext.getCloseNotifyFlushTimeoutMs());
+					}
+					channel.pipeline().addLast("ssl", sslHandler);
 				}
 
 				channel.pipeline().addLast(protocol.getServerChannelHandlers());
