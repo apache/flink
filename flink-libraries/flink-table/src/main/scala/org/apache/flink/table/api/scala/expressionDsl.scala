@@ -230,7 +230,18 @@ trait ImplicitExpressionOperations {
     */
   def as(name: Symbol, extraNames: Symbol*) = Alias(expr, name.name, extraNames.map(_.name))
 
+  /**
+    * Specifies ascending order of an expression i.e. a field for orderBy call.
+    *
+    * @return ascend expression
+    */
   def asc = Asc(expr)
+
+  /**
+    * Specifies descending order of an expression i.e. a field for orderBy call.
+    *
+    * @return descend expression
+    */
   def desc = Desc(expr)
 
   /**
