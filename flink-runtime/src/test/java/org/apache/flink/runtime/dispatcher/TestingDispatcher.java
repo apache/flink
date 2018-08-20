@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -29,7 +31,11 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * {@link Dispatcher} implementation used for testing purposes.
@@ -71,5 +77,12 @@ class TestingDispatcher extends Dispatcher {
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
 		runAsync(
 			() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
+	}
+
+	@VisibleForTesting
+	public CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
+		return callAsyncWithoutFencing(
+			() -> getJobTerminationFuture(jobId),
+			timeout).thenCompose(Function.identity());
 	}
 }
