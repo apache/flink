@@ -1727,27 +1727,27 @@ class JobManager(
     // Don't remove the job yet...
     val futureOption = currentJobs.get(jobID) match {
       case Some((eg, _)) =>
-        val result = if (removeJobFromStateBackend) {
-          val futureOption = Some(future {
-            try {
+        val result = Some(future {
+          try {
+            if (removeJobFromStateBackend) {
               // ...otherwise, we can have lingering resources when there is a  concurrent shutdown
               // and the ZooKeeper client is closed. Not removing the job immediately allow the
               // shutdown to release all resources.
               submittedJobGraphs.removeJobGraph(jobID)
-            } catch {
-              case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
+            } else {
+              submittedJobGraphs.releaseJobGraph(jobID)
             }
-          }(context.dispatcher))
+          } catch {
+            case t: Throwable => log.warn(s"Could not remove submitted job graph $jobID.", t)
+          }
+        }(context.dispatcher))
 
+        if (removeJobFromStateBackend) {
           try {
             archive ! decorateMessage(ArchiveExecutionGraph(jobID, eg.archive()))
           } catch {
             case t: Throwable => log.warn(s"Could not archive the execution graph $eg.", t)
           }
-
-          futureOption
-        } else {
-          None
         }
 
         currentJobs.remove(jobID)
@@ -1772,18 +1772,23 @@ class JobManager(
     */
   private def cancelAndClearEverything(cause: Throwable)
     : Seq[Future[Unit]] = {
-    val futures = for ((jobID, (eg, jobInfo)) <- currentJobs) yield {
-      future {
-        eg.suspend(cause)
+
+    val futures = currentJobs.values.flatMap(
+      egJobInfo => {
+        val executionGraph = egJobInfo._1
+        val jobInfo = egJobInfo._2
+
+        executionGraph.suspend(cause)
+
+        val jobId = executionGraph.getJobID
 
         jobInfo.notifyNonDetachedClients(
           decorateMessage(
             Failure(
-              new JobExecutionException(jobID, "All jobs are cancelled and cleared.", cause))))
-      }(context.dispatcher)
-    }
+              new JobExecutionException(jobId, "All jobs are cancelled and cleared.", cause))))
 
-    currentJobs.clear()
+        removeJob(jobId, false)
+      })
 
     futures.toSeq
   }

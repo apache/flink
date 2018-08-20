@@ -515,6 +515,11 @@ public class JobManagerHARecoveryTest extends TestLogger {
 		}
 
 		@Override
+		public void releaseJobGraph(JobID jobId) throws Exception {
+			// no op
+		}
+
+		@Override
 		public Collection<JobID> getJobIds() throws Exception {
 			return storedJobs.keySet();
 		}
