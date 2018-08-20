@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -62,6 +63,11 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -163,7 +169,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 	 *       restored successfully
 	 * </ol>
 	 */
-	@Test(timeout = 120_000L)
+	@Test
 	public void testRestoreBehaviourWithFaultyStateHandles() throws Exception {
 		CheckpointBlockingFunction.allowedInitializeCallsWithoutRestore.set(1);
 		CheckpointBlockingFunction.successfulRestores.set(0);
@@ -256,11 +262,52 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 			() -> clusterClient.getJobStatus(jobID),
 			Time.milliseconds(50),
 			deadline,
-			(jobStatus) -> jobStatus == JobStatus.FINISHED,
+			JobStatus::isGloballyTerminalState,
 			TestingUtils.defaultScheduledExecutor());
-		assertEquals(JobStatus.FINISHED, jobStatusFuture.get());
+		try {
+			assertEquals(JobStatus.FINISHED, jobStatusFuture.get());
+		} catch (Throwable e) {
+			// include additional debugging information
+			StringWriter error = new StringWriter();
+			try (PrintWriter out = new PrintWriter(error)) {
+				out.println("The job did not finish in time.");
+				out.println("allowedInitializeCallsWithoutRestore= " + CheckpointBlockingFunction.allowedInitializeCallsWithoutRestore.get());
+				out.println("illegalRestores= " + CheckpointBlockingFunction.illegalRestores.get());
+				out.println("successfulRestores= " + CheckpointBlockingFunction.successfulRestores.get());
+				out.println("afterMessWithZooKeeper= " + CheckpointBlockingFunction.afterMessWithZooKeeper.get());
+				out.println("failedAlready= " + CheckpointBlockingFunction.failedAlready.get());
+				out.println("currentJobStatus= " + clusterClient.getJobStatus(jobID).get());
+				out.println("numRestarts= " + RestartReporter.numRestarts.getValue());
+				out.println("threadDump= " + generateThreadDump());
+			}
+			throw new AssertionError(error.toString(), ExceptionUtils.stripCompletionException(e));
+		}
 
 		assertThat("We saw illegal restores.", CheckpointBlockingFunction.illegalRestores.get(), is(0));
+	}
+
+	private static String generateThreadDump() {
+		final StringBuilder dump = new StringBuilder();
+		final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+		final ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds(), 100);
+		for (ThreadInfo threadInfo : threadInfos) {
+			dump.append('"');
+			dump.append(threadInfo.getThreadName());
+			dump.append('"');
+			final Thread.State state = threadInfo.getThreadState();
+			dump.append(System.lineSeparator());
+			dump.append("   java.lang.Thread.State: ");
+			dump.append(state);
+			final StackTraceElement[] stackTraceElements = threadInfo.getStackTrace();
+			for (final StackTraceElement stackTraceElement : stackTraceElements) {
+				dump.append(System.lineSeparator());
+				dump.append("        at ");
+				dump.append(stackTraceElement);
+			}
+			dump.append(System.lineSeparator());
+			dump.append(System.lineSeparator());
+		}
+		return dump.toString();
 	}
 
 	private static class UnboundedSource implements SourceFunction<String> {
