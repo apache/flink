@@ -18,17 +18,18 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.BackgroundCallback;
-import org.apache.curator.framework.api.CuratorEvent;
-import org.apache.curator.framework.api.CuratorEventType;
-import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.api.BackgroundCallback;
+import org.apache.curator.framework.api.CuratorEvent;
+import org.apache.curator.framework.api.CuratorEventType;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -36,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -68,13 +70,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * State handle in ZooKeeper =&gt; State handle exists
  * </pre>
  *
- * But not:
+ * <p>But not:
  *
  * <pre>
  * State handle exists =&gt; State handle in ZooKeeper
  * </pre>
  *
- * There can be lingering state handles when failures happen during operation. They
+ * <p>There can be lingering state handles when failures happen during operation. They
  * need to be cleaned up manually (see <a href="https://issues.apache.org/jira/browse/FLINK-2513">
  * FLINK-2513</a> about a possible way to overcome this).
  *
@@ -84,7 +86,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
 
-	/** Curator ZooKeeper client */
+	/** Curator ZooKeeper client. */
 	private final CuratorFramework client;
 
 	private final RetrievableStateStorageHelper<T> storage;
@@ -262,7 +264,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	public Collection<String> getAllPaths() throws Exception {
 		final String path = "/";
 
-		while(true) {
+		while (true) {
 			Stat stat = client.checkExists().forPath(path);
 
 			if (stat == null) {
@@ -583,7 +585,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	}
 
 	/**
-	 * Makes sure that every path starts with a "/"
+	 * Makes sure that every path starts with a "/".
 	 *
 	 * @param path Path to normalize
 	 * @return Normalized path such that it starts with a "/"
@@ -682,7 +684,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	}
 
 	/**
-	 * Callback interface for remove calls
+	 * Callback interface for remove calls.
 	 */
 	public interface RemoveCallback<T extends Serializable> {
 		/**
