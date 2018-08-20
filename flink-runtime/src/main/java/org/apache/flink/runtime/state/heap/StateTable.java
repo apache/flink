@@ -63,9 +63,9 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	// Main interface methods of StateTable -------------------------------------------------------
 
 	/**
-	 * Returns whether this {@link NestedMapsStateTable} is empty.
+	 * Returns whether this {@link StateTable} is empty.
 	 *
-	 * @return {@code true} if this {@link NestedMapsStateTable} has no elements, {@code false}
+	 * @return {@code true} if this {@link StateTable} has no elements, {@code false}
 	 * otherwise.
 	 * @see #size()
 	 */
@@ -74,9 +74,9 @@ public abstract class StateTable<K, N, S> implements StateSnapshotRestore {
 	}
 
 	/**
-	 * Returns the total number of entries in this {@link NestedMapsStateTable}. This is the sum of both sub-tables.
+	 * Returns the total number of entries in this {@link StateTable}. This is the sum of both sub-tables.
 	 *
-	 * @return the number of entries in this {@link NestedMapsStateTable}.
+	 * @return the number of entries in this {@link StateTable}.
 	 */
 	public abstract int size();
 
