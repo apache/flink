@@ -97,6 +97,11 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
+	public void releaseJobGraph(JobID jobId) {
+		verifyIsStarted();
+	}
+
+	@Override
 	public synchronized Collection<JobID> getJobIds() throws Exception {
 		verifyIsStarted();
 
