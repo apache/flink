@@ -207,7 +207,7 @@ object ScalarFunctions {
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+  def fromBase64(str: String): String = new String(Base64.decodeBase64(str), Charsets.UTF_8)
 
   /**
     * Returns the base64-encoded result of the input string.

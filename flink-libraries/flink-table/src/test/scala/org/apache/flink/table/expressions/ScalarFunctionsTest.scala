@@ -570,6 +570,13 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f33.fromBase64()",
       "FROM_BASE64(f33)",
       "null")
+
+    testAllApis(
+      "5L2g5aW9".fromBase64(),
+      "'5L2g5aW9'.fromBase64()",
+      "FROM_BASE64('5L2g5aW9')",
+      "你好"
+    )
   }
 
   @Test
