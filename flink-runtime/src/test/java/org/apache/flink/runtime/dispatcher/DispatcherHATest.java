@@ -244,6 +244,11 @@ public class DispatcherHATest extends TestLogger {
 		}
 
 		@Override
+		public void releaseJobGraph(JobID jobId) throws Exception {
+			throw new UnsupportedOperationException("Should not be called.");
+		}
+
+		@Override
 		public Collection<JobID> getJobIds() throws Exception {
 			enterGetJobIdsLatch.trigger();
 			proceedGetJobIdsLatch.await();
