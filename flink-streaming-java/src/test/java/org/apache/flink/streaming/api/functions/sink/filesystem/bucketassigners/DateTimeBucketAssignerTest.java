@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.fs.bucketing;
+package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners;
 
-import org.apache.flink.streaming.connectors.fs.Clock;
+import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
-import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 
@@ -33,15 +34,14 @@ import static org.junit.Assert.assertEquals;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
- * Tests for {@link DateTimeBucketer}.
+ * Tests for {@link DateTimeBucketAssigner}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(DateTimeBucketer.class)
-public class DateTimeBucketerTest {
+@PrepareForTest(DateTimeBucketAssigner.class)
+public class DateTimeBucketAssignerTest {
 	private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
-	private static final Path TEST_PATH = new Path("test");
 
-	private static final Clock mockedClock = new MockedClock();
+	private static final MockedContext mockedContext = new MockedContext();
 
 	@Test
 	public void testGetBucketPathWithDefaultTimezone() {
@@ -49,30 +49,40 @@ public class DateTimeBucketerTest {
 		PowerMockito.mockStatic(ZoneId.class);
 		when(ZoneId.systemDefault()).thenReturn(utc);
 
-		DateTimeBucketer bucketer = new DateTimeBucketer();
+		DateTimeBucketAssigner bucketAssigner = new DateTimeBucketAssigner();
 
-		assertEquals(new Path("test/2018-08-04--06"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
+		assertEquals("2018-08-04--06", bucketAssigner.getBucketId(null, mockedContext));
 	}
 
 	@Test
 	public void testGetBucketPathWithSpecifiedTimezone() {
-		DateTimeBucketer bucketer = new DateTimeBucketer(ZoneId.of("America/Los_Angeles"));
+		DateTimeBucketAssigner bucketAssigner = new DateTimeBucketAssigner(ZoneId.of("America/Los_Angeles"));
 
-		assertEquals(new Path("test/2018-08-03--23"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
+		assertEquals("2018-08-03--23", bucketAssigner.getBucketId(null, mockedContext));
 	}
 
 	@Test
 	public void testGetBucketPathWithSpecifiedFormatString() {
-		DateTimeBucketer bucketer = new DateTimeBucketer("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
+		DateTimeBucketAssigner bucketAssigner = new DateTimeBucketAssigner("yyyy-MM-dd-HH", ZoneId.of("America/Los_Angeles"));
 
-		assertEquals(new Path("test/2018-08-03-23"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
+		assertEquals("2018-08-03-23", bucketAssigner.getBucketId(null, mockedContext));
 	}
 
-	private static class MockedClock implements Clock {
+	private static class MockedContext implements BucketAssigner.Context {
+		@Override
+		public long currentProcessingTime() {
+			return TEST_TIME_IN_MILLIS;
+		}
 
 		@Override
-		public long currentTimeMillis() {
-			return TEST_TIME_IN_MILLIS;
+		public long currentWatermark() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Nullable
+		@Override
+		public Long timestamp() {
+			return null;
 		}
 	}
 }
