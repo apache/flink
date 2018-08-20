@@ -152,7 +152,7 @@ public class RestAPIDocGenerator {
 			sb.append("<table class=\"table table-bordered\">\n");
 			sb.append("  <tbody>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td class=\"text-left\" colspan=\"2\"><strong>" + spec.getTargetRestEndpointURL() + "</strong></td>\n");
+			sb.append("      <td class=\"text-left\" colspan=\"2\"><h5><strong>" + spec.getTargetRestEndpointURL() + "</strong></h5></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
 			sb.append("      <td class=\"text-left\" style=\"width: 20%\">Verb: <code>" + spec.getHttpMethod() + "</code></td>\n");
