@@ -166,7 +166,7 @@ public class RestServerEndpointITCase extends TestLogger {
 		defaultSSLContext = SSLContext.getDefault();
 		final SSLUtils.SSLContext sslClientContext = SSLUtils.createSSLClientContext(config);
 		if (sslClientContext != null) {
-			SSLContext.setDefault(sslClientContext.sslContext);
+			SSLContext.setDefault(sslClientContext.getSslContext());
 		}
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);

@@ -180,7 +180,7 @@ public class SSLUtilsTest {
 
 		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		assertNotNull(serverContext);
-		try (ServerSocket socket = serverContext.sslContext.getServerSocketFactory().createServerSocket(0)) {
+		try (ServerSocket socket = serverContext.getSslContext().getServerSocketFactory().createServerSocket(0)) {
 
 			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
 			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
@@ -216,7 +216,7 @@ public class SSLUtilsTest {
 
 		SSLUtils.SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		assertNotNull(serverContext);
-		SSLEngine engine = serverContext.sslContext.createSSLEngine();
+		SSLEngine engine = serverContext.getSslContext().createSSLEngine();
 
 		String[] protocols = engine.getEnabledProtocols();
 		String[] algorithms = engine.getEnabledCipherSuites();

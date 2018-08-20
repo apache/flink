@@ -101,7 +101,7 @@ public final class BlobClient implements Closeable {
 
 				LOG.info("Using ssl connection to the blob server");
 
-				SSLSocket sslSocket = (SSLSocket) clientSSLContext.sslContext.getSocketFactory().createSocket(
+				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSslContext().getSocketFactory().createSocket(
 					serverAddress.getAddress(),
 					serverAddress.getPort());
 

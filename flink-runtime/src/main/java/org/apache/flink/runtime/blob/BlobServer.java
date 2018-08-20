@@ -195,7 +195,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 					return new ServerSocket(port, finalBacklog);
 				} else {
 					LOG.info("Enabling ssl for the blob server");
-					return serverSSLContext.sslContext.getServerSocketFactory().createServerSocket(port, finalBacklog);
+					return serverSSLContext.getSslContext().getServerSocketFactory().createServerSocket(port, finalBacklog);
 				}
 			}
 		});

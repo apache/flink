@@ -113,7 +113,7 @@ public class SSLUtils {
 		checkState(sslContext != null, "%s it not enabled", SecurityOptions.SSL_ENABLED.key());
 
 		return new SSLEngineFactory(
-			sslContext.sslContext,
+			sslContext.getSslContext(),
 			getEnabledProtocols(config),
 			getEnabledCipherSuites(config),
 			clientMode);
@@ -277,9 +277,9 @@ public class SSLUtils {
 	 * which cannot be set on the SSL context directly.
 	 */
 	public static class SSLContext {
-		public final javax.net.ssl.SSLContext sslContext;
-		public final int handshakeTimeoutMs;
-		public final int closeNotifyFlushTimeoutMs;
+		private final javax.net.ssl.SSLContext sslContext;
+		private final int handshakeTimeoutMs;
+		private final int closeNotifyFlushTimeoutMs;
 
 		public SSLContext(
 				javax.net.ssl.SSLContext sslContext,
@@ -288,6 +288,18 @@ public class SSLUtils {
 			this.sslContext = sslContext;
 			this.handshakeTimeoutMs = handshakeTimeoutMs;
 			this.closeNotifyFlushTimeoutMs = closeNotifyFlushTimeoutMs;
+		}
+
+		public javax.net.ssl.SSLContext getSslContext() {
+			return sslContext;
+		}
+
+		public int getHandshakeTimeoutMs() {
+			return handshakeTimeoutMs;
+		}
+
+		public int getCloseNotifyFlushTimeoutMs() {
+			return closeNotifyFlushTimeoutMs;
 		}
 	}
 }

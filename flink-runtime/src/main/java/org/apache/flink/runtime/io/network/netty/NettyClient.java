@@ -182,7 +182,7 @@ class NettyClient {
 
 				// SSL handler should be added first in the pipeline
 				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.sslContext.createSSLEngine(
+					SSLEngine sslEngine = clientSSLContext.getSslContext().createSSLEngine(
 						serverSocketAddress.getAddress().getCanonicalHostName(),
 						serverSocketAddress.getPort());
 					sslEngine.setUseClientMode(true);
@@ -195,11 +195,11 @@ class NettyClient {
 					}
 
 					SslHandler sslHandler = new SslHandler(sslEngine);
-					if (clientSSLContext.handshakeTimeoutMs >= 0) {
-						sslHandler.setHandshakeTimeoutMillis(clientSSLContext.handshakeTimeoutMs);
+					if (clientSSLContext.getHandshakeTimeoutMs() >= 0) {
+						sslHandler.setHandshakeTimeoutMillis(clientSSLContext.getHandshakeTimeoutMs());
 					}
-					if (clientSSLContext.closeNotifyFlushTimeoutMs >= 0) {
-						sslHandler.setCloseNotifyTimeoutMillis(clientSSLContext.closeNotifyFlushTimeoutMs);
+					if (clientSSLContext.getCloseNotifyFlushTimeoutMs() >= 0) {
+						sslHandler.setCloseNotifyTimeoutMillis(clientSSLContext.getCloseNotifyFlushTimeoutMs());
 					}
 					channel.pipeline().addLast("ssl", sslHandler);
 				}

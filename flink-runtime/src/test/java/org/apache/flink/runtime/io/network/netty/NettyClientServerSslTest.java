@@ -31,12 +31,22 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.net.ssl.SSLSessionContext;
+
 import java.net.InetAddress;
 
+import static org.apache.flink.configuration.SecurityOptions.SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
+import static org.apache.flink.configuration.SecurityOptions.SSL_HANDSHAKE_TIMEOUT;
+import static org.apache.flink.configuration.SecurityOptions.SSL_SESSION_CACHE_SIZE;
+import static org.apache.flink.configuration.SecurityOptions.SSL_SESSION_TIMEOUT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for communication between {@link NettyServer} and {@link NettyClient} via SSL.
+ */
 public class NettyClientServerSslTest {
 
 	/**
@@ -44,28 +54,7 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
-		NettyProtocol protocol = getEmptyNettyProtocol();
-
-		NettyConfig nettyConfig = new NettyConfig(
-			InetAddress.getLoopbackAddress(),
-			NetUtils.getAvailablePort(),
-			NettyTestUtil.DEFAULT_SEGMENT_SIZE,
-			1,
-			createSslConfig());
-
-		NettyTestUtil.NettyServerAndClient serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
-
-		Channel ch = NettyTestUtil.connect(serverAndClient);
-
-		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
-		assertTrue("default value (-1) should not be propagated", sslHandler.getHandshakeTimeoutMillis() >= 0);
-		assertTrue("default value (-1) should not be propagated", sslHandler.getCloseNotifyTimeoutMillis() >= 0);
-
-		// should be able to send text data
-		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
-		assertTrue(ch.writeAndFlush("test").await().isSuccess());
-
-		NettyTestUtil.shutdown(serverAndClient);
+		testValidSslConnection(createSslConfig());
 	}
 
 	/**
@@ -73,17 +62,16 @@ public class NettyClientServerSslTest {
 	 */
 	@Test
 	public void testValidSslConnectionAdvanced() throws Exception {
-		final int sessionCacheSize = 1;
-		final int sessionTimeout = 1_000;
-		final int handshakeTimeout = 1_000;
-		final int closeNotifyFlushTimeout = 1_000;
-
 		Configuration sslConfig = createSslConfig();
-		sslConfig.setInteger("security.ssl.session-cache-size", sessionCacheSize);
-		sslConfig.setInteger("security.ssl.session-timeout", sessionTimeout);
-		sslConfig.setInteger("security.ssl.handshake-timeout", handshakeTimeout);
-		sslConfig.setInteger("security.ssl.close-notify-flush-timeout", closeNotifyFlushTimeout);
+		sslConfig.setInteger(SSL_SESSION_CACHE_SIZE, 1);
+		sslConfig.setInteger(SSL_SESSION_TIMEOUT, 1_000);
+		sslConfig.setInteger(SSL_HANDSHAKE_TIMEOUT, 1_000);
+		sslConfig.setInteger(SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT, 1_000);
 
+		testValidSslConnection(sslConfig);
+	}
+
+	private void testValidSslConnection(Configuration sslConfig) throws Exception {
 		NettyProtocol protocol = getEmptyNettyProtocol();
 
 		NettyConfig nettyConfig = new NettyConfig(
@@ -98,12 +86,39 @@ public class NettyClientServerSslTest {
 		Channel ch = NettyTestUtil.connect(serverAndClient);
 
 		SslHandler sslHandler = (SslHandler) ch.pipeline().get("ssl");
-		assertEquals(sslHandler.getHandshakeTimeoutMillis(), handshakeTimeout);
-		assertEquals(sslHandler.getCloseNotifyTimeoutMillis(), closeNotifyFlushTimeout);
+		int handshakeTimeout = sslConfig.getInteger(SSL_HANDSHAKE_TIMEOUT);
+		if (handshakeTimeout != -1) {
+			assertEquals(handshakeTimeout, sslHandler.getHandshakeTimeoutMillis());
+		} else {
+			assertTrue("default value (-1) should not be propagated", sslHandler.getHandshakeTimeoutMillis() >= 0);
+		}
+		int closeNotifyFlushTimeout = sslConfig.getInteger(SSL_CLOSE_NOTIFY_FLUSH_TIMEOUT);
+		if (closeNotifyFlushTimeout != -1) {
+			assertEquals(closeNotifyFlushTimeout, sslHandler.getCloseNotifyTimeoutMillis());
+		} else {
+			assertTrue("default value (-1) should not be propagated", sslHandler.getCloseNotifyTimeoutMillis() >= 0);
+		}
 
 		// should be able to send text data
 		ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 		assertTrue(ch.writeAndFlush("test").await().isSuccess());
+
+		// session context is only be available after a session was setup -> this should be true after data was sent
+		SSLSessionContext sessionContext = sslHandler.engine().getSession().getSessionContext();
+		assertNotNull("bug in unit test setup: session context not available", sessionContext);
+		int sessionCacheSize = sslConfig.getInteger(SSL_SESSION_CACHE_SIZE);
+		if (sessionCacheSize != -1) {
+			assertEquals(sessionCacheSize, sessionContext.getSessionCacheSize());
+		} else {
+			assertTrue("default value (-1) should not be propagated", sessionContext.getSessionCacheSize() >= 0);
+		}
+		int sessionTimeout = sslConfig.getInteger(SSL_SESSION_TIMEOUT);
+		if (sessionTimeout != -1) {
+			// session timeout config is in milliseconds but the context returns it in seconds
+			assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
+		} else {
+			assertTrue("default value (-1) should not be propagated", sessionContext.getSessionTimeout() >= 0);
+		}
 
 		NettyTestUtil.shutdown(serverAndClient);
 	}
@@ -112,7 +127,7 @@ public class NettyClientServerSslTest {
 	 * Verify failure on invalid ssl configuration.
 	 */
 	@Test
-	public void testInvalidSslConfiguration() throws Exception {
+	public void testInvalidSslConfiguration() {
 		NettyProtocol protocol = getEmptyNettyProtocol();
 
 		Configuration config = createSslConfig();
@@ -167,8 +182,7 @@ public class NettyClientServerSslTest {
 		NettyTestUtil.shutdown(serverAndClient);
 	}
 
-	private Configuration createSslConfig() throws Exception {
-
+	private Configuration createSslConfig() {
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setBoolean(SecurityOptions.SSL_ENABLED, true);
 		flinkConfig.setString(SecurityOptions.SSL_KEYSTORE, "src/test/resources/local127.keystore");

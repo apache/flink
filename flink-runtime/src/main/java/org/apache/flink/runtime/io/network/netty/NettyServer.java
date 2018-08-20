@@ -154,15 +154,15 @@ class NettyServer {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
 				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.sslContext.createSSLEngine();
+					SSLEngine sslEngine = serverSSLContext.getSslContext().createSSLEngine();
 					config.setSSLVerAndCipherSuites(sslEngine);
 					sslEngine.setUseClientMode(false);
 					SslHandler sslHandler = new SslHandler(sslEngine);
-					if (serverSSLContext.handshakeTimeoutMs >= 0) {
-						sslHandler.setHandshakeTimeoutMillis(serverSSLContext.handshakeTimeoutMs);
+					if (serverSSLContext.getHandshakeTimeoutMs() >= 0) {
+						sslHandler.setHandshakeTimeoutMillis(serverSSLContext.getHandshakeTimeoutMs());
 					}
-					if (serverSSLContext.closeNotifyFlushTimeoutMs >= 0) {
-						sslHandler.setCloseNotifyTimeoutMillis(serverSSLContext.closeNotifyFlushTimeoutMs);
+					if (serverSSLContext.getCloseNotifyFlushTimeoutMs() >= 0) {
+						sslHandler.setCloseNotifyTimeoutMillis(serverSSLContext.getCloseNotifyFlushTimeoutMs());
 					}
 					channel.pipeline().addLast("ssl", sslHandler);
 				}

@@ -82,7 +82,7 @@ public class WebFrontendBootstrap {
 
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.sslContext.createSSLEngine();
+					SSLEngine sslEngine = serverSSLContext.getSslContext().createSSLEngine();
 					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
 					sslEngine.setUseClientMode(false);
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
