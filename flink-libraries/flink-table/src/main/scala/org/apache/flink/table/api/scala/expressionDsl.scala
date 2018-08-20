@@ -563,6 +563,11 @@ trait ImplicitExpressionOperations {
     */
   def toBase64() = ToBase64(expr)
 
+  /**
+    * Returns the result string which trimmed the left spaces from the base string.
+    */
+  def ltrim() = LTrim(expr)
+
   // Temporal operations
 
   /**
