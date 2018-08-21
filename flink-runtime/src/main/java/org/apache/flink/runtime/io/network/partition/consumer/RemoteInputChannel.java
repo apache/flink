@@ -191,16 +191,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		checkError();
 
 		final Buffer next;
-		final int remaining;
+		final boolean moreAvailable;
 
 		synchronized (receivedBuffers) {
 			next = receivedBuffers.poll();
-			remaining = receivedBuffers.size();
+			moreAvailable = !receivedBuffers.isEmpty();
 		}
 
 		numBytesIn.inc(next.getSizeUnsafe());
 		numBuffersIn.inc();
-		return Optional.of(new BufferAndAvailability(next, remaining > 0, getSenderBacklog()));
+		return Optional.of(new BufferAndAvailability(next, moreAvailable, getSenderBacklog()));
 	}
 
 	// ------------------------------------------------------------------------
@@ -516,12 +516,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			synchronized (receivedBuffers) {
 				if (!isReleased.get()) {
 					if (expectedSequenceNumber == sequenceNumber) {
-						int available = receivedBuffers.size();
+						final boolean wasEmpty = receivedBuffers.isEmpty();
 
 						receivedBuffers.add(buffer);
 						expectedSequenceNumber++;
 
-						if (available == 0) {
+						if (wasEmpty) {
 							notifyChannelNonEmpty();
 						}
 
