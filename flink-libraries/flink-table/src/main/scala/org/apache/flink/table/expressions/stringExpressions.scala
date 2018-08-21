@@ -459,3 +459,30 @@ case class RTrim(child: Expression) extends UnaryExpression with InputTypeSpec {
 
   override def toString = s"($child).rtrim"
 }
+
+/**
+  * Returns a string that repeats the base str n times.
+  */
+case class Repeat(str: Expression, n: Expression) extends Expression with InputTypeSpec {
+
+  override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
+
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO, INT_TYPE_INFO)
+
+  override private[flink] def children: Seq[Expression] = Seq(str, n)
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.REPEAT, str.toRexNode, n.toRexNode)
+  }
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (str.resultType == STRING_TYPE_INFO && n.resultType == INT_TYPE_INFO) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"Repeat operator requires (String, Int) input, " +
+        s"but ($str, $n) is of type (${str.resultType}, ${n.resultType})")
+    }
+  }
+
+  override def toString: String = s"($str).repeat($n)"
+}

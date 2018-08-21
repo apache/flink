@@ -222,4 +222,12 @@ object ScalarSqlFunctions {
     OperandTypes.STRING,
     SqlFunctionCategory.STRING)
 
+  val REPEAT = new SqlFunction(
+    "REPEAT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
+    SqlFunctionCategory.STRING)
+
 }

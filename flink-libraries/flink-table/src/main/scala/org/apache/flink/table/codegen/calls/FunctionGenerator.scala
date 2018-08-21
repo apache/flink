@@ -176,6 +176,12 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethod.RTRIM.method)
 
+  addSqlFunctionMethod(
+    REPEAT,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REPEAT)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
