@@ -274,6 +274,7 @@ public class PendingCheckpointStatsTest {
 	private SubtaskStateStats createSubtaskStats(int index) {
 		return new SubtaskStateStats(
 			index,
+			"0.0.0.0:0",
 			Integer.MAX_VALUE + (long) index,
 			Integer.MAX_VALUE + (long) index,
 			Integer.MAX_VALUE + (long) index,

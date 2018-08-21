@@ -32,6 +32,7 @@ public class SubtaskStateStatsTest {
 	public void testSimpleAccess() throws Exception {
 		SubtaskStateStats stats = new SubtaskStateStats(
 			0,
+			"0.0.0.0:0",
 			Integer.MAX_VALUE + 1L,
 			Integer.MAX_VALUE + 2L,
 			Integer.MAX_VALUE + 3L,
@@ -63,6 +64,7 @@ public class SubtaskStateStatsTest {
 	public void testIsJavaSerializable() throws Exception {
 		SubtaskStateStats stats = new SubtaskStateStats(
 			0,
+			"0.0.0.0:0",
 			Integer.MAX_VALUE + 1L,
 			Integer.MAX_VALUE + 2L,
 			Integer.MAX_VALUE + 3L,
