@@ -41,7 +41,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -108,6 +107,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
 
+	private final TaskMetricGroup taskMetricGroup;
+
 	public static MockEnvironmentBuilder builder() {
 		return new MockEnvironmentBuilder();
 	}
@@ -125,7 +126,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		int maxParallelism,
 		int parallelism,
 		int subtaskIndex,
-		ClassLoader userCodeClassLoader) {
+		ClassLoader userCodeClassLoader,
+		TaskMetricGroup taskMetricGroup) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
@@ -150,6 +152,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
 		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
+
+		this.taskMetricGroup = taskMetricGroup;
 	}
 
 
@@ -213,7 +217,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+		return taskMetricGroup;
 	}
 
 	@Override

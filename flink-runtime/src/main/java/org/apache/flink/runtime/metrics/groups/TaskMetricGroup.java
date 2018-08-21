@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
-	private final Map<OperatorID, OperatorMetricGroup> operators = new HashMap<>();
+	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
 
 	static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
@@ -144,15 +144,17 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 			name = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
 		}
 		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, operatorID, name);
+		// unique OperatorIDs only exist in streaming, so we have to rely on the name for batch operators
+		final String key = operatorID + name;
 
 		synchronized (this) {
-			OperatorMetricGroup previous = operators.put(operatorID, operator);
+			OperatorMetricGroup previous = operators.put(key, operator);
 			if (previous == null) {
 				// no operator group so far
 				return operator;
 			} else {
 				// already had an operator group. restore that one.
-				operators.put(operatorID, previous);
+				operators.put(key, previous);
 				return previous;
 			}
 		}
