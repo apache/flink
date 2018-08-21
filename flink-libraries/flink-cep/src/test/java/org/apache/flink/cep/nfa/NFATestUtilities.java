@@ -68,24 +68,23 @@ public class NFATestUtilities {
 
 		SharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
 
-		try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
-
-			for (StreamRecord<Event> inputEvent : inputEvents) {
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
 				nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp());
-					Collection<Map<String, List<Event>>> patterns = nfa.process(
-						sharedBufferAccessor,
-						nfaState,
-						inputEvent.getValue(),
-						inputEvent.getTimestamp(),
-						afterMatchSkipStrategy);
-					for (Map<String, List<Event>> p: patterns) {
-						List<Event> res = new ArrayList<>();
-						for (List<Event> le: p.values()) {
-							res.addAll(le);
-						}
-						resultingPatterns.add(res);
+				Collection<Map<String, List<Event>>> patterns = nfa.process(
+					sharedBufferAccessor,
+					nfaState,
+					inputEvent.getValue(),
+					inputEvent.getTimestamp(),
+					afterMatchSkipStrategy);
+				for (Map<String, List<Event>> p: patterns) {
+					List<Event> res = new ArrayList<>();
+					for (List<Event> le: p.values()) {
+						res.addAll(le);
 					}
+					resultingPatterns.add(res);
 				}
+			}
 		}
 		return resultingPatterns;
 	}

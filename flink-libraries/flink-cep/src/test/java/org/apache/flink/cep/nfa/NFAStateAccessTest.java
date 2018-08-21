@@ -102,9 +102,9 @@ public class NFAStateAccessTest {
 		NFA<Event> nfa = compile(pattern, false);
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		try (SharedBufferAccessor accessor = sharedBuffer.getAccessor()) {
-			for (StreamRecord<Event> inputEvent : inputEvents) {
-				nfa.process(
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+					nfa.process(
 					accessor,
 					nfa.createInitialNFAState(),
 					inputEvent.getValue(),
@@ -185,9 +185,9 @@ public class NFAStateAccessTest {
 		NFA<Event> nfa = compile(pattern, false);
 
 		TestSharedBuffer<Event> sharedBuffer = TestSharedBuffer.createTestBuffer(Event.createTypeSerializer());
-		try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
-			for (StreamRecord<Event> inputEvent : inputEvents) {
-				nfa.process(
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			try (SharedBufferAccessor<Event> accessor = sharedBuffer.getAccessor()) {
+					nfa.process(
 					accessor,
 					nfa.createInitialNFAState(),
 					inputEvent.getValue(),
@@ -196,7 +196,7 @@ public class NFAStateAccessTest {
 		}
 
 		assertEquals(8, sharedBuffer.getStateReads());
-		assertEquals(6, sharedBuffer.getStateWrites());
-		assertEquals(14, sharedBuffer.getStateAccesses());
+		assertEquals(12, sharedBuffer.getStateWrites());
+		assertEquals(20, sharedBuffer.getStateAccesses());
 	}
 }
