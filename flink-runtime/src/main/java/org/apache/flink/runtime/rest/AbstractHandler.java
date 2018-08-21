@@ -145,6 +145,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 					hre);
 			}
 
+			log.trace("Starting request processing.");
 			CompletableFuture<Void> requestProcessingFuture = respondToRequest(
 				ctx,
 				httpRequest,

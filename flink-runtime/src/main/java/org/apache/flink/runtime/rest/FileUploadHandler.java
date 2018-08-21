@@ -94,6 +94,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				LOG.trace("Received request. URL:{} Method:{}", httpRequest.getUri(), httpRequest.getMethod());
 				if (httpRequest.getMethod().equals(HttpMethod.POST)) {
 					if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
+						LOG.trace("Initializing multipart file upload.");
 						checkState(currentHttpPostRequestDecoder == null);
 						checkState(currentHttpRequest == null);
 						checkState(currentUploadDir == null);
@@ -107,6 +108,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 					ctx.fireChannelRead(ReferenceCountUtil.retain(msg));
 				}
 			} else if (msg instanceof HttpContent && currentHttpPostRequestDecoder != null) {
+				LOG.trace("Received http content.");
 				// make sure that we still have a upload dir in case that it got deleted in the meanwhile
 				RestServerEndpoint.createUploadDir(uploadDir, LOG);
 
@@ -121,9 +123,11 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 						final Path dest = currentUploadDir.resolve(fileUpload.getFilename());
 						fileUpload.renameTo(dest.toFile());
+						LOG.trace("Upload of file {} complete.", fileUpload.getFilename());
 					} else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
 						final Attribute request = (Attribute) data;
 						// this could also be implemented by using the first found Attribute as the payload
+						LOG.trace("Upload of attribute {} complete.", request.getName());
 						if (data.getName().equals(HTTP_ATTRIBUTE_REQUEST)) {
 							currentJsonPayload = request.get();
 						} else {
@@ -134,6 +138,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				}
 
 				if (httpContent instanceof LastHttpContent) {
+					LOG.trace("Finalizing multipart file upload.");
 					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
 					ctx.fireChannelRead(currentHttpRequest);
 					if (currentJsonPayload != null) {
