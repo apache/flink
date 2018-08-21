@@ -2404,6 +2404,18 @@ RTRIM(string)
     <tr>
       <td>
         {% highlight text %}
+REPEAT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>string</i> <i>integer</i> times.</p> 
+        <p>E.g., <code>REPEAT('This is a test String.', 2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
 OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
 {% endhighlight %}
       </td>
@@ -2614,6 +2626,18 @@ STRING.rtrim()
         <p>E.g., <code>'This is a test String. '.rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr>    
     
     <tr>
       <td>
@@ -2829,6 +2853,18 @@ STRING.rtrim()
         <p>E.g., <code>"This is a test String. ".rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.repeat(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
+        <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
+      </td>
+    </tr> 
 
     <tr>
       <td>

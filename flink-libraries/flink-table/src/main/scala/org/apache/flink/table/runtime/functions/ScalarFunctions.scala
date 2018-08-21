@@ -21,6 +21,7 @@ import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.commons.codec.binary.{Base64, Hex}
+import org.apache.commons.lang3.StringUtils
 
 import scala.annotation.varargs
 
@@ -227,4 +228,10 @@ object ScalarFunctions {
     * Returns an UUID string using Java utilities.
     */
   def uuid(): String = java.util.UUID.randomUUID().toString
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(base: String, n: Int): String = StringUtils.repeat(base, n)
+
 }

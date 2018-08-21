@@ -141,4 +141,10 @@ object BuiltInMethods {
   val HEX_STRING: Method = Types.lookupMethod(classOf[ScalarFunctions], "hex", classOf[String])
 
   val UUID: Method = Types.lookupMethod(classOf[ScalarFunctions], "uuid")
+
+  val REPEAT: Method = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "repeat",
+    classOf[String],
+    classOf[Int])
 }
