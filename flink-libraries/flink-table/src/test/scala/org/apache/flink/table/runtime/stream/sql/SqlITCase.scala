@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermark
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
-import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
+import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil, TableFunc0, TableFunc2WithBase}
 import org.junit.Assert._
 import org.junit._
 
@@ -896,6 +896,45 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     assertEquals(List(expected.toString()), StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def tableFunctionAsSource(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    tEnv.registerFunction("udtf", new JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0)
+    val sql = "select a from LATERAL Table(udtf(3, 'hello')) as T(a)"
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    assertEquals(List("hello", "hello", "hello"), StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def tableFunctionAsSourceWithRowType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    tEnv.registerFunction("udtf", new TableFunc2WithBase)
+    val sql = "select name, len from LATERAL Table(udtf('hi#flink')) as T(name, len)"
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    assertEquals(List("hi,3", "flink,6").sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def tableFunctionAsSourceWithPojoType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+    tEnv.registerFunction("udtf", new TableFunc0)
+    val sql = "select name, age from LATERAL Table(udtf('flink#123')) "
+    val result = tEnv.sqlQuery(sql).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    assertEquals(List("flink,123").sorted, StreamITCase.testResults.sorted)
   }
 }
 

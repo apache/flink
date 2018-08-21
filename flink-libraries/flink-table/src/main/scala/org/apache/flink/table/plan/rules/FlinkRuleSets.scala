@@ -200,6 +200,7 @@ object FlinkRuleSets {
     */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
     // translate to DataStream nodes
+    DataStreamTableFunctionScanRule.INSTANCE,
     DataStreamSortRule.INSTANCE,
     DataStreamGroupAggregateRule.INSTANCE,
     DataStreamOverAggregateRule.INSTANCE,

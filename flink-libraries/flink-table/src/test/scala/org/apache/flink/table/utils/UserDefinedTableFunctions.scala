@@ -57,12 +57,15 @@ class TableFunc1 extends TableFunction[String] {
 }
 
 class TableFunc2 extends TableFunction[Row] {
+
+  protected var base: Int = 0
+
   def eval(str: String): Unit = {
     if (str.contains("#")) {
       str.split("#").foreach({ s =>
         val row = new Row(2)
         row.setField(0, s)
-        row.setField(1, s.length)
+        row.setField(1, s.length + base)
         collect(row)
       })
     }
@@ -71,6 +74,12 @@ class TableFunc2 extends TableFunction[Row] {
   override def getResultType: TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
+class TableFunc2WithBase extends TableFunc2 {
+  override def open(context: FunctionContext): Unit = {
+    base = 1
   }
 }
 

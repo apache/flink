@@ -257,6 +257,15 @@ class CorrelateITCase extends AbstractTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+
+  @Test(expected = classOf[ValidationException])
+  def testTableFunctionScanAsSource(): Unit = {
+    val tf = new VarArgsFunc0()
+    val result = tf("hello").as('a).select('a)
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+  }
+
   private def testData(
       env: StreamExecutionEnvironment)
     : DataStream[(Int, Long, String)] = {
