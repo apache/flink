@@ -67,7 +67,6 @@ object ScalarSqlFunctions {
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
 
-
   val LOG = new SqlFunction(
     "LOG",
     SqlKind.OTHER_FUNCTION,

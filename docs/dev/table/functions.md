@@ -2451,12 +2451,12 @@ SUBSTRING(string FROM integer1 [ FOR integer2 ])
     <tr>
       <td>
         {% highlight text %}
-REPLACE(string, search, replacement)
+REPLACE(string1, string2, string3)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>string</i> replaced <i>search</i>(non-overlapping) with <i>replacement</i>.</p>
-        <p>E.g., <code>REPLACE("hello world", "world", "flink")</code> returns "hello flink"; <code>REPLACE("ababab", "abab", "z")</code> returns "zab"</p>
+        <p>Returns a new string which replaces <i>string2</i> with <i>string3</i> (non-overlapping) from <i>string1</i></p>
+        <p>E.g., <code>REPLACE("hello world", "world", "flink")</code> returns "hello flink"; <code>REPLACE("ababab", "abab", "z")</code> returns "zab".</p>
       </td>
     </tr>
 
@@ -2703,12 +2703,12 @@ STRING.substring(INT1, INT2)
     <tr>
       <td>
         {% highlight java %}
-STRING.replace(STRING1, STRING2)
+STRING1.replace(STRING2, STRING3)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING</i> replaced <i>STRING1</i>(non-overlapping) with <i>STRING2</i>.</p>
-        <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab"</p>
+        <p>Returns a new string which replaces <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
+        <p>E.g., <code>'hello world'.replace('world', 'flink')</code> returns 'hello flink'; <code>'ababab'.replace('abab', 'z')</code> returns 'zab'.</p>
       </td>
     </tr>
 
@@ -2954,12 +2954,12 @@ STRING.substring(INT1, INT2)
     <tr>
       <td>
         {% highlight scala %}
-STRING.replace(STRING1, STRING2)
+STRING1.replace(STRING2, STRING3)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING</i> replaced <i>STRING1</i>(non-overlapping) with <i>STRING2</i>.</p>
-        <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab"</p>
+        <p>Returns a new string which replaces <i>STRING2</i> with <i>STRING3</i> (non-overlapping) from <i>STRING1</i>.</p>
+        <p>E.g., <code>"hello world".replace("world", "flink")</code> returns "hello flink"; <code>"ababab".replace("abab", "z")</code> returns "zab".</p>
       </td>
     </tr>
 
