@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.runtime.rest.handler.FileUploads;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -30,6 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultLastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -143,16 +145,21 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 				if (httpContent instanceof LastHttpContent) {
 					LOG.trace("Finalizing multipart file upload.");
 					ctx.channel().attr(UPLOADED_FILES).set(new FileUploads(currentUploadDir));
-					ctx.fireChannelRead(currentHttpRequest);
 					if (currentJsonPayload != null) {
 						// the following lines behave similar to httpContent#replace in netty 4.1
 						// the only difference is that the validateHeaders flag isn't preserved
 						// this shouldn't be a problem since we only copy existing headers
 						DefaultLastHttpContent newContent = new DefaultLastHttpContent(Unpooled.wrappedBuffer(currentJsonPayload), false);
 						newContent.trailingHeaders().set(((LastHttpContent) httpContent).trailingHeaders());
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+						ctx.fireChannelRead(currentHttpRequest);
 						ctx.fireChannelRead(newContent);
 					} else {
-						ctx.fireChannelRead(ReferenceCountUtil.retain(httpContent));
+						currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+						currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+						ctx.fireChannelRead(currentHttpRequest);
+						ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
 					}
 					reset();
 				}
