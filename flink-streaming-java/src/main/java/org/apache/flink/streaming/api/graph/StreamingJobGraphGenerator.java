@@ -130,7 +130,7 @@ public class StreamingJobGraphGenerator {
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		// Generate deterministic hashes for the nodes in order to identify them across
-		// submission iff they didn't change.
+		// submission if they didn't change.
 		Map<Integer, byte[]> hashes = defaultStreamGraphHasher.traverseStreamGraphAndGenerateHashes(streamGraph);
 
 		// Generate legacy version hashes for backwards compatibility
