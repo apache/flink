@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
+import org.apache.flink.util.Preconditions;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -98,18 +99,17 @@ public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket id.
 	 */
 	public DateTimeBucketAssigner(String formatString, ZoneId zoneId) {
-		this.formatString = formatString;
-		this.zoneId = zoneId;
+		this.formatString = Preconditions.checkNotNull(formatString);
+		this.zoneId = Preconditions.checkNotNull(zoneId);
 	}
 
 	@Override
 	public String getBucketId(IN element, BucketAssigner.Context context) {
 		if (dateTimeFormatter == null) {
-			dateTimeFormatter = DateTimeFormatter.ofPattern(formatString);
+			dateTimeFormatter = DateTimeFormatter.ofPattern(formatString).withZone(zoneId);
 		}
 
-		return dateTimeFormatter.format(
-			Instant.ofEpochMilli(context.currentProcessingTime()).atZone(zoneId).toLocalDateTime());
+		return dateTimeFormatter.format(Instant.ofEpochMilli(context.currentProcessingTime()));
 	}
 
 	@Override

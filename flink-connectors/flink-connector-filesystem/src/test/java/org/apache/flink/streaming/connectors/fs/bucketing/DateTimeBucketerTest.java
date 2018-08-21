@@ -35,24 +35,11 @@ import static org.powermock.api.mockito.PowerMockito.when;
 /**
  * Tests for {@link DateTimeBucketer}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DateTimeBucketer.class)
 public class DateTimeBucketerTest {
 	private static final long TEST_TIME_IN_MILLIS = 1533363082011L;
 	private static final Path TEST_PATH = new Path("test");
 
 	private static final Clock mockedClock = new MockedClock();
-
-	@Test
-	public void testGetBucketPathWithDefaultTimezone() {
-		ZoneId utc = ZoneId.of("UTC");
-		PowerMockito.mockStatic(ZoneId.class);
-		when(ZoneId.systemDefault()).thenReturn(utc);
-
-		DateTimeBucketer bucketer = new DateTimeBucketer();
-
-		assertEquals(new Path("test/2018-08-04--06"), bucketer.getBucketPath(mockedClock, TEST_PATH, null));
-	}
 
 	@Test
 	public void testGetBucketPathWithSpecifiedTimezone() {

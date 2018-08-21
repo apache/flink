@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import org.apache.flink.streaming.connectors.fs.Clock;
 
+import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
@@ -100,8 +101,8 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket path.
 	 */
 	public DateTimeBucketer(String formatString, ZoneId zoneId) {
-		this.formatString = formatString;
-		this.zoneId = zoneId;
+		this.formatString = Preconditions.checkNotNull(formatString);
+		this.zoneId = Preconditions.checkNotNull(zoneId);
 
 		this.dateTimeFormatter = DateTimeFormatter.ofPattern(this.formatString).withZone(zoneId);
 	}
@@ -109,12 +110,12 @@ public class DateTimeBucketer<T> implements Bucketer<T> {
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 
-		this.dateTimeFormatter = DateTimeFormatter.ofPattern(formatString);
+		this.dateTimeFormatter = DateTimeFormatter.ofPattern(formatString).withZone(zoneId);
 	}
 
 	@Override
 	public Path getBucketPath(Clock clock, Path basePath, T element) {
-		String newDateTimeString = dateTimeFormatter.format(Instant.ofEpochMilli(clock.currentTimeMillis()).atZone(zoneId).toLocalDateTime());
+		String newDateTimeString = dateTimeFormatter.format(Instant.ofEpochMilli(clock.currentTimeMillis()));
 		return new Path(basePath + "/" + newDateTimeString);
 	}
 
