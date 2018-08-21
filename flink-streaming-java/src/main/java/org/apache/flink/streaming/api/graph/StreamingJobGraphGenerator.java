@@ -440,12 +440,12 @@ public class StreamingJobGraphGenerator {
 
 		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
 
-		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
+		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
 		config.setStateBackend(streamGraph.getStateBackend());
-		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
-		if (ceckpointCfg.isCheckpointingEnabled()) {
-			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
+		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+		if (checkpointCfg.isCheckpointingEnabled()) {
+			config.setCheckpointMode(checkpointCfg.getCheckpointingMode());
 		}
 		else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
