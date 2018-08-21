@@ -21,17 +21,12 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for {@link DateTimeBucketAssigner}.

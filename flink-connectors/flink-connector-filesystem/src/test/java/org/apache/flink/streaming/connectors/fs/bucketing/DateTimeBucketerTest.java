@@ -22,15 +22,10 @@ import org.apache.flink.streaming.connectors.fs.Clock;
 
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for {@link DateTimeBucketer}.
