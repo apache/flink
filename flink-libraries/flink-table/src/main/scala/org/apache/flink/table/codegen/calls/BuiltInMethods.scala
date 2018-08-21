@@ -118,13 +118,6 @@ object BuiltInMethods {
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
 
-  val REPLACE = Types.lookupMethod(
-    classOf[ScalarFunctions],
-    "replace",
-    classOf[String],
-    classOf[String],
-    classOf[String])
-
   val LPAD = Types.lookupMethod(
     classOf[ScalarFunctions],
     "lpad",

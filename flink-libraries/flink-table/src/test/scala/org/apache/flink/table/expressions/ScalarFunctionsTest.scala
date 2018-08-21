@@ -121,15 +121,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
 
     testAllApis(
-      'f0.replace('f33, ""),
-      "f0.replace(f33, '')",
-      "REPLACE(f0, f33, '')",
+      'f0.replace(Null(Types.STRING), ""),
+      "f0.replace(Null(STRING), '')",
+      "REPLACE(f0, NULLIF('', ''), '')",
       "null")
 
     testAllApis(
-      'f0.replace("", 'f33),
-      "f0.replace('', f33)",
-      "REPLACE(f0, '', f33)",
+      'f0.replace(" ", Null(Types.STRING)),
+      "f0.replace(' ', Null(STRING))",
+      "REPLACE(f0, ' ', NULLIF('', ''))",
       "null")
   }
 

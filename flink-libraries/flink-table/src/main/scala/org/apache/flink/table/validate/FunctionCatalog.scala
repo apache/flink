@@ -445,7 +445,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.RAND_INTEGER,
     ScalarSqlFunctions.CONCAT,
     ScalarSqlFunctions.CONCAT_WS,
-    ScalarSqlFunctions.REPLACE,
+    SqlStdOperatorTable.REPLACE,
     ScalarSqlFunctions.BIN,
     ScalarSqlFunctions.HEX,
     SqlStdOperatorTable.TIMESTAMP_ADD,
