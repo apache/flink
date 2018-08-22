@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -38,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link CheckpointStateOutputStream} that writes into a specified file and
  * returns a {@link FileStateHandle} upon closing.
  *
- * <p>Unlike the {@link org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream},
+ * <p>Unlike the {@link FsCheckpointStreamFactory.FsCheckpointStateOutputStream},
  * this stream does not have a threshold below which it returns a memory byte stream handle,
  * and does not create random files, but writes to a specified file.
  */
@@ -116,7 +115,6 @@ public final class FileBasedStateOutputStream extends CheckpointStateOutputStrea
 		}
 	}
 
-	@Nullable
 	@Override
 	public FileStateHandle closeAndGetHandle() throws IOException {
 		synchronized (this) {

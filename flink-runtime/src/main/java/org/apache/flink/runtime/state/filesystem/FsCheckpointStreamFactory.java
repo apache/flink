@@ -57,19 +57,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>For example many S3 file systems (like Hadoop's s3a) use HTTP HEAD requests to check
  * for the existence of a directory. S3 sometimes limits the number of HTTP HEAD requests to
  * a few hundred per second only. Those numbers are easily reached by moderately large setups.
- * Surprisingly (and fortunately), the actual state writing (POST) have much higher quotas.
+ * Surprisingly (and fortunately), the actual state writing (PUT) have much higher quotas.
  */
 public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FsCheckpointStreamFactory.class);
 
-	/** Maximum size of state that is stored with the metadata, rather than in files */
+	/** Maximum size of state that is stored with the metadata, rather than in files. */
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
-	/** Default size for the write buffer */
+	/** Default size for the write buffer. */
 	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 
-	/** State below this size will be stored as part of the metadata, rather than in files */
+	/** State below this size will be stored as part of the metadata, rather than in files. */
 	private final int fileStateThreshold;
 
 	/** The directory for checkpoint exclusive state data. */
@@ -118,9 +118,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
-
-
-		Path target = scope == CheckpointedStateScope.EXCLUSIVE ?checkpointDirectory: sharedStateDirectory;
+		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 
 		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
@@ -151,7 +149,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		private int pos;
 
 		private FSDataOutputStream outStream;
-		
+
 		private final int localStateThreshold;
 
 		private final Path basePath;
@@ -164,8 +162,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		public FsCheckpointStateOutputStream(
 					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
-		{
+					int bufferSize, int localStateThreshold) {
+
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
 			}
@@ -199,7 +197,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					// flush the write buffer to make it clear again
 					flush();
 				}
-				
+
 				// copy what is in the buffer
 				System.arraycopy(b, off, writeBuffer, pos, len);
 				pos += len;
@@ -300,7 +298,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 							flush();
 
 							pos = writeBuffer.length;
-						
+
 							long size = -1L;
 
 							// make a best effort attempt to figure out the size
