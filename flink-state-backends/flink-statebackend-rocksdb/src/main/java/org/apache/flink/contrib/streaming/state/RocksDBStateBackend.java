@@ -43,6 +43,7 @@ import org.apache.flink.util.TernaryBoolean;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Env;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
@@ -647,6 +648,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		// add necessary default options
 		opt = opt.setCreateIfMissing(true);
+		opt.setEnv(Env.getDefault());
 
 		return opt;
 	}
