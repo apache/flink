@@ -20,8 +20,8 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -66,9 +66,9 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 
 	protected final WriteOptions writeOptions;
 
-	protected final ByteArrayDataOutputView dataOutputView;
+	protected final DataOutputSerializer dataOutputView;
 
-	protected final ByteArrayDataInputView dataInputView;
+	protected final DataInputDeserializer dataInputView;
 
 	private final boolean ambiguousKeyPossible;
 
@@ -97,8 +97,8 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "State value serializer");
 		this.defaultValue = defaultValue;
 
-		this.dataOutputView = new ByteArrayDataOutputView(128);
-		this.dataInputView = new ByteArrayDataInputView();
+		this.dataOutputView = new DataOutputSerializer(128);
+		this.dataInputView = new DataInputDeserializer();
 		this.ambiguousKeyPossible =
 			RocksDBKeySerializationUtils.isAmbiguousKeyPossible(backend.getKeySerializer(), namespaceSerializer);
 	}
@@ -109,7 +109,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 	public void clear() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = dataOutputView.toByteArray();
+			byte[] key = dataOutputView.getCopyOfBuffer();
 			backend.db.delete(columnFamily, writeOptions, key);
 		} catch (IOException | RocksDBException e) {
 			throw new FlinkRuntimeException("Error while removing entry from RocksDB", e);
@@ -141,7 +141,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 
 		// we cannot reuse the keySerializationStream member since this method
 		// is called concurrently to the other ones and it may thus contain garbage
-		ByteArrayDataOutputView tmpKeySerializationView = new ByteArrayDataOutputView(128);
+		DataOutputSerializer tmpKeySerializationView = new DataOutputSerializer(128);
 
 		writeKeyWithGroupAndNamespace(
 				keyGroup,
@@ -151,13 +151,13 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 				safeNamespaceSerializer,
 				tmpKeySerializationView);
 
-		return backend.db.get(columnFamily, tmpKeySerializationView.toByteArray());
+		return backend.db.get(columnFamily, tmpKeySerializationView.getCopyOfBuffer());
 	}
 
 	byte[] getKeyBytes() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
-			return dataOutputView.toByteArray();
+			return dataOutputView.getCopyOfBuffer();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while serializing key", e);
 		}
@@ -165,9 +165,9 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 
 	byte[] getValueBytes(V value) {
 		try {
-			dataOutputView.reset();
+			dataOutputView.clear();
 			valueSerializer.serialize(value, dataOutputView);
-			return dataOutputView.toByteArray();
+			return dataOutputView.getCopyOfBuffer();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Error while serializing value", e);
 		}
@@ -183,7 +183,7 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 
 	protected void writeKeyWithGroupAndNamespace(
 			int keyGroup, K key, N namespace,
-			ByteArrayDataOutputView keySerializationDataOutputView) throws IOException {
+			DataOutputSerializer keySerializationDataOutputView) throws IOException {
 
 		writeKeyWithGroupAndNamespace(
 				keyGroup,
@@ -200,13 +200,13 @@ public abstract class AbstractRocksDBState<K, N, V, S extends State> implements 
 			final TypeSerializer<K> keySerializer,
 			final N namespace,
 			final TypeSerializer<N> namespaceSerializer,
-			final ByteArrayDataOutputView keySerializationDataOutputView) throws IOException {
+			final DataOutputSerializer keySerializationDataOutputView) throws IOException {
 
 		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
 		Preconditions.checkNotNull(keySerializer);
 		Preconditions.checkNotNull(namespaceSerializer);
 
-		keySerializationDataOutputView.reset();
+		keySerializationDataOutputView.clear();
 		RocksDBKeySerializationUtils.writeKeyGroup(keyGroup, backend.getKeyGroupPrefixBytes(), keySerializationDataOutputView);
 		RocksDBKeySerializationUtils.writeKey(key, keySerializer, keySerializationDataOutputView, ambiguousKeyPossible);
 		RocksDBKeySerializationUtils.writeNameSpace(namespace, namespaceSerializer, keySerializationDataOutputView, ambiguousKeyPossible);
