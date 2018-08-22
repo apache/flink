@@ -467,7 +467,8 @@ case class Repeat(str: Expression, n: Expression) extends Expression with InputT
 
   override private[flink] def resultType: TypeInformation[_] = STRING_TYPE_INFO
 
-  override private[flink] def expectedTypes: Seq[TypeInformation[_]] = Seq(STRING_TYPE_INFO, INT_TYPE_INFO)
+  override private[flink] def expectedTypes: Seq[TypeInformation[_]] =
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO)
 
   override private[flink] def children: Seq[Expression] = Seq(str, n)
 

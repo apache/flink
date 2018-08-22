@@ -142,5 +142,9 @@ object BuiltInMethods {
 
   val UUID: Method = Types.lookupMethod(classOf[ScalarFunctions], "uuid")
 
-  val REPEAT: Method = Types.lookupMethod(classOf[ScalarFunctions], "repeat", classOf[String], classOf[Int])
+  val REPEAT: Method = Types.lookupMethod(
+    classOf[ScalarFunctions],
+    "repeat",
+    classOf[String],
+    classOf[Int])
 }
