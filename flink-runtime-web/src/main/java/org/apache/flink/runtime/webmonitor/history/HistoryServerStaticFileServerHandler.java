@@ -164,7 +164,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 						HandlerUtils.sendErrorResponse(
 							ctx,
 							request,
-							new ErrorResponseBody(String.format("Unable to load requested file %s.", requestPath)),
+							new ErrorResponseBody("File not found."),
 							NOT_FOUND,
 							Collections.emptyMap());
 						return;
