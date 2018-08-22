@@ -47,6 +47,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -87,7 +90,10 @@ public class SlotProtocolTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ResourceActions resourceManagerActions = mock(ResourceActions.class);
+			final CompletableFuture<ResourceProfile> resourceProfileFuture = new CompletableFuture<>();
+			ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
+				.setAllocateResourceConsumer(resourceProfile -> resourceProfileFuture.complete(resourceProfile))
+				.build();
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
@@ -99,7 +105,7 @@ public class SlotProtocolTest extends TestLogger {
 
 			slotManager.registerSlotRequest(slotRequest);
 
-			verify(resourceManagerActions).allocateResource(eq(slotRequest.getResourceProfile()));
+			assertThat(resourceProfileFuture.get(), is(equalTo(slotRequest.getResourceProfile())));
 
 			// slot becomes available
 			TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);

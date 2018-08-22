@@ -71,6 +71,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -1019,9 +1020,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * Allocates a resource using the resource profile.
 	 *
 	 * @param resourceProfile The resource description
+	 * @return Collection of {@link ResourceProfile} describing the launched slots
 	 */
 	@VisibleForTesting
-	public abstract void startNewWorker(ResourceProfile resourceProfile);
+	public abstract Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile);
 
 	/**
 	 * Callback when a worker was started.
@@ -1051,9 +1053,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		}
 
 		@Override
-		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
+		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
 			validateRunsInMainThread();
-			startNewWorker(resourceProfile);
+			return startNewWorker(resourceProfile);
 		}
 
 		@Override
@@ -1176,8 +1178,16 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	//  Resource Management
 	// ------------------------------------------------------------------------
 
-	protected int getNumberPendingSlotRequests() {
-		return slotManager.getNumberPendingSlotRequests();
+	protected int getNumberRequiredTaskManagerSlots() {
+		return slotManager.getNumberPendingTaskManagerSlots();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Helper methods
+	// ------------------------------------------------------------------------
+
+	protected static Collection<ResourceProfile> createSlotsPerWorker(int numSlots) {
+		return Collections.nCopies(numSlots, ResourceProfile.ANY);
 	}
 }
 
