@@ -18,9 +18,9 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class RocksDBKeySerializationUtils {
 
 	public static <K> K readKey(
 		TypeSerializer<K> keySerializer,
-		ByteArrayDataInputView inputView,
+		DataInputDeserializer inputView,
 		boolean ambiguousKeyPossible) throws IOException {
 		int beforeRead = inputView.getPosition();
 		K key = keySerializer.deserialize(inputView);
@@ -54,7 +54,7 @@ public class RocksDBKeySerializationUtils {
 
 	public static <N> N readNamespace(
 		TypeSerializer<N> namespaceSerializer,
-		ByteArrayDataInputView inputView,
+		DataInputDeserializer inputView,
 		boolean ambiguousKeyPossible) throws IOException {
 		int beforeRead = inputView.getPosition();
 		N namespace = namespaceSerializer.deserialize(inputView);
@@ -68,10 +68,10 @@ public class RocksDBKeySerializationUtils {
 	public static <N> void writeNameSpace(
 		N namespace,
 		TypeSerializer<N> namespaceSerializer,
-		ByteArrayDataOutputView keySerializationDataOutputView,
+		DataOutputSerializer keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 
-		int beforeWrite = keySerializationDataOutputView.getPosition();
+		int beforeWrite = keySerializationDataOutputView.length();
 		namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
@@ -96,10 +96,10 @@ public class RocksDBKeySerializationUtils {
 	public static <K> void writeKey(
 		K key,
 		TypeSerializer<K> keySerializer,
-		ByteArrayDataOutputView keySerializationDataOutputView,
+		DataOutputSerializer keySerializationDataOutputView,
 		boolean ambiguousKeyPossible) throws IOException {
 		//write key
-		int beforeWrite = keySerializationDataOutputView.getPosition();
+		int beforeWrite = keySerializationDataOutputView.length();
 		keySerializer.serialize(key, keySerializationDataOutputView);
 
 		if (ambiguousKeyPossible) {
@@ -117,8 +117,8 @@ public class RocksDBKeySerializationUtils {
 
 	private static void writeLengthFrom(
 		int fromPosition,
-		ByteArrayDataOutputView keySerializationDateDataOutputView) throws IOException {
-		int length = keySerializationDateDataOutputView.getPosition() - fromPosition;
+		DataOutputSerializer keySerializationDateDataOutputView) throws IOException {
+		int length = keySerializationDateDataOutputView.length() - fromPosition;
 		writeVariableIntBytes(length, keySerializationDateDataOutputView);
 	}
 

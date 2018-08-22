@@ -115,12 +115,12 @@ class RocksDBReducingState<K, N, V>
 
 					writeKeyWithGroupAndNamespace(keyGroup, key, source, dataOutputView);
 
-					final byte[] sourceKey = dataOutputView.toByteArray();
+					final byte[] sourceKey = dataOutputView.getCopyOfBuffer();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 					backend.db.delete(columnFamily, writeOptions, sourceKey);
 
 					if (valueBytes != null) {
-						dataInputView.setData(valueBytes);
+						dataInputView.setBuffer(valueBytes);
 						V value = valueSerializer.deserialize(dataInputView);
 
 						if (current != null) {
@@ -138,11 +138,11 @@ class RocksDBReducingState<K, N, V>
 				// create the target full-binary-key
 				writeKeyWithGroupAndNamespace(keyGroup, key, target, dataOutputView);
 
-				final byte[] targetKey = dataOutputView.toByteArray();
+				final byte[] targetKey = dataOutputView.getCopyOfBuffer();
 				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
 				if (targetValueBytes != null) {
-					dataInputView.setData(targetValueBytes);
+					dataInputView.setBuffer(targetValueBytes);
 					// target also had a value, merge
 					V value = valueSerializer.deserialize(dataInputView);
 
@@ -150,11 +150,11 @@ class RocksDBReducingState<K, N, V>
 				}
 
 				// serialize the resulting value
-				dataOutputView.reset();
+				dataOutputView.clear();
 				valueSerializer.serialize(current, dataOutputView);
 
 				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.toByteArray());
+				backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
 			}
 		}
 		catch (Exception e) {

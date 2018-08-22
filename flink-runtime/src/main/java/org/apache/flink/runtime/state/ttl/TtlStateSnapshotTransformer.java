@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.CollectionStateSnapshotTransformer;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -34,12 +34,12 @@ import java.util.Optional;
 abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshotTransformer<T> {
 	private final TtlTimeProvider ttlTimeProvider;
 	final long ttl;
-	private final ByteArrayDataInputView div;
+	private final DataInputDeserializer div;
 
 	TtlStateSnapshotTransformer(@Nonnull TtlTimeProvider ttlTimeProvider, long ttl) {
 		this.ttlTimeProvider = ttlTimeProvider;
 		this.ttl = ttl;
-		this.div = new ByteArrayDataInputView();
+		this.div = new DataInputDeserializer();
 	}
 
 	<V> TtlValue<V> filterTtlValue(TtlValue<V> value) {
@@ -55,7 +55,7 @@ abstract class TtlStateSnapshotTransformer<T> implements CollectionStateSnapshot
 	}
 
 	long deserializeTs(byte[] value) throws IOException {
-		div.setData(value, 0, Long.BYTES);
+		div.setBuffer(value, 0, Long.BYTES);
 		return LongSerializer.INSTANCE.deserialize(div);
 	}
 

@@ -19,11 +19,11 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.ByteArrayDataInputView;
-import org.apache.flink.core.memory.ByteArrayDataOutputView;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -63,19 +63,19 @@ public class RocksDBKeySerializationUtilsTest {
 
 	@Test
 	public void testKeySerializationAndDeserialization() throws Exception {
-		final ByteArrayDataOutputView outputView = new ByteArrayDataOutputView(8);
-		final ByteArrayDataInputView inputView = new ByteArrayDataInputView();
+		final DataOutputSerializer outputView = new DataOutputSerializer(8);
+		final DataInputDeserializer inputView = new DataInputDeserializer();
 
 		// test for key
 		for (int orgKey = 0; orgKey < 100; ++orgKey) {
-			outputView.reset();
+			outputView.clear();
 			RocksDBKeySerializationUtils.writeKey(orgKey, IntSerializer.INSTANCE, outputView, false);
-			inputView.setData(outputView.toByteArray());
+			inputView.setBuffer(outputView.getCopyOfBuffer());
 			int deserializedKey = RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, false);
 			Assert.assertEquals(orgKey, deserializedKey);
 
 			RocksDBKeySerializationUtils.writeKey(orgKey, IntSerializer.INSTANCE, outputView, true);
-			inputView.setData(outputView.toByteArray());
+			inputView.setBuffer(outputView.getCopyOfBuffer());
 			deserializedKey = RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, true);
 			Assert.assertEquals(orgKey, deserializedKey);
 		}
@@ -83,18 +83,18 @@ public class RocksDBKeySerializationUtilsTest {
 
 	@Test
 	public void testNamespaceSerializationAndDeserialization() throws Exception {
-		final ByteArrayDataOutputView outputView = new ByteArrayDataOutputView(8);
-		final ByteArrayDataInputView inputView = new ByteArrayDataInputView();
+		final DataOutputSerializer outputView = new DataOutputSerializer(8);
+		final DataInputDeserializer inputView = new DataInputDeserializer();
 
 		for (int orgNamespace = 0; orgNamespace < 100; ++orgNamespace) {
-			outputView.reset();
+			outputView.clear();
 			RocksDBKeySerializationUtils.writeNameSpace(orgNamespace, IntSerializer.INSTANCE, outputView, false);
-			inputView.setData(outputView.toByteArray());
+			inputView.setBuffer(outputView.getCopyOfBuffer());
 			int deserializedNamepsace = RocksDBKeySerializationUtils.readNamespace(IntSerializer.INSTANCE, inputView, false);
 			Assert.assertEquals(orgNamespace, deserializedNamepsace);
 
 			RocksDBKeySerializationUtils.writeNameSpace(orgNamespace, IntSerializer.INSTANCE, outputView, true);
-			inputView.setData(outputView.toByteArray());
+			inputView.setBuffer(outputView.getCopyOfBuffer());
 			deserializedNamepsace = RocksDBKeySerializationUtils.readNamespace(IntSerializer.INSTANCE, inputView, true);
 			Assert.assertEquals(orgNamespace, deserializedNamepsace);
 		}
