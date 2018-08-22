@@ -58,6 +58,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +116,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
+	private final Collection<ResourceProfile> slotsPerWorker;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
@@ -163,6 +166,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.numberOfTaskSlots = flinkConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
 		this.defaultTaskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(flinkConfig).getMebiBytes();
 		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, numberOfTaskSlots);
+
+		this.slotsPerWorker = createSlotsPerWorker(numberOfTaskSlots);
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -283,7 +288,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	}
 
 	@Override
-	public void startNewWorker(ResourceProfile resourceProfile) {
+	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
 		// Priority for worker containers - priorities are intra-application
 		//TODO: set priority according to the resource allocated
 		Priority priority = Priority.newInstance(generatePriority(resourceProfile));
@@ -291,6 +296,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		int vcore = resourceProfile.getCpuCores() < 1 ? defaultCpus : (int) resourceProfile.getCpuCores();
 		Resource capability = Resource.newInstance(mem, vcore);
 		requestYarnContainer(capability, priority);
+
+		return slotsPerWorker;
 	}
 
 	@Override
@@ -334,7 +341,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 					if (yarnWorkerNode != null) {
 						// Container completed unexpectedly ~> start a new one
 						final Container container = yarnWorkerNode.getContainer();
-						requestYarnContainer(container.getResource(), yarnWorkerNode.getContainer().getPriority());
+						requestYarnContainerIfRequired(container.getResource(), yarnWorkerNode.getContainer().getPriority());
 					}
 					// Eagerly close the connection with task manager.
 					closeTaskManagerConnection(resourceId, new Exception(containerStatus.getDiagnostics()));
@@ -375,7 +382,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						// and ask for a new one
-						requestYarnContainer(container.getResource(), container.getPriority());
+						requestYarnContainerIfRequired(container.getResource(), container.getPriority());
 					}
 				} else {
 					// return the excessive containers
@@ -446,21 +453,26 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	/**
 	 * Request new container if pending containers cannot satisfies pending slot requests.
 	 */
-	private void requestYarnContainer(Resource resource, Priority priority) {
-		int pendingSlotRequests = getNumberPendingSlotRequests();
-		int pendingSlotAllocation = numPendingContainerRequests * numberOfTaskSlots;
-		if (pendingSlotRequests > pendingSlotAllocation) {
-			resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));
+	private void requestYarnContainerIfRequired(Resource resource, Priority priority) {
+		int requiredTaskManagerSlots = getNumberRequiredTaskManagerSlots();
+		int pendingTaskManagerSlots = numPendingContainerRequests * numberOfTaskSlots;
 
-			// make sure we transmit the request fast and receive fast news of granted allocations
-			resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
-
-			numPendingContainerRequests++;
-
-			log.info("Requesting new TaskExecutor container with resources {}. Number pending requests {}.",
-				resource,
-				numPendingContainerRequests);
+		if (requiredTaskManagerSlots > pendingTaskManagerSlots) {
+			requestYarnContainer(resource, priority);
 		}
+	}
+
+	private void requestYarnContainer(Resource resource, Priority priority) {
+		resourceManagerClient.addContainerRequest(new AMRMClient.ContainerRequest(resource, null, null, priority));
+
+		// make sure we transmit the request fast and receive fast news of granted allocations
+		resourceManagerClient.setHeartbeatInterval(FAST_YARN_HEARTBEAT_INTERVAL_MS);
+
+		numPendingContainerRequests++;
+
+		log.info("Requesting new TaskExecutor container with resources {}. Number pending requests {}.",
+			resource,
+			numPendingContainerRequests);
 	}
 
 	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)

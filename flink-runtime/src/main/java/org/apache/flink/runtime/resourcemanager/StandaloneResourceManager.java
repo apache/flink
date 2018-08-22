@@ -32,6 +32,9 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
  * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
@@ -74,7 +77,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public void startNewWorker(ResourceProfile resourceProfile) {
+	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
+		return Collections.emptyList();
 	}
 
 	@Override
