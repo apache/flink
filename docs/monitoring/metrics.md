@@ -1223,7 +1223,7 @@ Thus, in order to infer the metric identifier:
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="6"><strong>Task</strong></th>
+      <th rowspan="12"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
       <td>Counter</td>
@@ -1244,7 +1244,6 @@ Thus, in order to infer the metric identifier:
       <td>Meter</td>
     </tr>
     <tr>
-      <th rowspan="6"><strong>Task</strong></th>
       <td>numBuffersInLocal</td>
       <td>The total number of network buffers this task has read from a local source.</td>
       <td>Counter</td>
