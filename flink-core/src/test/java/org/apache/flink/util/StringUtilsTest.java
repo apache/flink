@@ -20,8 +20,11 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
+import java.util.Random;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link StringUtils}.
@@ -55,5 +58,16 @@ public class StringUtilsTest extends TestLogger {
 		byte[] byteArray = new byte[]{1, -97, 49, 74 };
 		String hex = StringUtils.byteToHexString(byteArray);
 		assertEquals("019f314a", hex);
+	}
+
+	@Test
+	public void testAppendAlphanumeric() {
+		StringBuilder bld = new StringBuilder();
+		StringUtils.appendRandomAlphanumericString(new Random(), bld, 256);
+		String str = bld.toString();
+
+		if (!str.matches("[a-zA-Z0-9]+")) {
+			fail("Not alphanumeric: " + str);
+		}
 	}
 }

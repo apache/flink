@@ -24,7 +24,7 @@ under the License.
 
 This page provides details on setting up and configuring distributed file systems for use with Flink.
 
-## Flink' File System support
+## Flink's File System support
 
 Flink uses file systems both as a source and sink in streaming/batch applications, and as a target for checkpointing.
 These file systems can for example be *Unix/Windows file systems*, *HDFS*, or even object stores like *S3*.
@@ -121,6 +121,34 @@ To prevent inactive streams from taking up the complete pool (preventing new con
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
 In addition, the limits are also only enforced per FileSystem instance. Because File Systems are created per scheme and authority, different
 authorities will have their own connection pool. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
+
+## Entropy injection for S3 file systems
+
+The bundled S3 file systems (`flink-s3-fs-presto` and `flink-s3-fs-hadoop`) support entropy injection. Entropy injection is
+a technique to improve scalability of AWS S3 buckets through adding some random characters near the beginning of the key.
+
+If entropy injection is activated, a configured substring in the paths will be replaced by random characters. For example, path
+`s3://my-bucket/checkpoints/_entropy_/dashboard-job/` would be replaced by something like `s3://my-bucket/checkpoints/gf36ikvg/dashboard-job/`.
+
+**Note that this only happens when the file creation passes the option to inject entropy!**, otherwise the file path will
+simply remove the entropy key substring. See
+[FileSystem.create(Path, WriteOption)](https://ci.apache.org/projects/flink/flink-docs-release-1.6/api/java/org/apache/flink/core/fs/FileSystem.html#create-org.apache.flink.core.fs.Path-org.apache.flink.core.fs.FileSystem.WriteOptions-)
+for details.
+
+*Note: The Flink runtime currently passes the option to inject entropy only to checkpoint data files.*
+*All other files, including checkpoint metadata and external URI do not inject entropy, to keep checkpoint URIs predictable.*
+
+To enable entropy injection, configure the *entropy key* and the *entropy length* parameters.
+
+```
+s3.entropy.key: _entropy_
+s3.entropy.length: 4 (default)
+
+```
+
+The `s3.entropy.key` defines the string in paths that is replaced by the random characters. Paths that do not contain the entropy key are left unchanged.
+If a file system operation does not pass the *"inject entropy"* write option, the entropy key substring is simply removed.
+The `s3.entropy.length` defined the number of random alphanumeric characters to replace the entropy key with.
 
 ## Adding new File System Implementations
 
