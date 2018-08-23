@@ -98,6 +98,11 @@ public interface Executor {
 	ProgramTargetDescriptor executeUpdate(SessionContext session, String statement) throws SqlExecutionException;
 
 	/**
+	 * Validates the current session. For example, it checks whether all views are still valid.
+	 */
+	void validateSession(SessionContext session) throws SqlExecutionException;
+
+	/**
 	 * Stops the executor.
 	 */
 	void stop(SessionContext session);

@@ -83,6 +83,12 @@ tables:
         - name: StringField
           type: VARCHAR
 
+views:
+  - name: TestView1
+    query: SELECT scalarUDF(IntegerField1) FROM TableNumber1
+  - name: TestView2
+    query: SELECT * FROM TestView1
+
 functions:
   - name: scalarUDF
     from: class

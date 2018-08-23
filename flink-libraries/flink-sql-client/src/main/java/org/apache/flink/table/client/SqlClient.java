@@ -24,6 +24,7 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ import java.util.List;
  * and allows for managing queries via console.
  *
  * <p>For debugging in an IDE you can execute the main method of this class using:
- * "embedded --defaults /path/to/-sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
+ * "embedded --defaults /path/to/sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
  *
  * <p>Make sure that the FLINK_CONF_DIR environment variable is set.
  */
@@ -94,6 +95,9 @@ public class SqlClient {
 				context = new SessionContext(options.getSessionId(), sessionEnv);
 			}
 
+			// validate the environment (defaults and session)
+			validateEnvironment(context, executor);
+
 			// add shutdown hook
 			Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(context, executor));
 
@@ -126,6 +130,17 @@ public class SqlClient {
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	private static void validateEnvironment(SessionContext context, Executor executor) {
+		System.out.print("Validating current environment...");
+		try {
+			executor.validateSession(context);
+			System.out.println("done.");
+		} catch (SqlExecutionException e) {
+			throw new SqlClientException(
+				"Current environment is invalid. Please check your configuration files again.", e);
+		}
+	}
 
 	private static void shutdown(SessionContext context, Executor executor) {
 		System.out.println();

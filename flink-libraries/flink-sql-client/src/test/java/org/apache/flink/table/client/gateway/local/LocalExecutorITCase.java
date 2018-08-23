@@ -36,6 +36,7 @@ import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.test.util.MiniClusterResource;
@@ -105,13 +106,61 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testValidateSession() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		executor.validateSession(session);
+
+		session.addView("AdditionalView1", "SELECT 1");
+		session.addView("AdditionalView2", "SELECT * FROM AdditionalView1");
+		executor.validateSession(session);
+
+		List<String> actualTables = executor.listTables(session);
+		List<String> expectedTables = Arrays.asList(
+			"AdditionalView1",
+			"AdditionalView2",
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
+		assertEquals(expectedTables, actualTables);
+
+		session.removeView("AdditionalView1");
+		try {
+			executor.validateSession(session);
+			fail();
+		} catch (SqlExecutionException e) {
+			// AdditionalView2 needs AdditionalView1
+		}
+
+		session.removeView("AdditionalView2");
+		executor.validateSession(session);
+
+		actualTables = executor.listTables(session);
+		expectedTables = Arrays.asList(
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
+		assertEquals(expectedTables, actualTables);
+	}
+
+	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		final List<String> actualTables = executor.listTables(session);
 
-		final List<String> expectedTables = Arrays.asList("TableNumber1", "TableNumber2", "TableSourceSink");
+		final List<String> expectedTables = Arrays.asList(
+			"TableNumber1",
+			"TableNumber2",
+			"TableSourceSink",
+			"TestView1",
+			"TestView2");
 		assertEquals(expectedTables, actualTables);
 	}
 
@@ -264,19 +313,19 @@ public class LocalExecutorITCase extends TestLogger {
 		final SessionContext session = new SessionContext("test-session", new Environment());
 
 		try {
-			final ResultDescriptor desc = executor.executeQuery(session, "SELECT IntegerField1 FROM TableNumber1");
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM TestView1");
 
 			assertTrue(desc.isMaterialized());
 
 			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
 
 			final List<String> expectedResults = new ArrayList<>();
-			expectedResults.add("42");
-			expectedResults.add("22");
-			expectedResults.add("32");
-			expectedResults.add("32");
-			expectedResults.add("42");
-			expectedResults.add("52");
+			expectedResults.add("47");
+			expectedResults.add("27");
+			expectedResults.add("37");
+			expectedResults.add("37");
+			expectedResults.add("47");
+			expectedResults.add("57");
 
 			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
