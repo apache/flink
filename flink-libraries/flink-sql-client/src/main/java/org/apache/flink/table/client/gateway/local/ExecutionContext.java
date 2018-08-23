@@ -42,6 +42,7 @@ import org.apache.flink.table.api.BatchQueryConfig;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.client.config.Deployment;
@@ -309,6 +310,18 @@ public class ExecutionContext<T> {
 					}
 				});
 			}
+
+			// register views
+			mergedEnv.getViews().forEach((name, query) -> {
+				// if registering a view fails at this point
+				// it means that it accesses tables that are not available anymore
+				try {
+					tableEnv.registerTable(name, tableEnv.sqlQuery(query));
+				} catch (ValidationException e) {
+					throw new SqlExecutionException(
+						"Invalid view '" + name + "' with query:\n" + query + "\nCause: " + e.getMessage());
+				}
+			});
 		}
 
 		public QueryConfig getQueryConfig() {

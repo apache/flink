@@ -25,7 +25,7 @@
 
 
 #==============================================================================
-# Table Sources
+# Table Sources & Sinks
 #==============================================================================
 
 # Define table sources and sinks here.
@@ -37,6 +37,17 @@ tables: [] # empty list
 #   connector: ...
 #   format: ...
 #   schema: ...
+
+#==============================================================================
+# Table Views
+#==============================================================================
+
+# Define frequently used SQL queries here that define a virtual table.
+
+views: [] # empty list
+# A typical view definition looks like:
+# - name: ...
+#   query: "SELECT ..."
 
 #==============================================================================
 # User-defined functions

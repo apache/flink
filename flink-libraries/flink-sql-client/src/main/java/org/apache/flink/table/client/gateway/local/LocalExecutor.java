@@ -289,6 +289,12 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public void validateSession(SessionContext session) throws SqlExecutionException {
+		// throws exceptions if an environment cannot be created with the given session context
+		getOrCreateExecutionContext(session).createEnvironmentInstance();
+	}
+
+	@Override
 	public void stop(SessionContext session) {
 		resultStore.getResults().forEach((resultId) -> {
 			try {
