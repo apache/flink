@@ -35,7 +35,7 @@ public class LegacyTruncateManager implements TruncateManager {
 
 	public static final String ORIGINAL_COPY_SUFFIX = ".original-copy";
 
-	private FileSystem hadoopFs;
+	private final FileSystem hadoopFs;
 
 	public LegacyTruncateManager(FileSystem hadoopFs) {
 		this.hadoopFs = hadoopFs;

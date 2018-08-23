@@ -36,7 +36,7 @@ public class NativeTruncateManager implements TruncateManager {
 
 	private Method truncateHandle;
 
-	private FileSystem hadoopFs;
+	private final FileSystem hadoopFs;
 
 	public NativeTruncateManager(FileSystem hadoopFs) {
 		ensureTruncateInitialized();
