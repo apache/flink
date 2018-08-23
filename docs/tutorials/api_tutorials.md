@@ -1,8 +1,9 @@
 ---
-title: "Linking with Optional Modules"
-layout: redirect
-redirect: /dev/projectsetup/dependencies.html
-permalink: /dev/linking.html
+title: "API Tutorials"
+nav-id: apitutorials
+nav-title: 'API Tutorials'
+nav-parent_id: tutorials
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +23,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-

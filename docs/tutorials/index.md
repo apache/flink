@@ -1,8 +1,9 @@
 ---
-title: "Linking with Optional Modules"
-layout: redirect
-redirect: /dev/projectsetup/dependencies.html
-permalink: /dev/linking.html
+title: "Tutorials"
+nav-id: tutorials
+nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> Tutorials'
+nav-parent_id: root
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +23,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-

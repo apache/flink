@@ -1,8 +1,8 @@
 ---
-title: "Linking with Optional Modules"
+title: "Running Flink on Windows"
 layout: redirect
-redirect: /dev/projectsetup/dependencies.html
-permalink: /dev/linking.html
+redirect: /tutorials/flink_on_windows.html
+permalink: /start/flink_on_windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -22,4 +22,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-

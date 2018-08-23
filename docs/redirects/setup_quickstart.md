@@ -1,8 +1,8 @@
 ---
-title: "Java8"
+title: "Local Setup Tutorial"
 layout: redirect
-redirect: /dev/java8.html
-permalink: /apis/java8.html
+redirect: /tutorials/local_setup.html
+permalink: /quickstart/setup_quickstart.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
