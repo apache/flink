@@ -68,22 +68,29 @@ public final class LatencyMarker extends StreamElement {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		LatencyMarker other = (LatencyMarker) obj;
-		if (markedTime != other.markedTime)
+		if (markedTime != other.markedTime) {
 			return false;
+		}
 		if (operatorId == null) {
-			if (other.operatorId != null)
+			if (other.operatorId != null) {
 				return false;
-		} else if (!operatorId.equals(other.operatorId))
+			}
+		} else if (!operatorId.equals(other.operatorId)) {
 			return false;
-		if (subtaskIndex != other.subtaskIndex)
+		}
+		if (subtaskIndex != other.subtaskIndex) {
 			return false;
+		}
 		return true;
 	}
 

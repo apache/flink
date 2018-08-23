@@ -90,7 +90,7 @@ public class StreamElementSerializerTest {
 
 		Watermark negativeWatermark = new Watermark(-4647654567676555876L);
 		assertEquals(negativeWatermark, serializeAndDeserialize(negativeWatermark, serializer));
-		
+
 		LatencyMarker latencyMarker = new LatencyMarker(System.currentTimeMillis(), new OperatorID(-1, -1), 1);
 		assertEquals(latencyMarker, serializeAndDeserialize(latencyMarker, serializer));
 	}
