@@ -43,7 +43,10 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
+	@Deprecated
+	default T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+		throw new RuntimeException("The deserialize method must be implemented by classes that implement the KeyedDeserializationSchema interface.");
+	}
 
 	/**
 	 * Deserializes the byte message.
@@ -72,7 +75,7 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	boolean isEndOfStream(T nextElement);
 
 	/**
-	 * The TimestampType is introduced in the kafka clients 0.10+. This interface is also used for the Kafka connector 0.9
+	 * The TimestampType is introduced in the Kafka clients 0.10+. This interface is also used for the Kafka connector 0.9
 	 * so a local enumeration is needed.
 	 */
 	enum TimestampType {
