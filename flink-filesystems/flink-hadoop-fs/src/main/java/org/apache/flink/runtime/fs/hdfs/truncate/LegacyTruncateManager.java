@@ -33,7 +33,7 @@ public class LegacyTruncateManager implements TruncateManager {
 
 	public static final String DEFAULT_VALID_SUFFIX = ".valid-length";
 
-	public static final String ORIGINAL_COPY_SUFFIX = ".original";
+	public static final String ORIGINAL_COPY_SUFFIX = ".original-copy";
 
 	private FileSystem hadoopFs;
 
