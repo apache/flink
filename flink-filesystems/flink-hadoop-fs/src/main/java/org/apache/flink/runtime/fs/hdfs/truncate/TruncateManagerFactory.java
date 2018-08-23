@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.fs.hdfs.truncate;
 
 import org.apache.flink.runtime.util.HadoopUtils;
+
 import org.apache.hadoop.fs.FileSystem;
 
 /**
