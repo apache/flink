@@ -67,31 +67,33 @@ public final class LatencyMarker extends StreamElement {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
+	public boolean equals(Object obj) {
+		if (this == obj)
 			return true;
-		}
-		if (o == null || getClass() != o.getClass()){
+		if (obj == null)
 			return false;
-		}
-
-		LatencyMarker that = (LatencyMarker) o;
-
-		if (markedTime != that.markedTime) {
+		if (getClass() != obj.getClass())
 			return false;
-		}
-		if (operatorId != that.operatorId) {
+		LatencyMarker other = (LatencyMarker) obj;
+		if (markedTime != other.markedTime)
 			return false;
-		}
-		return subtaskIndex == that.subtaskIndex;
-
+		if (operatorId == null) {
+			if (other.operatorId != null)
+				return false;
+		} else if (!operatorId.equals(other.operatorId))
+			return false;
+		if (subtaskIndex != other.subtaskIndex)
+			return false;
+		return true;
 	}
 
 	@Override
 	public int hashCode() {
-		int result = (int) (markedTime ^ (markedTime >>> 32));
-		result = 31 * result + operatorId.hashCode();
-		result = 31 * result + subtaskIndex;
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (markedTime ^ (markedTime >>> 32));
+		result = prime * result + ((operatorId == null) ? 0 : operatorId.hashCode());
+		result = prime * result + subtaskIndex;
 		return result;
 	}
 
