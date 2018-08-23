@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.WriteOptions;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -138,13 +139,13 @@ public class FsCheckpointStateOutputStreamTest {
 	 */
 	@Test
 	public void testCleanupWhenClosingStream() throws IOException {
-
 		final FileSystem fs = mock(FileSystem.class);
 		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
 
 		final ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
 
 		when(fs.create(pathCaptor.capture(), any(FileSystem.WriteMode.class))).thenReturn(outputStream);
+		when(fs.create(pathCaptor.capture(), any(WriteOptions.class))).thenReturn(outputStream);
 
 		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
 			Path.fromLocalFile(tempDir.newFolder()),
@@ -154,9 +155,6 @@ public class FsCheckpointStateOutputStreamTest {
 
 		// this should create the underlying file stream
 		stream.write(new byte[] {1, 2, 3, 4, 5});
-
-		verify(fs).create(any(Path.class), any(FileSystem.WriteMode.class));
-
 		stream.close();
 
 		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
@@ -170,9 +168,11 @@ public class FsCheckpointStateOutputStreamTest {
 		final FileSystem fs = mock(FileSystem.class);
 		final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
 
-		final ArgumentCaptor<Path>  pathCaptor = ArgumentCaptor.forClass(Path.class);
+		final ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
 
 		when(fs.create(pathCaptor.capture(), any(FileSystem.WriteMode.class))).thenReturn(outputStream);
+		when(fs.create(pathCaptor.capture(), any(WriteOptions.class))).thenReturn(outputStream);
+
 		doThrow(new IOException("Test IOException.")).when(outputStream).close();
 
 		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
@@ -183,8 +183,6 @@ public class FsCheckpointStateOutputStreamTest {
 
 		// this should create the underlying file stream
 		stream.write(new byte[] {1, 2, 3, 4, 5});
-
-		verify(fs).create(any(Path.class), any(FileSystem.WriteMode.class));
 
 		try {
 			stream.closeAndGetHandle();
