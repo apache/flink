@@ -1486,6 +1486,7 @@ Thus, in order to infer the metric identifier:
       <td>bytesRequestedPerFetch</td>
       <td>stream, shardId</td>
       <td>The bytes requested (2 Mbps / loopFrequencyHz) in a single call to getRecords.
+      </td>
       <td>Gauge</td>
     </tr>
   </tbody>
