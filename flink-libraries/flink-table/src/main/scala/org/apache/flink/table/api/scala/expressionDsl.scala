@@ -584,6 +584,11 @@ trait ImplicitExpressionOperations {
     */
   def rtrim() = RTrim(expr)
 
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(n: Expression) = Repeat(expr, n)
+
   // Temporal operations
 
   /**

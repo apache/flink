@@ -680,6 +680,45 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "null")
   }
 
+  @Test
+  def testRepeat(): Unit = {
+    testAllApis(
+      'f0.repeat(1),
+      "f0.repeat(1)",
+      "REPEAT(f0, 1)",
+      "This is a test String.")
+
+    testAllApis(
+      'f0.repeat(2),
+      "f0.repeat(2)",
+      "REPEAT(f0, 2)",
+      "This is a test String.This is a test String.")
+
+    testAllApis(
+      'f0.repeat(0),
+      "f0.repeat(0)",
+      "REPEAT(f0, 0)",
+      "")
+
+    testAllApis(
+      'f0.repeat(-1),
+      "f0.repeat(-1)",
+      "REPEAT(f0, -1)",
+      "")
+
+    testAllApis(
+      'f33.repeat(2),
+      "f33.repeat(2)",
+      "REPEAT(f33, 2)",
+      "null")
+
+    testAllApis(
+      "".repeat(1),
+      "''.repeat(1)",
+      "REPEAT('', 2)",
+      "")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
