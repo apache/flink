@@ -30,14 +30,18 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-
 	<artifactId>flink-filesystems</artifactId>
 	<name>flink-filesystems</name>
 	<packaging>pom</packaging>
 
+	<properties>
+		<fs.hadoopshaded.version>3.1.0</fs.hadoopshaded.version>
+	</properties>
+
 	<modules>
 		<module>flink-hadoop-fs</module>
 		<module>flink-mapr-fs</module>
+		<module>flink-fs-hadoop-shaded</module>
 		<module>flink-s3-fs-hadoop</module>
 		<module>flink-s3-fs-presto</module>
 		<module>flink-swift-fs-hadoop</module>
