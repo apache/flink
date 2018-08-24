@@ -26,7 +26,7 @@ import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
-import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
@@ -54,6 +54,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSourceSinkTable}
 import org.apache.flink.table.sinks.TableSink
@@ -232,6 +233,52 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the built-in physical optimization rules that are defined by the environment.
     */
   protected def getBuiltInPhysicalOptRuleSet: RuleSet
+
+  protected def optimizeConvertSubQueries(relNode: RelNode): RelNode = {
+    runHepPlanner(
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TABLE_SUBQUERY_RULES,
+      relNode,
+      relNode.getTraitSet)
+  }
+
+  protected def optimizeConvertTableReferences(relNode: RelNode): RelNode = {
+    runHepPlanner(
+      HepMatchOrder.BOTTOM_UP,
+      FlinkRuleSets.TABLE_REF_RULES,
+      relNode,
+      relNode.getTraitSet)
+  }
+
+
+  protected def optimizeNormalizeLogicalPlan(relNode: RelNode): RelNode = {
+    val normRuleSet = getNormRuleSet
+    if (normRuleSet.iterator().hasNext) {
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizeLogicalPlan(relNode: RelNode): RelNode = {
+    val logicalOptRuleSet = getLogicalOptRuleSet
+    val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
+    if (logicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(logicalOptRuleSet, relNode, logicalOutputProps)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizePhysicalPlan(relNode: RelNode, convention: Convention): RelNode = {
+    val physicalOptRuleSet = getPhysicalOptRuleSet
+    val physicalOutputProps = relNode.getTraitSet.replace(convention).simplify()
+    if (physicalOptRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(physicalOptRuleSet, relNode, physicalOutputProps)
+    } else {
+      relNode
+    }
+  }
 
   /**
     * run HEP planner
@@ -1308,5 +1355,4 @@ object TableEnvironment {
       case t: TypeInformation[_] => Array(t.asInstanceOf[TypeInformation[_]])
     }
   }
-
 }
