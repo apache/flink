@@ -35,6 +35,7 @@ under the License.
 	<modules>
 		<module>flink-examples-streaming-twitter</module>
 		<module>flink-examples-streaming-state-machine</module>
+		<module>flink-examples-streaming-gcp-pubsub</module>
 	</modules>
 
 </project>

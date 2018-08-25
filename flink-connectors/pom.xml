@@ -56,7 +56,7 @@ under the License.
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-filesystem</module>
 		<module>flink-connector-kafka</module>
-		<module>flink-connector-pubsub</module>
+		<module>flink-connector-gcp-pubsub</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
