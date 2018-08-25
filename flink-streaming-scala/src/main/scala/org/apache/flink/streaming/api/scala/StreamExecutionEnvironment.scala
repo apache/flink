@@ -564,6 +564,14 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     * @param interval
     *          In the case of periodic path monitoring, this specifies the interval (in millis)
     *          between consecutive path scans
+    * @param readConsistencyOffset
+    *          In the case of periodic path monitoring, this specifies the overlapping interval
+    *          (in millis) between two consecutive path scans. Setting this value > 0 ensures
+    *          that files with out-of-order timestamp (files made visible to the directory
+    *          monitoring process not at the moment they were last modified) are not missed.
+    *          Each scan starts from the previuous scan's max modification timestamp minus
+    *          readConsistencyOffset.
+    *          This offset is independent to the periodic <i>interval</i> parameter.
     * @return The data stream that represents the data read from the given file
     */
   @PublicEvolving
@@ -571,9 +579,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
       inputFormat: FileInputFormat[T],
       filePath: String,
       watchType: FileProcessingMode,
-      interval: Long): DataStream[T] = {
+      interval: Long,
+      readConsistencyOffset: Long = 0): DataStream[T] = {
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.readFile(inputFormat, filePath, watchType, interval, typeInfo))
+    asScalaStream(javaEnv.readFile(
+      inputFormat, filePath, watchType, interval, readConsistencyOffset, typeInfo))
   }
 
   /**

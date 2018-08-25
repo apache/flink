@@ -24,6 +24,8 @@ import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
@@ -78,6 +80,13 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 */
 	public static final long MIN_MONITORING_INTERVAL = 1L;
 
+	/**
+	 * The minimum offset allowed to re-scan the directory for out-of-order files.
+	 *
+	 * <p><b>NOTE:</b> Only applicable to the {@code PROCESS_CONTINUOUSLY} mode.
+	 */
+	public static final long MIN_READ_CONSISTENCY_OFFSET_INTERVAL = 0L;
+
 	/** The path to monitor. */
 	private final String path;
 
@@ -93,8 +102,22 @@ public class ContinuousFileMonitoringFunction<OUT>
 	/** Which new data to process (see {@link FileProcessingMode}. */
 	private final FileProcessingMode watchType;
 
-	/** The maximum file modification time seen so far. */
+	/** The offset interval back from the latest file modification timestamp to scan for our-of-order files.
+	 *  Valid value for this is from 0 to Long.MAX_VALUE.
+	 *
+	 *  <p><b>NOTE: </b>: Files with (modTime > Long.MIN_VALUE + readConsistencyOffset) will NOT be read.
+	 */
+	private final long readConsistencyOffset;
+
+	/** The current modification time watermark. */
 	private volatile long globalModificationTime = Long.MIN_VALUE;
+
+	/** The maximum file modification time seen so far. */
+	private volatile long maxProcessedTime = Long.MIN_VALUE;
+
+	/** The list of processed files having modification time within the period from globalModificationTime
+	 *  to maxProcessedTime in the form of a Map&lt;filePath, lastModificationTime&gt;. */
+	private volatile Map<String, Long> processedFiles;
 
 	private transient Object checkpointLock;
 
@@ -102,11 +125,22 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	private transient ListState<Long> checkpointedState;
 
+	private transient ListState<Map<String, Long>> checkpointedStateProcessedFilesList;
+
 	public ContinuousFileMonitoringFunction(
 		FileInputFormat<OUT> format,
 		FileProcessingMode watchType,
 		int readerParallelism,
 		long interval) {
+		this(format, watchType, readerParallelism, interval, 0L);
+	}
+
+	public ContinuousFileMonitoringFunction(
+		FileInputFormat<OUT> format,
+		FileProcessingMode watchType,
+		int readerParallelism,
+		long interval,
+		long readConsistencyOffset) {
 
 		Preconditions.checkArgument(
 			watchType == FileProcessingMode.PROCESS_ONCE || interval >= MIN_MONITORING_INTERVAL,
@@ -118,18 +152,38 @@ public class ContinuousFileMonitoringFunction<OUT>
 			format.getFilePaths().length == 1,
 			"FileInputFormats with multiple paths are not supported yet.");
 
+		Preconditions.checkArgument(
+			watchType == FileProcessingMode.PROCESS_ONCE || readConsistencyOffset >= MIN_READ_CONSISTENCY_OFFSET_INTERVAL,
+			"The specified read-consistency offset (" + readConsistencyOffset +
+				" ms) is smaller than the minimum allowed one (" +
+				MIN_READ_CONSISTENCY_OFFSET_INTERVAL + " ms)."
+		);
+
 		this.format = Preconditions.checkNotNull(format, "Unspecified File Input Format.");
 		this.path = Preconditions.checkNotNull(format.getFilePaths()[0].toString(), "Unspecified Path.");
 
 		this.interval = interval;
 		this.watchType = watchType;
 		this.readerParallelism = Math.max(readerParallelism, 1);
+		this.readConsistencyOffset = readConsistencyOffset;
 		this.globalModificationTime = Long.MIN_VALUE;
+		this.maxProcessedTime = Long.MIN_VALUE + this.readConsistencyOffset;
+		this.processedFiles = new HashMap<>();
 	}
 
 	@VisibleForTesting
 	public long getGlobalModificationTime() {
 		return this.globalModificationTime;
+	}
+
+	@VisibleForTesting
+	public long getMaxProcessedTime() {
+		return this.maxProcessedTime;
+	}
+
+	@VisibleForTesting
+	public Map<String, Long> getProccessedFiles() {
+		return this.processedFiles;
 	}
 
 	@Override
@@ -144,6 +198,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 				LongSerializer.INSTANCE
 			)
 		);
+		this.checkpointedStateProcessedFilesList = context.getOperatorStateStore().getListState(
+			new ListStateDescriptor<>(
+				"file-monitoring-state-processed-files-list",
+				new MapSerializer<>(StringSerializer.INSTANCE, LongSerializer.INSTANCE)
+			)
+		);
 
 		if (context.isRestored()) {
 			LOG.info("Restoring state for the {}.", getClass().getSimpleName());
@@ -152,11 +212,15 @@ public class ContinuousFileMonitoringFunction<OUT>
 			for (Long entry : this.checkpointedState.get()) {
 				retrievedStates.add(entry);
 			}
+			List<Map<String, Long>> retrievedStates2 = new ArrayList<>();
+			for (Map<String, Long> entry : this.checkpointedStateProcessedFilesList.get()) {
+				retrievedStates2.add(entry);
+			}
 
 			// given that the parallelism of the function is 1, we can only have 1 or 0 retrieved items.
 			// the 0 is for the case that we are migrating from a previous Flink version.
 
-			Preconditions.checkArgument(retrievedStates.size() <= 1,
+			Preconditions.checkArgument(retrievedStates.size() <= 1 && retrievedStates2.size() <= 1,
 				getClass().getSimpleName() + " retrieved invalid state.");
 
 			if (retrievedStates.size() == 1 && globalModificationTime != Long.MIN_VALUE) {
@@ -171,6 +235,26 @@ public class ContinuousFileMonitoringFunction<OUT>
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} retrieved a global mod time of {}.",
 						getClass().getSimpleName(), globalModificationTime);
+				}
+				if (retrievedStates2.size() == 1 && processedFiles.size() != 0) {
+					// this is the case where we have both legacy and new state.
+					// The two should be mutually exclusive for the operator, thus we throw the exception.
+					throw new IllegalArgumentException(
+						"The " + getClass().getSimpleName() + " has already restored from a previous Flink version.");
+				} else if (retrievedStates2.size() == 1) {
+					this.processedFiles = retrievedStates2.get(0);
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("{} retrieved a list of {} processed files.",
+							getClass().getSimpleName(), processedFiles.size());
+					}
+				}
+				// Infer new maxProcessedTime from the list of processedFiles.
+				this.maxProcessedTime = this.processedFiles.size() > 0 ?
+					java.util.Collections.max(this.processedFiles.values()) :
+					this.globalModificationTime;
+				// This check is to ensure that maxProcessedTime - readConsistencyOffset > Long.MIN_VALUE
+				if (this.maxProcessedTime < Long.MIN_VALUE + this.readConsistencyOffset) {
+					this.maxProcessedTime = Long.MIN_VALUE + this.readConsistencyOffset;
 				}
 			}
 
@@ -248,7 +332,19 @@ public class ContinuousFileMonitoringFunction<OUT>
 				context.collect(split);
 			}
 			// update the global modification time
-			globalModificationTime = Math.max(globalModificationTime, modificationTime);
+			maxProcessedTime = Math.max(maxProcessedTime, modificationTime);
+		}
+		// Populate processed files.
+		// This check is to ensure that globalModificationTime will not go backward
+		// even if readConsistencyOffset is changed to a large value after a restore from checkpoint,
+		// so  files would be processed twice
+		globalModificationTime = Math.max(maxProcessedTime - readConsistencyOffset, globalModificationTime);
+
+		processedFiles.entrySet().removeIf(item -> item.getValue() <= globalModificationTime);
+		for (FileStatus fileStatus: eligibleFiles.values()) {
+			if (fileStatus.getModificationTime() > globalModificationTime) {
+				processedFiles.put(fileStatus.getPath().getPath(), fileStatus.getModificationTime());
+			}
 		}
 	}
 
@@ -322,17 +418,21 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	/**
 	 * Returns {@code true} if the file is NOT to be processed further.
-	 * This happens if the modification time of the file is smaller than
-	 * the {@link #globalModificationTime}.
+	 * This happens if the modification time of the file is (i) smaller than the {@link #globalModificationTime}
+	 * or (ii) smaller than {@link #maxProcessedTime} and in the list {@link #processedFiles}
 	 * @param filePath the path of the file to check.
 	 * @param modificationTime the modification time of the file.
 	 */
 	private boolean shouldIgnore(Path filePath, long modificationTime) {
 		assert (Thread.holdsLock(checkpointLock));
-		boolean shouldIgnore = modificationTime <= globalModificationTime;
+		boolean shouldIgnore =
+			(modificationTime <= globalModificationTime) ||
+				((modificationTime <= maxProcessedTime) &&
+					(processedFiles.containsKey(filePath.getPath()) &&
+						modificationTime <= processedFiles.get(filePath.getPath())));
 		if (shouldIgnore && LOG.isDebugEnabled()) {
-			LOG.debug("Ignoring " + filePath + ", with mod time= " + modificationTime +
-				" and global mod time= " + globalModificationTime);
+			LOG.debug("Ignoring {}, with mod time: {}, watermark: {}, and max mod-time: {}",
+				filePath, modificationTime, globalModificationTime, maxProcessedTime);
 		}
 		return shouldIgnore;
 	}
@@ -344,6 +444,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 		if (checkpointLock != null) {
 			synchronized (checkpointLock) {
 				globalModificationTime = Long.MAX_VALUE;
+				processedFiles.clear();
 				isRunning = false;
 			}
 		}
@@ -359,10 +460,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 			// this is to cover the case where cancel() is called before the run()
 			synchronized (checkpointLock) {
 				globalModificationTime = Long.MAX_VALUE;
+				processedFiles.clear();
 				isRunning = false;
 			}
 		} else {
 			globalModificationTime = Long.MAX_VALUE;
+			processedFiles.clear();
 			isRunning = false;
 		}
 	}
@@ -376,9 +479,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 		this.checkpointedState.clear();
 		this.checkpointedState.add(this.globalModificationTime);
+		this.checkpointedStateProcessedFilesList.clear();
+		this.checkpointedStateProcessedFilesList.add(this.processedFiles);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);
+			LOG.debug("{} checkpointed globalModificationTime {}, and {} files.",
+				getClass().getSimpleName(), globalModificationTime, processedFiles.size());
 		}
 	}
 }

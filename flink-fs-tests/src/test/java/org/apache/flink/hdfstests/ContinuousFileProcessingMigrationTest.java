@@ -73,6 +73,8 @@ public class ContinuousFileProcessingMigrationTest {
 
 	private static final long INTERVAL = 100;
 
+	private static final long READ_CONSISTENCY_OFFSET_INTERVAL = 75;
+
 	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
 	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
 		return Arrays.asList(
@@ -295,7 +297,7 @@ public class ContinuousFileProcessingMigrationTest {
 		TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL, READ_CONSISTENCY_OFFSET_INTERVAL);
 
 		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
 			new StreamSource<>(monitoringFunction);
@@ -314,7 +316,8 @@ public class ContinuousFileProcessingMigrationTest {
 		testHarness.open();
 
 		Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
-
+		Assert.assertEquals((long) expectedModTime, monitoringFunction.getMaxProcessedTime());
+		Assert.assertEquals(0, monitoringFunction.getProccessedFiles().size());
 	}
 
 	private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {

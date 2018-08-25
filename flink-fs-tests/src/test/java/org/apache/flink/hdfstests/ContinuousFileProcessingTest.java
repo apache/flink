@@ -82,6 +82,8 @@ public class ContinuousFileProcessingTest {
 	private static final int LINES_PER_FILE = 10;
 
 	private static final long INTERVAL = 100;
+	private static final long READ_CONSISTENCY_OFFSET_INTERVAL = 75;
+	private static final long LONG_READ_CONSISTENCY_OFFSET_INTERVAL = 30_000;
 
 	private static FileSystem hdfs;
 	private static String hdfsURI;
@@ -832,32 +834,47 @@ public class ContinuousFileProcessingTest {
 		testHarnessCopy.open();
 
 		Assert.assertNull(error[0]);
-		Assert.assertEquals(fileModTime, monitoringFunctionCopy.getGlobalModificationTime());
+		Assert.assertEquals(fileModTime, monitoringFunctionCopy.getGlobalModificationTime() + READ_CONSISTENCY_OFFSET_INTERVAL);
+		Assert.assertEquals(fileModTime, monitoringFunctionCopy.getMaxProcessedTime());
+		Assert.assertEquals(1, monitoringFunctionCopy.getProccessedFiles().size());
+		Assert.assertTrue(monitoringFunctionCopy.getProccessedFiles().containsKey(path.toUri().getPath()));
+		Assert.assertEquals((Long) fileModTime, monitoringFunctionCopy.getProccessedFiles().get(path.toUri().getPath()));
 
 		hdfs.delete(path, false);
 	}
 
 	@Test
 	public void testProcessContinuously() throws Exception {
+		testProcessContinuously(true);
+	}
+
+	@Test
+	public void testProcessContinuouslyWithNotTooLateFile() throws Exception {
+		testProcessContinuously(false);
+	}
+
+	private void testProcessContinuously(boolean tooLate) throws Exception {
 		String testBasePath = hdfsURI + "/" + UUID.randomUUID() + "/";
+		String testTempPath = hdfsURI + "/" + UUID.randomUUID() + "/";
 
 		final OneShotLatch latch = new OneShotLatch();
 
 		// create a single file in the directory
-		Tuple2<org.apache.hadoop.fs.Path, String> bootstrap =
-			createFileAndFillWithData(testBasePath, "file", NO_OF_FILES + 1, "This is test line.");
-		Assert.assertTrue(hdfs.exists(bootstrap.f0));
+		org.apache.hadoop.fs.Path bootstrap =
+			createFileAndFillWithData(testBasePath, "first_", NO_OF_FILES + 1, "This is test line.").f0;
+		Assert.assertTrue(hdfs.exists(bootstrap));
 
 		final Set<String> filesToBeRead = new TreeSet<>();
-		filesToBeRead.add(bootstrap.f0.getName());
+		filesToBeRead.add(bootstrap.getName());
 
 		TextInputFormat format = new TextInputFormat(new Path(testBasePath));
 		format.setFilesFilter(FilePathFilter.createDefaultFilter());
 
 		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY);
+			createTestContinuousFileMonitoringFunction(format, FileProcessingMode.PROCESS_CONTINUOUSLY,
+				tooLate ? READ_CONSISTENCY_OFFSET_INTERVAL : LONG_READ_CONSISTENCY_OFFSET_INTERVAL);
 
-		final int totalNoOfFilesToBeRead = NO_OF_FILES + 1; // 1 for the bootstrap + NO_OF_FILES
+		final int totalNoOfFilesToBeRead = NO_OF_FILES + (tooLate ? 0 : 1) + 2; // 2 for the bootstrap & finale
 		final FileVerifyingSourceContext context = new FileVerifyingSourceContext(latch,
 			monitoringFunction, 1, totalNoOfFilesToBeRead);
 
@@ -879,6 +896,13 @@ public class ContinuousFileProcessingTest {
 			latch.await();
 		}
 
+		// create one file in a different folder to simulate out of order file
+		org.apache.hadoop.fs.Path lateFile =
+			createFileAndFillWithData(testTempPath, "late_", 0, "This is test line.").f0;
+		if (tooLate) {
+			Thread.sleep(READ_CONSISTENCY_OFFSET_INTERVAL);
+		}
+
 		// create some additional files that will be processed in the case of PROCESS_CONTINUOUSLY
 		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
 		for (int i = 0; i < NO_OF_FILES; i++) {
@@ -888,13 +912,29 @@ public class ContinuousFileProcessingTest {
 			filesToBeRead.add(file.f0.getName());
 		}
 
+		// Sleep for 1.5 * INTERVAL to ensure that the late coming files only appear after other files have been processed
+		Thread.sleep(INTERVAL * 3 / 2);
+		org.apache.hadoop.fs.Path lateFileNew = new org.apache.hadoop.fs.Path(filesCreated[0].getParent(), lateFile.getName());
+		hdfs.rename(lateFile, lateFileNew);
+		if (!tooLate) {
+			filesToBeRead.add(lateFileNew.getName());
+		}
+
+		org.apache.hadoop.fs.Path finalizer =
+			createFileAndFillWithData(testBasePath, "last_", NO_OF_FILES + 2, "This is test line.").f0;
+		filesToBeRead.add(finalizer.getName());
+
 		// wait until the monitoring thread exits
 		t.join();
 
 		Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
+		Assert.assertEquals(monitoringFunction.getMaxProcessedTime(),
+			hdfs.getFileStatus(finalizer).getModificationTime());
 
 		// finally delete the files created for the test.
-		hdfs.delete(bootstrap.f0, false);
+		hdfs.delete(bootstrap, false);
+		hdfs.delete(lateFileNew, false);
+		hdfs.delete(finalizer, false);
 		for (org.apache.hadoop.fs.Path path: filesCreated) {
 			hdfs.delete(path, false);
 		}
@@ -906,7 +946,7 @@ public class ContinuousFileProcessingTest {
 
 		private final ContinuousFileMonitoringFunction src;
 		private final OneShotLatch latch;
-		private final Set<String> seenFiles;
+		private final List<String> seenFiles;
 
 		private int elementsBeforeNotifying = -1;
 		private int elementsBeforeCanceling = -1;
@@ -920,14 +960,15 @@ public class ContinuousFileProcessingTest {
 								int elementsBeforeNotifying,
 								int elementsBeforeCanceling) {
 			this.latch = latch;
-			this.seenFiles = new TreeSet<>();
+			this.seenFiles = new ArrayList<>();
 			this.src = src;
 			this.elementsBeforeNotifying = elementsBeforeNotifying;
 			this.elementsBeforeCanceling = elementsBeforeCanceling;
 		}
 
-		Set<String> getSeenFiles() {
-			return this.seenFiles;
+		List<String> getSeenFiles() {
+			Collections.sort(seenFiles);
+			return seenFiles;
 		}
 
 		@Override
@@ -1054,11 +1095,22 @@ public class ContinuousFileProcessingTest {
 	}
 
 	/**
-	 * Create continuous monitoring function with 1 reader-parallelism and interval: {@link #INTERVAL}.
+	 * Create continuous monitoring function with 1 reader-parallelism, interval {@link #INTERVAL}
+	 * and read_consistency_offset_interval {@link #READ_CONSISTENCY_OFFSET_INTERVAL}.
 	 */
 	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
 		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
+			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, READ_CONSISTENCY_OFFSET_INTERVAL);
+		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
+		return monitoringFunction;
+	}
+
+	/**
+	 * Create continuous monitoring function with 1 reader-parallelism and interval {@link #INTERVAL}.
+	 */
+	private <OUT> ContinuousFileMonitoringFunction<OUT> createTestContinuousFileMonitoringFunction(FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode, long readConsistencyOffset) {
+		ContinuousFileMonitoringFunction<OUT> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL, readConsistencyOffset);
 		monitoringFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
 		return monitoringFunction;
 	}
