@@ -81,7 +81,7 @@ Example:
 StreamExecutionEnvironment streamExecEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
 SerializationSchema<SomeObject> serializationSchema = (...);
-SourceFunction<SomeObject> pubsubSink = PubSubSink.<SomeObject>newBuilder()
+SinkFunction<SomeObject> pubsubSink = PubSubSink.<SomeObject>newBuilder()
                                                   .withSerializationSchema(serializationSchema)
                                                   .withTopicName("pubsub-topic-name")
                                                   .withProjectName("google-project-name")

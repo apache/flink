@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.examples.pubsub;
 
-import com.google.api.core.ApiFuture;
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.ProjectTopicName;
@@ -25,6 +24,9 @@ import com.google.pubsub.v1.PubsubMessage;
 
 import java.math.BigInteger;
 
+/**
+ * Helper class to send PubSubMessages to a PubSub topic.
+ */
 class PubSubPublisher {
 	private final String projectName;
 	private final String topicName;
@@ -34,21 +36,22 @@ class PubSubPublisher {
 		this.topicName = topicName;
 	}
 
-	void publish() {
+	/**
+	 * Publish messages with as payload a single integer.
+	 * The integers inside the messages start from 0 and increase by one for each message send.
+	 * @param amountOfMessages amount of messages to send
+	 */
+	void publish(int amountOfMessages) {
 		Publisher publisher = null;
 		try {
 			publisher = Publisher.newBuilder(ProjectTopicName.of(projectName, topicName)).build();
-			long counter = 0;
-			while (counter < 10) {
-				ByteString messageData = ByteString.copyFrom(BigInteger.valueOf(counter).toByteArray());
+			for (int i = 0; i < amountOfMessages; i++) {
+				ByteString messageData = ByteString.copyFrom(BigInteger.valueOf(i).toByteArray());
 				PubsubMessage message = PubsubMessage.newBuilder().setData(messageData).build();
+				publisher.publish(message).get();
 
-				ApiFuture<String> future = publisher.publish(message);
-				future.get();
-				System.out.println("Published message: " + counter);
+				System.out.println("Published message: " + i);
 				Thread.sleep(100L);
-
-				counter++;
 			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);

@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.pubsub.common;
 
 import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.NoCredentialsProvider;
 import com.google.auth.Credentials;
-import com.google.cloud.NoCredentials;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -60,7 +60,7 @@ public class SerializableCredentialsProvider implements CredentialsProvider, Ser
 	 * @see <a href="https://cloud.google.com/pubsub/docs/emulator" target="_top">https://cloud.google.com/pubsub/docs/emulator</a>
 	 */
 	public static SerializableCredentialsProvider withoutCredentials() {
-		return new SerializableCredentialsProvider(NoCredentials.getInstance());
+		return new SerializableCredentialsProvider(NoCredentialsProvider.create().getCredentials());
 	}
 
 	@Override

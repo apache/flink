@@ -55,7 +55,7 @@ public class PubSubExample {
 
 		PubSubPublisher pubSubPublisher = new PubSubPublisher(projectName, inputTopicName);
 
-		pubSubPublisher.publish();
+		pubSubPublisher.publish(10);
 		runFlinkJob(projectName, subscriptionName, outputTopicName);
 	}
 

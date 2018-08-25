@@ -34,6 +34,10 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<pubsub.version>1.31.0</pubsub.version>
+	</properties>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -70,7 +74,7 @@ under the License.
 		<dependency>
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-pubsub</artifactId>
-			<version>1.31.0</version>
+			<version>${pubsub.version}</version>
 		</dependency>
 
 		<dependency>

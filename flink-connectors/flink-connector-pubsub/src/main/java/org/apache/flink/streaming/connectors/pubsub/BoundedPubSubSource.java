@@ -23,8 +23,8 @@ import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
 
 /**
- * A bounded PubSub Source, similar to {@link PubSubSource} but this will stop at some point. For example after a period of idle or and after n amount of messages have been received.
- *
+ * A bounded PubSub Source, similar to {@link PubSubSource} but this will stop at some point.
+ * For example after a period of being idle or and after n amount of messages have been received.
  */
 public class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 	private Bound<OUT> bound;
@@ -63,7 +63,8 @@ public class BoundedPubSubSource<OUT> extends PubSubSource<OUT> {
 	 * @param <OUT> Type of Object which will be read by the BoundedPubSubSource
 	 */
 	@SuppressWarnings("unchecked")
-	public static class BoundedPubSubSourceBuilder<OUT, PSS extends BoundedPubSubSource<OUT>, BUILDER extends BoundedPubSubSourceBuilder<OUT, PSS, BUILDER>> extends PubSubSourceBuilder<OUT, PSS, BUILDER> {
+	public static class BoundedPubSubSourceBuilder<OUT, PSS extends BoundedPubSubSource<OUT>, BUILDER extends BoundedPubSubSourceBuilder<OUT, PSS, BUILDER>>
+			extends PubSubSourceBuilder<OUT, PSS, BUILDER> {
 		private Long boundedByAmountOfMessages;
 		private Long boundedByTimeSinceLastMessage;
 

@@ -41,7 +41,8 @@ import java.util.List;
 /**
  * PubSub Source, this Source will consume PubSub messages from a subscription and Acknowledge them as soon as they have been received.
  */
-public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer> implements MessageReceiver, ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT> {
+public class PubSubSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OUT, String, AckReplyConsumer>
+		implements MessageReceiver, ResultTypeQueryable<OUT>, ParallelSourceFunction<OUT> {
 	private DeserializationSchema<OUT> deserializationSchema;
 	private SubscriberWrapper subscriberWrapper;
 

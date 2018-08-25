@@ -31,6 +31,10 @@ import io.grpc.ManagedChannelBuilder;
 
 import java.io.Serializable;
 
+/**
+ * Wrapper class around a PubSub {@link Subscriber}.
+ * This class makes it easier to connect to a Non Google PubSub service such as a local PubSub emulator or docker container.
+ */
 class SubscriberWrapper implements Serializable {
 	private final SerializableCredentialsProvider serializableCredentialsProvider;
 	private final String projectId;

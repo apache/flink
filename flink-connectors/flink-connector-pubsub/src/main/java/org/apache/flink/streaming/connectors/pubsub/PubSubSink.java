@@ -34,8 +34,11 @@ import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A sink function that outputs to PubSub.
@@ -43,6 +46,7 @@ import java.io.IOException;
  * @param <IN> type of PubSubSink messages to write
  */
 public class PubSubSink<IN> extends RichSinkFunction<IN> {
+	private static final Logger LOG = LoggerFactory.getLogger(PubSubSink.class);
 
 	private SerializableCredentialsProvider serializableCredentialsProvider;
 	private SerializationSchema<IN> serializationSchema;
@@ -121,10 +125,39 @@ public class PubSubSink<IN> extends RichSinkFunction<IN> {
 	@Override
 	public void close() throws Exception {
 		super.close();
-		publisher.shutdown();
-		if (channel != null) {
+		shutdownPublisher();
+		shutdownTransportChannel();
+		shutdownManagedChannel();
+	}
+
+	private void shutdownPublisher() {
+		try {
+			publisher.shutdown();
+		} catch (Exception e) {
+			LOG.info("Shutting down Publisher failed: " + e.getMessage());
+		}
+	}
+
+	private void shutdownTransportChannel() {
+		if (channel == null) {
+			return;
+		}
+		try {
 			channel.close();
+		} catch (Exception e) {
+			LOG.info("Shutting down TransportChannel failed: " + e.getMessage());
+		}
+	}
+
+	private void shutdownManagedChannel() {
+		if (managedChannel == null) {
+			return;
+		}
+		try {
 			managedChannel.shutdownNow();
+			managedChannel.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			LOG.info("Shutting down ManagedChannel failed: " + e.getMessage());
 		}
 	}
 

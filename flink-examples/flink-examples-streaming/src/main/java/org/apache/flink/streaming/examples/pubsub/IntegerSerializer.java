@@ -24,6 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import java.io.IOException;
 import java.math.BigInteger;
 
+/**
+ * Deserialization schema to deserialize messages produced by {@link PubSubPublisher}.
+ * The byte[] received by this schema must contain a single Integer.
+ */
 class IntegerSerializer implements DeserializationSchema<Integer>, SerializationSchema<Integer> {
 
 	@Override

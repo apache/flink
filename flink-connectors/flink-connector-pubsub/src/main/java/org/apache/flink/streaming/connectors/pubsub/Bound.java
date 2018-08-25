@@ -26,6 +26,14 @@ import java.io.Serializable;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * This class defines a bound based on messages received or time since last received message.
+ * Using start(SourceFunction) starts the bound. Everytime a message is received the sourceFunction should call receivedMessage().
+ * When the bound is reached, the sourcefunction gets closed by calling sourceFunction.close()
+ * See {@link BoundedPubSubSource}.
+ *
+ * @param <OUT> type of message that is received by the SourceFunction.
+ */
 class Bound<OUT> implements Serializable {
 	private static final Logger LOG = LoggerFactory.getLogger(Bound.class);
 
@@ -110,6 +118,12 @@ class Bound<OUT> implements Serializable {
 		}
 	}
 
+	/**
+	 * There are 3 types of Bounds.
+	 * COUNTER - A maximum amount of received messages per SourceFunction
+	 * TIMER - A maximum amount of idle time between messages per SourceFunction
+	 * COUNTER_OR_TIMER - Maximum amount of messages OR maximum amount of idle time.
+	 */
 	private enum Mode {
 		COUNTER, TIMER, COUNTER_OR_TIMER
 	}
