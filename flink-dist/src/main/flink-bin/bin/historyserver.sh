@@ -28,6 +28,7 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
+    export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_HS}"
 	args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
