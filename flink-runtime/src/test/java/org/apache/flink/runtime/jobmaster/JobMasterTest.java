@@ -21,13 +21,17 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -50,10 +54,12 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
@@ -64,9 +70,11 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -76,6 +84,8 @@ import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMet
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
@@ -102,6 +112,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -127,6 +138,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -704,6 +716,66 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	private JobGraph createDataSourceJobGraph() {
+		final TextInputFormat inputFormat = new TextInputFormat(new Path("."));
+		final InputFormatVertex producer = new InputFormatVertex("Producer");
+		new TaskConfig(producer.getConfiguration()).setStubWrapper(new UserCodeObjectWrapper<InputFormat<?, ?>>(inputFormat));
+		producer.setInvokableClass(DataSourceTask.class);
+
+		final JobVertex consumer = new JobVertex("Consumer");
+		consumer.setInvokableClass(NoOpInvokable.class);
+		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+		final JobGraph jobGraph = new JobGraph(producer, consumer);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		return jobGraph;
+	}
+
+	/**
+	 * Tests the {@link JobMaster#requestNextInputSplit(JobVertexID, ExecutionAttemptID)}
+	 * validate that it will get same result for a different retry
+	 */
+	@Test
+	public void testRequestNextInputSplitWithDataSourceFailover() throws Exception {
+
+		final JobGraph dataSourceJobGraph = createDataSourceJobGraph();
+		testJobMasterAPIWithMockExecution(dataSourceJobGraph, (tdd, jobMaster) ->{
+			try{
+				final JobMasterGateway gateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+				final TaskInformation taskInformation = tdd.getSerializedTaskInformation()
+					.deserializeValue(getClass().getClassLoader());
+				JobVertexID vertexID = taskInformation.getJobVertexId();
+
+				//get the previous split
+				SerializedInputSplit split1 = gateway.requestNextInputSplit(vertexID, tdd.getExecutionAttemptId()).get();
+
+				//start a new version of this execution
+				ExecutionGraph executionGraph = jobMaster.getExecutionGraph();
+				Execution execution = executionGraph.getRegisteredExecutions().get(tdd.getExecutionAttemptId());
+				ExecutionVertex executionVertex = execution.getVertex();
+
+				long version = execution.getGlobalModVersion();
+				gateway.updateTaskExecutionState(new TaskExecutionState(dataSourceJobGraph.getJobID(), tdd.getExecutionAttemptId(), ExecutionState.FINISHED)).get();
+				Execution newExecution = executionVertex.resetForNewExecution(System.currentTimeMillis(), version);
+
+				//get the new split
+				SerializedInputSplit split2 = gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
+
+				Assert.assertArrayEquals(split1.getInputSplitData(), split2.getInputSplitData());
+
+				//get the new split3
+				SerializedInputSplit split3 = gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
+
+				Assert.assertNotEquals(split1.getInputSplitData().length, split3.getInputSplitData().length);
+			}
+			catch (Exception e){
+				Assert.fail(e.toString());
+			}
+		});
+	}
+
 	@Test
 	public void testRequestNextInputSplit() throws Exception {
 		final List<TestingInputSplit> expectedInputSplits = Arrays.asList(
@@ -850,16 +922,10 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
-	/**
-	 * Tests the {@link JobMaster#requestPartitionState(IntermediateDataSetID, ResultPartitionID)}
-	 * call for a finished result partition.
-	 */
-	@Test
-	public void testRequestPartitionState() throws Exception {
-		final JobGraph producerConsumerJobGraph = producerConsumerJobGraph();
+	private void testJobMasterAPIWithMockExecution(JobGraph graph, BiConsumer<TaskDeploymentDescriptor, JobMaster> consumer) throws  Exception{
 		final JobMaster jobMaster = createJobMaster(
 			configuration,
-			producerConsumerJobGraph,
+			graph,
 			haServices,
 			new TestingJobManagerSharedServicesBuilder().build(),
 			heartbeatServices);
@@ -904,23 +970,41 @@ public class JobMasterTest extends TestLogger {
 
 			// obtain tdd for the result partition ids
 			final TaskDeploymentDescriptor tdd = tddFuture.get();
+			consumer.accept(tdd, jobMaster);
 
-			assertThat(tdd.getProducedPartitions(), hasSize(1));
-			final ResultPartitionDeploymentDescriptor partition = tdd.getProducedPartitions().iterator().next();
-
-			final ExecutionAttemptID executionAttemptId = tdd.getExecutionAttemptId();
-			final ExecutionAttemptID copiedExecutionAttemptId = new ExecutionAttemptID(executionAttemptId.getLowerPart(), executionAttemptId.getUpperPart());
-
-			// finish the producer task
-			jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();
-
-			// request the state of the result partition of the producer
-			final CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId));
-
-			assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
 		} finally {
 			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
 		}
+	}
+
+	/**
+	 * Tests the {@link JobMaster#requestPartitionState(IntermediateDataSetID, ResultPartitionID)}
+	 * call for a finished result partition.
+	 */
+	@Test
+	public void testRequestPartitionState() throws Exception {
+		JobGraph producerConsumerJobGraph = producerConsumerJobGraph();
+		testJobMasterAPIWithMockExecution(producerConsumerJobGraph, (tdd, jobMaster) ->{
+			try{
+				final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+				assertThat(tdd.getProducedPartitions(), hasSize(1));
+				final ResultPartitionDeploymentDescriptor partition = tdd.getProducedPartitions().iterator().next();
+
+				final ExecutionAttemptID executionAttemptId = tdd.getExecutionAttemptId();
+				final ExecutionAttemptID copiedExecutionAttemptId = new ExecutionAttemptID(executionAttemptId.getLowerPart(), executionAttemptId.getUpperPart());
+
+				// finish the producer task
+				jobMasterGateway.updateTaskExecutionState(new TaskExecutionState(producerConsumerJobGraph.getJobID(), executionAttemptId, ExecutionState.FINISHED)).get();
+
+				// request the state of the result partition of the producer
+				final CompletableFuture<ExecutionState> partitionStateFuture = jobMasterGateway.requestPartitionState(partition.getResultId(), new ResultPartitionID(partition.getPartitionId(), copiedExecutionAttemptId));
+
+				assertThat(partitionStateFuture.get(), equalTo(ExecutionState.FINISHED));
+			}
+			catch (Exception e) {
+				Assert.fail(e.toString());
+			}
+		});
 	}
 
 	/**
