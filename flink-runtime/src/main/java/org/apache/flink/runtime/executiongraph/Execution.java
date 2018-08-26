@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -179,6 +180,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile IOMetrics ioMetrics;
 
+	private int currentSplitIndex = 0;
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -308,6 +311,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// do not allow resource assignment if we are not in state SCHEDULED
 			return false;
 		}
+	}
+
+	public InputSplit getNextInputSplit() {
+		final LogicalSlot slot = this.getAssignedResource();
+		final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
+		return this.vertex.getNextInputSplit(this.currentSplitIndex++, host);
 	}
 
 	@Override

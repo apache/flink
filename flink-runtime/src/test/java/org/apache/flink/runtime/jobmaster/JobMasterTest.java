@@ -21,13 +21,17 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -54,6 +58,7 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -61,6 +66,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -68,6 +74,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.InputFormatVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -86,6 +93,8 @@ import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.operators.DataSourceTask;
+import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -124,6 +133,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -844,6 +854,118 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
+	private JobGraph createDataSourceJobGraph() {
+		final TextInputFormat inputFormat = new TextInputFormat(new Path("."));
+		final InputFormatVertex producer = new InputFormatVertex("Producer");
+		new TaskConfig(producer.getConfiguration()).setStubWrapper(new UserCodeObjectWrapper<InputFormat<?, ?>>(inputFormat));
+		producer.setInvokableClass(DataSourceTask.class);
+
+		final JobVertex consumer = new JobVertex("Consumer");
+		consumer.setInvokableClass(NoOpInvokable.class);
+		consumer.connectNewDataSetAsInput(producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+		final JobGraph jobGraph = new JobGraph(producer, consumer);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		return jobGraph;
+	}
+
+	/**
+	 * Tests the {@link JobMaster#requestNextInputSplit(JobVertexID, ExecutionAttemptID)}
+	 * validate that it will get same result for a different retry
+	 */
+	@Test
+	public void testRequestNextInputSplitWithDataSourceFailover() throws Exception {
+
+		final JobGraph dataSourceJobGraph = createDataSourceJobGraph();
+		final JobMaster jobMaster = createJobMaster(
+			configuration,
+			dataSourceJobGraph,
+			haServices,
+			new TestingJobManagerSharedServicesBuilder().build(),
+			heartbeatServices);
+
+		CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+
+		try {
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+
+			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+			testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+
+			rpcService.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			final CompletableFuture<TaskDeploymentDescriptor> tddFuture = new CompletableFuture<>();
+			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
+				.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
+					tddFuture.complete(taskDeploymentDescriptor);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+				.createTestingTaskExecutorGateway();
+			rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
+
+			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			rmLeaderRetrievalService.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			final AllocationID allocationId = allocationIdFuture.get();
+
+			final LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			jobMasterGateway.registerTaskManager(testingTaskExecutorGateway.getAddress(), taskManagerLocation, testingTimeout).get();
+
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+
+			final Collection<SlotOffer> slotOffers = jobMasterGateway.offerSlots(taskManagerLocation.getResourceID(), Collections.singleton(slotOffer), testingTimeout).get();
+
+			assertThat(slotOffers, hasSize(1));
+			assertThat(slotOffers, contains(slotOffer));
+
+			// obtain tdd for the result partition ids
+			final TaskDeploymentDescriptor tdd = tddFuture.get();
+
+			final JobMasterGateway gateway = jobMaster.getSelfGateway(JobMasterGateway.class);
+
+			final TaskInformation taskInformation = tdd.getSerializedTaskInformation()
+				.deserializeValue(getClass().getClassLoader());
+			JobVertexID vertexID = taskInformation.getJobVertexId();
+
+			//get the previous split
+			SerializedInputSplit split1 = gateway.requestNextInputSplit(vertexID, tdd.getExecutionAttemptId()).get();
+
+			//start a new version of this execution
+			ExecutionGraph executionGraph = jobMaster.getExecutionGraph();
+			Execution execution = executionGraph.getRegisteredExecutions().get(tdd.getExecutionAttemptId());
+			ExecutionVertex executionVertex = execution.getVertex();
+
+			long version = execution.getGlobalModVersion();
+			gateway.updateTaskExecutionState(new TaskExecutionState(dataSourceJobGraph.getJobID(), tdd.getExecutionAttemptId(), ExecutionState.FINISHED)).get();
+			Execution newExecution = executionVertex.resetForNewExecution(System.currentTimeMillis(), version);
+
+			//get the new split
+			SerializedInputSplit split2 = gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
+
+			Assert.assertArrayEquals(split1.getInputSplitData(), split2.getInputSplitData());
+
+			//get the new split3
+			SerializedInputSplit split3 = gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
+
+			Assert.assertNotEquals(split1.getInputSplitData().length, split3.getInputSplitData().length);
+			gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get();
+			InputSplit nullSplit = InstantiationUtil.deserializeObject(
+				gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get().getInputSplitData(), ClassLoader.getSystemClassLoader());
+			Assert.assertNull(nullSplit);
+
+			InputSplit nullSplit1 = InstantiationUtil.deserializeObject(
+				gateway.requestNextInputSplit(vertexID, newExecution.getAttemptId()).get().getInputSplitData(), ClassLoader.getSystemClassLoader());
+			Assert.assertNull(nullSplit1);
+		} finally {
+			RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+		}
+	}
+
 	@Test
 	public void testRequestNextInputSplit() throws Exception {
 		final List<TestingInputSplit> expectedInputSplits = Arrays.asList(
@@ -1345,9 +1467,9 @@ public class JobMasterTest extends TestLogger {
 
 			@Override
 			public CompletableFuture<String> triggerSavepoint(
-					@Nullable final String targetDirectory,
-					final boolean cancelJob,
-					final Time timeout) {
+				@Nullable final String targetDirectory,
+				final boolean cancelJob,
+				final Time timeout) {
 				return new CompletableFuture<>();
 			}
 		};
