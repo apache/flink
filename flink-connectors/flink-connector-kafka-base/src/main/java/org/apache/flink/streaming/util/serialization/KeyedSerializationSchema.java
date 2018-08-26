@@ -20,6 +20,8 @@ package org.apache.flink.streaming.util.serialization;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * The serialization schema describes how to turn a data object into a different serialized
@@ -55,4 +57,13 @@ public interface KeyedSerializationSchema<T> extends Serializable {
 	 * @return null or the target topic
 	 */
 	String getTargetTopic(T element);
+
+	/**
+	 *
+	 * @param element The incoming element to be serialized
+	 * @return collection of headers (maybe empty)
+	 */
+	default Iterable<Map.Entry<String, byte[]>> headers(T element) {
+		return Collections.emptyList();
+	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The deserialization schema describes how to turn the byte key / value messages delivered by certain
@@ -54,4 +55,20 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
 	boolean isEndOfStream(T nextElement);
+
+	/**
+	 * Deserializes the byte message.
+	 *
+	 * @param messageKey the key as a byte array (null if no key has been set).
+	 * @param message The message, as a byte array (null if the message was empty or deleted).
+	 * @param partition The partition the message has originated from.
+	 * @param offset the offset of the message in the original source (for example the Kafka offset).
+	 * @param headers the headers of the message
+	 *
+	 * @return The deserialized message as an object (null if the message cannot be deserialized).
+	 */
+	default T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, Iterable<Map.Entry<String, byte[]>> headers) throws IOException {
+		return deserialize(messageKey, message, topic, partition, offset);
+	}
+
 }

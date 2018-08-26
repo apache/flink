@@ -19,11 +19,21 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.internal.Kafka011Fetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
@@ -156,4 +166,37 @@ public class FlinkKafkaConsumer011<T> extends FlinkKafkaConsumer010<T> {
 	public FlinkKafkaConsumer011(Pattern subscriptionPattern, KeyedDeserializationSchema<T> deserializer, Properties props) {
 		super(subscriptionPattern, deserializer, props);
 	}
+
+	@Override
+	protected AbstractFetcher<T, ?> createFetcher(
+		SourceContext<T> sourceContext,
+		Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
+		SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+		SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+		StreamingRuntimeContext runtimeContext,
+		OffsetCommitMode offsetCommitMode,
+		MetricGroup consumerMetricGroup,
+		boolean useMetrics) throws Exception {
+
+		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
+		// this overwrites whatever setting the user configured in the properties
+		adjustAutoCommitConfig(offsetCommitMode);
+
+		return new Kafka011Fetcher<>(
+			sourceContext,
+			assignedPartitionsWithInitialOffsets,
+			watermarksPeriodic,
+			watermarksPunctuated,
+			runtimeContext.getProcessingTimeService(),
+			runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
+			runtimeContext.getUserCodeClassLoader(),
+			runtimeContext.getTaskNameWithSubtasks(),
+			deserializer,
+			properties,
+			pollTimeout,
+			runtimeContext.getMetricGroup(),
+			consumerMetricGroup,
+			useMetrics);
+	}
+
 }
