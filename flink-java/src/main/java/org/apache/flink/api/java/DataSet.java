@@ -1732,6 +1732,21 @@ public abstract class DataSet<T> {
 	 * This method adds a data sink to the program.
 	 *
 	 * @param outputFormat The FileOutputFormat to write the DataSet.
+	 * @return The DataSink that writes the DataSet.
+	 *
+	 * @see FileOutputFormat
+	 */
+	public DataSink<T> write(FileOutputFormat<T> outputFormat) {
+		Preconditions.checkNotNull(outputFormat, "Output format must not be null.");
+		Preconditions.checkNotNull(outputFormat.getOutputFilePath(), "File path must not be null.");
+		return output(outputFormat);
+	}
+
+	/**
+	 * Writes a DataSet using a {@link FileOutputFormat} to a specified location.
+	 * This method adds a data sink to the program.
+	 *
+	 * @param outputFormat The FileOutputFormat to write the DataSet.
 	 * @param filePath The path to the location where the DataSet is written.
 	 * @return The DataSink that writes the DataSet.
 	 *
