@@ -328,7 +328,7 @@ class RocksDBListState<K, N, V>
 		byte[] serializeValueList(
 			List<T> valueList,
 			TypeSerializer<T> elementSerializer,
-			byte delimiter) throws IOException {
+			@SuppressWarnings("SameParameterValue") byte delimiter) throws IOException {
 
 			out.clear();
 			boolean first = true;

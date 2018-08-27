@@ -53,4 +53,12 @@ public class RocksDBOptions {
 		.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
 		.defaultValue(1)
 		.withDescription("The number of threads used to transfer (download and upload) files in RocksDBStateBackend.");
+
+	/** This determines if compaction filter to cleanup state with TTL is enabled. */
+	public static final ConfigOption<Boolean> TTL_COMPACT_FILTER_ENABLED = ConfigOptions
+		.key("state.backend.rocksdb.ttl.compaction.filter.enabled")
+		.defaultValue(false)
+		.withDescription("This determines if compaction filter to cleanup state with TTL is enabled for backend." +
+			"Note: User can still decide in state TTL configuration in state descriptor " +
+			"whether the filter is active for particular state or not.");
 }

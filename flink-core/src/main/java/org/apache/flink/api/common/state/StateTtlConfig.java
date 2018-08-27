@@ -219,9 +219,7 @@ public class StateTtlConfig implements Serializable {
 		/** Cleanup expired state in full snapshot on checkpoint. */
 		@Nonnull
 		public Builder cleanupFullSnapshot() {
-			cleanupStrategies.strategies.put(
-				CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT,
-				new CleanupStrategies.EmptyCleanupStrategy());
+			cleanupStrategies.activate(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT);
 			return this;
 		}
 
@@ -256,9 +254,46 @@ public class StateTtlConfig implements Serializable {
 		public Builder cleanupIncrementally(
 			@Nonnegative int cleanupSize,
 			boolean runCleanupForEveryRecord) {
-			cleanupStrategies.strategies.put(
+			cleanupStrategies.activate(
 				CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
 				new IncrementalCleanupStrategy(cleanupSize, runCleanupForEveryRecord));
+			return this;
+		}
+
+		/**
+		 * Cleanup expired state while Rocksdb compaction is running.
+		 *
+		 * <p>RocksDB runs periodic compaction of state updates and merges them to free storage.
+		 * During this process, the TTL filter checks timestamp of state entries and drops expired ones.
+		 * The feature has to be activated in RocksDb backend firstly
+		 * using the following Flink configuration option:
+		 * state.backend.rocksdb.ttl.compaction.filter.enabled.
+		 *
+		 * <p>Due to specifics of RocksDB compaction filter,
+		 * cleanup is not properly guaranteed if put and merge operations are used at the same time:
+		 * https://github.com/facebook/rocksdb/blob/master/include/rocksdb/compaction_filter.h#L69
+		 * It means that the TTL filter should be tested for List state taking into account this caveat.
+		 *
+		 */
+		@Nonnull
+		public Builder cleanupInRocksdbCompactFilter() {
+			return cleanupInRocksdbCompactFilter(1000L);
+		}
+
+		/**
+		 * Cleanup expired state while Rocksdb compaction is running.
+		 *
+		 * <p>RocksDB compaction filter will query current timestamp,
+		 * used to check expiration, from Flink every time after processing {@code queryTimeAfterNumEntries} number of state entries.
+		 * Updating the timestamp more often can improve cleanup speed
+		 * but it decreases compaction performance because it uses JNI call from native code.
+		 *
+		 * @param queryTimeAfterNumEntries number of state entries to process by compaction filter before updating current timestamp
+		 */
+		@Nonnull
+		public Builder cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries) {
+			cleanupStrategies.activate(CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
+				new RocksdbCompactFilterCleanupStrategy(queryTimeAfterNumEntries));
 			return this;
 		}
 
@@ -293,10 +328,13 @@ public class StateTtlConfig implements Serializable {
 	public static class CleanupStrategies implements Serializable {
 		private static final long serialVersionUID = -1617740467277313524L;
 
+		private static final CleanupStrategy EMPTY_STRATEGY = new EmptyCleanupStrategy();
+
 		/** Fixed strategies ordinals in {@code strategies} config field. */
 		enum Strategies {
 			FULL_STATE_SCAN_SNAPSHOT,
-			INCREMENTAL_CLEANUP
+			INCREMENTAL_CLEANUP,
+			ROCKSDB_COMPACTION_FILTER
 		}
 
 		/** Base interface for cleanup strategies configurations. */
@@ -310,6 +348,14 @@ public class StateTtlConfig implements Serializable {
 
 		final EnumMap<Strategies, CleanupStrategy> strategies = new EnumMap<>(Strategies.class);
 
+		public void activate(Strategies strategy) {
+			activate(strategy, EMPTY_STRATEGY);
+		}
+
+		public void activate(Strategies strategy, CleanupStrategy config) {
+			strategies.put(strategy, config);
+		}
+
 		public boolean inFullSnapshot() {
 			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
 		}
@@ -317,6 +363,15 @@ public class StateTtlConfig implements Serializable {
 		@Nullable
 		public IncrementalCleanupStrategy getIncrementalCleanupStrategy() {
 			return (IncrementalCleanupStrategy) strategies.get(Strategies.INCREMENTAL_CLEANUP);
+		}
+
+		public boolean inRocksdbCompactFilter() {
+			return strategies.containsKey(Strategies.ROCKSDB_COMPACTION_FILTER);
+		}
+
+		@Nullable
+		public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
+			return (RocksdbCompactFilterCleanupStrategy) strategies.get(Strategies.ROCKSDB_COMPACTION_FILTER);
 		}
 	}
 
@@ -345,6 +400,22 @@ public class StateTtlConfig implements Serializable {
 
 		public boolean runCleanupForEveryRecord() {
 			return runCleanupForEveryRecord;
+		}
+	}
+
+	/** Configuration of cleanup strategy using custom compaction filter in RocksDB.  */
+	public static class RocksdbCompactFilterCleanupStrategy implements CleanupStrategies.CleanupStrategy {
+		private static final long serialVersionUID = 3109278796506988980L;
+
+		/** Number of state entries to process by compaction filter before updating current timestamp. */
+		private final long queryTimeAfterNumEntries;
+
+		private RocksdbCompactFilterCleanupStrategy(long queryTimeAfterNumEntries) {
+			this.queryTimeAfterNumEntries = queryTimeAfterNumEntries;
+		}
+
+		public long getQueryTimeAfterNumEntries() {
+			return queryTimeAfterNumEntries;
 		}
 	}
 }

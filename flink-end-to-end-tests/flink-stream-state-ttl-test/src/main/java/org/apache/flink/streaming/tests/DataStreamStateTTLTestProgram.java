@@ -20,6 +20,7 @@ package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -52,19 +53,20 @@ public class DataStreamStateTTLTestProgram {
 
 		setupEnvironment(env, pt);
 
-		final MonotonicTTLTimeProvider ttlTimeProvider = setBackendWithCustomTTLTimeProvider(env);
+		setBackendWithCustomTTLTimeProvider(env);
 
 		TtlTestConfig config = TtlTestConfig.fromArgs(pt);
 		StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(config.ttl)
-			.cleanupIncrementally(5, true)
 			.cleanupFullSnapshot()
+			.cleanupIncrementally(5, true)
+			.cleanupInRocksdbCompactFilter()
 			.build();
 
 		env
 			.addSource(new TtlStateUpdateSource(config.keySpace, config.sleepAfterElements, config.sleepTime))
 			.name("TtlStateUpdateSource")
 			.keyBy(TtlStateUpdate::getKey)
-			.flatMap(new TtlVerifyUpdateFunction(ttlConfig, ttlTimeProvider, config.reportStatAfterUpdatesNum))
+			.flatMap(new TtlVerifyUpdateFunction(ttlConfig, config.reportStatAfterUpdatesNum))
 			.name("TtlVerifyUpdateFunction")
 			.addSink(new PrintSinkFunction<>())
 			.name("PrintFailedVerifications");
@@ -76,15 +78,15 @@ public class DataStreamStateTTLTestProgram {
 	 * Sets the state backend to a new {@link StubStateBackend} which has a {@link MonotonicTTLTimeProvider}.
 	 *
 	 * @param env The {@link StreamExecutionEnvironment} of the job.
-	 * @return The {@link MonotonicTTLTimeProvider}.
 	 */
-	private static MonotonicTTLTimeProvider setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
+	private static void setBackendWithCustomTTLTimeProvider(StreamExecutionEnvironment env) {
 		final MonotonicTTLTimeProvider ttlTimeProvider = new MonotonicTTLTimeProvider();
 
 		final StateBackend configuredBackend = env.getStateBackend();
+		if (configuredBackend instanceof RocksDBStateBackend) {
+			((RocksDBStateBackend) configuredBackend).enableTtlCompactionFilter();
+		}
 		final StateBackend stubBackend = new StubStateBackend(configuredBackend, ttlTimeProvider);
 		env.setStateBackend(stubBackend);
-
-		return ttlTimeProvider;
 	}
 }
