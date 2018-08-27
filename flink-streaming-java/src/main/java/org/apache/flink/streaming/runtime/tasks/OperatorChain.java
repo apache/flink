@@ -397,7 +397,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		TypeSerializer outSerializer = null;
 
-		if (edge.getOutputTag() != null) {
+		if (sideOutputTag != null) {
 			// side output
 			outSerializer = upStreamConfig.getTypeSerializerSideOut(
 					edge.getOutputTag(), taskEnvironment.getUserClassLoader());
