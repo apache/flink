@@ -38,6 +38,12 @@ import java.util.Map;
  */
 public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
+	/**
+	 * Maximum number of materialized rows to be stored. After the count is reached, oldest
+	 * rows are dropped.
+	 */
+	private final long maxRowCount;
+
 	private final List<Row> materializedTable;
 
 	/**
@@ -55,9 +61,20 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 	private boolean isLastSnapshot;
 
-	public MaterializedCollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
-			InetAddress gatewayAddress, int gatewayPort) {
+	public MaterializedCollectStreamResult(
+			TypeInformation<Row> outputType,
+			ExecutionConfig config,
+			InetAddress gatewayAddress,
+			int gatewayPort,
+			long maxRowCount) {
 		super(outputType, config, gatewayAddress, gatewayPort);
+
+		if (maxRowCount < 1) {
+			throw new SqlExecutionException(
+				"The maximum number of rows for result materialization must be greater than 0.");
+		}
+
+		this.maxRowCount = maxRowCount;
 
 		// prepare for materialization
 		materializedTable = new ArrayList<>();
@@ -112,30 +129,43 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	@Override
 	protected void processRecord(Tuple2<Boolean, Row> change) {
 		synchronized (resultLock) {
-			final Row row = change.f1;
 			// insert
 			if (change.f0) {
-				materializedTable.add(row);
-				rowPositionCache.put(row, materializedTable.size() - 1);
+				processInsert(change.f1);
 			}
 			// delete
 			else {
-				// delete the newest record first to minimize per-page changes
-				final Integer cachedPos = rowPositionCache.get(row);
-				final int startSearchPos;
-				if (cachedPos != null) {
-					startSearchPos = Math.min(cachedPos, materializedTable.size() - 1);
-				} else {
-					startSearchPos = materializedTable.size() - 1;
-				}
+				processDelete(change.f1);
+			}
+		}
+	}
 
-				for (int i = startSearchPos; i >= 0; i--) {
-					if (materializedTable.get(i).equals(row)) {
-						materializedTable.remove(i);
-						rowPositionCache.remove(row);
-						break;
-					}
-				}
+	// --------------------------------------------------------------------------------------------
+
+	private void processInsert(Row row) {
+		// limit the materialized table
+		if (materializedTable.size() >= maxRowCount) {
+			processDelete(materializedTable.get(0));
+		}
+		materializedTable.add(row);
+		rowPositionCache.put(row, materializedTable.size() - 1);
+	}
+
+	private void processDelete(Row row) {
+		// delete the newest record first to minimize per-page changes
+		final Integer cachedPos = rowPositionCache.get(row);
+		final int startSearchPos;
+		if (cachedPos != null) {
+			startSearchPos = Math.min(cachedPos, materializedTable.size() - 1);
+		} else {
+			startSearchPos = materializedTable.size() - 1;
+		}
+
+		for (int i = startSearchPos; i >= 0; i--) {
+			if (materializedTable.get(i).equals(row)) {
+				materializedTable.remove(i);
+				rowPositionCache.remove(row);
+				break;
 			}
 		}
 	}

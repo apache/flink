@@ -92,6 +92,10 @@ public class Execution {
 		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_PARALLELISM, Integer.toString(128)));
 	}
 
+	public long getMaxTableResultRows() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_TABLE_RESULT_ROWS, Long.toString(1_000_000)));
+	}
+
 	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
 		final String restartStrategy = properties.getOrDefault(
 			PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE,

@@ -50,6 +50,7 @@ import static org.jline.keymap.KeyMap.key;
  */
 public class CliChangelogResultView extends CliResultView<CliChangelogResultView.ResultChangelogOperation> {
 
+	private static final int DEFAULT_MAX_ROW_COUNT = 1000;
 	private static final int DEFAULT_REFRESH_INTERVAL = 0; // as fast as possible
 	private static final int DEFAULT_REFRESH_INTERVAL_PLAIN = 3; // every 1s
 	private static final int MIN_REFRESH_INTERVAL = 0; // every 100ms
@@ -133,6 +134,13 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 					}
 
 					// update results
+
+					// formatting and printing of rows is expensive in the current implementation,
+					// therefore we limit the maximum number of lines shown in changelog mode to
+					// keep the CLI responsive
+					if (results.size() >= DEFAULT_MAX_ROW_COUNT) {
+						results.remove(0);
+					}
 					results.add(changeRow);
 
 					scrolling++;
