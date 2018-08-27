@@ -200,7 +200,7 @@ public class FutureUtils {
 						} else {
 							if (retries > 0 && retryPredicate.test(throwable)) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
+									(Runnable) () -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
 									TimeUnit.MILLISECONDS);
 
@@ -282,7 +282,7 @@ public class FutureUtils {
 							resultFuture.complete(t);
 						} else if (deadline.hasTimeLeft()) {
 							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								(Runnable) () -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
 								retryDelay.toMilliseconds(),
 								TimeUnit.MILLISECONDS);
 
