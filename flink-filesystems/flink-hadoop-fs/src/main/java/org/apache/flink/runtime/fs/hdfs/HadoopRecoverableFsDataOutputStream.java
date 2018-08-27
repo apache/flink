@@ -23,8 +23,8 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
 import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
-import org.apache.flink.runtime.fs.hdfs.truncate.TruncateManager;
-import org.apache.flink.runtime.fs.hdfs.truncate.TruncateManagerFactory;
+import org.apache.flink.runtime.fs.hdfs.truncate.Truncater;
+import org.apache.flink.runtime.fs.hdfs.truncate.TruncaterFactory;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -55,7 +55,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 	private final FileSystem fs;
 
-	private final TruncateManager truncateManager;
+	private final Truncater truncater;
 
 	private final Path targetFile;
 
@@ -69,7 +69,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			Path tempFile) throws IOException {
 
 		this.fs = checkNotNull(fs);
-		this.truncateManager = TruncateManagerFactory.create(fs);
+		this.truncater = TruncaterFactory.create(fs);
 		this.targetFile = checkNotNull(targetFile);
 		this.tempFile = checkNotNull(tempFile);
 		this.out = fs.create(tempFile);
@@ -80,13 +80,13 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 			HadoopFsRecoverable recoverable) throws IOException {
 
 		this.fs = checkNotNull(fs);
-		this.truncateManager = TruncateManagerFactory.create(fs);
+		this.truncater = TruncaterFactory.create(fs);
 		this.targetFile = checkNotNull(recoverable.targetFile());
 		this.tempFile = checkNotNull(recoverable.tempFile());
 
 		// truncate back and append
 		try {
-			truncateManager.truncate(tempFile, recoverable.offset());
+			truncater.truncate(tempFile, recoverable.offset());
 		} catch (Exception e) {
 			throw new IOException("Missing data in tmp file: " + tempFile, e);
 		}
@@ -160,11 +160,11 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
 		private final FileSystem fs;
 		private final HadoopFsRecoverable recoverable;
-		private final TruncateManager truncateManager;
+		private final Truncater truncater;
 
 		HadoopFsCommitter(FileSystem fs, HadoopFsRecoverable recoverable) {
 			this.fs = checkNotNull(fs);
-			this.truncateManager = TruncateManagerFactory.create(fs);
+			this.truncater = TruncaterFactory.create(fs);
 			this.recoverable = checkNotNull(recoverable);
 		}
 
@@ -218,7 +218,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 					// can happen if we go from persist to recovering for commit directly
 					// truncate the trailing junk away
 					try {
-						truncateManager.truncate(src, expectedLength);
+						truncater.truncate(src, expectedLength);
 					} catch (Exception e) {
 						// this can happen if the file is smaller than  expected
 						throw new IOException("Problem while truncating file: " + src, e);

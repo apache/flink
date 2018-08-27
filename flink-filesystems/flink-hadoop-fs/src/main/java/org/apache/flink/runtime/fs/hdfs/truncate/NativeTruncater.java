@@ -30,15 +30,15 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 /**
- * Concrete implementation of the {@link TruncateManager} which support truncate logic for Hadoop 2.7 and higher.
+ * Concrete implementation of the {@link Truncater} which support truncate logic for Hadoop 2.7 and higher.
  */
-public class NativeTruncateManager implements TruncateManager {
+public class NativeTruncater implements Truncater {
 
 	private Method truncateHandle;
 
 	private final FileSystem hadoopFs;
 
-	public NativeTruncateManager(FileSystem hadoopFs) {
+	public NativeTruncater(FileSystem hadoopFs) {
 		ensureTruncateInitialized();
 		this.hadoopFs = hadoopFs;
 	}

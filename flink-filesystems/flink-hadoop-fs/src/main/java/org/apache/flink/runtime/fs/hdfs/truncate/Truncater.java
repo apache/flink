@@ -18,20 +18,19 @@
 
 package org.apache.flink.runtime.fs.hdfs.truncate;
 
-import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.hadoop.fs.Path;
 
-import org.apache.hadoop.fs.FileSystem;
+import java.io.IOException;
 
 /**
- * Factory which create appropriate TruncateManager based on Hadoop version.
+ * Interface which provide logic of truncating HDFS files.
  */
-public class TruncateManagerFactory {
+public interface Truncater {
 
-	public static TruncateManager create(FileSystem hadoopFs) {
-		if (HadoopUtils.isMinHadoopVersion(2, 7)) {
-			return new NativeTruncateManager(hadoopFs);
-		} else {
-			return new LegacyTruncateManager(hadoopFs);
-		}
-	}
+	void truncate(Path filePath, long length) throws IOException;
 }
+
+
+
+
+
