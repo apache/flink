@@ -551,7 +551,12 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public TestHeadersElement deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, Iterable<Map.Entry<String, byte[]>> headers) throws IOException {
+		public TestHeadersElement deserialize(
+				byte[] messageKey,
+				byte[] message, String topic,
+				int partition,
+				long offset,
+				Iterable<Map.Entry<String, byte[]>> headers) throws IOException {
 			final TestHeadersElement element = new TestHeadersElement();
 			element.f0 = Longs.fromByteArray(message);
 			element.f1 = messageKey[0];
