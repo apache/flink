@@ -156,7 +156,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 		}
 		else if (tag == TAG_LATENCY_MARKER) {
 			target.writeLong(source.readLong());
-			target.writeInt(source.readInt());
+			target.writeLong(source.readLong());
+			target.writeLong(source.readLong());
 			target.writeInt(source.readInt());
 		} else {
 			throw new IOException("Corrupt stream, found tag: " + tag);
