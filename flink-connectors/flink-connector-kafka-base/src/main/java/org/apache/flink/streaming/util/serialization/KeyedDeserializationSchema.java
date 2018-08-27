@@ -61,6 +61,7 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 *
 	 * @param messageKey the key as a byte array (null if no key has been set).
 	 * @param message The message, as a byte array (null if the message was empty or deleted).
+	 * @param topic The name of the topic from which the message has originated.
 	 * @param partition The partition the message has originated from.
 	 * @param offset the offset of the message in the original source (for example the Kafka offset).
 	 * @param headers the headers of the message
