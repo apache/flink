@@ -211,6 +211,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	protected Iterable<Map.Entry<String, byte[]>> headersOf(ConsumerRecord<byte[], byte[]> record) {
 		return Collections.emptyList();
 	}
+
 	// ------------------------------------------------------------------------
 	//  Implement Methods of the AbstractFetcher
 	// ------------------------------------------------------------------------
