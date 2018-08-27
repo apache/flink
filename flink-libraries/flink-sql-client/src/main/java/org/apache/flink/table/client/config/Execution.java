@@ -90,6 +90,10 @@ public class Execution {
 		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_PARALLELISM, Integer.toString(128)));
 	}
 
+	public int getMaxTableResultRows() {
+		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_TABLE_RESULT_ROWS, Integer.toString(1_000_000)));
+	}
+
 	public boolean isChangelogMode() {
 		return Objects.equals(
 			properties.get(PropertyStrings.EXECUTION_RESULT_MODE),

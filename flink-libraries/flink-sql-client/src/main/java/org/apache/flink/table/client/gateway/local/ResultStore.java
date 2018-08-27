@@ -71,7 +71,12 @@ public class ResultStore {
 			if (env.getExecution().isChangelogMode()) {
 				return new ChangelogCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
 			} else {
-				return new MaterializedCollectStreamResult<>(outputType, config, gatewayAddress, gatewayPort);
+				return new MaterializedCollectStreamResult<>(
+					outputType,
+					config,
+					gatewayAddress,
+					gatewayPort,
+					env.getExecution().getMaxTableResultRows());
 			}
 
 		} else {

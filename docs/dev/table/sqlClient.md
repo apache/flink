@@ -106,7 +106,7 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries.
+Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
 
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
@@ -165,6 +165,7 @@ Every environment file is a regular [YAML file](http://yaml.org/). An example of
 tables:
   - name: MyTableSource
     type: source
+    update-mode: append
     connector:
       type: filesystem
       path: "/path/to/something.csv"
@@ -198,6 +199,9 @@ functions:
 execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
+  max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
+                                    #   'table' mode (1000000 by default, smaller 1 means unlimited)
+                                    #   (from Flink 1.6.1)
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
   periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
