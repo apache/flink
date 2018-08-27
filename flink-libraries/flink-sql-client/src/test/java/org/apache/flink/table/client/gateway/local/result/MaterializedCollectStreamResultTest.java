@@ -29,7 +29,9 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -42,13 +44,14 @@ public class MaterializedCollectStreamResultTest {
 	public void testSnapshot() throws UnknownHostException {
 		final TypeInformation<Row> type = Types.ROW(Types.STRING, Types.LONG);
 
-		TestMaterializedCollectStreamResult result = null;
+		TestMaterializedCollectStreamResult<?> result = null;
 		try {
-			result = new TestMaterializedCollectStreamResult(
+			result = new TestMaterializedCollectStreamResult<>(
 				type,
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
-				0);
+				0,
+				Integer.MAX_VALUE);
 
 			result.isRetrieving = true;
 
@@ -85,11 +88,59 @@ public class MaterializedCollectStreamResultTest {
 		}
 	}
 
+	@Test
+	public void testLimitedSnapshot() throws UnknownHostException {
+		final TypeInformation<Row> type = Types.ROW(Types.STRING, Types.LONG);
+
+		TestMaterializedCollectStreamResult<?> result = null;
+		try {
+			result = new TestMaterializedCollectStreamResult<>(
+				type,
+				new ExecutionConfig(),
+				InetAddress.getLocalHost(),
+				0,
+				2,  // limit the materialized table to 2 rows
+				3); // with 3 rows overcommitment
+
+			result.isRetrieving = true;
+
+			result.processRecord(Tuple2.of(true, Row.of("D", 1)));
+			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
+			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
+
+			assertEquals(
+				Arrays.asList(null, null, Row.of("B", 1), Row.of("A", 1)), // two over-committed rows
+				result.getMaterializedTable());
+
+			assertEquals(TypedResult.payload(2), result.snapshot(1));
+
+			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
+			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
+
+			result.processRecord(Tuple2.of(true, Row.of("C", 1)));
+
+			assertEquals(
+				Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
+				result.getMaterializedTable());
+
+			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+
+			assertEquals(
+				Collections.singletonList(Row.of("C", 1)), // regular clean up has taken place
+				result.getMaterializedTable());
+		} finally {
+			if (result != null) {
+				result.close();
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	// Helper classes
 	// --------------------------------------------------------------------------------------------
 
-	private static class TestMaterializedCollectStreamResult extends MaterializedCollectStreamResult {
+	private static class TestMaterializedCollectStreamResult<T> extends MaterializedCollectStreamResult<T> {
 
 		public boolean isRetrieving;
 
@@ -97,18 +148,42 @@ public class MaterializedCollectStreamResultTest {
 				TypeInformation<Row> outputType,
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
-				int gatewayPort) {
+				int gatewayPort,
+				int maxRowCount,
+				int overcommitThreshold) {
 
 			super(
 				outputType,
 				config,
 				gatewayAddress,
-				gatewayPort);
+				gatewayPort,
+				maxRowCount,
+				overcommitThreshold);
+		}
+
+		public TestMaterializedCollectStreamResult(
+				TypeInformation<Row> outputType,
+				ExecutionConfig config,
+				InetAddress gatewayAddress,
+				int gatewayPort,
+				int maxRowCount) {
+
+			super(
+				outputType,
+				config,
+				gatewayAddress,
+				gatewayPort,
+				maxRowCount);
 		}
 
 		@Override
 		protected boolean isRetrieving() {
 			return isRetrieving;
+		}
+
+		@Override
+		public List<Row> getMaterializedTable() {
+			return super.getMaterializedTable();
 		}
 	}
 }
