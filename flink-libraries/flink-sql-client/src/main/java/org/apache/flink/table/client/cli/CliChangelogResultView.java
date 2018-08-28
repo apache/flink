@@ -34,6 +34,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
@@ -67,7 +68,8 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 			refreshInterval = DEFAULT_REFRESH_INTERVAL;
 		}
 		previousResults = null;
-		results = new ArrayList<>();
+		// rows are mostly appended or deleted at index 0
+		results = new LinkedList<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
