@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
@@ -166,8 +167,15 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	@Override
 	public KafkaTableSink configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
 		if (schema.isPresent()) {
-			// a fixed schema is defined so reconfiguration is not supported
-			throw new UnsupportedOperationException("Reconfiguration of this sink is not supported.");
+			if (getFieldTypes().length != fieldTypes.length || !Arrays.deepEquals(getFieldTypes(), fieldTypes)) {
+				String fixedFieldTypes = Arrays.toString(getFieldTypes());
+				String configuredFieldTypes = Arrays.toString(fieldTypes);
+				throw new ValidationException("A fixed table schema is defined but the configured fieldTypes " +
+						configuredFieldTypes + " does not match with the fieldTypes " + fixedFieldTypes +
+						" declared by the fixed table schema.");
+			}
+
+			return this;
 		}
 
 		// legacy code
