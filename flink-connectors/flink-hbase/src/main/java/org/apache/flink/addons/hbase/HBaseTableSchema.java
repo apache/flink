@@ -54,7 +54,7 @@ public class HBaseTableSchema implements Serializable {
 	 * @param qualifier the qualifier name
 	 * @param clazz     the data type of the qualifier
 	 */
-	void addColumn(String family, String qualifier, Class<?> clazz) {
+	public void addColumn(String family, String qualifier, Class<?> clazz) {
 		Preconditions.checkNotNull(family, "family name");
 		Preconditions.checkNotNull(qualifier, "qualifier name");
 		Preconditions.checkNotNull(clazz, "class type");
@@ -78,7 +78,7 @@ public class HBaseTableSchema implements Serializable {
 	 * @param rowKeyName the row key field name
 	 * @param clazz the data type of the row key
 	 */
-	void setRowKey(String rowKeyName, Class<?> clazz) {
+	public void setRowKey(String rowKeyName, Class<?> clazz) {
 		Preconditions.checkNotNull(rowKeyName, "row key field name");
 		Preconditions.checkNotNull(clazz, "row key class type");
 		if (!HBaseTypeUtils.isSupportedType(clazz)) {
@@ -97,7 +97,7 @@ public class HBaseTableSchema implements Serializable {
 	 *
 	 * @param charset the charset for value strings and HBase identifiers.
 	 */
-	void setCharset(String charset) {
+	public void setCharset(String charset) {
 		this.charset = charset;
 	}
 

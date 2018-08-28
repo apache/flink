@@ -19,7 +19,7 @@
 package org.apache.flink.addons.hbase;
 
 import org.apache.flink.addons.hbase.util.HBaseConfigurationUtil;
-import org.apache.flink.addons.hbase.util.HBaseReadHelper;
+import org.apache.flink.addons.hbase.util.HBaseReadWriteHelper;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.FunctionContext;
@@ -53,7 +53,7 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	private final byte[] serializedConfig;
 	private final HBaseTableSchema hbaseTableSchema;
 
-	private transient HBaseReadHelper readHelper;
+	private transient HBaseReadWriteHelper readHelper;
 	private transient Connection hConnection;
 	private transient HTable table;
 
@@ -115,7 +115,7 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 			LOG.error("Exception while creating connection to HBase.", ioe);
 			throw new RuntimeException("Cannot create connection to HBase.", ioe);
 		}
-		this.readHelper = new HBaseReadHelper(hbaseTableSchema);
+		this.readHelper = new HBaseReadWriteHelper(hbaseTableSchema);
 		LOG.info("end open.");
 	}
 
