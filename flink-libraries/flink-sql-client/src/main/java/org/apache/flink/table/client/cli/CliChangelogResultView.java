@@ -68,7 +68,7 @@ public class CliChangelogResultView extends CliResultView<CliChangelogResultView
 			refreshInterval = DEFAULT_REFRESH_INTERVAL;
 		}
 		previousResults = null;
-		// rows are mostly appended or deleted at index 0
+		// rows are always appended at the tail and deleted from the head of the list
 		results = new LinkedList<>();
 	}
 

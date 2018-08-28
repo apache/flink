@@ -208,7 +208,7 @@ execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
   max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
-                                    #   'table' mode (1000000 by default, negative means unlimited)
+                                    #   'table' mode (1000000 by default, smaller 1 means unlimited)
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
   periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)

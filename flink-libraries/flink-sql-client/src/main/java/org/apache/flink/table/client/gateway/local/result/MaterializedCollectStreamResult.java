@@ -88,7 +88,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 			int overcommitThreshold) {
 		super(outputType, config, gatewayAddress, gatewayPort);
 
-		if (maxRowCount < 0) {
+		if (maxRowCount <= 0) {
 			this.maxRowCount = Integer.MAX_VALUE;
 		} else {
 			this.maxRowCount = maxRowCount;
@@ -96,7 +96,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 		this.overcommitThreshold = overcommitThreshold;
 
 		// prepare for materialization
-		materializedTable = new ArrayList<>();
+		materializedTable = new ArrayList<>(Math.max(1, (int) (maxRowCount * 0.01))); // avoid frequent resizing
 		rowPositionCache = new HashMap<>();
 		snapshot = new ArrayList<>();
 		validRowPosition = 0;
@@ -203,9 +203,9 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 	private void cleanUp() {
 		// invalidate row
-		final Row deleteRow = materializedTable.get(0);
+		final Row deleteRow = materializedTable.get(validRowPosition);
 		rowPositionCache.remove(deleteRow);
-		materializedTable.set(0, null);
+		materializedTable.set(validRowPosition, null);
 
 		validRowPosition++;
 

@@ -101,16 +101,17 @@ public class MaterializedCollectStreamResultTest {
 				InetAddress.getLocalHost(),
 				0,
 				2,  // limit the materialized table to 2 rows
-				2); // with 2 rows overcommitment
+				3); // with 3 rows overcommitment
 
 			result.isRetrieving = true;
 
+			result.processRecord(Tuple2.of(true, Row.of("D", 1)));
 			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
 			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
 			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
 
 			assertEquals(
-				Arrays.asList(null, Row.of("B", 1), Row.of("A", 1)), // one over-committed row
+				Arrays.asList(null, null, Row.of("B", 1), Row.of("A", 1)), // one over-committed row
 				result.getMaterializedTable());
 
 			assertEquals(TypedResult.payload(2), result.snapshot(1));
