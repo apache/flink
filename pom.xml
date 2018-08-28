@@ -1541,6 +1541,11 @@ under the License.
 					<groupId>net.alchim31.maven</groupId>
 					<artifactId>scala-maven-plugin</artifactId>
 					<version>3.2.2</version>
+					<configuration>
+						<args>
+							<arg>-nobootcp</arg>
+						</args>
+					</configuration>
 				</plugin>
 
 				<!-- Configuration for the binary compatibility checker -->
