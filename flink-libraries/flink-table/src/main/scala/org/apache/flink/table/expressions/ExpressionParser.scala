@@ -41,8 +41,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   case class Keyword(key: String)
 
   // Convert the keyword into an case insensitive Parser
+  // The pattern ensures that the keyword is not matched as a prefix, i.e.,
+  //   the keyword is not followed by a Java identifier character.
   implicit def keyword2Parser(kw: Keyword): Parser[String] = {
-    ("""(?i)\Q""" + kw.key + """\E""").r
+    ("""(?i)\Q""" + kw.key + """\E(?![_$\p{javaJavaIdentifierPart}])""").r
   }
 
   // Keyword
