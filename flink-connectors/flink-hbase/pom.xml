@@ -212,6 +212,11 @@ under the License.
 					<groupId>org.jamon</groupId>
 					<artifactId>jamon-runtime</artifactId>
 				</exclusion>
+				<!-- remove guava -->
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -250,6 +255,12 @@ under the License.
 			<version>${hbase.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
