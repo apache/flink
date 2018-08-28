@@ -79,10 +79,11 @@ public class ExecutionContextTest {
 	}
 
 	@Test
-	public void testSourceSinks() throws Exception {
+	public void testTables() throws Exception {
 		final ExecutionContext<?> context = createExecutionContext();
 		final Map<String, TableSource<?>> sources = context.getTableSources();
 		final Map<String, TableSink<?>> sinks = context.getTableSinks();
+		final Map<String, String> views = context.getMergedEnvironment().getViews();
 
 		assertEquals(
 			new HashSet<>(Arrays.asList("TableSourceSink", "TableNumber1", "TableNumber2")),
@@ -91,6 +92,10 @@ public class ExecutionContextTest {
 		assertEquals(
 			new HashSet<>(Collections.singletonList("TableSourceSink")),
 			sinks.keySet());
+
+		assertEquals(
+			new HashSet<>(Arrays.asList("TestView1", "TestView2")),
+			views.keySet());
 
 		assertArrayEquals(
 			new String[]{"IntegerField1", "StringField1"},
@@ -119,7 +124,7 @@ public class ExecutionContextTest {
 		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
 
 		assertArrayEquals(
-			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink"},
+			new String[]{"TableNumber1", "TableNumber2", "TableSourceSink", "TestView1", "TestView2"},
 			tableEnv.listTables());
 	}
 

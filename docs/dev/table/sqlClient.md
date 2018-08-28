@@ -162,7 +162,7 @@ A SQL query needs a configuration environment in which it is executed. The so-ca
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
 {% highlight yaml %}
-# Define table sources here.
+# Define table sources and sinks here.
 
 tables:
   - name: MyTableSource
@@ -184,6 +184,12 @@ tables:
         type: INT
       - name: MyField2
         type: VARCHAR
+
+# Define table views here.
+
+views:
+  - name: MyCustomView
+    query: "SELECT MyField2 FROM MyTableSource"
 
 # Define user-defined functions here.
 
@@ -217,7 +223,8 @@ deployment:
 
 This configuration:
 
-- defines an environment with a table source `MyTableName` that reads from a CSV file,
+- defines an environment with a table source `MyTableSource` that reads from a CSV file,
+- defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
@@ -404,7 +411,7 @@ This process can be recursively performed until all the constructor parameters a
 {% top %}
 
 Detached SQL Queries
-------------------------
+--------------------
 
 In order to define end-to-end SQL pipelines, SQL's `INSERT INTO` statement can be used for submitting long-running, detached queries to a Flink cluster. These queries produce their results into an external system instead of the SQL Client. This allows for dealing with higher parallelism and larger amounts of data. The CLI itself does not have any control over a detached query after submission.
 
@@ -456,6 +463,44 @@ Web interface: http://localhost:8081
 {% endhighlight %}
 
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+
+{% top %}
+
+SQL Views
+---------
+
+Views allow to define virtual tables from SQL queries. The view definition is parsed and validated immediately. However, the actual execution happens when the view is accessed during the submission of a general `INSERT INTO` or `SELECT` statement.
+
+Views can either be defined in [environment files](sqlClient.html#environment-files) or within the CLI session.
+
+The following example shows how to define multiple views in a file:
+
+{% highlight yaml %}
+views:
+  - name: MyRestrictedView
+    query: "SELECT MyField2 FROM MyTableSource"
+  - name: MyComplexView
+    query: >
+      SELECT MyField2 + 42, CAST(MyField1 AS VARCHAR)
+      FROM MyTableSource
+      WHERE MyField2 > 200
+{% endhighlight %}
+
+Similar to table sources and sinks, views defined in a session environment file have highest precendence.
+
+Views can also be created within a CLI session using the `CREATE VIEW` statement:
+
+{% highlight text %}
+CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource
+{% endhighlight %}
+
+Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
+
+{% highlight text %}
+DROP VIEW MyNewView
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
 
 {% top %}
 
