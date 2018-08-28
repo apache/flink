@@ -632,12 +632,12 @@ on failure/recovery), the user is required to get a lock from the source's conte
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public static class CounterSource
+public class CounterSource
         extends RichParallelSourceFunction<Long>
         implements ListCheckpointed<Long> {
 
     /**  current offset for exactly once semantics */
-    private Long offset;
+    private Long offset = 0L;
 
     /** flag for job cancellation */
     private volatile boolean isRunning = true;
@@ -668,7 +668,7 @@ public static class CounterSource
     @Override
     public void restoreState(List<Long> state) {
         for (Long s : state)
-            offset = s;
+            offset += s;
     }
 }
 {% endhighlight %}
@@ -702,7 +702,7 @@ class CounterSource
 
   override def restoreState(state: util.List[Long]): Unit =
     for (s <- state) {
-      offset = s
+      offset += s
     }
 
   override def snapshotState(checkpointId: Long, timestamp: Long): util.List[Long] =
