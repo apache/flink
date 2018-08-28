@@ -31,6 +31,7 @@ import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.avro.AvroSchemaConverter;
@@ -172,5 +173,32 @@ public class ParquetInputFormatTest {
 		assertEquals(1, nestedArray.size());
 		assertEquals("color", nestedArray.get(0).get("type"));
 		assertEquals("yellow", nestedArray.get(0).get("value"));
+	}
+
+	@Test
+	public void testSerialization() throws Exception {
+		temp.create();
+		Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> simple = TestUtil.getSimpleRecordTestData();
+		Path path = TestUtil.createTempParquetFile(temp, TestUtil.SIMPLE_SCHEMA, simple.f1, 1);
+		MessageType simpleType = SCHEMA_CONVERTER.convert(TestUtil.SIMPLE_SCHEMA);
+
+		ParquetRowInputFormat rowInputFormat = new ParquetRowInputFormat(
+			path, (RowTypeInfo) ParquetSchemaConverter.fromParquetType(simpleType));
+
+		byte[] bytes = InstantiationUtil.serializeObject(rowInputFormat);
+		ParquetRowInputFormat copy = InstantiationUtil.deserializeObject(bytes, getClass().getClassLoader());
+
+		RuntimeContext mockContext = Mockito.mock(RuntimeContext.class);
+		Mockito.doReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup())
+			.when(mockContext).getMetricGroup();
+		copy.setRuntimeContext(mockContext);
+
+		FileInputSplit[] splits = copy.createInputSplits(1);
+		assertEquals(1, splits.length);
+		copy.open(splits[0]);
+
+		Row row = copy.nextRecord(null);
+		assertNotNull(row);
+		assertEquals(simple.f2, row);
 	}
 }

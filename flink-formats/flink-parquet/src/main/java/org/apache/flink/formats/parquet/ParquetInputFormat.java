@@ -33,6 +33,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.parquet.ParquetReadOptions;
+import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
@@ -72,8 +73,7 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 
 	protected long lastSyncedBlock = -1L;
 
-	protected ParquetInputFormat(
-		Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
+	protected ParquetInputFormat(Path path, TypeInformation[] fieldTypes, String[] fieldNames) {
 		super(path);
 		this.readType = new RowTypeInfo(fieldTypes, fieldNames);
 		this.fieldTypes = readType.getFieldTypes();
@@ -96,7 +96,7 @@ public abstract class ParquetInputFormat<E> extends FileInputFormat<E> implement
 		MessageType schema = fileReader.getFileMetaData().getSchema();
 		checkSchema(schema);
 		MessageType readSchema = ParquetSchemaConverter.toParquetType(readType);
-		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema);
+		this.parquetRecordReader = new ParquetRecordReader<>(new RowReadSupport(), readSchema, FilterCompat.NOOP);
 		this.parquetRecordReader.initialize(fileReader, configuration);
 		if (this.recordConsumed == null) {
 			this.recordConsumed = getRuntimeContext().getMetricGroup().counter("parquet-record-consumed");

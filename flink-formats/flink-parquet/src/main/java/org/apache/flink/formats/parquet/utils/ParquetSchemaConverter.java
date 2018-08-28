@@ -100,7 +100,7 @@ public class ParquetSchemaConverter {
 					typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
 					break;
 				default:
-					throw new RuntimeException("Unsupported schema: " + fieldType);
+					throw new UnsupportedOperationException("Unsupported schema: " + fieldType);
 			}
 		} else {
 			GroupType parquetGroupType = fieldType.asGroupType();
