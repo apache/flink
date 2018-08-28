@@ -29,7 +29,9 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -49,7 +51,8 @@ public class MaterializedCollectStreamResultTest {
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
 				0,
-				Long.MAX_VALUE);
+				Integer.MAX_VALUE,
+				MaterializedCollectStreamResult.DEFAULT_OVERCOMMIT_THRESHOLD);
 
 			result.isRetrieving = true;
 
@@ -97,7 +100,8 @@ public class MaterializedCollectStreamResultTest {
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
 				0,
-				2); // limit the materialized table to 2 rows
+				2,  // limit the materialized table to 2 rows
+				2); // with 2 rows overcommitment
 
 			result.isRetrieving = true;
 
@@ -105,10 +109,26 @@ public class MaterializedCollectStreamResultTest {
 			result.processRecord(Tuple2.of(true, Row.of("B", 1)));
 			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
 
+			assertEquals(
+				Arrays.asList(null, Row.of("B", 1), Row.of("A", 1)), // one over-committed row
+				result.getMaterializedTable());
+
 			assertEquals(TypedResult.payload(2), result.snapshot(1));
 
 			assertEquals(Collections.singletonList(Row.of("B", 1)), result.retrievePage(1));
 			assertEquals(Collections.singletonList(Row.of("A", 1)), result.retrievePage(2));
+
+			result.processRecord(Tuple2.of(true, Row.of("C", 1)));
+
+			assertEquals(
+				Arrays.asList(Row.of("A", 1), Row.of("C", 1)), // limit clean up has taken place
+				result.getMaterializedTable());
+
+			result.processRecord(Tuple2.of(false, Row.of("A", 1)));
+
+			assertEquals(
+				Collections.singletonList(Row.of("C", 1)), // regular clean up has taken place
+				result.getMaterializedTable());
 		} finally {
 			if (result != null) {
 				result.close();
@@ -129,19 +149,26 @@ public class MaterializedCollectStreamResultTest {
 				ExecutionConfig config,
 				InetAddress gatewayAddress,
 				int gatewayPort,
-				long maxRowCount) {
+				int maxRowCount,
+				int overcommitThreshold) {
 
 			super(
 				outputType,
 				config,
 				gatewayAddress,
 				gatewayPort,
-				maxRowCount);
+				maxRowCount,
+				overcommitThreshold);
 		}
 
 		@Override
 		protected boolean isRetrieving() {
 			return isRetrieving;
+		}
+
+		@Override
+		public List<Row> getMaterializedTable() {
+			return super.getMaterializedTable();
 		}
 	}
 }

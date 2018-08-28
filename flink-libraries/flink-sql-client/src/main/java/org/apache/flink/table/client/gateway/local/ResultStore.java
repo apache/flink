@@ -76,7 +76,8 @@ public class ResultStore {
 					config,
 					gatewayAddress,
 					gatewayPort,
-					env.getExecution().getMaxTableResultRows());
+					env.getExecution().getMaxTableResultRows(),
+					MaterializedCollectStreamResult.DEFAULT_OVERCOMMIT_THRESHOLD);
 			}
 
 		} else {
