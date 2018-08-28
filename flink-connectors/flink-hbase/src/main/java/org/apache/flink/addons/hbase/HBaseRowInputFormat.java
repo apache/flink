@@ -18,7 +18,7 @@
 
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.addons.hbase.util.HBaseReadHelper;
+import org.apache.flink.addons.hbase.util.HBaseReadWriteHelper;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -52,7 +52,7 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	private final HBaseTableSchema schema;
 
 	private transient org.apache.hadoop.conf.Configuration conf;
-	private transient HBaseReadHelper readHelper;
+	private transient HBaseReadWriteHelper readHelper;
 
 	public HBaseRowInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, HBaseTableSchema schema) {
 		this.tableName = tableName;
@@ -64,7 +64,7 @@ public class HBaseRowInputFormat extends AbstractTableInputFormat<Row> implement
 	public void configure(Configuration parameters) {
 		LOG.info("Initializing HBase configuration.");
 		// prepare hbase read helper
-		this.readHelper = new HBaseReadHelper(schema);
+		this.readHelper = new HBaseReadWriteHelper(schema);
 		connectToTable();
 		if (table != null) {
 			scan = getScanner();

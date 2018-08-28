@@ -22,18 +22,20 @@ import org.apache.flink.addons.hbase.HBaseTableSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.types.Row;
 
+import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 
 import java.nio.charset.Charset;
 
 /**
- * A read helper for HBase. The helper can used to create a {@link Scan} and {@link Get}
- * for scanning or lookuping a HBase table, and supports converting the HBase {@link Result}
- * to Flink {@link Row}.
+ * A read and write helper for HBase. The helper can used to create a {@link Scan} and {@link Get}
+ * for scanning or lookuping a HBase table, and create a {@link Put} and {@link Delete} for writing
+ * to HBase table, and supports converting the HBase {@link Result} to Flink {@link Row}.
  */
-public class HBaseReadHelper {
+public class HBaseReadWriteHelper {
 
 	// family keys
 	private final byte[][] families;
@@ -55,7 +57,7 @@ public class HBaseReadHelper {
 	// nested family rows
 	private Row[] familyRows;
 
-	public HBaseReadHelper(HBaseTableSchema hbaseTableSchema) {
+	public HBaseReadWriteHelper(HBaseTableSchema hbaseTableSchema) {
 		this.families = hbaseTableSchema.getFamilyKeys();
 		this.qualifiers = new byte[this.families.length][][];
 		this.qualifierTypes = new int[this.families.length][];
@@ -162,5 +164,60 @@ public class HBaseReadHelper {
 			}
 		}
 		return resultRow;
+	}
+
+	/**
+	 * Returns an instance of Put that writes record to HBase table.
+	 *
+	 * @return The appropriate instance of Put for this use case.
+	 */
+	public Put createPutMutation(Row row) {
+		assert rowKeyIndex != -1;
+		byte[] rowkey = HBaseTypeUtils.serializeFromObject(row.getField(rowKeyIndex), rowKeyType, charset);
+		// upsert
+		Put put = new Put(rowkey);
+		for (int i = 0; i < fieldLength; i++) {
+			if (i != rowKeyIndex) {
+				int f = i > rowKeyIndex ? i - 1 : i;
+				// get family key
+				byte[] familyKey = families[f];
+				Row familyRow = (Row) row.getField(i);
+				for (int q = 0; q < this.qualifiers[f].length; q++) {
+					// get quantifier key
+					byte[] qualifier = qualifiers[f][q];
+					// get quantifier type idx
+					int typeIdx = qualifierTypes[f][q];
+					// read value
+					byte[] value = HBaseTypeUtils.serializeFromObject(familyRow.getField(q), typeIdx, charset);
+					put.addColumn(familyKey, qualifier, value);
+				}
+			}
+		}
+		return put;
+	}
+
+	/**
+	 * Returns an instance of Delete that remove record from HBase table.
+	 *
+	 * @return The appropriate instance of Delete for this use case.
+	 */
+	public Delete createDeleteMutation(Row row) {
+		assert rowKeyIndex != -1;
+		byte[] rowkey = HBaseTypeUtils.serializeFromObject(row.getField(rowKeyIndex), rowKeyType, charset);
+		// delete
+		Delete delete = new Delete(rowkey);
+		for (int i = 0; i < fieldLength; i++) {
+			if (i != rowKeyIndex) {
+				int f = i > rowKeyIndex ? i - 1 : i;
+				// get family key
+				byte[] familyKey = families[f];
+				for (int q = 0; q < this.qualifiers[f].length; q++) {
+					// get quantifier key
+					byte[] qualifier = qualifiers[f][q];
+					delete.addColumn(familyKey, qualifier);
+				}
+			}
+		}
+		return delete;
 	}
 }

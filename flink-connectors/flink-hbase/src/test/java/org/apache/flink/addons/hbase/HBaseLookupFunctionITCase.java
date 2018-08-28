@@ -51,10 +51,10 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_HBASE_TABLE_NAME;
-import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_HBASE_ZK_QUORUM;
+import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
+import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_ZK_QUORUM;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
 /**
@@ -145,10 +145,10 @@ public class HBaseLookupFunctionITCase extends HBaseTestingClusterAutostarter {
 		properties.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_HBASE);
 		properties.put(CONNECTOR_VERSION, CONNECTOR_VERSION_VALUE_143);
 		properties.put(CONNECTOR_PROPERTY_VERSION, "1");
-		properties.put(CONNECTOR_HBASE_TABLE_NAME, HTABLE_NAME);
+		properties.put(CONNECTOR_TABLE_NAME, HTABLE_NAME);
 		// get zk quorum from "hbase-site.xml" in classpath
 		String hbaseZk = HBaseConfiguration.create().get(HConstants.ZOOKEEPER_QUORUM);
-		properties.put(CONNECTOR_HBASE_ZK_QUORUM, hbaseZk);
+		properties.put(CONNECTOR_ZK_QUORUM, hbaseZk);
 		// schema
 		String[] columnNames = {FAMILY1, ROWKEY, FAMILY2, FAMILY3};
 		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{F1COL1}, Types.INT);

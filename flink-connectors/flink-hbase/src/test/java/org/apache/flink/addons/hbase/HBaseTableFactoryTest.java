@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 
@@ -36,12 +37,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_HBASE_TABLE_NAME;
-import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_HBASE_ZK_QUORUM;
-import static org.apache.flink.table.descriptors.HBaseValidator.CONNECTOR_VERSION_VALUE_143;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
 /**
@@ -59,21 +54,25 @@ public class HBaseTableFactoryTest {
 	private DescriptorProperties createDescriptor(String[] columnNames, TypeInformation[] columnTypes) {
 		TableSchema tableSchema = new TableSchema(columnNames, columnTypes);
 
-		Map<String, String> tableServiceLookupConf = new HashMap<>();
-		tableServiceLookupConf.put(CONNECTOR_TYPE, "hbase");
-		tableServiceLookupConf.put(CONNECTOR_VERSION, CONNECTOR_VERSION_VALUE_143);
-		tableServiceLookupConf.put(CONNECTOR_PROPERTY_VERSION, "1");
-		tableServiceLookupConf.put(CONNECTOR_HBASE_TABLE_NAME, "testHBastTable");
-		tableServiceLookupConf.put(CONNECTOR_HBASE_ZK_QUORUM, "localhost:2181");
+		Map<String, String> tableProperties = new HashMap<>();
+		tableProperties.put("connector.type", "hbase");
+		tableProperties.put("connector.version", "1.4.3");
+		tableProperties.put("connector.property-version", "1");
+		tableProperties.put("connector.table-name", "testHBastTable");
+		tableProperties.put("connector.zookeeper.quorum", "localhost:2181");
+		tableProperties.put("connector.zookeeper.znode.parent", "/flink");
+		tableProperties.put("connector.write.buffer-flush.max-size", "10mb");
+		tableProperties.put("connector.write.buffer-flush.max-rows", "1000");
+		tableProperties.put("connector.write.buffer-flush.interval", "10s");
 
 		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
 		descriptorProperties.putTableSchema(SCHEMA, tableSchema);
-		descriptorProperties.putProperties(tableServiceLookupConf);
+		descriptorProperties.putProperties(tableProperties);
 		return descriptorProperties;
 	}
 
 	@Test
-	public void testConstructorForNestedSchema() {
+	public void testTableSourceFactory() {
 		String[] columnNames = {FAMILY1, FAMILY2, ROWKEY, FAMILY3};
 
 		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{COL1}, Types.INT);
@@ -101,5 +100,50 @@ public class HBaseTableFactoryTest {
 		Assert.assertArrayEquals(new TypeInformation[]{Types.INT}, hbaseSchema.getQualifierTypes("f1"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
 		Assert.assertArrayEquals(new TypeInformation[]{Types.DOUBLE, Types.BOOLEAN, Types.STRING}, hbaseSchema.getQualifierTypes("f3"));
+	}
+
+	@Test
+	public void testTableSinkFactory() {
+		String[] columnNames = {ROWKEY, FAMILY1, FAMILY2, FAMILY3};
+		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{COL1, COL2}, Types.DOUBLE, Types.INT);
+		TypeInformation<Row> f2 = Types.ROW_NAMED(new String[]{COL1, COL3}, Types.INT, Types.LONG);
+		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{COL2, COL3}, Types.BOOLEAN, Types.STRING);
+		TypeInformation[] columnTypes = new TypeInformation[]{Types.STRING, f1, f2, f3};
+		DescriptorProperties descriptorProperties = createDescriptor(columnNames, columnTypes);
+
+		TableSink sink = TableFactoryService
+			.find(HBaseTableFactory.class, descriptorProperties.asMap())
+			.createTableSink(descriptorProperties.asMap());
+
+		Assert.assertTrue(sink instanceof HBaseUpsertTableSink);
+
+		HBaseTableSchema hbaseSchema = ((HBaseUpsertTableSink) sink).getHBaseTableSchema();
+		Assert.assertEquals(0, hbaseSchema.getRowKeyIndex());
+		Assert.assertEquals(Optional.of(Types.STRING), hbaseSchema.getRowKeyTypeInfo());
+
+		Assert.assertArrayEquals(new String[]{"f1", "f2", "f3"}, hbaseSchema.getFamilyNames());
+		Assert.assertArrayEquals(new String[]{"c1", "c2"}, hbaseSchema.getQualifierNames("f1"));
+		Assert.assertArrayEquals(new String[]{"c1", "c3"}, hbaseSchema.getQualifierNames("f2"));
+		Assert.assertArrayEquals(new String[]{"c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
+
+		Assert.assertArrayEquals(new TypeInformation[]{Types.DOUBLE, Types.INT}, hbaseSchema.getQualifierTypes("f1"));
+		Assert.assertArrayEquals(new TypeInformation[]{Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
+		Assert.assertArrayEquals(new TypeInformation[]{Types.BOOLEAN, Types.STRING}, hbaseSchema.getQualifierTypes("f3"));
+
+		HBaseOptions expectedHBaseOptions = HBaseOptions.builder()
+			.setTableName("testHBastTable")
+			.setZkQuorum("localhost:2181")
+			.setZkNodeParent("/flink")
+			.build();
+		HBaseOptions actualHBaseOptions = ((HBaseUpsertTableSink) sink).getHBaseOptions();
+		Assert.assertEquals(expectedHBaseOptions, actualHBaseOptions);
+
+		HBaseWriteOptions expectedWriteOptions = HBaseWriteOptions.builder()
+			.setBufferFlushMaxRows(1000)
+			.setBufferFlushIntervalMillis(10 * 1000)
+			.setBufferFlushMaxSizeInBytes(10 * 1024 * 1024)
+			.build();
+		HBaseWriteOptions actualWriteOptions = ((HBaseUpsertTableSink) sink).getWriteOptions();
+		Assert.assertEquals(expectedWriteOptions, actualWriteOptions);
 	}
 }

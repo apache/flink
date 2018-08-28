@@ -157,6 +157,13 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 		LOG.info("HBase minicluster: Running");
 	}
 
+	/**
+	 * Returns zookeeper quorum value contains the right port number (varies per run).
+	 */
+	static String getZookeeperQuorum() {
+		return "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
+	}
+
 	private static File hbaseSiteXmlDirectory;
 	private static File hbaseSiteXmlFile;
 
