@@ -39,10 +39,20 @@ import java.util.Map;
 public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
 	private final List<Row> materializedTable;
-	private final Map<Row, List<Integer>> rowPositions; // positions of rows in table for faster access
+
+	/**
+	 * Caches the last row position for faster access. The position might not be exact (if rows
+	 * with smaller position are deleted) nor complete (for deletes of duplicates). However, the
+	 * cache narrows the search in the materialized table.
+	 */
+	private final Map<Row, Integer> rowPositionCache;
+
 	private final List<Row> snapshot;
+
 	private int pageCount;
+
 	private int pageSize;
+
 	private boolean isLastSnapshot;
 
 	public MaterializedCollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
@@ -51,7 +61,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 		// prepare for materialization
 		materializedTable = new ArrayList<>();
-		rowPositions = new HashMap<>();
+		rowPositionCache = new HashMap<>();
 		snapshot = new ArrayList<>();
 		isLastSnapshot = false;
 		pageCount = 0;
@@ -101,32 +111,29 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 	@Override
 	protected void processRecord(Tuple2<Boolean, Row> change) {
-		// we track the position of rows for faster access and in order to return consistent
-		// snapshots where new rows are appended at the end
 		synchronized (resultLock) {
-			final List<Integer> positions = rowPositions.get(change.f1);
-
+			final Row row = change.f1;
 			// insert
 			if (change.f0) {
-				materializedTable.add(change.f1);
-				if (positions == null) {
-					// new row
-					final ArrayList<Integer> pos = new ArrayList<>(1);
-					pos.add(materializedTable.size() - 1);
-					rowPositions.put(change.f1, pos);
-				} else {
-					// row exists already, only add position
-					positions.add(materializedTable.size() - 1);
-				}
+				materializedTable.add(row);
+				rowPositionCache.put(row, materializedTable.size() - 1);
 			}
 			// delete
 			else {
-				if (positions != null) {
-					// delete row position and row itself
-					final int pos = positions.remove(positions.size() - 1);
-					materializedTable.remove(pos);
-					if (positions.isEmpty()) {
-						rowPositions.remove(change.f1);
+				// delete the newest record first to minimize per-page changes
+				final Integer cachedPos = rowPositionCache.get(row);
+				final int startSearchPos;
+				if (cachedPos != null) {
+					startSearchPos = Math.min(cachedPos, materializedTable.size() - 1);
+				} else {
+					startSearchPos = materializedTable.size() - 1;
+				}
+
+				for (int i = startSearchPos; i >= 0; i--) {
+					if (materializedTable.get(i).equals(row)) {
+						materializedTable.remove(i);
+						rowPositionCache.remove(row);
+						break;
 					}
 				}
 			}
