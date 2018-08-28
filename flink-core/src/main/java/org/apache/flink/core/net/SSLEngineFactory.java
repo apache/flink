@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.net;
+package org.apache.flink.core.net;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
+import java.util.Arrays;
 
 import static java.util.Objects.requireNonNull;
 
@@ -71,5 +73,15 @@ public class SSLEngineFactory {
 		if (!clientMode) {
 			sslEngine.setNeedClientAuth(clientAuthentication);
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "SSLEngineFactory{" +
+			"enabledProtocols=" + Arrays.asList(enabledProtocols) +
+			", enabledCipherSuites=" + Arrays.asList(enabledCipherSuites) +
+			", clientMode=" + clientMode +
+			", clientAuthentication=" + clientAuthentication +
+			'}';
 	}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
-import org.apache.flink.runtime.net.SSLUtilsTest;
+import org.apache.flink.core.net.SSLUtilsTest;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -98,7 +98,7 @@ public class NettyClientServerSslTest extends TestLogger {
 		Configuration config = createSslConfig();
 
 		// Use a server certificate which is not present in the truststore
-		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+		SSLUtilsTest.setUntrustedKeyStoreConfig(config);
 
 		NettyConfig nettyConfig = createNettyConfig(config);
 
@@ -119,7 +119,7 @@ public class NettyClientServerSslTest extends TestLogger {
 		final Configuration clientConfig = createSslConfig();
 
 		// give the client a different keystore / certificate
-		clientConfig.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
+		SSLUtilsTest.setUntrustedKeyStoreConfig(clientConfig);
 
 		final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
 		final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);

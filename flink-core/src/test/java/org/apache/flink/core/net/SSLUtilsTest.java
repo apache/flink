@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.net;
+package org.apache.flink.core.net;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -45,6 +45,7 @@ public class SSLUtilsTest extends TestLogger {
 
 	private static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
 	private static final String KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
+	private static final String UNTRUSTED_KEY_STORE_PATH = SSLUtilsTest.class.getResource("/untrusted.keystore").getFile();
 
 	private static final String TRUST_STORE_PASSWORD = "password";
 	private static final String KEY_STORE_PASSWORD = "password";
@@ -415,6 +416,11 @@ public class SSLUtilsTest extends TestLogger {
 		config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 		addInternalKeyStoreConfig(config);
 		addInternalTrustStoreConfig(config);
+		return config;
+	}
+
+	public static Configuration setUntrustedKeyStoreConfig(Configuration config) {
+		config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_PATH);
 		return config;
 	}
 

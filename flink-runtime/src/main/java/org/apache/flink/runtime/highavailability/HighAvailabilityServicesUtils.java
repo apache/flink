@@ -30,7 +30,7 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaSe
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;

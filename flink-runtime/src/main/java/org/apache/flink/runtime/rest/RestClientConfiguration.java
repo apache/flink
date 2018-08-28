@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.net.SSLEngineFactory;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.core.net.SSLEngineFactory;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 

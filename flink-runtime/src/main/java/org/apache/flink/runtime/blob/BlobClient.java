@@ -23,7 +23,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;

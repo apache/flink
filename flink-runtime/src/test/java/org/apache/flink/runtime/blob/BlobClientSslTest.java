@@ -20,7 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.net.SSLUtilsTest;
+import org.apache.flink.core.net.SSLUtilsTest;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

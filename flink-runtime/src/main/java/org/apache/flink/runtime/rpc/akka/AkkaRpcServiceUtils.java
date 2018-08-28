@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
-import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
