@@ -100,7 +100,7 @@ public class KvStateClientHandlerTest {
 
 		// Verify callback
 		channel.writeInbound(buf);
-		verify(callback, times(2)).onFailure(any(IllegalStateException.class));
+		verify(callback, times(1)).onFailure(any(IllegalStateException.class));
 		assertEquals("Buffer not recycled", 0, buf.refCnt());
 
 		//
@@ -113,7 +113,7 @@ public class KvStateClientHandlerTest {
 		// Channel inactive
 		//
 		channel.pipeline().fireChannelInactive();
-		verify(callback, times(4)).onFailure(any(ClosedChannelException.class));
+		verify(callback, times(1)).onFailure(any(ClosedChannelException.class));
 	}
 
 }
