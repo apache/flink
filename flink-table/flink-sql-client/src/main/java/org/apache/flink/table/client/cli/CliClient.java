@@ -266,6 +266,9 @@ public class CliClient {
 			case SHOW_TABLES:
 				callShowTables();
 				break;
+			case SHOW_VIEWS:
+				callShowViews();
+				break;
 			case SHOW_FUNCTIONS:
 				callShowFunctions();
 				break;
@@ -355,6 +358,23 @@ public class CliClient {
 			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
 		} else {
 			tables.forEach((v) -> terminal.writer().println(v));
+		}
+		terminal.flush();
+	}
+
+	private void callShowViews() {
+		final List<String> views;
+		try {
+			views = executor.listViews(context);
+		} catch (SqlExecutionException e) {
+			printExecutionException(e);
+			return;
+		}
+
+		if (views.isEmpty()) {
+			terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_EMPTY).toAnsi());
+		} else {
+			views.forEach((v) -> terminal.writer().println(v));
 		}
 		terminal.flush();
 	}

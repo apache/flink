@@ -504,6 +504,12 @@ Views created within a CLI session can also be removed again using the `DROP VIE
 DROP VIEW MyNewView;
 {% endhighlight %}
 
+Displays all of the views in the current session using the `SHOW VIEWS` statement:
+
+{% highlight text %}
+SHOW VIEWS
+{% endhighlight %}
+
 <span class="label label-danger">Attention</span> The definition of views in the CLI is limited to the mentioned syntax above. Defining a schema for views or escaping whitespaces in table names will be supported in future versions.
 
 {% top %}

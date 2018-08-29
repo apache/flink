@@ -40,6 +40,8 @@ public class SqlCommandParserTest {
 		testValidSqlCommand("CLEAR", new SqlCommandCall(SqlCommand.CLEAR));
 		testValidSqlCommand("SHOW TABLES", new SqlCommandCall(SqlCommand.SHOW_TABLES));
 		testValidSqlCommand("  SHOW   TABLES   ", new SqlCommandCall(SqlCommand.SHOW_TABLES));
+		testValidSqlCommand("SHOW VIEWS", new SqlCommandCall(SqlCommand.SHOW_VIEWS));
+		testValidSqlCommand("	SHOW   VIEWS", new SqlCommandCall(SqlCommand.SHOW_VIEWS));
 		testValidSqlCommand("SHOW FUNCTIONS", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
 		testValidSqlCommand("  SHOW    FUNCTIONS   ", new SqlCommandCall(SqlCommand.SHOW_FUNCTIONS));
 		testValidSqlCommand("DESCRIBE MyTable", new SqlCommandCall(SqlCommand.DESCRIBE, new String[]{"MyTable"}));

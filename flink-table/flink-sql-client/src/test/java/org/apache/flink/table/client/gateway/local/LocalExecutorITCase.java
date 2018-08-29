@@ -150,6 +150,24 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testListViews() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		session.addView(ViewEntry.create("TestView3", "SELECT 1"));
+		session.addView(ViewEntry.create("MyView1", "SELECT 1"));
+		session.addView(ViewEntry.create("aView1", "SELECT 1"));
+
+		final List<String> actualViews = executor.listViews(session);
+		final List<String> expectedViews = Arrays.asList(
+			"MyView1",
+			"TestView3",
+			"aView1");
+
+		assertEquals(expectedViews, actualViews);
+	}
+
+	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());

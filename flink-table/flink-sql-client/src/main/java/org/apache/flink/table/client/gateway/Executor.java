@@ -46,6 +46,11 @@ public interface Executor {
 	List<String> listTables(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Lists all views known to the executor.
+	 */
+	List<String> listViews(SessionContext session) throws SqlExecutionException;
+
+	/**
 	 * Lists all user-defined functions known to the executor.
 	 */
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;

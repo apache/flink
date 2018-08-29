@@ -200,6 +200,17 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listViews(SessionContext session) throws SqlExecutionException {
+		List<String> viewList = new ArrayList<>();
+		session.getViews().keySet().forEach((viewName) -> viewList.add(viewName));
+
+		//sort
+		Collections.sort(viewList);
+
+		return viewList;
+	}
+
+	@Override
 	public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
 		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
 			.createEnvironmentInstance()

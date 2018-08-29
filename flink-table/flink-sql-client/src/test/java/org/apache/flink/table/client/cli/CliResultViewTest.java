@@ -131,6 +131,11 @@ public class CliResultViewTest {
 		}
 
 		@Override
+		public List<String> listViews(SessionContext session) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException {
 			return null;
 		}

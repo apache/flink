@@ -87,6 +87,10 @@ public final class SqlCommandParser {
 			"SHOW\\s+TABLES",
 			NO_OPERANDS),
 
+		SHOW_VIEWS(
+			"SHOW\\s+VIEWS",
+			NO_OPERANDS),
+
 		SHOW_FUNCTIONS(
 			"SHOW\\s+FUNCTIONS",
 			NO_OPERANDS),
