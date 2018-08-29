@@ -21,9 +21,11 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
+import org.apache.flink.util.Preconditions;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
  * A {@link BucketAssigner} that assigns to buckets based on current system time.
@@ -37,14 +39,14 @@ import java.util.Date;
  * user provided format string.
  *
  *
- * <p>{@link SimpleDateFormat} is used to derive a date string from the current system time and
+ * <p>{@link DateTimeFormatter} is used to derive a date string from the current system time and
  * the date format string. The default format string is {@code "yyyy-MM-dd--HH"} so the rolling
  * files will have a granularity of hours.
  *
  * <p>Example:
  *
  * <pre>{@code
- *     Bucketer buck = new DateTimeBucketer("yyyy-MM-dd--HH");
+ *     BucketAssigner bucketAssigner = new DateTimeBucketAssigner("yyyy-MM-dd--HH");
  * }</pre>
  *
  * <p>This will create for example the following bucket path:
@@ -59,32 +61,55 @@ public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 	private static final String DEFAULT_FORMAT_STRING = "yyyy-MM-dd--HH";
 
 	private final String formatString;
+	private final ZoneId zoneId;
 
-	private transient SimpleDateFormat dateFormatter;
+	private transient DateTimeFormatter dateTimeFormatter;
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with format string {@code "yyyy-MM-dd--HH"}.
+	 * Creates a new {@code DateTimeBucketAssigner} with format string {@code "yyyy-MM-dd--HH"}.
 	 */
 	public DateTimeBucketAssigner() {
 		this(DEFAULT_FORMAT_STRING);
 	}
 
 	/**
-	 * Creates a new {@code DateTimeBucketer} with the given date/time format string.
+	 * Creates a new {@code DateTimeBucketAssigner} with the given date/time format string.
 	 *
 	 * @param formatString The format string that will be given to {@code SimpleDateFormat} to determine
-	 *                     the bucket path.
+	 *                     the bucket id.
 	 */
 	public DateTimeBucketAssigner(String formatString) {
-		this.formatString = formatString;
+		this(formatString, ZoneId.systemDefault());
+	}
+
+	/**
+	 * Creates a new {@code DateTimeBucketAssigner} with format string {@code "yyyy-MM-dd--HH"} using the given timezone.
+	 *
+	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket id.
+	 */
+	public DateTimeBucketAssigner(ZoneId zoneId) {
+		this(DEFAULT_FORMAT_STRING, zoneId);
+	}
+
+	/**
+	 * Creates a new {@code DateTimeBucketAssigner} with the given date/time format string using the given timezone.
+	 *
+	 * @param formatString The format string that will be given to {@code DateTimeFormatter} to determine
+	 *                     the bucket path.
+	 * @param zoneId The timezone used to format {@code DateTimeFormatter} for bucket id.
+	 */
+	public DateTimeBucketAssigner(String formatString, ZoneId zoneId) {
+		this.formatString = Preconditions.checkNotNull(formatString);
+		this.zoneId = Preconditions.checkNotNull(zoneId);
 	}
 
 	@Override
 	public String getBucketId(IN element, BucketAssigner.Context context) {
-		if (dateFormatter == null) {
-			dateFormatter = new SimpleDateFormat(formatString);
+		if (dateTimeFormatter == null) {
+			dateTimeFormatter = DateTimeFormatter.ofPattern(formatString).withZone(zoneId);
 		}
-		return dateFormatter.format(new Date(context.currentProcessingTime()));
+
+		return dateTimeFormatter.format(Instant.ofEpochMilli(context.currentProcessingTime()));
 	}
 
 	@Override
@@ -94,6 +119,9 @@ public class DateTimeBucketAssigner<IN> implements BucketAssigner<IN, String> {
 
 	@Override
 	public String toString() {
-		return "DateTimeBucketAssigner{formatString='" + formatString + '\'' + '}';
+		return "DateTimeBucketAssigner{" +
+			"formatString='" + formatString + '\'' +
+			", zoneId=" + zoneId +
+			'}';
 	}
 }
