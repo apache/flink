@@ -700,7 +700,7 @@ public class StreamTaskTest extends TestLogger {
 		doAnswer(new Answer() {
 			@Override
 			public Object answer(InvocationOnMock invocation) throws Throwable {
-				SubtaskState subtaskState = invocation.getArgumentAt(4, SubtaskState.class);
+				SubtaskState subtaskState = invocation.getArgument(4);
 				checkpointResult.add(subtaskState);
 				checkpointCompletedLatch.trigger();
 				return null;

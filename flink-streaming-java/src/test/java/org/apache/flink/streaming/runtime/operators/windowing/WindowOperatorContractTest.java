@@ -573,7 +573,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Exception {
 				@SuppressWarnings("unchecked")
-				Collector<String> out = invocation.getArgumentAt(4, Collector.class);
+				Collector<String> out = invocation.getArgument(4);
 				out.collect("Hallo");
 				out.collect("Ciao");
 				return null;
@@ -616,7 +616,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Exception {
 				@SuppressWarnings("unchecked")
-				Collector<String> out = invocation.getArgumentAt(4, Collector.class);
+				Collector<String> out = invocation.getArgument(4);
 				out.collect("Hallo");
 				out.collect("Ciao");
 				return null;

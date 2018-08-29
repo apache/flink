@@ -127,7 +127,7 @@ public class TaskManagerLogHandlerTest {
 		when(ctx.write(isA(ByteBuf.class))).thenAnswer(new Answer<Object>() {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-				ByteBuf data = invocationOnMock.getArgumentAt(0, ByteBuf.class);
+				ByteBuf data = invocationOnMock.getArgument(0);
 				exception.set(new String(data.array(), ConfigConstants.DEFAULT_CHARSET));
 				return null;
 			}
