@@ -39,8 +39,17 @@ import java.util.Map;
  */
 public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
-	/** Default threshold for cleaning up deleted rows in the materialized table. */
-	public static final int DEFAULT_OVERCOMMIT_THRESHOLD = 500;
+	/** Maximum initial capacity of the materialized table. */
+	public static final int MATERIALIZED_TABLE_MAX_INITIAL_CAPACITY = 1_000_000;
+
+	/** Maximum overcommitment of the materialized table. */
+	public static final int MATERIALIZED_TABLE_MAX_OVERCOMMIT = 1_000_000;
+
+	/** Factor for the initial capacity of the materialized table. */
+	public static final double MATERIALIZED_TABLE_CAPACITY_FACTOR = 0.05;
+
+	/** Factor for cleaning up deleted rows in the materialized table. */
+	public static final double MATERIALIZED_TABLE_OVERCOMMIT_FACTOR = 0.01;
 
 	/**
 	 * Maximum number of materialized rows to be stored. After the count is reached, oldest
@@ -79,6 +88,7 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	/** Indicator that this is the last snapshot possible (EOS afterwards). */
 	private boolean isLastSnapshot;
 
+	@VisibleForTesting
 	public MaterializedCollectStreamResult(
 			TypeInformation<Row> outputType,
 			ExecutionConfig config,
@@ -93,15 +103,33 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 		} else {
 			this.maxRowCount = maxRowCount;
 		}
+
 		this.overcommitThreshold = overcommitThreshold;
 
 		// prepare for materialization
-		materializedTable = new ArrayList<>(Math.max(1, (int) (maxRowCount * 0.01))); // avoid frequent resizing
-		rowPositionCache = new HashMap<>();
+		final int initialCapacity = computeMaterializedTableCapacity(maxRowCount); // avoid frequent resizing
+		materializedTable = new ArrayList<>(initialCapacity);
+		rowPositionCache = new HashMap<>(initialCapacity);
 		snapshot = new ArrayList<>();
 		validRowPosition = 0;
 		isLastSnapshot = false;
 		pageCount = 0;
+	}
+
+	public MaterializedCollectStreamResult(
+			TypeInformation<Row> outputType,
+			ExecutionConfig config,
+			InetAddress gatewayAddress,
+			int gatewayPort,
+			int maxRowCount) {
+
+		this(
+			outputType,
+			config,
+			gatewayAddress,
+			gatewayPort,
+			maxRowCount,
+			computeMaterializedTableOvercommit(maxRowCount));
 	}
 
 	@Override
@@ -204,7 +232,11 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	private void cleanUp() {
 		// invalidate row
 		final Row deleteRow = materializedTable.get(validRowPosition);
-		rowPositionCache.remove(deleteRow);
+		if (rowPositionCache.get(deleteRow) == validRowPosition) {
+			// this row has no duplicates in the materialized table,
+			// it can be removed from the cache
+			rowPositionCache.remove(deleteRow);
+		}
 		materializedTable.set(validRowPosition, null);
 
 		validRowPosition++;
@@ -212,7 +244,21 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 		// perform clean up in batches
 		if (validRowPosition >= overcommitThreshold) {
 			materializedTable.subList(0, validRowPosition).clear();
+			// adjust all cached indexes
+			rowPositionCache.replaceAll((k, v) -> v - validRowPosition);
 			validRowPosition = 0;
 		}
+	}
+
+	private static int computeMaterializedTableCapacity(int maxRowCount) {
+		return Math.min(
+			MATERIALIZED_TABLE_MAX_INITIAL_CAPACITY,
+			Math.max(1, (int) (maxRowCount * MATERIALIZED_TABLE_CAPACITY_FACTOR)));
+	}
+
+	private static int computeMaterializedTableOvercommit(int maxRowCount) {
+		return Math.min(
+			MATERIALIZED_TABLE_MAX_OVERCOMMIT,
+			(int) (maxRowCount * MATERIALIZED_TABLE_OVERCOMMIT_FACTOR));
 	}
 }

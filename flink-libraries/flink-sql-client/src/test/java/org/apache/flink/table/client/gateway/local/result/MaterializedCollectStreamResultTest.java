@@ -51,8 +51,7 @@ public class MaterializedCollectStreamResultTest {
 				new ExecutionConfig(),
 				InetAddress.getLocalHost(),
 				0,
-				Integer.MAX_VALUE,
-				MaterializedCollectStreamResult.DEFAULT_OVERCOMMIT_THRESHOLD);
+				Integer.MAX_VALUE);
 
 			result.isRetrieving = true;
 
@@ -111,7 +110,7 @@ public class MaterializedCollectStreamResultTest {
 			result.processRecord(Tuple2.of(true, Row.of("A", 1)));
 
 			assertEquals(
-				Arrays.asList(null, null, Row.of("B", 1), Row.of("A", 1)), // one over-committed row
+				Arrays.asList(null, null, Row.of("B", 1), Row.of("A", 1)), // two over-committed rows
 				result.getMaterializedTable());
 
 			assertEquals(TypedResult.payload(2), result.snapshot(1));
@@ -160,6 +159,21 @@ public class MaterializedCollectStreamResultTest {
 				gatewayPort,
 				maxRowCount,
 				overcommitThreshold);
+		}
+
+		public TestMaterializedCollectStreamResult(
+				TypeInformation<Row> outputType,
+				ExecutionConfig config,
+				InetAddress gatewayAddress,
+				int gatewayPort,
+				int maxRowCount) {
+
+			super(
+				outputType,
+				config,
+				gatewayAddress,
+				gatewayPort,
+				maxRowCount);
 		}
 
 		@Override
