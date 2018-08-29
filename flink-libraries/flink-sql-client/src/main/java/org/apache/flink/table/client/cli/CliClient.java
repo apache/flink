@@ -27,12 +27,14 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.MaskingCallback;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
@@ -71,6 +73,9 @@ public class CliClient {
 
 	private boolean isRunning;
 
+	private static final Path HISTORY_FILE_PATH =
+		Paths.get(System.getProperty("user.home"),
+			SystemUtils.IS_OS_WINDOWS ? "flinksqlclienthistory" : ".flinksqlclienthistory");
 	private static final int PLAIN_TERMINAL_WIDTH = 80;
 
 	private static final int PLAIN_TERMINAL_HEIGHT = 30;
@@ -101,6 +106,11 @@ public class CliClient {
 			.appName(CliStrings.CLI_NAME)
 			.parser(parser)
 			.build();
+
+		lineReader.setVariable(LineReader.HISTORY_FILE, HISTORY_FILE_PATH);
+		// attach to lineReader is called inside DefaultHistory constructor =>
+		// call for such constructor is enough
+		new DefaultHistory(lineReader);
 
 		// create prompt
 		prompt = new AttributedStringBuilder()
