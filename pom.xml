@@ -325,6 +325,20 @@ under the License.
 				<version>${hamcrest.version}</version>
 			</dependency>
 
+			<dependency>
+				<!-- mockito/powermock mismatch -->
+				<groupId>net.bytebuddy</groupId>
+				<artifactId>byte-buddy</artifactId>
+				<version>1.8.15</version>
+			</dependency>
+
+			<dependency>
+				<!-- mockito/powermock mismatch -->
+				<groupId>net.bytebuddy</groupId>
+				<artifactId>byte-buddy-agent</artifactId>
+				<version>1.8.15</version>
+			</dependency>
+
 			<!-- For dependency convergence -->
 			<dependency>
 				<groupId>org.objenesis</groupId>
