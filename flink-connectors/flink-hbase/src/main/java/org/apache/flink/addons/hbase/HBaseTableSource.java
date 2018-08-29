@@ -144,9 +144,10 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 		for (int field : fields) {
 			String family = famNames[field];
 			Map<String, TypeInformation<?>> familyInfo = hBaseSchema.getFamilyInfo(family);
-			for (String qualifier : familyInfo.keySet()) {
+			for (Map.Entry<String, TypeInformation<?>> entry : familyInfo.entrySet()) {
 				// create the newSchema
-				newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+				String qualifier = entry.getKey();
+				newTableSource.addColumn(family, qualifier, entry.getValue().getTypeClass());
 			}
 		}
 		return newTableSource;
