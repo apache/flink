@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,6 +39,31 @@ import java.util.Map;
  */
 public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> implements MaterializedResult<C> {
 
+	/** Maximum initial capacity of the materialized table. */
+	public static final int MATERIALIZED_TABLE_MAX_INITIAL_CAPACITY = 1_000_000;
+
+	/** Maximum overcommitment of the materialized table. */
+	public static final int MATERIALIZED_TABLE_MAX_OVERCOMMIT = 1_000_000;
+
+	/** Factor for the initial capacity of the materialized table. */
+	public static final double MATERIALIZED_TABLE_CAPACITY_FACTOR = 0.05;
+
+	/** Factor for cleaning up deleted rows in the materialized table. */
+	public static final double MATERIALIZED_TABLE_OVERCOMMIT_FACTOR = 0.01;
+
+	/**
+	 * Maximum number of materialized rows to be stored. After the count is reached, oldest
+	 * rows are dropped.
+	 */
+	private final int maxRowCount;
+
+	/** Threshold for cleaning up deleted rows in the materialized table. */
+	private final int overcommitThreshold;
+
+	/**
+	 * Materialized table that is continuously updated by inserts and deletes. Deletes at
+	 * the beginning are lazily cleaned up when the threshold is reached.
+	 */
 	private final List<Row> materializedTable;
 
 	/**
@@ -47,24 +73,63 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	 */
 	private final Map<Row, Integer> rowPositionCache;
 
+	/** Current snapshot of the materialized table. */
 	private final List<Row> snapshot;
 
+	/** Counter for deleted rows to be deleted at the beginning of the materialized table. */
+	private int validRowPosition;
+
+	/** Page count of the snapshot (always >= 1). */
 	private int pageCount;
 
+	/** Page size of the snapshot (always >= 1). */
 	private int pageSize;
 
+	/** Indicator that this is the last snapshot possible (EOS afterwards). */
 	private boolean isLastSnapshot;
 
-	public MaterializedCollectStreamResult(TypeInformation<Row> outputType, ExecutionConfig config,
-			InetAddress gatewayAddress, int gatewayPort) {
+	@VisibleForTesting
+	public MaterializedCollectStreamResult(
+			TypeInformation<Row> outputType,
+			ExecutionConfig config,
+			InetAddress gatewayAddress,
+			int gatewayPort,
+			int maxRowCount,
+			int overcommitThreshold) {
 		super(outputType, config, gatewayAddress, gatewayPort);
 
+		if (maxRowCount <= 0) {
+			this.maxRowCount = Integer.MAX_VALUE;
+		} else {
+			this.maxRowCount = maxRowCount;
+		}
+
+		this.overcommitThreshold = overcommitThreshold;
+
 		// prepare for materialization
-		materializedTable = new ArrayList<>();
-		rowPositionCache = new HashMap<>();
+		final int initialCapacity = computeMaterializedTableCapacity(maxRowCount); // avoid frequent resizing
+		materializedTable = new ArrayList<>(initialCapacity);
+		rowPositionCache = new HashMap<>(initialCapacity);
 		snapshot = new ArrayList<>();
+		validRowPosition = 0;
 		isLastSnapshot = false;
 		pageCount = 0;
+	}
+
+	public MaterializedCollectStreamResult(
+			TypeInformation<Row> outputType,
+			ExecutionConfig config,
+			InetAddress gatewayAddress,
+			int gatewayPort,
+			int maxRowCount) {
+
+		this(
+			outputType,
+			config,
+			gatewayAddress,
+			gatewayPort,
+			maxRowCount,
+			computeMaterializedTableOvercommit(maxRowCount));
 	}
 
 	@Override
@@ -74,6 +139,10 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 	@Override
 	public TypedResult<Integer> snapshot(int pageSize) {
+		if (pageSize < 1) {
+			throw new SqlExecutionException("Page size must be greater than 0.");
+		}
+
 		synchronized (resultLock) {
 			// retrieval thread is dead and there are no results anymore
 			// or program failed
@@ -87,7 +156,9 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 
 			this.pageSize = pageSize;
 			snapshot.clear();
-			snapshot.addAll(materializedTable);
+			for (int i = validRowPosition; i < materializedTable.size(); i++) {
+				snapshot.add(materializedTable.get(i));
+			}
 
 			// at least one page
 			pageCount = Math.max(1, (int) Math.ceil(((double) snapshot.size() / pageSize)));
@@ -112,31 +183,82 @@ public class MaterializedCollectStreamResult<C> extends CollectStreamResult<C> i
 	@Override
 	protected void processRecord(Tuple2<Boolean, Row> change) {
 		synchronized (resultLock) {
-			final Row row = change.f1;
 			// insert
 			if (change.f0) {
-				materializedTable.add(row);
-				rowPositionCache.put(row, materializedTable.size() - 1);
+				processInsert(change.f1);
 			}
 			// delete
 			else {
-				// delete the newest record first to minimize per-page changes
-				final Integer cachedPos = rowPositionCache.get(row);
-				final int startSearchPos;
-				if (cachedPos != null) {
-					startSearchPos = Math.min(cachedPos, materializedTable.size() - 1);
-				} else {
-					startSearchPos = materializedTable.size() - 1;
-				}
-
-				for (int i = startSearchPos; i >= 0; i--) {
-					if (materializedTable.get(i).equals(row)) {
-						materializedTable.remove(i);
-						rowPositionCache.remove(row);
-						break;
-					}
-				}
+				processDelete(change.f1);
 			}
 		}
+	}
+
+	@VisibleForTesting
+	protected List<Row> getMaterializedTable() {
+		return materializedTable;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private void processInsert(Row row) {
+		// limit the materialized table
+		if (materializedTable.size() - validRowPosition >= maxRowCount) {
+			cleanUp();
+		}
+		materializedTable.add(row);
+		rowPositionCache.put(row, materializedTable.size() - 1);
+	}
+
+	private void processDelete(Row row) {
+		// delete the newest record first to minimize per-page changes
+		final Integer cachedPos = rowPositionCache.get(row);
+		final int startSearchPos;
+		if (cachedPos != null) {
+			startSearchPos = Math.min(cachedPos, materializedTable.size() - 1);
+		} else {
+			startSearchPos = materializedTable.size() - 1;
+		}
+
+		for (int i = startSearchPos; i >= validRowPosition; i--) {
+			if (materializedTable.get(i).equals(row)) {
+				materializedTable.remove(i);
+				rowPositionCache.remove(row);
+				break;
+			}
+		}
+	}
+
+	private void cleanUp() {
+		// invalidate row
+		final Row deleteRow = materializedTable.get(validRowPosition);
+		if (rowPositionCache.get(deleteRow) == validRowPosition) {
+			// this row has no duplicates in the materialized table,
+			// it can be removed from the cache
+			rowPositionCache.remove(deleteRow);
+		}
+		materializedTable.set(validRowPosition, null);
+
+		validRowPosition++;
+
+		// perform clean up in batches
+		if (validRowPosition >= overcommitThreshold) {
+			materializedTable.subList(0, validRowPosition).clear();
+			// adjust all cached indexes
+			rowPositionCache.replaceAll((k, v) -> v - validRowPosition);
+			validRowPosition = 0;
+		}
+	}
+
+	private static int computeMaterializedTableCapacity(int maxRowCount) {
+		return Math.min(
+			MATERIALIZED_TABLE_MAX_INITIAL_CAPACITY,
+			Math.max(1, (int) (maxRowCount * MATERIALIZED_TABLE_CAPACITY_FACTOR)));
+	}
+
+	private static int computeMaterializedTableOvercommit(int maxRowCount) {
+		return Math.min(
+			MATERIALIZED_TABLE_MAX_OVERCOMMIT,
+			(int) (maxRowCount * MATERIALIZED_TABLE_OVERCOMMIT_FACTOR));
 	}
 }

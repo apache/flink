@@ -123,6 +123,7 @@ execution:
   min-idle-state-retention: 0
   max-idle-state-retention: 0
   result-mode: "$VAR_3"
+  max-table-result-rows: "$VAR_MAX_ROWS"
   restart-strategy:
     type: failure-rate
     max-failures-per-interval: 10

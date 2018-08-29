@@ -106,7 +106,7 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries.
+Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
 
 <span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
 
@@ -167,6 +167,7 @@ Every environment file is a regular [YAML file](http://yaml.org/). An example of
 tables:
   - name: MyTableSource
     type: source
+    update-mode: append
     connector:
       type: filesystem
       path: "/path/to/something.csv"
@@ -206,6 +207,8 @@ functions:
 execution:
   type: streaming                   # required: execution mode either 'batch' or 'streaming'
   result-mode: table                # required: either 'table' or 'changelog'
+  max-table-result-rows: 1000000    # optional: maximum number of maintained rows in
+                                    #   'table' mode (1000000 by default, smaller 1 means unlimited)
   time-characteristic: event-time   # optional: 'processing-time' or 'event-time' (default)
   parallelism: 1                    # optional: Flink's parallelism (1 by default)
   periodic-watermarks-interval: 200 # optional: interval for periodic watermarks (200 ms by default)
@@ -213,7 +216,7 @@ execution:
   min-idle-state-retention: 0       # optional: table program's minimum idle state time
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
   restart-strategy:                 # optional: restart strategy
-    type: fallback                  #           "fallback" to global restart strategy by default
+    type: fallback                  #   "fallback" to global restart strategy by default
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
