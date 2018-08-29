@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
+import org.apache.flink.runtime.checkpoint.decline.InputEndOfStreamException;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -531,7 +532,7 @@ public abstract class BarrierBufferTestBase {
 
 		// checkpoint 3 aborted (end of partition)
 		check(sequence[20], buffer.getNextNonBlocked(), PAGE_SIZE);
-		verify(toNotify).abortCheckpointOnBarrier(eq(3L), any(CheckpointDeclineSubsumedException.class));
+		verify(toNotify).abortCheckpointOnBarrier(eq(3L), any(InputEndOfStreamException.class));
 
 		// replay buffered data from checkpoint 3
 		check(sequence[18], buffer.getNextNonBlocked(), PAGE_SIZE);
