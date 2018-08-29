@@ -22,7 +22,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
@@ -40,7 +39,6 @@ import static org.junit.Assert.assertTrue;
  * Tests for the network utilities.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(ConnectionUtils.class)
 public class ConnectionUtilsTest {
 
 	@Test
@@ -91,7 +89,6 @@ public class ConnectionUtilsTest {
 			final InetAddress address = ConnectionUtils.findConnectingAddress(
 				socketAddress, 2000, 400);
 
-			PowerMockito.verifyStatic();
 			// Make sure we got an address via alternative means
 			assertNotNull(address);
 		}
