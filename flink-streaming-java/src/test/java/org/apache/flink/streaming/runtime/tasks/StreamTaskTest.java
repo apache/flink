@@ -152,6 +152,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -710,7 +711,7 @@ public class StreamTaskTest extends TestLogger {
 			any(ExecutionAttemptID.class),
 			anyLong(),
 			any(CheckpointMetrics.class),
-			any(TaskStateSnapshot.class));
+			nullable(TaskStateSnapshot.class));
 
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),

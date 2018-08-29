@@ -33,9 +33,8 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -59,7 +58,7 @@ public class HadoopOutputFormatTest {
 
 		hadoopOutputFormat.writeRecord(new Tuple2<String, Long>());
 
-		verify(recordWriter, times(1)).write(anyString(), anyLong());
+		verify(recordWriter, times(1)).write(nullable(String.class), nullable(Long.class));
 	}
 
 	@Test
@@ -89,8 +88,8 @@ public class HadoopOutputFormatTest {
 
 		hadoopOutputFormat.close();
 
-		verify(outputCommitter, times(1)).commitTask(any(TaskAttemptContext.class));
-		verify(recordWriter, times(1)).close(any(TaskAttemptContext.class));
+		verify(outputCommitter, times(1)).commitTask(nullable(TaskAttemptContext.class));
+		verify(recordWriter, times(1)).close(nullable(TaskAttemptContext.class));
 	}
 
 	@Test
@@ -104,8 +103,8 @@ public class HadoopOutputFormatTest {
 
 		hadoopOutputFormat.close();
 
-		verify(outputCommitter, times(0)).commitTask(any(TaskAttemptContext.class));
-		verify(recordWriter, times(1)).close(any(TaskAttemptContext.class));
+		verify(outputCommitter, times(0)).commitTask(nullable(TaskAttemptContext.class));
+		verify(recordWriter, times(1)).close(nullable(TaskAttemptContext.class));
 	}
 
 	@Test
@@ -134,7 +133,7 @@ public class HadoopOutputFormatTest {
 
 	private OutputCommitter setupOutputCommitter(boolean needsTaskCommit) throws IOException {
 		OutputCommitter outputCommitter = Mockito.mock(OutputCommitter.class);
-		when(outputCommitter.needsTaskCommit(any(TaskAttemptContext.class))).thenReturn(needsTaskCommit);
+		when(outputCommitter.needsTaskCommit(nullable(TaskAttemptContext.class))).thenReturn(needsTaskCommit);
 		doNothing().when(outputCommitter).commitTask(any(TaskAttemptContext.class));
 
 		return outputCommitter;
