@@ -21,6 +21,7 @@ package org.apache.flink.core.net;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -28,6 +29,11 @@ import org.junit.Test;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLServerSocket;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
@@ -43,13 +49,20 @@ import static org.junit.Assert.fail;
  */
 public class SSLUtilsTest extends TestLogger {
 
-	private static final String TRUST_STORE_PATH = SSLUtilsTest.class.getResource("/local127.truststore").getFile();
-	private static final String KEY_STORE_PATH = SSLUtilsTest.class.getResource("/local127.keystore").getFile();
-	private static final String UNTRUSTED_KEY_STORE_PATH = SSLUtilsTest.class.getResource("/untrusted.keystore").getFile();
+	private static final String TRUST_STORE_PATH;
+	private static final String KEY_STORE_PATH;
+	private static final String UNTRUSTED_KEY_STORE_PATH;
 
 	private static final String TRUST_STORE_PASSWORD = "password";
 	private static final String KEY_STORE_PASSWORD = "password";
 	private static final String KEY_PASSWORD = "password";
+
+	static {
+		// extracting the resources to allow SSLUtilsTest to be used by other modules
+		TRUST_STORE_PATH = extractResource("/local127.truststore");
+		KEY_STORE_PATH = extractResource("/local127.keystore");
+		UNTRUSTED_KEY_STORE_PATH = extractResource("/untrusted.keystore");
+	}
 
 	/**
 	 * Tests whether activation of internal / REST SSL evaluates the config flags correctly.
@@ -444,5 +457,20 @@ public class SSLUtilsTest extends TestLogger {
 	private static void addInternalTrustStoreConfig(Configuration config) {
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_PATH);
 		config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
+	}
+
+	private static String extractResource(String resourceName) {
+		File tempFile;
+		try {
+			tempFile = File.createTempFile("SSLUtilsTest-", null);
+			tempFile.deleteOnExit();
+			try (InputStream in = SSLUtilsTest.class.getResourceAsStream(resourceName); OutputStream out = new FileOutputStream(tempFile)) {
+				IOUtils.copyBytes(in, out, false);
+			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return tempFile.getAbsolutePath();
 	}
 }
