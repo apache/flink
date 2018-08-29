@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.server;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.AbstractServerBase;
@@ -51,7 +52,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 * Creates the state server.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats, SSLEngineFactory)
 	 * QueryableStateUtils.createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
@@ -63,6 +64,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 * @param numQueryThreads number of query threads.
 	 * @param kvStateRegistry {@link KvStateRegistry} to query for state instances.
 	 * @param stats the statistics collector.
+	 * @param sslFactory the SSL factory or null if SSL is not enabled.
 	 */
 	public KvStateServerImpl(
 			final InetAddress bindAddress,
@@ -70,9 +72,10 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,
 			final KvStateRegistry kvStateRegistry,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory sslFactory) {
 
-		super("Queryable State Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads);
+		super("Queryable State Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads, sslFactory);
 		this.stats = Preconditions.checkNotNull(stats);
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 	}

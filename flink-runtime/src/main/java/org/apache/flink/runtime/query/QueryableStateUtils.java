@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.query;
 
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
 
@@ -42,7 +43,7 @@ public final class QueryableStateUtils {
 
 	/**
 	 * Initializes the {@link KvStateClientProxy client proxy} responsible for
-	 * receiving requests from the external (to the cluster) client and forwarding them internally.
+	 * receiving requests from the external (to the cluster) client and forwarding them internally ('upstream').
 	 *
 	 * @param address the address to bind to.
 	 * @param ports the range of ports the proxy will attempt to listen to
@@ -51,6 +52,8 @@ public final class QueryableStateUtils {
 	 * @param eventLoopThreads the number of threads to be used to process incoming requests.
 	 * @param queryThreads the number of threads to be used to send the actual state.
 	 * @param stats statistics to be gathered about the incoming requests.
+	 * @param serverSslFactory the server SSL factory or null is SSL is not enabled.
+	 * @param upstreamSslFactory the upstream SSL factory or null is SSL is not enabled.
 	 * @return the {@link KvStateClientProxy client proxy}.
 	 */
 	public static KvStateClientProxy createKvStateClientProxy(
@@ -58,7 +61,9 @@ public final class QueryableStateUtils {
 			final Iterator<Integer> ports,
 			final int eventLoopThreads,
 			final int queryThreads,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory serverSslFactory,
+			final SSLEngineFactory upstreamSslFactory) {
 
 		Preconditions.checkNotNull(address, "address");
 		Preconditions.checkNotNull(stats, "stats");
@@ -74,8 +79,10 @@ public final class QueryableStateUtils {
 					Iterator.class,
 					Integer.class,
 					Integer.class,
-					KvStateRequestStats.class);
-			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, stats);
+					KvStateRequestStats.class,
+					SSLEngineFactory.class,
+					SSLEngineFactory.class);
+			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, stats, serverSslFactory, upstreamSslFactory);
 		} catch (ClassNotFoundException e) {
 			final String msg = "Could not load Queryable State Client Proxy. " + ERROR_MESSAGE_ON_LOAD_FAILURE;
 			if (LOG.isDebugEnabled()) {
@@ -105,6 +112,7 @@ public final class QueryableStateUtils {
 	 * @param queryThreads the number of threads to be used to send the actual state.
 	 * @param kvStateRegistry the registry with the queryable state.
 	 * @param stats statistics to be gathered about the incoming requests.
+	 * @param sslFactory the SSL factory or null is SSL is not enabled.
 	 * @return the {@link KvStateServer state server}.
 	 */
 	public static KvStateServer createKvStateServer(
@@ -113,7 +121,8 @@ public final class QueryableStateUtils {
 			final int eventLoopThreads,
 			final int queryThreads,
 			final KvStateRegistry kvStateRegistry,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory sslFactory) {
 
 		Preconditions.checkNotNull(address, "address");
 		Preconditions.checkNotNull(kvStateRegistry, "registry");
@@ -131,8 +140,9 @@ public final class QueryableStateUtils {
 					Integer.class,
 					Integer.class,
 					KvStateRegistry.class,
-					KvStateRequestStats.class);
-			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats);
+					KvStateRequestStats.class,
+					SSLEngineFactory.class);
+			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats, sslFactory);
 		} catch (ClassNotFoundException e) {
 			final String msg = "Could not load Queryable State Server. " + ERROR_MESSAGE_ON_LOAD_FAILURE;
 			if (LOG.isDebugEnabled()) {

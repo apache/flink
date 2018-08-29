@@ -92,7 +92,8 @@ public class KvStateServerHandlerTest extends TestLogger {
 					1,
 					1,
 					new KvStateRegistry(),
-					new DisabledKvStateRequestStats());
+					new DisabledKvStateRequestStats(),
+					null);
 			testServer.start();
 		} catch (Throwable e) {
 			e.printStackTrace();
@@ -406,7 +407,8 @@ public class KvStateServerHandlerTest extends TestLogger {
 				1,
 				1,
 				new KvStateRegistry(),
-				new DisabledKvStateRequestStats());
+				new DisabledKvStateRequestStats(),
+				null);
 
 		localTestServer.start();
 		localTestServer.shutdown();

@@ -28,6 +28,8 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.core.net.SSLEngineFactory;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
@@ -481,13 +483,31 @@ public class TaskManagerServicesConfiguration {
 		final int numStateServerNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
 		final int numStateServerQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
 
+		boolean sslEnabled = config.getBoolean(QueryableStateOptions.SSL_ENABLED) && SSLUtils.isInternalSSLEnabled(config);
+
+		SSLEngineFactory serverSslFactory;
+		try {
+			serverSslFactory = sslEnabled ? SSLUtils.createInternalServerSSLEngineFactory(config) : null;
+		} catch (Exception e) {
+			throw new IllegalConfigurationException("Failed to initialize SSL Context for the Queryable State server", e);
+		}
+
+		SSLEngineFactory upstreamSslFactory;
+		try {
+			upstreamSslFactory = sslEnabled ? SSLUtils.createInternalClientSSLEngineFactory(config) : null;
+		} catch (Exception e) {
+			throw new IllegalConfigurationException("Failed to initialize SSL Context for the Queryable State proxy (upstream)", e);
+		}
+
 		return new QueryableStateConfiguration(
 				proxyPorts,
 				serverPorts,
 				numProxyServerNetworkThreads,
 				numProxyServerQueryThreads,
 				numStateServerNetworkThreads,
-				numStateServerQueryThreads);
+				numStateServerQueryThreads,
+				serverSslFactory,
+				upstreamSslFactory);
 	}
 
 	/**

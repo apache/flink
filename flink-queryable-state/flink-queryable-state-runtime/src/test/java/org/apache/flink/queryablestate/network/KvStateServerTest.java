@@ -101,7 +101,8 @@ public class KvStateServerTest {
 					1,
 					1,
 					registry,
-					stats);
+					stats,
+					null);
 			server.start();
 
 			InetSocketAddress serverAddress = server.getServerAddress();

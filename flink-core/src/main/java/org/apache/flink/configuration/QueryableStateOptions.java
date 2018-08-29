@@ -29,6 +29,19 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class QueryableStateOptions {
 
 	// ------------------------------------------------------------------------
+	// General Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Config parameter to override SSL support for queryable state communication.
+	 */
+	public static final ConfigOption<Boolean> SSL_ENABLED =
+		key("query.ssl.enabled")
+			.defaultValue(true)
+			.withDescription("Enable SSL support for queryable state communication. This is applicable only when the" +
+				" global flag for internal SSL (" + SecurityOptions.SSL_INTERNAL_ENABLED.key() + ") is set to true");
+
+	// ------------------------------------------------------------------------
 	// Server Options
 	// ------------------------------------------------------------------------
 

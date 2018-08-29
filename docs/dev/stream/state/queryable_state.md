@@ -189,6 +189,11 @@ to configure the proxy and state server port(s) in the [Configuration Section](#
 QueryableStateClient client = new QueryableStateClient(tmHostname, proxyPort);
 {% endhighlight %}
 
+The client automatically loads the Flink configuration file (based on `FLINK_CONF_DIR` environment variable) to obtain
+SSL configuration parameters.  Note that the client uses "internal" connectivity as described 
+in [SSL Setup]({{ site.baseurl }}/ops/security-ssl.html).  It is also possible to initialize `QueryableStateClient`
+with an explicit configuration.
+
 With the client ready, to query a state of type `V`, associated with a key of type `K`, you can use the method:
 
 {% highlight java %}

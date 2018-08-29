@@ -33,6 +33,12 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.QueryableStateOptions;
+import org.apache.flink.core.net.SSLEngineFactory;
+import org.apache.flink.core.net.SSLUtils;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
 import org.apache.flink.queryablestate.client.state.ImmutableFoldingState;
@@ -106,7 +112,7 @@ public class QueryableStateClient {
 	private ExecutionConfig executionConfig;
 
 	/**
-	 * Create the Queryable State Client.
+	 * Create the Queryable State Client from the Flink global configuration.
 	 * @param remoteHostname the hostname of the {@code Client Proxy} to connect to.
 	 * @param remotePort the port of the proxy to connect to.
 	 */
@@ -115,15 +121,34 @@ public class QueryableStateClient {
 	}
 
 	/**
-	 * Create the Queryable State Client.
+	 * Create the Queryable State Client from the Flink global configuration.
 	 * @param remoteAddress the {@link InetAddress address} of the {@code Client Proxy} to connect to.
 	 * @param remotePort the port of the proxy to connect to.
 	 */
 	public QueryableStateClient(final InetAddress remoteAddress, final int remotePort) {
+		this(remoteAddress, remotePort, GlobalConfiguration.loadConfiguration());
+	}
+
+	/**
+	 * Create the Queryable State Client.
+	 * @param remoteAddress the {@link InetAddress address} of the {@code Client Proxy} to connect to.
+	 * @param remotePort the port of the proxy to connect to.
+	 * @param config the Flink configuration to use.
+	 */
+	public QueryableStateClient(final InetAddress remoteAddress, final int remotePort, Configuration config) {
 		Preconditions.checkArgument(remotePort >= 0 && remotePort <= 65536,
 				"Remote Port " + remotePort + " is out of valid port range (0-65536).");
 
 		this.remoteAddress = new InetSocketAddress(remoteAddress, remotePort);
+
+		SSLEngineFactory sslFactory = null;
+		if (config.getBoolean(QueryableStateOptions.SSL_ENABLED) && SSLUtils.isInternalSSLEnabled(config)) {
+			try {
+				sslFactory = SSLUtils.createInternalClientSSLEngineFactory(config);
+			} catch (Exception e) {
+				throw new IllegalConfigurationException("Failed to initialize SSLContext for the Queryable State Client", e);
+			}
+		}
 
 		final MessageSerializer<KvStateRequest, KvStateResponse> messageSerializer =
 				new MessageSerializer<>(
@@ -134,7 +159,8 @@ public class QueryableStateClient {
 				"Queryable State Client",
 				1,
 				messageSerializer,
-				new DisabledKvStateRequestStats());
+				new DisabledKvStateRequestStats(),
+				sslFactory);
 	}
 
 	/**

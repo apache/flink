@@ -671,7 +671,8 @@ public class ClientTest {
 						numServerEventLoopThreads,
 						numServerQueryThreads,
 						registry[i],
-						serverStats[i]);
+						serverStats[i],
+						null);
 
 				server[i].start();
 

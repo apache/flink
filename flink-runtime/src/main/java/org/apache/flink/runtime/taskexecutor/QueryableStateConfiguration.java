@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.QueryableStateOptions;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.util.NetUtils;
 
 import java.util.Iterator;
@@ -42,13 +43,19 @@ public class QueryableStateConfiguration {
 
 	private final int numSQueryThreads;
 
+	private final SSLEngineFactory serverSslFactory;
+
+	private final SSLEngineFactory upstreamSslFactory;
+
 	public QueryableStateConfiguration(
 			Iterator<Integer> proxyPortRange,
 			Iterator<Integer> qserverPortRange,
 			int numProxyThreads,
 			int numPQueryThreads,
 			int numServerThreads,
-			int numSQueryThreads) {
+			int numSQueryThreads,
+			SSLEngineFactory serverSslFactory,
+			SSLEngineFactory upstreamSslFactory) {
 
 		checkArgument(proxyPortRange != null && proxyPortRange.hasNext());
 		checkArgument(qserverPortRange != null && qserverPortRange.hasNext());
@@ -63,6 +70,8 @@ public class QueryableStateConfiguration {
 		this.numPQueryThreads = numPQueryThreads;
 		this.numServerThreads = numServerThreads;
 		this.numSQueryThreads = numSQueryThreads;
+		this.serverSslFactory = serverSslFactory;
+		this.upstreamSslFactory = upstreamSslFactory;
 	}
 
 	// ------------------------------------------------------------------------
@@ -115,6 +124,22 @@ public class QueryableStateConfiguration {
 		return numSQueryThreads;
 	}
 
+	/**
+	 * Returns the SSL engine factory for the query server.
+	 * @return an SSL engine factory or null if SSL is not enabled.
+	 */
+	public SSLEngineFactory getServerSslFactory() {
+		return serverSslFactory;
+	}
+
+	/**
+	 * Returns the SSL engine factory for upstream communication between the proxy and the Task Manager.
+	 * @return an SSL engine factory or null if SSL is not enabled.
+	 */
+	public SSLEngineFactory getUpstreamSslFactory() {
+		return upstreamSslFactory;
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -124,6 +149,8 @@ public class QueryableStateConfiguration {
 				", numProxyQueryThreads=" + numPQueryThreads +
 				", numStateServerThreads=" + numServerThreads +
 				", numStateQueryThreads=" + numSQueryThreads +
+				", serverSslFactory=" + serverSslFactory +
+				", upstreamSslFactory=" + upstreamSslFactory +
 				'}';
 	}
 
@@ -135,6 +162,6 @@ public class QueryableStateConfiguration {
 	public static QueryableStateConfiguration disabled() {
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue());
 		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(QueryableStateOptions.SERVER_PORT_RANGE.defaultValue());
-		return new QueryableStateConfiguration(proxyPorts, serverPorts, 0, 0, 0, 0);
+		return new QueryableStateConfiguration(proxyPorts, serverPorts, 0, 0, 0, 0, null, null);
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
@@ -40,10 +41,13 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLEngine;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -76,6 +80,9 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	/** Netty's Bootstrap. */
 	private final Bootstrap bootstrap;
 
+	/** The SSL factory or null if SSL is not enabled. */
+	private final SSLEngineFactory sslFactory;
+
 	/** The serializer to be used for (de-)serializing messages. */
 	private final MessageSerializer<REQ, RESP> messageSerializer;
 
@@ -100,10 +107,28 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	 * @param stats the statistics collector.
 	 */
 	public Client(
+		final String clientName,
+		final int numEventLoopThreads,
+		final MessageSerializer<REQ, RESP> serializer,
+		final KvStateRequestStats stats) {
+		this(clientName, numEventLoopThreads, serializer, stats, null);
+	}
+
+	/**
+	 * Creates a client with the specified number of event loop threads.
+	 *
+	 * @param clientName the name of the client.
+	 * @param numEventLoopThreads number of event loop threads (minimum 1).
+	 * @param serializer the serializer used to (de-)serialize messages.
+	 * @param stats the statistics collector.
+	 * @param sslFactory the SSL factory or null if SSL is not enabled.
+	 */
+	public Client(
 			final String clientName,
 			final int numEventLoopThreads,
 			final MessageSerializer<REQ, RESP> serializer,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory sslFactory) {
 
 		Preconditions.checkArgument(numEventLoopThreads >= 1,
 				"Non-positive number of event loop threads.");
@@ -111,6 +136,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		this.clientName = Preconditions.checkNotNull(clientName);
 		this.messageSerializer = Preconditions.checkNotNull(serializer);
 		this.stats = Preconditions.checkNotNull(stats);
+		this.sslFactory = sslFactory;
 
 		final ThreadFactory threadFactory = new ThreadFactoryBuilder()
 				.setDaemon(true)
@@ -123,15 +149,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		this.bootstrap = new Bootstrap()
 				.group(nioGroup)
 				.channel(NioSocketChannel.class)
-				.option(ChannelOption.ALLOCATOR, bufferPool)
-				.handler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					protected void initChannel(SocketChannel channel) throws Exception {
-						channel.pipeline()
-								.addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4))
-								.addLast(new ChunkedWriteHandler());
-					}
-				});
+				.option(ChannelOption.ALLOCATOR, bufferPool);
 	}
 
 	public String getClientName() {
@@ -158,7 +176,11 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 
 				if (previous == null) {
 					// OK, we are responsible to connect.
-					bootstrap.connect(serverAddress.getAddress(), serverAddress.getPort()).addListener(pending);
+					this.bootstrap
+						.clone()
+						.handler(new ConnectionHandler(serverAddress))
+						.connect(serverAddress.getAddress(), serverAddress.getPort())
+						.addListener(pending);
 					return pending.sendRequest(request);
 				} else {
 					// There was a race, use the existing pending connection.
@@ -223,6 +245,34 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 			return newShutdownFuture;
 		}
 		return clientShutdownFuture.get();
+	}
+
+	/**
+	 * The per-connection channel handler.
+	 */
+	private class ConnectionHandler extends ChannelInitializer<SocketChannel> {
+
+		/** Address of the server we are connecting to. */
+		private final InetSocketAddress serverAddress;
+
+		public ConnectionHandler(final InetSocketAddress serverAddress) {
+			this.serverAddress = serverAddress;
+		}
+
+		@Override
+		protected void initChannel(SocketChannel channel) throws Exception {
+			// SSL handler should be added first in the pipeline
+			if (sslFactory != null) {
+				SSLEngine sslEngine = sslFactory.createSSLEngine(
+					serverAddress.getAddress().getCanonicalHostName(),
+					serverAddress.getPort());
+				channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+			}
+
+			channel.pipeline()
+				.addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4))
+				.addLast(new ChunkedWriteHandler());
+		}
 	}
 
 	/**

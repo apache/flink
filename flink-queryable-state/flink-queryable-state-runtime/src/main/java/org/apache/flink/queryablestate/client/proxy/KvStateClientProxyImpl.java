@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.client.proxy;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.AbstractServerBase;
@@ -48,6 +49,9 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	/** Number of threads used to process incoming requests. */
 	private final int queryExecutorThreads;
 
+	/** the client SSL factory or null if SSL is not enabled. */
+	private final SSLEngineFactory upstreamSslFactory;
+
 	/** Statistics collector. */
 	private final KvStateRequestStats stats;
 
@@ -57,7 +61,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * Creates the Queryable State Client Proxy.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats, SSLEngineFactory, SSLEngineFactory)
 	 * QueryableStateUtils.createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
@@ -68,18 +72,23 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * @param numEventLoopThreads number of event loop threads.
 	 * @param numQueryThreads number of query threads.
 	 * @param stats the statistics collector.
+	 * @param serverSslFactory the server SSL factory or null if SSL is not enabled.
+	 * @param upstreamSslFactory the upstream SSL factory or null if SSL is not enabled.
 	 */
 	public KvStateClientProxyImpl(
 			final InetAddress bindAddress,
 			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory serverSslFactory,
+			final SSLEngineFactory upstreamSslFactory) {
 
-		super("Queryable State Proxy Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads);
+		super("Queryable State Proxy Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads, serverSslFactory);
 		Preconditions.checkArgument(numQueryThreads >= 1, "Non-positive number of query threads.");
 		this.queryExecutorThreads = numQueryThreads;
 		this.stats = Preconditions.checkNotNull(stats);
+		this.upstreamSslFactory = upstreamSslFactory;
 
 		this.kvStateLocationOracles = new ConcurrentHashMap<>(4);
 	}
@@ -133,6 +142,6 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 				new MessageSerializer<>(
 						new KvStateRequest.KvStateRequestDeserializer(),
 						new KvStateResponse.KvStateResponseDeserializer());
-		return new KvStateClientProxyHandler(this, queryExecutorThreads, serializer, stats);
+		return new KvStateClientProxyHandler(this, queryExecutorThreads, serializer, stats, upstreamSslFactory);
 	}
 }

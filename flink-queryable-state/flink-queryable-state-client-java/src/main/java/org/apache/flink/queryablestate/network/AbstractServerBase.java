@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -35,10 +36,13 @@ import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLEngine;
 
 import java.net.BindException;
 import java.net.InetAddress;
@@ -86,6 +90,9 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	/** The number of threads to be used for query serving. */
 	private final int numQueryThreads;
 
+	/**  The SSL factory (or null if SSL is not enabled). */
+	private final SSLEngineFactory sslFactory;
+
 	/** Atomic shut down future. */
 	private final AtomicReference<CompletableFuture<Void>> serverShutdownFuture = new AtomicReference<>(null);
 
@@ -110,13 +117,15 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 * @param bindAddress address to bind to
 	 * @param bindPortIterator port to bind to
 	 * @param numEventLoopThreads number of event loop threads
+	 * @param sslFactory the SSL factory or null if SSL is not enabled.
 	 */
 	protected AbstractServerBase(
 			final String serverName,
 			final InetAddress bindAddress,
 			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
-			final Integer numQueryThreads) {
+			final Integer numQueryThreads,
+			final SSLEngineFactory sslFactory) {
 
 		Preconditions.checkNotNull(bindPortIterator);
 		Preconditions.checkArgument(numEventLoopThreads >= 1, "Non-positive number of event loop threads.");
@@ -126,6 +135,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 		this.bindAddress = Preconditions.checkNotNull(bindAddress);
 		this.numEventLoopThreads = numEventLoopThreads;
 		this.numQueryThreads = numQueryThreads;
+		this.sslFactory = sslFactory;
 
 		this.bindPortRange = new HashSet<>();
 		while (bindPortIterator.hasNext()) {
@@ -229,7 +239,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 				.channel(NioServerSocketChannel.class)
 				.option(ChannelOption.ALLOCATOR, bufferPool)
 				.childOption(ChannelOption.ALLOCATOR, bufferPool)
-				.childHandler(new ServerChannelInitializer<>(handler));
+				.childHandler(new ServerChannelInitializer<>(sslFactory, handler));
 
 		final int defaultHighWaterMark = 64 * 1024; // from DefaultChannelConfig (not exposed)
 		//noinspection ConstantConditions
@@ -346,6 +356,9 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 */
 	private static final class ServerChannelInitializer<REQ extends MessageBody, RESP extends MessageBody> extends ChannelInitializer<SocketChannel> {
 
+		/** The SSL factory (or null). */
+		private final SSLEngineFactory sslFactory;
+
 		/** The shared request handler. */
 		private final AbstractServerHandler<REQ, RESP> sharedRequestHandler;
 
@@ -354,12 +367,18 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 		 *
 		 * @param sharedRequestHandler Shared request handler.
 		 */
-		ServerChannelInitializer(AbstractServerHandler<REQ, RESP> sharedRequestHandler) {
+		ServerChannelInitializer(SSLEngineFactory sslFactory, AbstractServerHandler<REQ, RESP> sharedRequestHandler) {
+			this.sslFactory = sslFactory;
 			this.sharedRequestHandler = Preconditions.checkNotNull(sharedRequestHandler, "MessageBody handler");
 		}
 
 		@Override
 		protected void initChannel(SocketChannel channel) throws Exception {
+			if (sslFactory != null) {
+				SSLEngine sslEngine = sslFactory.createSSLEngine();
+				channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+			}
+
 			channel.pipeline()
 					.addLast(new ChunkedWriteHandler())
 					.addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4))

@@ -43,7 +43,8 @@ Internal connectivity includes:
 
   - Control messages: RPC between JobManager / TaskManager / Dispatcher / ResourceManager
   - The data plane: The connections between TaskManagers to exchange data during shuffles, broadcasts, redistribution, etc.
-  - The Blob Service (distribution of libraries and other artifacts). 
+  - The Blob Service (distribution of libraries and other artifacts).
+  - The Queryable State endpoints. 
 
 All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, meaning both server
 and client side of each connection need to present the certificate to each other. The certificate acts effectively as a shared
@@ -71,12 +72,6 @@ Examples for proxies that Flink users have deployed are [Envoy Proxy](https://ww
 The rationale behind delegating authentication to a proxy is that such proxies offer many more authentication options than the Flink project could reasonably implement itself,
 and thus offer better integration into existing infrastructures.
 
-
-#### Queryable State
-
-Connections to the queryable state endpoints is currently not authenticated or encrypted.
-
-
 ## Configuring SSL
 
 SSL can be enabled separately for *internal* and *external* connectivity:
@@ -92,6 +87,7 @@ When `security.ssl.internal.enabled` is set to `true`, you can set the following
   - `taskmanager.data.ssl.enabled`: Data communication between TaskManagers
   - `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
   - `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
+  - `query.ssl.enabled`: Queryable State endpoints
 
 #### Keystores and Truststores
 

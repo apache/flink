@@ -21,6 +21,7 @@ package org.apache.flink.queryablestate.client.proxy;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateIdException;
 import org.apache.flink.queryablestate.exceptions.UnknownKvStateKeyGroupLocationException;
@@ -58,7 +59,7 @@ import java.util.function.Function;
 /**
  * This handler acts as an internal (to the Flink cluster) client that receives
  * the requests from external clients, executes them by contacting the Job Manager (if necessary) and
- * the Task Manager holding the requested state, and forwards the answer back to the client.
+ * the upstream Task Manager holding the requested state, and forwards the answer back to the client.
  */
 @Internal
 @ChannelHandler.Sharable
@@ -86,19 +87,21 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 	 * @param queryExecutorThreads the number of threads used to process incoming requests.
 	 * @param serializer the {@link MessageSerializer} used to (de-) serialize the different messages.
 	 * @param stats server statistics collector.
+	 * @param upstreamSslFactory the upstream SSL factory or null if SSL is not enabled.
 	 */
 	public KvStateClientProxyHandler(
 			final KvStateClientProxyImpl proxy,
 			final int queryExecutorThreads,
 			final MessageSerializer<KvStateRequest, KvStateResponse> serializer,
-			final KvStateRequestStats stats) {
+			final KvStateRequestStats stats,
+			final SSLEngineFactory upstreamSslFactory) {
 
 		super(proxy, serializer, stats);
 		this.proxy = Preconditions.checkNotNull(proxy);
-		this.kvStateClient = createInternalClient(queryExecutorThreads);
+		this.kvStateClient = createInternalClient(upstreamSslFactory, queryExecutorThreads);
 	}
 
-	private static Client<KvStateInternalRequest, KvStateResponse> createInternalClient(int threads) {
+	private static Client<KvStateInternalRequest, KvStateResponse> createInternalClient(SSLEngineFactory sslFactory, int threads) {
 		final MessageSerializer<KvStateInternalRequest, KvStateResponse> messageSerializer =
 				new MessageSerializer<>(
 						new KvStateInternalRequest.KvStateInternalRequestDeserializer(),
@@ -108,7 +111,8 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 				"Queryable State Proxy Client",
 				threads,
 				messageSerializer,
-				new DisabledKvStateRequestStats());
+				new DisabledKvStateRequestStats(),
+				sslFactory);
 	}
 
 	@Override

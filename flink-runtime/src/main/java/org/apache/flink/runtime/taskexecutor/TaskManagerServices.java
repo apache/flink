@@ -24,6 +24,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.core.net.SSLEngineFactory;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -259,7 +260,6 @@ public class TaskManagerServices {
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
-
 		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
 
 		final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
@@ -420,6 +420,9 @@ public class TaskManagerServices {
 
 		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
 
+		final SSLEngineFactory serverSslFactory = qsConfig.getServerSslFactory();
+		final SSLEngineFactory upstreamSslFactory = qsConfig.getUpstreamSslFactory();
+
 		int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
 
@@ -431,7 +434,9 @@ public class TaskManagerServices {
 				qsConfig.getProxyPortRange(),
 				numProxyServerNetworkThreads,
 				numProxyServerQueryThreads,
-				new DisabledKvStateRequestStats());
+				new DisabledKvStateRequestStats(),
+				serverSslFactory,
+				upstreamSslFactory);
 
 		int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
 				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
@@ -445,7 +450,8 @@ public class TaskManagerServices {
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads,
 				kvStateRegistry,
-				new DisabledKvStateRequestStats());
+				new DisabledKvStateRequestStats(),
+				serverSslFactory);
 
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(
@@ -496,7 +502,6 @@ public class TaskManagerServices {
 			float networkBufFraction = config.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
 			long networkBufMin = MemorySize.parse(config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
 			long networkBufMax = MemorySize.parse(config.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
-
 
 			TaskManagerServicesConfiguration
 				.checkNetworkBufferConfig(segmentSize, networkBufFraction, networkBufMin, networkBufMax);

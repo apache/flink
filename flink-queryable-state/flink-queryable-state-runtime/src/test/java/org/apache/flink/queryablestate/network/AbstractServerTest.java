@@ -18,18 +18,13 @@
 
 package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.queryablestate.network.messages.MessageBody;
-import org.apache.flink.queryablestate.network.messages.MessageDeserializer;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
+import org.apache.flink.queryablestate.network.messages.TestMessage;
 import org.apache.flink.queryablestate.network.stats.AtomicKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -38,7 +33,6 @@ import org.junit.rules.ExpectedException;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -156,7 +150,7 @@ public class AbstractServerTest extends TestLogger {
 		private final KvStateRequestStats requestStats;
 
 		TestServer(String name, KvStateRequestStats stats, Iterator<Integer> bindPort) throws UnknownHostException {
-			super(name, InetAddress.getLocalHost(), bindPort, 1, 1);
+			super(name, InetAddress.getLocalHost(), bindPort, 1, 1, null);
 			this.requestStats = stats;
 		}
 
@@ -189,51 +183,6 @@ public class AbstractServerTest extends TestLogger {
 			}
 			Assert.assertTrue(getQueryExecutor().isTerminated());
 			Assert.assertTrue(isEventGroupShutdown());
-		}
-	}
-
-	/**
-	 * Message with a string as payload.
-	 */
-	private static class TestMessage extends MessageBody {
-
-		private final String message;
-
-		TestMessage(String message) {
-			this.message = Preconditions.checkNotNull(message);
-		}
-
-		public String getMessage() {
-			return message;
-		}
-
-		@Override
-		public byte[] serialize() {
-			byte[] content = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
-
-			// message size + 4 for the length itself
-			return ByteBuffer.allocate(content.length + Integer.BYTES)
-					.putInt(content.length)
-					.put(content)
-					.array();
-		}
-
-		/**
-		 * The deserializer for our {@link TestMessage test messages}.
-		 */
-		public static class TestMessageDeserializer implements MessageDeserializer<TestMessage> {
-
-			@Override
-			public TestMessage deserializeMessage(ByteBuf buf) {
-				int length = buf.readInt();
-				String message = "";
-				if (length > 0) {
-					byte[] name = new byte[length];
-					buf.readBytes(name);
-					message = new String(name, ConfigConstants.DEFAULT_CHARSET);
-				}
-				return new TestMessage(message);
-			}
 		}
 	}
 }

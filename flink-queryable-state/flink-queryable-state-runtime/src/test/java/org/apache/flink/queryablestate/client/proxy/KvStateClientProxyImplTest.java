@@ -51,7 +51,8 @@ public class KvStateClientProxyImplTest extends TestLogger {
 			Collections.singleton(0).iterator(),
 			1,
 			1,
-			new DisabledKvStateRequestStats());
+			new DisabledKvStateRequestStats(),
+			null, null);
 	}
 
 	@After
