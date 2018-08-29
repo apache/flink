@@ -917,7 +917,7 @@ class JobManagerITCase(_system: ActorSystem)
             .when(checkpointCoordinator)
             .triggerSavepoint(ArgumentMatchers.anyLong(), ArgumentMatchers.anyString())
           val savepointPathPromise = new CompletableFuture[CompletedCheckpoint]()
-          doReturn(savepointPathPromise)
+          doReturn(savepointPathPromise, Nil: _*)
             .when(checkpointCoordinator)
             .triggerSavepoint(ArgumentMatchers.anyLong(), ArgumentMatchers.anyString())
 
@@ -987,7 +987,7 @@ class JobManagerITCase(_system: ActorSystem)
             .triggerSavepoint(ArgumentMatchers.anyLong(), ArgumentMatchers.anyString())
 
           val savepointPromise = new CompletableFuture[CompletedCheckpoint]()
-          doReturn(savepointPromise)
+          doReturn(savepointPromise, Nil: _*)
             .when(checkpointCoordinator)
             .triggerSavepoint(ArgumentMatchers.anyLong(), ArgumentMatchers.anyString())
 
