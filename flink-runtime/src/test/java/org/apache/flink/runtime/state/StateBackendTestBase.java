@@ -2913,7 +2913,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(new HashMap<Integer, String>() {{ put(103, "103"); put(1031, "1031"); put(1032, "1032"); }},
 				getSerializedMap(restoredKvState2, "3", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 
-		backend.dispose();
+		// [FLINK-10267] validate arbitrary iterator access not throwing IllegalStateException
+		try {
+			backend.setCurrentKey("4");
+			for (int i = 0; i < 200; i++) {
+				restored2.put(i, String.valueOf(200 + i));
+			}
+			iterator = restored2.iterator();
+			while (iterator.hasNext()) {
+				iterator.next();
+				iterator.hasNext();
+				iterator.remove();
+			}
+		} finally {
+			backend.dispose();
+		}
 	}
 
 	/**

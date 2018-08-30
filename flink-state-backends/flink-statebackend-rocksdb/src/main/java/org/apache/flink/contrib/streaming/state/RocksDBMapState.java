@@ -595,6 +595,8 @@ class RocksDBMapState<K, N, UK, UV>
 				 */
 				if (lastEntry != null && !lastEntry.deleted) {
 					iterator.next();
+					cacheEntries.add(lastEntry);
+					cacheIndex = 1;
 				}
 
 				while (true) {
