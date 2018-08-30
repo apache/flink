@@ -498,6 +498,7 @@ class RocksDBMapState<K, N, UK, UV>
 		 * have the same prefix, hence we can stop iterating once coming across an
 		 * entry with a different prefix.
 		 */
+		@Nonnull
 		private final byte[] keyPrefixBytes;
 
 		/**
@@ -508,6 +509,9 @@ class RocksDBMapState<K, N, UK, UV>
 
 		/** A in-memory cache for the entries in the rocksdb. */
 		private ArrayList<RocksDBMapEntry> cacheEntries = new ArrayList<>();
+
+		/** The entry pointing to the current position which is last returned by calling {@link #nextEntry()}. */
+		private RocksDBMapEntry currentEntry;
 		private int cacheIndex = 0;
 
 		private final TypeSerializer<UK> keySerializer;
@@ -537,12 +541,11 @@ class RocksDBMapState<K, N, UK, UV>
 
 		@Override
 		public void remove() {
-			if (cacheIndex == 0 || cacheIndex > cacheEntries.size()) {
+			if (currentEntry == null || currentEntry.deleted) {
 				throw new IllegalStateException("The remove operation must be called after a valid next operation.");
 			}
 
-			RocksDBMapEntry lastEntry = cacheEntries.get(cacheIndex - 1);
-			lastEntry.remove();
+			currentEntry.remove();
 		}
 
 		final RocksDBMapEntry nextEntry() {
@@ -556,10 +559,10 @@ class RocksDBMapState<K, N, UK, UV>
 				return null;
 			}
 
-			RocksDBMapEntry entry = cacheEntries.get(cacheIndex);
+			this.currentEntry = cacheEntries.get(cacheIndex);
 			cacheIndex++;
 
-			return entry;
+			return currentEntry;
 		}
 
 		private void loadCache() {
@@ -577,12 +580,11 @@ class RocksDBMapState<K, N, UK, UV>
 			try (RocksIteratorWrapper iterator = RocksDBKeyedStateBackend.getRocksIterator(db, columnFamily)) {
 
 				/*
-				 * The iteration starts from the prefix bytes at the first loading. The cache then is
-				 * reloaded when the next entry to return is the last one in the cache. At that time,
-				 * we will start the iterating from the last returned entry.
- 				 */
-				RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
-				byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
+				 * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
+				 * the currentEntry points to the last returned entry, and at that time, we will start
+				 * the iterating from currentEntry if reloading cache is needed.
+				 */
+				byte[] startBytes = (currentEntry == null ? keyPrefixBytes : currentEntry.rawKeyBytes);
 
 				cacheEntries.clear();
 				cacheIndex = 0;
@@ -590,10 +592,10 @@ class RocksDBMapState<K, N, UK, UV>
 				iterator.seek(startBytes);
 
 				/*
-				 * If the last returned entry is not deleted, it will be the first entry in the
-				 * iterating. Skip it to avoid redundant access in such cases.
+				 * If the entry pointing to the current position is not removed, it will be the first entry in the
+				 * new iterating. Skip it to avoid redundant access in such cases.
 				 */
-				if (lastEntry != null && !lastEntry.deleted) {
+				if (currentEntry != null && !currentEntry.deleted) {
 					iterator.next();
 				}
 
