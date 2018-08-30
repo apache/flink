@@ -23,9 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.net.SSLUtils;
+import org.apache.flink.core.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -128,22 +128,8 @@ public class RestServerEndpointITCase extends TestLogger {
 	@Parameterized.Parameters
 	public static Collection<Object[]> data() {
 		final Configuration config = getBaseConfig();
-
-		final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-		final String truststorePath = new File(classLoader
-			.getResource("local127.truststore")
-			.getFile()).getAbsolutePath();
-		final String keystorePath = new File(classLoader
-			.getResource("local127.keystore")
-			.getFile()).getAbsolutePath();
-
 		final Configuration sslConfig = new Configuration(config);
-		sslConfig.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
-		sslConfig.setString(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
-		sslConfig.setString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD, "password");
-		sslConfig.setString(SecurityOptions.SSL_REST_KEY_PASSWORD, "password");
+		sslConfig.addAll(SSLUtilsTest.createRestSslConfigWithKeyAndTrustStores());
 
 		return Arrays.asList(new Object[][]{
 			{config}, {sslConfig}

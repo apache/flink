@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.net.SSLUtilsTest;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
@@ -45,36 +45,21 @@ import static org.junit.Assert.fail;
  */
 public class RpcSSLAuthITCase extends TestLogger {
 
-	private static final String KEY_STORE_FILE = RpcSSLAuthITCase.class.getResource("/local127.keystore").getFile();
-	private static final String TRUST_STORE_FILE = RpcSSLAuthITCase.class.getResource("/local127.truststore").getFile();
-	private static final String UNTRUSTED_KEY_STORE_FILE = RpcSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
-
 	@Test
 	public void testConnectFailure() throws Exception {
 		final Configuration baseConfig = new Configuration();
 		baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
 
-		// !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
+		// !!! This config has a trusted server and trusted client !!!
 		Configuration sslConfig1 = new Configuration(baseConfig);
-		sslConfig1.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+		sslConfig1.addAll(SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores());
 
-		// !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
+		// !!! This config has a trusted server and untrusted client !!!
 		// If this is presented by a client, it will trust the server, but the server will
 		// not trust this client in case client auth is enabled.
 		Configuration sslConfig2 = new Configuration(baseConfig);
-		sslConfig2.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+		sslConfig2.addAll(SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores());
+		SSLUtilsTest.setUntrustedKeyStoreConfig(sslConfig2);
 
 		ActorSystem actorSystem1 = null;
 		ActorSystem actorSystem2 = null;

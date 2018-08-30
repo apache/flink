@@ -471,6 +471,8 @@ public class SSLUtilsTest extends TestLogger {
 		catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		return tempFile.getAbsolutePath();
+
+		// use forward slash for compatibility with Akka config
+		return tempFile.getAbsolutePath().replace('\\', '/');
 	}
 }

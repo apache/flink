@@ -21,6 +21,7 @@ package org.apache.flink.runtime.akka
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.configuration._
+import org.apache.flink.core.net.SSLUtilsTest
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -54,15 +55,7 @@ class AkkaSslITCase(_system: ActorSystem)
       config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1)
       config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
-      config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true)
-      config.setString(SecurityOptions.SSL_KEYSTORE,
-        getClass.getResource("/local127.keystore").getPath)
-      config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
-      config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
-      config.setString(SecurityOptions.SSL_TRUSTSTORE,
-        getClass.getResource("/local127.truststore").getPath)
-
-      config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
+      config.addAll(SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores())
 
       val cluster = new TestingCluster(config, false)
 
@@ -81,15 +74,7 @@ class AkkaSslITCase(_system: ActorSystem)
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1)
         config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1)
 
-        config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true)
-        config.setString(SecurityOptions.SSL_KEYSTORE,
-          getClass.getResource("/local127.keystore").getPath)
-        config.setString(SecurityOptions.SSL_KEYSTORE_PASSWORD, "password")
-        config.setString(SecurityOptions.SSL_KEY_PASSWORD, "password")
-        config.setString(SecurityOptions.SSL_TRUSTSTORE,
-          getClass.getResource("/local127.truststore").getPath)
-
-        config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password")
+        config.addAll(SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores())
         config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1")
 
         val cluster = new TestingCluster(config, false)
