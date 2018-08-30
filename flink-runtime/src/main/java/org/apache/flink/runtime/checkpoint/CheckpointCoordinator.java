@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.util.HDFSUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -180,6 +181,9 @@ public class CheckpointCoordinator {
 	/** Registry that tracks state which is shared across (incremental) checkpoints */
 	private SharedStateRegistry sharedStateRegistry;
 
+	/** StateBackend to get the external checkpoint base dir */
+	private StateBackend stateBackend;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -228,6 +232,7 @@ public class CheckpointCoordinator {
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.executor = checkNotNull(executor);
+		this.stateBackend = checkpointStateBackend;
 		this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
 		this.sharedStateRegistry = sharedStateRegistryFactory.create(executor);
 
@@ -1074,6 +1079,157 @@ public class CheckpointCoordinator {
 
 			return true;
 		}
+	}
+
+	/**
+	 * Restores the latest checkpointed state.
+	 *
+	 * @param tasks Map of job vertices to restore. State for these vertices is
+	 * restored via {@link Execution#setInitialState(JobManagerTaskRestore)}.
+	 * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to
+	 * restore from.
+	 * @param allowNonRestoredState Allow checkpoint state that cannot be mapped
+	 * to any job vertex in tasks.
+	 * @param userCodeLoader classloader
+	 * @return <code>true</code> if state was restored, <code>false</code> otherwise.
+	 * @throws IllegalStateException If the CheckpointCoordinator is shut down.
+	 * @throws IllegalStateException If no completed checkpoint is available and
+	 *                               the <code>failIfNoCheckpoint</code> flag has been set.
+	 * @throws IllegalStateException If the checkpoint contains state that cannot be
+	 *                               mapped to any job vertex in <code>tasks</code> and the
+	 *                               <code>allowNonRestoredState</code> flag has not been set.
+	 * @throws IllegalStateException If the max parallelism changed for an operator
+	 *                               that restores state from this checkpoint.
+	 * @throws IllegalStateException If the parallelism changed for an operator
+	 *                               that restores <i>non-partitioned</i> state from this
+	 *                               checkpoint.
+	 */
+	public boolean restoreLatestCheckpointedState(
+		Map<JobVertexID, ExecutionJobVertex> tasks,
+		boolean errorIfNoCheckpoint,
+		boolean allowNonRestoredState,
+		ClassLoader userCodeLoader) throws Exception {
+
+		synchronized (lock) {
+			if (shutdown) {
+				throw new IllegalStateException("CheckpointCoordinator is shut down");
+			}
+
+			// We create a new shared state registry object, so that all pending async disposal requests from previous
+			// runs will go against the old object (were they can do no harm).
+			// This must happen under the checkpoint lock.
+			sharedStateRegistry.close();
+			sharedStateRegistry = sharedStateRegistryFactory.create(executor);
+
+			// Recover the checkpoints, TODO this could be done only when there is a new leader, not on each recovery
+			completedCheckpointStore.recover();
+
+			// Now, we re-register all (shared) states from the checkpoint store with the new registry
+			for (CompletedCheckpoint completedCheckpoint : completedCheckpointStore.getAllCheckpoints()) {
+				completedCheckpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
+			}
+
+			LOG.debug("Status of the shared state registry of job {} after restore: {}.", job, sharedStateRegistry);
+			LOG.info("Current job completed checkpoint size {}", completedCheckpointStore.getAllCheckpoints().size());
+
+			// Restore from the latest checkpoint
+			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
+
+			if (latest == null) {
+				LOG.info("Current job latest completed checkpoint is null");
+				if (errorIfNoCheckpoint) {
+					throw new IllegalStateException("No completed checkpoint available");
+				} else {
+					String metadataPath = getOldJobCheckpointMetadataPath();
+
+					if (metadataPath != null && !metadataPath.isEmpty()) {
+						// restore from checkpoing with hdfs path
+						LOG.info("The old job already has completed checkpoint," +
+							" new job will recovery from completed checkpoint");
+						restoreSavepoint(metadataPath, allowNonRestoredState, tasks, userCodeLoader);
+						return true;
+					} else {
+						LOG.debug("Resetting the master hooks.");
+						MasterHooks.reset(masterHooks.values(), LOG);
+
+						return false;
+					}
+
+				}
+			}
+
+			LOG.info("Restoring job {} from latest valid checkpoint: {}.", job, latest);
+
+			// re-assign the task states
+			final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
+
+			StateAssignmentOperation stateAssignmentOperation =
+				new StateAssignmentOperation(latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
+
+			stateAssignmentOperation.assignStates();
+
+			// call master hooks for restore
+
+			MasterHooks.restoreMasterHooks(
+				masterHooks,
+				latest.getMasterHookStates(),
+				latest.getCheckpointID(),
+				allowNonRestoredState,
+				LOG);
+
+			// update metrics
+
+			if (statsTracker != null) {
+				long restoreTimestamp = System.currentTimeMillis();
+				RestoredCheckpointStats restored = new RestoredCheckpointStats(
+					latest.getCheckpointID(),
+					latest.getProperties(),
+					restoreTimestamp,
+					latest.getExternalPointer());
+
+				statsTracker.reportRestoredCheckpoint(restored);
+			}
+
+			return true;
+		}
+	}
+
+	public String getOldJobCheckpointMetadataPath() throws Exception {
+		String stateBackendString = stateBackend.toString();
+		LOG.info("stateBackendString: {}", stateBackendString);
+
+		String externalCheckpointBaseDir = null;
+
+		if (stateBackendString != null && !stateBackendString.isEmpty() &&
+			(stateBackendString.contains(HDFSUtils.HDFS_PREFIX) ||
+				stateBackendString.contains(HDFSUtils.VIEWFS_PREFIX))) {
+			// just for hdfs
+			String[] tmp1 = stateBackendString.split(",");
+			if(tmp1 != null && tmp1.length >= 1) {
+				String[] tmp2 = tmp1[0].split(":");
+				if (tmp2 != null){
+					if (tmp2.length == 2) {
+						externalCheckpointBaseDir = tmp2[1].trim().replaceAll("'", "");
+					} else if (tmp2.length == 3){
+						externalCheckpointBaseDir = tmp2[1].trim().replaceAll("'", "")+":"+tmp2[2].trim().replaceAll("'", "");
+					}
+				}
+			}
+		} else {
+			return null;
+		}
+
+		LOG.info("externalCheckpointBaseDir: {}", externalCheckpointBaseDir);
+
+		String metadataPath = HDFSUtils.getFullPathForLatestJobCompletedCheckpointMeta(externalCheckpointBaseDir);
+
+		if(metadataPath != null && metadataPath.isEmpty()) {
+			LOG.info("checkpoint already exist with metadata path: {}", metadataPath);
+		} else {
+			LOG.info("not found the completed checkpoint from the old job");
+		}
+
+		return metadataPath;
 	}
 
 	/**

@@ -1138,7 +1138,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			if (!checkpointCoordinator.restoreLatestCheckpointedState(
 				newExecutionGraph.getAllVertices(),
 				false,
-				false)) {
+				false,
+				userCodeLoader)) {
 
 				// check whether we can restore from a savepoint
 				tryRestoreExecutionGraphFromSavepoint(newExecutionGraph, jobGraph.getSavepointRestoreSettings());
