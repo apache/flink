@@ -1341,11 +1341,21 @@ class JobManager(
       // because it is a blocking operation
       future {
         try {
+
+          val checkpointMetadataDir = executionGraph.getCheckpointCoordinator.getOldJobCheckpointMetadataPath
+
+          log.info("legacy mode with old job checkpoint metadata path: " + checkpointMetadataDir)
+
           if (isRecovery) {
             // this is a recovery of a master failure (this master takes over)
             executionGraph.restoreLatestCheckpointedState(false, false)
-          }
-          else {
+          } else if (checkpointMetadataDir != null && !checkpointMetadataDir.isEmpty) {
+            log.info("legacy mode restore from old job completed checkpoint: " + checkpointMetadataDir)
+            executionGraph.getCheckpointCoordinator.restoreSavepoint(checkpointMetadataDir,
+              false,
+              executionGraph.getAllVertices,
+              executionGraph.getUserClassLoader)
+          } else {
             // load a savepoint only if this is not starting from a newer checkpoint
             // as part of an master failure recovery
             val savepointSettings = jobGraph.getSavepointRestoreSettings
