@@ -59,7 +59,7 @@ import scala.collection.mutable
   */
 abstract class ExpressionTestBase {
 
-  private val testExprs = mutable.ArrayBuffer[(RexNode, String)]()
+  private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
 
   // setup test utils
   private val tableName = "testTable"
@@ -120,7 +120,7 @@ abstract class ExpressionTestBase {
     val generator = new FunctionCodeGenerator(config, false, typeInfo)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
+    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
@@ -172,10 +172,10 @@ abstract class ExpressionTestBase {
     testExprs
       .zipWithIndex
       .foreach {
-        case ((expr, expected), index) =>
+        case ((originalExpr, optimizedExpr, expected), index) =>
           val actual = result.getField(index)
           assertEquals(
-            s"Wrong result for: $expr",
+            s"Wrong result for: [$originalExpr] optimized to: [$optimizedExpr]",
             expected,
             if (actual == null) "null" else actual)
       }
@@ -195,7 +195,7 @@ abstract class ExpressionTestBase {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
-    testExprs += ((extractRexNode(optimized), expected))
+    testExprs += ((sqlExpr, extractRexNode(optimized), expected))
   }
 
   private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
@@ -208,7 +208,7 @@ abstract class ExpressionTestBase {
 
     val optimized = env.optimize(converted)
 
-    testExprs += ((extractRexNode(optimized), expected))
+    testExprs += ((tableApiExpr.toString, extractRexNode(optimized), expected))
   }
 
   private def extractRexNode(node: RelNode): RexNode = {
