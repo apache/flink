@@ -64,6 +64,12 @@ public class SqlCommandParserTest {
 		testValidSqlCommand(
 			"CREATE   VIEW    MyTable   AS     SELECT 1+1 FROM y",
 			new SqlCommandCall(SqlCommand.CREATE_VIEW, new String[]{"MyTable", "SELECT 1+1 FROM y"}));
+		testValidSqlCommand(
+			"SHOW CREATE VIEW MyTable",
+			new SqlCommandCall(SqlCommand.SHOW_CREATE_VIEW, new String[]{"MyTable"}));
+		testValidSqlCommand(
+			"	SHOW CREATE VIEW 	MyTable",
+			new SqlCommandCall(SqlCommand.SHOW_CREATE_VIEW, new String[]{"MyTable"}));
 		testInvalidSqlCommand("CREATE VIEW x SELECT 1+1"); // missing AS
 		testValidSqlCommand("DROP VIEW MyTable", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"MyTable"}));
 		testValidSqlCommand("DROP VIEW  MyTable", new SqlCommandCall(SqlCommand.DROP_VIEW, new String[]{"MyTable"}));

@@ -176,6 +176,25 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testGetCreateView() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		executor.validateSession(session);
+
+		//check exists view
+		assertEquals("SELECT scalarUDF(IntegerField1) FROM TableNumber1", executor.getCreateView(session, "TestView1"));
+
+		session.addView("AdditionalView1", "SELECT 1");
+		session.addView("AdditionalView2", "SELECT * FROM AdditionalView1");
+
+		assertEquals(session.getViews().get("AdditionalView1"), "SELECT 1");
+		assertEquals(session.getViews().get("AdditionalView2"), "SELECT * FROM AdditionalView1");
+
+		session.removeView("AdditionalView1");
+		assertEquals(null, session.getViews().get("AdditionalView1"));
+	}
+
+	@Test
 	public void testGetSessionProperties() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());

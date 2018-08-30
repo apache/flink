@@ -497,6 +497,12 @@ Views can also be created within a CLI session using the `CREATE VIEW` statement
 CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
 {% endhighlight %}
 
+Views created within a CLI session can also be shown it's `CREATE VIEW` statement using the `SHOW CREATE VIEW` statement:
+
+{% highlight text %}
+SHOW CREATE VIEW MyNewView
+{% endhighlight %}
+
 Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
 
 {% highlight text %}

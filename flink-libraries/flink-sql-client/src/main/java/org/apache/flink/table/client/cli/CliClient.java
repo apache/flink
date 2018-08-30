@@ -257,6 +257,9 @@ public class CliClient {
 			case INSERT_INTO:
 				callInsertInto(cmdCall);
 				break;
+			case SHOW_CREATE_VIEW:
+				callShowCreateView(cmdCall);
+				break;
 			case CREATE_VIEW:
 				callCreateView(cmdCall);
 				break;
@@ -414,6 +417,18 @@ public class CliClient {
 			return false;
 		}
 		return true;
+	}
+
+	private void callShowCreateView(SqlCommandCall cmdCall) {
+		final String name = cmdCall.operands[0];
+		final String query = executor.getCreateView(context, name);
+
+		if (query == null) {
+			printExecutionError(CliStrings.MESSAGE_VIEW_NOT_FOUND);
+			return;
+		}
+
+		printInfo(query);
 	}
 
 	private void callCreateView(SqlCommandCall cmdCall) {

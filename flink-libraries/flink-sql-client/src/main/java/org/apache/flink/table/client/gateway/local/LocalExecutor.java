@@ -205,6 +205,14 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public String getCreateView(SessionContext session, String name) throws SqlExecutionException {
+		return getOrCreateExecutionContext(session)
+			.getMergedEnvironment()
+			.getViews()
+			.get(name);
+	}
+
+	@Override
 	public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
 			.createEnvironmentInstance()

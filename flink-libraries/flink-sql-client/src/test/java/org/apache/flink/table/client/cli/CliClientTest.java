@@ -109,6 +109,11 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public String getCreateView(SessionContext session, String name) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 			return null;
 		}

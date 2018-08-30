@@ -51,6 +51,11 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Returns the statement of creating view with a given view name.
+	 */
+	String getCreateView(SessionContext session, String name) throws SqlExecutionException;
+
+	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The
 	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */
