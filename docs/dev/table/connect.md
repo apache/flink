@@ -543,7 +543,7 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
 {% highlight yaml %}
 connector:
   type: kafka
-  version: 0.11       # required: valid connector versions are "0.8", "0.9", "0.10", and "0.11"
+  version: "0.11"     # required: valid connector versions are "0.8", "0.9", "0.10", and "0.11"
   topic: ...          # required: topic name from which the table is read
 
   properties:         # optional: connector specific properties
