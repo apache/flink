@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -29,10 +27,11 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.A
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.util.Preconditions;
-import org.jboss.netty.channel.ChannelException;
 
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import org.jboss.netty.channel.ChannelException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +52,7 @@ public class AkkaRpcServiceUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaRpcServiceUtils.class);
 
 	private static final String AKKA_TCP = "akka.tcp";
-	private static final String AkKA_SSL_TCP = "akka.ssl.tcp";
+	private static final String AKKA_SSL_TCP = "akka.ssl.tcp";
 
 	private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
@@ -102,7 +101,7 @@ public class AkkaRpcServiceUtils {
 			throw new Exception("Could not create TaskManager actor system", t);
 		}
 
-		final Time timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
+		final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
 		return new AkkaRpcService(actorSystem, timeout);
 	}
 
@@ -131,7 +130,7 @@ public class AkkaRpcServiceUtils {
 		checkNotNull(config, "config is null");
 
 		final boolean sslEnabled = config.getBoolean(AkkaOptions.SSL_ENABLED) &&
-				SSLUtils.getSSLEnabled(config);
+				SSLUtils.isInternalSSLEnabled(config);
 
 		return getRpcUrl(
 			hostname,
@@ -163,7 +162,7 @@ public class AkkaRpcServiceUtils {
 		checkNotNull(endpointName, "endpointName is null");
 		checkArgument(port > 0 && port <= 65535, "port must be in [1, 65535]");
 
-		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AkKA_SSL_TCP : AKKA_TCP;
+		final String protocolPrefix = akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
 
 		if (addressResolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
 			// Fail fast if the hostname cannot be resolved

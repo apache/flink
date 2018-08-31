@@ -173,8 +173,8 @@ public class BlobCacheCorruptionTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, blobStore);
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, corruptOnHAStore ? blobStore : new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, corruptOnHAStore ? blobStore : new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 

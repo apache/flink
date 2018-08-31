@@ -23,13 +23,14 @@ import java.util.Map
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.accumulators.Accumulator
-import org.apache.flink.runtime.checkpoint.CheckpointOptions
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph
 import org.apache.flink.runtime.instance.ActorGateway
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.messages.RequiresLeaderSessionID
 import org.apache.flink.runtime.messages.checkpoint.AbstractCheckpointMessage
+import org.apache.flink.util.OptionalFailure
 
 object TestingJobManagerMessages {
 
@@ -69,11 +70,10 @@ object TestingJobManagerMessages {
     * of triggering and acknowledging checkpoints.
     *
     * @param jobId The JobID of the job to trigger the savepoint for.
-    * @param options properties of the checkpoint
     */
   case class CheckpointRequest(
     jobId: JobID,
-    options: CheckpointOptions) extends RequiresLeaderSessionID
+    retentionPolicy: CheckpointRetentionPolicy) extends RequiresLeaderSessionID
 
   /**
     * Response after a successful checkpoint trigger containing the savepoint path.
@@ -109,7 +109,7 @@ object TestingJobManagerMessages {
    * Reports updated accumulators back to the listener.
    */
   case class UpdatedAccumulators(jobID: JobID,
-    userAccumulators: Map[String, Accumulator[_,_]])
+    userAccumulators: Map[String, OptionalFailure[Accumulator[_,_]]])
 
   /** Notifies the sender when the [[TestingJobManager]] has been elected as the leader
    *

@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import scala.collection.mutable
 
@@ -145,6 +146,42 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethod.OVERLAY.method)
 
+  addSqlFunctionMethod(
+    FROM_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.FROMBASE64)
+
+  addSqlFunctionMethod(
+    TO_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.TOBASE64)
+
+  addSqlFunctionMethod(
+    UUID,
+    Seq(),
+    STRING_TYPE_INFO,
+    BuiltInMethods.UUID)
+
+  addSqlFunctionMethod(
+    LTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.LTRIM.method)
+
+  addSqlFunctionMethod(
+    RTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.RTRIM.method)
+
+  addSqlFunctionMethod(
+    REPEAT,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REPEAT)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -154,6 +191,12 @@ object FunctionGenerator {
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LOG10)
+
+  addSqlFunctionMethod(
+    LOG2,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG2)
 
   addSqlFunctionMethod(
     LN,
@@ -300,6 +343,18 @@ object FunctionGenerator {
     BuiltInMethods.ATAN_DEC)
 
   addSqlFunctionMethod(
+    ATAN2,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DOUBLE_DOUBLE)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DEC_DEC)
+
+  addSqlFunctionMethod(
     DEGREES,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
@@ -424,21 +479,51 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethods.BIN)
 
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_LONG)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_STRING)
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MILLIS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIMESTAMP),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIME),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MONTHS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     FLOOR,
@@ -512,6 +597,17 @@ object FunctionGenerator {
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
   )
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.LPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.LPAD)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.RPAD,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.RPAD)
 
   // ----------------------------------------------------------------------------------------------
   // Cryptographic Hash functions
@@ -530,9 +626,33 @@ object FunctionGenerator {
   )
 
   addSqlFunction(
+    ScalarSqlFunctions.SHA224,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-224")
+  )
+
+  addSqlFunction(
     ScalarSqlFunctions.SHA256,
     Seq(STRING_TYPE_INFO),
     new HashCalcCallGen("SHA-256")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA384,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-384")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA512,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-512")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA2,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    new HashCalcCallGen("SHA-2")
   )
 
   // ----------------------------------------------------------------------------------------------

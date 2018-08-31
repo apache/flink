@@ -126,10 +126,11 @@ public class Kafka010FetcherTest {
 				10,
 				getClass().getClassLoader(),
 				"taskname-with-subtask",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -262,10 +263,11 @@ public class Kafka010FetcherTest {
 				10,
 				getClass().getClassLoader(),
 				"taskname-with-subtask",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -376,10 +378,11 @@ public class Kafka010FetcherTest {
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
 				"task_name",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----

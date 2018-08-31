@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,6 +40,7 @@ under the License.
 		<module>flink-mapr-fs</module>
 		<module>flink-s3-fs-hadoop</module>
 		<module>flink-s3-fs-presto</module>
+		<module>flink-swift-fs-hadoop</module>
 	</modules>
 
 	<build>

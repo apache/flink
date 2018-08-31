@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -93,6 +93,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-python_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-scala-shell_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -112,6 +119,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-mesos_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-container_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -185,6 +198,20 @@ under the License.
 			The scope of these dependencies needs to be 'provided' so that
 			they are not included into the 'flink-dist' uber jar.
 		-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -303,6 +330,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-client</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -311,6 +345,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-presto</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-swift-fs-hadoop</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -328,8 +369,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<!-- end test dependencies -->
 	</dependencies>
@@ -485,13 +524,6 @@ under the License.
 									<exclude>log4j:log4j</exclude>
 								</excludes>
 							</artifactSet>
-							<relocations>
-								<relocation>
-									<!-- relocate jackson services, which isn't done by flink-shaded-jackson -->
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml.jackson</shadedPattern>
-								</relocation>
-							</relocations>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
 									<resource>reference.conf</resource>
@@ -561,7 +593,6 @@ under the License.
 				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
-				<version>2.1.5</version>
 				<executions>
 					<execution>
 						<goals>

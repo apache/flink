@@ -18,58 +18,34 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.types.Record;
 
 import java.io.IOException;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * {@link ResultPartitionWriter} that collects output on the List.
  */
-public class RecordCollectingResultPartitionWriter implements ResultPartitionWriter {
+public class RecordCollectingResultPartitionWriter extends AbstractCollectingResultPartitionWriter {
 	private final List<Record> output;
-	private final BufferProvider bufferProvider;
 
 	private final Record record = new Record();
-	private final RecordDeserializer<Record> deserializer = new AdaptiveSpanningRecordDeserializer<>();
+	private final RecordDeserializer<Record> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
+		new String[]{System.getProperty("java.io.tmpdir")});
 
 	public RecordCollectingResultPartitionWriter(List<Record> output, BufferProvider bufferProvider) {
+		super(bufferProvider);
 		this.output = checkNotNull(output);
-		this.bufferProvider = checkNotNull(bufferProvider);
 	}
 
 	@Override
-	public BufferProvider getBufferProvider() {
-		return bufferProvider;
-	}
-
-	@Override
-	public ResultPartitionID getPartitionId() {
-		return new ResultPartitionID();
-	}
-
-	@Override
-	public int getNumberOfSubpartitions() {
-		return 1;
-	}
-
-	@Override
-	public int getNumTargetKeyGroups() {
-		return 1;
-	}
-
-	@Override
-	public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
-		checkState(targetChannel < getNumberOfSubpartitions());
-
+	protected void deserializeBuffer(Buffer buffer) throws IOException {
 		deserializer.setNextBuffer(buffer);
 
 		while (deserializer.hasUnfinishedData()) {

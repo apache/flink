@@ -45,7 +45,7 @@ LOG4J_PROPERTIES=${HERE}/log4j-travis.properties
 
 MODULES_CORE="\
 flink-test-utils-parent/flink-test-utils,\
-flink-contrib/flink-statebackend-rocksdb,\
+flink-state-backends/flink-statebackend-rocksdb,\
 flink-clients,\
 flink-core,\
 flink-java,\
@@ -67,6 +67,7 @@ flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
 flink-libraries/flink-ml,\
 flink-libraries/flink-python,\
+flink-libraries/flink-streaming-python,\
 flink-libraries/flink-table,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
@@ -78,6 +79,7 @@ flink-filesystems/flink-mapr-fs,\
 flink-filesystems/flink-s3-fs-hadoop,\
 flink-filesystems/flink-s3-fs-presto,\
 flink-formats/flink-avro,\
+flink-formats/flink-parquet,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
@@ -86,6 +88,7 @@ flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch,\
 flink-connectors/flink-connector-elasticsearch2,\
 flink-connectors/flink-connector-elasticsearch5,\
+flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-kafka-0.8,\
@@ -116,26 +119,26 @@ case $TEST in
 	(core)
 		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
 		MVN_TEST_MODULES="-pl $MODULES_CORE"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(libraries)
 		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
 		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(connectors)
 		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
 		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(tests)
 		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
 		MVN_TEST_MODULES="-pl $MODULES_TESTS"
-		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS="-Dfast"
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 	(misc)
 		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
@@ -145,8 +148,8 @@ case $TEST in
 		# compile everything since dist needs it anyway
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
-		MVN_COMPILE_OPTIONS="-Dspotbugs"
-		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
+		MVN_COMPILE_OPTIONS=""
+		MVN_TEST_OPTIONS="-Dfast"
 	;;
 esac
 
@@ -157,7 +160,7 @@ esac
 # -nsu option forbids downloading snapshot artifacts. The only snapshot artifacts we depend are from
 # Flink, which however should all be built locally. see FLINK-7230
 MVN_LOGGING_OPTIONS="-Dlog.dir=${ARTIFACTS_DIR} -Dlog4j.configuration=file://$LOG4J_PROPERTIES -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
-MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B $MVN_LOGGING_OPTIONS"
+MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -B $MVN_LOGGING_OPTIONS"
 MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
@@ -182,6 +185,28 @@ ARTIFACTS_FILE=${TRAVIS_JOB_NUMBER}.tar.gz
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+print_system_info() {
+	FOLD_ESCAPE="\x0d\x1b"
+	COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
+	COLOR_OFF="\x1b\x5b\x30\x6d"
+
+	echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
+	lscpu
+	echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
+	cat /proc/meminfo
+	echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
+	df -hH
+	echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
+
+	echo -e "travis_fold:start:cache_info${FOLD_ESCAPE}${COLOR_ON}Cache information${COLOR_OFF}"
+	du -s --si $HOME/.m2
+	echo -en "travis_fold:end:cache_info${FOLD_ESCAPE}"
+}
 
 upload_artifacts_s3() {
 	echo "PRODUCED build artifacts."
@@ -389,7 +414,7 @@ check_shaded_artifacts_s3_fs() {
 	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/fs/s3${VARIANT}/" | grep '\.class$'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
-		echo "Detected unshaded dependencies in fat jar:"
+		echo "${VARIANT}: Detected unshaded dependencies in fat jar:"
 		echo "${UNSHADED_CLASSES}"
 		echo "=============================================================================="
 		return 1
@@ -397,24 +422,59 @@ check_shaded_artifacts_s3_fs() {
 
 	if [ ! `cat allClasses | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
 		echo "=============================================================================="
-		echo "File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
+		echo "${VARIANT}: File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
 		echo "=============================================================================="
+		return 1
 	fi
 
 	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
-		echo "Detected unshaded service files in fat jar:"
+		echo "${VARIANT}: Detected unshaded service files in fat jar:"
 		echo "${UNSHADED_SERVICES}"
 		echo "=============================================================================="
 		return 1
 	fi
 
-	FS_SERVICE_FILE_CLASS=`unzip -q -c flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar META-INF/services/org.apache.flink.core.fs.FileSystemFactory | grep -v -e '^#' -e '^$'`
-	if [ "${FS_SERVICE_FILE_CLASS}" != "org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory" ]; then
+	FS_SERVICE_FILE_CLASSES=`unzip -q -c flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar META-INF/services/org.apache.flink.core.fs.FileSystemFactory | grep -v -e '^#' -e '^$'`
+	EXPECTED_FS_SERVICE_FILE_CLASSES="org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory"
+	if [ "${VARIANT}" == "hadoop" ]; then
+		read -r -d '' EXPECTED_FS_SERVICE_FILE_CLASSES <<EOF
+org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory
+org.apache.flink.fs.s3${VARIANT}.S3AFileSystemFactory
+EOF
+	fi
+
+	if [ "${FS_SERVICE_FILE_CLASSES}" != "${EXPECTED_FS_SERVICE_FILE_CLASSES}" ]; then
 		echo "=============================================================================="
-		echo "Detected wrong content in services/org.apache.flink.core.fs.FileSystemFactory:"
-		echo "${FS_SERVICE_FILE_CLASS}"
+		echo "${VARIANT}: Detected wrong content in services/org.apache.flink.core.fs.FileSystemFactory:"
+		echo "${FS_SERVICE_FILE_CLASSES}"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	return 0
+}
+
+# Check the elasticsearch connectors' fat jars for illegal or missing artifacts
+check_shaded_artifacts_connector_elasticsearch() {
+	VARIANT=$1
+	find flink-connectors/flink-connector-elasticsearch${VARIANT}/target/flink-connector-elasticsearch${VARIANT}*.jar ! -name "*-tests.jar" -exec jar tf {} \; > allClasses
+
+	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/streaming/connectors/elasticsearch/" -e "^org/apache/flink/streaming/connectors/elasticsearch${VARIANT}/" -e "^org/elasticsearch/" | grep '\.class$'`
+	if [ "$?" == "0" ]; then
+		echo "=============================================================================="
+		echo "Detected unshaded dependencies in flink-connector-elasticsearch${VARIANT}'s fat jar:"
+		echo "${UNSHADED_CLASSES}"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
+	if [ "$?" == "0" ]; then
+		echo "=============================================================================="
+		echo "Detected unshaded service files in flink-connector-elasticsearch${VARIANT}'s fat jar:"
+		echo "${UNSHADED_SERVICES}"
 		echo "=============================================================================="
 		return 1
 	fi
@@ -433,24 +493,7 @@ WD_PID=$!
 
 echo "STARTED watchdog (${WD_PID})."
 
-
-# Print and fold CPU, memory, and filesystem info
-FOLD_ESCAPE="\x0d\x1b"
-COLOR_ON="\x5b\x30\x4b\x1b\x5b\x33\x33\x3b\x31\x6d"
-COLOR_OFF="\x1b\x5b\x30\x6d"
-
-echo -e "travis_fold:start:cpu_info${FOLD_ESCAPE}${COLOR_ON}CPU information${COLOR_OFF}"
-lscpu
-echo -en "travis_fold:end:cpu_info${FOLD_ESCAPE}"
-
-echo -e "travis_fold:start:mem_info${FOLD_ESCAPE}${COLOR_ON}Memory information${COLOR_OFF}"
-cat /proc/meminfo
-echo -en "travis_fold:end:mem_info${FOLD_ESCAPE}"
-
-echo -e "travis_fold:start:disk_info${FOLD_ESCAPE}${COLOR_ON}Disk information${COLOR_OFF}"
-df -hH
-echo -en "travis_fold:end:disk_info${FOLD_ESCAPE}"
-
+print_system_info
 
 # Make sure to be in project root
 cd $HERE/../
@@ -468,11 +511,39 @@ EXIT_CODE=$(<$MVN_EXIT)
 
 echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+# Make sure to kill the watchdog in any case after $MVN_COMPILE has completed
+echo "Trying to KILL watchdog (${WD_PID})."
+( kill $WD_PID 2>&1 ) > /dev/null
+
 rm $MVN_PID
 rm $MVN_EXIT
 
+# only run dependency-convergence in misc because it is the only profile building all of Flink
+case $TEST in
+	(misc)
+		if [ $EXIT_CODE == 0 ]; then
+			printf "\n\n==============================================================================\n"
+			printf "Checking dependency convergence\n"
+			printf "==============================================================================\n"
+
+			./tools/check_dependency_convergence.sh
+			EXIT_CODE=$?
+		else
+			printf "\n==============================================================================\n"
+			printf "Previous build failure detected, skipping dependency-convergence check.\n"
+			printf "==============================================================================\n"
+		fi
+	;;
+esac
+
 # Run tests if compilation was successful
 if [ $EXIT_CODE == 0 ]; then
+
+	# Start watching $MVN_OUT
+	watchdog &
+	echo "STARTED watchdog (${WD_PID})."
+
+	WD_PID=$!
 
 	echo "RUNNING '${MVN_TEST}'."
 
@@ -485,6 +556,10 @@ if [ $EXIT_CODE == 0 ]; then
 
 	echo "MVN exited with EXIT CODE: ${EXIT_CODE}."
 
+	# Make sure to kill the watchdog in any case after $MVN_TEST has completed
+	echo "Trying to KILL watchdog (${WD_PID})."
+	( kill $WD_PID 2>&1 ) > /dev/null
+
 	rm $MVN_PID
 	rm $MVN_EXIT
 else
@@ -494,10 +569,6 @@ else
 fi
 
 # Post
-
-# Make sure to kill the watchdog in any case after $MVN_COMPILE and $MVN_TEST have completed
-echo "Trying to KILL watchdog (${WD_PID})."
-( kill $WD_PID 2>&1 ) > /dev/null
 
 # only misc builds flink-dist and flink-yarn-tests
 case $TEST in
@@ -516,8 +587,12 @@ case $TEST in
 	(connectors)
 		if [ $EXIT_CODE == 0 ]; then
 			check_shaded_artifacts_s3_fs hadoop
+			EXIT_CODE=$(($EXIT_CODE+$?))
 			check_shaded_artifacts_s3_fs presto
-			EXIT_CODE=$?
+			check_shaded_artifacts_connector_elasticsearch ""
+			check_shaded_artifacts_connector_elasticsearch 2
+			check_shaded_artifacts_connector_elasticsearch 5
+			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			echo "=============================================================================="
 			echo "Compilation/test failure detected, skipping shaded dependency check."
@@ -540,35 +615,9 @@ case $TEST in
 			printf "Running end-to-end tests\n"
 			printf "==============================================================================\n"
 
-			printf "\n==============================================================================\n"
-			printf "Running Wordcount end-to-end test\n"
-			printf "==============================================================================\n"
-			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_batch_wordcount.sh
-			EXIT_CODE=$(($EXIT_CODE+$?))
+			FLINK_DIR=build-target flink-end-to-end-tests/run-pre-commit-tests.sh
 
-			printf "\n==============================================================================\n"
-			printf "Running Kafka end-to-end test\n"
-			printf "==============================================================================\n"
-			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_kafka010.sh
-			EXIT_CODE=$(($EXIT_CODE+$?))
-
-			printf "\n==============================================================================\n"
-			printf "Running class loading end-to-end test\n"
-			printf "==============================================================================\n"
-			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_classloader.sh
-			EXIT_CODE=$(($EXIT_CODE+$?))
-
-			printf "\n==============================================================================\n"
-			printf "Running Shaded Hadoop S3A end-to-end test\n"
-			printf "==============================================================================\n"
-			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
-			EXIT_CODE=$(($EXIT_CODE+$?))
-
-			printf "\n==============================================================================\n"
-			printf "Running Shaded Presto S3 end-to-end test\n"
-			printf "==============================================================================\n"
-			FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_presto_s3.sh
-			EXIT_CODE=$(($EXIT_CODE+$?))
+			EXIT_CODE=$?
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

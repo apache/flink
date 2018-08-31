@@ -31,9 +31,10 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>@project.version@</flink.version>
-		<slf4j.version>@slf4j.version@</slf4j.version>
-		<log4j.version>@log4j.version@</log4j.version>
-		<scala.binary.version>@scala.binary.version@</scala.binary.version>
+		<java.version>1.8</java.version>
+		<scala.binary.version>2.11</scala.binary.version>
+		<maven.compiler.source>${java.version}</maven.compiler.source>
+		<maven.compiler.target>${java.version}</maven.compiler.target>
 	</properties>
 
 	<repositories>
@@ -50,197 +51,112 @@ under the License.
 		</repository>
 	</repositories>
 
-	<!-- 
-
-		Execute "mvn clean package -Pbuild-jar"
-		to build a jar file out of this project!
-
-		How to use the Flink Quickstart pom:
-
-		a) Adding new dependencies:
-			You can add dependencies to the list below.
-
-		b) Build a jar for running on the cluster:
-
-			"mvn clean package -Pbuild-jar"
-			This will create a fat-jar which contains all dependencies necessary for running the created jar in a cluster.
-	-->
-
 	<dependencies>
 		<!-- Apache Flink dependencies -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${flink.version}</version>
-		</dependency>
+		<!-- These dependencies are provided, because they should not be packaged into the JAR file. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${flink.version}</version>
-		</dependency>
-		<dependency>
-			<!-- This dependency is required to actually execute jobs. It is currently pulled in by
-				flink-streaming-java, but we explicitly depend on it to safeguard against future changes. -->
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
-			<version>${flink.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
+			<scope>provided</scope>
 		</dependency>
 
-		<!-- explicitly add a standard logging framework, as Flink does not have
-			a hard dependency on one specific framework by default -->
+		<!-- Add connector dependencies here. They must be in the default scope (compile). -->
+
+		<!-- Example:
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kafka-0.10_${scala.binary.version}</artifactId>
+			<version>${flink.version}</version>
+		</dependency>
+		-->
+
+		<!-- Add logging framework, to produce console output when running in the IDE. -->
+		<!-- These dependencies are excluded from the application JAR by default. -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
-			<version>${slf4j.version}</version>
+			<version>1.7.7</version>
+			<scope>runtime</scope>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
-			<version>${log4j.version}</version>
+			<version>1.2.17</version>
+			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
-
-	<profiles>
-		<profile>
-			<!-- Profile for packaging correct JAR files -->
-			<id>build-jar</id>
-
-			<activation>
-				<activeByDefault>false</activeByDefault>
-			</activation>
-
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-core</artifactId>
-					<version>${flink.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-java</artifactId>
-					<version>${flink.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-clients_${scala.binary.version}</artifactId>
-					<version>${flink.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-					<version>${flink.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-					<version>${slf4j.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>log4j</groupId>
-					<artifactId>log4j</artifactId>
-					<version>${log4j.version}</version>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
-
-			<build>
-				<plugins>
-					<!-- We use the maven-shade plugin to create a fat jar that contains all dependencies
-						except flink and its transitive dependencies. The resulting fat-jar can be executed
-						on a cluster. Change the value of Program-Class if your program entry point changes. -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<version>3.0.0</version>
-						<executions>
-							<!-- Run shade goal on package phase -->
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<artifactSet>
-										<excludes>
-											<exclude>org.apache.flink:force-shading</exclude>
-											<exclude>com.google.code.findbugs:jsr305</exclude>
-											<exclude>org.slf4j:*</exclude>
-										</excludes>
-									</artifactSet>
-									<filters>
-										<filter>
-											<!-- Do not copy the signatures in the META-INF folder.
-                                            Otherwise, this might cause SecurityExceptions when using the JAR. -->
-											<artifact>*:*</artifact>
-											<excludes>
-												<exclude>META-INF/*.SF</exclude>
-												<exclude>META-INF/*.DSA</exclude>
-												<exclude>META-INF/*.RSA</exclude>
-											</excludes>
-										</filter>
-									</filters>
-									<!-- If you want to use ./bin/flink run <quickstart jar> uncomment the following lines.
-										This will add a Main-Class entry to the manifest file -->
-									<!--
-									<transformers>
-										<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-										<mainClass>${package}.StreamingJob</mainClass>
-										</transformer>
-									</transformers>
-									-->
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 
 	<build>
 		<plugins>
 
+			<!-- Java Compiler -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 				</configuration>
+			</plugin>
+
+			<!-- We use the maven-shade plugin to create a fat jar that contains all necessary dependencies. -->
+			<!-- Change the value of <mainClass>...</mainClass> if your program entry point changes. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.0.0</version>
+				<executions>
+					<!-- Run shade goal on package phase -->
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<excludes>
+									<exclude>org.apache.flink:force-shading</exclude>
+									<exclude>com.google.code.findbugs:jsr305</exclude>
+									<exclude>org.slf4j:*</exclude>
+									<exclude>log4j:*</exclude>
+								</excludes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<!-- Do not copy the signatures in the META-INF folder.
+									Otherwise, this might cause SecurityExceptions when using the JAR. -->
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>${package}.StreamingJob</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 
-		<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
-		<!--
 		<pluginManagement>
 			<plugins>
-				<plugin>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<configuration>
-						<source>1.8</source>
-						<target>1.8</target>
-						<compilerId>jdt</compilerId>
-					</configuration>
-					<dependencies>
-						<dependency>
-							<groupId>org.eclipse.tycho</groupId>
-							<artifactId>tycho-compiler-jdt</artifactId>
-							<version>0.21.0</version>
-						</dependency>
-					</dependencies>
-				</plugin>
 
+				<!-- This improves the out-of-the-box experience in Eclipse by resolving some warnings. -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
 					<artifactId>lifecycle-mapping</artifactId>
@@ -251,10 +167,10 @@ under the License.
 								<pluginExecution>
 									<pluginExecutionFilter>
 										<groupId>org.apache.maven.plugins</groupId>
-										<artifactId>maven-assembly-plugin</artifactId>
-										<versionRange>[2.4,)</versionRange>
+										<artifactId>maven-shade-plugin</artifactId>
+										<versionRange>[3.0.0,)</versionRange>
 										<goals>
-											<goal>single</goal>
+											<goal>shade</goal>
 										</goals>
 									</pluginExecutionFilter>
 									<action>
@@ -281,6 +197,36 @@ under the License.
 				</plugin>
 			</plugins>
 		</pluginManagement>
-		-->
 	</build>
+
+	<!-- This profile helps to make things run out of the box in IntelliJ -->
+	<!-- Its adds Flink's core classes to the runtime class path. -->
+	<!-- Otherwise they are missing in IntelliJ, because the dependency is 'provided' -->
+	<profiles>
+		<profile>
+			<id>add-dependencies-for-IDEA</id>
+
+			<activation>
+				<property>
+					<name>idea.version</name>
+				</property>
+			</activation>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-java</artifactId>
+					<version>${flink.version}</version>
+					<scope>compile</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+					<version>${flink.version}</version>
+					<scope>compile</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
 </project>

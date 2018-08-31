@@ -19,13 +19,15 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,46 +35,66 @@ import java.util.Map;
 /**
  * Heap-backed partitioned {@link MapState} that is snapshotted into files.
  *
- * @param <K>  The type of the key.
- * @param <N>  The type of the namespace.
+ * @param <K> The type of the key.
+ * @param <N> The type of the namespace.
  * @param <UK> The type of the keys in the state.
  * @param <UV> The type of the values in the state.
  */
-public class HeapMapState<K, N, UK, UV>
-		extends AbstractHeapState<K, N, HashMap<UK, UV>, MapState<UK, UV>, MapStateDescriptor<UK, UV>>
-		implements InternalMapState<N, UK, UV> {
+class HeapMapState<K, N, UK, UV>
+	extends AbstractHeapState<K, N, Map<UK, UV>>
+	implements InternalMapState<K, N, UK, UV> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc  The state identifier for the state. This contains name
-	 *                   and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
-	public HeapMapState(
-			MapStateDescriptor<UK, UV> stateDesc,
-			StateTable<K, N, HashMap<UK, UV>> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+	private HeapMapState(
+		StateTable<K, N, Map<UK, UV>> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<Map<UK, UV>> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		Map<UK, UV> defaultValue) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+
+		Preconditions.checkState(valueSerializer instanceof MapSerializer, "Unexpected serializer type.");
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<Map<UK, UV>> getValueSerializer() {
+		return valueSerializer;
 	}
 
 	@Override
 	public UV get(UK userKey) {
 
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 
 		if (userMap == null) {
 			return null;
 		}
-		
+
 		return userMap.get(userKey);
 	}
 
 	@Override
 	public void put(UK userKey, UV userValue) {
 
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		if (userMap == null) {
 			userMap = new HashMap<>();
 			stateTable.put(currentNamespace, userMap);
@@ -84,7 +106,7 @@ public class HeapMapState<K, N, UK, UV>
 	@Override
 	public void putAll(Map<UK, UV> value) {
 
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 
 		if (userMap == null) {
 			userMap = new HashMap<>();
@@ -97,7 +119,7 @@ public class HeapMapState<K, N, UK, UV>
 	@Override
 	public void remove(UK userKey) {
 
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		if (userMap == null) {
 			return;
 		}
@@ -111,48 +133,73 @@ public class HeapMapState<K, N, UK, UV>
 
 	@Override
 	public boolean contains(UK userKey) {
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap != null && userMap.containsKey(userKey);
 	}
 
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.entrySet();
 	}
-	
+
 	@Override
 	public Iterable<UK> keys() {
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.keySet();
 	}
 
 	@Override
 	public Iterable<UV> values() {
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.values();
 	}
 
 	@Override
 	public Iterator<Map.Entry<UK, UV>> iterator() {
-		HashMap<UK, UV> userMap = stateTable.get(currentNamespace);
+		Map<UK, UV> userMap = stateTable.get(currentNamespace);
 		return userMap == null ? null : userMap.entrySet().iterator();
 	}
 
 	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws IOException {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
+	public byte[] getSerializedValue(
+			final byte[] serializedKeyAndNamespace,
+			final TypeSerializer<K> safeKeySerializer,
+			final TypeSerializer<N> safeNamespaceSerializer,
+			final TypeSerializer<Map<UK, UV>> safeValueSerializer) throws Exception {
 
-		HashMap<UK, UV> result = stateTable.get(key, namespace);
+		Preconditions.checkNotNull(serializedKeyAndNamespace);
+		Preconditions.checkNotNull(safeKeySerializer);
+		Preconditions.checkNotNull(safeNamespaceSerializer);
+		Preconditions.checkNotNull(safeValueSerializer);
 
-		if (null == result) {
+		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
+				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
+
+		Map<UK, UV> result = stateTable.get(keyAndNamespace.f0, keyAndNamespace.f1);
+
+		if (result == null) {
 			return null;
 		}
 
-		TypeSerializer<UK> userKeySerializer = stateDesc.getKeySerializer();
-		TypeSerializer<UV> userValueSerializer = stateDesc.getValueSerializer();
+		final MapSerializer<UK, UV> serializer = (MapSerializer<UK, UV>) safeValueSerializer;
 
-		return KvStateSerializer.serializeMap(result.entrySet(), userKeySerializer, userValueSerializer);
+		final TypeSerializer<UK> dupUserKeySerializer = serializer.getKeySerializer();
+		final TypeSerializer<UV> dupUserValueSerializer = serializer.getValueSerializer();
+
+		return KvStateSerializer.serializeMap(result.entrySet(), dupUserKeySerializer, dupUserValueSerializer);
+	}
+
+	@SuppressWarnings("unchecked")
+	static <UK, UV, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapMapState<>(
+			(StateTable<K, N, Map<UK, UV>>) stateTable,
+			keySerializer,
+			(TypeSerializer<Map<UK, UV>>) stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			(Map<UK, UV>) stateDesc.getDefaultValue());
 	}
 }

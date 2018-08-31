@@ -21,9 +21,10 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -252,13 +253,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		private transient final CountDownLatch discardLatch = new CountDownLatch(1);
 
 		public TestCompletedCheckpoint(
-			JobID jobId,
-			long checkpointId,
-			long timestamp,
-			Map<OperatorID, OperatorState> operatorGroupState,
-			CheckpointProperties props) {
+				JobID jobId,
+				long checkpointId,
+				long timestamp,
+				Map<OperatorID, OperatorState> operatorGroupState,
+				CheckpointProperties props) {
+
 			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props,
-					new EmptyStreamStateHandle(), "<pointer");
+					new TestCompletedCheckpointStorageLocation());
 		}
 
 		@Override
@@ -326,7 +328,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 	}
 
-	static class TestOperatorSubtaskState extends OperatorSubtaskState {
+	public static class TestOperatorSubtaskState extends OperatorSubtaskState {
 		private static final long serialVersionUID = 522580433699164230L;
 
 		boolean registered;
@@ -356,6 +358,14 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		public void reset() {
 			registered = false;
 			discarded = false;
+		}
+
+		public boolean isRegistered() {
+			return registered;
+		}
+
+		public boolean isDiscarded() {
+			return discarded;
 		}
 	}
 

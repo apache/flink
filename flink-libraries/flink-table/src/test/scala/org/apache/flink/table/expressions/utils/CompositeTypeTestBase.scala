@@ -22,13 +22,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.expressions.utils.CompositeTypeTestBase.{MyCaseClass, MyCaseClass2, MyPojo}
+import org.apache.flink.table.expressions.utils.CompositeTypeTestBase.{MyCaseClass, MyCaseClass2, MyCaseClass3, MyPojo}
 import org.apache.flink.types.Row
 
 class CompositeTypeTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(8)
+    val testData = new Row(14)
     testData.setField(0, MyCaseClass(42, "Bob", booleanField = true))
     testData.setField(1, MyCaseClass2(MyCaseClass(25, "Timo", booleanField = false)))
     testData.setField(2, ("a", "b"))
@@ -37,6 +37,12 @@ class CompositeTypeTestBase extends ExpressionTestBase {
     testData.setField(5, 13)
     testData.setField(6, MyCaseClass2(null))
     testData.setField(7, Tuple1(true))
+    testData.setField(8, Array(Tuple2(true, 23), Tuple2(false, 12)))
+    testData.setField(9, Array(Tuple1(true), null))
+    testData.setField(10, Array(MyCaseClass(42, "Bob", booleanField = true)))
+    testData.setField(11, Array(new MyPojo()))
+    testData.setField(12, Array(MyCaseClass3(Array(MyCaseClass(42, "Alice", booleanField = true)))))
+    testData.setField(13, Array(MyCaseClass2(MyCaseClass(42, "Bob", booleanField = true))))
     testData
   }
 
@@ -49,7 +55,13 @@ class CompositeTypeTestBase extends ExpressionTestBase {
       TypeExtractor.createTypeInfo(classOf[MyPojo]),
       Types.INT,
       createTypeInformation[MyCaseClass2],
-      createTypeInformation[Tuple1[Boolean]]
+      createTypeInformation[Tuple1[Boolean]],
+      createTypeInformation[Array[Tuple2[Boolean, Int]]],
+      createTypeInformation[Array[Tuple1[Boolean]]],
+      createTypeInformation[Array[MyCaseClass]],
+      createTypeInformation[Array[MyPojo]],
+      createTypeInformation[Array[MyCaseClass3]],
+      createTypeInformation[Array[MyCaseClass2]]
       ).asInstanceOf[TypeInformation[Any]]
   }
 }
@@ -58,6 +70,8 @@ object CompositeTypeTestBase {
   case class MyCaseClass(intField: Int, stringField: String, booleanField: Boolean)
 
   case class MyCaseClass2(objectField: MyCaseClass)
+
+  case class MyCaseClass3(arrayField: Array[MyCaseClass])
 
   class MyPojo {
     private var myInt: Int = 0

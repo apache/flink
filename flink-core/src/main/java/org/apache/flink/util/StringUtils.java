@@ -28,7 +28,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -346,6 +348,21 @@ public final class StringUtils {
 		else {
 			return s2;
 		}
+	}
+
+	/**
+	 * Generates a string containing a comma-separated list of values in double-quotes.
+	 * Uses lower-cased values returned from {@link Object#toString()} method for each element in the given array.
+	 * Null values are skipped.
+	 *
+	 * @param values array of elements for the list
+	 *
+	 * @return The string with quoted list of elements
+	 */
+	public static String toQuotedListString(Object[] values) {
+		return Arrays.stream(values).filter(Objects::nonNull)
+			.map(v -> v.toString().toLowerCase())
+			.collect(Collectors.joining(", ", "\"", "\""));
 	}
 
 	// ------------------------------------------------------------------------

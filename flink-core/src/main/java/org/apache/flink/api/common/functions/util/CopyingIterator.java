@@ -18,20 +18,25 @@
 
 package org.apache.flink.api.common.functions.util;
 
-import java.util.Iterator;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.TraversableOnceException;
 
+import java.util.Iterator;
+
+/**
+ * Wraps an iterator to return deep copies of the original iterator's elements.
+ *
+ * @param <E> The type of the element returned by the iterator.
+ */
 @Internal
 public class CopyingIterator<E> implements Iterator<E>, Iterable<E> {
 
 	private final Iterator<E> source;
 	private final TypeSerializer<E> serializer;
-	
+
 	private boolean available = true;
-	
+
 	public CopyingIterator(Iterator<E> source, TypeSerializer<E> serializer) {
 		this.source = source;
 		this.serializer = serializer;

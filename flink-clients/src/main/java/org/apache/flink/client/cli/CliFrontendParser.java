@@ -19,6 +19,7 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -62,6 +63,13 @@ public class CliFrontendParser {
 	public static final Option DETACHED_OPTION = new Option("d", "detached", false, "If present, runs " +
 			"the job in detached mode");
 
+	/**
+	 * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN deployments
+	 */
+	@Deprecated
+	public static final Option YARN_DETACHED_OPTION = new Option("yd", "yarndetached", false, "If present, runs " +
+		"the job in detached mode (deprecated; use non-YARN specific option instead)");
+
 	static final Option ARGS_OPTION = new Option("a", "arguments", true,
 			"Program arguments. Arguments can also be added without -a, simply as trailing parameters.");
 
@@ -69,10 +77,10 @@ public class CliFrontendParser {
 			"Address of the JobManager (master) to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
-	static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
+	public static final Option SAVEPOINT_PATH_OPTION = new Option("s", "fromSavepoint", true,
 			"Path to a savepoint to restore the job from (for example hdfs:///flink/savepoint-1537).");
 
-	static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
+	public static final Option SAVEPOINT_ALLOW_NON_RESTORED_OPTION = new Option("n", "allowNonRestoredState", false,
 			"Allow to skip savepoint state that cannot be restored. " +
 					"You need to allow this if you removed an operator from your " +
 					"program that was part of the program when the savepoint was triggered.");
@@ -87,6 +95,9 @@ public class CliFrontendParser {
 	static final Option SCHEDULED_OPTION = new Option("s", "scheduled", false,
 			"Show only scheduled programs and their JobIDs");
 
+	static final Option ALL_OPTION = new Option("a", "all", false,
+		"Show all programs and their JobIDs");
+
 	static final Option ZOOKEEPER_NAMESPACE_OPTION = new Option("z", "zookeeperNamespace", true,
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
@@ -94,6 +105,8 @@ public class CliFrontendParser {
 			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
 			"directory is optional. If no directory is specified, the configured default " +
 			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+
+	static final Option MODIFY_PARALLELISM_OPTION = new Option("p", "parallelism", true, "New parallelism for the specified job.");
 
 	static {
 		HELP_OPTION.setRequired(false);
@@ -115,6 +128,7 @@ public class CliFrontendParser {
 
 		LOGGING_OPTION.setRequired(false);
 		DETACHED_OPTION.setRequired(false);
+		YARN_DETACHED_OPTION.setRequired(false);
 
 		ARGS_OPTION.setRequired(false);
 		ARGS_OPTION.setArgName("programArgs");
@@ -134,6 +148,9 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setRequired(false);
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
+
+		MODIFY_PARALLELISM_OPTION.setRequired(false);
+		MODIFY_PARALLELISM_OPTION.setArgName("newParallelism");
 	}
 
 	private static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -153,6 +170,7 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
+		options.addOption(YARN_DETACHED_OPTION);
 		return options;
 	}
 
@@ -179,6 +197,7 @@ public class CliFrontendParser {
 
 	static Options getListCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
+		options.addOption(ALL_OPTION);
 		options.addOption(RUNNING_OPTION);
 		return options.addOption(SCHEDULED_OPTION);
 	}
@@ -196,6 +215,12 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		return options.addOption(JAR_OPTION);
+	}
+
+	static Options getModifyOptions() {
+		final Options options = buildGeneralOptions(new Options());
+		options.addOption(MODIFY_PARALLELISM_OPTION);
+		return options;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -247,6 +272,7 @@ public class CliFrontendParser {
 		printHelpForStop(customCommandLines);
 		printHelpForCancel(customCommandLines);
 		printHelpForSavepoint(customCommandLines);
+		printHelpForModify(customCommandLines);
 
 		System.out.println();
 	}
@@ -339,6 +365,21 @@ public class CliFrontendParser {
 		System.out.println();
 	}
 
+	public static void printHelpForModify(Collection<CustomCommandLine<?>> customCommandLines) {
+		HelpFormatter formatter = new HelpFormatter();
+		formatter.setLeftPadding(5);
+		formatter.setWidth(80);
+
+		System.out.println("\nAction \"modify\" modifies a running job (e.g. change of parallelism).");
+		System.out.println("\n  Syntax: modify <Job ID> [OPTIONS]");
+		formatter.setSyntaxPrefix("  \"modify\" action options:");
+		formatter.printHelp(" ", getModifyOptions());
+
+		printCustomCliOptions(customCommandLines, formatter, false);
+
+		System.out.println();
+	}
+
 	/**
 	 * Prints custom cli options.
 	 * @param formatter The formatter to use for printing
@@ -358,6 +399,16 @@ public class CliFrontendParser {
 			}
 			formatter.printHelp(" ", customOpts);
 			System.out.println();
+		}
+	}
+
+	public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
+		if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
+			String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+			boolean allowNonRestoredState = commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+			return SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState);
+		} else {
+			return SavepointRestoreSettings.none();
 		}
 	}
 
@@ -393,7 +444,7 @@ public class CliFrontendParser {
 	 * @param optionsB options to merge, can be null if none
 	 * @return
 	 */
-	static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
+	public static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
 		final Options resultOptions = new Options();
 		if (optionsA != null) {
 			for (Option option : optionsA.getOptions()) {

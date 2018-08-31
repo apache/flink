@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.io.network.api.reader;
 
-import java.io.IOException;
-
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.util.event.EventListener;
+
+import java.io.IOException;
 
 /**
  * The basic API for every reader.

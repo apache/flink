@@ -27,6 +27,7 @@ package org.apache.flink.runtime.webmonitor.history;
  *****************************************************************************/
 
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -40,7 +41,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 
@@ -81,7 +81,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * page is prevented.
  */
 @ChannelHandler.Sharable
-public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHandler<Routed> {
+public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHandler<RoutedRequest> {
 
 	/** Default logger, if none is specified. */
 	private static final Logger LOG = LoggerFactory.getLogger(HistoryServerStaticFileServerHandler.class);
@@ -100,10 +100,10 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
-		String requestPath = routed.path();
+	public void channelRead0(ChannelHandlerContext ctx, RoutedRequest routedRequest) throws Exception {
+		String requestPath = routedRequest.getPath();
 
-		respondWithFile(ctx, routed.request(), requestPath);
+		respondWithFile(ctx, routedRequest.getRequest(), requestPath);
 	}
 
 	/**

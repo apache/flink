@@ -35,11 +35,11 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 	}
 
 	@Override
-	public List<X> convertFromString(String values) {
+	public List<X> convertFromString(String values) throws ConversionException {
 		String[] splitValues = values.split(",");
 		List<X> list = new ArrayList<>();
 		for (String value : splitValues) {
-			list.add(convertValueFromString(value));
+			list.add(convertStringToValue(value));
 		}
 		return list;
 	}
@@ -50,7 +50,7 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 	 * @param value string representation of parameter value
 	 * @return parameter value
 	 */
-	public abstract X convertValueFromString(String value);
+	public abstract X convertStringToValue(String value) throws ConversionException;
 
 	@Override
 	public String convertToString(List<X> values) {
@@ -58,11 +58,11 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 		boolean first = true;
 		for (X value : values) {
 			if (first) {
-				sb.append(convertStringToValue(value));
+				sb.append(convertValueToString(value));
 				first = false;
 			} else {
 				sb.append(",");
-				sb.append(convertStringToValue(value));
+				sb.append(convertValueToString(value));
 			}
 		}
 		return sb.toString();
@@ -74,5 +74,5 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
 	 * @param value parameter value
 	 * @return string representation of typed value
 	 */
-	public abstract String convertStringToValue(X value);
+	public abstract String convertValueToString(X value);
 }

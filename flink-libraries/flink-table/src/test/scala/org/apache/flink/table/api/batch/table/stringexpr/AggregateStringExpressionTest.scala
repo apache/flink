@@ -43,8 +43,8 @@ class AggregateStringExpressionTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[(Byte, Short, Int, Long, Float, Double, String)]("Table7")
 
-    val t1 = t.select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count)
-    val t2 = t.select("_1.avg, _2.avg, _3.avg, _4.avg, _5.avg, _6.avg, _7.count")
+    val t1 = t.select('_1.avg, '_2.avg, '_3.avg, '_4.avg, '_5.avg, '_6.avg, '_7.count, '_7.collect)
+    val t2 = t.select("_1.avg, _2.avg, _3.avg, _4.avg, _5.avg, _6.avg, _7.count, _7.collect")
 
     verifyTableEquals(t1, t2)
   }

@@ -19,22 +19,27 @@
 package org.apache.flink.api.scala
 
 import java.io._
+import java.util.Objects
 
-import akka.actor.ActorRef
-import akka.pattern.Patterns
-import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
-import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.configuration.{Configuration, CoreOptions, RestOptions, TaskManagerOptions}
+import org.apache.flink.runtime.clusterframework.BootstrapTools
+import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration, StandaloneMiniCluster}
+import org.apache.flink.test.util.{MiniClusterResource, TestBaseUtils}
+import org.apache.flink.test.util.TestBaseUtils.CodebaseType
 import org.apache.flink.util.TestLogger
-import org.junit.{AfterClass, Assert, BeforeClass, Ignore, Test}
+import org.junit._
+import org.junit.rules.TemporaryFolder
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.FiniteDuration
 import scala.tools.nsc.Settings
 
 class ScalaShellITCase extends TestLogger {
 
   import ScalaShellITCase._
+
+  val _temporaryFolder = new TemporaryFolder
+
+  @Rule
+  def temporaryFolder = _temporaryFolder
 
   /** Prevent re-creation of environment */
   @Test
@@ -269,23 +274,19 @@ class ScalaShellITCase extends TestLogger {
     val oldOut: PrintStream = System.out
     System.setOut(new PrintStream(baos))
 
-    val confFile: String = classOf[ScalaShellLocalStartupITCase]
-      .getResource("/flink-conf.yaml")
-      .getFile
-    val confDir = new File(confFile).getAbsoluteFile.getParent
+    val dir = temporaryFolder.newFolder()
+    BootstrapTools.writeConfiguration(configuration, new File(dir, "flink-conf.yaml"))
 
     val args = cluster match {
-      case Some(cl) =>
+      case Some(_) =>
         Array(
           "remote",
-          cl.getHostname,
-          Integer.toString(cl.getPort),
+          hostname,
+          Integer.toString(port),
           "--configDir",
-          confDir)
+          dir.getAbsolutePath)
       case None => throw new IllegalStateException("Cluster has not been started.")
     }
-
-
 
     //start scala shell with initialized
     // buffered reader for testing
@@ -311,16 +312,42 @@ class ScalaShellITCase extends TestLogger {
 }
 
 object ScalaShellITCase {
-  var cluster: Option[StandaloneMiniCluster] = None
 
-  val parallelism = 4
   val configuration = new Configuration()
+  var cluster: Option[Either[MiniCluster, StandaloneMiniCluster]] = None
+
+  var port: Int = _
+  var hostname : String = _
+  val parallelism: Int = 4
 
   @BeforeClass
   def beforeAll(): Unit = {
-    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism)
+    val isNew = TestBaseUtils.isNewCodebase()
+    if (isNew) {
+      configuration.setString(CoreOptions.MODE, CoreOptions.NEW_MODE)
+      // set to different than default so not to interfere with ScalaShellLocalStartupITCase
+      configuration.setInteger(RestOptions.PORT, 8082)
+      val miniConfig = new MiniClusterConfiguration.Builder()
+        .setConfiguration(configuration)
+        .setNumSlotsPerTaskManager(parallelism)
+        .build()
 
-    cluster = Option(new StandaloneMiniCluster(configuration))
+      val miniCluster = new MiniCluster(miniConfig)
+      miniCluster.start()
+      port = miniCluster.getRestAddress.getPort
+      hostname = miniCluster.getRestAddress.getHost
+
+      cluster = Some(Left(miniCluster))
+    } else {
+      configuration.setString(CoreOptions.MODE, CoreOptions.LEGACY_MODE)
+      configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, parallelism)
+      val standaloneCluster = new StandaloneMiniCluster(configuration)
+
+      hostname = standaloneCluster.getHostname
+      port = standaloneCluster.getPort
+
+      cluster = Some(Right(standaloneCluster))
+    }
   }
 
   @AfterClass
@@ -328,7 +355,10 @@ object ScalaShellITCase {
     // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
 
-    cluster.foreach(_.close)
+    cluster.foreach {
+      case Left(miniCluster) => miniCluster.close()
+      case Right(miniCluster) => miniCluster.close()
+    }
   }
 
   /**
@@ -346,19 +376,19 @@ object ScalaShellITCase {
     System.setOut(new PrintStream(baos))
 
     cluster match {
-      case Some(cl) =>
+      case Some(_) =>
         val repl = externalJars match {
           case Some(ej) => new FlinkILoop(
-            cl.getHostname,
-            cl.getPort,
-            GlobalConfiguration.loadConfiguration(),
+            hostname,
+            port,
+            configuration,
             Option(Array(ej)),
             in, new PrintWriter(out))
 
           case None => new FlinkILoop(
-            cl.getHostname,
-            cl.getPort,
-            GlobalConfiguration.loadConfiguration(),
+            hostname,
+            port,
+            configuration,
             in, new PrintWriter(out))
         }
 

@@ -67,20 +67,19 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	/**
 	 * Instantiates a new BLOB cache.
 	 *
-	 * @param serverAddress
-	 * 		address of the {@link BlobServer} to use for fetching files from
 	 * @param blobClientConfig
 	 * 		global configuration
-	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from or {@code null} if none yet
 	 * @throws IOException
 	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
 	 */
 	public TransientBlobCache(
-			final InetSocketAddress serverAddress,
-			final Configuration blobClientConfig) throws IOException {
+			final Configuration blobClientConfig,
+			@Nullable final InetSocketAddress serverAddress) throws IOException {
 
-		super(serverAddress, blobClientConfig, new VoidBlobStore(),
-			LoggerFactory.getLogger(TransientBlobCache.class));
+		super(blobClientConfig, new VoidBlobStore(), LoggerFactory.getLogger(TransientBlobCache.class), serverAddress
+		);
 
 		// Initializing the clean up task
 		this.cleanupTimer = new Timer(true);
@@ -122,7 +121,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 
 	@Override
 	public TransientBlobKey putTransient(byte[] value) throws IOException {
-		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+		try (BlobClient bc = createClient()) {
 			return (TransientBlobKey) bc.putBuffer(null, value, 0, value.length, TRANSIENT_BLOB);
 		}
 	}
@@ -130,14 +129,14 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	@Override
 	public TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException {
 		checkNotNull(jobId);
-		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+		try (BlobClient bc = createClient()) {
 			return (TransientBlobKey) bc.putBuffer(jobId, value, 0, value.length, TRANSIENT_BLOB);
 		}
 	}
 
 	@Override
 	public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
-		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+		try (BlobClient bc = createClient()) {
 			return (TransientBlobKey) bc.putInputStream(null, inputStream, TRANSIENT_BLOB);
 		}
 	}
@@ -145,7 +144,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	@Override
 	public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
-		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
+		try (BlobClient bc = createClient()) {
 			return (TransientBlobKey) bc.putInputStream(jobId, inputStream, TRANSIENT_BLOB);
 		}
 	}
@@ -222,7 +221,13 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	}
 
 	private BlobClient createClient() throws IOException {
-		return new BlobClient(serverAddress, blobClientConfig);
+		final InetSocketAddress currentServerAddress = serverAddress;
+
+		if (currentServerAddress != null) {
+			return new BlobClient(currentServerAddress, blobClientConfig);
+		} else {
+			throw new IOException("Could not create BlobClient because the BlobServer address is unknown.");
+		}
 	}
 
 	@Override

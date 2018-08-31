@@ -26,10 +26,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.ExceptionUtils;
@@ -174,7 +174,7 @@ public class FromElementsFunctionTest {
 
 			// make a checkpoint
 			List<Integer> checkpointData = new ArrayList<>(numElements);
-			OperatorStateHandles handles = null;
+			OperatorSubtaskState handles = null;
 			synchronized (ctx.getCheckpointLock()) {
 				handles = testHarness.snapshot(566, System.currentTimeMillis());
 				checkpointData.addAll(result);

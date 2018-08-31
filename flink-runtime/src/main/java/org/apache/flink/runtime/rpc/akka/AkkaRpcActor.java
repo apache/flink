@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.akka.exceptions.AkkaHandshakeException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.runtime.rpc.akka.messages.Processing;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
+import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
+import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.runtime.rpc.messages.RpcInvocation;
 import org.apache.flink.runtime.rpc.messages.RunAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -79,10 +83,16 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	private final CompletableFuture<Boolean> terminationFuture;
 
-	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Boolean> terminationFuture) {
+	private final int version;
+
+	private State state;
+
+	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Boolean> terminationFuture, final int version) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
 		this.terminationFuture = checkNotNull(terminationFuture);
+		this.version = version;
+		this.state = State.STOPPED;
 	}
 
 	@Override
@@ -90,12 +100,11 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		mainThreadValidator.enterMainThread();
 
 		try {
-			Throwable shutdownThrowable = null;
-
+			CompletableFuture<Void> postStopFuture;
 			try {
-				rpcEndpoint.postStop();
+				postStopFuture = rpcEndpoint.postStop();
 			} catch (Throwable throwable) {
-				shutdownThrowable = throwable;
+				postStopFuture = FutureUtils.completedExceptionally(throwable);
 			}
 
 			super.postStop();
@@ -105,11 +114,14 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// future.
 			// Complete the termination future so that others know that we've stopped.
 
-			if (shutdownThrowable != null) {
-				terminationFuture.completeExceptionally(shutdownThrowable);
-			} else {
-				terminationFuture.complete(null);
-			}
+			postStopFuture.whenComplete(
+				(Void value, Throwable throwable) -> {
+					if (throwable != null) {
+						terminationFuture.completeExceptionally(throwable);
+					} else {
+						terminationFuture.complete(null);
+					}
+				});
 		} finally {
 			mainThreadValidator.exitMainThread();
 		}
@@ -117,32 +129,31 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 
 	@Override
 	public void onReceive(final Object message) {
-		if (message.equals(Processing.START)) {
-			getContext().become(
-				(Object msg) -> {
-					if (msg.equals(Processing.STOP)) {
-						getContext().unbecome();
-					} else {
-						mainThreadValidator.enterMainThread();
+		if (message instanceof RemoteHandshakeMessage) {
+			handleHandshakeMessage((RemoteHandshakeMessage) message);
+		} else if (message.equals(Processing.START)) {
+			state = State.STARTED;
+		} else if (message.equals(Processing.STOP)) {
+			state = State.STOPPED;
+		} else if (state == State.STARTED) {
+			mainThreadValidator.enterMainThread();
 
-						try {
-							handleMessage(msg);
-						} finally {
-							mainThreadValidator.exitMainThread();
-						}
-					}
-				});
+			try {
+				handleRpcMessage(message);
+			} finally {
+				mainThreadValidator.exitMainThread();
+			}
 		} else {
 			log.info("The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
 				rpcEndpoint.getClass().getName(),
 				message.getClass().getName());
 
-			sendErrorIfSender(new AkkaRpcException("Discard message, because " +
-				"the rpc endpoint has not been started yet."));
+			sendErrorIfSender(new AkkaRpcException(
+				String.format("Discard message, because the rpc endpoint %s has not been started yet.", rpcEndpoint.getAddress())));
 		}
 	}
 
-	protected void handleMessage(Object message) {
+	protected void handleRpcMessage(Object message) {
 		if (message instanceof RunAsync) {
 			handleRunAsync((RunAsync) message);
 		} else if (message instanceof CallAsync) {
@@ -158,6 +169,35 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			sendErrorIfSender(new AkkaUnknownMessageException("Received unknown message " + message +
 				" of type " + message.getClass().getSimpleName() + '.'));
 		}
+	}
+
+	private void handleHandshakeMessage(RemoteHandshakeMessage handshakeMessage) {
+		if (!isCompatibleVersion(handshakeMessage.getVersion())) {
+			sendErrorIfSender(new AkkaHandshakeException(
+				String.format(
+					"Version mismatch between source (%s) and target (%s) rpc component. Please verify that all components have the same version.",
+					handshakeMessage.getVersion(),
+					getVersion())));
+		} else if (!isGatewaySupported(handshakeMessage.getRpcGateway())) {
+			sendErrorIfSender(new AkkaHandshakeException(
+				String.format(
+					"The rpc endpoint does not support the gateway %s.",
+					handshakeMessage.getRpcGateway().getSimpleName())));
+		} else {
+			getSender().tell(new Status.Success(HandshakeSuccessMessage.INSTANCE), getSelf());
+		}
+	}
+
+	private boolean isGatewaySupported(Class<?> rpcGateway) {
+		return rpcGateway.isAssignableFrom(rpcEndpoint.getClass());
+	}
+
+	private boolean isCompatibleVersion(int sourceVersion) {
+		return sourceVersion == getVersion();
+	}
+
+	private int getVersion() {
+		return version;
 	}
 
 	/**
@@ -300,7 +340,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 				FiniteDuration delay = new FiniteDuration(delayNanos, TimeUnit.NANOSECONDS);
 				RunAsync message = new RunAsync(runAsync.getRunnable(), timeToRun);
 
-				getContext().system().scheduler().scheduleOnce(delay, getSelf(), message,
+				final Object envelopedSelfMessage = envelopeSelfMessage(message);
+
+				getContext().system().scheduler().scheduleOnce(delay, getSelf(), envelopedSelfMessage,
 						getContext().dispatcher(), ActorRef.noSender());
 			}
 		}
@@ -328,5 +370,20 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 		if (!getSender().equals(ActorRef.noSender())) {
 			getSender().tell(new Status.Failure(throwable), getSelf());
 		}
+	}
+
+	/**
+	 * Hook to envelope self messages.
+	 *
+	 * @param message to envelope
+	 * @return enveloped message
+	 */
+	protected Object envelopeSelfMessage(Object message) {
+		return message;
+	}
+
+	enum State {
+		STARTED,
+		STOPPED
 	}
 }

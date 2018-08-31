@@ -23,15 +23,16 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
@@ -64,7 +66,8 @@ public class InputGateConcurrentTest {
 				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0; i < numChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -100,7 +103,8 @@ public class InputGateConcurrentTest {
 				0,
 				numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
@@ -149,7 +153,8 @@ public class InputGateConcurrentTest {
 				0,
 				numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0, local = 0; i < numChannels; i++) {
 			if (localOrRemote.get(i)) {
@@ -189,7 +194,7 @@ public class InputGateConcurrentTest {
 
 	private static abstract class Source {
 	
-		abstract void addBuffer(Buffer buffer) throws Exception;
+		abstract void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception;
 	}
 
 	private static class PipelinedSubpartitionSource extends Source {
@@ -201,8 +206,8 @@ public class InputGateConcurrentTest {
 		}
 
 		@Override
-		void addBuffer(Buffer buffer) throws Exception {
-			partition.add(buffer);
+		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
+			partition.add(bufferConsumer);
 		}
 	}
 
@@ -216,8 +221,14 @@ public class InputGateConcurrentTest {
 		}
 
 		@Override
-		void addBuffer(Buffer buffer) throws Exception {
-			channel.onBuffer(buffer, seq++, -1);
+		void addBufferConsumer(BufferConsumer bufferConsumer) throws Exception {
+			checkState(bufferConsumer.isFinished(), "Handling of non finished buffers is not yet implemented");
+			try {
+				channel.onBuffer(bufferConsumer.build(), seq++, -1);
+			}
+			finally {
+				bufferConsumer.close();
+			}
 		}
 	}
 
@@ -242,7 +253,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		public void go() throws Exception {
-			final Buffer buffer = TestBufferFactory.createBuffer(100);
+			final BufferConsumer bufferConsumer = BufferBuilderTestUtils.createFilledBufferConsumer(100);
 			int nextYield = numTotal - yieldAfter;
 
 			for (int i = numTotal; i > 0;) {
@@ -252,7 +263,7 @@ public class InputGateConcurrentTest {
 				final Source next = sources[nextChannel];
 
 				for (int k = chunk; k > 0; --k) {
-					next.addBuffer(buffer);
+					next.addBufferConsumer(bufferConsumer.copy());
 				}
 
 				i -= chunk;

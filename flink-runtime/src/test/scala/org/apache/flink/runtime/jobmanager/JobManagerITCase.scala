@@ -25,7 +25,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.checkpoint.{CheckpointRetentionPolicy, CheckpointCoordinator, CompletedCheckpoint}
+import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType
 import org.apache.flink.runtime.jobgraph.tasks.{CheckpointCoordinatorConfiguration, JobCheckpointingSettings}
@@ -857,7 +857,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new IllegalStateException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 
@@ -872,7 +872,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Verify the response
           response.jobId should equal(jobGraph.getJobID())
-          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getClass should equal(classOf[IllegalStateException])
           response.cause.getCause.getMessage should equal("Expected Test Exception")
         }
       }
@@ -913,7 +913,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new IllegalStateException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
           val savepointPathPromise = new CompletableFuture[CompletedCheckpoint]()
@@ -982,7 +982,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new IllegalStateException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 

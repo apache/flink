@@ -40,7 +40,7 @@ class FlinkStatistic(tableStats: Option[TableStats]) extends Statistic {
     *
     * @return The table statistics
     */
-  def getTableStats: TableStats = tableStats.getOrElse(null)
+  def getTableStats: TableStats = tableStats.orNull
 
   /**
     * Returns the stats of the specified the column.

@@ -19,13 +19,21 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
@@ -46,7 +54,7 @@ public class JobResult implements Serializable {
 
 	private final JobID jobId;
 
-	private final Map<String, SerializedValue<Object>> accumulatorResults;
+	private final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
 	private final long netRuntime;
 
@@ -56,7 +64,7 @@ public class JobResult implements Serializable {
 
 	private JobResult(
 			final JobID jobId,
-			final Map<String, SerializedValue<Object>> accumulatorResults,
+			final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
 			final long netRuntime,
 			@Nullable final SerializedThrowable serializedThrowable) {
 
@@ -79,7 +87,7 @@ public class JobResult implements Serializable {
 		return jobId;
 	}
 
-	public Map<String, SerializedValue<Object>> getAccumulatorResults() {
+	public Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorResults() {
 		return accumulatorResults;
 	}
 
@@ -96,6 +104,29 @@ public class JobResult implements Serializable {
 	}
 
 	/**
+	 * Converts the {@link JobResult} to a {@link JobExecutionResult}.
+	 *
+	 * @param classLoader to use for deserialization
+	 * @return JobExecutionResult
+	 * @throws WrappedJobException if the JobResult contains a serialized exception
+	 * @throws IOException if the accumulator could not be deserialized
+	 * @throws ClassNotFoundException if the accumulator could not deserialized
+	 */
+	public JobExecutionResult toJobExecutionResult(ClassLoader classLoader) throws WrappedJobException, IOException, ClassNotFoundException {
+		if (serializedThrowable != null) {
+			final Throwable throwable = serializedThrowable.deserializeError(classLoader);
+			throw new WrappedJobException(throwable);
+		}
+
+		return new JobExecutionResult(
+			jobId,
+			netRuntime,
+			AccumulatorHelper.deserializeAccumulators(
+				accumulatorResults,
+				classLoader));
+	}
+
+	/**
 	 * Builder for {@link JobResult}.
 	 */
 	@Internal
@@ -103,7 +134,7 @@ public class JobResult implements Serializable {
 
 		private JobID jobId;
 
-		private Map<String, SerializedValue<Object>> accumulatorResults;
+		private Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
 		private long netRuntime = -1;
 
@@ -114,7 +145,7 @@ public class JobResult implements Serializable {
 			return this;
 		}
 
-		public Builder accumulatorResults(final Map<String, SerializedValue<Object>> accumulatorResults) {
+		public Builder accumulatorResults(final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults) {
 			this.accumulatorResults = accumulatorResults;
 			return this;
 		}
@@ -135,6 +166,54 @@ public class JobResult implements Serializable {
 				accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
 				netRuntime,
 				serializedThrowable);
+		}
+	}
+
+	/**
+	 * Creates the {@link JobResult} from the given {@link AccessExecutionGraph} which
+	 * must be in a globally terminal state.
+	 *
+	 * @param accessExecutionGraph to create the JobResult from
+	 * @return JobResult of the given AccessExecutionGraph
+	 */
+	public static JobResult createFrom(AccessExecutionGraph accessExecutionGraph) {
+		final JobID jobId = accessExecutionGraph.getJobID();
+		final JobStatus jobStatus = accessExecutionGraph.getState();
+
+		checkArgument(
+			jobStatus.isGloballyTerminalState(),
+			"The job " + accessExecutionGraph.getJobName() + '(' + jobId + ") is not in a globally " +
+				"terminal state. It is in state " + jobStatus + '.');
+
+		final JobResult.Builder builder = new JobResult.Builder();
+		builder.jobId(jobId);
+
+		final long netRuntime = accessExecutionGraph.getStatusTimestamp(jobStatus) - accessExecutionGraph.getStatusTimestamp(JobStatus.CREATED);
+		// guard against clock changes
+		final long guardedNetRuntime = Math.max(netRuntime, 0L);
+		builder.netRuntime(guardedNetRuntime);
+		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
+
+		if (jobStatus != JobStatus.FINISHED) {
+			final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
+
+			if (errorInfo != null) {
+				builder.serializedThrowable(errorInfo.getException());
+			}
+		}
+
+		return builder.build();
+	}
+
+	/**
+	 * Exception which indicates that the job has finished with an {@link Exception}.
+	 */
+	public static final class WrappedJobException extends FlinkException {
+
+		private static final long serialVersionUID = 6535061898650156019L;
+
+		public WrappedJobException(Throwable cause) {
+			super(cause);
 		}
 	}
 

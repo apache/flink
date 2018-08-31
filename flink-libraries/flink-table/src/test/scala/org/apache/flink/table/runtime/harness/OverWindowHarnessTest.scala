@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.runtime.aggregate._
@@ -35,12 +35,12 @@ import org.junit.Test
 class OverWindowHarnessTest extends HarnessTestBase{
 
   protected var queryConfig: StreamQueryConfig =
-    new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(2), Time.seconds(3))
+    new TestStreamQueryConfig(Time.seconds(2), Time.seconds(3))
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new ProcTimeBoundedRowsOver(
         genMinMaxAggFunction,
         2,
@@ -141,7 +141,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testProcTimeBoundedRangeOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new ProcTimeBoundedRangeOver(
         genMinMaxAggFunction,
         4000,
@@ -208,6 +208,21 @@ class OverWindowHarnessTest extends HarnessTestBase{
 
     testHarness.setProcessingTime(11006)
 
+    // test for clean-up timer NPE
+    testHarness.setProcessingTime(20000)
+
+    // timer registered for 23000
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong), change = true)))
+
+    // update clean-up timer to 25500. Previous timer should not clean up
+    testHarness.setProcessingTime(22500)
+    testHarness.processElement(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 20L: JLong), change = true)))
+
+    // 23000 clean-up timer should fire but not fail with an NPE
+    testHarness.setProcessingTime(23001)
+
     val result = testHarness.getOutput
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
@@ -241,6 +256,10 @@ class OverWindowHarnessTest extends HarnessTestBase{
       CRow(Row.of(0L: JLong, "aaa", 10L: JLong, 7L: JLong, 10L: JLong), change = true)))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(0L: JLong, "bbb", 40L: JLong, 40L: JLong, 40L: JLong), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 10L: JLong, 10L: JLong, 10L: JLong), change = true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(0L: JLong, "ccc", 20L: JLong, 10L: JLong, 20L: JLong), change = true)))
 
     verify(expectedOutput, result, new RowResultSortComparator())
 
@@ -250,7 +269,7 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testProcTimeUnboundedOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new ProcTimeUnboundedOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
@@ -342,14 +361,14 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeBoundedRangeOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new RowTimeBoundedRangeOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
         4000,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -492,14 +511,14 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeBoundedRowsOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new RowTimeBoundedRowsOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
         3,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -640,13 +659,13 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeUnboundedRangeOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new RowTimeUnboundedRangeOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(
@@ -776,13 +795,13 @@ class OverWindowHarnessTest extends HarnessTestBase{
   @Test
   def testRowTimeUnboundedRowsOver(): Unit = {
 
-    val processFunction = new KeyedProcessOperator[String, CRow, CRow](
+    val processFunction = new LegacyKeyedProcessOperator[String, CRow, CRow](
       new RowTimeUnboundedRowsOver(
         genMinMaxAggFunction,
         minMaxAggregationStateType,
         minMaxCRowType,
         0,
-        new StreamQueryConfig().withIdleStateRetentionTime(Time.seconds(1), Time.seconds(2))))
+        new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))))
 
     val testHarness =
       createHarnessTester(

@@ -19,13 +19,13 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.mesos.configuration.MesosOptions;
 import org.apache.flink.mesos.runtime.clusterframework.MesosConfigKeys;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
@@ -109,11 +109,12 @@ public class MesosEntrypointUtils {
 		log.info("TaskManagers will be created with {} task slots",
 			taskManagerParameters.containeredParameters().numSlots());
 		log.info("TaskManagers will be started with container size {} MB, JVM heap size {} MB, " +
-				"JVM direct memory limit {} MB, {} cpus",
+				"JVM direct memory limit {} MB, {} cpus, {} gpus",
 			taskManagerParameters.containeredParameters().taskManagerTotalMemoryMB(),
 			taskManagerParameters.containeredParameters().taskManagerHeapSizeMB(),
 			taskManagerParameters.containeredParameters().taskManagerDirectMemoryLimitMB(),
-			taskManagerParameters.cpus());
+			taskManagerParameters.cpus(),
+			taskManagerParameters.gpus());
 
 		return taskManagerParameters;
 	}
@@ -172,15 +173,7 @@ public class MesosEntrypointUtils {
 		final Map<String, String> envs = System.getenv();
 		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
-		// configure local directory
-		if (configuration.contains(CoreOptions.TMP_DIRS)) {
-			log.info("Overriding Mesos' temporary file directories with those " +
-				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
-		}
-		else if (tmpDirs != null) {
-			log.info("Setting directories for temporary files to: {}", tmpDirs);
-			configuration.setString(CoreOptions.TMP_DIRS, tmpDirs);
-		}
+		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, tmpDirs);
 
 		return configuration;
 	}

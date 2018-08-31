@@ -55,6 +55,8 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	/** Curator recipe to watch changes of a specific ZooKeeper node. */
 	private final NodeCache cache;
 
+	private final String retrievalPath;
+
 	/** Listener which will be notified about leader changes. */
 	private volatile LeaderRetrievalListener leaderListener;
 
@@ -80,6 +82,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 	public ZooKeeperLeaderRetrievalService(CuratorFramework client, String retrievalPath) {
 		this.client = Preconditions.checkNotNull(client, "CuratorFramework client");
 		this.cache = new NodeCache(client, retrievalPath);
+		this.retrievalPath = Preconditions.checkNotNull(retrievalPath);
 
 		this.leaderListener = null;
 		this.lastLeaderAddress = null;
@@ -94,7 +97,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 		Preconditions.checkState(leaderListener == null, "ZooKeeperLeaderRetrievalService can " +
 				"only be started once.");
 
-		LOG.info("Starting ZooKeeperLeaderRetrievalService.");
+		LOG.info("Starting ZooKeeperLeaderRetrievalService {}.", retrievalPath);
 
 		synchronized (lock) {
 			leaderListener = listener;
@@ -111,7 +114,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 
 	@Override
 	public void stop() throws Exception {
-		LOG.info("Stopping ZooKeeperLeaderRetrievalService.");
+		LOG.info("Stopping ZooKeeperLeaderRetrievalService {}.", retrievalPath);
 
 		synchronized (lock) {
 			if (!running) {

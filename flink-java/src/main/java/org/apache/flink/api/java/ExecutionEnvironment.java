@@ -52,6 +52,7 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.NumberSequenceIterator;
@@ -702,7 +703,7 @@ public abstract class ExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + data[0].getClass().getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
 		}
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
@@ -735,7 +736,7 @@ public abstract class ExecutionEnvironment {
 		catch (Exception e) {
 			throw new RuntimeException("Could not create TypeInformation for type " + type.getName()
 					+ "; please specify the TypeInformation manually via "
-					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)");
+					+ "ExecutionEnvironment#fromElements(Collection, TypeInformation)", e);
 		}
 
 		return fromCollection(Arrays.asList(data), typeInfo, Utils.getCallLocationName());
@@ -843,7 +844,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -861,7 +862,7 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
 	 * from any user-defined function in the (distributed) runtime under a local path. Files
-	 * may be local files (as long as all relevant workers have access to it), or files in a distributed file system.
+	 * may be local files (which will be distributed via BlobServer), or files in a distributed file system.
 	 * The runtime will copy the files temporarily to a local cache, if needed.
 	 *
 	 * <p>The {@link org.apache.flink.api.common.functions.RuntimeContext} can be obtained inside UDFs via
@@ -1093,9 +1094,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalEnvironment createLocalEnvironment(int parallelism) {
-		LocalEnvironment lee = new LocalEnvironment();
-		lee.setParallelism(parallelism);
-		return lee;
+		return createLocalEnvironment(new Configuration(), parallelism);
 	}
 
 	/**
@@ -1107,7 +1106,7 @@ public abstract class ExecutionEnvironment {
 	 * @return A local execution environment with the specified parallelism.
 	 */
 	public static LocalEnvironment createLocalEnvironment(Configuration customConfiguration) {
-		return new LocalEnvironment(customConfiguration);
+		return createLocalEnvironment(customConfiguration, -1);
 	}
 
 	/**
@@ -1118,7 +1117,7 @@ public abstract class ExecutionEnvironment {
 	 * the same JVM as the environment was created in. It will use the parallelism specified in the
 	 * parameter.
 	 *
-	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
+	 * <p>If the configuration key 'rest.port' was set in the configuration, that particular
 	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
 	@PublicEvolving
@@ -1127,10 +1126,29 @@ public abstract class ExecutionEnvironment {
 
 		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
-		LocalEnvironment localEnv = new LocalEnvironment(conf);
-		localEnv.setParallelism(defaultLocalDop);
+		if (!conf.contains(RestOptions.PORT)) {
+			// explicitly set this option so that it's not set to 0 later
+			conf.setInteger(RestOptions.PORT, RestOptions.PORT.defaultValue());
+		}
 
-		return localEnv;
+		return createLocalEnvironment(conf, -1);
+	}
+
+	/**
+	 * Creates a {@link LocalEnvironment} which is used for executing Flink jobs.
+	 *
+	 * @param configuration to start the {@link LocalEnvironment} with
+	 * @param defaultParallelism to initialize the {@link LocalEnvironment} with
+	 * @return {@link LocalEnvironment}
+	 */
+	private static LocalEnvironment createLocalEnvironment(Configuration configuration, int defaultParallelism) {
+		final LocalEnvironment localEnvironment = new LocalEnvironment(configuration);
+
+		if (defaultParallelism > 0) {
+			localEnvironment.setParallelism(defaultParallelism);
+		}
+
+		return localEnvironment;
 	}
 
 	/**

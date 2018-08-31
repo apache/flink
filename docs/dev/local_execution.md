@@ -43,13 +43,13 @@ Please also refer to the [debugging section]({{ site.baseurl }}/dev/batch/index.
 
 If you are developing your program in a Maven project, you have to add the `flink-clients` module using this dependency:
 
-~~~xml
+{% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Local Environment
 
@@ -59,7 +59,7 @@ The local environment is instantiated via the method `ExecutionEnvironment.creat
 
 In most cases, calling `ExecutionEnvironment.getExecutionEnvironment()` is the even better way to go. That method returns a `LocalEnvironment` when the program is started locally (outside the command line interface), and it returns a pre-configured environment for cluster execution, when the program is invoked by the [command line interface]({{ site.baseurl }}/ops/cli.html).
 
-~~~java
+{% highlight java %}
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
@@ -75,17 +75,17 @@ public static void main(String[] args) throws Exception {
 
     JobExecutionResult res = env.execute();
 }
-~~~
+{% endhighlight %}
 
 The `JobExecutionResult` object, which is returned after the execution finished, contains the program runtime and the accumulator results.
 
 The `LocalEnvironment` allows also to pass custom configuration values to Flink.
 
-~~~java
+{% highlight java %}
 Configuration conf = new Configuration();
 conf.setFloat(ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY, 0.5f);
 final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
-~~~
+{% endhighlight %}
 
 *Note:* The local execution environments do not start any web frontend to monitor the execution.
 
@@ -97,7 +97,7 @@ Users can use algorithms implemented for batch processing also for cases that ar
 
 **Skeleton for Collection-based execution**
 
-~~~java
+{% highlight java %}
 public static void main(String[] args) throws Exception {
     // initialize a new Collection-based execution environment
     final ExecutionEnvironment env = new CollectionEnvironment();
@@ -118,7 +118,7 @@ public static void main(String[] args) throws Exception {
         System.err.println("Result = "+t);
     }
 }
-~~~
+{% endhighlight %}
 
 The `flink-examples-batch` module contains a full example, called `CollectionExecutionExample`.
 

@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -99,10 +99,23 @@
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.scala-lang.modules</groupId>
+				<artifactId>scala-xml_${scala.binary.version}</artifactId>
+				<version>1.0.5</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<profiles>
 		<profile>
 			<id>windows</id>
 			<activation>
+				<property>
+					<name>windows</name>
+				</property>
 				<os>
 					<family>windows</family>
 				</os>
@@ -116,6 +129,9 @@
 			<id>default</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
+				<property>
+					<name>default</name>
+				</property>
 			</activation>
 			<properties>
 				<suffix.test>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffix.test>

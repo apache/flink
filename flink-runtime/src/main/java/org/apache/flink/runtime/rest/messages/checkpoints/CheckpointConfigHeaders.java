@@ -70,4 +70,9 @@ public class CheckpointConfigHeaders implements MessageHeaders<EmptyRequestBody,
 	public static CheckpointConfigHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the checkpointing configuration.";
+	}
 }

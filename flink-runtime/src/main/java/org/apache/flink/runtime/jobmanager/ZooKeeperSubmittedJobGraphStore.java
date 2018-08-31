@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.PathChildrenCache;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
-import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -157,6 +160,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
+	@Nullable
 	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		checkNotNull(jobId, "Job ID");
 		final String path = getPathForJob(jobId);
@@ -177,8 +181,8 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					success = true;
 					return null;
 				} catch (Exception e) {
-					throw new Exception("Could not retrieve the submitted job graph state handle " +
-						"for " + path + "from the submitted job graph store.", e);
+					throw new FlinkException("Could not retrieve the submitted job graph state handle " +
+						"for " + path + " from the submitted job graph store.", e);
 				}
 				SubmittedJobGraph jobGraph;
 
@@ -372,7 +376,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				break;
 
 				case CONNECTION_SUSPENDED: {
-					LOG.warn("ZooKeeper connection SUSPENDED. Changes to the submitted job " +
+					LOG.warn("ZooKeeper connection SUSPENDING. Changes to the submitted job " +
 						"graphs are not monitored (temporarily).");
 				}
 				break;

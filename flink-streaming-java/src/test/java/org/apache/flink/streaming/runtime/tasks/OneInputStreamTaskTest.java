@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -27,15 +28,26 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -53,6 +65,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -361,7 +374,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -380,14 +393,14 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
 		// now we should see the barrier and after that the buffered elements
-		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
 
@@ -424,7 +437,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -445,24 +458,24 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		// Now give a later barrier to all inputs, this should unblock the first channel,
 		// thereby allowing the two blocked elements through
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 0, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		expectedOutput.add(new CancelCheckpointMarker(0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()));
+		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		testHarness.waitForInputProcessing();
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		// Then give the earlier barrier, these should be ignored
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
@@ -496,33 +509,29 @@ public class OneInputStreamTaskTest extends TestLogger {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
+		TestTaskStateManager taskStateManager = testHarness.taskStateManager;
+		OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
 
-		AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
-			testHarness.jobConfig,
-			testHarness.taskConfig,
-			testHarness.executionConfig,
-			testHarness.memorySize,
-			new MockInputSplitProvider(),
-			testHarness.bufferSize);
+		taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
 
 		// reset number of restore calls
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		testHarness.invoke(env);
+		testHarness.invoke();
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> streamTask = testHarness.getTask();
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint())) {}
+		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())) {}
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-		env.getCheckpointLatch().await();
+		waitForAcknowledgeLatch.await();
 
-		assertEquals(checkpointId, env.getCheckpointId());
+		assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
@@ -533,16 +542,21 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
+		restoredTaskHarness.setTaskStateSnapshot(checkpointId, taskStateManager.getLastJobManagerTaskStateSnapshot());
+
 		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
 
 		configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks);
 
-		TaskStateSnapshot stateHandles = env.getCheckpointStateHandles();
+		TaskStateSnapshot stateHandles = taskStateManager.getLastJobManagerTaskStateSnapshot();
 		Assert.assertEquals(numberChainedTasks, stateHandles.getSubtaskStateMappings().size());
 
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		restoredTaskHarness.invoke(stateHandles);
+		// transfer state to new harness
+		restoredTaskHarness.taskStateManager.restoreLatestCheckpointState(
+			taskStateManager.getJobManagerTaskStateSnapshotsByCheckpointId());
+		restoredTaskHarness.invoke();
 		restoredTaskHarness.endInput();
 		restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
@@ -601,6 +615,150 @@ public class OneInputStreamTaskTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testOperatorMetricReuse() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
+			.chain(new OperatorID(), new DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.chain(new OperatorID(), new DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
+				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+			}
+		};
+
+		final StreamMockEnvironment env = new StreamMockEnvironment(
+			testHarness.jobConfig, testHarness.taskConfig, testHarness.memorySize, new MockInputSplitProvider(), testHarness.bufferSize, new TestTaskStateManager()) {
+			@Override
+			public TaskMetricGroup getMetricGroup() {
+				return taskMetricGroup;
+			}
+		};
+
+		final Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning();
+
+		final int numRecords = 5;
+
+		for (int x = 0; x < numRecords; x++) {
+			testHarness.processElement(new StreamRecord<>("hello"));
+		}
+		testHarness.waitForInputProcessing();
+
+		assertEquals(numRecords, numRecordsInCounter.getCount());
+		assertEquals(numRecords * 2 * 2 * 2, numRecordsOutCounter.getCount());
+	}
+
+	static class DuplicatingOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+		@Override
+		public void processElement(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+		}
+	}
+
+	@Test
+	public void testWatermarkMetrics() throws Exception {
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		OneInputStreamOperator<String, String> headOperator = new WatermarkMetricOperator();
+		OperatorID headOperatorId = new OperatorID();
+
+		OneInputStreamOperator<String, String> chainedOperator = new WatermarkMetricOperator();
+		OperatorID chainedOperatorId = new OperatorID();
+
+		testHarness.setupOperatorChain(headOperatorId, headOperator)
+			.chain(chainedOperatorId, chainedOperator, BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		InterceptingOperatorMetricGroup headOperatorMetricGroup = new InterceptingOperatorMetricGroup();
+		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
+		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup addOperator(OperatorID id, String name) {
+				if (id.equals(headOperatorId)) {
+					return headOperatorMetricGroup;
+				} else if (id.equals(chainedOperatorId)) {
+					return chainedOperatorMetricGroup;
+				} else {
+					return super.addOperator(id, name);
+				}
+			}
+		};
+
+		StreamMockEnvironment env = new StreamMockEnvironment(
+			testHarness.jobConfig, testHarness.taskConfig, testHarness.memorySize, new MockInputSplitProvider(), testHarness.bufferSize, new TestTaskStateManager()) {
+			@Override
+			public TaskMetricGroup getMetricGroup() {
+				return taskMetricGroup;
+			}
+		};
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning();
+
+		Gauge<Long> taskInputWatermarkGauge = (Gauge<Long>) taskMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+		Gauge<Long> headInputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+		Gauge<Long> headOutputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
+		Gauge<Long> chainedInputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
+		Gauge<Long> chainedOutputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
+
+		Assert.assertEquals("A metric was registered multiple times.",
+			5,
+			new HashSet<>(Arrays.asList(
+				taskInputWatermarkGauge,
+				headInputWatermarkGauge,
+				headOutputWatermarkGauge,
+				chainedInputWatermarkGauge,
+				chainedOutputWatermarkGauge))
+				.size());
+
+		Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, headOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, chainedInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(Long.MIN_VALUE, chainedOutputWatermarkGauge.getValue().longValue());
+
+		testHarness.processElement(new Watermark(1L));
+		testHarness.waitForInputProcessing();
+		Assert.assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(2L, headOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(2L, chainedInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(4L, chainedOutputWatermarkGauge.getValue().longValue());
+
+		testHarness.processElement(new Watermark(2L));
+		testHarness.waitForInputProcessing();
+		Assert.assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(4L, headOutputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(4L, chainedInputWatermarkGauge.getValue().longValue());
+		Assert.assertEquals(8L, chainedOutputWatermarkGauge.getValue().longValue());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+	}
+
+	static class WatermarkMetricOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			output.emitWatermark(new Watermark(mark.getTimestamp() * 2));
+		}
+	}
+
 	//==============================================================================================
 	// Utility functions and classes
 	//==============================================================================================
@@ -635,11 +793,13 @@ public class OneInputStreamTaskTest extends TestLogger {
 					null,
 					null,
 					null,
+					null,
 					null
 				),
 				new StreamNode(
 					null,
 					chainedIndex,
+					null,
 					null,
 					null,
 					null,
@@ -679,28 +839,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public static int numberSnapshotCalls = 0;
 
 		@Override
-		public void open() throws Exception {
-			super.open();
-
-			ListState<Integer> partitionableState = getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
-
-			if (numberSnapshotCalls == 0) {
-				for (Integer v : partitionableState.get()) {
-					fail();
-				}
-			} else {
-				Set<Integer> result = new HashSet<>();
-				for (Integer v : partitionableState.get()) {
-					result.add(v);
-				}
-
-				assertEquals(2, result.size());
-				assertTrue(result.contains(42));
-				assertTrue(result.contains(4711));
-			}
-		}
-
-		@Override
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ListState<Integer> partitionableState =
 				getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
@@ -716,6 +854,23 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public void initializeState(StateInitializationContext context) throws Exception {
 			if (context.isRestored()) {
 				++numberRestoreCalls;
+			}
+
+			ListState<Integer> partitionableState = context.getOperatorStateStore().getListState(TEST_DESCRIPTOR);
+
+			if (numberSnapshotCalls == 0) {
+				for (Integer v : partitionableState.get()) {
+					fail();
+				}
+			} else {
+				Set<Integer> result = new HashSet<>();
+				for (Integer v : partitionableState.get()) {
+					result.add(v);
+				}
+
+				assertEquals(2, result.size());
+				assertTrue(result.contains(42));
+				assertTrue(result.contains(4711));
 			}
 		}
 

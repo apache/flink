@@ -85,7 +85,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			server = new BlobServer(config, new VoidBlobStore());
 			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
 
 			keys1.add(server.putPermanent(jobId1, buf));
 			buf[0] += 1;
@@ -216,7 +216,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			server = new BlobServer(config, new VoidBlobStore());
 			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
 
 			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
@@ -328,7 +328,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			server = new BlobServer(config, new VoidBlobStore());
 			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
 
 			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
@@ -434,7 +434,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			server = new BlobServer(config, new VoidBlobStore());
 			server.start();
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
-			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
+			cache = new PermanentBlobCache(config, new VoidBlobStore(), serverAddress);
 
 			// upload some meaningless data to the server
 			PermanentBlobKey dataKey1 = server.putPermanent(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});

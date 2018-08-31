@@ -69,4 +69,9 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 	public static ClusterOverviewHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns an overview over the Flink cluster.";
+	}
 }

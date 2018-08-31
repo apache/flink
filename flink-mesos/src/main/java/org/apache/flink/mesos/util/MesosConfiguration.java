@@ -146,6 +146,8 @@ public class MesosConfiguration {
 		log.info("    Name: {}", info.hasName() ? info.getName() : "(none)");
 		log.info("    Failover Timeout (secs): {}", info.getFailoverTimeout());
 		log.info("    Role: {}", info.hasRole() ? info.getRole() : "(none)");
+		log.info("    Capabilities: {}",
+			info.getCapabilitiesList().size() > 0 ? info.getCapabilitiesList() : "(none)");
 		log.info("    Principal: {}", info.hasPrincipal() ? info.getPrincipal() : "(none)");
 		log.info("    Host: {}", info.hasHostname() ? info.getHostname() : "(none)");
 		if (env.containsKey("LIBPROCESS_IP")) {

@@ -64,7 +64,7 @@ public class ManualWindowSpeedITCase extends AbstractTestBase {
 		String checkpoints = tempFolder.newFolder().toURI().toString();
 		env.setStateBackend(new FsStateBackend(checkpoints));
 
-		env.addSource(new InfiniteTupleSource(10_000))
+		env.addSource(new InfiniteTupleSource(1_000))
 				.keyBy(0)
 				.timeWindow(Time.seconds(3))
 				.reduce(new ReduceFunction<Tuple2<String, Integer>>() {

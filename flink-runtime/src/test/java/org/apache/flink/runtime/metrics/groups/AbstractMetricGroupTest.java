@@ -44,7 +44,7 @@ public class AbstractMetricGroupTest {
 	 * called and the parent is null.
 	 */
 	@Test
-	public void testGetAllVariables() {
+	public void testGetAllVariables() throws Exception {
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
 		AbstractMetricGroup group = new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
@@ -60,7 +60,7 @@ public class AbstractMetricGroupTest {
 		};
 		assertTrue(group.getAllVariables().isEmpty());
 
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	// ========================================================================
@@ -101,7 +101,7 @@ public class AbstractMetricGroupTest {
 				}
 			}
 		} finally {
-			testRegistry.shutdown();
+			testRegistry.shutdown().get();
 		}
 	}
 
@@ -176,7 +176,7 @@ public class AbstractMetricGroupTest {
 	}
 
 	@Test
-	public void testScopeGenerationWithoutReporters() {
+	public void testScopeGenerationWithoutReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
 		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
@@ -193,7 +193,7 @@ public class AbstractMetricGroupTest {
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1));
 			assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2));
 		} finally {
-			testRegistry.shutdown();
+			testRegistry.shutdown().get();
 		}
 	}
 }

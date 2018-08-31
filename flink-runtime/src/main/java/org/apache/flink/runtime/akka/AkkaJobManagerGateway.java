@@ -28,6 +28,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -245,6 +246,11 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 					throw new CompletionException(new FlinkJobNotFoundException(jobId));
 				}
 			});
+	}
+
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(JobID jobId, Time timeout) {
+		return requestJob(jobId, timeout).thenApply(JobResult::createFrom);
 	}
 
 	@Override

@@ -20,8 +20,10 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.DynamicProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SessionWindowTimeGapExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
@@ -42,6 +44,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyCollection;
@@ -192,5 +195,14 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
 		assertFalse(assigner.isEventTime());
 		assertEquals(new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
 		assertThat(assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)), instanceOf(ProcessingTimeTrigger.class));
+	}
+
+	@Test
+	public void testDynamicGapProperties() {
+		SessionWindowTimeGapExtractor<String> extractor = mock(SessionWindowTimeGapExtractor.class);
+		DynamicProcessingTimeSessionWindows<String> assigner = ProcessingTimeSessionWindows.withDynamicGap(extractor);
+
+		assertNotNull(assigner);
+		assertFalse(assigner.isEventTime());
 	}
 }

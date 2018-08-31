@@ -38,6 +38,8 @@ import java.nio.ReadOnlyBufferException;
  */
 public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implements Buffer {
 
+	private final int memorySegmentOffset;
+
 	/**
 	 * Creates a buffer which shares the memory segment of the given buffer and exposed the given
 	 * sub-region only.
@@ -51,6 +53,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	ReadOnlySlicedNetworkBuffer(NetworkBuffer buffer, int index, int length) {
 		super(new SlicedByteBuf(buffer, index, length));
+		this.memorySegmentOffset = buffer.getMemorySegmentOffset() + index;
 	}
 
 	/**
@@ -63,19 +66,21 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 * @param buffer the buffer to derive from
 	 * @param index the index to start from
 	 * @param length the length of the slice
+	 * @param memorySegmentOffset <tt>buffer</tt>'s absolute offset in the backing {@link MemorySegment}
 	 */
-	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length) {
+	private ReadOnlySlicedNetworkBuffer(ByteBuf buffer, int index, int length, int memorySegmentOffset) {
 		super(new SlicedByteBuf(buffer, index, length));
+		this.memorySegmentOffset = memorySegmentOffset + index;
 	}
 
 	@Override
 	public ByteBuf unwrap() {
-		return super.unwrap().unwrap();
+		return super.unwrap();
 	}
 
 	@Override
 	public boolean isBuffer() {
-		return ((Buffer) unwrap()).isBuffer();
+		return getBuffer().isBuffer();
 	}
 
 	@Override
@@ -93,27 +98,32 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	@Override
 	public MemorySegment getMemorySegment() {
-		return ((Buffer) unwrap()).getMemorySegment();
+		return getBuffer().getMemorySegment();
+	}
+
+	@Override
+	public int getMemorySegmentOffset() {
+		return memorySegmentOffset;
 	}
 
 	@Override
 	public BufferRecycler getRecycler() {
-		return ((Buffer) unwrap()).getRecycler();
+		return getBuffer().getRecycler();
 	}
 
 	@Override
 	public void recycleBuffer() {
-		((Buffer) unwrap()).recycleBuffer();
+		getBuffer().recycleBuffer();
 	}
 
 	@Override
 	public boolean isRecycled() {
-		return ((Buffer) unwrap()).isRecycled();
+		return getBuffer().isRecycled();
 	}
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer retainBuffer() {
-		((Buffer) unwrap()).retainBuffer();
+		getBuffer().retainBuffer();
 		return this;
 	}
 
@@ -124,7 +134,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length);
+		return new ReadOnlySlicedNetworkBuffer(super.unwrap(), index, length, memorySegmentOffset);
 	}
 
 	@Override
@@ -193,11 +203,15 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public void setAllocator(ByteBufAllocator allocator) {
-		((Buffer) unwrap()).setAllocator(allocator);
+		getBuffer().setAllocator(allocator);
 	}
 
 	@Override
 	public ByteBuf asByteBuf() {
 		return this;
+	}
+
+	private Buffer getBuffer() {
+		return ((Buffer) unwrap().unwrap());
 	}
 }

@@ -142,11 +142,9 @@ public class LocalFileSystem extends FileSystem {
 		return new LocalDataInputStream(file);
 	}
 
-	private File pathToFile(Path path) {
-		if (!path.isAbsolute()) {
-			path = new Path(getWorkingDirectory(), path);
-		}
-		return new File(path.toUri().getPath());
+	@Override
+	public LocalRecoverableWriter createRecoverableWriter() throws IOException {
+		return new LocalRecoverableWriter(this);
 	}
 
 	@Override
@@ -211,10 +209,12 @@ public class LocalFileSystem extends FileSystem {
 
 		if (f.isDirectory()) {
 			final File[] files = f.listFiles();
-			for (File file : files) {
-				final boolean del = delete(file);
-				if (!del) {
-					return false;
+			if (files != null) {
+				for (File file : files) {
+					final boolean del = delete(file);
+					if (!del) {
+						return false;
+					}
 				}
 			}
 		} else {
@@ -252,7 +252,7 @@ public class LocalFileSystem extends FileSystem {
 		}
 		else {
 			File parent = file.getParentFile();
-			return (parent == null || mkdirsInternal(parent)) && file.mkdir();
+			return (parent == null || mkdirsInternal(parent)) && (file.mkdir() || file.isDirectory());
 		}
 	}
 
@@ -302,6 +302,20 @@ public class LocalFileSystem extends FileSystem {
 	@Override
 	public FileSystemKind getKind() {
 		return FileSystemKind.FILE_SYSTEM;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Converts the given Path to a File for this file system.
+	 *
+	 * <p>If the path is not absolute, it is interpreted relative to this FileSystem's working directory.
+	 */
+	public File pathToFile(Path path) {
+		if (!path.isAbsolute()) {
+			path = new Path(getWorkingDirectory(), path);
+		}
+		return new File(path.toUri().getPath());
 	}
 
 	// ------------------------------------------------------------------------

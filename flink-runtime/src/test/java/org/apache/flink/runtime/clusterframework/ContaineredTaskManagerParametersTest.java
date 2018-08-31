@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -27,6 +28,7 @@ import static org.apache.flink.configuration.TaskManagerOptions.MEMORY_OFF_HEAP;
 import static org.apache.flink.runtime.taskexecutor.TaskManagerServices.calculateNetworkBufferMemory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ContaineredTaskManagerParametersTest extends TestLogger {
 	private static final long CONTAINER_MEMORY = 8192L;
@@ -90,5 +92,34 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 
 		assertTrue(params.taskManagerHeapSizeMB() +
 			params.taskManagerDirectMemoryLimitMB() <= CONTAINER_MEMORY);
+	}
+
+	/**
+	 * Test to guard {@link ContaineredTaskManagerParameters#calculateCutoffMB(Configuration, long)}.
+	 */
+	@Test
+	public void testCalculateCutoffMB() {
+
+		Configuration config = new Configuration();
+		long containerMemoryMB = 1000L;
+
+		config.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.1f);
+		config.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 128);
+
+		assertEquals(128,
+			ContaineredTaskManagerParameters.calculateCutoffMB(config, containerMemoryMB));
+
+		config.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.2f);
+		assertEquals(200,
+			ContaineredTaskManagerParameters.calculateCutoffMB(config, containerMemoryMB));
+
+		config.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 1000);
+
+		try {
+			ContaineredTaskManagerParameters.calculateCutoffMB(config, containerMemoryMB);
+			fail("Expected to fail with an invalid argument exception.");
+		} catch (IllegalArgumentException ignored) {
+			// we expected it.
+		}
 	}
 }

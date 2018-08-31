@@ -55,11 +55,11 @@ Please visit the [CEP Migration docs]({{ site.baseurl }}/dev/libs/cep.html#migra
 
 In Flink 1.3, to make sure that users can use their own custom logging framework, core Flink artifacts are
 now clean of specific logger dependencies.
- 
-Example and quickstart archtypes already have loggers specified and should not be affected.
+
+Example and quickstart archetypes already have loggers specified and should not be affected.
 For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
 
-~~~xml
+{% highlight xml %}
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>slf4j-log4j12</artifactId>
@@ -71,7 +71,7 @@ For other custom projects, make sure to add logger dependencies. For example, in
     <artifactId>log4j</artifactId>
     <version>1.2.17</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Migrating from Flink 1.1 to Flink 1.2
 
@@ -145,16 +145,16 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
         bufferedElements.add(value);
         if (bufferedElements.size() == threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
-	        // send it to the sink
-	    }
-	    bufferedElements.clear();
-	}
+                // send it to the sink
+            }
+            bufferedElements.clear();
+        }
     }
 
     @Override
     public ArrayList<Tuple2<String, Integer>> snapshotState(
         long checkpointId, long checkpointTimestamp) throws Exception {
-	    return bufferedElements;
+        return bufferedElements;
     }
 
     @Override
@@ -445,15 +445,15 @@ The code to use the aligned window operators in Flink 1.2 is presented below:
 
 // for tumbling windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(TumblingAlignedProcessingTimeWindows.of(Time.of(1000, TimeUnit.MILLISECONDS)))
+    .apply(your-function)
 
 // for sliding windows
 DataStream<Tuple2<String, Integer>> window1 = source
-	.keyBy(0)
-	.window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
-	.apply(your-function)
+    .keyBy(0)
+    .window(SlidingAlignedProcessingTimeWindows.of(Time.seconds(1), Time.milliseconds(100)))
+    .apply(your-function)
 
 {% endhighlight %}
 </div>

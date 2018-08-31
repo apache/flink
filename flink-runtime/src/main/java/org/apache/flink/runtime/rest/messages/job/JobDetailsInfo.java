@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.messages.json.RawJsonDeserializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonRawValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -165,6 +166,66 @@ public class JobDetailsInfo implements ResponseBody {
 		return Objects.hash(jobId, name, isStoppable, jobStatus, startTime, endTime, duration, now, timestamps, jobVertexInfos, jobVerticesPerState, jsonPlan);
 	}
 
+	@JsonIgnore
+	public JobID getJobId() {
+		return jobId;
+	}
+
+	@JsonIgnore
+	public String getName() {
+		return name;
+	}
+
+	@JsonIgnore
+	public boolean isStoppable() {
+		return isStoppable;
+	}
+
+	@JsonIgnore
+	public JobStatus getJobStatus() {
+		return jobStatus;
+	}
+
+	@JsonIgnore
+	public long getStartTime() {
+		return startTime;
+	}
+
+	@JsonIgnore
+	public long getEndTime() {
+		return endTime;
+	}
+
+	@JsonIgnore
+	public long getDuration() {
+		return duration;
+	}
+
+	@JsonIgnore
+	public long getNow() {
+		return now;
+	}
+
+	@JsonIgnore
+	public Map<JobStatus, Long> getTimestamps() {
+		return timestamps;
+	}
+
+	@JsonIgnore
+	public Collection<JobVertexDetailsInfo> getJobVertexInfos() {
+		return jobVertexInfos;
+	}
+
+	@JsonIgnore
+	public Map<ExecutionState, Integer> getJobVerticesPerState() {
+		return jobVerticesPerState;
+	}
+
+	@JsonIgnore
+	public String getJsonPlan() {
+		return jsonPlan;
+	}
+
 	// ---------------------------------------------------
 	// Static inner classes
 	// ---------------------------------------------------
@@ -242,38 +303,47 @@ public class JobDetailsInfo implements ResponseBody {
 			this.jobVertexMetrics = Preconditions.checkNotNull(jobVertexMetrics);
 		}
 
+		@JsonIgnore
 		public JobVertexID getJobVertexID() {
 			return jobVertexID;
 		}
 
+		@JsonIgnore
 		public String getName() {
 			return name;
 		}
 
+		@JsonIgnore
 		public int getParallelism() {
 			return parallelism;
 		}
 
+		@JsonIgnore
 		public ExecutionState getExecutionState() {
 			return executionState;
 		}
 
+		@JsonIgnore
 		public long getStartTime() {
 			return startTime;
 		}
 
+		@JsonIgnore
 		public long getEndTime() {
 			return endTime;
 		}
 
+		@JsonIgnore
 		public long getDuration() {
 			return duration;
 		}
 
+		@JsonIgnore
 		public Map<ExecutionState, Integer> getTasksPerState() {
 			return tasksPerState;
 		}
 
+		@JsonIgnore
 		public IOMetricsInfo getJobVertexMetrics() {
 			return jobVertexMetrics;
 		}

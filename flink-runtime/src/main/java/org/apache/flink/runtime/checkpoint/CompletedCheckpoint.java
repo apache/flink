@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -92,6 +95,9 @@ public class CompletedCheckpoint implements Serializable {
 	/** States that were created by a hook on the master (in the checkpoint coordinator). */
 	private final Collection<MasterState> masterHookStates;
 
+	/** The location where the checkpoint is stored. */
+	private final CompletedCheckpointStorageLocation storageLocation;
+
 	/** The state handle to the externalized meta data. */
 	private final StreamStateHandle metadataHandle;
 
@@ -112,8 +118,7 @@ public class CompletedCheckpoint implements Serializable {
 			Map<OperatorID, OperatorState> operatorStates,
 			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
-			StreamStateHandle metadataHandle,
-			String externalPointer) {
+			CompletedCheckpointStorageLocation storageLocation) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
@@ -128,14 +133,17 @@ public class CompletedCheckpoint implements Serializable {
 		// data structure with the "outside world"
 		this.operatorStates = new HashMap<>(checkNotNull(operatorStates));
 		this.masterHookStates = masterHookStates == null || masterHookStates.isEmpty() ?
-				Collections.<MasterState>emptyList() :
+				Collections.emptyList() :
 				new ArrayList<>(masterHookStates);
 
 		this.props = checkNotNull(props);
-		this.metadataHandle = checkNotNull(metadataHandle);
-		this.externalPointer = checkNotNull(externalPointer);
+		this.storageLocation = checkNotNull(storageLocation);
+		this.metadataHandle = storageLocation.getMetadataHandle();
+		this.externalPointer = storageLocation.getExternalPointer();
 	}
 
+	// ------------------------------------------------------------------------
+	//  Properties
 	// ------------------------------------------------------------------------
 
 	public JobID getJobId() {
@@ -158,12 +166,55 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
+	public Map<OperatorID, OperatorState> getOperatorStates() {
+		return operatorStates;
+	}
+
+	public Collection<MasterState> getMasterHookStates() {
+		return Collections.unmodifiableCollection(masterHookStates);
+	}
+
+	public StreamStateHandle getMetadataHandle() {
+		return metadataHandle;
+	}
+
+	public String getExternalPointer() {
+		return externalPointer;
+	}
+
+	public long getStateSize() {
+		long result = 0L;
+
+		for (OperatorState operatorState : operatorStates.values()) {
+			result += operatorState.getStateSize();
+		}
+
+		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Shared State
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Register all shared states in the given registry. This is method is called
+	 * before the checkpoint is added into the store.
+	 *
+	 * @param sharedStateRegistry The registry where shared states are registered
+	 */
+	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
+		sharedStateRegistry.registerAll(operatorStates.values());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Discard and Dispose
+	// ------------------------------------------------------------------------
+
 	public void discardOnFailedStoring() throws Exception {
 		doDiscard();
 	}
 
 	public boolean discardOnSubsume() throws Exception {
-
 		if (props.discardOnSubsumed()) {
 			doDiscard();
 			return true;
@@ -182,24 +233,19 @@ public class CompletedCheckpoint implements Serializable {
 			doDiscard();
 			return true;
 		} else {
-			if (externalPointer != null) {
-				LOG.info("Persistent checkpoint with ID {} at '{}' not discarded.",
-						checkpointID, externalPointer);
-			}
-
+			LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
 			return false;
 		}
 	}
 
 	private void doDiscard() throws Exception {
-
 		LOG.trace("Executing discard procedure for {}.", this);
 
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
 
-			// drop the metadata, if we have some
+			// drop the metadata
 			try {
 				metadataHandle.discardState();
 			} catch (Exception e) {
@@ -210,6 +256,14 @@ public class CompletedCheckpoint implements Serializable {
 			try {
 				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
 			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
+
+			// discard location as a whole
+			try {
+				storageLocation.disposeStorageLocation();
+			}
+			catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
@@ -227,30 +281,32 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	public long getStateSize() {
-		long result = 0L;
+	// ------------------------------------------------------------------------
+	//  Miscellaneous
+	// ------------------------------------------------------------------------
 
-		for (OperatorState operatorState : operatorStates.values()) {
-			result += operatorState.getStateSize();
+	public static boolean checkpointsMatch(
+		Collection<CompletedCheckpoint> first,
+		Collection<CompletedCheckpoint> second) {
+		if (first.size() != second.size()) {
+			return false;
 		}
 
-		return result;
-	}
+		List<Tuple2<Long, JobID>> firstInterestingFields = new ArrayList<>(first.size());
 
-	public Map<OperatorID, OperatorState> getOperatorStates() {
-		return operatorStates;
-	}
+		for (CompletedCheckpoint checkpoint : first) {
+			firstInterestingFields.add(
+				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+		}
 
-	public Collection<MasterState> getMasterHookStates() {
-		return Collections.unmodifiableCollection(masterHookStates);
-	}
+		List<Tuple2<Long, JobID>> secondInterestingFields = new ArrayList<>(second.size());
 
-	public StreamStateHandle getMetadataHandle() {
-		return metadataHandle;
-	}
+		for (CompletedCheckpoint checkpoint : second) {
+			secondInterestingFields.add(
+				new Tuple2<>(checkpoint.getCheckpointID(), checkpoint.getJobId()));
+		}
 
-	public String getExternalPointer() {
-		return externalPointer;
+		return firstInterestingFields.equals(secondInterestingFields);
 	}
 
 	/**
@@ -262,41 +318,8 @@ public class CompletedCheckpoint implements Serializable {
 		this.discardCallback = discardCallback;
 	}
 
-	/**
-	 * Register all shared states in the given registry. This is method is called
-	 * before the checkpoint is added into the store.
-	 *
-	 * @param sharedStateRegistry The registry where shared states are registered
-	 */
-	public void registerSharedStatesAfterRestored(SharedStateRegistry sharedStateRegistry) {
-		sharedStateRegistry.registerAll(operatorStates.values());
-	}
-
-	// --------------------------------------------------------------------------------------------
-
 	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-
-		CompletedCheckpoint that = (CompletedCheckpoint) o;
-
-		return checkpointID == that.checkpointID && job.equals(that.job);
-	}
-
-	@Override
-	public int hashCode() {
-		int result = job.hashCode();
-		result = 31 * result + (int) (checkpointID ^ (checkpointID >>> 32));
-		return result;
 	}
 }

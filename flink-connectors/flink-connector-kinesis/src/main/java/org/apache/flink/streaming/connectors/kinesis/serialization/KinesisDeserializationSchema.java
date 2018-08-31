@@ -35,7 +35,9 @@ import java.io.Serializable;
 public interface KinesisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
-	 * Deserializes a Kinesis record's bytes.
+	 * Deserializes a Kinesis record's bytes. If the record cannot be deserialized, {@code null}
+	 * may be returned. This informs the Flink Kinesis Consumer to process the Kinesis record
+	 * without producing any output for it, i.e. effectively "skipping" the record.
 	 *
 	 * @param recordValue the record's value as a byte array
 	 * @param partitionKey the record's partition key at the time of writing
@@ -43,7 +45,8 @@ public interface KinesisDeserializationSchema<T> extends Serializable, ResultTyp
 	 * @param approxArrivalTimestamp the server-side timestamp of when Kinesis received and stored the record
 	 * @param stream the name of the Kinesis stream that this record was sent to
 	 * @param shardId The identifier of the shard the record was sent to
-	 * @return the deserialized message as an Java object
+	 *
+	 * @return the deserialized message as an Java object ({@code null} if the message cannot be deserialized).
 	 * @throws IOException
 	 */
 	T deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException;

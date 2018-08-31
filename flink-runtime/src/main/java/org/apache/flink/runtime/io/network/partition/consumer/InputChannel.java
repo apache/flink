@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -63,6 +64,8 @@ public abstract class InputChannel {
 
 	protected final Counter numBytesIn;
 
+	protected final Counter numBuffersIn;
+
 	/** The current backoff (in ms) */
 	private int currentBackoff;
 
@@ -72,7 +75,8 @@ public abstract class InputChannel {
 			ResultPartitionID partitionId,
 			int initialBackoff,
 			int maxBackoff,
-			Counter numBytesIn) {
+			Counter numBytesIn,
+			Counter numBuffersIn) {
 
 		checkArgument(channelIndex >= 0);
 
@@ -90,6 +94,7 @@ public abstract class InputChannel {
 		this.currentBackoff = initial == 0 ? -1 : 0;
 
 		this.numBytesIn = numBytesIn;
+		this.numBuffersIn = numBuffersIn;
 	}
 
 	// ------------------------------------------------------------------------
@@ -134,9 +139,9 @@ public abstract class InputChannel {
 	abstract void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException;
 
 	/**
-	 * Returns the next buffer from the consumed subpartition.
+	 * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there is no data to return.
 	 */
-	abstract BufferAndAvailability getNextBuffer() throws IOException, InterruptedException;
+	abstract Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException;
 
 	// ------------------------------------------------------------------------
 	// Task events

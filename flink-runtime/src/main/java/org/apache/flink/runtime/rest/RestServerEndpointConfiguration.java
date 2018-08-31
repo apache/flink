@@ -20,32 +20,71 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * A configuration object for {@link RestServerEndpoint}s.
  */
 public final class RestServerEndpointConfiguration {
 
+	private final String restAddress;
+
 	@Nullable
 	private final String restBindAddress;
-	private final int restBindPort;
-	@Nullable
-	private final SSLEngine sslEngine;
 
-	private RestServerEndpointConfiguration(@Nullable String restBindAddress, int restBindPort, @Nullable SSLEngine sslEngine) {
-		this.restBindAddress = restBindAddress;
+	private final int restBindPort;
+
+	@Nullable
+	private final SSLEngineFactory sslEngineFactory;
+
+	private final Path uploadDir;
+
+	private final int maxContentLength;
+
+	private final Map<String, String> responseHeaders;
+
+	private RestServerEndpointConfiguration(
+			final String restAddress,
+			@Nullable String restBindAddress,
+			int restBindPort,
+			@Nullable SSLEngineFactory sslEngineFactory,
+			final Path uploadDir,
+			final int maxContentLength,
+			final Map<String, String> responseHeaders) {
 
 		Preconditions.checkArgument(0 <= restBindPort && restBindPort < 65536, "The bing rest port " + restBindPort + " is out of range (0, 65536[");
+		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
+
+		this.restAddress = requireNonNull(restAddress);
+		this.restBindAddress = restBindAddress;
 		this.restBindPort = restBindPort;
-		this.sslEngine = sslEngine;
+		this.sslEngineFactory = sslEngineFactory;
+		this.uploadDir = requireNonNull(uploadDir);
+		this.maxContentLength = maxContentLength;
+		this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
+	}
+
+	/**
+	 * @see RestOptions#ADDRESS
+	 */
+	public String getRestAddress() {
+		return restAddress;
 	}
 
 	/**
@@ -53,7 +92,7 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return address that the REST server endpoint should bind itself to
 	 */
-	public String getEndpointBindAddress() {
+	public String getRestBindAddress() {
 		return restBindAddress;
 	}
 
@@ -62,7 +101,7 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return port that the REST server endpoint should listen on
 	 */
-	public int getEndpointBindPort() {
+	public int getRestBindPort() {
 		return restBindPort;
 	}
 
@@ -71,8 +110,32 @@ public final class RestServerEndpointConfiguration {
 	 *
 	 * @return SSLEngine that the REST server endpoint should use, or null if SSL was disabled
 	 */
-	public SSLEngine getSslEngine() {
-		return sslEngine;
+	@Nullable
+	public SSLEngineFactory getSslEngineFactory() {
+		return sslEngineFactory;
+	}
+
+	/**
+	 * Returns the directory used to temporarily store multipart/form-data uploads.
+	 */
+	public Path getUploadDir() {
+		return uploadDir;
+	}
+
+	/**
+	 * Returns the max content length that the REST server endpoint could handle.
+	 *
+	 * @return max content length that the REST server endpoint could handle
+	 */
+	public int getMaxContentLength() {
+		return maxContentLength;
+	}
+
+	/**
+	 * Response headers that should be added to every HTTP response.
+	 */
+	public Map<String, String> getResponseHeaders() {
+		return responseHeaders;
 	}
 
 	/**
@@ -84,25 +147,42 @@ public final class RestServerEndpointConfiguration {
 	 */
 	public static RestServerEndpointConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		Preconditions.checkNotNull(config);
-		String address = config.getString(RestOptions.REST_ADDRESS);
 
-		int port = config.getInteger(RestOptions.REST_PORT);
+		final String restAddress = Preconditions.checkNotNull(config.getString(RestOptions.ADDRESS),
+			"%s must be set",
+			RestOptions.ADDRESS.key());
 
-		SSLEngine sslEngine = null;
-		boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
-		if (enableSSL) {
+		final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
+		final int port = config.getInteger(RestOptions.PORT);
+
+		final SSLEngineFactory sslEngineFactory;
+		if (SSLUtils.isRestSSLEnabled(config)) {
 			try {
-				SSLContext sslContext = SSLUtils.createSSLServerContext(config);
-				if (sslContext != null) {
-					sslEngine = sslContext.createSSLEngine();
-					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
-					sslEngine.setUseClientMode(false);
-				}
+				sslEngineFactory = SSLUtils.createRestServerSSLEngineFactory(config);
 			} catch (Exception e) {
-				throw new ConfigurationException("Failed to initialize SSLContext for REST server endpoint.", e);
+				throw new ConfigurationException("Failed to initialize SSLEngineFactory for REST server endpoint.", e);
 			}
+		} else {
+			sslEngineFactory = null;
 		}
 
-		return new RestServerEndpointConfiguration(address, port, sslEngine);
+		final Path uploadDir = Paths.get(
+			config.getString(WebOptions.UPLOAD_DIR,	config.getString(WebOptions.TMP_DIR)),
+			"flink-web-upload");
+
+		final int maxContentLength = config.getInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH);
+
+		final Map<String, String> responseHeaders = Collections.singletonMap(
+			HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
+			config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
+
+		return new RestServerEndpointConfiguration(
+			restAddress,
+			restBindAddress,
+			port,
+			sslEngineFactory,
+			uploadDir,
+			maxContentLength,
+			responseHeaders);
 	}
 }

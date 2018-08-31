@@ -36,7 +36,7 @@ public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeader
 	private static final SubtaskExecutionAttemptAccumulatorsHeaders INSTANCE = new SubtaskExecutionAttemptAccumulatorsHeaders();
 
 	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/%s/accumulators",
+		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s/accumulators",
 		JobIDPathParameter.KEY,
 		JobVertexIdPathParameter.KEY,
 		SubtaskIndexPathParameter.KEY,
@@ -74,5 +74,10 @@ public class SubtaskExecutionAttemptAccumulatorsHeaders implements MessageHeader
 
 	public static SubtaskExecutionAttemptAccumulatorsHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the accumulators of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
 	}
 }

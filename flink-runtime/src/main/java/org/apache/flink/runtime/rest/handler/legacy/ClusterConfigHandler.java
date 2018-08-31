@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
@@ -74,8 +75,8 @@ public class ClusterConfigHandler extends AbstractJsonRequestHandler {
 
 				String value = config.getString(key, null);
 				// Mask key values which contain sensitive information
-				if (value != null && key.toLowerCase().contains("password")) {
-					value = "******";
+				if (value != null && GlobalConfiguration.isSensitive(key)) {
+					value = GlobalConfiguration.HIDDEN_CONTENT;
 				}
 				gen.writeStringField(ClusterConfigurationInfoEntry.FIELD_NAME_CONFIG_VALUE, value);
 

@@ -57,6 +57,7 @@ import com.netflix.fenzo.VirtualMachineLease;
 import com.netflix.fenzo.functions.Action1;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.FrameworkInfo;
+import org.apache.mesos.Protos.FrameworkInfo.Capability;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 
@@ -166,6 +167,11 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 		else {
 			LOG.info("Recovery scenario: re-registering using framework ID {}.", frameworkID.get().getValue());
 			frameworkInfo.setId(frameworkID.get());
+		}
+
+		if (taskManagerParameters.gpus() > 0) {
+			LOG.info("Add GPU_RESOURCES capability to framework");
+			frameworkInfo.addCapabilities(Capability.newBuilder().setType(Capability.Type.GPU_RESOURCES));
 		}
 
 		MesosConfiguration initializedMesosConfig = mesosConfig.withFrameworkInfo(frameworkInfo);
@@ -361,8 +367,9 @@ public class MesosFlinkResourceManager extends FlinkResourceManager<RegisteredMe
 
 				LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
-				LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
-					launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
+				LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus, {} gpus).",
+					launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs(),
+					launchable.taskRequest().getScalarRequests().get("gpus"));
 
 				toMonitor.add(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)));
 				toLaunch.add(launchable);

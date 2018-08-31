@@ -33,28 +33,32 @@ public class BlobServerOptions {
 	 */
 	public static final ConfigOption<String> STORAGE_DIRECTORY =
 		key("blob.storage.directory")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The config parameter defining the storage directory to be used by the blob server.");
 
 	/**
 	 * The config parameter defining number of retires for failed BLOB fetches.
 	 */
 	public static final ConfigOption<Integer> FETCH_RETRIES =
 		key("blob.fetch.retries")
-			.defaultValue(5);
+			.defaultValue(5)
+			.withDescription("The config parameter defining number of retires for failed BLOB fetches.");
 
 	/**
 	 * The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.
 	 */
 	public static final ConfigOption<Integer> FETCH_CONCURRENT =
 		key("blob.fetch.num-concurrent")
-			.defaultValue(50);
+			.defaultValue(50)
+			.withDescription("The config parameter defining the maximum number of concurrent BLOB fetches that the JobManager serves.");
 
 	/**
 	 * The config parameter defining the backlog of BLOB fetches on the JobManager.
 	 */
 	public static final ConfigOption<Integer> FETCH_BACKLOG =
 		key("blob.fetch.backlog")
-			.defaultValue(1000);
+			.defaultValue(1000)
+			.withDescription("The config parameter defining the backlog of BLOB fetches on the JobManager.");
 
 	/**
 	 * The config parameter defining the server port of the blob service.
@@ -66,14 +70,16 @@ public class BlobServerOptions {
 	 */
 	public static final ConfigOption<String> PORT =
 		key("blob.server.port")
-			.defaultValue("0");
+			.defaultValue("0")
+			.withDescription("The config parameter defining the server port of the blob service.");
 
 	/**
 	 * Flag to override ssl support for the blob service transport.
 	 */
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("blob.service.ssl.enabled")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Flag to override ssl support for the blob service transport.");
 
 	/**
 	 * Cleanup interval of the blob caches at the task managers (in seconds).
@@ -87,11 +93,13 @@ public class BlobServerOptions {
 	public static final ConfigOption<Long> CLEANUP_INTERVAL =
 		key("blob.service.cleanup.interval")
 			.defaultValue(3_600L) // once per hour
-			.withDeprecatedKeys("library-cache-manager.cleanup.interval");
+			.withDeprecatedKeys("library-cache-manager.cleanup.interval")
+			.withDescription("Cleanup interval of the blob caches at the task managers (in seconds).");
 
 	/**
 	 * The minimum size for messages to be offloaded to the BlobServer.
 	 */
 	public static final ConfigOption<Integer> OFFLOAD_MINSIZE = key("blob.offload.minsize")
-		.defaultValue(1_024 * 1_024); // 1MiB by default
+		.defaultValue(1_024 * 1_024) // 1MiB by default
+		.withDescription("The minimum size for messages to be offloaded to the BlobServer.");
 }

@@ -20,21 +20,27 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
+import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -48,25 +54,37 @@ import static org.junit.Assert.fail;
 /**
  * Test cases for slot sharing with the {@link SlotPool}.
  */
-public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
+public class SlotPoolSlotSharingTest extends TestLogger {
+
+	@ClassRule
+	public static final TestingRpcServiceResource testingRpcServiceResource = new TestingRpcServiceResource();
+
+	@Rule
+	public final SlotPoolResource slotPoolResource = new SlotPoolResource(
+		testingRpcServiceResource.getTestingRpcService(),
+		PreviousAllocationSchedulingStrategy.getInstance());
 
 	@Test
 	public void testSingleQueuedSharedSlotScheduling() throws Exception {
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
 		LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
 		SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				new JobVertexID(),
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture.isDone());
 
@@ -93,20 +111,24 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 	@Test
 	public void testFailingQueuedSharedSlotScheduling() throws ExecutionException, InterruptedException {
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				new JobVertexID(),
 				new SlotSharingGroupId(),
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		final AllocationID allocationId = allocationIdFuture.get();
 
 		// this should fail the returned logical slot future
+		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.failAllocation(allocationId, new FlinkException("Testing Exception"));
 
 		try {
@@ -123,24 +145,28 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 	@Test
 	public void testQueuedSharedSlotScheduling() throws InterruptedException, ExecutionException {
 		final BlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
 
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 
+		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
 		final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 		final JobVertexID jobVertexId1 = new JobVertexID();
 		final JobVertexID jobVertexId2 = new JobVertexID();
 
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture1 = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				jobVertexId1,
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture2 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -148,7 +174,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture1.isDone());
 		assertFalse(logicalSlotFuture2.isDone());
@@ -161,7 +188,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture4 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -169,7 +197,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture3.isDone());
 		assertFalse(logicalSlotFuture4.isDone());
@@ -216,6 +245,7 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 	public void testQueuedMultipleSlotSharingGroups() throws ExecutionException, InterruptedException {
 		final BlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(4);
 
+		final TestingResourceManagerGateway testingResourceManagerGateway = slotPoolResource.getTestingResourceManagerGateway();
 		testingResourceManagerGateway.setRequestSlotConsumer(
 			(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
 
@@ -227,15 +257,18 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 		final JobVertexID jobVertexId3 = new JobVertexID();
 		final JobVertexID jobVertexId4 = new JobVertexID();
 
+		final SlotPoolGateway slotPoolGateway = slotPoolResource.getSlotPoolGateway();
 		slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
 
+		final SlotProvider slotProvider = slotPoolResource.getSlotProvider();
 		CompletableFuture<LogicalSlot> logicalSlotFuture1 = slotProvider.allocateSlot(
 			new ScheduledUnit(
 				jobVertexId1,
 				slotSharingGroupId1,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture2 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -243,7 +276,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId1,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture3 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -251,7 +285,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId2,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		CompletableFuture<LogicalSlot> logicalSlotFuture4 = slotProvider.allocateSlot(
 			new ScheduledUnit(
@@ -259,7 +294,8 @@ public class SlotPoolSlotSharingTest extends SlotPoolSchedulingTestBase {
 				slotSharingGroupId2,
 				null),
 			true,
-			Collections.emptyList());
+			SlotProfile.noRequirements(),
+			TestingUtils.infiniteTime());
 
 		assertFalse(logicalSlotFuture1.isDone());
 		assertFalse(logicalSlotFuture2.isDone());

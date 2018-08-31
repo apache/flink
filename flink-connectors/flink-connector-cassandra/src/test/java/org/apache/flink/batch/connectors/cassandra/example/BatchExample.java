@@ -23,7 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
-import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import com.datastax.driver.core.Cluster;
@@ -57,7 +57,7 @@ public class BatchExample {
 
 		DataSet<Tuple2<Integer, String>> dataSet = env.fromCollection(collection);
 
-		dataSet.output(new CassandraOutputFormat<Tuple2<Integer, String>>(INSERT_QUERY, new ClusterBuilder() {
+		dataSet.output(new CassandraTupleOutputFormat<Tuple2<Integer, String>>(INSERT_QUERY, new ClusterBuilder() {
 			@Override
 			protected Cluster buildCluster(Builder builder) {
 				return builder.addContactPoints("127.0.0.1").build();

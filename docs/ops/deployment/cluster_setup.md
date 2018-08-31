@@ -59,10 +59,10 @@ Go to the [downloads page]({{ site.download_url }}) and get the ready-to-run pac
 
 After downloading the latest release, copy the archive to your master node and extract it:
 
-~~~bash
+{% highlight bash %}
 tar xzf flink-*.tgz
 cd flink-*
-~~~
+{% endhighlight %}
 
 ### Configuring Flink
 
@@ -122,9 +122,9 @@ The following script starts a JobManager on the local node and connects via SSH 
 
 Assuming that you are on the master node and inside the Flink directory:
 
-~~~bash
+{% highlight bash %}
 bin/start-cluster.sh
-~~~
+{% endhighlight %}
 
 To stop Flink, there is also a `stop-cluster.sh` script.
 
@@ -136,15 +136,15 @@ You can add both JobManager and TaskManager instances to your running cluster wi
 
 #### Adding a JobManager
 
-~~~bash
+{% highlight bash %}
 bin/jobmanager.sh ((start|start-foreground) cluster)|stop|stop-all
-~~~
+{% endhighlight %}
 
 #### Adding a TaskManager
 
-~~~bash
+{% highlight bash %}
 bin/taskmanager.sh start|start-foreground|stop|stop-all
-~~~
+{% endhighlight %}
 
 Make sure to call these scripts on the hosts on which you want to start/stop the respective instance.
 

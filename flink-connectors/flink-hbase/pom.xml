@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,7 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<hbase.version>1.3.1</hbase.version>
+		<hbase.version>1.4.3</hbase.version>
 	</properties>
 
 	<build>
@@ -191,6 +191,34 @@ under the License.
 					<groupId>org.apache.hbase</groupId>
 					<artifactId>hbase-annotations</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.jersey</groupId>
+					<artifactId>jersey-server</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-compiler</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>tomcat</groupId>
+					<artifactId>jasper-runtime</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jruby.jcodings</groupId>
+					<artifactId>jcodings</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jruby.joni</groupId>
+					<artifactId>joni</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jamon</groupId>
+					<artifactId>jamon-runtime</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -272,6 +300,11 @@ under the License.
 	<profiles>
 		<profile>
 			<id>cdh5.1.3</id>
+			<activation>
+				<property>
+					<name>cdh5.1.3</name>
+				</property>
+			</activation>
 			<properties>
 				<hbase.version>0.98.1-cdh5.1.3</hbase.version>
 				<hadoop.version>2.3.0-cdh5.1.3</hadoop.version>

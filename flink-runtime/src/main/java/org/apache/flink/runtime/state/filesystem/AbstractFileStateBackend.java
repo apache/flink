@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 
 import javax.annotation.Nullable;
 
@@ -161,7 +161,7 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+	public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 		return AbstractFsCheckpointStorage.resolveCheckpointPointer(pointer);
 	}
 

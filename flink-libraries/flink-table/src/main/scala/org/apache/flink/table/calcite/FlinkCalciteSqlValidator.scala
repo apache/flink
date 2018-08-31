@@ -60,7 +60,7 @@ class FlinkCalciteSqlValidator(
           // We accept only literal true
         case c if null != c =>
           throw new ValidationException(
-            s"Left outer joins with a table function do not accept a predicte such as $c. " +
+            s"Left outer joins with a table function do not accept a predicate such as $c. " +
               s"Only literal TRUE is accepted.")
       }
     }

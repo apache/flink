@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -35,13 +36,20 @@ import java.util.List;
  * flink-yarn-tests-X-tests.jar and the flink-runtime-X-tests.jar to the set of files which
  * are shipped to the yarn cluster. This is necessary to load the testing classes.
  */
-public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
+public class TestingYarnClusterDescriptor extends LegacyYarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
+	public TestingYarnClusterDescriptor(
+			Configuration configuration,
+			YarnConfiguration yarnConfiguration,
+			String configurationDirectory,
+			YarnClient yarnClient,
+			boolean sharedYarnClient) {
 		super(
 			configuration,
+			yarnConfiguration,
 			configurationDirectory,
-			YarnClient.createYarnClient());
+			yarnClient,
+			sharedYarnClient);
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
@@ -74,7 +82,10 @@ public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 	}
 
 	@Override
-	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public YarnClusterClient deployJobCluster(
+			ClusterSpecification clusterSpecification,
+			JobGraph jobGraph,
+			boolean detached) {
 		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
 	}
 

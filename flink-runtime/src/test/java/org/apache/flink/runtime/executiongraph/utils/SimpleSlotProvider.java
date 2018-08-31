@@ -19,25 +19,33 @@
 package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.instance.Slot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.util.ArrayDeque;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -48,7 +56,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
+	private final Object lock = new Object();
+
 	private final ArrayDeque<SlotContext> slots;
+
+	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
 
 	public SimpleSlotProvider(JobID jobId, int numSlots) {
 		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
@@ -68,29 +80,47 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				taskManagerGateway);
 			slots.add(as);
 		}
+
+		allocatedSlots = new HashMap<>(slots.size());
 	}
 
 	@Override
 	public CompletableFuture<LogicalSlot> allocateSlot(
+			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			boolean allowQueued,
-			Collection<TaskManagerLocation> preferredLocations) {
+			SlotProfile slotProfile,
+			Time allocationTimeout) {
 		final SlotContext slot;
 
-		synchronized (slots) {
+		synchronized (lock) {
 			if (slots.isEmpty()) {
 				slot = null;
 			} else {
 				slot = slots.removeFirst();
 			}
+			if (slot != null) {
+				SimpleSlot result = new SimpleSlot(slot, this, 0);
+				allocatedSlots.put(slotRequestId, slot);
+				return CompletableFuture.completedFuture(result);
+			}
+			else {
+				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
+			}
 		}
+	}
 
-		if (slot != null) {
-			SimpleSlot result = new SimpleSlot(slot, this, 0);
-			return CompletableFuture.completedFuture(result);
-		}
-		else {
-			return FutureUtils.completedExceptionally(new NoResourceAvailableException());
+	@Override
+	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+		synchronized (lock) {
+			final SlotContext slotContext = allocatedSlots.remove(slotRequestId);
+
+			if (slotContext != null) {
+				slots.add(slotContext);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			} else {
+				return FutureUtils.completedExceptionally(new FlinkException("Unknown slot request id " + slotRequestId + '.'));
+			}
 		}
 	}
 
@@ -100,14 +130,15 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 		final Slot slot = ((Slot) logicalSlot);
 
-		synchronized (slots) {
+		synchronized (lock) {
 			slots.add(slot.getSlotContext());
+			allocatedSlots.remove(logicalSlot.getSlotRequestId());
 		}
 		return CompletableFuture.completedFuture(true);
 	}
 
 	public int getNumberOfAvailableSlots() {
-		synchronized (slots) {
+		synchronized (lock) {
 			return slots.size();
 		}
 	}

@@ -18,41 +18,41 @@
 
 package org.apache.flink.table.sources.tsextractors
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.{Cast, Expression, ResolvedFieldReference}
 
 /**
-  * Converts an existing [[Long]] or [[java.sql.Timestamp]] field into a rowtime attribute.
+  * Converts an existing [[Long]], [[java.sql.Timestamp]], or
+  * timestamp formatted [[java.lang.String]] field (e.g., "2018-05-28 12:34:56.000") into
+  * a rowtime attribute.
   *
   * @param field The field to convert into a rowtime attribute.
   */
-class ExistingField(field: String) extends TimestampExtractor {
+final class ExistingField(val field: String) extends TimestampExtractor {
 
   override def getArgumentFields: Array[String] = Array(field)
 
   @throws[ValidationException]
-  override def validateArgumentFields(physicalFieldTypes: Array[TypeInformation[_]]): Unit = {
+  override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
+    val fieldType = argumentFieldTypes(0)
 
-    // get type of field to convert
-    val fieldType = physicalFieldTypes(0)
-
-    // check that the field to convert is of type Long or Timestamp
     fieldType match {
       case Types.LONG => // OK
       case Types.SQL_TIMESTAMP => // OK
+      case Types.STRING => // OK
       case _: TypeInformation[_] =>
         throw ValidationException(
-          s"Field '$field' must be of type Long or Timestamp but is of type $fieldType.")
+          s"Field '$field' must be of type Long or Timestamp or String but is of type $fieldType.")
     }
   }
 
   /**
-    * Returns an [[Expression]] that casts a [[Long]] or [[java.sql.Timestamp]] field into a
-    * rowtime attribute.
+    * Returns an [[Expression]] that casts a [[Long]], [[java.sql.Timestamp]], or
+    * timestamp formatted [[java.lang.String]] field (e.g., "2018-05-28 12:34:56.000")
+    * into a rowtime attribute.
     */
-  def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-
+  override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
     val fieldAccess: Expression = fieldAccesses(0)
 
     fieldAccess.resultType match {
@@ -62,7 +62,17 @@ class ExistingField(field: String) extends TimestampExtractor {
       case Types.SQL_TIMESTAMP =>
         // cast timestamp to long
         Cast(fieldAccess, Types.LONG)
+      case Types.STRING =>
+        Cast(Cast(fieldAccess, SqlTimeTypeInfo.TIMESTAMP), Types.LONG)
     }
   }
 
+  override def equals(other: Any): Boolean = other match {
+    case that: ExistingField => field == that.field
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    field.hashCode
+  }
 }

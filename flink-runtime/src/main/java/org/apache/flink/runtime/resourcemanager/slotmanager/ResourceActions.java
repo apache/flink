@@ -33,8 +33,9 @@ public interface ResourceActions {
 	 * Releases the resource with the given instance id.
 	 *
 	 * @param instanceId identifying which resource to release
+	 * @param cause why the resource is released
 	 */
-	void releaseResource(InstanceID instanceId);
+	void releaseResource(InstanceID instanceId, Exception cause);
 
 	/**
 	 * Requests to allocate a resource with the given {@link ResourceProfile}.

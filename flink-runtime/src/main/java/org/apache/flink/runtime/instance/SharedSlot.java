@@ -58,7 +58,7 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	private final Set<Slot> subSlots;
 
 	// ------------------------------------------------------------------------
-	//  Old Constructors (prior FLIP-6)
+	//  Old Constructors (legacy code)
 	// ------------------------------------------------------------------------
 
 	/**

@@ -33,8 +33,6 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -47,6 +45,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
+import akka.actor.RobustActorSystem;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
@@ -78,7 +77,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 	@BeforeClass
 	public static void setup() throws Exception {
-		actorSystem = ActorSystem.create("TestingActorSystem");
+		actorSystem = RobustActorSystem.create("TestingActorSystem", TestingUtils.getDefaultTestingActorSystemConfig());
 		testingServer = new TestingServer();
 	}
 

@@ -25,6 +25,12 @@ import scala.collection.mutable
 
 object StreamTestData {
 
+  def getSingletonDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 42L, "Hi"))
+    env.fromCollection(data)
+  }
+
   def getSmall3TupleDataStream(env: StreamExecutionEnvironment): DataStream[(Int, Long, String)] = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))

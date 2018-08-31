@@ -30,6 +30,8 @@ import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -44,14 +46,26 @@ import static org.junit.Assert.assertTrue;
  */
 public class TaskManagerGroupTest extends TestLogger {
 
+	private MetricRegistryImpl registry;
+
+	@Before
+	public void setup() {
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+	}
+
+	@After
+	public void teardown() throws Exception {
+		if (registry != null) {
+			registry.shutdown().get();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  adding and removing jobs
 	// ------------------------------------------------------------------------
 
 	@Test
 	public void addAndRemoveJobs() throws IOException {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
 				registry, "localhost", new AbstractID().toString());
 
@@ -106,13 +120,10 @@ public class TaskManagerGroupTest extends TestLogger {
 		assertTrue(tmGroup13.parent().isClosed());
 
 		assertEquals(0, group.numRegisteredJobMetricGroups());
-
-		registry.shutdown();
 	}
 
 	@Test
 	public void testCloseClosesAll() throws IOException {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		final TaskManagerMetricGroup group = new TaskManagerMetricGroup(
 			registry, "localhost", new AbstractID().toString());
 
@@ -142,8 +153,6 @@ public class TaskManagerGroupTest extends TestLogger {
 		assertTrue(tmGroup11.isClosed());
 		assertTrue(tmGroup12.isClosed());
 		assertTrue(tmGroup21.isClosed());
-
-		registry.shutdown();
 	}
 
 	// ------------------------------------------------------------------------
@@ -152,16 +161,14 @@ public class TaskManagerGroupTest extends TestLogger {
 
 	@Test
 	public void testGenerateScopeDefault() {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "localhost", "id");
 
 		assertArrayEquals(new String[]{"localhost", "taskmanager", "id"}, group.getScopeComponents());
 		assertEquals("localhost.taskmanager.id.name", group.getMetricIdentifier("name"));
-		registry.shutdown();
 	}
 
 	@Test
-	public void testGenerateScopeCustom() {
+	public void testGenerateScopeCustom() throws Exception {
 		Configuration cfg = new Configuration();
 		cfg.setString(MetricOptions.SCOPE_NAMING_TM, "constant.<host>.foo.<host>");
 		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
@@ -169,12 +176,11 @@ public class TaskManagerGroupTest extends TestLogger {
 
 		assertArrayEquals(new String[]{"constant", "host", "foo", "host"}, group.getScopeComponents());
 		assertEquals("constant.host.foo.host.name", group.getMetricIdentifier("name"));
-		registry.shutdown();
+		registry.shutdown().get();
 	}
 
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
 
 		QueryScopeInfo.TaskManagerQueryScopeInfo info = tm.createQueryServiceMetricInfo(new DummyCharacterFilter());

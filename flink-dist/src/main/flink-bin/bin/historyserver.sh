@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink HistoryServer
-USAGE="Usage: historyserver.sh (start|stop)"
+USAGE="Usage: historyserver.sh (start|start-foreground|stop)"
 
 STARTSTOP=$1
 
@@ -27,8 +27,12 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [[ $STARTSTOP == "start" ]]; then
+if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 	args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP historyserver "${args[@]}"
+if [[ $STARTSTOP == "start-foreground" ]]; then
+    exec "${FLINK_BIN_DIR}"/flink-console.sh historyserver "${args[@]}"
+else
+    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP historyserver "${args[@]}"
+fi

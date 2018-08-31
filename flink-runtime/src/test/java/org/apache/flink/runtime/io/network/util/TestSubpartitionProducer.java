@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
-import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.util.TestProducerSource.BufferConsumerAndChannel;
 
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -71,20 +69,10 @@ public class TestSubpartitionProducer implements Callable<Boolean> {
 		boolean success = false;
 
 		try {
-			BufferOrEvent bufferOrEvent;
+			BufferConsumerAndChannel consumerAndChannel;
 
-			while ((bufferOrEvent = source.getNextBufferOrEvent()) != null) {
-				if (bufferOrEvent.isBuffer()) {
-					subpartition.add(bufferOrEvent.getBuffer());
-				}
-				else if (bufferOrEvent.isEvent()) {
-					final Buffer buffer = EventSerializer.toBuffer(bufferOrEvent.getEvent());
-
-					subpartition.add(buffer);
-				}
-				else {
-					throw new IllegalStateException("BufferOrEvent instance w/o buffer nor event.");
-				}
+			while ((consumerAndChannel = source.getNextBufferConsumer()) != null) {
+				subpartition.add(consumerAndChannel.getBufferConsumer());
 
 				// Check for interrupted flag after adding data to prevent resource leaks
 				if (Thread.interrupted()) {

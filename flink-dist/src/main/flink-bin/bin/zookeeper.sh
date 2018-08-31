@@ -33,8 +33,8 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-ZK_CONF=$FLINK_CONF_DIR/zoo.cfg
-if [ ! -f $ZK_CONF ]; then
+ZK_CONF="$FLINK_CONF_DIR/zoo.cfg"
+if [ ! -f "$ZK_CONF" ]; then
     echo "[ERROR] No ZooKeeper configuration file found in '$ZK_CONF'."
     exit 1
 fi

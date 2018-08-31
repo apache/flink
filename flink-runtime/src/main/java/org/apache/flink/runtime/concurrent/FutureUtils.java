@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.concurrent;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
@@ -29,14 +32,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import scala.concurrent.Future;
@@ -127,6 +133,7 @@ public class FutureUtils {
 	 * @param operation to retry
 	 * @param retries number of retries
 	 * @param retryDelay delay between retries
+	 * @param retryPredicate Predicate to test whether an exception is retryable
 	 * @param scheduledExecutor executor to be used for the retry operation
 	 * @param <T> type of the result
 	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
@@ -135,6 +142,7 @@ public class FutureUtils {
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
 			final Time retryDelay,
+			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
 		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
@@ -144,9 +152,33 @@ public class FutureUtils {
 			operation,
 			retries,
 			retryDelay,
+			retryPredicate,
 			scheduledExecutor);
 
 		return resultFuture;
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between failures.
+	 *
+	 * @param operation to retry
+	 * @param retries number of retries
+	 * @param retryDelay delay between retries
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry in case of failures
+	 */
+	public static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final int retries,
+			final Time retryDelay,
+			final ScheduledExecutor scheduledExecutor) {
+		return retryWithDelay(
+			operation,
+			retries,
+			retryDelay,
+			(throwable) -> true,
+			scheduledExecutor);
 	}
 
 	private static <T> void retryOperationWithDelay(
@@ -154,35 +186,114 @@ public class FutureUtils {
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,
 			final Time retryDelay,
+			final Predicate<Throwable> retryPredicate,
 			final ScheduledExecutor scheduledExecutor) {
 
 		if (!resultFuture.isDone()) {
 			final CompletableFuture<T> operationResultFuture = operation.get();
 
-			operationResultFuture.whenCompleteAsync(
+			operationResultFuture.whenComplete(
 				(t, throwable) -> {
 					if (throwable != null) {
 						if (throwable instanceof CancellationException) {
 							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
 						} else {
-							if (retries > 0) {
+							if (retries > 0 && retryPredicate.test(throwable)) {
 								final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
-									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, scheduledExecutor),
+									() -> retryOperationWithDelay(resultFuture, operation, retries - 1, retryDelay, retryPredicate, scheduledExecutor),
 									retryDelay.toMilliseconds(),
 									TimeUnit.MILLISECONDS);
 
 								resultFuture.whenComplete(
 									(innerT, innerThrowable) -> scheduledFuture.cancel(false));
 							} else {
-								resultFuture.completeExceptionally(new RetryException("Could not complete the operation. Number of retries " +
-									"has been exhausted.", throwable));
+								final String errorMsg = retries == 0 ?
+									"Number of retries has been exhausted." :
+									"Exception is not retryable.";
+								resultFuture.completeExceptionally(new RetryException(
+									"Could not complete the operation. " + errorMsg,
+									throwable));
 							}
 						}
 					} else {
 						resultFuture.complete(t);
 					}
-				},
-				scheduledExecutor);
+				});
+
+			resultFuture.whenComplete(
+				(t, throwable) -> operationResultFuture.cancel(false));
+		}
+	}
+
+	/**
+	 * Retry the given operation with the given delay in between successful completions where the
+	 * result does not match a given predicate.
+	 *
+	 * @param operation to retry
+	 * @param retryDelay delay between retries
+	 * @param deadline A deadline that specifies at what point we should stop retrying
+	 * @param acceptancePredicate Predicate to test whether the result is acceptable
+	 * @param scheduledExecutor executor to be used for the retry operation
+	 * @param <T> type of the result
+	 * @return Future which retries the given operation a given amount of times and delays the retry
+	 *   in case the predicate isn't matched
+	 */
+	public static <T> CompletableFuture<T> retrySuccesfulWithDelay(
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		retrySuccessfulOperationWithDelay(
+			resultFuture,
+			operation,
+			retryDelay,
+			deadline,
+			acceptancePredicate,
+			scheduledExecutor);
+
+		return resultFuture;
+	}
+
+	private static <T> void retrySuccessfulOperationWithDelay(
+		final CompletableFuture<T> resultFuture,
+		final Supplier<CompletableFuture<T>> operation,
+		final Time retryDelay,
+		final Deadline deadline,
+		final Predicate<T> acceptancePredicate,
+		final ScheduledExecutor scheduledExecutor) {
+
+		if (!resultFuture.isDone()) {
+			final CompletableFuture<T> operationResultFuture = operation.get();
+
+			operationResultFuture.whenComplete(
+				(t, throwable) -> {
+					if (throwable != null) {
+						if (throwable instanceof CancellationException) {
+							resultFuture.completeExceptionally(new RetryException("Operation future was cancelled.", throwable));
+						} else {
+							resultFuture.completeExceptionally(throwable);
+						}
+					} else {
+						if (acceptancePredicate.test(t)) {
+							resultFuture.complete(t);
+						} else if (deadline.hasTimeLeft()) {
+							final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
+								() -> retrySuccessfulOperationWithDelay(resultFuture, operation, retryDelay, deadline, acceptancePredicate, scheduledExecutor),
+								retryDelay.toMilliseconds(),
+								TimeUnit.MILLISECONDS);
+
+							resultFuture.whenComplete(
+								(innerT, innerThrowable) -> scheduledFuture.cancel(false));
+						} else {
+							resultFuture.completeExceptionally(
+								new RetryException("Could not satisfy the predicate within the allowed time."));
+						}
+					}
+				});
 
 			resultFuture.whenComplete(
 				(t, throwable) -> operationResultFuture.cancel(false));
@@ -210,6 +321,131 @@ public class FutureUtils {
 		}
 	}
 
+	/**
+	 * Times the given future out after the timeout.
+	 *
+	 * @param future to time out
+	 * @param timeout after which the given future is timed out
+	 * @param timeUnit time unit of the timeout
+	 * @param <T> type of the given future
+	 * @return The timeout enriched future
+	 */
+	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
+		if (!future.isDone()) {
+			final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
+
+			future.whenComplete((T value, Throwable throwable) -> {
+				if (!timeoutFuture.isDone()) {
+					timeoutFuture.cancel(false);
+				}
+			});
+		}
+
+		return future;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Future actions
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Run the given action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion the, the
+	 * action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param runnable action which is triggered after the future's completion
+	 * @return Future which is completed after the action has completed. This future can contain an exception,
+	 * if an error occurred in the given future or action.
+	 */
+	public static CompletableFuture<Void> runAfterwards(CompletableFuture<?> future, RunnableWithException runnable) {
+		return runAfterwardsAsync(future, runnable, Executors.directExecutor());
+	}
+
+	/**
+	 * Run the given action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion the, the
+	 * action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param runnable action which is triggered after the future's completion
+	 * @return Future which is completed after the action has completed. This future can contain an exception,
+	 * if an error occurred in the given future or action.
+	 */
+	public static CompletableFuture<Void> runAfterwardsAsync(CompletableFuture<?> future, RunnableWithException runnable) {
+		return runAfterwardsAsync(future, runnable, ForkJoinPool.commonPool());
+	}
+
+	/**
+	 * Run the given action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion the, the
+	 * action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param runnable action which is triggered after the future's completion
+	 * @param executor to run the given action
+	 * @return Future which is completed after the action has completed. This future can contain an exception,
+	 * if an error occurred in the given future or action.
+	 */
+	public static CompletableFuture<Void> runAfterwardsAsync(
+		CompletableFuture<?> future,
+		RunnableWithException runnable,
+		Executor executor) {
+		final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+
+		future.whenCompleteAsync(
+			(Object ignored, Throwable throwable) -> {
+				try {
+					runnable.run();
+				} catch (Throwable e) {
+					throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
+				}
+
+				if (throwable != null) {
+					resultFuture.completeExceptionally(throwable);
+				} else {
+					resultFuture.complete(null);
+				}
+			},
+			executor);
+
+		return resultFuture;
+	}
+
+	/**
+	 * Run the given asynchronous action after the completion of the given future. The given future can be
+	 * completed normally or exceptionally. In case of an exceptional completion, the
+	 * asynchronous action's exception will be added to the initial exception.
+	 *
+	 * @param future to wait for its completion
+	 * @param composedAction asynchronous action which is triggered after the future's completion
+	 * @return Future which is completed after the asynchronous action has completed. This future can contain
+	 * an exception if an error occurred in the given future or asynchronous action.
+	 */
+	public static CompletableFuture<Void> composeAfterwards(
+			CompletableFuture<?> future,
+			Supplier<CompletableFuture<?>> composedAction) {
+		final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+
+		future.whenComplete(
+			(Object outerIgnored, Throwable outerThrowable) -> {
+				final CompletableFuture<?> composedActionFuture = composedAction.get();
+
+				composedActionFuture.whenComplete(
+					(Object innerIgnored, Throwable innerThrowable) -> {
+						if (innerThrowable != null) {
+							resultFuture.completeExceptionally(ExceptionUtils.firstOrSuppressed(innerThrowable, outerThrowable));
+						} else if (outerThrowable != null) {
+							resultFuture.completeExceptionally(outerThrowable);
+						} else {
+							resultFuture.complete(null);
+						}
+					});
+			});
+
+		return resultFuture;
+	}
+
 	// ------------------------------------------------------------------------
 	//  composing futures
 	// ------------------------------------------------------------------------
@@ -229,18 +465,7 @@ public class FutureUtils {
 	public static <T> ConjunctFuture<Collection<T>> combineAll(Collection<? extends CompletableFuture<? extends T>> futures) {
 		checkNotNull(futures, "futures");
 
-		final ResultConjunctFuture<T> conjunct = new ResultConjunctFuture<>(futures.size());
-
-		if (futures.isEmpty()) {
-			conjunct.complete(Collections.emptyList());
-		}
-		else {
-			for (CompletableFuture<? extends T> future : futures) {
-				future.whenComplete(conjunct::handleCompletedFuture);
-			}
-		}
-
-		return conjunct;
+		return new ResultConjunctFuture<>(futures);
 	}
 
 	/**
@@ -304,7 +529,7 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		final void handleCompletedFuture(T value, Throwable throwable) {
+		private void handleCompletedFuture(T value, Throwable throwable) {
 			if (throwable != null) {
 				completeExceptionally(throwable);
 			} else {
@@ -319,9 +544,18 @@ public class FutureUtils {
 		}
 
 		@SuppressWarnings("unchecked")
-		ResultConjunctFuture(int numTotal) {
-			this.numTotal = numTotal;
+		ResultConjunctFuture(Collection<? extends CompletableFuture<? extends T>> resultFutures) {
+			this.numTotal = resultFutures.size();
 			results = (T[]) new Object[numTotal];
+
+			if (resultFutures.isEmpty()) {
+				complete(Collections.emptyList());
+			}
+			else {
+				for (CompletableFuture<? extends T> future : resultFutures) {
+					future.whenComplete(this::handleCompletedFuture);
+				}
+			}
 		}
 
 		@Override
@@ -359,8 +593,6 @@ public class FutureUtils {
 		}
 
 		private WaitingConjunctFuture(Collection<? extends CompletableFuture<?>> futures) {
-			Preconditions.checkNotNull(futures, "Futures must not be null.");
-
 			this.numTotal = futures.size();
 
 			if (futures.isEmpty()) {
@@ -383,6 +615,82 @@ public class FutureUtils {
 		}
 	}
 
+	/**
+	 * Creates a {@link ConjunctFuture} which is only completed after all given futures have completed.
+	 * Unlike {@link FutureUtils#waitForAll(Collection)}, the resulting future won't be completed directly
+	 * if one of the given futures is completed exceptionally. Instead, all occurring exception will be
+	 * collected and combined to a single exception. If at least on exception occurs, then the resulting
+	 * future will be completed exceptionally.
+	 *
+	 * @param futuresToComplete futures to complete
+	 * @return Future which is completed after all given futures have been completed.
+	 */
+	public static ConjunctFuture<Void> completeAll(Collection<? extends CompletableFuture<?>> futuresToComplete) {
+		return new CompletionConjunctFuture(futuresToComplete);
+	}
+
+	/**
+	 * {@link ConjunctFuture} implementation which is completed after all the given futures have been
+	 * completed. Exceptional completions of the input futures will be recorded but it won't trigger the
+	 * early completion of this future.
+	 */
+	private static final class CompletionConjunctFuture extends ConjunctFuture<Void> {
+
+		private final Object lock = new Object();
+
+		private final int numFuturesTotal;
+
+		private int futuresCompleted;
+
+		private Throwable globalThrowable;
+
+		private CompletionConjunctFuture(Collection<? extends CompletableFuture<?>> futuresToComplete) {
+			numFuturesTotal = futuresToComplete.size();
+
+			futuresCompleted = 0;
+
+			globalThrowable = null;
+
+			if (futuresToComplete.isEmpty()) {
+				complete(null);
+			} else {
+				for (CompletableFuture<?> completableFuture : futuresToComplete) {
+					completableFuture.whenComplete(this::completeFuture);
+				}
+			}
+		}
+
+		private void completeFuture(Object ignored, Throwable throwable) {
+			synchronized (lock) {
+				futuresCompleted++;
+
+				if (throwable != null) {
+					globalThrowable = ExceptionUtils.firstOrSuppressed(throwable, globalThrowable);
+				}
+
+				if (futuresCompleted == numFuturesTotal) {
+					if (globalThrowable != null) {
+						completeExceptionally(globalThrowable);
+					} else {
+						complete(null);
+					}
+				}
+			}
+		}
+
+		@Override
+		public int getNumFuturesTotal() {
+			return numFuturesTotal;
+		}
+
+		@Override
+		public int getNumFuturesCompleted() {
+			synchronized (lock) {
+				return futuresCompleted;
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Helper methods
 	// ------------------------------------------------------------------------
@@ -399,6 +707,26 @@ public class FutureUtils {
 		result.completeExceptionally(cause);
 
 		return result;
+	}
+
+	/**
+	 * Returns a future which is completed with the result of the {@link SupplierWithException}.
+	 *
+	 * @param supplier to provide the future's value
+	 * @param executor to execute the supplier
+	 * @param <T> type of the result
+	 * @return Future which is completed with the value of the supplier
+	 */
+	public static <T> CompletableFuture<T> supplyAsync(SupplierWithException<T, ?> supplier, Executor executor) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					return supplier.get();
+				} catch (Throwable e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
 	}
 
 	/**
@@ -437,7 +765,7 @@ public class FutureUtils {
 
 		scalaFuture.onComplete(new OnComplete<T>() {
 			@Override
-			public void onComplete(Throwable failure, T success) throws Throwable {
+			public void onComplete(Throwable failure, T success) {
 				if (failure != null) {
 					result.completeExceptionally(failure);
 				} else {
@@ -450,27 +778,6 @@ public class FutureUtils {
 	}
 
 	/**
-	 * Times the given future out after the timeout.
-	 *
-	 * @param future to time out
-	 * @param timeout after which the given future is timed out
-	 * @param timeUnit time unit of the timeout
-	 * @param <T> type of the given future
-	 * @return The timeout enriched future
-	 */
-	public static <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeout, TimeUnit timeUnit) {
-		final ScheduledFuture<?> timeoutFuture = Delayer.delay(new Timeout(future), timeout, timeUnit);
-
-		future.whenComplete((T value, Throwable throwable) -> {
-			if (!timeoutFuture.isDone()) {
-				timeoutFuture.cancel(false);
-			}
-		});
-
-		return future;
-	}
-
-	/**
 	 * Runnable to complete the given future with a {@link TimeoutException}.
 	 */
 	private static final class Timeout implements Runnable {
@@ -478,7 +785,7 @@ public class FutureUtils {
 		private final CompletableFuture<?> future;
 
 		private Timeout(CompletableFuture<?> future) {
-			this.future = Preconditions.checkNotNull(future);
+			this.future = checkNotNull(future);
 		}
 
 		@Override
@@ -492,8 +799,9 @@ public class FutureUtils {
 	 *
 	 * <p>This class creates a singleton scheduler used to run the provided actions.
 	 */
-	private static final class Delayer {
-		static final ScheduledThreadPoolExecutor delayer = new ScheduledThreadPoolExecutor(
+	private enum Delayer {
+		;
+		static final ScheduledThreadPoolExecutor DELAYER = new ScheduledThreadPoolExecutor(
 			1,
 			new ExecutorThreadFactory("FlinkCompletableFutureDelayScheduler"));
 
@@ -506,10 +814,10 @@ public class FutureUtils {
 		 * @return Future of the scheduled action
 		 */
 		private static ScheduledFuture<?> delay(Runnable runnable, long delay, TimeUnit timeUnit) {
-			Preconditions.checkNotNull(runnable);
-			Preconditions.checkNotNull(timeUnit);
+			checkNotNull(runnable);
+			checkNotNull(timeUnit);
 
-			return delayer.schedule(runnable, delay, timeUnit);
+			return DELAYER.schedule(runnable, delay, timeUnit);
 		}
 	}
 }

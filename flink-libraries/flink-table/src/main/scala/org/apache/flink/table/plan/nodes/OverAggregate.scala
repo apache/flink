@@ -70,7 +70,12 @@ trait OverAggregate {
 
     val aggStrings = namedAggregates.map(_.getKey).map(
       a => s"${a.getAggregation}(${
-        if (a.getArgList.size() > 0) {
+        val prefix = if (a.isDistinct) {
+          "DISTINCT "
+        } else {
+          ""
+        }
+        prefix + (if (a.getArgList.size() > 0) {
           a.getArgList.asScala.map { arg =>
             // index to constant
             if (arg >= inputType.getFieldCount) {
@@ -83,7 +88,7 @@ trait OverAggregate {
           }.mkString(", ")
         } else {
           "*"
-        }
+        })
       })")
 
     (inFields ++ aggStrings).zip(outFields).map {

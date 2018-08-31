@@ -110,6 +110,20 @@ public class MetricOptions {
 			.defaultValue(128)
 			.withDescription("Defines the number of measured latencies to maintain at each operator.");
 
+	/**
+	 * Whether Flink should report system resource metrics such as machine's CPU, memory or network usage.
+	 */
+	public static final ConfigOption<Boolean> SYSTEM_RESOURCE_METRICS =
+		key("metrics.system-resource")
+			.defaultValue(false);
+	/**
+	 * Interval between probing of system resource metrics specified in milliseconds. Has an effect only when
+	 * {@link #SYSTEM_RESOURCE_METRICS} is enabled.
+	 */
+	public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
+		key("metrics.system-resource-probing-interval")
+			.defaultValue(5000L);
+
 	private MetricOptions() {
 	}
 }

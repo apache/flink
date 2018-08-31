@@ -23,6 +23,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -214,7 +215,7 @@ public class StreamSourceOperatorTest {
 		for (; i < output.size() - 1; i++) {
 			StreamElement se = output.get(i);
 			Assert.assertTrue(se.isLatencyMarker());
-			Assert.assertEquals(-1, se.asLatencyMarker().getVertexID());
+			Assert.assertEquals(operator.getOperatorID(), se.asLatencyMarker().getOperatorId());
 			Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
 			Assert.assertTrue(se.asLatencyMarker().getMarkedTime() == timestamp);
 
@@ -290,6 +291,7 @@ public class StreamSourceOperatorTest {
 		cfg.setStateBackend(new MemoryStateBackend());
 
 		cfg.setTimeCharacteristic(timeChar);
+		cfg.setOperatorID(new OperatorID());
 
 		Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
 

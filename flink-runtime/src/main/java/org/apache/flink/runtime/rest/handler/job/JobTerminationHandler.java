@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -33,8 +32,10 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -47,25 +48,30 @@ import java.util.concurrent.TimeoutException;
 /**
  * Request handler for the cancel and stop request.
  */
-public class JobTerminationHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+public class JobTerminationHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+
+	private final TerminationModeQueryParameter.TerminationMode defaultTerminationMode;
 
 	public JobTerminationHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
-			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders) {
+			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders,
+			TerminationModeQueryParameter.TerminationMode defaultTerminationMode) {
 		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
+
+		this.defaultTerminationMode = Preconditions.checkNotNull(defaultTerminationMode);
 	}
 
 	@Override
-	public CompletableFuture<EmptyResponseBody> handleRequest(HandlerRequest<EmptyRequestBody, JobTerminationMessageParameters> request, DispatcherGateway gateway) {
+	public CompletableFuture<EmptyResponseBody> handleRequest(HandlerRequest<EmptyRequestBody, JobTerminationMessageParameters> request, RestfulGateway gateway) {
 		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 		final List<TerminationModeQueryParameter.TerminationMode> terminationModes = request.getQueryParameter(TerminationModeQueryParameter.class);
 		final TerminationModeQueryParameter.TerminationMode terminationMode;
 
 		if (terminationModes.isEmpty()) {
-			terminationMode = TerminationModeQueryParameter.TerminationMode.CANCEL;
+			terminationMode = defaultTerminationMode;
 		} else {
 			// picking the first termination mode value
 			terminationMode = terminationModes.get(0);

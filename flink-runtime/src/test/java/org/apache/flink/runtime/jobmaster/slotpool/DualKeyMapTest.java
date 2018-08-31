@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.HashSet;
 import java.util.Random;
@@ -36,7 +34,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link DualKeyMap}.
  */
-@Category(Flip6.class)
 public class DualKeyMapTest extends TestLogger {
 
 	@Test

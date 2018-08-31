@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -80,12 +80,6 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
-		<!-- We explicitly depend on snappy since connectors that require it load it through the system class loader -->
-		<dependency>
-			<groupId>org.xerial.snappy</groupId>
-			<artifactId>snappy-java</artifactId>
-		</dependency>
-
 		<!-- ================== test dependencies ================== -->
 
 		<dependency>
@@ -99,7 +93,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Joda and jackson are used to test that serialization and type extraction
+		<!-- Joda, jackson, and lombok are used to test that serialization and type extraction
 			work with types from those libraries -->
 
 		<dependency>
@@ -120,6 +114,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.16.20</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -127,30 +128,9 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.17</version>
-				<dependencies>
-					<dependency>
-						<groupId>com.puppycrawl.tools</groupId>
-						<artifactId>checkstyle</artifactId>
-						<version>8.4</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>validate</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
 
 				<configuration>
-					<configLocation>/tools/maven/checkstyle.xml</configLocation>
-					<suppressionsLocation>/tools/maven/suppressions-core.xml</suppressionsLocation>
-					<includeTestSourceDirectory>true</includeTestSourceDirectory>
-					<logViolationsToConsole>true</logViolationsToConsole>
-					<failOnViolation>true</failOnViolation>
+					<suppressionsLocation combine.self="override">/tools/maven/suppressions-core.xml</suppressionsLocation>
 				</configuration>
 			</plugin>
 
@@ -201,6 +181,10 @@ under the License.
 								its new, and not conflicting/breaking -->
 							<exclude>org.apache.flink.api.common.serialization.DeserializationSchema</exclude>
 							<exclude>org.apache.flink.api.common.serialization.SerializationSchema</exclude>
+
+							<!-- leaked constructor in TypeHint -->
+							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
+							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

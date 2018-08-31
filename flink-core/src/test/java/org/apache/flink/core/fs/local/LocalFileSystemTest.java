@@ -25,7 +25,9 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
 import org.junit.Rule;
@@ -36,19 +38,29 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In particular,
  * file/directory access, creation, deletion, read, write is tested.
  */
-public class LocalFileSystemTest {
+public class LocalFileSystemTest extends TestLogger {
 
 	@Rule
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -318,5 +330,59 @@ public class LocalFileSystemTest {
 	public void testKind() {
 		final FileSystem fs = FileSystem.getLocalFileSystem();
 		assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
+	}
+
+	@Test
+	public void testConcurrentMkdirs() throws Exception {
+		final FileSystem fs = FileSystem.getLocalFileSystem();
+		final File root = temporaryFolder.getRoot();
+		final int directoryDepth = 10;
+		final int concurrentOperations = 10;
+
+		final Collection<File> targetDirectories = createTargetDirectories(root, directoryDepth, concurrentOperations);
+
+		final ExecutorService executor = Executors.newFixedThreadPool(concurrentOperations);
+		final CyclicBarrier cyclicBarrier = new CyclicBarrier(concurrentOperations);
+
+		try {
+			final Collection<CompletableFuture<Void>> mkdirsFutures = new ArrayList<>(concurrentOperations);
+			for (File targetDirectory : targetDirectories) {
+				final CompletableFuture<Void> mkdirsFuture = CompletableFuture.runAsync(
+					() -> {
+						try {
+							cyclicBarrier.await();
+							assertThat(fs.mkdirs(Path.fromLocalFile(targetDirectory)), is(true));
+						} catch (Exception e) {
+							throw new CompletionException(e);
+						}
+					}, executor);
+
+				mkdirsFutures.add(mkdirsFuture);
+			}
+
+			final CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+				mkdirsFutures.toArray(new CompletableFuture[concurrentOperations]));
+
+			allFutures.get();
+		} finally {
+			final long timeout = 10000L;
+			ExecutorUtils.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, executor);
+		}
+	}
+
+	private Collection<File> createTargetDirectories(File root, int directoryDepth, int numberDirectories) {
+		final StringBuilder stringBuilder = new StringBuilder();
+
+		for (int i = 0; i < directoryDepth; i++) {
+			stringBuilder.append('/').append(i);
+		}
+
+		final Collection<File> targetDirectories = new ArrayList<>(numberDirectories);
+
+		for (int i = 0; i < numberDirectories; i++) {
+			targetDirectories.add(new File(root, stringBuilder.toString() + '/' + i));
+		}
+
+		return targetDirectories;
 	}
 }

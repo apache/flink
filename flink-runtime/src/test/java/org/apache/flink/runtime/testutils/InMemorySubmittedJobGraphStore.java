@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
 
@@ -42,6 +44,23 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 	private boolean started;
 
+	private volatile FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction;
+
+	private volatile BiFunctionWithException<JobID, Map<JobID, SubmittedJobGraph>, SubmittedJobGraph, ? extends Exception> recoverJobGraphFunction;
+
+	public InMemorySubmittedJobGraphStore() {
+		jobIdsFunction = null;
+		recoverJobGraphFunction = null;
+	}
+
+	public void setJobIdsFunction(FunctionWithException<Collection<JobID>, Collection<JobID>, ? extends Exception> jobIdsFunction) {
+		this.jobIdsFunction = Preconditions.checkNotNull(jobIdsFunction);
+	}
+
+	public void setRecoverJobGraphFunction(BiFunctionWithException<JobID, Map<JobID, SubmittedJobGraph>, SubmittedJobGraph, ? extends Exception> recoverJobGraphFunction) {
+		this.recoverJobGraphFunction = Preconditions.checkNotNull(recoverJobGraphFunction);
+	}
+
 	@Override
 	public synchronized void start(@Nullable SubmittedJobGraphListener jobGraphListener) throws Exception {
 		started = true;
@@ -55,9 +74,14 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	@Override
 	public synchronized SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		verifyIsStarted();
-		return requireNonNull(
-			storedJobs.get(jobId),
-			"Job graph for job " + jobId + " does not exist");
+
+		if (recoverJobGraphFunction != null) {
+			return recoverJobGraphFunction.applyWithException(jobId, storedJobs);
+		} else {
+			return requireNonNull(
+				storedJobs.get(jobId),
+				"Job graph for job " + jobId + " does not exist");
+		}
 	}
 
 	@Override
@@ -75,7 +99,12 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 	@Override
 	public synchronized Collection<JobID> getJobIds() throws Exception {
 		verifyIsStarted();
-		return Collections.unmodifiableSet(new HashSet<>(storedJobs.keySet()));
+
+		if (jobIdsFunction != null) {
+			return jobIdsFunction.apply(storedJobs.keySet());
+		} else {
+			return Collections.unmodifiableSet(new HashSet<>(storedJobs.keySet()));
+		}
 	}
 
 	public synchronized boolean contains(JobID jobId) {

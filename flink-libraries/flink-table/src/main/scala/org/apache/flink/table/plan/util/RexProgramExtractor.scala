@@ -29,8 +29,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{And, Expression, Literal, Or, ResolvedFieldReference}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
-
 import java.sql.{Date, Time, Timestamp}
+
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -38,6 +39,8 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object RexProgramExtractor {
+
+  lazy val LOG: Logger = LoggerFactory.getLogger(getClass)
 
   /**
     * Extracts the indices of input fields which accessed by the RexProgram.
@@ -214,7 +217,13 @@ class RexNodeToExpressionConverter(
         // convert to BigDecimal
         literal.getValueAs(classOf[java.math.BigDecimal])
 
-      case _ => literal.getValue
+      case _ =>
+        // Literal type is not supported.
+        RexProgramExtractor.LOG.debug(
+          "Literal {} of SQL type {} is not supported and cannot be converted. " +
+            "Please reach out to the community if you think this type should be supported.",
+          Array(literal, literal.getType): _*)
+        return None
     }
 
     Some(Literal(literalValue, literalType))

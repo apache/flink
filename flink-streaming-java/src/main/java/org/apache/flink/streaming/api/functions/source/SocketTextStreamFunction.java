@@ -94,21 +94,22 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 
 				LOG.info("Connecting to server socket " + hostname + ':' + port);
 				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
-				BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-				char[] cbuf = new char[8192];
-				int bytesRead;
-				while (isRunning && (bytesRead = reader.read(cbuf)) != -1) {
-					buffer.append(cbuf, 0, bytesRead);
-					int delimPos;
-					while (buffer.length() >= delimiter.length() && (delimPos = buffer.indexOf(delimiter)) != -1) {
-						String record = buffer.substring(0, delimPos);
-						// truncate trailing carriage return
-						if (delimiter.equals("\n") && record.endsWith("\r")) {
-							record = record.substring(0, record.length() - 1);
+					char[] cbuf = new char[8192];
+					int bytesRead;
+					while (isRunning && (bytesRead = reader.read(cbuf)) != -1) {
+						buffer.append(cbuf, 0, bytesRead);
+						int delimPos;
+						while (buffer.length() >= delimiter.length() && (delimPos = buffer.indexOf(delimiter)) != -1) {
+							String record = buffer.substring(0, delimPos);
+							// truncate trailing carriage return
+							if (delimiter.equals("\n") && record.endsWith("\r")) {
+								record = record.substring(0, record.length() - 1);
+							}
+							ctx.collect(record);
+							buffer.delete(0, delimPos + delimiter.length());
 						}
-						ctx.collect(record);
-						buffer.delete(0, delimPos + delimiter.length());
 					}
 				}
 			}

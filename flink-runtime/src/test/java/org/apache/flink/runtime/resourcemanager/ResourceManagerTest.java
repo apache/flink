@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -30,42 +29,34 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-@Category(Flip6.class)
 public class ResourceManagerTest extends TestLogger {
 
 	private TestingRpcService rpcService;
 
 	@Before
 	public void setUp() {
-		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService = null;
-		}
-
 		rpcService = new TestingRpcService();
 	}
 
 	@After
-	public void tearDown() {
+	public void tearDown() throws ExecutionException, InterruptedException {
 		if (rpcService != null) {
-			rpcService.stopService();
+			rpcService.stopService().get();
 			rpcService = null;
 		}
 	}
@@ -75,8 +66,6 @@ public class ResourceManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testRequestTaskManagerInfo() throws Exception {
-		final Configuration configuration = new Configuration();
-		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		final SlotManager slotManager = new SlotManager(
 			rpcService.getScheduledExecutor(),
@@ -96,7 +85,6 @@ public class ResourceManagerTest extends TestLogger {
 			rpcService,
 			ResourceManager.RESOURCE_MANAGER_NAME,
 			ResourceID.generate(),
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			new HeartbeatServices(1000L, 10000L),
 			slotManager,
@@ -109,7 +97,7 @@ public class ResourceManagerTest extends TestLogger {
 		try {
 			final ResourceID taskManagerId = ResourceID.generate();
 			final ResourceManagerGateway resourceManagerGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
-			final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGateway();
+			final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 
 			// first make the ResourceManager the leader
 			resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
@@ -127,7 +115,6 @@ public class ResourceManagerTest extends TestLogger {
 			CompletableFuture<RegistrationResponse> registrationResponseFuture = resourceManagerGateway.registerTaskExecutor(
 				taskExecutorGateway.getAddress(),
 				taskManagerId,
-				new SlotReport(),
 				dataPort,
 				hardwareDescription,
 				TestingUtils.TIMEOUT());

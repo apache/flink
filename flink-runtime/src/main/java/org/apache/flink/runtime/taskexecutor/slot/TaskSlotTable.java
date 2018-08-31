@@ -133,6 +133,22 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		slotActions = null;
 	}
 
+	/**
+	 * Returns the all {@link AllocationID} for the given job.
+	 *
+	 * @param jobId for which to return the set of {@link AllocationID}.
+	 * @return Set of {@link AllocationID} for the given job
+	 */
+	public Set<AllocationID> getAllocationIdsPerJob(JobID jobId) {
+		final Set<AllocationID> allocationIds = slotsPerJob.get(jobId);
+
+		if (allocationIds == null) {
+			return Collections.emptySet();
+		} else {
+			return Collections.unmodifiableSet(allocationIds);
+		}
+	}
+
 	// ---------------------------------------------------------------------
 	// Slot report methods
 	// ---------------------------------------------------------------------
@@ -268,7 +284,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @throws SlotNotFoundException if there is not task slot for the given allocation id
 	 * @return Index of the freed slot if the slot could be freed; otherwise -1
 	 */
-	public TaskSlot freeSlot(AllocationID allocationId) throws SlotNotFoundException {
+	public int freeSlot(AllocationID allocationId) throws SlotNotFoundException {
 		return freeSlot(allocationId, new Exception("The task slot of this task is being freed."));
 	}
 
@@ -282,8 +298,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	 * @throws SlotNotFoundException if there is not task slot for the given allocation id
 	 * @return The freed TaskSlot. If the TaskSlot cannot be freed then null.
 	 */
-	@Nullable
-	public TaskSlot freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
+	public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
 		checkInit();
 
 		TaskSlot taskSlot = getTaskSlot(allocationId);
@@ -317,7 +332,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 					slotsPerJob.remove(jobId);
 				}
 
-				return taskSlot;
+				return taskSlot.getIndex();
 			} else {
 				// we couldn't free the task slot because it still contains task, fail the tasks
 				// and set the slot state to releasing so that it gets eventually freed
@@ -329,7 +344,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 					taskIterator.next().failExternally(cause);
 				}
 
-				return null;
+				return -1;
 			}
 		} else {
 			throw new SlotNotFoundException(allocationId);
@@ -422,6 +437,25 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		return new AllocationIDIterator(jobId, TaskSlotState.ACTIVE);
 	}
 
+	/**
+	 * Returns the owning job of the {@link TaskSlot} identified by the
+	 * given {@link AllocationID}.
+	 *
+	 * @param allocationId identifying the slot for which to retrieve the owning job
+	 * @return Owning job of the specified {@link TaskSlot} or null if there is no slot for
+	 * the given allocation id or if the slot has no owning job assigned
+	 */
+	@Nullable
+	public JobID getOwningJob(AllocationID allocationId) {
+		final TaskSlot taskSlot = getTaskSlot(allocationId);
+
+		if (taskSlot != null) {
+			return taskSlot.getJobId();
+		} else {
+			return null;
+		}
+	}
+
 	// ---------------------------------------------------------------------
 	// Task methods
 	// ---------------------------------------------------------------------
@@ -452,7 +486,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 				throw new SlotNotActiveException(task.getJobID(), task.getAllocationId());
 			}
 		} else {
-			throw new SlotNotFoundException(taskSlot.getAllocationId());
+			throw new SlotNotFoundException(task.getAllocationId());
 		}
 	}
 
@@ -538,6 +572,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	// Internal methods
 	// ---------------------------------------------------------------------
 
+	@Nullable
 	private TaskSlot getTaskSlot(AllocationID allocationId) {
 		Preconditions.checkNotNull(allocationId);
 
@@ -545,7 +580,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	}
 
 	private void checkInit() {
-		Preconditions.checkState(started, "The " + TaskSlotTable.class.getSimpleName() + " has to be started.");
+		Preconditions.checkState(started, "The %s has to be started.", TaskSlotTable.class.getSimpleName());
 	}
 
 	// ---------------------------------------------------------------------

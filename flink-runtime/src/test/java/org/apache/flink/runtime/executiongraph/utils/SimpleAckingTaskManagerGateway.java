@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -52,7 +52,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
 
-	private volatile Consumer<Tuple2<AllocationID, Throwable>> freeSlotConsumer;
+	private volatile BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction;
 
 	public SimpleAckingTaskManagerGateway() {
 		optSubmitConsumer = Optional.empty();
@@ -67,8 +67,8 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		optCancelConsumer = Optional.of(predicate);
 	}
 
-	public void setFreeSlotConsumer(Consumer<Tuple2<AllocationID, Throwable>> consumer) {
-		freeSlotConsumer = consumer;
+	public void setFreeSlotFunction(BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction) {
+		this.freeSlotFunction = freeSlotFunction;
 	}
 
 	@Override
@@ -150,12 +150,12 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
-		final Consumer<Tuple2<AllocationID, Throwable>> currentFreeSlotConsumer = freeSlotConsumer;
+		final BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> currentFreeSlotFunction = freeSlotFunction;
 
-		if (currentFreeSlotConsumer != null) {
-			currentFreeSlotConsumer.accept(Tuple2.of(allocationId, cause));
+		if (currentFreeSlotFunction != null) {
+			return currentFreeSlotFunction.apply(allocationId, cause);
+		} else {
+			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
-
-		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 }

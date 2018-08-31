@@ -24,12 +24,16 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.jobmaster.RescalingBehaviour;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -46,6 +50,24 @@ import java.util.concurrent.CompletableFuture;
 public interface RestfulGateway extends RpcGateway {
 
 	/**
+	 * Cancel the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the cancellation succeeded
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Stop the given job.
+	 *
+	 * @param jobId identifying the job to stop
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the stopping succeeded
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
 	 * Requests the REST address of this {@link RpcEndpoint}.
 	 *
 	 * @param timeout for this operation
@@ -54,14 +76,23 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<String> requestRestAddress(@RpcTimeout  Time timeout);
 
 	/**
-	 * Requests the AccessExecutionGraph for the given jobId. If there is no such graph, then
+	 * Requests the {@link AccessExecutionGraph} for the given jobId. If there is no such graph, then
 	 * the future is completed with a {@link FlinkJobNotFoundException}.
 	 *
 	 * @param jobId identifying the job whose AccessExecutionGraph is requested
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
 	 */
-	CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+	CompletableFuture<? extends AccessExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Requests the {@link JobResult} of a job specified by the given jobId.
+	 *
+	 * @param jobId identifying the job for which to retrieve the {@link JobResult}.
+	 * @param timeout for the asynchronous operation
+	 * @return Future which is completed with the job's {@link JobResult} once the job has finished
+	 */
+	CompletableFuture<JobResult> requestJobResult(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
 	 * Requests job details currently being executed on the Flink cluster.
@@ -97,49 +128,6 @@ public interface RestfulGateway extends RpcGateway {
 	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
 
 	/**
-	 * Returns the JobExecutionResult for a job, or in case the job failed, the failure cause.
-	 *
-	 * @param jobId ID of the job that we are interested in.
-	 * @param timeout Timeout for the asynchronous operation.
-	 *
-	 * @see #isJobExecutionResultPresent(JobID, Time)
-	 *
-	 * @return CompletableFuture containing the JobExecutionResult. The future is completed
-	 * exceptionally with:
-	 * <ul>
-	 * 	<li>{@link FlinkJobNotFoundException} if there is no result, or if the result has
-	 * 	expired
-	 * 	<li>{@link JobExecutionResultGoneException} if the result was removed due to memory demand.
-	 * </ul>
-	 */
-	default CompletableFuture<JobResult> getJobExecutionResult(
-			JobID jobId,
-			@RpcTimeout Time timeout) {
-		throw new UnsupportedOperationException();
-	}
-
-	/**
-	 * Tests if the {@link JobResult} is present.
-	 *
-	 * @param jobId ID of the job that we are interested in.
-	 * @param timeout Timeout for the asynchronous operation.
-	 *
-	 * @see #getJobExecutionResult(JobID, Time)
-	 *
-	 * @return {@link CompletableFuture} containing {@code true} when then the
-	 * {@link JobResult} is present. The future is completed exceptionally with:
-	 * <ul>
-	 * 	<li>{@link FlinkJobNotFoundException} if there is no job running with the specified ID, or
-	 * 	if the result has expired
-	 * 	<li>{@link JobExecutionResultGoneException} if the result was removed due to memory demand.
-	 * </ul>
-	 */
-	default CompletableFuture<Boolean> isJobExecutionResultPresent(
-			JobID jobId, @RpcTimeout Time timeout) {
-		throw new UnsupportedOperationException();
-	}
-
-	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.
 	 *
 	 * @param jobId           ID of the job for which the savepoint should be triggered.
@@ -151,7 +139,69 @@ public interface RestfulGateway extends RpcGateway {
 	default CompletableFuture<String> triggerSavepoint(
 			JobID jobId,
 			String targetDirectory,
+			boolean cancelJob,
 			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Dispose the given savepoint.
+	 *
+	 * @param savepointPath identifying the savepoint to dispose
+	 * @param timeout RPC timeout
+	 * @return A future acknowledge if the disposal succeeded
+	 */
+	default CompletableFuture<Acknowledge> disposeSavepoint(
+			final String savepointPath,
+			@RpcTimeout final Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Request the {@link JobStatus} of the given job.
+	 *
+	 * @param jobId identifying the job for which to retrieve the JobStatus
+	 * @param timeout for the asynchronous operation
+	 * @return A future to the {@link JobStatus} of the given job
+	 */
+	default CompletableFuture<JobStatus> requestJobStatus(
+			JobID jobId,
+			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Requests the statistics on operator back pressure.
+	 *
+	 * @param jobId       Job for which the stats are requested.
+	 * @param jobVertexId JobVertex for which the stats are requested.
+	 * @return A Future to the {@link OperatorBackPressureStatsResponse} or {@code null} if the stats are
+	 * not available (yet).
+	 */
+	default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
+			JobID jobId,
+			JobVertexID jobVertexId) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Trigger rescaling of the given job.
+	 *
+	 * @param jobId specifying the job to rescale
+	 * @param newParallelism new parallelism of the job
+	 * @param rescalingBehaviour defining how strict the rescaling has to be executed
+	 * @param timeout of this operation
+	 * @return Future which is completed with {@link Acknowledge} once the rescaling was successful
+	 */
+	default CompletableFuture<Acknowledge> rescaleJob(
+			JobID jobId,
+			int newParallelism,
+			RescalingBehaviour rescalingBehaviour,
+			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	default CompletableFuture<Acknowledge> shutDownCluster() {
 		throw new UnsupportedOperationException();
 	}
 }

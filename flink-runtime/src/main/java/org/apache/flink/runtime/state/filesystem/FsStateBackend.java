@@ -29,12 +29,15 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
@@ -91,7 +94,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	private static final long serialVersionUID = -8191916350224044011L;
 
 	/** Maximum size of state that is stored with the metadata, rather than in files (1 MiByte). */
-	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
+	private static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
 	// ------------------------------------------------------------------------
 
@@ -103,7 +106,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * A value of 'undefined' means not yet configured, in which case the default will be used. */
 	private final TernaryBoolean asynchronousSnapshots;
 
-	// ------------------------------------------------------------------------
+	// -----------------------------------------------------------------------
 
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
@@ -437,21 +440,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	@Override
 	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
 		checkNotNull(jobId, "jobId");
-		return new FsCheckpointStorage(getCheckpointPath(), getSavepointPath(), jobId);
-	}
-
-	@Override
-	public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-		return new FsCheckpointStreamFactory(getCheckpointPath(), jobId, getMinFileSizeThreshold());
-	}
-
-	@Override
-	public CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
-			String operatorIdentifier,
-			String targetLocation) throws IOException {
-
-		return new FsSavepointStreamFactory(new Path(targetLocation), jobId, getMinFileSizeThreshold());
+		return new FsCheckpointStorage(getCheckpointPath(), getSavepointPath(), jobId, getMinFileSizeThreshold());
 	}
 
 	// ------------------------------------------------------------------------
@@ -460,13 +449,19 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider) {
+
+		TaskStateManager taskStateManager = env.getTaskStateManager();
+		LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
+		HeapPriorityQueueSetFactory priorityQueueSetFactory =
+			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -475,13 +470,16 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 				numberOfKeyGroups,
 				keyGroupRange,
 				isUsingAsynchronousSnapshots(),
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+				localRecoveryConfig,
+				priorityQueueSetFactory,
+				ttlTimeProvider);
 	}
 
 	@Override
 	public OperatorStateBackend createOperatorStateBackend(
 		Environment env,
-		String operatorIdentifier) throws Exception {
+		String operatorIdentifier) {
 
 		return new DefaultOperatorStateBackend(
 			env.getUserClassLoader(),

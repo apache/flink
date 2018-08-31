@@ -35,6 +35,8 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -436,6 +438,162 @@ public class UnionReplacementTest extends CompilerTestBase {
 			assertEquals("Union input channel should be broadcasting",
 				ShipStrategyType.BROADCAST, c.getShipStrategy());
 		}
+	}
+
+	/**
+	 * Tests that a the outgoing connection of a Union node is FORWARD.
+	 * See FLINK-9031 for a bug report.
+	 *
+	 * The issue is quite hard to reproduce as the plan choice seems to depend on the enumeration
+	 * order due to lack of plan costs. This test is a smaller variant of the job that was reported
+	 * to fail.
+	 *
+	 *       /-\           /- PreFilter1 -\-/- Union - PostFilter1 - Reducer1 -\
+	 * Src -<   >- Union -<                X                                    >- Union - Out
+	 *       \-/           \- PreFilter2 -/-\- Union - PostFilter2 - Reducer2 -/
+	 */
+	@Test
+	public void testUnionForwardOutput() throws Exception {
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+
+		DataSet<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
+
+		DataSet<Tuple2<Long, Long>> u1 = src1.union(src1)
+			.map(new IdentityMapper<>());
+
+		DataSet<Tuple2<Long, Long>> s1 = u1
+			.filter(x -> true).name("preFilter1");
+		DataSet<Tuple2<Long, Long>> s2 = u1
+			.filter(x -> true).name("preFilter2");
+
+		DataSet<Tuple2<Long, Long>> reduced1 = s1
+			.union(s2)
+			.filter(x -> true).name("postFilter1")
+			.groupBy(0)
+			.reduceGroup(new IdentityGroupReducer<>()).name("reducer1");
+		DataSet<Tuple2<Long, Long>> reduced2 = s1
+			.union(s2)
+			.filter(x -> true).name("postFilter2")
+			.groupBy(1)
+			.reduceGroup(new IdentityGroupReducer<>()).name("reducer2");
+
+		reduced1
+			.union(reduced2)
+			.output(new DiscardingOutputFormat<>());
+
+		// -----------------------------------------------------------------------------------------
+		// Verify optimized plan
+		// -----------------------------------------------------------------------------------------
+
+		OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
+
+		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(optimizedPlan);
+
+		SingleInputPlanNode unionOut1 = resolver.getNode("postFilter1");
+		SingleInputPlanNode unionOut2 = resolver.getNode("postFilter2");
+
+		assertEquals(ShipStrategyType.FORWARD, unionOut1.getInput().getShipStrategy());
+		assertEquals(ShipStrategyType.FORWARD, unionOut2.getInput().getShipStrategy());
+	}
+
+	/**
+	 * Test the input and output shipping strategies for union operators with input and output
+	 * operators with different parallelisms.
+	 *
+	 * Src1 - Map(fullP) -\-/- Union - Map(fullP) - Out
+	 *                     X
+	 * Src2 - Map(halfP) -/-\- Union - Map(halfP) - Out
+	 *
+	 * The union operator must always have the same parallelism as its successor and connect to it
+	 * with a FORWARD strategy.
+	 * In this program, the input connections for union should be FORWARD for parallelism-preserving
+	 * connections and PARTITION_RANDOM for parallelism-changing connections.
+	 *
+	 */
+	@Test
+	public void testUnionInputOutputDifferentDOP() throws Exception {
+
+		int fullDop = DEFAULT_PARALLELISM;
+		int halfDop = DEFAULT_PARALLELISM / 2;
+
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(DEFAULT_PARALLELISM);
+
+		DataSet<Tuple2<Long, Long>> in1 = env.fromElements(new Tuple2<>(0L, 0L))
+			.map(new IdentityMapper<>()).setParallelism(fullDop).name("inDopFull");
+		DataSet<Tuple2<Long, Long>> in2 = env.fromElements(new Tuple2<>(0L, 0L))
+			.map(new IdentityMapper<>()).setParallelism(halfDop).name("inDopHalf");
+
+		DataSet<Tuple2<Long, Long>> union = in1.union(in2);
+
+		DataSet<Tuple2<Long, Long>> dopFullMap = union
+			.map(new IdentityMapper<>()).setParallelism(fullDop).name("outDopFull");
+		DataSet<Tuple2<Long, Long>> dopHalfMap = union
+			.map(new IdentityMapper<>()).setParallelism(halfDop).name("outDopHalf");
+
+		dopFullMap.output(new DiscardingOutputFormat<>());
+		dopHalfMap.output(new DiscardingOutputFormat<>());
+
+		// -----------------------------------------------------------------------------------------
+		// Verify optimized plan
+		// -----------------------------------------------------------------------------------------
+
+		OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
+
+		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(optimizedPlan);
+
+		SingleInputPlanNode inDopFull = resolver.getNode("inDopFull");
+		SingleInputPlanNode inDopHalf = resolver.getNode("inDopHalf");
+		SingleInputPlanNode outDopFull = resolver.getNode("outDopFull");
+		SingleInputPlanNode outDopHalf = resolver.getNode("outDopHalf");
+		NAryUnionPlanNode unionDopFull = (NAryUnionPlanNode) outDopFull.getInput().getSource();
+		NAryUnionPlanNode unionDopHalf = (NAryUnionPlanNode) outDopHalf.getInput().getSource();
+
+		// check in map nodes
+		assertEquals(2, inDopFull.getOutgoingChannels().size());
+		assertEquals(2, inDopHalf.getOutgoingChannels().size());
+		assertEquals(fullDop, inDopFull.getParallelism());
+		assertEquals(halfDop, inDopHalf.getParallelism());
+
+		// check union nodes
+		assertEquals(fullDop, unionDopFull.getParallelism());
+		assertEquals(halfDop, unionDopHalf.getParallelism());
+
+		// check out map nodes
+		assertEquals(fullDop, outDopFull.getParallelism());
+		assertEquals(halfDop, outDopHalf.getParallelism());
+
+		// check Union -> outMap ship strategies
+		assertEquals(ShipStrategyType.FORWARD, outDopHalf.getInput().getShipStrategy());
+		assertEquals(ShipStrategyType.FORWARD, outDopFull.getInput().getShipStrategy());
+
+		// check inMap -> Union ship strategies
+		Channel fullFull;
+		Channel fullHalf;
+		Channel halfFull;
+		Channel halfHalf;
+
+		if (inDopFull.getOutgoingChannels().get(0).getTarget() == unionDopFull) {
+			fullFull = inDopFull.getOutgoingChannels().get(0);
+			fullHalf = inDopFull.getOutgoingChannels().get(1);
+		} else {
+			fullFull = inDopFull.getOutgoingChannels().get(1);
+			fullHalf = inDopFull.getOutgoingChannels().get(0);
+		}
+		if (inDopHalf.getOutgoingChannels().get(0).getTarget() == unionDopFull) {
+			halfFull = inDopHalf.getOutgoingChannels().get(0);
+			halfHalf = inDopHalf.getOutgoingChannels().get(1);
+		} else {
+			halfFull = inDopHalf.getOutgoingChannels().get(1);
+			halfHalf = inDopHalf.getOutgoingChannels().get(0);
+		}
+
+		assertEquals(ShipStrategyType.FORWARD, fullFull.getShipStrategy());
+		assertEquals(ShipStrategyType.FORWARD, halfHalf.getShipStrategy());
+		assertEquals(ShipStrategyType.PARTITION_RANDOM, fullHalf.getShipStrategy());
+		assertEquals(ShipStrategyType.PARTITION_RANDOM, halfFull.getShipStrategy());
 	}
 
 }

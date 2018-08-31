@@ -18,17 +18,23 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,6 +43,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * deletion and creation of temporary files.
  */
 public final class FileUtils {
+
+	/** Global lock to prevent concurrent directory deletes under Windows. */
+	private static final Object WINDOWS_DELETE_LOCK = new Object();
 
 	/** The alphabet to construct the random part of the filename from. */
 	private static final char[] ALPHABET =
@@ -108,19 +117,7 @@ public final class FileUtils {
 	public static void deleteFileOrDirectory(File file) throws IOException {
 		checkNotNull(file, "file");
 
-		if (file.isDirectory()) {
-			// file exists and is directory
-			deleteDirectory(file);
-		}
-		else if (file.exists()) {
-			try {
-				Files.delete(file.toPath());
-			}
-			catch (NoSuchFileException e) {
-				// if the file is already gone (concurrently), we don't mind
-			}
-		}
-		// else: already deleted
+		guardIfWindows(FileUtils::deleteFileOrDirectoryInternal, file);
 	}
 
 	/**
@@ -138,34 +135,7 @@ public final class FileUtils {
 	public static void deleteDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
-		if (directory.isDirectory()) {
-			// directory exists and is a directory
-
-			// empty the directory first
-			try {
-				cleanDirectory(directory);
-			}
-			catch (FileNotFoundException ignored) {
-				// someone concurrently deleted the directory, nothing to do for us
-				return;
-			}
-
-			// delete the directory. this fails if the directory is not empty, meaning
-			// if new files got concurrently created. we want to fail then.
-			try {
-				Files.delete(directory.toPath());
-			}
-			catch (NoSuchFileException ignored) {
-				// if someone else deleted this concurrently, we don't mind
-				// the result is the same for us, after all
-			}
-		}
-		else if (directory.exists()) {
-			// exists but is file, not directory
-			// either an error from the caller, or concurrently a file got created
-			throw new IOException(directory + " is not a directory");
-		}
-		// else: does not exist, which is okay (as if deleted)
+		guardIfWindows(FileUtils::deleteDirectoryInternal, directory);
 	}
 
 	/**
@@ -203,6 +173,49 @@ public final class FileUtils {
 	public static void cleanDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
+		guardIfWindows(FileUtils::cleanDirectoryInternal, directory);
+	}
+
+	private static void deleteFileOrDirectoryInternal(File file) throws IOException {
+		if (file.isDirectory()) {
+			// file exists and is directory
+			deleteDirectoryInternal(file);
+		}
+		else {
+			// if the file is already gone (concurrently), we don't mind
+			Files.deleteIfExists(file.toPath());
+		}
+		// else: already deleted
+	}
+
+	private static void deleteDirectoryInternal(File directory) throws IOException {
+		if (directory.isDirectory()) {
+			// directory exists and is a directory
+
+			// empty the directory first
+			try {
+				cleanDirectoryInternal(directory);
+			}
+			catch (FileNotFoundException ignored) {
+				// someone concurrently deleted the directory, nothing to do for us
+				return;
+			}
+
+			// delete the directory. this fails if the directory is not empty, meaning
+			// if new files got concurrently created. we want to fail then.
+			// if someone else deleted the empty directory concurrently, we don't mind
+			// the result is the same for us, after all
+			Files.deleteIfExists(directory.toPath());
+		}
+		else if (directory.exists()) {
+			// exists but is file, not directory
+			// either an error from the caller, or concurrently a file got created
+			throw new IOException(directory + " is not a directory");
+		}
+		// else: does not exist, which is okay (as if deleted)
+	}
+
+	private static void cleanDirectoryInternal(File directory) throws IOException {
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
 
@@ -228,6 +241,39 @@ public final class FileUtils {
 		else {
 			// else does not exist at all
 			throw new FileNotFoundException(directory.toString());
+		}
+	}
+
+	private static void guardIfWindows(ThrowingConsumer<File, IOException> toRun, File file) throws IOException {
+		if (!OperatingSystem.isWindows()) {
+			toRun.accept(file);
+		}
+		else {
+			// for windows, we synchronize on a global lock, to prevent concurrent delete issues
+			// >
+			// in the future, we may want to find either a good way of working around file visibility
+			// in Windows under concurrent operations (the behavior seems completely unpredictable)
+			// or  make this locking more fine grained, for example  on directory path prefixes
+			synchronized (WINDOWS_DELETE_LOCK) {
+				for (int attempt = 1; attempt <= 10; attempt++) {
+					try {
+						toRun.accept(file);
+						break;
+					}
+					catch (AccessDeniedException e) {
+						// ah, windows...
+					}
+
+					// briefly wait and fall through the loop
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException e) {
+						// restore the interruption flag and error out of the method
+						Thread.currentThread().interrupt();
+						throw new IOException("operation interrupted");
+					}
+				}
+			}
 		}
 	}
 
@@ -272,6 +318,105 @@ public final class FileUtils {
 		else {
 			return false;
 		}
+	}
+
+	/**
+	 * Copies all files from source to target and sets executable flag. Paths might be on different systems.
+	 * @param sourcePath source path to copy from
+	 * @param targetPath target path to copy to
+	 * @param executable if target file should be executable
+	 * @throws IOException if the copy fails
+	 */
+	public static void copy(Path sourcePath, Path targetPath, boolean executable) throws IOException {
+		// we unwrap the file system to get raw streams without safety net
+		FileSystem sFS = FileSystem.getUnguardedFileSystem(sourcePath.toUri());
+		FileSystem tFS = FileSystem.getUnguardedFileSystem(targetPath.toUri());
+		if (!tFS.exists(targetPath)) {
+			if (sFS.getFileStatus(sourcePath).isDir()) {
+				internalCopyDirectory(sourcePath, targetPath, executable, sFS, tFS);
+			} else {
+				internalCopyFile(sourcePath, targetPath, executable, sFS, tFS);
+			}
+		}
+	}
+
+	private static void internalCopyDirectory(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		tFS.mkdirs(targetPath);
+		FileStatus[] contents = sFS.listStatus(sourcePath);
+		for (FileStatus content : contents) {
+			String distPath = content.getPath().toString();
+			if (content.isDir()) {
+				if (distPath.endsWith("/")) {
+					distPath = distPath.substring(0, distPath.length() - 1);
+				}
+			}
+			String localPath = targetPath + distPath.substring(distPath.lastIndexOf("/"));
+			copy(content.getPath(), new Path(localPath), executable);
+		}
+	}
+
+	private static void internalCopyFile(Path sourcePath, Path targetPath, boolean executable, FileSystem sFS, FileSystem tFS) throws IOException {
+		try (FSDataOutputStream lfsOutput = tFS.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE); FSDataInputStream fsInput = sFS.open(sourcePath)) {
+			IOUtils.copyBytes(fsInput, lfsOutput);
+			//noinspection ResultOfMethodCallIgnored
+			new File(targetPath.toString()).setExecutable(executable);
+		}
+	}
+
+	public static Path compressDirectory(Path directory, Path target) throws IOException {
+		FileSystem sourceFs = directory.getFileSystem();
+		FileSystem targetFs = target.getFileSystem();
+
+		try (ZipOutputStream out = new ZipOutputStream(targetFs.create(target, FileSystem.WriteMode.NO_OVERWRITE))) {
+			addToZip(directory, sourceFs, directory.getParent(), out);
+		}
+		return target;
+	}
+
+	private static void addToZip(Path fileOrDirectory, FileSystem fs, Path rootDir, ZipOutputStream out) throws IOException {
+		String relativePath = fileOrDirectory.getPath().replace(rootDir.getPath() + '/', "");
+		if (fs.getFileStatus(fileOrDirectory).isDir()) {
+			out.putNextEntry(new ZipEntry(relativePath + '/'));
+			for (FileStatus containedFile : fs.listStatus(fileOrDirectory)) {
+				addToZip(containedFile.getPath(), fs, rootDir, out);
+			}
+		} else {
+			ZipEntry entry = new ZipEntry(relativePath);
+			out.putNextEntry(entry);
+
+			try (FSDataInputStream in = fs.open(fileOrDirectory)) {
+				IOUtils.copyBytes(in, out, false);
+			}
+			out.closeEntry();
+		}
+	}
+
+	public static Path expandDirectory(Path file, Path targetDirectory) throws IOException {
+		FileSystem sourceFs = file.getFileSystem();
+		FileSystem targetFs = targetDirectory.getFileSystem();
+		Path rootDir = null;
+		try (ZipInputStream zis = new ZipInputStream(sourceFs.open(file))) {
+			ZipEntry entry;
+			while ((entry = zis.getNextEntry()) != null) {
+				Path relativePath = new Path(entry.getName());
+				if (rootDir == null) {
+					// the first entry contains the name of the original directory that was zipped
+					rootDir = relativePath;
+				}
+
+				Path newFile = new Path(targetDirectory, relativePath);
+				if (entry.isDirectory()) {
+					targetFs.mkdirs(newFile);
+				} else {
+					try (FSDataOutputStream fileStream = targetFs.create(newFile, FileSystem.WriteMode.NO_OVERWRITE)) {
+						// do not close the streams here as it prevents access to further zip entries
+						IOUtils.copyBytes(zis, fileStream, false);
+					}
+				}
+				zis.closeEntry();
+			}
+		}
+		return new Path(targetDirectory, rootDir);
 	}
 
 	// ------------------------------------------------------------------------

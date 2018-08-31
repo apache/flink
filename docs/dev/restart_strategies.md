@@ -107,9 +107,9 @@ In-between two consecutive restart attempts, the restart strategy waits a fixed 
 
 This strategy is enabled as default by setting the following configuration parameter in `flink-conf.yaml`.
 
-~~~
+{% highlight yaml %}
 restart-strategy: fixed-delay
-~~~
+{% endhighlight %}
 
 <table class="table table-bordered">
   <thead>
@@ -135,10 +135,10 @@ restart-strategy: fixed-delay
 
 For example:
 
-~~~
+{% highlight yaml %}
 restart-strategy.fixed-delay.attempts: 3
 restart-strategy.fixed-delay.delay: 10 s
-~~~
+{% endhighlight %}
 
 The fixed delay restart strategy can also be set programmatically:
 
@@ -172,9 +172,9 @@ In-between two consecutive restart attempts, the restart strategy waits a fixed 
 
 This strategy is enabled as default by setting the following configuration parameter in `flink-conf.yaml`.
 
-~~~
+{% highlight yaml %}
 restart-strategy: failure-rate
-~~~
+{% endhighlight %}
 
 <table class="table table-bordered">
   <thead>
@@ -203,11 +203,11 @@ restart-strategy: failure-rate
   </tbody>
 </table>
 
-~~~
+{% highlight yaml %}
 restart-strategy.failure-rate.max-failures-per-interval: 3
 restart-strategy.failure-rate.failure-rate-interval: 5 min
 restart-strategy.failure-rate.delay: 10 s
-~~~
+{% endhighlight %}
 
 The failure rate restart strategy can also be set programmatically:
 
@@ -240,9 +240,9 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 
 The job fails directly and no restart is attempted.
 
-~~~
+{% highlight yaml %}
 restart-strategy: none
-~~~
+{% endhighlight %}
 
 The no restart strategy can also be set programmatically:
 

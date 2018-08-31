@@ -106,7 +106,7 @@ class CorrelateTest extends TableTestBase {
 
   @Test
   def testLeftOuterJoinAsSubQuery(): Unit = {
-    val util = batchTestUtil()
+    val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.addTable[(Int, Long, String)]("MyTable2", 'a2, 'b2, 'c2)
@@ -121,13 +121,13 @@ class CorrelateTest extends TableTestBase {
         | ON c2 = s """.stripMargin
 
     val expected = binaryNode(
-      "DataSetJoin",
-      batchTableNode(1),
+      "DataStreamJoin",
+      streamTableNode(1),
       unaryNode(
-        "DataSetCalc",
+        "DataStreamCalc",
         unaryNode(
-          "DataSetCorrelate",
-          batchTableNode(0),
+          "DataStreamCorrelate",
+          streamTableNode(0),
           term("invocation", "func1($cor0.c)"),
           term("correlate", "table(func1($cor0.c))"),
           term("select", "a", "b", "c", "f0"),

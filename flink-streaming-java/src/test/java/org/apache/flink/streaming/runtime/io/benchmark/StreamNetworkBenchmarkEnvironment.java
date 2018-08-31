@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -35,7 +36,6 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
@@ -60,6 +60,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Context for network benchmarks executed by the external
@@ -67,7 +68,8 @@ import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
  */
 public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
-	private static final int BUFFER_SIZE = TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue();
+	private static final int BUFFER_SIZE =
+		checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes());
 
 	private static final int NUM_SLOTS_AND_THREADS = 1;
 
@@ -90,20 +92,51 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 	protected IOManager ioManager;
 
 	protected int channels;
+	protected boolean localMode = false;
 
 	protected ResultPartitionID[] partitionIds;
 
-	public void setUp(int writers, int channels) throws Exception {
+	/**
+	 * Sets up the environment including buffer pools and netty threads.
+	 *
+	 * @param writers
+	 * 		number of writers
+	 * @param channels
+	 * 		outgoing channels per writer
+	 * @param localMode
+	 * 		only local channels?
+	 * @param senderBufferPoolSize
+	 * 		buffer pool size for the sender (set to <tt>-1</tt> for default)
+	 * @param receiverBufferPoolSize
+	 * 		buffer pool size for the receiver (set to <tt>-1</tt> for default)
+	 */
+	public void setUp(
+			int writers,
+			int channels,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
+		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
+		if (senderBufferPoolSize == -1) {
+			senderBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
+		if (receiverBufferPoolSize == -1) {
+			receiverBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
 
-		int bufferPoolSize = Math.max(2048, writers * channels * 4);
-		senderEnv = createNettyNetworkEnvironment(bufferPoolSize);
-		receiverEnv = createNettyNetworkEnvironment(bufferPoolSize);
 		ioManager = new IOManagerAsync();
 
+		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize);
 		senderEnv.start();
-		receiverEnv.start();
+		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
+			receiverEnv = senderEnv;
+		}
+		else {
+			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize);
+			receiverEnv.start();
+		}
 
 		generatePartitionIds();
 	}
@@ -165,7 +198,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
 			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue());
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue(),
+			true);
 	}
 
 	protected ResultPartitionWriter createResultPartition(
@@ -187,15 +221,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			ioManager,
 			false);
 
-		// similar to NetworkEnvironment#registerTask()
-		int numBuffers = resultPartition.getNumberOfSubpartitions() *
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() +
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue();
-
-		BufferPool bufferPool = environment.getNetworkBufferPool().createBufferPool(channels, numBuffers);
-		resultPartition.registerBufferPool(bufferPool);
-
-		environment.getResultPartitionManager().registerResultPartition(resultPartition);
+		environment.setupPartition(resultPartition);
 
 		return resultPartition;
 	}
@@ -214,7 +240,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 			InputChannelDeploymentDescriptor[] channelDescriptors = Arrays.stream(partitionIds)
 				.map(partitionId -> new InputChannelDeploymentDescriptor(
 					partitionId,
-					ResultPartitionLocation.createRemote(new ConnectionID(senderLocation, finalChannel))))
+					localMode ? ResultPartitionLocation.createLocal() : ResultPartitionLocation.createRemote(new ConnectionID(senderLocation, finalChannel))))
 				.toArray(InputChannelDeploymentDescriptor[]::new);
 
 			final InputGateDeploymentDescriptor gateDescriptor = new InputGateDeploymentDescriptor(
@@ -232,15 +258,7 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 				new NoOpTaskActions(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
-			// similar to NetworkEnvironment#registerTask()
-			int numBuffers = gate.getNumberOfInputChannels() *
-				TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue() +
-				TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue();
-
-			BufferPool bufferPool =
-				environment.getNetworkBufferPool().createBufferPool(gate.getNumberOfInputChannels(), numBuffers);
-
-			gate.setBufferPool(bufferPool);
+			environment.setupInputGate(gate);
 			gates[channel] = gate;
 		}
 

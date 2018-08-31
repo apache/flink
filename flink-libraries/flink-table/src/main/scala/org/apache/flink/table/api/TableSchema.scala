@@ -21,6 +21,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 
 import _root_.scala.collection.mutable.ArrayBuffer
+import _root_.java.util.Objects
+
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.types.Row
 
 /**
   * A TableSchema represents a Table's structure.
@@ -28,6 +32,8 @@ import _root_.scala.collection.mutable.ArrayBuffer
 class TableSchema(
   private val columnNames: Array[String],
   private val columnTypes: Array[TypeInformation[_]]) {
+
+  private val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
   if (columnNames.length != columnTypes.length) {
     throw new TableException(
@@ -50,8 +56,6 @@ class TableSchema(
         s"List of duplicate fields: ${duplicateFields.mkString("[", ", ", "]")}.\n" +
         s"List of all fields: ${columnNames.mkString("[", ", ", "]")}.")
   }
-
-  val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
   /**
     * Returns a deep copy of the TableSchema.
@@ -92,6 +96,11 @@ class TableSchema(
   }
 
   /**
+    * Returns the number of columns.
+    */
+  def getColumnCount: Int = columnNames.length
+
+  /**
     * Returns all column names as an array.
     */
   def getColumnNames: Array[String] = columnNames
@@ -107,6 +116,33 @@ class TableSchema(
     } else {
       Some(columnNames(columnIndex))
     }
+  }
+
+  /**
+    * Converts a table schema into a schema that represents the result that would be written
+    * into a table sink or operator outside of the Table & SQL API. Time attributes are replaced
+    * by proper TIMESTAMP data types.
+    *
+    * @return a table schema with no time attributes
+    */
+  def withoutTimeAttributes: TableSchema = {
+    val converted = columnTypes.map { t =>
+      if (FlinkTypeFactory.isTimeIndicatorType(t)) {
+        Types.SQL_TIMESTAMP
+      } else {
+        t
+      }
+    }
+    new TableSchema(columnNames, converted)
+  }
+
+  /**
+    * Converts a table schema into a (nested) type information describing a [[Row]].
+    *
+    * @return type information where columns are fields of a row
+    */
+  def toRowType: TypeInformation[Row] = {
+    Types.ROW(getColumnNames, getTypes)
   }
 
   override def toString: String = {
@@ -129,6 +165,9 @@ class TableSchema(
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[TableSchema]
 
+  override def hashCode(): Int = {
+    Objects.hash(columnNames, columnTypes)
+  }
 }
 
 object TableSchema {

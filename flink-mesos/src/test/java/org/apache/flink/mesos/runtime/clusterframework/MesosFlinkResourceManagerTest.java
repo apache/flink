@@ -50,8 +50,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -213,7 +213,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 
 				highAvailabilityServices.setJobMasterLeaderRetriever(
 					HighAvailabilityServices.DEFAULT_JOB_ID,
-					new TestingLeaderRetrievalService(
+					new SettableLeaderRetrievalService(
 						jobManager.path(),
 						HighAvailabilityServices.DEFAULT_LEADER_ID));
 
@@ -245,15 +245,18 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1.0,
+				1.0, 1,
 				MesosTaskManagerParameters.ContainerType.MESOS,
 				Option.<String>empty(),
 				containeredParams,
 				Collections.<Protos.Volume>emptyList(),
+				Collections.<Protos.Parameter>emptyList(),
+				false,
 				Collections.<ConstraintEvaluator>emptyList(),
 				"",
 				Option.<String>empty(),
-				Option.<String>empty());
+				Option.<String>empty(),
+				Collections.<String>emptyList());
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(

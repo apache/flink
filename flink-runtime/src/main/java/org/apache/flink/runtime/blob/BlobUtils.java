@@ -27,13 +27,13 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +47,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.UUID;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
@@ -304,40 +303,6 @@ public class BlobUtils {
 	}
 
 	/**
-	 * Adds a shutdown hook to the JVM and returns the Thread, which has been registered.
-	 */
-	static Thread addShutdownHook(final Closeable service, final Logger logger) {
-		checkNotNull(service);
-		checkNotNull(logger);
-
-		final Thread shutdownHook = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					service.close();
-				}
-				catch (Throwable t) {
-					logger.error("Error during shutdown of blob service via JVM shutdown hook.", t);
-				}
-			}
-		});
-
-		try {
-			// Add JVM shutdown hook to call shutdown of service
-			Runtime.getRuntime().addShutdownHook(shutdownHook);
-			return shutdownHook;
-		}
-		catch (IllegalStateException e) {
-			// JVM is already shutting down. no need to do our work
-			return null;
-		}
-		catch (Throwable t) {
-			logger.error("Cannot register shutdown hook that cleanly terminates the BLOB service.");
-			return null;
-		}
-	}
-
-	/**
 	 * Auxiliary method to write the length of an upcoming data chunk to an
 	 * output stream.
 	 *
@@ -386,6 +351,28 @@ public class BlobUtils {
 		bytesRead |= (buf[3] & 0xff) << 24;
 
 		return bytesRead;
+	}
+
+	/**
+	 * Reads exception from given {@link InputStream}.
+	 *
+	 * @param in the input stream to read from
+	 * @return exception that was read
+	 * @throws IOException thrown if an I/O error occurs while reading from the input
+	 *                     stream
+	 */
+	static Throwable readExceptionFromStream(InputStream in) throws IOException {
+		int len = readLength(in);
+		byte[] bytes = new byte[len];
+		readFully(in, bytes, 0, len, "Error message");
+
+		try {
+			return (Throwable) InstantiationUtil.deserializeObject(bytes, ClassLoader.getSystemClassLoader());
+		}
+		catch (ClassNotFoundException e) {
+			// should never occur
+			throw new IOException("Could not transfer error message", e);
+		}
 	}
 
 	/**

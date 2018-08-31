@@ -194,7 +194,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 		if (serverAddress != null) {
 			log.info("Started {} @ {}.", serverName, serverAddress);
 		} else {
-			log.info("Unable to start {}. All ports in provided range are occupied.", serverName);
+			log.info("Unable to start {}. All ports in provided range ({}) are occupied.", serverName, bindPortRange);
 			throw new FlinkRuntimeException("Unable to start " + serverName + ". All ports in provided range are occupied.");
 		}
 	}

@@ -18,31 +18,45 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.junit.Test;
 
+import java.util.Random;
+
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * Tests for the {@link CheckpointOptions} class.
+ */
 public class CheckpointOptionsTest {
 
 	@Test
-	public void testFullCheckpoint() throws Exception {
-		CheckpointOptions options = CheckpointOptions.forCheckpoint();
+	public void testDefaultCheckpoint() throws Exception {
+		final CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
 		assertEquals(CheckpointType.CHECKPOINT, options.getCheckpointType());
-		assertNull(options.getTargetLocation());
+		assertTrue(options.getTargetLocation().isDefaultReference());
+
+		final CheckpointOptions copy = CommonTestUtils.createCopySerializable(options);
+		assertEquals(CheckpointType.CHECKPOINT, copy.getCheckpointType());
+		assertTrue(copy.getTargetLocation().isDefaultReference());
 	}
 
 	@Test
 	public void testSavepoint() throws Exception {
-		String location = "asdasdadasdasdja7931481398123123123kjhasdkajsd";
-		CheckpointOptions options = CheckpointOptions.forSavepoint(location);
-		assertEquals(CheckpointType.SAVEPOINT, options.getCheckpointType());
-		assertEquals(location, options.getTargetLocation());
-	}
+		final Random rnd = new Random();
+		final byte[] locationBytes = new byte[rnd.nextInt(41) + 1];
+		rnd.nextBytes(locationBytes);
 
-	@Test(expected = NullPointerException.class)
-	public void testSavepointNullCheck() throws Exception {
-		CheckpointOptions.forSavepoint(null);
+		final CheckpointOptions options = new CheckpointOptions(
+				CheckpointType.values()[rnd.nextInt(CheckpointType.values().length)],
+				new CheckpointStorageLocationReference(locationBytes));
+
+		final CheckpointOptions copy = CommonTestUtils.createCopySerializable(options);
+		assertEquals(options.getCheckpointType(), copy.getCheckpointType());
+		assertArrayEquals(locationBytes, copy.getTargetLocation().getReferenceBytes());
 	}
 }

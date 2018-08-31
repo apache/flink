@@ -28,8 +28,11 @@ import java.util.ArrayList;
  *
  * @param <IN>
  *            Input tuple type
+ *
+ * @deprecated Please use the {@code BucketingSink} for writing to files from a streaming program.
  */
 @PublicEvolving
+@Deprecated
 public abstract class WriteFormat<IN> implements Serializable {
 	private static final long serialVersionUID = 1L;
 

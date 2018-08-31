@@ -249,10 +249,12 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "UPPER(c) AS k")
+            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
+            // Calcite planner doesn't promise to retain field names.
+            term("select", "a", "c", "UPPER(c) AS $f2")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "$f2"),
+          term("select", "$f2", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
@@ -274,10 +276,12 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "MyHashCode$(c) AS k")
+            // As stated in https://issues.apache.org/jira/browse/CALCITE-1584
+            // Calcite planner doesn't promise to retain field names.
+            term("select", "a", "c", "MyHashCode$(c) AS $f2")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "$f2"),
+          term("select", "$f2", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
@@ -305,6 +309,25 @@ class CalcTest extends TableTestBase {
         term("select", "word, TMP_0 AS frequency"),
         term("where", "=(TMP_0, 2)")
       )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testMultiFilter(): Unit = {
+    val util = batchTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val resultTable = sourceTable.select('a, 'b)
+      .filter('a > 0)
+      .filter('b < 2)
+      .filter(('a % 2) === 1)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a", "b"),
+      term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
+    )
 
     util.verifyTable(resultTable, expected)
   }

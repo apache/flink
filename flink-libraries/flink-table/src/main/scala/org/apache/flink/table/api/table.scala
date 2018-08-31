@@ -66,7 +66,7 @@ class Table(
 
   // Check if the plan has an unbounded TableFunctionCall as child node.
   //   A TableFunctionCall is tolerated as root node because the Table holds the initial call.
-  if (containsUnboudedUDTFCall(logicalPlan) &&
+  if (containsUnboundedUDTFCall(logicalPlan) &&
     !logicalPlan.isInstanceOf[LogicalTableFunctionCall]) {
     throw new ValidationException("TableFunction can only be used in join and leftOuterJoin.")
   }
@@ -87,7 +87,7 @@ class Table(
 
   def relBuilder: FlinkRelBuilder = tableEnv.getRelBuilder
 
-  def getRelNode: RelNode = if (containsUnboudedUDTFCall(logicalPlan)) {
+  def getRelNode: RelNode = if (containsUnboundedUDTFCall(logicalPlan)) {
     throw new ValidationException("Cannot translate a query with an unbounded table function call.")
   } else {
     logicalPlan.toRelNode(relBuilder)
@@ -504,7 +504,7 @@ class Table(
   private def join(right: Table, joinPredicate: Option[Expression], joinType: JoinType): Table = {
 
     // check if we join with a table or a table function
-    if (!containsUnboudedUDTFCall(right.logicalPlan)) {
+    if (!containsUnboundedUDTFCall(right.logicalPlan)) {
       // regular table-table join
 
       // check that the TableEnvironment of right table is not null
@@ -971,11 +971,11 @@ class Table(
     * @param n the node to check
     * @return true if the plan contains an unbounded UDTF call, false otherwise.
     */
-  private def containsUnboudedUDTFCall(n: LogicalNode): Boolean = {
+  private def containsUnboundedUDTFCall(n: LogicalNode): Boolean = {
     n match {
       case functionCall: LogicalTableFunctionCall if functionCall.child == null => true
-      case u: UnaryNode => containsUnboudedUDTFCall(u.child)
-      case b: BinaryNode => containsUnboudedUDTFCall(b.left) || containsUnboudedUDTFCall(b.right)
+      case u: UnaryNode => containsUnboundedUDTFCall(u.child)
+      case b: BinaryNode => containsUnboundedUDTFCall(b.left) || containsUnboundedUDTFCall(b.right)
       case _: LeafNode => false
     }
   }

@@ -20,11 +20,15 @@
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
-RELEASE_VERSION=${RELEASE_VERSION:-1.3-SNAPSHOT}
 SCALA_VERSION=none
 HADOOP_VERSION=none
 SKIP_GPG=${SKIP_GPG:-false}
 MVN=${MVN:-mvn}
+
+if [ -z "${RELEASE_VERSION}" ]; then
+    echo "RELEASE_VERSION was not set."
+    exit 1
+fi
 
 # fail immediately
 set -o errexit
@@ -40,11 +44,15 @@ fi
 
 if [ "$(uname)" == "Darwin" ]; then
     SHASUM="shasum -a 512"
-    MD5SUM="md5 -r"
 else
     SHASUM="sha512sum"
-    MD5SUM="md5sum"
 fi
+
+cd ..
+
+FLINK_DIR=`pwd`
+RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
+mkdir -p ${RELEASE_DIR}
 
 ###########################
 
@@ -62,24 +70,22 @@ make_binary_release() {
   fi
 
   # enable release profile here (to check for the maven version)
-  $MVN clean package $FLAGS -DskipTests -Prelease,scala-${SCALA_VERSION} -Dgpg.skip
+  $MVN clean package $FLAGS -Prelease -pl flink-shaded-hadoop/flink-shaded-hadoop2-uber,flink-dist -am -Dgpg.skip -Dcheckstyle.skip=true -DskipTests -Dmaven.test.skip=true
 
   cd flink-dist/target/flink-*-bin/
   tar czf "${dir_name}.tgz" flink-*
 
-  cp flink-*.tgz ../../../
-  cd ../../../
+  cp flink-*.tgz ${RELEASE_DIR}
+  cd ${RELEASE_DIR}
 
-  # Sign md5 and sha the tgz
+  # Sign sha the tgz
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${dir_name}.tgz"
   fi
-  $MD5SUM "${dir_name}.tgz" > "${dir_name}.tgz.md5"
-  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha"
+  $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha512"
+
+  cd ${FLINK_DIR}
 }
-
-cd ..
-
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
   make_binary_release "" "-DwithoutHadoop" "2.11"

@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
@@ -39,7 +42,10 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.Optional;
 
+import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -53,6 +59,8 @@ public class TaskManagerServicesConfiguration {
 	private final InetAddress taskManagerAddress;
 
 	private final String[] tmpDirPaths;
+
+	private final String[] localRecoveryStateRootDirectories;
 
 	private final int numberOfSlots;
 
@@ -75,9 +83,17 @@ public class TaskManagerServicesConfiguration {
 
 	private final long timerServiceShutdownTimeout;
 
+	private final boolean localRecoveryEnabled;
+
+	private boolean systemResourceMetricsEnabled;
+
+	private Optional<Time> systemResourceMetricsProbingInterval;
+
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
+			String[] localRecoveryStateRootDirectories,
+			boolean localRecoveryEnabled,
 			NetworkEnvironmentConfiguration networkConfig,
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -85,10 +101,13 @@ public class TaskManagerServicesConfiguration {
 			MemoryType memoryType,
 			boolean preAllocateMemory,
 			float memoryFraction,
-			long timerServiceShutdownTimeout) {
+			long timerServiceShutdownTimeout,
+			Optional<Time> systemResourceMetricsProbingInterval) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
+		this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+		this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -101,6 +120,9 @@ public class TaskManagerServicesConfiguration {
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
+
+		this.systemResourceMetricsEnabled = systemResourceMetricsEnabled;
+		this.systemResourceMetricsProbingInterval = checkNotNull(systemResourceMetricsProbingInterval);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -113,6 +135,14 @@ public class TaskManagerServicesConfiguration {
 
 	public String[] getTmpDirPaths() {
 		return tmpDirPaths;
+	}
+
+	public String[] getLocalRecoveryStateRootDirectories() {
+		return localRecoveryStateRootDirectories;
+	}
+
+	public boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() {
@@ -159,6 +189,10 @@ public class TaskManagerServicesConfiguration {
 		return timerServiceShutdownTimeout;
 	}
 
+	public Optional<Time> getSystemResourceMetricsProbingInterval() {
+		return systemResourceMetricsProbingInterval;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Parsing of Flink configuration
 	// --------------------------------------------------------------------------------------------
@@ -179,12 +213,22 @@ public class TaskManagerServicesConfiguration {
 			boolean localCommunication) throws Exception {
 
 		// we need this because many configs have been written with a "-1" entry
-		int slots = configuration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1);
+		int slots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 		if (slots == -1) {
 			slots = 1;
 		}
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+		String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
+
+		if (localStateRootDir.length == 0) {
+			// default to temp dirs.
+			localStateRootDir = tmpDirs;
+		}
+
+		boolean localRecoveryMode = configuration.getBoolean(
+			CheckpointingOptions.LOCAL_RECOVERY.key(),
+			CheckpointingOptions.LOCAL_RECOVERY.defaultValue());
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
@@ -196,9 +240,21 @@ public class TaskManagerServicesConfiguration {
 				parseQueryableStateConfiguration(configuration);
 
 		// extract memory settings
-		long configuredMemory = configuration.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		long configuredMemory;
+		String managedMemorySizeDefaultVal = TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue();
+		if (!configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(managedMemorySizeDefaultVal)) {
+			try {
+				configuredMemory = MemorySize.parse(configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE), MEGA_BYTES).getMebiBytes();
+			} catch (IllegalArgumentException e) {
+				throw new IllegalConfigurationException(
+					"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+			}
+		} else {
+			configuredMemory = Long.valueOf(managedMemorySizeDefaultVal);
+		}
+
 		checkConfigParameter(
-			configuredMemory == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue() ||
+			configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) ||
 				configuredMemory > 0, configuredMemory,
 			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
@@ -225,6 +281,8 @@ public class TaskManagerServicesConfiguration {
 		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
+			localStateRootDir,
+			localRecoveryMode,
 			networkConfig,
 			queryableStateConfig,
 			slots,
@@ -232,7 +290,8 @@ public class TaskManagerServicesConfiguration {
 			memType,
 			preAllocateMemory,
 			memoryFraction,
-			timerServiceShutdownTimeout);
+			timerServiceShutdownTimeout,
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 	}
 
 	// --------------------------------------------------------------------------
@@ -257,16 +316,15 @@ public class TaskManagerServicesConfiguration {
 
 		// ----> hosts / ports for communication and data exchange
 
-		int dataport = configuration.getInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT);
+		int dataport = configuration.getInteger(TaskManagerOptions.DATA_PORT);
 
-		checkConfigParameter(dataport >= 0, dataport, ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
+		checkConfigParameter(dataport >= 0, dataport, TaskManagerOptions.DATA_PORT.key(),
 			"Leave config parameter empty or use 0 to let the system choose a port automatically.");
 
-		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
+		checkConfigParameter(slots >= 1, slots, TaskManagerOptions.NUM_TASK_SLOTS.key(),
 			"Number of task slots must be at least one.");
 
-		final int pageSize = configuration.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
+		final int pageSize = checkedDownCast(MemorySize.parse(configuration.getString(TaskManagerOptions.MEMORY_SEGMENT_SIZE)).getBytes());
 
 		// check page size of for minimum size
 		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
@@ -281,8 +339,8 @@ public class TaskManagerServicesConfiguration {
 		// network buffer memory fraction
 
 		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufMin = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
-		long networkBufMax = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
+		long networkBufMin = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
+		long networkBufMax = MemorySize.parse(configuration.getString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
 		checkNetworkBufferConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
 
 		// fallback: number of network buffers
@@ -413,11 +471,9 @@ public class TaskManagerServicesConfiguration {
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
 
 		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
-						QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.PROXY_PORT_RANGE));
 		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
-				config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
-						QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
+				config.getString(QueryableStateOptions.SERVER_PORT_RANGE));
 
 		final int numProxyServerNetworkThreads = config.getInteger(QueryableStateOptions.PROXY_NETWORK_THREADS);
 		final int numProxyServerQueryThreads = config.getInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS);

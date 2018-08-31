@@ -91,19 +91,22 @@ public class ExecutionGraphCache implements Closeable {
 
 			if (oldEntry != null) {
 				if (currentTime < oldEntry.getTTL()) {
-					if (oldEntry.getExecutionGraphFuture().isDone() && !oldEntry.getExecutionGraphFuture().isCompletedExceptionally()) {
+					final CompletableFuture<AccessExecutionGraph> executionGraphFuture = oldEntry.getExecutionGraphFuture();
+					if (executionGraphFuture.isDone() && !executionGraphFuture.isCompletedExceptionally()) {
 
 						// TODO: Remove once we no longer request the actual ExecutionGraph from the JobManager but only the ArchivedExecutionGraph
 						try {
-							if (oldEntry.getExecutionGraphFuture().get().getState() != JobStatus.SUSPENDED) {
-								return oldEntry.getExecutionGraphFuture();
+							final AccessExecutionGraph executionGraph = executionGraphFuture.get();
+							if (executionGraph.getState() != JobStatus.SUSPENDING &&
+								executionGraph.getState() != JobStatus.SUSPENDED) {
+								return executionGraphFuture;
 							}
 							// send a new request to get the ExecutionGraph from the new leader
 						} catch (InterruptedException | ExecutionException e) {
 							throw new RuntimeException("Could not retrieve ExecutionGraph from the orderly completed future. This should never happen.", e);
 						}
-					} else if (!oldEntry.getExecutionGraphFuture().isDone()) {
-						return oldEntry.getExecutionGraphFuture();
+					} else if (!executionGraphFuture.isDone()) {
+						return executionGraphFuture;
 					}
 					// otherwise it must be completed exceptionally
 				}
@@ -122,7 +125,7 @@ public class ExecutionGraphCache implements Closeable {
 			}
 
 			if (successfulUpdate) {
-				final CompletableFuture<AccessExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
+				final CompletableFuture<? extends AccessExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
 
 				executionGraphFuture.whenComplete(
 					(AccessExecutionGraph executionGraph, Throwable throwable) -> {
@@ -135,7 +138,8 @@ public class ExecutionGraphCache implements Closeable {
 							newEntry.getExecutionGraphFuture().complete(executionGraph);
 
 							// TODO: Remove once we no longer request the actual ExecutionGraph from the JobManager but only the ArchivedExecutionGraph
-							if (executionGraph.getState() == JobStatus.SUSPENDED) {
+							if (executionGraph.getState() == JobStatus.SUSPENDING ||
+								executionGraph.getState() == JobStatus.SUSPENDED) {
 								// remove the entry in case of suspension --> triggers new request when accessed next time
 								cachedExecutionGraphs.remove(jobId, newEntry);
 							}

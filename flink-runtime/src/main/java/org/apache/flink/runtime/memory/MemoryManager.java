@@ -176,6 +176,15 @@ public class MemoryManager {
 			default:
 				throw new IllegalArgumentException("unrecognized memory type: " + memoryType);
 		}
+
+		LOG.debug("Initialized MemoryManager with total memory size {}, number of slots {}, page size {}, " +
+				"memory type {}, pre allocate memory {} and number of non allocated pages {}.",
+			memorySize,
+			numberOfSlots,
+			pageSize,
+			memoryType,
+			preAllocateMemory,
+			numNonAllocatedPages);
 	}
 
 	// ------------------------------------------------------------------------
@@ -568,7 +577,7 @@ public class MemoryManager {
 	 * @return The number of pages corresponding to the memory fraction.
 	 */
 	public long computeMemorySize(double fraction) {
-		return pageSize * computeNumberOfPages(fraction);
+		return pageSize * (long) computeNumberOfPages(fraction);
 	}
 
 	/**

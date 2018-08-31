@@ -27,7 +27,7 @@ import org.apache.flink.table.expressions.{Expression, ResolvedFieldReference}
   *
   * Note: This extractor only works for StreamTableSources.
   */
-class StreamRecordTimestamp extends TimestampExtractor {
+final class StreamRecordTimestamp extends TimestampExtractor {
 
   /** No argument fields required. */
   override def getArgumentFields: Array[String] = Array()
@@ -43,4 +43,16 @@ class StreamRecordTimestamp extends TimestampExtractor {
     org.apache.flink.table.expressions.StreamRecordTimestamp()
   }
 
+  override def equals(obj: Any): Boolean = obj match {
+    case _: StreamRecordTimestamp => true
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    classOf[StreamRecordTimestamp].hashCode()
+  }
+}
+
+object StreamRecordTimestamp {
+  val INSTANCE: StreamRecordTimestamp = new StreamRecordTimestamp
 }

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 
 import java.io.Serializable;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A function to trigger Async I/O operation.
@@ -84,4 +85,17 @@ public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	 * trigger fail-over process.
 	 */
 	void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception;
+
+	/**
+	 * {@link AsyncFunction#asyncInvoke} timeout occurred.
+	 * By default, the result future is exceptionally completed with a timeout exception.
+	 *
+	 * @param input element coming from an upstream task
+	 * @param resultFuture to be completed with the result data
+	 */
+	default void timeout(IN input, ResultFuture<OUT> resultFuture) throws Exception {
+		resultFuture.completeExceptionally(
+			new TimeoutException("Async function call has timed out."));
+	}
+
 }

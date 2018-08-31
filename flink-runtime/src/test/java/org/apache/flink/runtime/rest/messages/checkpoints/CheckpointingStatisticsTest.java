@@ -122,6 +122,20 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			true,
 			"foobar");
 
+		CheckpointStatistics.PendingCheckpointStatistics pending = new CheckpointStatistics.PendingCheckpointStatistics(
+			5L,
+			CheckpointStatsStatus.IN_PROGRESS,
+			false,
+			42L,
+			41L,
+			1337L,
+			1L,
+			0L,
+			10,
+			10,
+			Collections.emptyMap()
+		);
+
 		final CheckpointingStatistics.LatestCheckpoints latestCheckpoints = new CheckpointingStatistics.LatestCheckpoints(
 			completed,
 			savepoint,
@@ -132,6 +146,6 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			counts,
 			summary,
 			latestCheckpoints,
-			Arrays.asList(completed, savepoint, failed));
+			Arrays.asList(completed, savepoint, failed, pending));
 	}
 }

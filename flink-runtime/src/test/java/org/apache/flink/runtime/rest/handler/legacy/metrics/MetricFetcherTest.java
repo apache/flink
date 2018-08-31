@@ -108,7 +108,7 @@ public class MetricFetcherTest extends TestLogger {
 		when(queryServiceRetriever.retrieveService(eq(tmMetricQueryServicePath))).thenReturn(CompletableFuture.completedFuture(tmQueryService));
 
 		// ========= start MetricFetcher testing =======================================================================
-		MetricFetcher fetcher = new MetricFetcher(
+		MetricFetcher fetcher = new MetricFetcher<>(
 			retriever,
 			queryServiceRetriever,
 			Executors.directExecutor(),

@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A storage location for checkpoints on a file system.
  */
-public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
+public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory implements CheckpointStorageLocation {
 
 	private final FileSystem fileSystem;
 
@@ -42,22 +45,30 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 
 	private final Path metadataFilePath;
 
-	private final String qualifiedCheckpointDirectory;
+	private final CheckpointStorageLocationReference reference;
+
+	private final int fileStateSizeThreshold;
 
 	public FsCheckpointStorageLocation(
 			FileSystem fileSystem,
 			Path checkpointDir,
 			Path sharedStateDir,
-			Path taskOwnedStateDir) {
+			Path taskOwnedStateDir,
+			CheckpointStorageLocationReference reference,
+			int fileStateSizeThreshold) {
+
+		super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold);
+
+		checkArgument(fileStateSizeThreshold >= 0);
 
 		this.fileSystem = checkNotNull(fileSystem);
 		this.checkpointDirectory = checkNotNull(checkpointDir);
 		this.sharedStateDirectory = checkNotNull(sharedStateDir);
 		this.taskOwnedStateDirectory = checkNotNull(taskOwnedStateDir);
+		this.reference = checkNotNull(reference);
 
 		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
-
-		this.qualifiedCheckpointDirectory = checkpointDir.makeQualified(fileSystem).toString();
+		this.fileStateSizeThreshold = fileStateSizeThreshold;
 	}
 
 	// ------------------------------------------------------------------------
@@ -85,13 +96,8 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CheckpointStateOutputStream createMetadataOutputStream() throws IOException {
-		return new FixFileFsStateOutputStream(fileSystem, metadataFilePath);
-	}
-
-	@Override
-	public String markCheckpointAsFinished() throws IOException {
-		return qualifiedCheckpointDirectory;
+	public CheckpointMetadataOutputStream createMetadataOutputStream() throws IOException {
+		return new FsCheckpointMetadataOutputStream(fileSystem, metadataFilePath, checkpointDirectory);
 	}
 
 	@Override
@@ -102,8 +108,8 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 	}
 
 	@Override
-	public String getLocationAsPointer() {
-		return qualifiedCheckpointDirectory;
+	public CheckpointStorageLocationReference getLocationReference() {
+		return reference;
 	}
 
 	// ------------------------------------------------------------------------
@@ -113,10 +119,18 @@ public class FsCheckpointStorageLocation implements CheckpointStorageLocation {
 	@Override
 	public String toString() {
 		return "FsCheckpointStorageLocation {" +
-				"metadataFilePath=" + metadataFilePath +
-				", taskOwnedStateDirectory=" + taskOwnedStateDirectory +
-				", sharedStateDirectory=" + sharedStateDirectory +
+				"fileSystem=" + fileSystem +
 				", checkpointDirectory=" + checkpointDirectory +
+				", sharedStateDirectory=" + sharedStateDirectory +
+				", taskOwnedStateDirectory=" + taskOwnedStateDirectory +
+				", metadataFilePath=" + metadataFilePath +
+				", reference=" + reference +
+				", fileStateSizeThreshold=" + fileStateSizeThreshold +
 				'}';
+	}
+
+	@VisibleForTesting
+	FileSystem getFileSystem() {
+		return fileSystem;
 	}
 }

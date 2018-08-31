@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.taskmanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
@@ -34,7 +35,10 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessagePara
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMetricsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.annotation.Nonnull;
 
@@ -42,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Handler which serves detailed TaskManager information.
@@ -94,7 +99,22 @@ public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<Restfu
 				return new TaskManagerDetailsInfo(
 					taskManagerInfo,
 					taskManagerMetricsInfo);
-			});
+			})
+			.exceptionally(
+				(Throwable throwable) -> {
+					final Throwable strippedThrowable = ExceptionUtils.stripExecutionException(throwable);
+
+					if (strippedThrowable instanceof UnknownTaskExecutorException) {
+						throw new CompletionException(
+							new RestHandlerException(
+								"Could not find TaskExecutor " + taskManagerResourceId + '.',
+								HttpResponseStatus.NOT_FOUND,
+								strippedThrowable));
+					} else {
+						throw new CompletionException(strippedThrowable);
+					}
+				}
+			);
 	}
 
 	private static TaskManagerMetricsInfo createTaskManagerMetricsInfo(MetricStore.TaskManagerMetricStore tmMetrics) {

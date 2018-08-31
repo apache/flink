@@ -78,16 +78,18 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 	private ExecutionGraph createExecutionGraphAndEnableCheckpointing(
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
+		final Time timeout = Time.days(1L);
 		ExecutionGraph executionGraph = new ExecutionGraph(
 			new DummyJobInformation(),
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			Time.days(1L),
+			timeout,
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			ClassLoader.getSystemClassLoader(),
-			VoidBlobWriter.getInstance());
+			VoidBlobWriter.getInstance(),
+			timeout);
 
 		executionGraph.enableCheckpointing(
 				100,

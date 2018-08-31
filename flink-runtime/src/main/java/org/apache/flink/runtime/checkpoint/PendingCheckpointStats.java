@@ -140,10 +140,10 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	/**
 	 * Reports a successfully completed pending checkpoint.
 	 *
-	 * @param externalPath Optional external storage path if checkpoint was externalized.
+	 * @param externalPointer Optional external storage path if checkpoint was externalized.
 	 * @return Callback for the {@link CompletedCheckpoint} instance to notify about disposal.
 	 */
-	CompletedCheckpointStats.DiscardCallback reportCompletedCheckpoint(@Nullable String externalPath) {
+	CompletedCheckpointStats.DiscardCallback reportCompletedCheckpoint(String externalPointer) {
 		CompletedCheckpointStats completed = new CompletedCheckpointStats(
 			checkpointId,
 			triggerTimestamp,
@@ -154,7 +154,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 			currentStateSize,
 			currentAlignmentBuffered,
 			latestAcknowledgedSubtask,
-			externalPath);
+				externalPointer);
 
 		trackerCallback.reportCompletedCheckpoint(completed);
 

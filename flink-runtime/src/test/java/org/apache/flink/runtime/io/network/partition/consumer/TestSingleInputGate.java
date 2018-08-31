@@ -60,7 +60,8 @@ public class TestSingleInputGate {
 			0,
 			numberOfInputChannels,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
 
 		this.inputGate = spy(realGate);
 
@@ -97,7 +98,7 @@ public class TestSingleInputGate {
 		if (initialize) {
 			for (int i = 0; i < numberOfInputChannels; i++) {
 				inputChannels[i] = new TestInputChannel(inputGate, i);
-				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i].getInputChannel());
+				inputGate.setInputChannel(new IntermediateResultPartitionID(), inputChannels[i]);
 			}
 		}
 	}

@@ -27,6 +27,8 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
+import javax.annotation.Nullable;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -143,7 +145,7 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, String entryPointClassName, String... args) throws ProgramInvocationException {
+	public PackagedProgram(File jarFile, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		this(jarFile, Collections.<URL>emptyList(), entryPointClassName, args);
 	}
 
@@ -166,7 +168,7 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
-	public PackagedProgram(File jarFile, List<URL> classpaths, String entryPointClassName, String... args) throws ProgramInvocationException {
+	public PackagedProgram(File jarFile, List<URL> classpaths, @Nullable String entryPointClassName, String... args) throws ProgramInvocationException {
 		if (jarFile == null) {
 			throw new IllegalArgumentException("The jar file must not be null.");
 		}
@@ -221,7 +223,7 @@ public class PackagedProgram {
 		}
 	}
 
-	PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
+	public PackagedProgram(Class<?> entryPointClass, String... args) throws ProgramInvocationException {
 		this.jarFile = null;
 		this.args = args == null ? new String[0] : args;
 
@@ -292,7 +294,7 @@ public class PackagedProgram {
 			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-				" for a program that is using the interactive mode.");
+				" for a program that is using the interactive mode.", getPlan().getJobId());
 		}
 	}
 
@@ -307,7 +309,7 @@ public class PackagedProgram {
 			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
 		} else {
 			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-					" for a program that is using the interactive mode.");
+					" for a program that is using the interactive mode.", getPlan().getJobId());
 		}
 	}
 
@@ -339,12 +341,12 @@ public class PackagedProgram {
 			}
 			catch (Throwable t) {
 				// the invocation gets aborted with the preview plan
-				if (env.previewPlan != null) {
-					previewPlan = env.previewPlan;
-				} else if (env.preview != null) {
-					return env.preview;
-				} else {
-					throw new ProgramInvocationException("The program caused an error: ", t);
+				if (env.previewPlan == null) {
+					if (env.preview != null) {
+						return env.preview;
+					} else {
+						throw new ProgramInvocationException("The program caused an error: ", getPlan().getJobId(), t);
+					}
 				}
 			}
 			finally {
@@ -355,7 +357,8 @@ public class PackagedProgram {
 				previewPlan =  env.previewPlan;
 			} else {
 				throw new ProgramInvocationException(
-						"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.",
+					getPlan().getJobId());
 			}
 		}
 		else {
@@ -380,6 +383,7 @@ public class PackagedProgram {
 	 *         This invocation is thrown if the Program can't be properly loaded. Causes
 	 *         may be a missing / wrong class or manifest files.
 	 */
+	@Nullable
 	public String getDescription() throws ProgramInvocationException {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
 
@@ -692,7 +696,9 @@ public class PackagedProgram {
 					for (int i = 0; i < containedJarFileEntries.size(); i++) {
 						final JarEntry entry = containedJarFileEntries.get(i);
 						String name = entry.getName();
-						name = name.replace(File.separatorChar, '_');
+						// '/' as in case of zip, jar
+						// java.util.zip.ZipEntry#isDirectory always looks only for '/' not for File.separator
+						name = name.replace('/', '_');
 
 						File tempFile;
 						try {

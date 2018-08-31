@@ -55,7 +55,7 @@ public class StreamNetworkPointToPointBenchmark {
 		value.setValue(records);
 		recordWriter.broadcastEmit(value);
 		if (flushAfterLastEmit) {
-			recordWriter.flush();
+			recordWriter.flushAll();
 		}
 
 		recordsReceived.get(RECEIVER_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -70,7 +70,7 @@ public class StreamNetworkPointToPointBenchmark {
 	 */
 	public void setUp(long flushTimeout) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(1, 1);
+		environment.setUp(1, 1, false, -1, -1);
 
 		receiver = environment.createReceiver();
 		recordWriter = environment.createRecordWriter(0, flushTimeout);

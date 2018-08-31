@@ -495,7 +495,7 @@ The most basic way is to implement one of the provided interfaces:
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 data.map(new MyMapFunction());
 {% endhighlight %}
 
@@ -510,7 +510,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambdas
 
-Flink also supports Java 8 Lambdas in the Java API. Please see the full [Java 8 Guide]({{ site.baseurl }}/dev/java8.html).
+Flink also supports Java 8 Lambdas in the Java API.
 
 {% highlight java %}
 data.filter(s -> s.startsWith("http://"));
@@ -528,7 +528,7 @@ instead take as argument a *rich* function. For example, instead of
 {% highlight java %}
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 you can write
@@ -536,7 +536,7 @@ you can write
 {% highlight java %}
 class MyMapFunction extends RichMapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-});
+};
 {% endhighlight %}
 
 and pass the function as usual to a `map` transformation:
@@ -586,7 +586,7 @@ you can write
 {% highlight scala %}
 class MyMapFunction extends RichMapFunction[String, Int] {
   def map(in: String):Int = { in.toInt }
-})
+};
 {% endhighlight %}
 
 and pass the function to a `map` transformation:
@@ -895,4 +895,3 @@ result type ```R``` for the final result. E.g. for a histogram, ```V``` is a num
  a histogram. ```SimpleAccumulator``` is for the cases where both types are the same, e.g. for counters.
 
 {% top %}
-

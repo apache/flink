@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
@@ -29,34 +31,53 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 
 /**
- * Heap-backed partitioned {@link org.apache.flink.api.common.state.ReducingState} that is
- * snapshotted into files.
+ * Heap-backed partitioned {@link ReducingState} that is snapshotted into files.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapReducingState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>, ReducingStateDescriptor<V>>
-		implements InternalReducingState<N, V> {
+class HeapReducingState<K, N, V>
+	extends AbstractHeapMergingState<K, N, V, V, V>
+	implements InternalReducingState<K, N, V> {
 
 	private final ReduceTransformation<V> reduceTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param stateTable The state table to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
+	 * @param reduceFunction The reduce function used for reducing state.
 	 */
-	public HeapReducingState(
-			ReducingStateDescriptor<V> stateDesc,
-			StateTable<K, N, V> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+	private HeapReducingState(
+		StateTable<K, N, V> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<V> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		V defaultValue,
+		ReduceFunction<V> reduceFunction) {
 
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.reduceTransformation = new ReduceTransformation<>(stateDesc.getReduceFunction());
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
+		this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
+	}
+
+	@Override
+	public TypeSerializer<K> getKeySerializer() {
+		return keySerializer;
+	}
+
+	@Override
+	public TypeSerializer<N> getNamespaceSerializer() {
+		return namespaceSerializer;
+	}
+
+	@Override
+	public TypeSerializer<V> getValueSerializer() {
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------
@@ -65,7 +86,7 @@ public class HeapReducingState<K, N, V>
 
 	@Override
 	public V get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override
@@ -104,5 +125,19 @@ public class HeapReducingState<K, N, V>
 		public V apply(V previousState, V value) throws Exception {
 			return previousState != null ? reduceFunction.reduce(previousState, value) : value;
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapReducingState<>(
+			stateTable,
+			keySerializer,
+			stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			stateDesc.getDefaultValue(),
+			((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
 	}
 }

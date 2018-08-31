@@ -69,6 +69,16 @@ public class MasterHooksTest extends TestLogger {
 				return id;
 			}
 
+			@Override
+			public void reset() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
+			@Override
+			public void close() throws Exception {
+				assertEquals(userClassLoader, Thread.currentThread().getContextClassLoader());
+			}
+
 			@Nullable
 			@Override
 			public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception {
@@ -114,6 +124,11 @@ public class MasterHooksTest extends TestLogger {
 		// verify createCheckpointDataSerializer
 		wrapped.createCheckpointDataSerializer();
 		verify(hook, times(1)).createCheckpointDataSerializer();
+		assertEquals(originalClassLoader, thread.getContextClassLoader());
+
+		// verify close
+		wrapped.close();
+		verify(hook, times(1)).close();
 		assertEquals(originalClassLoader, thread.getContextClassLoader());
 	}
 

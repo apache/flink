@@ -42,23 +42,26 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 	private static final Logger LOG = LoggerFactory.getLogger(Slf4jReporter.class);
 	private static final String lineSeparator = System.lineSeparator();
 
+	// the initial size roughly fits ~150 metrics with default scope settings
+	private int previousSize = 16384;
+
 	@VisibleForTesting
-	public Map<Gauge<?>, String> getGauges() {
+	Map<Gauge<?>, String> getGauges() {
 		return gauges;
 	}
 
 	@VisibleForTesting
-	public Map<Counter, String> getCounters() {
+	Map<Counter, String> getCounters() {
 		return counters;
 	}
 
 	@VisibleForTesting
-	public Map<Histogram, String> getHistograms() {
+	Map<Histogram, String> getHistograms() {
 		return histograms;
 	}
 
 	@VisibleForTesting
-	public Map<Meter, String> getMeters() {
+	Map<Meter, String> getMeters() {
 		return meters;
 	}
 
@@ -72,7 +75,10 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public void report() {
-		StringBuilder builder = new StringBuilder();
+		// initialize with previous size to avoid repeated resizing of backing array
+		// pad the size to allow deviations in the final string, for example due to different double value representations
+		StringBuilder builder = new StringBuilder((int) (previousSize * 1.1));
+
 		builder
 			.append(lineSeparator)
 			.append("=========================== Starting metrics report ===========================")
@@ -134,6 +140,8 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 			.append("=========================== Finished metrics report ===========================")
 			.append(lineSeparator);
 		LOG.info(builder.toString());
+
+		previousSize = builder.length();
 	}
 
 	@Override

@@ -39,7 +39,7 @@ public enum HighAvailabilityMode {
 	 * Return the configured {@link HighAvailabilityMode}.
 	 *
 	 * @param config The config to parse
-	 * @return Configured recovery mode or {@link ConfigConstants#DEFAULT_HA_MODE} if not
+	 * @return Configured recovery mode or {@link HighAvailabilityMode#NONE} if not
 	 * configured.
 	 */
 	public static HighAvailabilityMode fromConfig(Configuration config) {

@@ -35,31 +35,34 @@ Flink supports different notions of *time* in streaming programs.
     respective operation.
 
     When a streaming program runs on processing time, all time-based operations (like time windows) will
-    use the system clock of the machines that run the respective operator. For example, an hourly
+    use the system clock of the machines that run the respective operator. An hourly
     processing time window will include all records that arrived at a specific operator between the
-    times when the system clock indicated the full hour.
+    times when the system clock indicated the full hour. For example, if an application
+    begins running at 9:15am, the first hourly processing time window will include events
+    processed between 9:15am and 10:00am, the next window will include events processed between 10:00am and 11:00am, and so on.
 
     Processing time is the simplest notion of time and requires no coordination between streams and machines.
     It provides the best performance and the lowest latency. However, in distributed and asynchronous
     environments processing time does not provide determinism, because it is susceptible to the speed at which
-    records arrive in the system (for example from the message queue), and to the speed at which the
-    records flow between operators inside the system.
+    records arrive in the system (for example from the message queue), to the speed at which the
+    records flow between operators inside the system, and to outages (scheduled, or otherwise).
 
 - **Event time:** Event time is the time that each individual event occurred on its producing device.
-    This time is typically embedded within the records before they enter Flink and that *event timestamp*
-    can be extracted from the record. An hourly event time window will contain all records that carry an
-    event timestamp that falls into that hour, regardless of when the records arrive, and in what order
-    they arrive.
-
-    Event time gives correct results even on out-of-order events, late events, or on replays
-    of data from backups or persistent logs. In event time, the progress of time depends on the data,
+    This time is typically embedded within the records before they enter Flink, and that *event timestamp*
+    can be extracted from each record. In event time, the progress of time depends on the data,
     not on any wall clocks. Event time programs must specify how to generate *Event Time Watermarks*,
-    which is the mechanism that signals progress in event time. The mechanism is
-    described below.
+    which is the mechanism that signals progress in event time. This watermarking mechanism is
+    described in a later section, [below](#event-time-and-watermarks).
 
-    Event time processing often incurs a certain latency, due to its nature of waiting a certain time for
-    late events and out-of-order events. Because of that, event time programs are often combined with
-    *processing time* operations.
+    In a perfect world, event time processing would yield completely consistent and deterministic results, regardless of when events arrive, or their ordering.
+    However, unless the events are known to arrive in-order (by timestamp), event time processing incurs some latency while waiting for out-of-order events. As it is only possible to wait for a finite period of time, this places a limit on how deterministic event time applications can be.
+
+    Assuming all of the data has arrived, event time operations will behave as expected, and produce correct and consistent results even when working with out-of-order or late events, or when reprocessing historic data. For example, an hourly event time window will contain all records
+    that carry an event timestamp that falls into that hour, regardless of the order in which they arrive, or when they are processed. (See the section on [late events](#late-elements) for more information.)
+
+
+
+    Note that sometimes when event time programs are processing live data in real-time, they will use some *processing time* operations in order to guarantee that they are progressing in a timely fashion.
 
 - **Ingestion time:** Ingestion time is the time that events enter Flink. At the source operator each
     record gets the source's current time as a timestamp, and time-based operations (like time windows)
@@ -177,6 +180,8 @@ Once a watermark reaches an operator, the operator can advance its internal *eve
 
 <img src="{{ site.baseurl }}/fig/stream_watermark_out_of_order.svg" alt="A data stream with events (out of order) and watermarks" class="center" width="65%" />
 
+Note that event time is inherited by a freshly created stream element (or elements) from either the event that produced them or
+from watermark that triggered creation of those elements.
 
 ## Watermarks in Parallel Streams
 
@@ -194,6 +199,8 @@ The figure below shows an example of events and watermarks flowing through paral
 
 <img src="{{ site.baseurl }}/fig/parallel_streams_watermarks.svg" alt="Parallel data streams and operators with events and watermarks" class="center" width="80%" />
 
+Note that the Kafka source supports per-partition watermarking, which you can read more about [here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html#timestamps-per-kafka-partition).
+
 
 ## Late Elements
 
@@ -201,17 +208,43 @@ It is possible that certain elements will violate the watermark condition, meani
 more elements with timestamp *t' <= t* will occur. In fact, in many real world setups, certain elements can be arbitrarily
 delayed, making it impossible to specify a time by which all elements of a certain event timestamp will have occurred.
 Furthermore, even if the lateness can be bounded, delaying the watermarks by too much is often not desirable, because it
-causes too much delay in the evaluation of the event time windows.
+causes too much delay in the evaluation of event time windows.
 
 For this reason, streaming programs may explicitly expect some *late* elements. Late elements are elements that
 arrive after the system's event time clock (as signaled by the watermarks) has already passed the time of the late element's
 timestamp. See [Allowed Lateness]({{ site.baseurl }}/dev/stream/operators/windows.html#allowed-lateness) for more information on how to work
 with late elements in event time windows.
 
+## Idling sources
+
+Currently, with pure event time watermarks generators, watermarks can not progress if there are no elements
+to be processed. That means in case of gap in the incoming data, event time will not progress and for
+example the window operator will not be triggered and thus existing windows will not be able to produce any
+output data.
+
+To circumvent this one can use periodic watermark assigners that don't only assign based on
+element timestamps. An example solution could be an assigner that switches to using current processing time
+as the time basis after not observing new events for a while.
+
+Sources can be marked as idle using `SourceFunction.SourceContext#markAsTemporarilyIdle`. For details please refer to the Javadoc of
+this method as well as `StreamStatus`.
 
 ## Debugging Watermarks
 
 Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
 watermarks at runtime.
+
+## How operators are processing watermarks
+
+As a general rule, operators are required to completely process a given watermark before forwarding it downstream. For example,
+`WindowOperator` will first evaluate which windows should be fired, and only after producing all of the output triggered by
+the watermark will the watermark itself be sent downstream. In other words, all elements produced due to occurrence of a watermark
+will be emitted before the watermark.
+
+The same rule applies to `TwoInputStreamOperator`. However, in this case the current watermark of the operator is defined as
+the minimum of both of its inputs.
+
+The details of this behavior are defined by the implementations of the `OneInputStreamOperator#processWatermark`,
+`TwoInputStreamOperator#processWatermark1` and `TwoInputStreamOperator#processWatermark2` methods.
 
 {% top %}

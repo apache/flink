@@ -199,7 +199,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @return The hash table's total capacity.
 	 */
 	public long getCapacity() {
-		return numAllMemorySegments * segmentSize;
+		return numAllMemorySegments * (long)segmentSize;
 	}
 
 	/**
@@ -562,7 +562,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 
 		public long getTotalSize() {
-			return segments.size() * segmentSize;
+			return segments.size() * (long)segmentSize;
 		}
 
 		// ----------------------- Output -----------------------

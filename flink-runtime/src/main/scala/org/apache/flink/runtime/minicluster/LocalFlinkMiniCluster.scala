@@ -47,7 +47,8 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.groups.{JobManagerMetricGroup, TaskManagerMetricGroup}
-import org.apache.flink.runtime.metrics.util.MetricUtils
+import org.apache.flink.runtime.metrics.util.{MetricUtils, SystemResourcesMetricsInitializer}
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -205,9 +206,7 @@ class LocalFlinkMiniCluster(
 
     val rpcPortIterator = NetUtils.getPortRangeFromString(rpcPortRange)
 
-    val dataPort = config.getInteger(
-      ConfigConstants.TASK_MANAGER_DATA_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_DATA_PORT)
+    val dataPort = config.getInteger(TaskManagerOptions.DATA_PORT)
 
     if (rpcPortIterator.hasNext) {
       val rpcPort = rpcPortIterator.next()
@@ -216,7 +215,7 @@ class LocalFlinkMiniCluster(
       }
     }
     if (dataPort > 0) {
-      config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort + index)
+      config.setInteger(TaskManagerOptions.DATA_PORT, dataPort + index)
     }
 
     val localExecution = numTaskManagers == 1
@@ -239,12 +238,16 @@ class LocalFlinkMiniCluster(
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
+      resourceID,
+      ioExecutor,
+      EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag,
+      EnvironmentInformation.getMaxJvmHeapMemory)
 
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistryOpt.get,
       taskManagerServices.getTaskManagerLocation(),
-      taskManagerServices.getNetworkEnvironment())
+      taskManagerServices.getNetworkEnvironment(),
+      taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval)
 
     val props = getTaskManagerProps(
       taskManagerClass,
@@ -254,6 +257,7 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
+      taskManagerServices.getTaskManagerStateStore,
       taskManagerMetricGroup)
 
     system.actorOf(props, taskManagerActorName)
@@ -318,6 +322,7 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
     taskManagerMetricGroup: TaskManagerMetricGroup): Props = {
 
     TaskManager.getTaskManagerProps(
@@ -328,6 +333,7 @@ class LocalFlinkMiniCluster(
       memoryManager,
       ioManager,
       networkEnvironment,
+      taskManagerLocalStateStoresManager,
       highAvailabilityServices,
       taskManagerMetricGroup)
   }
@@ -362,8 +368,8 @@ class LocalFlinkMiniCluster(
 
   def setMemory(config: Configuration): Unit = {
     // set this only if no memory was pre-configured
-    if (config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE) ==
-        TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
+    if (config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE).equals(
+      TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue())) {
 
       val numTaskManager = config.getInteger(
         ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
@@ -382,7 +388,7 @@ class LocalFlinkMiniCluster(
       memorySize -= TaskManagerServices.calculateNetworkBufferMemory(memorySize, config)
       memorySize = (memorySize * memoryFraction).toLong
       memorySize >>= 20 // bytes to megabytes
-      config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize)
+      config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memorySize + "m")
     }
   }
 

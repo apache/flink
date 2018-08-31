@@ -136,10 +136,7 @@ The first two do as the name suggests.
 Please refer to [Data Sinks](#data-sinks) for more information on writing to files.
 
 Once you specified the complete program you need to call `execute` on
-the `Environment`. This will either execute on your local machine or submit your program
-for execution on a cluster, depending on how Flink was started. You can force
-a local execution by using `execute(local=True)`.
-
+the `Environment`. This will submit your program for execution on a cluster.
 {% top %}
 
 Project setup
@@ -159,8 +156,7 @@ Lazy Evaluation
 All Flink programs are executed lazily: When the program's main method is executed, the data loading
 and transformations do not happen directly. Rather, each operation is created and added to the
 program's plan. The operations are actually executed when one of the `execute()` methods is invoked
-on the Environment object. Whether the program is executed locally or on a cluster depends
-on the environment of the program.
+on the Environment object.
 
 The lazy evaluation lets you construct sophisticated programs that Flink executes as one
 holistically planned unit.

@@ -28,12 +28,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
@@ -123,10 +122,10 @@ public class CheckpointStateRestoreTest {
 			subtaskStates.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(statefulId),
 				new OperatorSubtaskState(
-					Collections.<OperatorStateHandle>emptyList(),
-					Collections.<OperatorStateHandle>emptyList(),
-					Collections.singletonList(serializedKeyGroupStates),
-					Collections.<KeyedStateHandle>emptyList()));
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty(),
+					StateObjectCollection.singleton(serializedKeyGroupStates),
+					StateObjectCollection.empty()));
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec2.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStates));
@@ -142,11 +141,12 @@ public class CheckpointStateRestoreTest {
 
 			// verify that each stateful vertex got the state
 
-			BaseMatcher<TaskStateSnapshot> matcher = new BaseMatcher<TaskStateSnapshot>() {
+			BaseMatcher<JobManagerTaskRestore> matcher = new BaseMatcher<JobManagerTaskRestore>() {
 				@Override
 				public boolean matches(Object o) {
-					if (o instanceof TaskStateSnapshot) {
-						return Objects.equals(o, subtaskStates);
+					if (o instanceof JobManagerTaskRestore) {
+						JobManagerTaskRestore taskRestore = (JobManagerTaskRestore) o;
+						return Objects.equals(taskRestore.getTaskStateSnapshot(), subtaskStates);
 					}
 					return false;
 				}
@@ -160,8 +160,8 @@ public class CheckpointStateRestoreTest {
 			verify(statefulExec1, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec2, times(1)).setInitialState(Mockito.argThat(matcher));
 			verify(statefulExec3, times(1)).setInitialState(Mockito.argThat(matcher));
-			verify(statelessExec1, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
-			verify(statelessExec2, times(0)).setInitialState(Mockito.<TaskStateSnapshot>any());
+			verify(statelessExec1, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
+			verify(statelessExec2, times(0)).setInitialState(Mockito.<JobManagerTaskRestore>any());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -264,8 +264,7 @@ public class CheckpointStateRestoreTest {
 			new HashMap<>(checkpointTaskStates),
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new EmptyStreamStateHandle(),
-			"<pointer>");
+			new TestCompletedCheckpointStorageLocation());
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 
@@ -292,8 +291,7 @@ public class CheckpointStateRestoreTest {
 			new HashMap<>(checkpointTaskStates),
 			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-			new EmptyStreamStateHandle(),
-			"pointer");
+			new TestCompletedCheckpointStorageLocation());
 
 		coord.getCheckpointStore().addCheckpoint(checkpoint);
 

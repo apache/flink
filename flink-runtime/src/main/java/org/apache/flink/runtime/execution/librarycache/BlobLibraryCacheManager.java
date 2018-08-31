@@ -27,6 +27,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -207,6 +208,13 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			for (LibraryCacheEntry entry : cacheEntries.values()) {
 				entry.releaseClassLoader();
 			}
+		}
+	}
+
+	@Override
+	public boolean hasClassLoader(@Nonnull JobID jobId) {
+		synchronized (lockObject) {
+			return cacheEntries.containsKey(jobId);
 		}
 	}
 

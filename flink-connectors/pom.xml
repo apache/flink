@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -50,6 +50,7 @@ under the License.
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-elasticsearch2</module>
 		<module>flink-connector-elasticsearch5</module>
+		<module>flink-connector-elasticsearch6</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
@@ -89,6 +90,11 @@ under the License.
 		-->
 		<profile>
 			<id>include-kinesis</id>
+			<activation>
+				<property>
+					<name>include-kinesis</name>
+				</property>
+			</activation>
 			<modules>
 				<module>flink-connector-kinesis</module>
 			</modules>

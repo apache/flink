@@ -18,7 +18,9 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 /**
  * This class offers utility functions for Java's lambda features.
@@ -41,7 +43,7 @@ public final class LambdaUtil {
 	 */
 	public static <T> void applyToAllWhileSuppressingExceptions(
 		Iterable<T> inputs,
-		ThrowingConsumer<T> throwingConsumer) throws Exception {
+		ThrowingConsumer<T, ? extends Exception> throwingConsumer) throws Exception {
 
 		if (inputs != null && throwingConsumer != null) {
 			Exception exception = null;
@@ -60,6 +62,52 @@ public final class LambdaUtil {
 			if (exception != null) {
 				throw exception;
 			}
+		}
+	}
+
+	/**
+	 * Runs the given runnable with the given ClassLoader as the thread's
+	 * {@link Thread#setContextClassLoader(ClassLoader) context class loader}.
+	 *
+	 * <p>The method will make sure to set the context class loader of the calling thread
+	 * back to what it was before after the runnable completed.
+	 */
+	public static <E extends Throwable> void withContextClassLoader(
+			final ClassLoader cl,
+			final ThrowingRunnable<E> r) throws E {
+
+		final Thread currentThread = Thread.currentThread();
+		final ClassLoader oldClassLoader = currentThread.getContextClassLoader();
+
+		try {
+			currentThread.setContextClassLoader(cl);
+			r.run();
+		}
+		finally {
+			currentThread.setContextClassLoader(oldClassLoader);
+		}
+	}
+
+	/**
+	 * Runs the given runnable with the given ClassLoader as the thread's
+	 * {@link Thread#setContextClassLoader(ClassLoader) context class loader}.
+	 *
+	 * <p>The method will make sure to set the context class loader of the calling thread
+	 * back to what it was before after the runnable completed.
+	 */
+	public static <R, E extends Throwable> R withContextClassLoader(
+			final ClassLoader cl,
+			final SupplierWithException<R, E> s) throws E {
+
+		final Thread currentThread = Thread.currentThread();
+		final ClassLoader oldClassLoader = currentThread.getContextClassLoader();
+
+		try {
+			currentThread.setContextClassLoader(cl);
+			return s.get();
+		}
+		finally {
+			currentThread.setContextClassLoader(oldClassLoader);
 		}
 	}
 }

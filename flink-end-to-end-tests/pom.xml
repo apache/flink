@@ -25,83 +25,74 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-end-to-end-tests_${scala.binary.version}</artifactId>
+	<packaging>pom</packaging>
+
+	<artifactId>flink-end-to-end-tests</artifactId>
 	<name>flink-end-to-end-tests</name>
 
-	<packaging>jar</packaging>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-	</dependencies>
+	<modules>
+		<module>flink-parent-child-classloading-test</module>
+		<module>flink-dataset-allround-test</module>
+		<module>flink-datastream-allround-test</module>
+		<module>flink-stream-sql-test</module>
+		<module>flink-bucketing-sink-test</module>
+		<module>flink-distributed-cache-via-blob-test</module>
+		<module>flink-high-parallelism-iterations-test</module>
+		<module>flink-stream-stateful-job-upgrade-test</module>
+		<module>flink-queryable-state-test</module>
+		<module>flink-local-recovery-and-allocation-test</module>
+		<module>flink-elasticsearch1-test</module>
+		<module>flink-elasticsearch2-test</module>
+		<module>flink-elasticsearch5-test</module>
+		<module>flink-elasticsearch6-test</module>
+		<module>flink-quickstart-test</module>
+		<module>flink-confluent-schema-registry</module>
+		<module>flink-stream-state-ttl-test</module>
+		<module>flink-sql-client-test</module>
+		<module>flink-streaming-file-sink-test</module>
+	</modules>
 
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
-
-				<executions>
-					<!-- ClassLoaderTestProgram -->
-					<execution>
-						<id>ClassLoaderTestProgram</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>ClassLoaderTestProgram</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.tests.ClassLoaderTestProgram</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/tests/ClassLoaderTestProgram.class</include>
-								<include>org/apache/flink/runtime/taskmanager/TaskManager.class</include>
-								<include>.version.properties</include>
-							</includes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!--simplify the name of the testing JARs for referring to them in the end-to-end test scripts-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<copy file="${project.basedir}/target/flink-end-to-end-tests_${scala.binary.version}-${project.version}-ClassLoaderTestProgram.jar" tofile="${project.basedir}/target/ClassLoaderTestProgram.jar" />
-							</target>
-						</configuration>
-					</execution>
-				</executions>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
 			</plugin>
 		</plugins>
-	</build>
 
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<configuration>
+						<artifactSet>
+							<excludes>
+								<exclude>com.google.code.findbugs:jsr305</exclude>
+								<exclude>org.slf4j:slf4j-api</exclude>
+							</excludes>
+						</artifactSet>
+						<filters>
+							<filter>
+								<artifact>*:*</artifact>
+								<excludes>
+									<exclude>META-INF/*.SF</exclude>
+									<exclude>META-INF/*.DSA</exclude>
+									<exclude>META-INF/*.RSA</exclude>
+								</excludes>
+							</filter>
+						</filters>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	
 </project>

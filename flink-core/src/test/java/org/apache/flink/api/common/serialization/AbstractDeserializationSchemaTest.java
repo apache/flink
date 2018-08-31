@@ -18,10 +18,11 @@
 
 package org.apache.flink.api.common.serialization;
 
-import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSONPObject;
 
@@ -81,11 +82,27 @@ public class AbstractDeserializationSchemaTest {
 	@Test
 	public void testTypeExtractionRawException() {
 		try {
-			new RawSchema().getProducedType();
+			new RawSchema();
 			fail();
-		} catch (InvalidTypesException e) {
+		} catch (FlinkRuntimeException e) {
 			// expected
 		}
+	}
+
+	@Test
+	public void testTypeExtractionGenericException() {
+		try {
+			new GenericSchema<>();
+			fail();
+		} catch (FlinkRuntimeException e) {
+			// expected
+		}
+	}
+
+	@Test
+	public void testIndirectGenericExtension() {
+		TypeInformation<String> type = new IndirectExtension().getProducedType();
+		assertEquals(BasicTypeInfo.STRING_TYPE_INFO, type);
 	}
 
 	// ------------------------------------------------------------------------
@@ -113,6 +130,22 @@ public class AbstractDeserializationSchemaTest {
 
 		@Override
 		public Object deserialize(byte[] message) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class GenericSchema<T> extends AbstractDeserializationSchema<T> {
+
+		@Override
+		public T deserialize(byte[] message) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class IndirectExtension extends GenericSchema<String> {
+
+		@Override
+		public String deserialize(byte[] message) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 	}

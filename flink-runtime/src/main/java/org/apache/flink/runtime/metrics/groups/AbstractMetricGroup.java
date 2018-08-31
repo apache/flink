@@ -113,11 +113,12 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		if (variables == null) { // avoid synchronization for common case
 			synchronized (this) {
 				if (variables == null) {
-					variables = new HashMap<>();
-					putVariables(variables);
-					if (parent != null) { // not true for Job-/TaskManagerMetricGroup and mocks
-						variables.putAll(parent.getAllVariables());
+					Map<String, String> tmpVariables = new HashMap<>();
+					putVariables(tmpVariables);
+					if (parent != null) { // not true for Job-/TaskManagerMetricGroup
+						tmpVariables.putAll(parent.getAllVariables());
 					}
+					variables = tmpVariables;
 				}
 			}
 		}

@@ -204,10 +204,6 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 						typeInfo.toString() + "\", which is an invalid index.");
 			}
 
-			if (pos < 0) {
-				throw new CompositeType.InvalidFieldReferenceException("Tried to select " + ((Integer) pos).toString() + ". field.");
-			}
-
 			this.pos = pos;
 			this.innerAccessor = innerAccessor;
 			this.fieldType = innerAccessor.fieldType;

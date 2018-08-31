@@ -199,7 +199,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			}
 
 		} while (retrievedCheckpoints.size() != numberOfInitialCheckpoints &&
-			!lastTryRetrievedCheckpoints.equals(retrievedCheckpoints));
+			!CompletedCheckpoint.checkpointsMatch(lastTryRetrievedCheckpoints, retrievedCheckpoints));
 
 		// Clear local handles in order to prevent duplicates on
 		// recovery. The local handles should reflect the state
@@ -209,7 +209,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		if (completedCheckpoints.isEmpty() && numberOfInitialCheckpoints > 0) {
 			throw new FlinkException(
-				"Could not read any of the " + numberOfInitialCheckpoints + " from storage.");
+				"Could not read any of the " + numberOfInitialCheckpoints + " checkpoints from storage.");
 		} else if (completedCheckpoints.size() != numberOfInitialCheckpoints) {
 			LOG.warn(
 				"Could only fetch {} of {} checkpoints from storage.",

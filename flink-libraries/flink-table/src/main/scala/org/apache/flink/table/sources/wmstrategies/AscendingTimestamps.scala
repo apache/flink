@@ -21,12 +21,12 @@ package org.apache.flink.table.sources.wmstrategies
 import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
-  * A watermark assigner for ascending rowtime attributes.
+  * A watermark strategy for ascending rowtime attributes.
   *
   * Emits a watermark of the maximum observed timestamp so far minus 1.
   * Rows that have a timestamp equal to the max timestamp are not late.
   */
-class AscendingTimestamps extends PeriodicWatermarkAssigner {
+final class AscendingTimestamps extends PeriodicWatermarkAssigner {
 
   var maxTimestamp: Long = Long.MinValue + 1
 
@@ -37,4 +37,13 @@ class AscendingTimestamps extends PeriodicWatermarkAssigner {
   }
 
   override def getWatermark: Watermark = new Watermark(maxTimestamp - 1)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case _: AscendingTimestamps => true
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    classOf[AscendingTimestamps].hashCode()
+  }
 }

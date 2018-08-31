@@ -29,11 +29,15 @@ import org.apache.flink.test.util.TestingSecurityContext;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.Callable;
 
@@ -95,6 +99,23 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 	public static void teardownSecureCluster() throws Exception {
 		LOG.info("tearing down secure cluster environment");
 		SecureTestEnvironment.cleanup();
+	}
+
+	@Test(timeout = 60000) // timeout after a minute.
+	@Override
+	public void testDetachedMode() throws InterruptedException, IOException {
+		super.testDetachedMode();
+		final String[] mustHave = {"Login successful for user", "using keytab file"};
+		final boolean jobManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave,
+			"jobmanager.log");
+		final boolean taskManagerRunsWithKerberos = verifyStringsInNamedLogFiles(
+			mustHave, "taskmanager.log");
+
+		Assert.assertThat(
+			"The JobManager and the TaskManager should both run with Kerberos.",
+			jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
+			Matchers.is(true));
 	}
 
 	/* For secure cluster testing, it is enough to run only one test and override below test methods

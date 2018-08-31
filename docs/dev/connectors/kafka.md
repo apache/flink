@@ -166,6 +166,39 @@ For convenience, Flink provides the following schemas:
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
     
+3. `AvroDeserializationSchema` which reads data serialized with Avro format using a statically provided schema. It can
+    infer the schema from Avro generated classes (`AvroDeserializationSchema.forSpecific(...)`) or it can work with `GenericRecords`
+    with a manually provided schema (with `AvroDeserializationSchema.forGeneric(...)`). This deserialization schema expects that
+    the serialized records DO NOT contain embedded schema.
+
+    - There is also a version of this schema available that can lookup the writer's schema (schema which was used to write the record) in
+      [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html). Using these deserialization schema
+      record will be read with the schema that was retrieved from Schema Registry and transformed to a statically provided( either through 
+      `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` or `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`).
+
+    <br>To use this deserialization schema one has to add the following additional dependency:
+    
+<div class="codetabs" markdown="1">
+<div data-lang="AvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+<div data-lang="ConfluentRegistryAvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro-confluent-registry</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+</div>
+
 When encountering a corrupted message that cannot be deserialized for any reason, there
 are two options - either throwing an exception from the `deserialize(...)` method
 which will cause the job to fail and be restarted, or returning `null` to allow
@@ -191,6 +224,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 FlinkKafkaConsumer08<String> myConsumer = new FlinkKafkaConsumer08<>(...);
 myConsumer.setStartFromEarliest();     // start from the earliest record possible
 myConsumer.setStartFromLatest();       // start from the latest record
+myConsumer.setStartFromTimestamp(...); // start from specified epoch timestamp (milliseconds)
 myConsumer.setStartFromGroupOffsets(); // the default behaviour
 
 DataStream<String> stream = env.addSource(myConsumer);
@@ -204,6 +238,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val myConsumer = new FlinkKafkaConsumer08[String](...)
 myConsumer.setStartFromEarliest()      // start from the earliest record possible
 myConsumer.setStartFromLatest()        // start from the latest record
+myConsumer.setStartFromTimestamp(...)  // start from specified epoch timestamp (milliseconds)
 myConsumer.setStartFromGroupOffsets()  // the default behaviour
 
 val stream = env.addSource(myConsumer)
@@ -221,6 +256,11 @@ All versions of the Flink Kafka Consumer have the above explicit configuration m
  * `setStartFromEarliest()` / `setStartFromLatest()`: Start from the earliest / latest
  record. Under these modes, committed offsets in Kafka will be ignored and
  not used as starting positions.
+ * `setStartFromTimestamp(long)`: Start from the specified timestamp. For each partition, the record
+ whose timestamp is larger than or equal to the specified timestamp will be used as the start position.
+ If a partition's latest record is earlier than the timestamp, the partition will simply be read
+ from the latest record. Under this mode, committed offsets in Kafka will be ignored and not used as
+ starting positions.
  
 You can also specify the exact offsets the consumer should start from for each partition:
 
@@ -444,6 +484,11 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
+**Note**: If a watermark assigner depends on records read from Kafka to advance its watermarks (which is commonly the case), all topics and partitions need to have a continuous stream of records. Otherwise, the watermarks of the whole application cannot advance and all time-based operations, such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior. 
+A Flink improvement is planned to prevent this from happening 
+(see [FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](
+https://issues.apache.org/jira/browse/FLINK-5479)).
+In the meanwhile, a possible workaround is to send *heartbeat messages* to all consumed partitions that advance the watermarks of idle partitions.
 
 ## Kafka Producer
 
@@ -542,14 +587,14 @@ methods `setLogFailuresOnly(boolean)` and `setFlushOnCheckpoint(boolean)` approp
  instead of catching and rethrowing them. This essentially accounts the record
  to have succeeded, even if it was never written to the target Kafka topic. This
  must be disabled for at-least-once.
- * `setFlushOnCheckpoint(boolean)`: by default, this is set to `false`.
+ * `setFlushOnCheckpoint(boolean)`: by default, this is set to `true`.
  With this enabled, Flink's checkpoints will wait for any
  on-the-fly records at the time of the checkpoint to be acknowledged by Kafka before
  succeeding the checkpoint. This ensures that all records before the checkpoint have
  been written to Kafka. This must be enabled for at-least-once.
  
-In conclusion, to configure the Kafka producer to have at-least-once guarantees for versions
-0.9 and 0.10, `setLogFailureOnly` must be set to `false` and `setFlushOnCheckpoint` must be set
+In conclusion, the Kafka producer by default has at-least-once guarantees for versions
+0.9 and 0.10, with `setLogFailureOnly` set to `false` and `setFlushOnCheckpoint` set
 to `true`.
 
 **Note**: By default, the number of retries is set to "0". This means that when `setLogFailuresOnly` is set to `false`,
