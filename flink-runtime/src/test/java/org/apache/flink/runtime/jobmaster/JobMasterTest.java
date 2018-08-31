@@ -424,7 +424,7 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that an existing checkpoint will have precedence over an savepoint
+	 * Tests that an existing checkpoint will have precedence over an savepoint.
 	 */
 	@Test
 	public void testCheckpointPrecedesSavepointRecovery() throws Exception {
@@ -476,7 +476,7 @@ public class JobMasterTest extends TestLogger {
 
 	/**
 	 * Tests that the JobMaster retries the scheduling of a job
-	 * in case of a missing slot offering from a registered TaskExecutor
+	 * in case of a missing slot offering from a registered TaskExecutor.
 	 */
 	@Test
 	public void testSlotRequestTimeoutWhenNoSlotOffering() throws Exception {
@@ -880,9 +880,9 @@ public class JobMasterTest extends TestLogger {
 			final CompletableFuture<TaskDeploymentDescriptor> tddFuture = new CompletableFuture<>();
 			final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
 				.setSubmitTaskConsumer((taskDeploymentDescriptor, jobMasterId) -> {
-					  tddFuture.complete(taskDeploymentDescriptor);
-					  return CompletableFuture.completedFuture(Acknowledge.get());
-				  })
+					tddFuture.complete(taskDeploymentDescriptor);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
 				.createTestingTaskExecutorGateway();
 			rpcService.registerGateway(testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
 
