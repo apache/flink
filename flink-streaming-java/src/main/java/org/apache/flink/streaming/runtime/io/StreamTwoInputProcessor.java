@@ -36,6 +36,7 @@ import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.runtime.plugable.ReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -125,6 +126,9 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private boolean isFinished;
 
+	private IN1 reusedObject1;
+	private IN2 reusedObject2;
+
 	@SuppressWarnings("unchecked")
 	public StreamTwoInputProcessor(
 			Collection<InputGate> inputGates1,
@@ -140,7 +144,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
 			TaskIOMetricGroup metrics,
 			WatermarkGauge input1WatermarkGauge,
-			WatermarkGauge input2WatermarkGauge) throws IOException {
+			WatermarkGauge input2WatermarkGauge,
+			boolean objectReuse) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -150,10 +155,17 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.lock = checkNotNull(lock);
 
 		StreamElementSerializer<IN1> ser1 = new StreamElementSerializer<>(inputSerializer1);
-		this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser1);
+		this.deserializationDelegate1 = objectReuse ?
+			new ReusingDeserializationDelegate<>(ser1) :
+			new NonReusingDeserializationDelegate<>(ser1);
+		this.reusedObject1 = objectReuse ? inputSerializer1.createInstance() : null;
 
 		StreamElementSerializer<IN2> ser2 = new StreamElementSerializer<>(inputSerializer2);
-		this.deserializationDelegate2 = new NonReusingDeserializationDelegate<>(ser2);
+		this.deserializationDelegate2 = objectReuse ?
+			new ReusingDeserializationDelegate<>(ser2) :
+			new NonReusingDeserializationDelegate<>(ser2);
+
+		this.reusedObject2 = objectReuse ? inputSerializer2.createInstance() : null;
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
@@ -203,8 +215,14 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			if (currentRecordDeserializer != null) {
 				DeserializationResult result;
 				if (currentChannel < numInputChannels1) {
+					if (reusedObject1 != null){
+						deserializationDelegate1.setInstance(new StreamRecord<>(reusedObject1));
+					}
 					result = currentRecordDeserializer.getNextRecord(deserializationDelegate1);
 				} else {
+					if (reusedObject2 != null){
+						deserializationDelegate2.setInstance(new StreamRecord<>(reusedObject2));
+					}
 					result = currentRecordDeserializer.getNextRecord(deserializationDelegate2);
 				}
 
@@ -231,6 +249,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							continue;
 						}
 						else {
+							reusedObject1 = ((StreamRecord<IN1>) recordOrWatermark).getValue();
+
 							StreamRecord<IN1> record = recordOrWatermark.asRecord();
 							synchronized (lock) {
 								numRecordsIn.inc();
@@ -258,6 +278,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 							continue;
 						}
 						else {
+							reusedObject2 = ((StreamRecord<IN2>) recordOrWatermark).getValue();
+
 							StreamRecord<IN2> record = recordOrWatermark.asRecord();
 							synchronized (lock) {
 								numRecordsIn.inc();

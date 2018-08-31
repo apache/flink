@@ -225,15 +225,15 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	public StreamElement deserialize(StreamElement reuse, DataInputView source) throws IOException {
 		int tag = source.readByte();
 		if (tag == TAG_REC_WITH_TIMESTAMP) {
-			long timestamp = source.readLong();
-			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
+			long timestamp = source.readLong();
+			T value  = typeSerializer.deserialize(reuseRecord.getValue(), source);
 			reuseRecord.replace(value, timestamp);
 			return reuseRecord;
 		}
 		else if (tag == TAG_REC_WITHOUT_TIMESTAMP) {
-			T value = typeSerializer.deserialize(source);
 			StreamRecord<T> reuseRecord = reuse.asRecord();
+			T value = typeSerializer.deserialize(reuseRecord.getValue(), source);
 			reuseRecord.replace(value);
 			return reuseRecord;
 		}
