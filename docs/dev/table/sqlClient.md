@@ -289,7 +289,7 @@ tables:
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: TaxiRides
       startup-mode: earliest-offset
       properties:
@@ -432,7 +432,7 @@ tables:
     connector:
       property-version: 1
       type: kafka
-      version: 0.11
+      version: "0.11"
       topic: OutputTopic
       properties:
         - key: zookeeper.connect
