@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestBase
@@ -27,7 +27,17 @@ import org.junit.Test
 
 class AggregateValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
+  def testDistinctOnNonAggregateExpression(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+
+    val ds = table
+      .groupBy('c)
+      .select('a.log.distinct)
+  }
+
+  @Test(expected = classOf[TableException])
   def testMultipleDistinctModifiers(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
@@ -37,7 +47,7 @@ class AggregateValidationTest extends TableTestBase {
       .select('a.count.distinct.distinct)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test(expected = classOf[TableException])
   def testDistinctModifierOnBothSide(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)

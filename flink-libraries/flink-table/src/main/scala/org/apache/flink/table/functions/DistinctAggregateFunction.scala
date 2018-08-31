@@ -15,34 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.expressions
+package org.apache.flink.table.functions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.expressions.{AggFunctionCall, DistinctAgg, Expression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getResultTypeOfAggregateFunction}
-import org.apache.flink.table.functions.{AggregateFunction, DistinctAggregateFunction}
 
 /**
-  * A class which creates a distinct aggregation wrap to a call to an aggregateFunction.
+  * Defines an implicit conversion method (distinct) that converts [[AggregateFunction]]s into
+  * [[DistinctAgg]] Expressions.
   */
-case class UDAGGDistinctExpression[T: TypeInformation, ACC: TypeInformation](
-    distinctAggregateFunction: DistinctAggregateFunction[T, ACC]) {
+private[flink] case class DistinctAggregateFunction[T: TypeInformation, ACC: TypeInformation]
+    (aggFunction: AggregateFunction[T, ACC]) {
 
-  /**
-    * Creates a DistinctAgg that wraps the actual call to an [[AggregateFunction]].
-    *
-    * @param params actual parameters of function
-    * @return a [[DistinctAgg]]
-    */
-  def apply(params: Expression*): DistinctAgg = {
+  private[flink] def distinct(params: Expression*): Expression = {
     val resultTypeInfo: TypeInformation[_] = getResultTypeOfAggregateFunction(
-      distinctAggregateFunction.aggFunction,
+      aggFunction,
       implicitly[TypeInformation[T]])
 
     val accTypeInfo: TypeInformation[_] = getAccumulatorTypeOfAggregateFunction(
-      distinctAggregateFunction.aggFunction,
+      aggFunction,
       implicitly[TypeInformation[ACC]])
 
     DistinctAgg(
-      AggFunctionCall(distinctAggregateFunction.aggFunction, resultTypeInfo, accTypeInfo, params))
+      AggFunctionCall(aggFunction, resultTypeInfo, accTypeInfo, params))
   }
 }

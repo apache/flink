@@ -240,7 +240,8 @@ case class Aggregate(
           case _: DistinctAgg => failValidation(
             "Chained distinct operators are not supported!")
           case aggExpr: Aggregation => validateAggregateExpression(aggExpr)
-          case _ => failValidation("This should never happen!")
+          case _ => failValidation(
+            "Distinct operator can only be applied to aggregation expressions!")
         }
       // check aggregate function
       case aggExpr: Aggregation

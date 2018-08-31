@@ -34,8 +34,10 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     val t1 = t.select('_1.sum.distinct, '_1.count.distinct, '_1.avg.distinct)
     val t2 = t.select("_1.sum.distinct, _1.count.distinct, _1.avg.distinct")
+    val t3 = t.select("sum.distinct(_1), count.distinct(_1), avg.distinct(_1)")
 
     verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t3)
   }
 
   @Test
@@ -136,8 +138,10 @@ class AggregateStringExpressionTest extends TableTestBase {
 
     val t1 = t.groupBy('b).select('b, 'a.sum.distinct, 'a.sum)
     val t2 = t.groupBy("b").select("b, a.sum.distinct, a.sum")
+    val t3 = t.groupBy("b").select("b, sum.distinct(a), sum(a)")
 
     verifyTableEquals(t1, t2)
+    verifyTableEquals(t1, t3)
   }
 
   @Test

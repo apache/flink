@@ -404,7 +404,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     TO_TIME ~ "(" ~> expression <~ ")" ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
   lazy val prefixDistinct: PackratParser[Expression] =
-    functionIdent ~ "." ~ "distinct" ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
+    functionIdent ~ "." ~ DISTINCT ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
       case name ~ _ ~ _ ~ _ ~ args ~ _ => DistinctAgg(Call(name.toUpperCase, args))
   }
 
