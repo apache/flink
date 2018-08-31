@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.C
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.ClientConfigurationFactory;
+import com.amazonaws.ProxyAuthenticationMethod;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -49,6 +50,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Vector;
 
 /**
  * Some utilities specific to Amazon Web Service.
@@ -79,6 +81,47 @@ public class AWSUtil {
 				EnvironmentInformation.getVersion(),
 				EnvironmentInformation.getRevisionInformation().commitId));
 
+		if (configProps.containsKey(AWSConfigConstants.AWS_PROXY_SERVER) &&
+				configProps.containsKey(AWSConfigConstants.AWS_PROXY_PORT)) {
+			awsClientConfig.setProxyHost(configProps.getProperty(AWSConfigConstants.AWS_PROXY_SERVER));
+			awsClientConfig.setProxyPort(Integer.parseInt(configProps.getProperty(AWSConfigConstants.AWS_PROXY_PORT)));
+
+			if (configProps.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_USER) &&
+					configProps.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_PASSWORD)) {
+				awsClientConfig.setProxyUsername(configProps.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_USER));
+				awsClientConfig.setProxyPassword(configProps.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_PASSWORD));
+
+				if (configProps.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_METHODS)) {
+					Vector<ProxyAuthenticationMethod> prxAuthMeth = new Vector<ProxyAuthenticationMethod>();
+					for (String meth: configProps.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_METHODS).split("[ ,;:]")) {
+						switch (meth.toUpperCase()) {
+						case "NTML":
+							prxAuthMeth.add(ProxyAuthenticationMethod.NTLM);
+							if (configProps.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_NTML_DOMAIN)) {
+								awsClientConfig.setProxyDomain(configProps.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_NTML_DOMAIN));
+							}
+							if (configProps.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_NTML_WORKSTATION)) {
+								awsClientConfig.setProxyDomain(configProps.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_NTML_WORKSTATION));
+							}
+							break;
+						case "SPNEGO":
+							prxAuthMeth.add(ProxyAuthenticationMethod.SPNEGO);
+							break;
+						case "DIGEST":
+							prxAuthMeth.add(ProxyAuthenticationMethod.DIGEST);
+							break;
+						case "KERBEROS":
+							prxAuthMeth.add(ProxyAuthenticationMethod.KERBEROS);
+							break;
+						case "BASIC":
+							prxAuthMeth.add(ProxyAuthenticationMethod.BASIC);
+							break;
+						}
+					}
+					awsClientConfig.setProxyAuthenticationMethods(prxAuthMeth);
+				}
+			}
+		}
 		// utilize automatic refreshment of credentials by directly passing the AWSCredentialsProvider
 		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
 				.withCredentials(AWSUtil.getCredentialsProvider(configProps))

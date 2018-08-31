@@ -282,6 +282,51 @@ public class KinesisConfigUtil {
 				throw new IllegalArgumentException("Invalid AWS region set in config. Valid values are: " + sb.toString());
 			}
 		}
+
+		if (config.containsKey(AWSConfigConstants.AWS_PROXY_SERVER) &&
+				config.containsKey(AWSConfigConstants.AWS_PROXY_PORT)) {
+			if (config.getProperty(AWSConfigConstants.AWS_PROXY_SERVER).isEmpty()) {
+				throw new IllegalArgumentException("Invalid proxy server name");
+			}
+
+			if (Integer.parseInt(config.getProperty(AWSConfigConstants.AWS_PROXY_PORT)) <= 0) {
+				throw new IllegalArgumentException("Invalid proxy server port");
+			}
+
+			if (config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_USER) &&
+					config.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_USER).isEmpty()) {
+				throw new IllegalArgumentException("Invalid proxy username");
+			}
+
+			if (config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_USER) &&
+					!config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_PASSWORD)) {
+				throw new IllegalArgumentException("As proxy username can not be provided without password");
+			}
+
+			if (config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_METHODS)) {
+				for (String meth: config.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_METHODS).split("[ ,;:]")) {
+					switch (meth.toUpperCase()) {
+					case "NTML":
+						if (config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_NTML_DOMAIN) &&
+								config.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_NTML_DOMAIN).isEmpty()) {
+							throw new IllegalArgumentException("Invalid proxy authentication ntml domain");
+						}
+						if (config.containsKey(AWSConfigConstants.AWS_PROXY_AUTH_NTML_WORKSTATION) &&
+								config.getProperty(AWSConfigConstants.AWS_PROXY_AUTH_NTML_WORKSTATION).isEmpty()) {
+							throw new IllegalArgumentException("Invalid proxy authentication ntml domain");
+						}
+						break;
+					case "SPNEGO":
+					case "DIGEST":
+					case "KERBEROS":
+					case "BASIC":
+						break;
+					default:
+						throw new IllegalArgumentException("Invalid proxy authentication methods");
+					}
+				}
+			}
+		}
 	}
 
 	private static void validateOptionalPositiveLongProperty(Properties config, String key, String message) {
