@@ -18,16 +18,16 @@
 
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.functions.{RichMapFunction, FoldFunction}
+import org.apache.flink.api.common.functions.{FoldFunction, RichMapFunction}
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.util.MathUtils
 import org.junit.rules.TemporaryFolder
 import org.junit.{After, Before, Rule, Test}
 
-class StreamingOperatorsITCase extends ScalaStreamingMultipleProgramsTestBase {
+class StreamingOperatorsITCase extends AbstractTestBase {
 
   var resultPath1: String = _
   var resultPath2: String = _

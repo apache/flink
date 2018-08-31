@@ -49,7 +49,7 @@ public interface InternalTimerService<N> {
 	void deleteProcessingTimeTimer(N namespace, long time);
 
 	/**
-	 * Registers a timer to be fired when processing time passes the given time. The namespace
+	 * Registers a timer to be fired when event time watermark passes the given time. The namespace
 	 * you pass here will be provided when the timer fires.
 	 */
 	void registerEventTimeTimer(N namespace, long time);

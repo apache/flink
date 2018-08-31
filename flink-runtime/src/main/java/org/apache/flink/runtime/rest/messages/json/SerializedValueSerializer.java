@@ -21,9 +21,11 @@ package org.apache.flink.runtime.rest.messages.json;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.TypeFactory;
 
 import java.io.IOException;
 
@@ -35,6 +37,10 @@ import java.io.IOException;
 public class SerializedValueSerializer extends StdSerializer<SerializedValue<?>> {
 
 	private static final long serialVersionUID = 1L;
+
+	public SerializedValueSerializer() {
+		super(TypeFactory.defaultInstance().constructType(new TypeReference<SerializedValue<Object>>() {}));
+	}
 
 	public SerializedValueSerializer(final JavaType javaType) {
 		super(javaType);

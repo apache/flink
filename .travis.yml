@@ -64,51 +64,41 @@ matrix:
     - jdk: "openjdk8"
       env:
         - TEST="core"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_CO
     - jdk: "openjdk8"
       env:
         - TEST="libraries"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_L
     - jdk: "openjdk8"
       env:
         - TEST="connectors"
-        - PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode -Pinclude-kinesis"
         - CACHE_NAME=JDK8_H241_CN
     - jdk: "openjdk8"
       env:
         - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_T
     - jdk: "openjdk8"
       env:
         - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.4.1"
+        - PROFILE="-Dhadoop.version=2.4.1 -DlegacyCode"
         - CACHE_NAME=JDK8_H241_M
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="core"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_CO
-    - jdk: "oraclejdk8"
-      env:
-        - TEST="tests"
-        - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_F6_T
 
 git:
   depth: 100
 
-
 env:
-    global:
-        # Global variable to avoid hanging travis builds when downloading cache archives.
-        - MALLOC_ARENA_MAX=2
-        # Build artifacts like logs (variables for apache/flink repo)
-        - secure: "gL3QRn6/XyVK+Em9RmVqpM6nbTwlhjK4/JiRYZGGCkBgTq4ZnG+Eq2qKAO22TAsqRSi7g7WAoAhUulPt0SJqH7hjMe0LetbO0izbVXDefwf2PJlsNgBbuFG6604++VUaUEyfPYYw9ADjV59LWG7+B/fjbRsevqRBZ30b1gv/tQQ="
-        - secure: "eM9r8IglvnUKctxz/ga6hwGnCpdOvGyYdGj0H/UiNDEx3Lq1A6yp3gChEIXGJqRUXDI5TaIuidunUGY7KHml8urm8eG2Yk2ttxXehZqLpEaOU2jdNJCdLX8tlVfh14T9bxG5AYHQEV3qJUqDFtfXD3whvzuinrm1oEIA3qUxiA8="
-        - secure: "EQYDWgJM5ANJ/sAFwmSEwSTOe9CDN/ENyQAr5/ntM67XanhTZj2Amgt9LthCRUU4EEPl/OFUTwNHMpv/+wa3q7dwVFldSIg5wyCndzJSATPyPBVjYgsXIQZVIjsq4TwTyrTteT55V6Oz2+l27Fvung2FPuN83ovswsJePFzMBxI="
+  global:
+    # Global variable to avoid hanging travis builds when downloading cache archives.
+    - MALLOC_ARENA_MAX=2
+    # Build artifacts like logs (variables for apache/flink repo)
+    - secure: "gL3QRn6/XyVK+Em9RmVqpM6nbTwlhjK4/JiRYZGGCkBgTq4ZnG+Eq2qKAO22TAsqRSi7g7WAoAhUulPt0SJqH7hjMe0LetbO0izbVXDefwf2PJlsNgBbuFG6604++VUaUEyfPYYw9ADjV59LWG7+B/fjbRsevqRBZ30b1gv/tQQ="
+    - secure: "eM9r8IglvnUKctxz/ga6hwGnCpdOvGyYdGj0H/UiNDEx3Lq1A6yp3gChEIXGJqRUXDI5TaIuidunUGY7KHml8urm8eG2Yk2ttxXehZqLpEaOU2jdNJCdLX8tlVfh14T9bxG5AYHQEV3qJUqDFtfXD3whvzuinrm1oEIA3qUxiA8="
+    - secure: "EQYDWgJM5ANJ/sAFwmSEwSTOe9CDN/ENyQAr5/ntM67XanhTZj2Amgt9LthCRUU4EEPl/OFUTwNHMpv/+wa3q7dwVFldSIg5wyCndzJSATPyPBVjYgsXIQZVIjsq4TwTyrTteT55V6Oz2+l27Fvung2FPuN83ovswsJePFzMBxI="
+    - DOCKER_COMPOSE_VERSION=1.22.0
 
 before_script:
    - "gem install --no-document --version 0.8.9 faraday "
@@ -120,8 +110,14 @@ before_install:
    - "rm apache-maven-3.2.5-bin.zip"
    - "export M2_HOME=$PWD/apache-maven-3.2.5"
    - "export PATH=$M2_HOME/bin:$PATH"
+   - "export MAVEN_OPTS=\"-Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss.SSS\""
 # just in case: clean up the .m2 home and remove invalid jar files
-   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm {} ; fi'' \;'
+   - 'test ! -d $HOME/.m2/repository/ || find $HOME/.m2/repository/ -name "*.jar" -exec sh -c ''if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi'' \;'
+# Installing the specified docker compose version
+   - sudo rm /usr/local/bin/docker-compose
+   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+   - chmod +x docker-compose
+   - sudo mv docker-compose /usr/local/bin
 
 # We run mvn and monitor its output. If there is no output for the specified number of seconds, we
 # print the stack traces of all running Java processes.

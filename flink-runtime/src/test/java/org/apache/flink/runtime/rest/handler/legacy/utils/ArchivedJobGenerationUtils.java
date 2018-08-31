@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -108,11 +109,13 @@ public class ArchivedJobGenerationUtils {
 		StringifiedAccumulatorResult acc1 = new StringifiedAccumulatorResult("name1", "type1", "value1");
 		StringifiedAccumulatorResult acc2 = new StringifiedAccumulatorResult("name2", "type2", "value2");
 		TaskManagerLocation location = new TaskManagerLocation(new ResourceID("hello"), InetAddress.getLocalHost(), 1234);
+		AllocationID allocationID = new AllocationID(42L, 43L);
 		originalAttempt = new ArchivedExecutionBuilder()
 			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9})
 			.setParallelSubtaskIndex(1)
 			.setAttemptNumber(0)
 			.setAssignedResourceLocation(location)
+			.setAssignedAllocationID(allocationID)
 			.setUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})
 			.setState(ExecutionState.FINISHED)
 			.setFailureCause("attemptException")
@@ -135,7 +138,7 @@ public class ArchivedJobGenerationUtils {
 			.setTasks(tasks)
 			.setFailureCause(new ErrorInfo(new Exception("jobException"), originalAttempt.getStateTimestamp(ExecutionState.FAILED)))
 			.setState(JobStatus.FINISHED)
-			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
 			.setArchivedUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})
 			.build();
 	}

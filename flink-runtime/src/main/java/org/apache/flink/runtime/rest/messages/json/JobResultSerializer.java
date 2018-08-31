@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 
@@ -77,10 +78,10 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
 		gen.writeFieldName(FIELD_NAME_ACCUMULATOR_RESULTS);
 		gen.writeStartObject();
-		final Map<String, SerializedValue<Object>> accumulatorResults = result.getAccumulatorResults();
-		for (final Map.Entry<String, SerializedValue<Object>> nameValue : accumulatorResults.entrySet()) {
+		final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = result.getAccumulatorResults();
+		for (final Map.Entry<String, SerializedValue<OptionalFailure<Object>>> nameValue : accumulatorResults.entrySet()) {
 			final String name = nameValue.getKey();
-			final SerializedValue<Object> value = nameValue.getValue();
+			final SerializedValue<OptionalFailure<Object>> value = nameValue.getValue();
 
 			gen.writeFieldName(name);
 			serializedValueSerializer.serialize(value, gen, provider);

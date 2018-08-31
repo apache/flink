@@ -150,7 +150,7 @@ object AggSqlFunction {
   private[flink] def createOperandTypeChecker(aggregateFunction: AggregateFunction[_, _])
   : SqlOperandTypeChecker = {
 
-    val signatures = getMethodSignatures(aggregateFunction, "accumulate")
+    val methods = checkAndExtractMethods(aggregateFunction, "accumulate")
 
     /**
       * Operand type checker based on [[AggregateFunction]] given information.
@@ -161,20 +161,25 @@ object AggSqlFunction {
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        var min = 255
+        var min = 253
         var max = -1
-        signatures.foreach(
-          sig => {
-            //do not count accumulator as input
-            val inputSig = sig.drop(1)
-            var len = inputSig.length
-            if (len > 0 && inputSig.last.isArray) {
-              max = 253 // according to JVM spec 4.3.3
-              len = sig.length - 1
-            }
-            max = Math.max(len, max)
-            min = Math.min(len, min)
-          })
+        var isVarargs = false
+        methods.foreach( m => {
+          // do not count accumulator as input
+          val inputParams = m.getParameterTypes.drop(1)
+          var len = inputParams.length
+          if (len > 0 && m.isVarArgs && inputParams(len - 1).isArray) {
+            isVarargs = true
+            len = len - 1
+          }
+          max = Math.max(len, max)
+          min = Math.min(len, min)
+        })
+        if (isVarargs) {
+          // if eval method is varargs, set max to -1 to skip length check in Calcite
+          max = -1
+        }
+
         SqlOperandCountRanges.between(min, max)
       }
 

@@ -126,10 +126,11 @@ public class Kafka09FetcherTest {
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
 				"task_name",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -261,10 +262,11 @@ public class Kafka09FetcherTest {
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
 				"task_name",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----
@@ -375,10 +377,11 @@ public class Kafka09FetcherTest {
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
 				"task_name",
-				new UnregisteredMetricsGroup(),
 				schema,
 				new Properties(),
 				0L,
+				new UnregisteredMetricsGroup(),
+				new UnregisteredMetricsGroup(),
 				false);
 
 		// ----- run the fetcher -----

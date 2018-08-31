@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -48,7 +49,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
+/**
+ * Channel handler to read the messages of buffer response or error response from the
+ * producer.
+ *
+ * <p>It is used in the old network mode.
+ */
+class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter implements NetworkClientHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClientHandler.class);
 
@@ -74,7 +81,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	// Input channel/receiver registration
 	// ------------------------------------------------------------------------
 
-	void addInputChannel(RemoteInputChannel listener) throws IOException {
+	@Override
+	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
 		if (!inputChannels.containsKey(listener.getInputChannelId())) {
@@ -82,11 +90,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
-	void removeInputChannel(RemoteInputChannel listener) {
+	@Override
+	public void removeInputChannel(RemoteInputChannel listener) {
 		inputChannels.remove(listener.getInputChannelId());
 	}
 
-	void cancelRequestFor(InputChannelID inputChannelId) {
+	@Override
+	public void cancelRequestFor(InputChannelID inputChannelId) {
 		if (inputChannelId == null || ctx == null) {
 			return;
 		}
@@ -94,6 +104,10 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
 			ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
 		}
+	}
+
+	@Override
+	public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
 	}
 
 	// ------------------------------------------------------------------------
@@ -150,7 +164,11 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 								+ "that the remote task manager was lost.", remoteAddr, cause);
 			}
 			else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				SocketAddress localAddr = ctx.channel().localAddress();
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr),
+					localAddr,
+					cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);
@@ -274,7 +292,6 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		try {
 			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
 			final int receivedSize = nettyBuffer.readableBytes();
-
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
@@ -335,13 +352,6 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
-	/**
-	 * This class would be replaced by CreditBasedClientHandler in the final,
-	 * so we only implement this method in CreditBasedClientHandler.
-	 */
-	void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-	}
-
 	private class AsyncErrorNotificationTask implements Runnable {
 
 		private final Throwable error;
@@ -369,7 +379,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	private class BufferListenerTask implements BufferListener, Runnable {
 
-		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<>();
+		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<Buffer>();
 
 		private NettyMessage.BufferResponse stagedBufferResponse;
 

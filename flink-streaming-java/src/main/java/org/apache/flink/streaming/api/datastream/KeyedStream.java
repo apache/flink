@@ -37,18 +37,22 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
+import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -66,6 +70,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -73,6 +78,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 import java.util.UUID;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link KeyedStream} represents a {@link DataStream} on which operator state is
@@ -120,12 +127,37 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *            Function for determining state partitions
 	 */
 	public KeyedStream(DataStream<T> dataStream, KeySelector<T, KEY> keySelector, TypeInformation<KEY> keyType) {
-		super(
-			dataStream.getExecutionEnvironment(),
+		this(
+			dataStream,
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
-				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)));
-		this.keySelector = keySelector;
+				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)),
+			keySelector,
+			keyType);
+	}
+
+	/**
+	 * Creates a new {@link KeyedStream} using the given {@link KeySelector} and {@link TypeInformation}
+	 * to partition operator state by key, where the partitioning is defined by a {@link PartitionTransformation}.
+	 *
+	 * @param stream
+	 *            Base stream of data
+	 * @param partitionTransformation
+	 *            Function that determines how the keys are distributed to downstream operator(s)
+	 * @param keySelector
+	 *            Function to extract keys from the base stream
+	 * @param keyType
+	 *            Defines the type of the extracted keys
+	 */
+	@Internal
+	KeyedStream(
+		DataStream<T> stream,
+		PartitionTransformation<T> partitionTransformation,
+		KeySelector<T, KEY> keySelector,
+		TypeInformation<KEY> keyType) {
+
+		super(stream.getExecutionEnvironment(), partitionTransformation);
+		this.keySelector = clean(keySelector);
 		this.keyType = validateKeyType(keyType);
 	}
 
@@ -247,8 +279,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -261,7 +292,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction)}
 	 */
+	@Deprecated
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
@@ -272,7 +306,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			0,
 			1,
 			TypeExtractor.NO_INDEX,
-			TypeExtractor.NO_INDEX,
 			getType(),
 			Utils.getCallLocationName(),
 			true);
@@ -281,8 +314,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Applies the given {@link ProcessFunction} on the input stream, thereby
-	 * creating a transformed output stream.
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed output stream.
 	 *
 	 * <p>The function will be called for every element in the input streams and can produce zero
 	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
@@ -296,19 +328,271 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
 	 *
 	 * @return The transformed {@link DataStream}.
+	 *
+	 * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction, TypeInformation)}
 	 */
+	@Deprecated
 	@Override
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(
 			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		KeyedProcessOperator<KEY, T, R> operator =
-				new KeyedProcessOperator<>(clean(processFunction));
+		LegacyKeyedProcessOperator<KEY, T, R> operator = new LegacyKeyedProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
 	}
 
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> process(KeyedProcessFunction<KEY, T, R> keyedProcessFunction) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				keyedProcessFunction,
+				KeyedProcessFunction.class,
+				1,
+				2,
+				TypeExtractor.NO_INDEX,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return process(keyedProcessFunction, outType);
+	}
+
+	/**
+	 * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)}
+	 * function, this function can also query the time and set timers. When reacting to the firing
+	 * of set timers the function can directly emit elements and/or register yet more timers.
+	 *
+	 * @param keyedProcessFunction The {@link KeyedProcessFunction} that is called for each element in the stream.
+	 *
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R> The type of elements emitted by the {@code KeyedProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> process(
+			KeyedProcessFunction<KEY, T, R> keyedProcessFunction,
+			TypeInformation<R> outputType) {
+
+		KeyedProcessOperator<KEY, T, R> operator = new KeyedProcessOperator<>(clean(keyedProcessFunction));
+		return transform("KeyedProcess", outputType, operator);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Joining
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Join elements of this {@link KeyedStream} with elements of another {@link KeyedStream} over
+	 * a time interval that can be specified with {@link IntervalJoin#between(Time, Time)}.
+	 *
+	 * @param otherStream The other keyed stream to join this keyed stream with
+	 * @param <T1> Type parameter of elements in the other stream
+	 * @return An instance of {@link IntervalJoin} with this keyed stream and the other keyed stream
+	 */
+	@PublicEvolving
+	public <T1> IntervalJoin<T, T1, KEY> intervalJoin(KeyedStream<T1, KEY> otherStream) {
+		return new IntervalJoin<>(this, otherStream);
+	}
+
+	/**
+	 * Perform a join over a time interval.
+	 * @param <T1> The type parameter of the elements in the first streams
+	 * @param <T2> The The type parameter of the elements in the second stream
+	 */
+	@PublicEvolving
+	public static class IntervalJoin<T1, T2, KEY> {
+
+		private final KeyedStream<T1, KEY> streamOne;
+		private final KeyedStream<T2, KEY> streamTwo;
+
+		IntervalJoin(
+				KeyedStream<T1, KEY> streamOne,
+				KeyedStream<T2, KEY> streamTwo
+		) {
+			this.streamOne = checkNotNull(streamOne);
+			this.streamTwo = checkNotNull(streamTwo);
+		}
+
+		/**
+		 * Specifies the time boundaries over which the join operation works, so that
+		 * <pre>leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound</pre>
+		 * By default both the lower and the upper bound are inclusive. This can be configured
+		 * with {@link IntervalJoined#lowerBoundExclusive()} and
+		 * {@link IntervalJoined#upperBoundExclusive()}
+		 *
+		 * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
+		 * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
+		 */
+		@PublicEvolving
+		public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
+
+			TimeCharacteristic timeCharacteristic =
+				streamOne.getExecutionEnvironment().getStreamTimeCharacteristic();
+
+			if (timeCharacteristic != TimeCharacteristic.EventTime) {
+				throw new UnsupportedTimeCharacteristicException("Time-bounded stream joins are only supported in event time");
+			}
+
+			checkNotNull(lowerBound, "A lower bound needs to be provided for a time-bounded join");
+			checkNotNull(upperBound, "An upper bound needs to be provided for a time-bounded join");
+
+			return new IntervalJoined<>(
+				streamOne,
+				streamTwo,
+				lowerBound.toMilliseconds(),
+				upperBound.toMilliseconds(),
+				true,
+				true
+			);
+		}
+	}
+
+	/**
+	 * IntervalJoined is a container for two streams that have keys for both sides as well as
+	 * the time boundaries over which elements should be joined.
+	 *
+	 * @param <IN1> Input type of elements from the first stream
+	 * @param <IN2> Input type of elements from the second stream
+	 * @param <KEY> The type of the key
+	 */
+	@PublicEvolving
+	public static class IntervalJoined<IN1, IN2, KEY> {
+
+		private final KeyedStream<IN1, KEY> left;
+		private final KeyedStream<IN2, KEY> right;
+
+		private final long lowerBound;
+		private final long upperBound;
+
+		private final KeySelector<IN1, KEY> keySelector1;
+		private final KeySelector<IN2, KEY> keySelector2;
+
+		private boolean lowerBoundInclusive;
+		private boolean upperBoundInclusive;
+
+		public IntervalJoined(
+				KeyedStream<IN1, KEY> left,
+				KeyedStream<IN2, KEY> right,
+				long lowerBound,
+				long upperBound,
+				boolean lowerBoundInclusive,
+				boolean upperBoundInclusive) {
+
+			this.left = checkNotNull(left);
+			this.right = checkNotNull(right);
+
+			this.lowerBound = lowerBound;
+			this.upperBound = upperBound;
+
+			this.lowerBoundInclusive = lowerBoundInclusive;
+			this.upperBoundInclusive = upperBoundInclusive;
+
+			this.keySelector1 = left.getKeySelector();
+			this.keySelector2 = right.getKeySelector();
+		}
+
+		/**
+		 * Set the upper bound to be exclusive.
+		 */
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> upperBoundExclusive() {
+			this.upperBoundInclusive = false;
+			return this;
+		}
+
+		/**
+		 * Set the lower bound to be exclusive.
+		 */
+		@PublicEvolving
+		public IntervalJoined<IN1, IN2, KEY> lowerBoundExclusive() {
+			this.lowerBoundInclusive = false;
+			return this;
+		}
+
+		/**
+		 * Completes the join operation with the given user function that is executed for each joined pair
+		 * of elements.
+		 *
+		 * @param processJoinFunction The user-defined process join function.
+		 * @param <OUT> The output type.
+		 * @return The transformed {@link DataStream}.
+		 */
+		@PublicEvolving
+		public <OUT> SingleOutputStreamOperator<OUT> process(ProcessJoinFunction<IN1, IN2, OUT> processJoinFunction) {
+			Preconditions.checkNotNull(processJoinFunction);
+
+			final TypeInformation<OUT> outputType = TypeExtractor.getBinaryOperatorReturnType(
+				processJoinFunction,
+				ProcessJoinFunction.class,
+				0,
+				1,
+				2,
+				TypeExtractor.NO_INDEX,
+				left.getType(),
+				right.getType(),
+				Utils.getCallLocationName(),
+				true
+			);
+
+			return process(processJoinFunction, outputType);
+		}
+
+		/**
+		 * Completes the join operation with the given user function that is executed for each joined pair
+		 * of elements. This methods allows for passing explicit type information for the output type.
+		 *
+		 * @param processJoinFunction The user-defined process join function.
+		 * @param outputType The type information for the output type.
+		 * @param <OUT> The output type.
+		 * @return The transformed {@link DataStream}.
+		 */
+		@PublicEvolving
+		public <OUT> SingleOutputStreamOperator<OUT> process(
+				ProcessJoinFunction<IN1, IN2, OUT> processJoinFunction,
+				TypeInformation<OUT> outputType) {
+			Preconditions.checkNotNull(processJoinFunction);
+			Preconditions.checkNotNull(outputType);
+
+			final ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf = left.getExecutionEnvironment().clean(processJoinFunction);
+
+			final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+				new IntervalJoinOperator<>(
+					lowerBound,
+					upperBound,
+					lowerBoundInclusive,
+					upperBoundInclusive,
+					left.getType().createSerializer(left.getExecutionConfig()),
+					right.getType().createSerializer(right.getExecutionConfig()),
+					cleanedUdf
+				);
+
+			return left
+				.connect(right)
+				.keyBy(keySelector1, keySelector2)
+				.transform("Interval Join", outputType, operator);
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  Windowing

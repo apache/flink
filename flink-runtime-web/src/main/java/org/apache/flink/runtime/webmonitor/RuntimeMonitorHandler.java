@@ -25,18 +25,19 @@ import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.rest.handler.legacy.RequestHandler;
+import org.apache.flink.runtime.rest.handler.router.RouteResult;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
+import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,7 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 			localJobManagerAddressFuture,
 			retriever,
 			timeout,
-			Collections.singletonMap(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, cfg.getAllowOrigin()));
+			Collections.singletonMap(Names.ACCESS_CONTROL_ALLOW_ORIGIN, cfg.getAllowOrigin()));
 		this.handler = checkNotNull(handler);
 		this.allowOrigin = cfg.getAllowOrigin();
 	}
@@ -89,19 +90,20 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 	}
 
 	@Override
-	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, JobManagerGateway jobManagerGateway) {
+	protected void respondAsLeader(ChannelHandlerContext ctx, RoutedRequest routedRequest, JobManagerGateway jobManagerGateway) {
 		CompletableFuture<FullHttpResponse> responseFuture;
+		RouteResult<?> result = routedRequest.getRouteResult();
 
 		try {
 			// we only pass the first element in the list to the handlers.
 			Map<String, String> queryParams = new HashMap<>();
-			for (String key : routed.queryParams().keySet()) {
-				queryParams.put(key, routed.queryParam(key));
+			for (String key : result.queryParams().keySet()) {
+				queryParams.put(key, result.queryParam(key));
 			}
 
-			Map<String, String> pathParams = new HashMap<>(routed.pathParams().size());
-			for (String key : routed.pathParams().keySet()) {
-				pathParams.put(key, URLDecoder.decode(routed.pathParams().get(key), ENCODING.toString()));
+			Map<String, String> pathParams = new HashMap<>(result.pathParams().size());
+			for (String key : result.pathParams().keySet()) {
+				pathParams.put(key, URLDecoder.decode(result.pathParams().get(key), ENCODING.toString()));
 			}
 
 			queryParams.put(WEB_MONITOR_ADDRESS_KEY, localAddressFuture.get());
@@ -119,7 +121,7 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 				if (throwable != null) {
 					LOG.debug("Error while handling request.", throwable);
 
-					Optional<Throwable> optNotFound = ExceptionUtils.findThrowable(throwable, NotFoundException.class);
+					Optional<NotFoundException> optNotFound = ExceptionUtils.findThrowable(throwable, NotFoundException.class);
 
 					if (optNotFound.isPresent()) {
 						// this should result in a 404 error code (not found)
@@ -131,8 +133,8 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 					finalResponse = httpResponse;
 				}
 
-				finalResponse.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
-				KeepAliveWrite.flush(ctx, routed.request(), finalResponse);
+				finalResponse.headers().set(Names.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin);
+				KeepAliveWrite.flush(ctx, routedRequest.getRequest(), finalResponse);
 			});
 	}
 }

@@ -20,12 +20,9 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -146,22 +143,5 @@ public class State<T> implements Serializable {
 		Final, // the state is a final state for the NFA
 		Normal, // the state is neither a start nor a final state
 		Stop
-	}
-
-	////////////////			Backwards Compatibility			////////////////////
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-
-		//Backward compatibility. Previous version of StateTransition did not have source state
-		if (!stateTransitions.isEmpty() && stateTransitions.iterator().next().getSourceState() == null) {
-			final List<StateTransition<T>> tmp = new ArrayList<>();
-			tmp.addAll(this.stateTransitions);
-
-			this.stateTransitions.clear();
-			for (StateTransition<T> transition : tmp) {
-				addStateTransition(transition.getAction(), transition.getTargetState(), transition.getCondition());
-			}
-		}
 	}
 }

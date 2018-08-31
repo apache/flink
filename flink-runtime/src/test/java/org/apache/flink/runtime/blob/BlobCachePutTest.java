@@ -156,7 +156,7 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore());
 			final TransientBlobCache cache = new TransientBlobCache(
-				new InetSocketAddress("localhost", server.getPort()), config)) {
+				config, new InetSocketAddress("localhost", server.getPort()))) {
 
 			server.start();
 
@@ -181,8 +181,8 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (BlobServer server = new BlobServer(config, new VoidBlobStore());
 			final PermanentBlobCache cache = new PermanentBlobCache(
-				new InetSocketAddress("localhost", server.getPort()), config,
-				new VoidBlobStore())) {
+				config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -263,8 +263,8 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -379,8 +379,8 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -489,8 +489,8 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -590,8 +590,8 @@ public class BlobCachePutTest extends TestLogger {
 		File tempFileDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -653,8 +653,8 @@ public class BlobCachePutTest extends TestLogger {
 		File tempFileDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -721,8 +721,8 @@ public class BlobCachePutTest extends TestLogger {
 		File jobStoreDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -815,8 +815,8 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			final BlobServer server = new BlobServer(config, blobStoreServer);
-			final BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, blobStoreCache)) {
+			final BlobCacheService cache = new BlobCacheService(config, blobStoreCache, new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -833,7 +833,7 @@ public class BlobCachePutTest extends TestLogger {
 						() -> {
 							try {
 								List<PermanentBlobKey> keys =
-									BlobClient.uploadJarFiles(serverAddress, config, jobId, jars);
+									BlobClient.uploadFiles(serverAddress, config, jobId, jars);
 								assertEquals(1, keys.size());
 								BlobKey uploadedKey = keys.get(0);
 								// check the uploaded file's contents (concurrently)

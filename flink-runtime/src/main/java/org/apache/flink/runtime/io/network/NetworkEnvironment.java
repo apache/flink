@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -84,6 +85,8 @@ public class NetworkEnvironment {
 	/** Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). */
 	private final int extraNetworkBuffersPerGate;
 
+	private final boolean enableCreditBased;
+
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
@@ -98,7 +101,8 @@ public class NetworkEnvironment {
 			int partitionRequestInitialBackoff,
 			int partitionRequestMaxBackoff,
 			int networkBuffersPerChannel,
-			int extraNetworkBuffersPerGate) {
+			int extraNetworkBuffersPerGate,
+			boolean enableCreditBased) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -117,6 +121,8 @@ public class NetworkEnvironment {
 		isShutdown = false;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
+
+		this.enableCreditBased = enableCreditBased;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -151,6 +157,10 @@ public class NetworkEnvironment {
 		return partitionRequestMaxBackoff;
 	}
 
+	public boolean isCreditBased() {
+		return enableCreditBased;
+	}
+
 	public KvStateRegistry getKvStateRegistry() {
 		return kvStateRegistry;
 	}
@@ -179,64 +189,73 @@ public class NetworkEnvironment {
 				throw new IllegalStateException("NetworkEnvironment is shut down");
 			}
 
-			for (int i = 0; i < producedPartitions.length; i++) {
-				final ResultPartition partition = producedPartitions[i];
-
-				// Buffer pool for the partition
-				BufferPool bufferPool = null;
-
-				try {
-					int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-						partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
-							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-						maxNumberOfMemorySegments);
-					partition.registerBufferPool(bufferPool);
-
-					resultPartitionManager.registerResultPartition(partition);
-				} catch (Throwable t) {
-					if (bufferPool != null) {
-						bufferPool.lazyDestroy();
-					}
-
-					if (t instanceof IOException) {
-						throw (IOException) t;
-					} else {
-						throw new IOException(t.getMessage(), t);
-					}
-				}
-
-				// Register writer with task event dispatcher
-				taskEventDispatcher.registerPartition(partition.getPartitionId());
+			for (final ResultPartition partition : producedPartitions) {
+				setupPartition(partition);
 			}
 
 			// Setup the buffer pool for each buffer reader
 			final SingleInputGate[] inputGates = task.getAllInputGates();
-
 			for (SingleInputGate gate : inputGates) {
-				BufferPool bufferPool = null;
-
-				try {
-					if (gate.getConsumedPartitionType().isCreditBased()) {
-						// Create a fixed-size buffer pool for floating buffers and assign exclusive buffers to input channels directly
-						bufferPool = networkBufferPool.createBufferPool(extraNetworkBuffersPerGate, extraNetworkBuffersPerGate);
-						gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
-					} else {
-						int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-							gate.getNumberOfInputChannels() * networkBuffersPerChannel +
-								extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-						bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
-							maxNumberOfMemorySegments);
-					}
-					gate.setBufferPool(bufferPool);
-				} catch (Throwable t) {
-					if (bufferPool != null) {
-						bufferPool.lazyDestroy();
-					}
-
-					ExceptionUtils.rethrowIOException(t);
-				}
+				setupInputGate(gate);
 			}
+		}
+	}
+
+	@VisibleForTesting
+	public void setupPartition(ResultPartition partition) throws IOException {
+		BufferPool bufferPool = null;
+
+		try {
+			int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
+				partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
+					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+			bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
+				maxNumberOfMemorySegments);
+			partition.registerBufferPool(bufferPool);
+
+			resultPartitionManager.registerResultPartition(partition);
+		} catch (Throwable t) {
+			if (bufferPool != null) {
+				bufferPool.lazyDestroy();
+			}
+
+			if (t instanceof IOException) {
+				throw (IOException) t;
+			} else {
+				throw new IOException(t.getMessage(), t);
+			}
+		}
+
+		taskEventDispatcher.registerPartition(partition.getPartitionId());
+	}
+
+	@VisibleForTesting
+	public void setupInputGate(SingleInputGate gate) throws IOException {
+		BufferPool bufferPool = null;
+		int maxNumberOfMemorySegments;
+		try {
+			if (enableCreditBased) {
+				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+				// assign exclusive buffers to input channels directly and use the rest for floating buffers
+				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
+			} else {
+				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+					gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+						extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+
+				bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+					maxNumberOfMemorySegments);
+			}
+			gate.setBufferPool(bufferPool);
+		} catch (Throwable t) {
+			if (bufferPool != null) {
+				bufferPool.lazyDestroy();
+			}
+
+			ExceptionUtils.rethrowIOException(t);
 		}
 	}
 

@@ -21,6 +21,7 @@ package org.apache.flink.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -73,5 +74,25 @@ public class ExecutorUtils {
 				hasTimeLeft = timeLeft > 0L;
 			}
 		}
+	}
+
+	/**
+	 * Shuts the given {@link ExecutorService} down in a non-blocking fashion. The shut down will
+	 * be executed by a thread from the common fork-join pool.
+	 *
+	 * <p>The executor services will be shut down gracefully for the given timeout period. Afterwards
+	 * {@link ExecutorService#shutdownNow()} will be called.
+	 *
+	 * @param timeout before {@link ExecutorService#shutdownNow()} is called
+	 * @param unit time unit of the timeout
+	 * @param executorServices to shut down
+	 * @return Future which is completed once the {@link ExecutorService} are shut down
+	 */
+	public static CompletableFuture<Void> nonBlockingShutdown(long timeout, TimeUnit unit, ExecutorService... executorServices) {
+		return CompletableFuture.supplyAsync(
+			() -> {
+				gracefulShutdown(timeout, unit, executorServices);
+				return null;
+			});
 	}
 }

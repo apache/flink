@@ -27,6 +27,7 @@ import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
@@ -47,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Tests general behavior of the {@link AbstractServerBase}.
  */
-public class AbstractServerTest {
+public class AbstractServerTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedEx = ExpectedException.none();

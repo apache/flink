@@ -28,7 +28,6 @@ under the License.
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<baseDirectory>flink-${project.version}</baseDirectory>
 
-	<!-- Include flink-python.jar in lib/ -->
 	<dependencySets>
 		<dependencySet>
 			<outputDirectory>lib</outputDirectory>
@@ -76,12 +75,27 @@ under the License.
 			<fileMode>755</fileMode>
 		</fileSet>
 
+		<!-- copy SQL client -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy SQL client configuration files -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+
 		<!-- copy Mesos start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/mesos-bin</directory>
@@ -196,7 +210,14 @@ under the License.
 		<!-- copy python example to examples of dist -->
 		<fileSet>
 			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>
-			<outputDirectory>examples/python</outputDirectory>
+			<outputDirectory>examples/python/batch</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy python streaming example to examples of dist -->
+		<fileSet>
+			<directory>../flink-libraries/flink-streaming-python/src/test/python/org/apache/flink/streaming/python/api/examples</directory>
+			<outputDirectory>examples/python/streaming</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 

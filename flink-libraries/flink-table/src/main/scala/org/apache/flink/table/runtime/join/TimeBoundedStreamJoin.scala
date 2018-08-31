@@ -301,7 +301,6 @@ abstract class TimeBoundedStreamJoin(
               if (!tuple.f1) {
                 // Emit a null padding result if the left row has never been successfully joined.
                 joinCollector.collect(paddingUtil.padLeft(tuple.f0))
-                println(s"Emitting a null padding result for left row ${tuple.f0}")
               }
               i += 1
             }

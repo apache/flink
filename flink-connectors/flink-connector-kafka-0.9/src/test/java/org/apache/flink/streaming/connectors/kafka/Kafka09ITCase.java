@@ -55,11 +55,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		runCancelingOnFullInputTest();
 	}
 
-	@Test(timeout = 60000)
-	public void testFailOnDeploy() throws Exception {
-		runFailOnDeployTest();
-	}
-
 	// --- source to partition mappings and exactly once ---
 
 	@Test(timeout = 60000)

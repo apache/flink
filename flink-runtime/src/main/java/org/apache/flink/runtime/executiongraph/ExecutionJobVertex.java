@@ -34,8 +34,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
@@ -45,8 +45,10 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -73,7 +75,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable<ArchivedExecutionJobVertex> {
 
-	/** Use the same log for all ExecutionGraph classes */
+	/** Use the same log for all ExecutionGraph classes. */
 	private static final Logger LOG = ExecutionGraph.LOG;
 
 	public static final int VALUE_NOT_SET = -1;
@@ -87,7 +89,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	/**
 	 * The IDs of all operators contained in this execution job vertex.
 	 *
-	 * The ID's are stored depth-first post-order; for the forking chain below the ID's would be stored as [D, E, B, C, A].
+	 * <p>The ID's are stored depth-first post-order; for the forking chain below the ID's would be stored as [D, E, B, C, A].
 	 *  A - B - D
 	 *   \    \
 	 *    C    E
@@ -98,7 +100,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	/**
 	 * The alternative IDs of all operators contained in this execution job vertex.
 	 *
-	 * The ID's are in the same order as {@link ExecutionJobVertex#operatorIDs}.
+	 * <p>The ID's are in the same order as {@link ExecutionJobVertex#operatorIDs}.
 	 */
 	private final List<OperatorID> userDefinedOperatorIds;
 
@@ -162,14 +164,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
 		}
-		
+
 		this.graph = graph;
 		this.jobVertex = jobVertex;
 
 		int vertexParallelism = jobVertex.getParallelism();
 		int numTaskVertices = vertexParallelism > 0 ? vertexParallelism : defaultParallelism;
-
-		this.parallelism = numTaskVertices;
 
 		final int configuredMaxParallelism = jobVertex.getMaxParallelism();
 
@@ -177,7 +177,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		// if no max parallelism was configured by the user, we calculate and set a default
 		setMaxParallelismInternal(maxParallelismConfigured ?
-				configuredMaxParallelism : KeyGroupRangeAssignment.computeDefaultMaxParallelism(parallelism));
+				configuredMaxParallelism : KeyGroupRangeAssignment.computeDefaultMaxParallelism(numTaskVertices));
+
+		// verify that our parallelism is not higher than the maximum parallelism
+		if (numTaskVertices > maxParallelism) {
+			throw new JobException(
+				String.format("Vertex %s's parallelism (%s) is higher than the max parallelism (%s). Please lower the parallelism or increase the max parallelism.",
+					jobVertex.getName(),
+					numTaskVertices,
+					maxParallelism));
+		}
+
+		this.parallelism = numTaskVertices;
 
 		this.serializedTaskInformation = null;
 
@@ -186,16 +197,16 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
 
 		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
-		
+
 		// take the sharing group
 		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
 		this.coLocationGroup = jobVertex.getCoLocationGroup();
-		
+
 		// setup the coLocation group
 		if (coLocationGroup != null && slotSharingGroup == null) {
 			throw new JobException("Vertex uses a co-location constraint without using slot sharing");
 		}
-		
+
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
 
@@ -239,7 +250,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		try {
 			@SuppressWarnings("unchecked")
 			InputSplitSource<InputSplit> splitSource = (InputSplitSource<InputSplit>) jobVertex.getInputSplitSource();
-			
+
 			if (splitSource != null) {
 				Thread currentThread = Thread.currentThread();
 				ClassLoader oldContextClassLoader = currentThread.getContextClassLoader();
@@ -306,7 +317,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	public ExecutionGraph getGraph() {
 		return graph;
 	}
-	
+
 	public JobVertex getJobVertex() {
 		return jobVertex;
 	}
@@ -333,33 +344,33 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	public JobID getJobId() {
 		return graph.getJobID();
 	}
-	
+
 	@Override
 	public JobVertexID getJobVertexId() {
 		return jobVertex.getID();
 	}
-	
+
 	@Override
 	public ExecutionVertex[] getTaskVertices() {
 		return taskVertices;
 	}
-	
+
 	public IntermediateResult[] getProducedDataSets() {
 		return producedDataSets;
 	}
-	
+
 	public InputSplitAssigner getSplitAssigner() {
 		return splitAssigner;
 	}
-	
+
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}
-	
+
 	public CoLocationGroup getCoLocationGroup() {
 		return coLocationGroup;
 	}
-	
+
 	public List<IntermediateResult> getInputs() {
 		return inputs;
 	}
@@ -384,9 +395,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					getJobId(),
 					blobWriter);
 			}
-		}
 
-		return taskInformationOrBlobKey;
+			return taskInformationOrBlobKey;
+		}
 	}
 
 	@Override
@@ -412,28 +423,28 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 
 	//---------------------------------------------------------------------------------------------
-	
+
 	public void connectToPredecessors(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets) throws JobException {
-		
+
 		List<JobEdge> inputs = jobVertex.getInputs();
-		
+
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Connecting ExecutionJobVertex %s (%s) to %d predecessors.", jobVertex.getID(), jobVertex.getName(), inputs.size()));
 		}
-		
+
 		for (int num = 0; num < inputs.size(); num++) {
 			JobEdge edge = inputs.get(num);
-			
+
 			if (LOG.isDebugEnabled()) {
 				if (edge.getSource() == null) {
-					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via ID %s.", 
+					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via ID %s.",
 							num, jobVertex.getID(), jobVertex.getName(), edge.getSourceId()));
 				} else {
 					LOG.debug(String.format("Connecting input %d of vertex %s (%s) to intermediate result referenced via predecessor %s (%s).",
 							num, jobVertex.getID(), jobVertex.getName(), edge.getSource().getProducer().getID(), edge.getSource().getProducer().getName()));
 				}
 			}
-			
+
 			// fetch the intermediate result via ID. if it does not exist, then it either has not been created, or the order
 			// in which this method is called for the job vertices is not a topological order
 			IntermediateResult ires = intermediateDataSets.get(edge.getSourceId());
@@ -441,18 +452,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				throw new JobException("Cannot connect this job graph to the previous graph. No previous intermediate result found for ID "
 						+ edge.getSourceId());
 			}
-			
+
 			this.inputs.add(ires);
-			
+
 			int consumerIndex = ires.registerConsumer();
-			
+
 			for (int i = 0; i < parallelism; i++) {
 				ExecutionVertex ev = taskVertices[i];
 				ev.connectSource(num, ires, edge, consumerIndex);
 			}
 		}
 	}
-	
+
 	//---------------------------------------------------------------------------------------------
 	//  Actions
 	//---------------------------------------------------------------------------------------------
@@ -463,35 +474,42 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @param slotProvider to allocate the slots from
 	 * @param queued if the allocations can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @return Future which is completed once all {@link Execution} could be deployed
 	 */
-	public void scheduleAll(
+	public CompletableFuture<Void> scheduleAll(
 			SlotProvider slotProvider,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint) {
-		
+
 		final ExecutionVertex[] vertices = this.taskVertices;
+
+		final ArrayList<CompletableFuture<Void>> scheduleFutures = new ArrayList<>(vertices.length);
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
-			ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint);
+			scheduleFutures.add(ev.scheduleForExecution(slotProvider, queued, locationPreferenceConstraint));
 		}
+
+		return FutureUtils.waitForAll(scheduleFutures);
 	}
 
 	/**
 	 * Acquires a slot for all the execution vertices of this ExecutionJobVertex. The method returns
 	 * pairs of the slots and execution attempts, to ease correlation between vertices and execution
 	 * attempts.
-	 * 
+	 *
 	 * <p>If this method throws an exception, it makes sure to release all so far requested slots.
-	 * 
+	 *
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allocationTimeout timeout for allocating the individual slots
 	 */
 	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(
 			SlotProvider resourceProvider,
 			boolean queued,
-			LocationPreferenceConstraint locationPreferenceConstraint) {
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			Time allocationTimeout) {
 		final ExecutionVertex[] vertices = this.taskVertices;
 		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
@@ -503,7 +521,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(
 				resourceProvider,
 				queued,
-				locationPreferenceConstraint);
+				locationPreferenceConstraint,
+				allocationTimeout);
 			slots[i] = allocationFuture;
 		}
 
@@ -579,7 +598,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	// --------------------------------------------------------------------------------------------
 
 	public StringifiedAccumulatorResult[] getAggregatedUserAccumulatorsStringified() {
-		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<String, Accumulator<?, ?>>();
+		Map<String, OptionalFailure<Accumulator<?, ?>>> userAccumulators = new HashMap<>();
 
 		for (ExecutionVertex vertex : taskVertices) {
 			Map<String, Accumulator<?, ?>> next = vertex.getCurrentExecutionAttempt().getUserAccumulators();

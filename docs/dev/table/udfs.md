@@ -292,7 +292,7 @@ optionally implemented. While some of these methods allow the system more effici
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
 - `retract()` is required for aggregations on bounded `OVER` windows.
-- `merge()` is required for many batch aggreagtions and session window aggregations.
+- `merge()` is required for many batch aggregations and session window aggregations.
 - `resetAccumulator()` is required for many batch aggregations.
 
 All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a aggregate function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.

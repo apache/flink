@@ -35,6 +35,7 @@ import java.io.StringWriter;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,12 +82,15 @@ public final class ExceptionUtils {
 	 * <p>Currently considered fatal exceptions are Virtual Machine errors indicating
 	 * that the JVM is corrupted, like {@link InternalError}, {@link UnknownError},
 	 * and {@link java.util.zip.ZipError} (a special case of InternalError).
+	 * The {@link ThreadDeath} exception is also treated as a fatal error, because when
+	 * a thread is forcefully stopped, there is a high chance that parts of the system
+	 * are in an inconsistent state.
 	 *
 	 * @param t The exception to check.
 	 * @return True, if the exception is considered fatal to the JVM, false otherwise.
 	 */
 	public static boolean isJvmFatalError(Throwable t) {
-		return (t instanceof InternalError) || (t instanceof UnknownError);
+		return (t instanceof InternalError) || (t instanceof UnknownError) || (t instanceof ThreadDeath);
 	}
 
 	/**
@@ -237,6 +241,25 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Throws the given {@code Throwable} in scenarios where the signatures do allow to
+	 * throw a Exception. Errors and Exceptions are thrown directly, other "exotic"
+	 * subclasses of Throwable are wrapped in an Exception.
+	 *
+	 * @param t The throwable to be thrown.
+	 */
+	public static void rethrowException(Throwable t) throws Exception {
+		if (t instanceof Error) {
+			throw (Error) t;
+		}
+		else if (t instanceof Exception) {
+			throw (Exception) t;
+		}
+		else {
+			throw new Exception(t.getMessage(), t);
+		}
+	}
+
+	/**
 	 * Tries to throw the given {@code Throwable} in scenarios where the signatures allows only IOExceptions
 	 * (and RuntimeException and Error). Throws this exception directly, if it is an IOException,
 	 * a RuntimeException, or an Error. Otherwise does nothing.
@@ -286,7 +309,7 @@ public final class ExceptionUtils {
 	 * @param searchType the type of exception to search for in the chain.
 	 * @return Optional throwable of the requested type if available, otherwise empty
 	 */
-	public static Optional<Throwable> findThrowable(Throwable throwable, Class<?> searchType) {
+	public static <T extends Throwable> Optional<T> findThrowable(Throwable throwable, Class<T> searchType) {
 		if (throwable == null || searchType == null) {
 			return Optional.empty();
 		}
@@ -294,6 +317,30 @@ public final class ExceptionUtils {
 		Throwable t = throwable;
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
+				return Optional.of(searchType.cast(t));
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains an exception matching a predicate and returns it.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param predicate the predicate of the exception to search for in the chain.
+	 * @return Optional throwable of the requested type if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowable(Throwable throwable, Predicate<Throwable> predicate) {
+		if (throwable == null || predicate == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (predicate.test(t)) {
 				return Optional.of(t);
 			} else {
 				t = t.getCause();
@@ -317,7 +364,7 @@ public final class ExceptionUtils {
 
 		Throwable t = throwable;
 		while (t != null) {
-			if (t.getMessage().contains(searchMessage)) {
+			if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
 				return Optional.of(t);
 			} else {
 				t = t.getCause();
@@ -376,6 +423,18 @@ public final class ExceptionUtils {
 			throw ((SerializedThrowable) current).deserializeError(classLoader);
 		} else {
 			throw throwable;
+		}
+	}
+
+	/**
+	 * Checks whether the given exception is a {@link InterruptedException} and sets
+	 * the interrupted flag accordingly.
+	 *
+	 * @param e to check whether it is an {@link InterruptedException}
+	 */
+	public static void checkInterrupted(Throwable e) {
+		if (e instanceof InterruptedException) {
+			Thread.currentThread().interrupt();
 		}
 	}
 

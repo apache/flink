@@ -34,12 +34,12 @@ public class StringWriterTest {
 	public void testDuplicate() {
 		StringWriter<String> writer = new StringWriter(StandardCharsets.UTF_16.name());
 		writer.setSyncOnFlush(true);
-		Writer<String> other = writer.duplicate();
+		StringWriter<String> other = writer.duplicate();
 
-		assertTrue(writer.equals(other));
+		assertTrue(StreamWriterBaseComparator.equals(writer, other));
 
 		writer.setSyncOnFlush(false);
-		assertFalse(writer.equals(other));
-		assertFalse(writer.equals(new StringWriter<>()));
+		assertFalse(StreamWriterBaseComparator.equals(writer, other));
+		assertFalse(StreamWriterBaseComparator.equals(writer, new StringWriter<>()));
 	}
 }

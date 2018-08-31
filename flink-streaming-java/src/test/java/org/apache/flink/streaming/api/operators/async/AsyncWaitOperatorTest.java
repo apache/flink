@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -29,17 +27,17 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -54,16 +52,16 @@ import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEn
 import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.AcknowledgeStreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -78,14 +76,15 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
@@ -99,11 +98,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -217,6 +213,19 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		public static void countDown() {
 			latch.countDown();
+		}
+	}
+
+	/**
+	 * A special {@link LazyAsyncFunction} for timeout handling.
+	 * Complete the result future with 3 times the input when the timeout occurred.
+	 */
+	private static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
+		private static final long serialVersionUID = 1428714561365346128L;
+
+		@Override
+		public void timeout(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+			resultFuture.complete(Collections.singletonList(input * 3));
 		}
 	}
 
@@ -512,15 +521,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		streamConfig.setStreamOperator(operator);
 		streamConfig.setOperatorID(operatorID);
 
-		final AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
-				testHarness.jobConfig,
-				testHarness.taskConfig,
-				testHarness.getExecutionConfig(),
-				testHarness.memorySize,
-				new MockInputSplitProvider(),
-				testHarness.bufferSize);
+		final TestTaskStateManager taskStateManagerMock = testHarness.getTaskStateManager();
+		taskStateManagerMock.setWaitForReportLatch(new OneShotLatch());
 
-		testHarness.invoke(env);
+		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<Integer, Integer> task = testHarness.getTask();
@@ -539,11 +543,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint());
+		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
 
-		env.getCheckpointLatch().await();
+		taskStateManagerMock.getWaitForReportLatch().await();
 
-		assertEquals(checkpointId, env.getCheckpointId());
+		assertEquals(checkpointId, taskStateManagerMock.getReportedCheckpointId());
 
 		LazyAsyncFunction.countDown();
 
@@ -551,12 +555,14 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.waitForTaskCompletion();
 
 		// set the operator state from previous attempt into the restored one
-		TaskStateSnapshot subtaskStates = env.getCheckpointStateHandles();
+		TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastJobManagerTaskStateSnapshot();
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(
 						OneInputStreamTask::new,
 						BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+
+		restoredTaskHarness.setTaskStateSnapshot(checkpointId, subtaskStates);
 		restoredTaskHarness.setupOutputForSingletonOperatorChain();
 
 		AsyncWaitOperator<Integer, Integer> restoredOperator = new AsyncWaitOperator<>(
@@ -568,7 +574,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.getStreamConfig().setStreamOperator(restoredOperator);
 		restoredTaskHarness.getStreamConfig().setOperatorID(operatorID);
 
-		restoredTaskHarness.invoke(subtaskStates);
+		restoredTaskHarness.invoke();
 		restoredTaskHarness.waitForTaskRunning();
 
 		final OneInputStreamTask<Integer, Integer> restoredTask = restoredTaskHarness.getTask();
@@ -578,7 +584,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.processElement(new StreamRecord<>(7, initialTime + 7));
 
 		// trigger the checkpoint while processing stream elements
-		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forCheckpoint());
+		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));
 
@@ -610,16 +616,35 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testAsyncTimeout() throws Exception {
+	public void testAsyncTimeoutFailure() throws Exception {
+		testAsyncTimeout(
+			new LazyAsyncFunction(),
+			Optional.of(TimeoutException.class),
+			new StreamRecord<>(2, 5L));
+	}
+
+	@Test
+	public void testAsyncTimeoutIgnore() throws Exception {
+		testAsyncTimeout(
+			new IgnoreTimeoutLazyAsyncFunction(),
+			Optional.empty(),
+			new StreamRecord<>(3, 0L),
+			new StreamRecord<>(2, 5L));
+	}
+
+	private void testAsyncTimeout(LazyAsyncFunction lazyAsyncFunction,
+			Optional<Class<? extends Throwable>> expectedException,
+			StreamRecord<Integer>... expectedRecords) throws Exception {
 		final long timeout = 10L;
 
 		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new LazyAsyncFunction(),
+			lazyAsyncFunction,
 			timeout,
 			2,
 			AsyncDataStream.OutputMode.ORDERED);
 
-		final Environment mockEnvironment = createMockEnvironment();
+		final MockEnvironment mockEnvironment = createMockEnvironment();
+		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 
 		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
 			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE, mockEnvironment);
@@ -641,47 +666,33 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.setProcessingTime(initialTime + timeout + 1L);
 
 		// allow the second async stream record to be processed
-		LazyAsyncFunction.countDown();
+		lazyAsyncFunction.countDown();
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
 			testHarness.close();
 		}
 
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 5L));
+		expectedOutput.addAll(Arrays.asList(expectedRecords));
 
 		TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
 
-		ArgumentCaptor<Throwable> argumentCaptor = ArgumentCaptor.forClass(Throwable.class);
-
-		verify(mockEnvironment).failExternally(argumentCaptor.capture());
-
-		Throwable failureCause = argumentCaptor.getValue();
-
-		Assert.assertNotNull(failureCause.getCause());
-		Assert.assertTrue(failureCause.getCause() instanceof ExecutionException);
-
-		Assert.assertNotNull(failureCause.getCause().getCause());
-		Assert.assertTrue(failureCause.getCause().getCause() instanceof TimeoutException);
+		if (expectedException.isPresent()) {
+			assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
+			assertTrue(ExceptionUtils.findThrowable(
+				mockEnvironment.getActualExternalFailureCause().get(),
+				expectedException.get()).isPresent());
+		}
 	}
 
 	@Nonnull
-	private Environment createMockEnvironment() {
-		final Environment mockEnvironment = mock(Environment.class);
-
-		final Configuration taskConfiguration = new Configuration();
-		final ExecutionConfig executionConfig = new ExecutionConfig();
-		final TaskMetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
-		final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
-		final TaskInfo taskInfo = new TaskInfo("foobarTask", 1, 0, 1, 1);
-
-		when(mockEnvironment.getTaskConfiguration()).thenReturn(taskConfiguration);
-		when(mockEnvironment.getExecutionConfig()).thenReturn(executionConfig);
-		when(mockEnvironment.getMetricGroup()).thenReturn(metricGroup);
-		when(mockEnvironment.getTaskManagerInfo()).thenReturn(taskManagerRuntimeInfo);
-		when(mockEnvironment.getTaskInfo()).thenReturn(taskInfo);
-		when(mockEnvironment.getUserClassLoader()).thenReturn(Thread.currentThread().getContextClassLoader());
-		return mockEnvironment;
+	private MockEnvironment createMockEnvironment() {
+		return new MockEnvironmentBuilder()
+			.setTaskName("foobarTask")
+			.setMemorySize(1024 * 1024L)
+			.setInputSplitProvider(new MockInputSplitProvider())
+			.setBufferSize(4 * 1024)
+			.build();
 	}
 
 	/**
@@ -698,16 +709,15 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		ArgumentCaptor<Throwable> failureReason = ArgumentCaptor.forClass(Throwable.class);
 
-		Environment environment = createMockEnvironment();
-		doNothing().when(environment).failExternally(failureReason.capture());
+		MockEnvironment environment = createMockEnvironment();
 
 		StreamTask<?, ?> containingTask = mock(StreamTask.class);
 		when(containingTask.getEnvironment()).thenReturn(environment);
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
@@ -751,16 +761,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		synchronized (lock) {
 			operator.close();
-		}
-
-		// check that no concurrent exception has occurred
-		try {
-			verify(environment, never()).failExternally(any(Throwable.class));
-		} catch (Error e) {
-			// add the exception occurring in the emitter thread (root cause) as a suppressed
-			// exception
-			e.addSuppressed(failureReason.getValue());
-			throw e;
 		}
 	}
 
@@ -819,8 +819,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		Output<StreamRecord<Integer>> output = mock(Output.class);
 
@@ -896,7 +896,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			2,
 			outputMode);
 
-		final Environment mockEnvironment = createMockEnvironment();
+		final MockEnvironment mockEnvironment = createMockEnvironment();
+		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
 			asyncWaitOperator,
@@ -909,11 +910,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			harness.processElement(1, 1L);
 		}
 
-		verify(harness.getEnvironment(), timeout(timeout)).failExternally(any(Exception.class));
-
 		synchronized (harness.getCheckpointLock()) {
 			harness.close();
 		}
+
+		assertTrue(harness.getEnvironment().getActualExternalFailureCause().isPresent());
 	}
 
 	/**
@@ -961,12 +962,13 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			2,
 			outputMode);
 
-		final Environment mockenvironment = createMockEnvironment();
+		final MockEnvironment mockEnvironment = createMockEnvironment();
+		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
 			asyncWaitOperator,
 			IntSerializer.INSTANCE,
-			mockenvironment);
+			mockEnvironment);
 
 		harness.open();
 
@@ -975,8 +977,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		harness.setProcessingTime(10L);
-
-		verify(harness.getEnvironment(), timeout(100L * timeout)).failExternally(any(Exception.class));
 
 		synchronized (harness.getCheckpointLock()) {
 			harness.close();
@@ -1006,7 +1006,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		snapshotHarness.open();
 
-		final OperatorStateHandles snapshot;
+		final OperatorSubtaskState snapshot;
 
 		final ArrayList<Integer> expectedOutput = new ArrayList<>(capacity + 1);
 

@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -36,6 +35,8 @@ import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
+import akka.actor.ActorSystem;
+import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
@@ -43,15 +44,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import scala.Option;
-
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.BindException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
+
+import scala.Option;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests that check how the TaskManager behaves when encountering startup
@@ -144,7 +148,7 @@ public class TaskManagerStartupTest extends TestLogger {
 		try {
 			Configuration cfg = new Configuration();
 			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
-			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
 			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 			cfg.setInteger(JobManagerOptions.PORT, 21656);
 
@@ -192,7 +196,7 @@ public class TaskManagerStartupTest extends TestLogger {
 			cfg.setBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE, true);
 
 			// something invalid
-			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -42L);
+			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "-42m");
 			try {
 				TaskManager.runTaskManager(
 					"localhost",
@@ -208,8 +212,8 @@ public class TaskManagerStartupTest extends TestLogger {
 
 			// something ridiculously high
 			final long memSize = (((long) Integer.MAX_VALUE - 1) *
-					TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()) >> 20;
-			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, memSize);
+				MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()) >> 20;
+			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, memSize + "m");
 			try {
 				TaskManager.runTaskManager(
 					"localhost",
@@ -244,13 +248,13 @@ public class TaskManagerStartupTest extends TestLogger {
 
 			final Configuration cfg = new Configuration();
 			cfg.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, "localhost");
-			cfg.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, blocker.getLocalPort());
-			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 1L);
-
+			cfg.setInteger(TaskManagerOptions.DATA_PORT, blocker.getLocalPort());
+			cfg.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "1m");
+			ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(cfg);
 			TaskManager.startTaskManagerComponentsAndActor(
 				cfg,
 				ResourceID.generate(),
-				null,
+				actorSystem,
 				highAvailabilityServices,
 				NoOpMetricRegistry.INSTANCE,
 				"localhost",

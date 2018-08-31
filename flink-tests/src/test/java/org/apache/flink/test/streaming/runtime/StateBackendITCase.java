@@ -30,14 +30,15 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -86,8 +87,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			fail();
 		}
 		catch (JobExecutionException e) {
-			Throwable t = e.getCause();
-			assertTrue("wrong exception", t instanceof SuccessException);
+			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
 		}
 	}
 
@@ -95,36 +95,25 @@ public class StateBackendITCase extends AbstractTestBase {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorage(jobId);
-		}
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId,
-				String operatorIdentifier) throws IOException {
-			throw new SuccessException();
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
-			String operatorIdentifier, String targetLocation) throws IOException {
-			throw new UnsupportedOperationException();
+			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
 		}
 
 		@Override
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws IOException {
+			Environment env,
+			JobID jobID,
+			String operatorIdentifier,
+			TypeSerializer<K> keySerializer,
+			int numberOfKeyGroups,
+			KeyGroupRange keyGroupRange,
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider) throws IOException {
 			throw new SuccessException();
 		}
 
@@ -133,7 +122,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			Environment env,
 			String operatorIdentifier) throws Exception {
 
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 	}
 

@@ -68,4 +68,9 @@ public class JobPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanI
 	public static JobPlanHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the dataflow plan of a job.";
+	}
 }

@@ -22,13 +22,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 
 import java.io.IOException;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 
 /**
@@ -60,7 +59,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * of channels per input gate.
 	 */
 	public OneInputStreamTaskTestHarness(
-			BiFunction<Environment, TaskStateSnapshot, ? extends OneInputStreamTask<IN, OUT>> taskFactory,
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			TypeInformation<IN> inputType,
@@ -79,7 +78,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
 	public OneInputStreamTaskTestHarness(
-			BiFunction<Environment, TaskStateSnapshot, ? extends OneInputStreamTask<IN, OUT>> taskFactory,
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			TypeInformation<IN> inputType,
 			TypeInformation<OUT> outputType) {
 

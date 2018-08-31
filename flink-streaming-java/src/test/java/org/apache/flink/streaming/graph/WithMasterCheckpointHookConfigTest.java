@@ -116,6 +116,16 @@ public class WithMasterCheckpointHookConfigTest extends TestLogger {
 		}
 
 		@Override
+		public void reset() throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void close() throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public CompletableFuture<String> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) {
 			throw new UnsupportedOperationException();
 		}

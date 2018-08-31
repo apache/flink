@@ -51,6 +51,11 @@ When starting a Flink application from the Flink binaries, copy or move the resp
 See [AWS setup](deployment/aws.html) for details.
 
   - **MapR FS**: The MapR file system *"maprfs://"* is automatically available when the MapR libraries are in the classpath.
+  
+  - **OpenStack Swift FS**: Flink directly provides a file system to talk to the OpenStack Swift file system, registered under the scheme *"swift://"*. 
+  The implementation `flink-swift-fs-hadoop` is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+  To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{ site.version }}`
+  When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
 
 ### HDFS and Hadoop File System support 
 
@@ -68,18 +73,18 @@ That way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-c
 
 ## Common File System configurations
 
-The following configuration settings exist across different file systems
+The following configuration settings exist across different file systems.
 
 #### Default File System
 
 If paths to files do not explicitly specify a file system scheme (and authority), a default scheme (and authority) will be used.
 
-~~~
+{% highlight yaml %}
 fs.default-scheme: <default-fs>
-~~~
+{% endhighlight %}
 
-For example, if the default file system configured as `fs.default-scheme: hdfs://localhost:9000/`, then a a file path of
-`/user/hugo/in.txt'` is interpreted as `hdfs://localhost:9000/user/hugo/in.txt'`
+For example, if the default file system configured as `fs.default-scheme: hdfs://localhost:9000/`, then a file path of
+`/user/hugo/in.txt` is interpreted as `hdfs://localhost:9000/user/hugo/in.txt`.
 
 #### Connection limiting
 
@@ -91,13 +96,13 @@ For example, very small HDFS clusters with few RPC handlers can sometimes be ove
 To limit a specific file system's connections, add the following entries to the Flink configuration. The file system to be limited is identified by
 its scheme.
 
-~~~
+{% highlight yaml %}
 fs.<scheme>.limit.total: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.input: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.output: (number, 0/-1 mean no limit)
 fs.<scheme>.limit.timeout: (milliseconds, 0 means infinite)
 fs.<scheme>.limit.stream-timeout: (milliseconds, 0 means infinite)
-~~~
+{% endhighlight %}
 
 You can limit the number if input/output connections (streams) separately (`fs.<scheme>.limit.input` and `fs.<scheme>.limit.output`), as well as impose a limit on
 the total number of concurrent streams (`fs.<scheme>.limit.total`). If the file system tries to open more streams, the operation will block until some streams are closed.
@@ -107,7 +112,7 @@ To prevent inactive streams from taking up the complete pool (preventing new con
 `fs.<scheme>.limit.stream-timeout`. If a stream does not read/write any bytes for at least that amount of time, it is forcibly closed.
 
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
-In addition, the The limit are also enforced only per FileSystem instance. Because File Systems are created per scheme and authority, different
+In addition, the limits are also only enforced per FileSystem instance. Because File Systems are created per scheme and authority, different
 authorities will have their own connection pool. For example `hdfs://myhdfs:50010/` and `hdfs://anotherhdfs:4399/` will have separate pools.
 
 

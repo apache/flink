@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamMap;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 
 import org.junit.Assert;
@@ -30,6 +30,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /**
  * Tests for {@link ListCheckpointed}.
  */
@@ -37,35 +40,39 @@ public class ListCheckpointedTest {
 
 	@Test
 	public void testUDFReturningNull() throws Exception {
-		TestUserFunction userFunction = new TestUserFunction(null);
-		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
-		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.initializeState(snapshot);
-		Assert.assertTrue(userFunction.isRestored());
+		testUDF(new TestUserFunction(null));
 	}
 
 	@Test
 	public void testUDFReturningEmpty() throws Exception {
-		TestUserFunction userFunction = new TestUserFunction(Collections.<Integer>emptyList());
-		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
-		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.initializeState(snapshot);
-		Assert.assertTrue(userFunction.isRestored());
+		testUDF(new TestUserFunction(Collections.<Integer>emptyList()));
 	}
 
 	@Test
 	public void testUDFReturningData() throws Exception {
-		TestUserFunction userFunction = new TestUserFunction(Arrays.asList(1, 2, 3));
-		AbstractStreamOperatorTestHarness<Integer> testHarness =
-				new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
-		testHarness.open();
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.initializeState(snapshot);
-		Assert.assertTrue(userFunction.isRestored());
+		testUDF(new TestUserFunction(Arrays.asList(1, 2, 3)));
+	}
+
+	private static void testUDF(TestUserFunction userFunction) throws Exception {
+		OperatorSubtaskState snapshot;
+		try (AbstractStreamOperatorTestHarness<Integer> testHarness = createTestHarness(userFunction)) {
+			testHarness.open();
+			snapshot = testHarness.snapshot(0L, 0L);
+			assertFalse(userFunction.isRestored());
+		}
+		try (AbstractStreamOperatorTestHarness<Integer> testHarness = createTestHarness(userFunction)) {
+			testHarness.initializeState(snapshot);
+			testHarness.open();
+			assertTrue(userFunction.isRestored());
+		}
+	}
+
+	private static AbstractStreamOperatorTestHarness<Integer> createTestHarness(TestUserFunction userFunction) throws Exception {
+		return new AbstractStreamOperatorTestHarness<>(
+			new StreamMap<>(userFunction),
+			1,
+			1,
+			0);
 	}
 
 	private static class TestUserFunction extends RichMapFunction<Integer, Integer> implements ListCheckpointed<Integer> {
@@ -95,7 +102,7 @@ public class ListCheckpointedTest {
 			if (null != expected) {
 				Assert.assertEquals(expected, state);
 			} else {
-				Assert.assertTrue(state.isEmpty());
+				assertTrue(state.isEmpty());
 			}
 			restored = true;
 		}

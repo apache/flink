@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	
@@ -57,6 +57,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -88,7 +89,7 @@ under the License.
 		<dependency>
 			<groupId>com.netflix.fenzo</groupId>
 			<artifactId>fenzo-core</artifactId>
-			<version>0.9.3</version>
+			<version>0.10.1</version>
 			<exclusions>
 				<!-- exclude mesos here to override -->
 				<exclusion>

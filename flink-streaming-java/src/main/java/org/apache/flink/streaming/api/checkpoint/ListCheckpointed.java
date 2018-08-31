@@ -66,7 +66,7 @@ import java.util.List;
  * +----+   +----+   +----+   +----+   +----+
  * </pre>
 
- * Recovering the checkpoint with <i>parallelism = 5</i> yields the following state assignment:
+ * Recovering the checkpoint with <i>parallelism = 2</i> yields the following state assignment:
  * <pre>
  *      func_1          func_2
  * +----+----+----+   +----+----+

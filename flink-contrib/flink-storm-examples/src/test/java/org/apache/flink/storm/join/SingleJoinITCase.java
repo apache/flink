@@ -18,14 +18,16 @@
 
 package org.apache.flink.storm.join;
 
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+
+import org.junit.Test;
 
 /**
  * Test for the SingleJoin example.
  */
-public class SingleJoinITCase extends StreamingProgramTestBase {
+public class SingleJoinITCase extends AbstractTestBase {
 
 	protected static String[] expectedOutput = {
 			"(male,20)",
@@ -40,23 +42,14 @@ public class SingleJoinITCase extends StreamingProgramTestBase {
 			"(female,29)"
 	};
 
-	protected String resultPath;
-
-	@Override
-	protected void preSubmit() throws Exception {
-		this.resultPath = this.getTempDirPath("result");
-	}
-
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(Joiner.on("\n").join(expectedOutput), this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
+	@Test
+	public void testProgram() throws Exception {
+		String resultPath = getTempDirPath("result");
 		// We need to remove the file scheme because we can't use the Flink file system.
 		// (to remain compatible with Storm)
-		SingleJoinExample.main(new String[]{ this.resultPath.replace("file:", "") });
+		SingleJoinExample.main(new String[]{resultPath.replace("file:", "")});
+
+		compareResultsByLinesInMemory(Joiner.on("\n").join(expectedOutput), resultPath);
 	}
 
 }

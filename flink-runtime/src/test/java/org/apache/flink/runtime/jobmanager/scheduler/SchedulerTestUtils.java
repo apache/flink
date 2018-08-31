@@ -23,12 +23,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
@@ -75,7 +74,7 @@ public class SchedulerTestUtils {
 		HardwareDescription resources = new HardwareDescription(4, 4*GB, 3*GB, 2*GB);
 		
 		return new Instance(
-			new ActorTaskManagerGateway(DummyActorGateway.INSTANCE),
+			new SimpleAckingTaskManagerGateway(),
 			ci,
 			new InstanceID(),
 			resources,
@@ -91,7 +90,7 @@ public class SchedulerTestUtils {
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
 		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
 		
@@ -126,6 +125,7 @@ public class SchedulerTestUtils {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
+		when(vertex.getPreferredLocations()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
@@ -152,7 +152,7 @@ public class SchedulerTestUtils {
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getTaskNameWithSubtaskIndex()).thenReturn("TEST-VERTEX");
 		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
 		

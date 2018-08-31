@@ -27,16 +27,16 @@ import org.apache.flink.runtime.event.RuntimeEvent;
  */
 public class EndOfSuperstepEvent extends RuntimeEvent {
 
-	/** The singleton instance of this event */
+	/** The singleton instance of this event. */
 	public static final EndOfSuperstepEvent INSTANCE = new EndOfSuperstepEvent();
 
 	// ------------------------------------------------------------------------
-	
-	// not instantiable
+
+	/** This class is not meant to be instantiated. */
 	private EndOfSuperstepEvent() {}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void write(DataOutputView out) {}
 

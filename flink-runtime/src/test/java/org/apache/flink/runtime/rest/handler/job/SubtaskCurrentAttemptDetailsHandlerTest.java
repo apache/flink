@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
@@ -92,6 +94,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 		timestamps[expectedState.ordinal()] = finishedTs;
 
 		final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
+		final AllocationID allocationID = new AllocationID();
 
 		final int subtaskIndex = 1;
 		final int attempt = 2;
@@ -103,6 +106,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			expectedState,
 			null,
 			assignedResourceLocation,
+			allocationID,
 			subtaskIndex,
 			timestamps);
 
@@ -125,8 +129,8 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100),
-			restHandlerConfiguration.getResponseHeaders(),
-			null,
+			Collections.emptyMap(),
+			SubtaskCurrentAttemptDetailsHeaders.getInstance(),
 			new ExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),
 				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),

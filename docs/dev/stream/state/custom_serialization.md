@@ -2,7 +2,7 @@
 title: "Custom Serialization for Managed State"
 nav-title: "Custom Serialization"
 nav-parent_id: streaming_state
-nav-pos: 10
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -46,14 +47,12 @@ import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,7 +73,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	public static final int DEFAULT_NETWORK_BUFFER_SIZE = 1024;
 
-	private final BiFunction<Environment, TaskStateSnapshot, ? extends StreamTask<OUT, ?>> taskFactory;
+	private final Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory;
 
 	public long memorySize = 0;
 	public int bufferSize = 0;
@@ -84,6 +83,8 @@ public class StreamTaskTestHarness<OUT> {
 	public Configuration jobConfig;
 	public Configuration taskConfig;
 	protected StreamConfig streamConfig;
+
+	protected TestTaskStateManager taskStateManager;
 
 	private StreamTask<OUT, ?> task;
 
@@ -106,7 +107,7 @@ public class StreamTaskTestHarness<OUT> {
 	protected StreamTestSingleInputGate[] inputGates;
 
 	public StreamTaskTestHarness(
-			BiFunction<Environment, TaskStateSnapshot, ? extends StreamTask<OUT, ?>> taskFactory,
+			Function<Environment, ? extends StreamTask<OUT, ?>> taskFactory,
 			TypeInformation<OUT> outputType) {
 
 		this.taskFactory = checkNotNull(taskFactory);
@@ -121,6 +122,8 @@ public class StreamTaskTestHarness<OUT> {
 
 		outputSerializer = outputType.createSerializer(executionConfig);
 		outputStreamRecordSerializer = new StreamElementSerializer<OUT>(outputSerializer);
+
+		this.taskStateManager = new TestTaskStateManager();
 	}
 
 	public ProcessingTimeService getProcessingTimeService() {
@@ -131,6 +134,16 @@ public class StreamTaskTestHarness<OUT> {
 	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
 	protected void initializeInputs() throws IOException, InterruptedException {}
+
+	public TestTaskStateManager getTaskStateManager() {
+		return taskStateManager;
+	}
+
+	public void setTaskStateSnapshot(long checkpointId, TaskStateSnapshot taskStateSnapshot) {
+		taskStateManager.setReportedCheckpointId(checkpointId);
+		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+			Collections.singletonMap(checkpointId, taskStateSnapshot));
+	}
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
@@ -163,8 +176,8 @@ public class StreamTaskTestHarness<OUT> {
 		};
 
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(null, 0, "group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(null, 1, "group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 
 		outEdgesInOrder.add(new StreamEdge(sourceVertexDummy, targetVertexDummy, 0, new LinkedList<String>(), new BroadcastPartitioner<Object>(), null /* output tag */));
 
@@ -174,16 +187,23 @@ public class StreamTaskTestHarness<OUT> {
 
 	public StreamMockEnvironment createEnvironment() {
 		return new StreamMockEnvironment(
-				jobConfig, taskConfig, executionConfig, memorySize, new MockInputSplitProvider(), bufferSize);
+			jobConfig,
+			taskConfig,
+			executionConfig,
+			memorySize,
+			new MockInputSplitProvider(),
+			bufferSize,
+			taskStateManager);
 	}
 
 	/**
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
+	 *
 	 */
 	public void invoke() throws Exception {
-		invoke(createEnvironment(), null);
+		invoke(createEnvironment());
 	}
 
 	/**
@@ -191,36 +211,14 @@ public class StreamTaskTestHarness<OUT> {
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
 	 *
-	 * <p>Variant for providing initial task state.
-	 */
-	public void invoke(TaskStateSnapshot initialState) throws Exception {
-		invoke(createEnvironment(), initialState);
-	}
-
-	/**
-	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
-	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
-	 * Task thread to finish running.
-	 *
-	 * <p>Variant for providing a custom environment but no initial state.
 	 */
 	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
-		invoke(mockEnv, null);
-	}
-
-	/**
-	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
-	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
-	 * Task thread to finish running.
-	 *
-	 * <p>Variant for providing a custom environment and initial task state.
-	 */
-	public void invoke(StreamMockEnvironment mockEnv, @Nullable TaskStateSnapshot initialState) throws Exception {
 		this.mockEnv = checkNotNull(mockEnv);
-		this.task = taskFactory.apply(mockEnv, initialState);
 
 		initializeInputs();
 		initializeOutput();
+
+		this.task = taskFactory.apply(mockEnv);
 
 		taskThread = new TaskThread(task);
 		taskThread.start();

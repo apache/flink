@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -67,25 +67,28 @@ public class JobExecutionResultHandler
 			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
 
 		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-		return gateway.isJobExecutionResultPresent(jobId, timeout).thenCompose(present -> {
-				if (!present) {
+
+		final CompletableFuture<JobStatus> jobStatusFuture = gateway.requestJobStatus(jobId, timeout);
+
+		return jobStatusFuture.thenCompose(
+			jobStatus -> {
+				if (jobStatus.isGloballyTerminalState()) {
+					return gateway
+						.requestJobResult(jobId, timeout)
+						.thenApply(JobExecutionResultResponseBody::created);
+				} else {
 					return CompletableFuture.completedFuture(
 						JobExecutionResultResponseBody.inProgress());
-				} else {
-					return gateway.getJobExecutionResult(jobId, timeout)
-						.thenApply(JobExecutionResultResponseBody::created);
 				}
-			}
-		).exceptionally(throwable -> {
-			throw propagateException(throwable);
-		});
+			}).exceptionally(throwable -> {
+				throw propagateException(throwable);
+			});
 	}
 
 	private static CompletionException propagateException(final Throwable throwable) {
 		final Throwable cause = ExceptionUtils.stripCompletionException(throwable);
 
-		if (cause instanceof JobExecutionResultGoneException
-			|| cause instanceof FlinkJobNotFoundException) {
+		if (cause instanceof FlinkJobNotFoundException) {
 			throw new CompletionException(new RestHandlerException(
 				throwable.getMessage(),
 				HttpResponseStatus.NOT_FOUND,

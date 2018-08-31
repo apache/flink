@@ -18,71 +18,134 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.messages.RequestBody;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.util.Arrays;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 
 /**
  * Request for submitting a job.
  *
- * <p>We currently require the job-jars to be uploaded through the blob-server.
+ * <p>This request only contains the names of files that must be present on the server, and defines how these files are
+ * interpreted.
  */
 public final class JobSubmitRequestBody implements RequestBody {
 
-	private static final String FIELD_NAME_SERIALIZED_JOB_GRAPH = "serializedJobGraph";
+	public static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
+	private static final String FIELD_NAME_JOB_JARS = "jobJarFileNames";
+	private static final String FIELD_NAME_JOB_ARTIFACTS = "jobArtifactFileNames";
 
-	/**
-	 * The serialized job graph.
-	 */
-	@JsonProperty(FIELD_NAME_SERIALIZED_JOB_GRAPH)
-	public final byte[] serializedJobGraph;
+	@JsonProperty(FIELD_NAME_JOB_GRAPH)
+	@Nullable
+	public final String jobGraphFileName;
 
-	public JobSubmitRequestBody(JobGraph jobGraph) throws IOException {
-		this(serializeJobGraph(jobGraph));
-	}
+	@JsonProperty(FIELD_NAME_JOB_JARS)
+	@Nonnull
+	public final Collection<String> jarFileNames;
+
+	@JsonProperty(FIELD_NAME_JOB_ARTIFACTS)
+	@Nonnull
+	public final Collection<DistributedCacheFile> artifactFileNames;
 
 	@JsonCreator
 	public JobSubmitRequestBody(
-		@JsonProperty(FIELD_NAME_SERIALIZED_JOB_GRAPH) byte[] serializedJobGraph) {
-
-		// check that job graph can be read completely by the HttpObjectAggregator on the server
-		// we subtract 1024 bytes to account for http headers and such.
-		if (serializedJobGraph.length > RestServerEndpoint.MAX_REQUEST_SIZE_BYTES - 1024) {
-			throw new IllegalArgumentException("Serialized job graph exceeded max request size.");
+			@Nullable @JsonProperty(FIELD_NAME_JOB_GRAPH) String jobGraphFileName,
+			@Nullable @JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
+			@Nullable @JsonProperty(FIELD_NAME_JOB_ARTIFACTS) Collection<DistributedCacheFile> artifactFileNames) {
+		this.jobGraphFileName = jobGraphFileName;
+		if (jarFileNames == null) {
+			this.jarFileNames = Collections.emptyList();
+		} else {
+			this.jarFileNames = jarFileNames;
 		}
-		this.serializedJobGraph = Preconditions.checkNotNull(serializedJobGraph);
+		if (artifactFileNames == null) {
+			this.artifactFileNames = Collections.emptyList();
+		} else {
+			this.artifactFileNames = artifactFileNames;
+		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		JobSubmitRequestBody that = (JobSubmitRequestBody) o;
+		return Objects.equals(jobGraphFileName, that.jobGraphFileName) &&
+			Objects.equals(jarFileNames, that.jarFileNames) &&
+			Objects.equals(artifactFileNames, that.artifactFileNames);
 	}
 
 	@Override
 	public int hashCode() {
-		return 71 * Arrays.hashCode(this.serializedJobGraph);
+		return Objects.hash(jobGraphFileName, jarFileNames, artifactFileNames);
 	}
 
 	@Override
-	public boolean equals(Object object) {
-		if (object instanceof JobSubmitRequestBody) {
-			JobSubmitRequestBody other = (JobSubmitRequestBody) object;
-			return Arrays.equals(this.serializedJobGraph, other.serializedJobGraph);
-		}
-		return false;
+	public String toString() {
+		return "JobSubmitRequestBody{" +
+			"jobGraphFileName='" + jobGraphFileName + '\'' +
+			", jarFileNames=" + jarFileNames +
+			", artifactFileNames=" + artifactFileNames +
+			'}';
 	}
 
-	private static byte[] serializeJobGraph(JobGraph jobGraph) throws IOException {
-		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(64 * 1024)) {
-			ObjectOutputStream out = new ObjectOutputStream(baos);
+	/**
+	 * Descriptor for a distributed cache file.
+	 */
+	public static class DistributedCacheFile {
+		private static final String FIELD_NAME_ENTRY_NAME = "entryName";
+		private static final String FIELD_NAME_FILE_NAME = "fileName";
 
-			out.writeObject(jobGraph);
+		@JsonProperty(FIELD_NAME_ENTRY_NAME)
+		public final String entryName;
 
-			return baos.toByteArray();
+		@JsonProperty(FIELD_NAME_FILE_NAME)
+		public final String fileName;
+
+		@JsonCreator
+		public DistributedCacheFile(
+			@JsonProperty(FIELD_NAME_ENTRY_NAME) String entryName,
+			@JsonProperty(FIELD_NAME_FILE_NAME) String fileName) {
+			this.entryName = entryName;
+			this.fileName = fileName;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			DistributedCacheFile that = (DistributedCacheFile) o;
+			return Objects.equals(entryName, that.entryName) &&
+				Objects.equals(fileName, that.fileName);
+		}
+
+		@Override
+		public int hashCode() {
+
+			return Objects.hash(entryName, fileName);
+		}
+
+		@Override
+		public String toString() {
+			return "DistributedCacheFile{" +
+				"entryName='" + entryName + '\'' +
+				", fileName='" + fileName + '\'' +
+				'}';
 		}
 	}
 }

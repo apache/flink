@@ -61,9 +61,13 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -78,11 +82,11 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
@@ -129,8 +133,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	@Test
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
+		StateBackend lockingStateBackend = new BackendForTestStream(LockingOutputStream::new);
+
 		Task task =
-			createTask(new TestOperator(), new LockingStreamStateBackend(), mock(CheckpointResponder.class), true);
+			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class), true);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -183,7 +189,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 	private static Task createTask(
 		StreamOperator<?> op,
-		AbstractStateBackend backend,
+		StateBackend backend,
 		CheckpointResponder checkpointResponder,
 		boolean failOnCheckpointErrors) throws IOException {
 
@@ -231,11 +237,11 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				0,
-				null,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				network,
 				mock(BroadcastVariableManager.class),
+				new TestTaskStateManager(),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				checkpointResponder,
@@ -244,7 +250,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 					blobService.getPermanentBlobService(),
 					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 					new String[0]),
-				new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
+				new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
+					blobService.getPermanentBlobService()),
 				new TestingTaskManagerRuntimeInfo(),
 				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 				mock(ResultPartitionConsumableNotifier.class),
@@ -299,12 +306,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
+				@Nonnull
 				@Override
-				public RunnableFuture<OperatorStateHandle> snapshot(
+				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					CheckpointStreamFactory streamFactory,
-					CheckpointOptions checkpointOptions) throws Exception {
+					@Nonnull CheckpointStreamFactory streamFactory,
+					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
 
 					throw new Exception("Sync part snapshot exception.");
 				}
@@ -328,18 +336,16 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				env.getUserClassLoader(),
 				env.getExecutionConfig(),
 				true) {
+				@Nonnull
 				@Override
-				public RunnableFuture<OperatorStateHandle> snapshot(
+				public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
 					long checkpointId,
 					long timestamp,
-					CheckpointStreamFactory streamFactory,
-					CheckpointOptions checkpointOptions) throws Exception {
+					@Nonnull CheckpointStreamFactory streamFactory,
+					@Nonnull CheckpointOptions checkpointOptions) throws Exception {
 
-					return new FutureTask<>(new Callable<OperatorStateHandle>() {
-						@Override
-						public OperatorStateHandle call() throws Exception {
-							throw new Exception("Async part snapshot exception.");
-						}
+					return new FutureTask<>(() -> {
+						throw new Exception("Async part snapshot exception.");
 					});
 				}
 			};
@@ -353,46 +359,15 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	//  state backend with locking output stream.
+	//  locking output stream.
 	// ------------------------------------------------------------------------
-
-	private static class LockingStreamStateBackend extends MemoryStateBackend {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-			return new LockingOutputStreamFactory();
-		}
-
-		@Override
-		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
-			return new DefaultOperatorStateBackend(
-				getClass().getClassLoader(),
-				new ExecutionConfig(),
-				true);
-		}
-
-		@Override
-		public LockingStreamStateBackend configure(Configuration config) {
-			// retain this instance, no re-configuration!
-			return this;
-		}
-	}
-
-	private static final class LockingOutputStreamFactory implements CheckpointStreamFactory {
-
-		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
-			return new LockingOutputStream();
-		}
-	}
 
 	private static final class LockingOutputStream extends CheckpointStateOutputStream {
 
 		private final Object lock = new Object();
 		private volatile boolean closed;
 
+		@Nullable
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
 			throw new UnsupportedOperationException();
@@ -478,8 +453,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	 */
 	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
 
-		public TestStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-			super(env, initialState);
+		public TestStreamTask(Environment env) {
+			super(env);
 		}
 
 		@Override
@@ -492,7 +467,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				new CheckpointMetaData(
 					11L,
 					System.currentTimeMillis()),
-				CheckpointOptions.forCheckpoint(),
+				CheckpointOptions.forCheckpointWithDefaultLocation(),
 				new CheckpointMetrics());
 
 			while (isRunning()) {

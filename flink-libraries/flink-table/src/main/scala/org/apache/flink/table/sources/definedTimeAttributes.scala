@@ -19,6 +19,8 @@
 package org.apache.flink.table.sources
 
 import java.util
+import java.util.Objects
+import javax.annotation.Nullable
 
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.api.Types
@@ -37,6 +39,7 @@ trait DefinedProctimeAttribute {
     * The referenced attribute must be present in the [[TableSchema]] of the [[TableSource]] and of
     * type [[Types.SQL_TIMESTAMP]].
     */
+  @Nullable
   def getProctimeAttribute: String
 }
 
@@ -65,9 +68,9 @@ trait DefinedRowtimeAttributes {
   * @param watermarkStrategy The watermark strategy associated with the attribute.
   */
 class RowtimeAttributeDescriptor(
-  attributeName: String,
-  timestampExtractor: TimestampExtractor,
-  watermarkStrategy: WatermarkStrategy) {
+  val attributeName: String,
+  val timestampExtractor: TimestampExtractor,
+  val watermarkStrategy: WatermarkStrategy) {
 
   /** Returns the name of the rowtime attribute. */
   def getAttributeName: String = attributeName
@@ -77,4 +80,16 @@ class RowtimeAttributeDescriptor(
 
   /** Returns the [[WatermarkStrategy]] for the attribute. */
   def getWatermarkStrategy: WatermarkStrategy = watermarkStrategy
+
+  override def equals(other: Any): Boolean = other match {
+    case that: RowtimeAttributeDescriptor =>
+        Objects.equals(attributeName, that.attributeName) &&
+        Objects.equals(timestampExtractor, that.timestampExtractor) &&
+        Objects.equals(watermarkStrategy, that.watermarkStrategy)
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    Objects.hash(attributeName, timestampExtractor, watermarkStrategy)
+  }
 }

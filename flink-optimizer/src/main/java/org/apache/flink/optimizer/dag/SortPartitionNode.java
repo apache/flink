@@ -120,7 +120,7 @@ public class SortPartitionNode extends SingleInputNode {
 		
 		@Override
 		public LocalProperties computeLocalProperties(LocalProperties lProps) {
-			// sort partition is a no-operation operation, such that all global properties are preserved.
+			// sort partition is a no-operation operation, such that all local properties are preserved.
 			return lProps;
 		}
 	}

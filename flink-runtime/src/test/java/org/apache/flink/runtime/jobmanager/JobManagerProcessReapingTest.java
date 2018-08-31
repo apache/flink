@@ -182,7 +182,7 @@ public class JobManagerProcessReapingTest extends TestLogger {
 				jmProcess.destroy();
 			}
 			if (localSystem != null) {
-				localSystem.shutdown();
+				localSystem.terminate();
 			}
 		}
 	}

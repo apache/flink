@@ -19,12 +19,20 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.entrypoint.ClusterConfiguration;
+import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.FlinkParseException;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -39,21 +47,28 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.NetUtils;
 
 import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.BindException;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -66,9 +81,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * It constructs the related components (network, I/O manager, memory manager, RPC service, HA service)
  * and starts them.
  */
-public class TaskManagerRunner implements FatalErrorHandler {
+public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync {
 
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerRunner.class);
+
+	private static final long FATAL_ERROR_SHUTDOWN_TIMEOUT_MS = 10000L;
 
 	private static final int STARTUP_FAILURE_RETURN_CODE = 1;
 
@@ -88,14 +105,20 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	private final MetricRegistryImpl metricRegistry;
 
+	private final BlobCacheService blobCacheService;
+
 	/** Executor used to run future callbacks. */
 	private final ExecutorService executor;
 
 	private final TaskExecutor taskManager;
 
+	private final CompletableFuture<Void> terminationFuture;
+
+	private boolean shutdown;
+
 	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
-		this.configuration = Preconditions.checkNotNull(configuration);
-		this.resourceId = Preconditions.checkNotNull(resourceId);
+		this.configuration = checkNotNull(configuration);
+		this.resourceId = checkNotNull(resourceId);
 
 		timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
@@ -118,6 +141,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
 		metricRegistry.startQueryService(actorSystem, resourceId);
 
+		blobCacheService = new BlobCacheService(
+			configuration, highAvailabilityServices.createBlobStore(), null
+		);
+
 		taskManager = startTaskManager(
 			this.configuration,
 			this.resourceId,
@@ -125,8 +152,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			highAvailabilityServices,
 			heartbeatServices,
 			metricRegistry,
+			blobCacheService,
 			false,
 			this);
+
+		this.terminationFuture = new CompletableFuture<>();
+		this.shutdown = false;
+
+		MemoryLogger.startIfConfigured(LOG, configuration, actorSystem);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -137,18 +170,42 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		taskManager.start();
 	}
 
-	public void shutDown() throws Exception {
-		shutDownInternally();
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		synchronized (lock) {
+			if (!shutdown) {
+				shutdown = true;
+
+				taskManager.shutDown();
+				final CompletableFuture<Void> taskManagerTerminationFuture = taskManager.getTerminationFuture();
+
+				final CompletableFuture<Void> serviceTerminationFuture = FutureUtils.composeAfterwards(
+					taskManagerTerminationFuture,
+					this::shutDownServices);
+
+				serviceTerminationFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							terminationFuture.completeExceptionally(throwable);
+						} else {
+							terminationFuture.complete(null);
+						}
+					});
+			}
+		}
+
+		return terminationFuture;
 	}
 
-	protected void shutDownInternally() throws Exception {
-		Exception exception = null;
+	private CompletableFuture<Void> shutDownServices() {
+		synchronized (lock) {
+			Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(3);
+			Exception exception = null;
 
-		synchronized(lock) {
 			try {
-				taskManager.shutDown();
+				blobCacheService.close();
 			} catch (Exception e) {
-				exception = e;
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			try {
@@ -157,25 +214,27 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			rpcService.stopService();
-
 			try {
 				highAvailabilityServices.close();
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			ExecutorUtils.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
+			terminationFutures.add(rpcService.stopService());
+
+			terminationFutures.add(ExecutorUtils.nonBlockingShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor));
 
 			if (exception != null) {
-				throw exception;
+				terminationFutures.add(FutureUtils.completedExceptionally(exception));
 			}
+
+			return FutureUtils.completeAll(terminationFutures);
 		}
 	}
 
 	// export the termination future for caller to know it is terminated
-	public CompletableFuture<Boolean> getTerminationFuture() {
-		return taskManager.getTerminationFuture();
+	public CompletableFuture<Void> getTerminationFuture() {
+		return terminationFuture;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -186,12 +245,21 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	public void onFatalError(Throwable exception) {
 		LOG.error("Fatal error occurred while executing the TaskManager. Shutting it down...", exception);
 
-		try {
-			shutDown();
-		} catch (Throwable t) {
-			LOG.error("Could not properly shut down TaskManager.", t);
-		}
+		if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
+			terminateJVM();
+		} else {
+			closeAsync();
 
+			FutureUtils.orTimeout(terminationFuture, FATAL_ERROR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+			terminationFuture.whenComplete(
+				(Void ignored, Throwable throwable) -> {
+					terminateJVM();
+				});
+		}
+	}
+
+	protected void terminateJVM() {
 		System.exit(RUNTIME_FAILURE_RETURN_CODE);
 	}
 
@@ -213,11 +281,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			LOG.info("Cannot determine the maximum number of open file descriptors");
 		}
 
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+		final Configuration configuration = loadConfiguration(args);
 
-		final String configDir = parameterTool.get("configDir");
-
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
+		try {
+			FileSystem.initialize(configuration);
+		} catch (IOException e) {
+			throw new IOException("Error while setting the default " +
+				"filesystem scheme from configuration.", e);
+		}
 
 		SecurityUtils.install(new SecurityConfiguration(configuration));
 
@@ -233,6 +304,23 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			LOG.error("TaskManager initialization failed.", t);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);
 		}
+	}
+
+	private static Configuration loadConfiguration(String[] args) throws FlinkParseException {
+		final CommandLineParser<ClusterConfiguration> commandLineParser = new CommandLineParser<>(new ClusterConfigurationParserFactory());
+
+		final ClusterConfiguration clusterConfiguration;
+
+		try {
+			clusterConfiguration = commandLineParser.parse(args);
+		} catch (FlinkParseException e) {
+			LOG.error("Could not parse the command line options.", e);
+			commandLineParser.printHelp(TaskManagerRunner.class.getSimpleName());
+			throw e;
+		}
+
+		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
+		return GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir(), dynamicProperties);
 	}
 
 	public static void runTaskManager(Configuration configuration, ResourceID resourceId) throws Exception {
@@ -252,13 +340,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
+			BlobCacheService blobCacheService,
 			boolean localCommunicationOnly,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 
-		Preconditions.checkNotNull(configuration);
-		Preconditions.checkNotNull(resourceID);
-		Preconditions.checkNotNull(rpcService);
-		Preconditions.checkNotNull(highAvailabilityServices);
+		checkNotNull(configuration);
+		checkNotNull(resourceID);
+		checkNotNull(rpcService);
+		checkNotNull(highAvailabilityServices);
 
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
@@ -270,30 +359,27 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
-			resourceID);
+			resourceID,
+			rpcService.getExecutor(), // TODO replace this later with some dedicated executor for io.
+			EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag(),
+			EnvironmentInformation.getMaxJvmHeapMemory());
 
 		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
 			taskManagerServices.getTaskManagerLocation(),
-			taskManagerServices.getNetworkEnvironment());
+			taskManagerServices.getNetworkEnvironment(),
+			taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
 		return new TaskExecutor(
 			rpcService,
 			taskManagerConfiguration,
-			taskManagerServices.getTaskManagerLocation(),
-			taskManagerServices.getMemoryManager(),
-			taskManagerServices.getIOManager(),
-			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
+			taskManagerServices,
 			heartbeatServices,
 			taskManagerMetricGroup,
-			taskManagerServices.getBroadcastVariableManager(),
-			taskManagerServices.getFileCache(),
-			taskManagerServices.getTaskSlotTable(),
-			taskManagerServices.getJobManagerTable(),
-			taskManagerServices.getJobLeaderService(),
+			blobCacheService,
 			fatalErrorHandler);
 	}
 
@@ -327,13 +413,32 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				taskManagerHostname, taskManagerAddress.getHostAddress());
 		}
 
-		final int rpcPort = configuration.getInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 0);
+		final String portRangeDefinition = configuration.getString(TaskManagerOptions.RPC_PORT);
 
-		Preconditions.checkState(rpcPort >= 0 && rpcPort <= 65535, "Invalid value for " +
-				"'%s' (port for the TaskManager actor system) : %d - Leave config parameter empty or " +
-				"use 0 to let the system choose port automatically.",
-			ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, rpcPort);
+		// parse port range definition and create port iterator
+		Iterator<Integer> portsIterator;
+		try {
+			portsIterator = NetUtils.getPortRangeFromString(portRangeDefinition);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
+		}
 
-		return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, rpcPort, configuration);
+		while (portsIterator.hasNext()) {
+			try {
+				return AkkaRpcServiceUtils.createRpcService(taskManagerHostname, portsIterator.next(), configuration);
+			}
+			catch (Exception e) {
+				// we can continue to try if this contains a netty channel exception
+				Throwable cause = e.getCause();
+				if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
+					cause instanceof java.net.BindException)) {
+					throw e;
+				} // else fall through the loop and try the next port
+			}
+		}
+
+		// if we come here, we have exhausted the port range
+		throw new BindException("Could not start task manager on any port in port range "
+			+ portRangeDefinition);
 	}
 }

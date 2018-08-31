@@ -18,13 +18,10 @@
 
 package org.apache.flink.test.streaming.experimental;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.experimental.DataStreamUtils;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -38,33 +35,23 @@ import static org.junit.Assert.assertEquals;
  * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
  * for more information.
  */
-public class CollectITCase extends TestLogger {
+public class CollectITCase extends AbstractTestBase {
 
 	@Test
 	public void testCollect() throws Exception {
-		final LocalFlinkMiniCluster cluster = new LocalFlinkMiniCluster(new Configuration(), false);
-		try {
-			cluster.start();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
-			TestStreamEnvironment.setAsContext(cluster, 1);
+		final long n = 10;
+		DataStream<Long> stream = env.generateSequence(1, n);
 
-			final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-			final long n = 10;
-			DataStream<Long> stream = env.generateSequence(1, n);
-
-			long i = 1;
-			for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
-				long x = it.next();
-				assertEquals("received wrong element", i, x);
-				i++;
-			}
-
-			assertEquals("received wrong number of elements", n + 1, i);
+		long i = 1;
+		for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
+			long x = it.next();
+			assertEquals("received wrong element", i, x);
+			i++;
 		}
-		finally {
-			TestStreamEnvironment.unsetAsContext();
-			cluster.stop();
-		}
+
+		assertEquals("received wrong number of elements", n + 1, i);
 	}
 }

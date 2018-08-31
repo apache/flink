@@ -716,11 +716,12 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					new UnregisteredMetricsGroup(),
 					new KafkaConsumerCallBridge(),
 					"test-kafka-consumer-thread",
 					0,
-					false);
+					false,
+					new UnregisteredMetricsGroup(),
+					new UnregisteredMetricsGroup());
 
 			this.mockConsumer = mockConsumer;
 		}

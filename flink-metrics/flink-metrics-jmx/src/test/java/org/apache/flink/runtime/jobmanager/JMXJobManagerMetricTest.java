@@ -18,63 +18,74 @@
 
 package org.apache.flink.runtime.jobmanager;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests to verify JMX reporter functionality on the JobManager.
  */
-public class JMXJobManagerMetricTest {
+public class JMXJobManagerMetricTest extends TestLogger {
+
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberSlotsPerTaskManager(1)
+			.setNumberTaskManagers(1)
+			.build());
+
+	private static Configuration getConfiguration() {
+		Configuration flinkConfiguration = new Configuration();
+
+		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
+		flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+
+		return flinkConfiguration;
+	}
 
 	/**
 	 * Tests that metrics registered on the JobManager are actually accessible via JMX.
 	 */
 	@Test
 	public void testJobManagerJMXMetricAccess() throws Exception {
-		Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
-		Configuration flinkConfiguration = new Configuration();
-
-		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, JMXReporter.class.getName());
-		flinkConfiguration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "9060-9075");
-
-		flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
-
-		TestingCluster flink = new TestingCluster(flinkConfiguration);
+		Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
 		try {
-			flink.start();
-
 			JobVertex sourceJobVertex = new JobVertex("Source");
 			sourceJobVertex.setInvokableClass(BlockingInvokable.class);
 
@@ -92,28 +103,26 @@ public class JMXJobManagerMetricTest {
 					true),
 				null));
 
-			flink.waitForActorsToBeAlive();
+			ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+			client.setDetached(true);
+			client.submitJob(jobGraph, JMXJobManagerMetricTest.class.getClassLoader());
 
-			flink.submitJobDetached(jobGraph);
-
-			Future<Object> jobRunning = flink.getLeaderGateway(deadline.timeLeft())
-				.ask(new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID()), deadline.timeLeft());
-			Await.ready(jobRunning, deadline.timeLeft());
+			FutureUtils.retrySuccesfulWithDelay(
+				() -> client.getJobStatus(jobGraph.getJobID()),
+				Time.milliseconds(10),
+				deadline,
+				status -> status == JobStatus.RUNNING,
+				TestingUtils.defaultScheduledExecutor()
+			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 			Set<ObjectName> nameSet = mBeanServer.queryNames(new ObjectName("org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"), null);
 			Assert.assertEquals(1, nameSet.size());
 			assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
 
-			Future<Object> jobFinished = flink.getLeaderGateway(deadline.timeLeft())
-				.ask(new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()), deadline.timeLeft());
-
 			BlockingInvokable.unblock();
-
-			// wait til the job has finished
-			Await.ready(jobFinished, deadline.timeLeft());
 		} finally {
-			flink.stop();
+			BlockingInvokable.unblock();
 		}
 	}
 

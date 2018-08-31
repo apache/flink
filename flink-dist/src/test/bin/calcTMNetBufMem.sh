@@ -34,6 +34,8 @@ if [[ -z "${FLINK_TM_NET_BUF_MAX}" ]]; then
 fi
 
 FLINK_CONF_DIR=${bin}/../../main/resources
-. ${bin}/../../main/flink-bin/bin/config.sh
+. ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
+
+FLINK_TM_HEAP_MB=$(getMebiBytes $(parseBytes ${FLINK_TM_HEAP}))
 
 calculateNetworkBufferMemory

@@ -28,6 +28,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -42,6 +44,8 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 
 import scala.Option;
@@ -53,11 +57,28 @@ import scala.Option;
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
 @Internal
-public abstract class KafkaTableSource
-	implements StreamTableSource<Row>, DefinedProctimeAttribute, DefinedRowtimeAttributes {
+public abstract class KafkaTableSource implements
+		StreamTableSource<Row>,
+		DefinedProctimeAttribute,
+		DefinedRowtimeAttributes,
+		DefinedFieldMapping {
+
+	// common table source attributes
+	// TODO make all attributes final once we drop support for format-specific table sources
 
 	/** The schema of the table. */
 	private final TableSchema schema;
+
+	/** Field name of the processing time attribute, null if no processing time field is defined. */
+	private Optional<String> proctimeAttribute;
+
+	/** Descriptor for a rowtime attribute. */
+	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
+
+	/** Mapping for the fields of the table schema to fields of the physical returned type. */
+	private Optional<Map<String, String>> fieldMapping;
+
+	// Kafka-specific attributes
 
 	/** The Kafka topic to consume. */
 	private final String topic;
@@ -65,14 +86,8 @@ public abstract class KafkaTableSource
 	/** Properties for the Kafka consumer. */
 	private final Properties properties;
 
-	/** Type information describing the result type. */
-	private TypeInformation<Row> returnType;
-
-	/** Field name of the processing time attribute, null if no processing time field is defined. */
-	private String proctimeAttribute;
-
-	/** Descriptor for a rowtime attribute. */
-	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
+	/** Deserialization schema for decoding records from Kafka. */
+	private final DeserializationSchema<Row> deserializationSchema;
 
 	/** The startup mode for the contained consumer (default is {@link StartupMode#GROUP_OFFSETS}). */
 	private StartupMode startupMode;
@@ -83,21 +98,63 @@ public abstract class KafkaTableSource
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param schema                Schema of the produced table.
-	 * @param returnType            Type information of the produced physical DataStream.
+	 * @param schema                      Schema of the produced table.
+	 * @param proctimeAttribute           Field name of the processing time attribute.
+	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
+	 * @param fieldMapping                Mapping for the fields of the table schema to
+	 *                                    fields of the physical returned type.
+	 * @param topic                       Kafka topic to consume.
+	 * @param properties                  Properties for the Kafka consumer.
+	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
+	 * @param startupMode                 Startup mode for the contained consumer.
+	 * @param specificStartupOffsets      Specific startup offsets; only relevant when startup
+	 *                                    mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 */
 	protected KafkaTableSource(
+			TableSchema schema,
+			Optional<String> proctimeAttribute,
+			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
+			Optional<Map<String, String>> fieldMapping,
 			String topic,
 			Properties properties,
-			TableSchema schema,
-			TypeInformation<Row> returnType) {
-
+			DeserializationSchema<Row> deserializationSchema,
+			StartupMode startupMode,
+			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
+		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
+		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
+		this.fieldMapping = fieldMapping;
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
-		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
-		this.returnType = Preconditions.checkNotNull(returnType, "Type information must not be null.");
+		this.deserializationSchema = Preconditions.checkNotNull(
+			deserializationSchema, "Deserialization schema must not be null.");
+		this.startupMode = Preconditions.checkNotNull(startupMode, "Startup mode must not be null.");
+		this.specificStartupOffsets = Preconditions.checkNotNull(
+			specificStartupOffsets, "Specific offsets must not be null.");
+	}
+
+	/**
+	 * Creates a generic Kafka {@link StreamTableSource}.
+	 *
+	 * @param schema                Schema of the produced table.
+	 * @param topic                 Kafka topic to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
+	 */
+	protected KafkaTableSource(
+			TableSchema schema,
+			String topic,
+			Properties properties,
+			DeserializationSchema<Row> deserializationSchema) {
+		this(
+			schema,
+			Optional.empty(),
+			Collections.emptyList(),
+			Optional.empty(),
+			topic, properties,
+			deserializationSchema,
+			StartupMode.GROUP_OFFSETS,
+			Collections.emptyMap());
 	}
 
 	/**
@@ -115,7 +172,7 @@ public abstract class KafkaTableSource
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		return returnType;
+		return deserializationSchema.getProducedType();
 	}
 
 	@Override
@@ -125,7 +182,7 @@ public abstract class KafkaTableSource
 
 	@Override
 	public String getProctimeAttribute() {
-		return proctimeAttribute;
+		return proctimeAttribute.orElse(null);
 	}
 
 	@Override
@@ -134,8 +191,67 @@ public abstract class KafkaTableSource
 	}
 
 	@Override
+	public Map<String, String> getFieldMapping() {
+		return fieldMapping.orElse(null);
+	}
+
+	@Override
 	public String explainSource() {
 		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getColumnNames());
+	}
+
+	/**
+	 * Returns the properties for the Kafka consumer.
+	 *
+	 * @return properties for the Kafka consumer.
+	 */
+	public Properties getProperties() {
+		return properties;
+	}
+
+	/**
+	 * Returns the deserialization schema.
+	 *
+	 * @return The deserialization schema
+	 */
+	public DeserializationSchema<Row> getDeserializationSchema(){
+		return deserializationSchema;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		// TODO force classes to be equal once we drop support for format-specific table sources
+		// if (o == null || getClass() != o.getClass()) {
+		if (o == null || !(o instanceof KafkaTableSource)) {
+			return false;
+		}
+		final KafkaTableSource that = (KafkaTableSource) o;
+		return Objects.equals(schema, that.schema) &&
+			Objects.equals(proctimeAttribute, that.proctimeAttribute) &&
+			Objects.equals(rowtimeAttributeDescriptors, that.rowtimeAttributeDescriptors) &&
+			Objects.equals(fieldMapping, that.fieldMapping) &&
+			Objects.equals(topic, that.topic) &&
+			Objects.equals(properties, that.properties) &&
+			Objects.equals(deserializationSchema, that.deserializationSchema) &&
+			startupMode == that.startupMode &&
+			Objects.equals(specificStartupOffsets, that.specificStartupOffsets);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
+			schema,
+			proctimeAttribute,
+			rowtimeAttributeDescriptors,
+			fieldMapping,
+			topic,
+			properties,
+			deserializationSchema,
+			startupMode,
+			specificStartupOffsets);
 	}
 
 	/**
@@ -169,61 +285,101 @@ public abstract class KafkaTableSource
 		return kafkaConsumer;
 	}
 
+	//////// VALIDATION FOR PARAMETERS
+
+	/**
+	 * Validates a field of the schema to be the processing time attribute.
+	 *
+	 * @param proctimeAttribute The name of the field that becomes the processing time field.
+	 */
+	private Optional<String> validateProctimeAttribute(Optional<String> proctimeAttribute) {
+		return proctimeAttribute.map((attribute) -> {
+			// validate that field exists and is of correct type
+			Option<TypeInformation<?>> tpe = schema.getType(attribute);
+			if (tpe.isEmpty()) {
+				throw new ValidationException("Processing time attribute '" + attribute + "' is not present in TableSchema.");
+			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
+				throw new ValidationException("Processing time attribute '" + attribute + "' is not of type SQL_TIMESTAMP.");
+			}
+			return attribute;
+		});
+	}
+
+	/**
+	 * Validates a list of fields to be rowtime attributes.
+	 *
+	 * @param rowtimeAttributeDescriptors The descriptors of the rowtime attributes.
+	 */
+	private List<RowtimeAttributeDescriptor> validateRowtimeAttributeDescriptors(List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
+		Preconditions.checkNotNull(rowtimeAttributeDescriptors, "List of rowtime attributes must not be null.");
+		// validate that all declared fields exist and are of correct type
+		for (RowtimeAttributeDescriptor desc : rowtimeAttributeDescriptors) {
+			String rowtimeAttribute = desc.getAttributeName();
+			Option<TypeInformation<?>> tpe = schema.getType(rowtimeAttribute);
+			if (tpe.isEmpty()) {
+				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not present in TableSchema.");
+			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
+				throw new ValidationException("Rowtime attribute '" + rowtimeAttribute + "' is not of type SQL_TIMESTAMP.");
+			}
+		}
+		return rowtimeAttributeDescriptors;
+	}
+
 	//////// SETTERS FOR OPTIONAL PARAMETERS
 
 	/**
 	 * Declares a field of the schema to be the processing time attribute.
 	 *
 	 * @param proctimeAttribute The name of the field that becomes the processing time field.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected void setProctimeAttribute(String proctimeAttribute) {
-		if (proctimeAttribute != null) {
-			// validate that field exists and is of correct type
-			Option<TypeInformation<?>> tpe = schema.getType(proctimeAttribute);
-			if (tpe.isEmpty()) {
-				throw new ValidationException("Processing time attribute " + proctimeAttribute + " is not present in TableSchema.");
-			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
-				throw new ValidationException("Processing time attribute " + proctimeAttribute + " is not of type SQL_TIMESTAMP.");
-			}
-		}
-		this.proctimeAttribute = proctimeAttribute;
+		this.proctimeAttribute = validateProctimeAttribute(Optional.ofNullable(proctimeAttribute));
 	}
 
 	/**
 	 * Declares a list of fields to be rowtime attributes.
 	 *
 	 * @param rowtimeAttributeDescriptors The descriptors of the rowtime attributes.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected void setRowtimeAttributeDescriptors(List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors) {
-		// validate that all declared fields exist and are of correct type
-		for (RowtimeAttributeDescriptor desc : rowtimeAttributeDescriptors) {
-			String rowtimeAttribute = desc.getAttributeName();
-			Option<TypeInformation<?>> tpe = schema.getType(rowtimeAttribute);
-			if (tpe.isEmpty()) {
-				throw new ValidationException("Rowtime attribute " + rowtimeAttribute + " is not present in TableSchema.");
-			} else if (tpe.get() != Types.SQL_TIMESTAMP()) {
-				throw new ValidationException("Rowtime attribute " + rowtimeAttribute + " is not of type SQL_TIMESTAMP.");
-			}
-		}
-		this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
+		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 	}
 
 	/**
 	 * Sets the startup mode of the TableSource.
 	 *
 	 * @param startupMode The startup mode.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected void setStartupMode(StartupMode startupMode) {
-		this.startupMode = startupMode;
+		this.startupMode = Preconditions.checkNotNull(startupMode);
 	}
 
 	/**
 	 * Sets the startup offsets of the TableSource; only relevant when the startup mode is {@link StartupMode#SPECIFIC_OFFSETS}.
 	 *
 	 * @param specificStartupOffsets The startup offsets for different partitions.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
 	 */
+	@Deprecated
 	protected void setSpecificStartupOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
-		this.specificStartupOffsets = specificStartupOffsets;
+		this.specificStartupOffsets = Preconditions.checkNotNull(specificStartupOffsets);
+	}
+
+	/**
+	 * Mapping for the fields of the table schema to fields of the physical returned type.
+	 *
+	 * @param fieldMapping The mapping from table schema fields to format schema fields.
+	 * @deprecated Use table descriptors instead of implementation-specific builders.
+	 */
+	@Deprecated
+	protected void setFieldMapping(Map<String, String> fieldMapping) {
+		this.fieldMapping = Optional.ofNullable(fieldMapping);
 	}
 
 	//////// ABSTRACT METHODS FOR SUBCLASSES
@@ -242,19 +398,17 @@ public abstract class KafkaTableSource
 			DeserializationSchema<Row> deserializationSchema);
 
 	/**
-	 * Returns the deserialization schema.
-	 *
-	 * @return The deserialization schema
-	 */
-	protected abstract DeserializationSchema<Row> getDeserializationSchema();
-
-	/**
 	 * Abstract builder for a {@link KafkaTableSource} to be extended by builders of subclasses of
 	 * KafkaTableSource.
 	 *
 	 * @param <T> Type of the KafkaTableSource produced by the builder.
 	 * @param <B> Type of the KafkaTableSource.Builder subclass.
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	protected abstract static class Builder<T extends KafkaTableSource, B extends KafkaTableSource.Builder> {
 
 		private String topic;
@@ -273,13 +427,14 @@ public abstract class KafkaTableSource
 		/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
 		private Map<KafkaTopicPartition, Long> specificStartupOffsets = null;
 
-
 		/**
 		 * Sets the topic from which the table is read.
 		 *
 		 * @param topic The topic from which the table is read.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B forTopic(String topic) {
 			Preconditions.checkNotNull(topic, "Topic must not be null.");
 			Preconditions.checkArgument(this.topic == null, "Topic has already been set.");
@@ -292,7 +447,9 @@ public abstract class KafkaTableSource
 		 *
 		 * @param props The configuration properties for the Kafka consumer.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withKafkaProperties(Properties props) {
 			Preconditions.checkNotNull(props, "Properties must not be null.");
 			Preconditions.checkArgument(this.kafkaProps == null, "Properties have already been set.");
@@ -305,7 +462,9 @@ public abstract class KafkaTableSource
 		 *
 		 * @param schema The schema of the produced table.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withSchema(TableSchema schema) {
 			Preconditions.checkNotNull(schema, "Schema must not be null.");
 			Preconditions.checkArgument(this.schema == null, "Schema has already been set.");
@@ -319,7 +478,9 @@ public abstract class KafkaTableSource
 		 *
 		 * @param proctimeAttribute The name of the processing time attribute in the table schema.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withProctimeAttribute(String proctimeAttribute) {
 			Preconditions.checkNotNull(proctimeAttribute, "Proctime attribute must not be null.");
 			Preconditions.checkArgument(!proctimeAttribute.isEmpty(), "Proctime attribute must not be empty.");
@@ -336,7 +497,9 @@ public abstract class KafkaTableSource
 		 * @param timestampExtractor The {@link TimestampExtractor} to extract the rowtime attribute from the physical type.
 		 * @param watermarkStrategy The {@link WatermarkStrategy} to generate watermarks for the rowtime attribute.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withRowtimeAttribute(
 				String rowtimeAttribute,
 				TimestampExtractor timestampExtractor,
@@ -363,7 +526,9 @@ public abstract class KafkaTableSource
 		 * @param rowtimeAttribute The name of the rowtime attribute in the table schema.
 		 * @param watermarkStrategy The {@link WatermarkStrategy} to generate watermarks for the rowtime attribute.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withKafkaTimestampAsRowtimeAttribute(
 				String rowtimeAttribute,
 				WatermarkStrategy watermarkStrategy) {
@@ -386,7 +551,9 @@ public abstract class KafkaTableSource
 		 * Configures the TableSource to start reading from the earliest offset for all partitions.
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromEarliest()
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B fromEarliest() {
 			this.startupMode = StartupMode.EARLIEST;
 			this.specificStartupOffsets = null;
@@ -397,7 +564,9 @@ public abstract class KafkaTableSource
 		 * Configures the TableSource to start reading from the latest offset for all partitions.
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromLatest()
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B fromLatest() {
 			this.startupMode = StartupMode.LATEST;
 			this.specificStartupOffsets = null;
@@ -408,7 +577,9 @@ public abstract class KafkaTableSource
 		 * Configures the TableSource to start reading from any committed group offsets found in Zookeeper / Kafka brokers.
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromGroupOffsets()
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B fromGroupOffsets() {
 			this.startupMode = StartupMode.GROUP_OFFSETS;
 			this.specificStartupOffsets = null;
@@ -420,7 +591,9 @@ public abstract class KafkaTableSource
 		 *
 		 * @param specificStartupOffsets the specified offsets for partitions
 		 * @see FlinkKafkaConsumerBase#setStartFromSpecificOffsets(Map)
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B fromSpecificOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 			this.startupMode = StartupMode.SPECIFIC_OFFSETS;
 			this.specificStartupOffsets = Preconditions.checkNotNull(specificStartupOffsets);
@@ -431,7 +604,9 @@ public abstract class KafkaTableSource
 		 * Returns the configured topic.
 		 *
 		 * @return the configured topic.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected String getTopic() {
 			return this.topic;
 		}
@@ -440,7 +615,9 @@ public abstract class KafkaTableSource
 		 * Returns the configured Kafka properties.
 		 *
 		 * @return the configured Kafka properties.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected Properties getKafkaProps() {
 			return this.kafkaProps;
 		}
@@ -449,7 +626,9 @@ public abstract class KafkaTableSource
 		 * Returns the configured table schema.
 		 *
 		 * @return the configured table schema.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected TableSchema getTableSchema() {
 			return this.schema;
 		}
@@ -458,14 +637,18 @@ public abstract class KafkaTableSource
 		 * True if the KafkaSource supports Kafka timestamps, false otherwise.
 		 *
 		 * @return True if the KafkaSource supports Kafka timestamps, false otherwise.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected abstract boolean supportsKafkaTimestamps();
 
 		/**
 		 * Configures a TableSource with optional parameters.
 		 *
 		 * @param tableSource The TableSource to configure.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected void configureTableSource(T tableSource) {
 			// configure processing time attributes
 			tableSource.setProctimeAttribute(proctimeAttribute);
@@ -490,13 +673,20 @@ public abstract class KafkaTableSource
 		/**
 		 * Returns the builder.
 		 * @return the builder.
+		 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+		 *             with descriptors for schema and format instead. Descriptors allow for
+		 *             implementation-agnostic definition of tables. See also
+		 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 		 */
+		@Deprecated
 		protected abstract B builder();
 
 		/**
 		 * Builds the configured {@link KafkaTableSource}.
 		 * @return The configured {@link KafkaTableSource}.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected abstract KafkaTableSource build();
 	}
 }

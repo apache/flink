@@ -100,12 +100,8 @@ public class NonKeyedJob {
 	public static SingleOutputStreamOperator<Integer> createThirdStatefulMap(ExecutionMode mode, DataStream<Integer> input) {
 		SingleOutputStreamOperator<Integer> map = input
 			.map(new StatefulStringStoringMap(mode, "third"))
-			.setParallelism(4);
-
-		// we cannot set the uid on a chained operator in 1.2
-		if (mode == ExecutionMode.MIGRATE || mode == ExecutionMode.RESTORE) {
-			map.uid("third");
-		}
+			.setParallelism(4)
+			.uid("third");
 
 		return map;
 	}

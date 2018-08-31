@@ -28,7 +28,9 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -59,8 +61,10 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -195,7 +199,7 @@ public class InterruptSensitiveRestoreTest {
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(new KeyGroupRange(0, 0));
 
 		Collection<OperatorStateHandle> operatorStateHandles =
-				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
+				Collections.singletonList(new OperatorStreamStateHandle(operatorStateMetadata, state));
 
 		List<KeyedStateHandle> keyedStateHandles =
 				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
@@ -218,16 +222,19 @@ public class InterruptSensitiveRestoreTest {
 		}
 
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			operatorStateBackend,
-			operatorStateStream,
-			keyedStateFromBackend,
-			keyedStateFromStream);
+			new StateObjectCollection<>(operatorStateBackend),
+			new StateObjectCollection<>(operatorStateStream),
+			new StateObjectCollection<>(keyedStateFromBackend),
+			new StateObjectCollection<>(keyedStateFromStream));
 
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 		streamConfig.setOperatorID(operatorID);
 		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
 		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+
+		JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, stateSnapshot);
+
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"test job name",
@@ -247,6 +254,13 @@ public class InterruptSensitiveRestoreTest {
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
+		TestTaskStateManager taskStateManager = new TestTaskStateManager();
+		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
+		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+			Collections.singletonMap(
+				taskRestore.getRestoreCheckpointId(),
+				taskRestore.getTaskStateSnapshot()));
+
 		return new Task(
 			jobInformation,
 			taskInformation,
@@ -257,11 +271,11 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			stateSnapshot,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
 			mock(BroadcastVariableManager.class),
+			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
@@ -270,7 +284,8 @@ public class InterruptSensitiveRestoreTest {
 				blobService.getPermanentBlobService(),
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 				new String[0]),
-			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
+			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() },
+				blobService.getPermanentBlobService()),
 			new TestingTaskManagerRuntimeInfo(),
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 			mock(ResultPartitionConsumableNotifier.class),

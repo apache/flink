@@ -32,14 +32,21 @@ public class SavepointTriggerRequestBody implements RequestBody {
 
 	public static final String FIELD_NAME_TARGET_DIRECTORY = "target-directory";
 
+	private static final String FIELD_NAME_CANCEL_JOB = "cancel-job";
+
 	@JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
 	@Nullable
 	private final String targetDirectory;
 
+	@JsonProperty(FIELD_NAME_CANCEL_JOB)
+	private final boolean cancelJob;
+
 	@JsonCreator
 	public SavepointTriggerRequestBody(
-			@Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory) {
+			@Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
+			@JsonProperty(value = FIELD_NAME_CANCEL_JOB, defaultValue = "false") final boolean cancelJob) {
 		this.targetDirectory = targetDirectory;
+		this.cancelJob = cancelJob;
 	}
 
 	@Nullable
@@ -47,4 +54,7 @@ public class SavepointTriggerRequestBody implements RequestBody {
 		return targetDirectory;
 	}
 
+	public boolean isCancelJob() {
+		return cancelJob;
+	}
 }

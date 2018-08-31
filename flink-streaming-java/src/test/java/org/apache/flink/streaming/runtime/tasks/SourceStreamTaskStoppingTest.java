@@ -40,7 +40,7 @@ public class SourceStreamTaskStoppingTest {
 	@Test
 	public void testStop() {
 		final StoppableSourceStreamTask<Object, StoppableSource> sourceTask =
-				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0), null);
+				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0));
 
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableSource());
 
@@ -53,7 +53,7 @@ public class SourceStreamTaskStoppingTest {
 	public void testStopBeforeInitialization() throws Exception {
 
 		final StoppableSourceStreamTask<Object, StoppableFailingSource> sourceTask =
-				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0), null);
+				new StoppableSourceStreamTask<>(new DummyEnvironment("test", 1, 0));
 		sourceTask.stop();
 
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableFailingSource());

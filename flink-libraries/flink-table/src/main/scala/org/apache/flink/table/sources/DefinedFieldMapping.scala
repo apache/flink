@@ -19,6 +19,7 @@
 package org.apache.flink.table.sources
 
 import java.util.{Map => JMap}
+import javax.annotation.Nullable
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
@@ -50,7 +51,9 @@ trait DefinedFieldMapping {
     * type. It can also provide a mapping for fields which are not in the [[TableSchema]] to make
     * fields in the physical [[TypeInformation]] accessible for a [[TimestampExtractor]].
     *
-    * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields.
+    * @return A mapping from [[TableSchema]] fields to [[TypeInformation]] fields or
+    *         null if no mapping is necessary.
     */
+  @Nullable
   def getFieldMapping: JMap[String, String]
 }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.resources.Resource;
 
 import javax.annotation.Nonnull;
 
@@ -64,6 +64,9 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	/** How many native memory in mb are needed. */
 	private final int nativeMemoryInMB;
 
+	/** Memory used for the task in the slot to communicate with its upstreams. Set by job master. */
+	private final int networkMemoryInMB;
+
 	/** A extensible field for user specified resources from {@link ResourceSpec}. */
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
 
@@ -76,6 +79,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
 	 * @param directMemoryInMB The size of the direct memory, in megabytes.
 	 * @param nativeMemoryInMB The size of the native memory, in megabytes.
+	 * @param networkMemoryInMB The size of the memory for input and output, in megabytes.
 	 * @param extendedResources The extended resources such as GPU and FPGA
 	 */
 	public ResourceProfile(
@@ -83,11 +87,13 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			int heapMemoryInMB,
 			int directMemoryInMB,
 			int nativeMemoryInMB,
+			int networkMemoryInMB,
 			Map<String, Resource> extendedResources) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = directMemoryInMB;
 		this.nativeMemoryInMB = nativeMemoryInMB;
+		this.networkMemoryInMB = networkMemoryInMB;
 		if (extendedResources != null) {
 			this.extendedResources.putAll(extendedResources);
 		}
@@ -100,7 +106,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param heapMemoryInMB The size of the heap memory, in megabytes.
 	 */
 	public ResourceProfile(double cpuCores, int heapMemoryInMB) {
-		this(cpuCores, heapMemoryInMB, 0, 0, Collections.EMPTY_MAP);
+		this(cpuCores, heapMemoryInMB, 0, 0, 0, Collections.emptyMap());
 	}
 
 	/**
@@ -109,7 +115,12 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param other The ResourceProfile to copy.
 	 */
 	public ResourceProfile(ResourceProfile other) {
-		this(other.cpuCores, other.heapMemoryInMB, other.directMemoryInMB, other.nativeMemoryInMB, other.extendedResources);
+		this(other.cpuCores,
+				other.heapMemoryInMB,
+				other.directMemoryInMB,
+				other.nativeMemoryInMB,
+				other.networkMemoryInMB,
+				other.extendedResources);
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,12 +162,20 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	}
 
 	/**
+	 * Get the memory needed for task to communicate with its upstreams and downstreams in MB.
+	 * @return The network memory in MB
+	 */
+	public int getNetworkMemoryInMB() {
+		return networkMemoryInMB;
+	}
+
+	/**
 	 * Get the total memory needed in MB.
 	 *
 	 * @return The total memory in MB
 	 */
 	public int getMemoryInMB() {
-		return heapMemoryInMB + directMemoryInMB + nativeMemoryInMB;
+		return heapMemoryInMB + directMemoryInMB + nativeMemoryInMB + networkMemoryInMB;
 	}
 
 	/**
@@ -187,7 +206,8 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		if (cpuCores >= required.getCpuCores() &&
 				heapMemoryInMB >= required.getHeapMemoryInMB() &&
 				directMemoryInMB >= required.getDirectMemoryInMB() &&
-				nativeMemoryInMB >= required.getNativeMemoryInMB()) {
+				nativeMemoryInMB >= required.getNativeMemoryInMB() &&
+				networkMemoryInMB >= required.getNetworkMemoryInMB()) {
 			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
 				if (!extendedResources.containsKey(resource.getKey()) ||
 						!extendedResources.get(resource.getKey()).getResourceAggregateType().equals(resource.getValue().getResourceAggregateType()) ||
@@ -241,6 +261,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		result = 31 * result + heapMemoryInMB;
 		result = 31 * result + directMemoryInMB;
 		result = 31 * result + nativeMemoryInMB;
+		result = 31 * result + networkMemoryInMB;
 		result = 31 * result + extendedResources.hashCode();
 		return result;
 	}
@@ -255,6 +276,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			return this.cpuCores == that.cpuCores &&
 					this.heapMemoryInMB == that.heapMemoryInMB &&
 					this.directMemoryInMB == that.directMemoryInMB &&
+					this.networkMemoryInMB == that.networkMemoryInMB &&
 					Objects.equals(extendedResources, that.extendedResources);
 		}
 		return false;
@@ -270,11 +292,12 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			"cpuCores=" + cpuCores +
 			", heapMemoryInMB=" + heapMemoryInMB +
 			", directMemoryInMB=" + directMemoryInMB +
-			", nativeMemoryInMB=" + nativeMemoryInMB + resources +
+			", nativeMemoryInMB=" + nativeMemoryInMB +
+			", networkMemoryInMB=" + networkMemoryInMB + resources +
 			'}';
 	}
 
-	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec) {
+	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
 		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
 
 		return new ResourceProfile(
@@ -282,6 +305,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 				resourceSpec.getHeapMemory(),
 				resourceSpec.getDirectMemory(),
 				resourceSpec.getNativeMemory(),
+				networkMemory,
 				copiedExtendedResources);
 	}
 }

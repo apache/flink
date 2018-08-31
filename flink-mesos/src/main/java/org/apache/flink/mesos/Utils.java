@@ -110,6 +110,20 @@ public class Utils {
 	}
 
 	/**
+	 * Construct a gpu resource.
+	 */
+	public static Protos.Resource gpus(double amount) {
+		return gpus(UNRESERVED_ROLE, amount);
+	}
+
+	/**
+	 * Construct a gpu resource.
+	 */
+	public static Protos.Resource gpus(String role, double amount) {
+		return scalar("gpus", role, amount);
+	}
+
+	/**
 	 * Construct a mem resource.
 	 */
 	public static Protos.Resource mem(double amount) {

@@ -18,15 +18,13 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.avatica.util.{TimeUnit, TimeUnitRange}
+import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkRelBuilder
-import org.apache.flink.table.expressions.ExpressionUtils.{divide, getFactor, mod}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
@@ -49,7 +47,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
 
     timeIntervalUnit match {
       case SymbolExpression(TimeIntervalUnit.YEAR)
+           | SymbolExpression(TimeIntervalUnit.QUARTER)
            | SymbolExpression(TimeIntervalUnit.MONTH)
+           | SymbolExpression(TimeIntervalUnit.WEEK)
            | SymbolExpression(TimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
@@ -74,69 +74,11 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
   override def toString: String = s"($temporal).extract($timeIntervalUnit)"
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    // get wrapped Calcite unit
-    val timeUnitRange = timeIntervalUnit
-      .asInstanceOf[SymbolExpression]
-      .symbol
-      .enum
-      .asInstanceOf[TimeUnitRange]
-
-    // convert RexNodes
-    convertExtract(
-      timeIntervalUnit.toRexNode,
-      timeUnitRange,
-      temporal.toRexNode,
-      relBuilder.asInstanceOf[FlinkRelBuilder])
-  }
-
-  /**
-    * Standard conversion of the EXTRACT operator.
-    * Source: [[org.apache.calcite.sql2rel.StandardConvertletTable#convertExtract()]]
-    */
-  private def convertExtract(
-      timeUnitRangeRexNode: RexNode,
-      timeUnitRange: TimeUnitRange,
-      temporal: RexNode,
-      relBuilder: FlinkRelBuilder)
-    : RexNode = {
-
-    // TODO convert this into Table API expressions to make the code more readable
-    val rexBuilder = relBuilder.getRexBuilder
-    val resultType = relBuilder
-      .getTypeFactory()
-      .createTypeFromTypeInfo(LONG_TYPE_INFO, isNullable = true)
-    var result = rexBuilder.makeReinterpretCast(
-      resultType,
-      temporal,
-      rexBuilder.makeLiteral(false))
-
-    val unit = timeUnitRange.startUnit
-    val sqlTypeName = temporal.getType.getSqlTypeName
-    unit match {
-      case TimeUnit.YEAR | TimeUnit.MONTH | TimeUnit.DAY =>
-        sqlTypeName match {
-          case SqlTypeName.TIMESTAMP =>
-            result = divide(rexBuilder, result, TimeUnit.DAY.multiplier)
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case SqlTypeName.DATE =>
-            return rexBuilder.makeCall(
-              resultType,
-              SqlStdOperatorTable.EXTRACT_DATE,
-              Seq(timeUnitRangeRexNode, result))
-
-          case _ => // do nothing
-        }
-
-      case _ => // do nothing
-    }
-
-    result = mod(rexBuilder, resultType, result, getFactor(unit))
-    result = divide(rexBuilder, result, unit.multiplier)
-    result
+    relBuilder
+      .getRexBuilder
+      .makeCall(
+        SqlStdOperatorTable.EXTRACT,
+        Seq(timeIntervalUnit.toRexNode, temporal.toRexNode))
   }
 }
 

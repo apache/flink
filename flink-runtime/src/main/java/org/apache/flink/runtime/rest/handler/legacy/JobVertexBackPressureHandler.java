@@ -22,7 +22,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTrackerImpl;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -46,7 +46,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 	private static final String JOB_VERTEX_BACKPRESSURE_REST_PATH = "/jobs/:jobid/vertices/:vertexid/backpressure";
 
 	/** Back pressure stats tracker. */
-	private final BackPressureStatsTracker backPressureStatsTracker;
+	private final BackPressureStatsTrackerImpl backPressureStatsTrackerImpl;
 
 	/** Time after which stats are considered outdated. */
 	private final int refreshInterval;
@@ -54,11 +54,11 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 	public JobVertexBackPressureHandler(
 			ExecutionGraphCache executionGraphHolder,
 			Executor executor,
-			BackPressureStatsTracker backPressureStatsTracker,
+			BackPressureStatsTrackerImpl backPressureStatsTrackerImpl,
 			int refreshInterval) {
 
 		super(executionGraphHolder, executor);
-		this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker, "Stats tracker");
+		this.backPressureStatsTrackerImpl = checkNotNull(backPressureStatsTrackerImpl, "Stats tracker");
 		checkArgument(refreshInterval >= 0, "Negative timeout");
 		this.refreshInterval = refreshInterval;
 	}
@@ -81,7 +81,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 
 			gen.writeStartObject();
 
-			Optional<OperatorBackPressureStats> statsOption = backPressureStatsTracker
+			Optional<OperatorBackPressureStats> statsOption = backPressureStatsTrackerImpl
 					.getOperatorBackPressureStats(jobVertex);
 
 			if (statsOption.isPresent()) {
@@ -89,7 +89,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 
 				// Check whether we need to refresh
 				if (refreshInterval <= System.currentTimeMillis() - stats.getEndTimestamp()) {
-					backPressureStatsTracker.triggerStackTraceSample(jobVertex);
+					backPressureStatsTrackerImpl.triggerStackTraceSample(jobVertex);
 					gen.writeStringField("status", "deprecated");
 				} else {
 					gen.writeStringField("status", "ok");
@@ -112,7 +112,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 				}
 				gen.writeEndArray();
 			} else {
-				backPressureStatsTracker.triggerStackTraceSample(jobVertex);
+				backPressureStatsTrackerImpl.triggerStackTraceSample(jobVertex);
 				gen.writeStringField("status", "deprecated");
 			}
 

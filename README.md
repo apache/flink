@@ -15,7 +15,7 @@ Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
 
 * Support for *event time* and *out-of-order* processing in the DataStream API, based on the *Dataflow Model*
 
-* Flexible windowing (time, count, sessions, custom triggers) accross different time semantics (event time, processing time)
+* Flexible windowing (time, count, sessions, custom triggers) across different time semantics (event time, processing time)
 
 * Fault-tolerance with *exactly-once* processing guarantees
 
@@ -67,10 +67,10 @@ counts.writeAsCsv(outputPath)
 
 Prerequisites for building Flink:
 
-* Unix-like environment (We use Linux, Mac OS X, Cygwin)
+* Unix-like environment (we use Linux, Mac OS X, Cygwin)
 * git
-* Maven (we recommend version 3.0.4)
-* Java 8
+* Maven (we recommend version 3.2.5)
+* Java 8 (Java 9 and 10 are not yet supported)
 
 ```
 git clone https://github.com/apache/flink.git
@@ -127,7 +127,7 @@ or in the `docs/` directory of the source code.
 
 ## Fork and Contribute
 
-This is an active open-source project. We are always open to people who want to use the system or contribute to it. 
+This is an active open-source project. We are always open to people who want to use the system or contribute to it.
 Contact us if you are looking for implementation tasks that fit your skills.
 This article describes [how to contribute to Apache Flink](http://flink.apache.org/how-to-contribute.html).
 
@@ -136,4 +136,3 @@ This article describes [how to contribute to Apache Flink](http://flink.apache.o
 
 Apache Flink is an open source project of The Apache Software Foundation (ASF).
 The Apache Flink project originated from the [Stratosphere](http://stratosphere.eu) research project.
-

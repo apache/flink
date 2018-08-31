@@ -69,7 +69,13 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	@Override
 	public void onMerge(TimeWindow window,
 			OnMergeContext ctx) {
-		ctx.registerEventTimeTimer(window.maxTimestamp());
+		// only register a timer if the watermark is not yet past the end of the merged window
+		// this is in line with the logic in onElement(). If the watermark is past the end of
+		// the window onElement() will fire and setting a timer here would fire the window twice.
+		long windowMaxTimestamp = window.maxTimestamp();
+		if (windowMaxTimestamp > ctx.getCurrentWatermark()) {
+			ctx.registerEventTimeTimer(windowMaxTimestamp);
+		}
 	}
 
 	@Override

@@ -40,17 +40,17 @@ Java Flight Recorder is a profiling and event collection framework built into th
 is an advanced set of tools that enables efficient and detailed analysis of the extensive of data collected by Java
 Flight Recorder. Example configuration:
 
-~~~
+{% highlight yaml %}
 env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX:+FlightRecorder -XX:+DebugNonSafepoints -XX:FlightRecorderOptions=defaultrecording=true,dumponexit=true,dumponexitpath=${FLINK_LOG_PREFIX}.jfr"
-~~~
+{% endhighlight %}
 
 # Profiling with JITWatch
 
 [JITWatch](https://github.com/AdoptOpenJDK/jitwatch/wiki) is a log analyser and visualizer for the Java HotSpot JIT
 compiler used to inspect inlining decisions, hot methods, bytecode, and assembly. Example configuration:
 
-~~~
+{% highlight yaml %}
 env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
-~~~
+{% endhighlight %}
 
 {% top %}

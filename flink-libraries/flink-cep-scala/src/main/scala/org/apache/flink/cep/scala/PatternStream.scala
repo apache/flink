@@ -440,6 +440,11 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     flatSelect(outputTag, patternFlatTimeoutFun, patternFlatSelectFun)
   }
+
+ def sideOutputLateData(lateDataOutputTag: OutputTag[T]): PatternStream[T] = {
+   jPatternStream.sideOutputLateData(lateDataOutputTag)
+   this
+ }
 }
 
 object PatternStream {

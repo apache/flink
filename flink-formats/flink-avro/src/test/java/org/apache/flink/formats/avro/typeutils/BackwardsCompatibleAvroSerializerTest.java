@@ -26,7 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer.PojoSerializerConfigSnapshot;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.generated.SimpleUser;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import org.junit.Test;
@@ -43,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * This test ensures that state and state configuration created by Flink 1.3 Avro types
- * that used the PojoSerializer still works.
+ * that used the PojoSerializer still works (in most cases, see notice below).
  *
  * <p><b>Important:</b> Since Avro itself broke class compatibility between 1.7.7 (used in Flink 1.3)
  * and 1.8.2 (used in Flink 1.4), the Avro by Pojo compatibility is broken through Avro already.
@@ -51,12 +51,16 @@ import static org.junit.Assert.assertTrue;
  * works properly.
  *
  * <p>This test can be dropped once we drop backwards compatibility with Flink 1.3 snapshots.
+ *
+ * <p>The {@link BackwardsCompatibleAvroSerializer} does not support custom Kryo registrations (which
+ * logical types require for Avro 1.8 because Kryo does not support Joda-Time). We introduced a
+ * simpler user record for pre-Avro 1.8 test cases.
  */
 public class BackwardsCompatibleAvroSerializerTest {
 
-	private static final String SNAPSHOT_RESOURCE = "flink-1.3-avro-type-serializer-snapshot";
+	private static final String SNAPSHOT_RESOURCE = "flink-1.6-avro-type-serializer-snapshot";
 
-	private static final String DATA_RESOURCE = "flink-1.3-avro-type-serialized-data";
+	private static final String DATA_RESOURCE = "flink-1.6-avro-type-serialized-data";
 
 	@SuppressWarnings("unused")
 	private static final String SNAPSHOT_RESOURCE_WRITER = "/data/repositories/flink/flink-formats/flink-avro/src/test/resources/" + SNAPSHOT_RESOURCE;
@@ -69,11 +73,11 @@ public class BackwardsCompatibleAvroSerializerTest {
 	private static final int NUM_DATA_ENTRIES = 20;
 
 	@Test
-	public void testCompatibilityWithFlink_1_3() throws Exception {
+	public void testCompatibilityWithPojoSerializer() throws Exception {
 
 		// retrieve the old config snapshot
 
-		final TypeSerializer<User> serializer;
+		final TypeSerializer<SimpleUser> serializer;
 		final TypeSerializerConfigSnapshot configSnapshot;
 
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(SNAPSHOT_RESOURCE)) {
@@ -86,7 +90,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 			assertEquals(1, deserialized.size());
 
 			@SuppressWarnings("unchecked")
-			final TypeSerializer<User> typedSerializer = (TypeSerializer<User>) deserialized.get(0).f0;
+			final TypeSerializer<SimpleUser> typedSerializer = (TypeSerializer<SimpleUser>) deserialized.get(0).f0;
 
 			serializer = typedSerializer;
 			configSnapshot = deserialized.get(0).f1;
@@ -104,14 +108,14 @@ public class BackwardsCompatibleAvroSerializerTest {
 		// sanity check for the test: check that a PoJoSerializer and the original serializer work together
 		assertFalse(serializer.ensureCompatibility(configSnapshot).isRequiresMigration());
 
-		final TypeSerializer<User> newSerializer = new AvroTypeInfo<>(User.class, true).createSerializer(new ExecutionConfig());
+		final TypeSerializer<SimpleUser> newSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
 		assertFalse(newSerializer.ensureCompatibility(configSnapshot).isRequiresMigration());
 
 		// deserialize the data and make sure this still works
 		validateDeserialization(newSerializer);
 
 		TypeSerializerConfigSnapshot nextSnapshot = newSerializer.snapshotConfiguration();
-		final TypeSerializer<User> nextSerializer = new AvroTypeInfo<>(User.class, true).createSerializer(new ExecutionConfig());
+		final TypeSerializer<SimpleUser> nextSerializer = new AvroTypeInfo<>(SimpleUser.class, true).createSerializer(new ExecutionConfig());
 
 		assertFalse(nextSerializer.ensureCompatibility(nextSnapshot).isRequiresMigration());
 
@@ -119,7 +123,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 		validateDeserialization(nextSerializer);
 	}
 
-	private static void validateDeserialization(TypeSerializer<User> serializer) throws IOException {
+	private static void validateDeserialization(TypeSerializer<SimpleUser> serializer) throws IOException {
 		final Random rnd = new Random(RANDOM_SEED);
 
 		try (InputStream in = BackwardsCompatibleAvroSerializerTest.class.getClassLoader()
@@ -128,22 +132,22 @@ public class BackwardsCompatibleAvroSerializerTest {
 			final DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
 
 			for (int i = 0; i < NUM_DATA_ENTRIES; i++) {
-				final User deserialized = serializer.deserialize(inView);
+				final SimpleUser deserialized = serializer.deserialize(inView);
 
 				// deterministically generate a reference record
-				final User reference = TestDataGenerator.generateRandomUser(rnd);
+				final SimpleUser reference = TestDataGenerator.generateRandomSimpleUser(rnd);
 
 				assertEquals(reference, deserialized);
 			}
 		}
 	}
 
-// run this code on a 1.3 (or earlier) branch to generate the test data
+// run this code to generate the test data
 //	public static void main(String[] args) throws Exception {
 //
-//		AvroTypeInfo<User> typeInfo = new AvroTypeInfo<>(User.class);
+//		AvroTypeInfo<SimpleUser> typeInfo = new AvroTypeInfo<>(SimpleUser.class);
 //
-//		TypeSerializer<User> serializer = typeInfo.createPojoSerializer(new ExecutionConfig());
+//		TypeSerializer<SimpleUser> serializer = typeInfo.createPojoSerializer(new ExecutionConfig());
 //		TypeSerializerConfigSnapshot confSnapshot = serializer.snapshotConfiguration();
 //
 //		try (FileOutputStream fos = new FileOutputStream(SNAPSHOT_RESOURCE_WRITER)) {
@@ -160,7 +164,7 @@ public class BackwardsCompatibleAvroSerializerTest {
 //			final Random rnd = new Random(RANDOM_SEED);
 //
 //			for (int i = 0; i < NUM_DATA_ENTRIES; i++) {
-//				serializer.serialize(TestDataGenerator.generateRandomUser(rnd), out);
+//				serializer.serialize(TestDataGenerator.generateRandomSimpleUser(rnd), out);
 //			}
 //		}
 //	}

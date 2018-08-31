@@ -281,9 +281,9 @@ For example, in China you would have to specify an offset of `Time.hours(-8)`.
 The *session windows* assigner groups elements by sessions of activity. Session windows do not overlap and
 do not have a fixed start and end time, in contrast to *tumbling windows* and *sliding windows*. Instead a
 session window closes when it does not receive elements for a certain period of time, *i.e.*, when a gap of
-inactivity occurred. A session window assigner is configured with the *session gap* which
-defines how long is the required period of inactivity. When this period expires, the current session closes
-and subsequent elements are assigned to a new session window.
+inactivity occurred. A session window assigner can be configured with either a static *session gap* or with a 
+*session gap extractor* function which defines how long the period of inactivity is. When this period expires, 
+the current session closes and subsequent elements are assigned to a new session window.
 
 <img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 100%;" />
 
@@ -294,16 +294,32 @@ The following code snippets show how to use session windows.
 {% highlight java %}
 DataStream<T> input = ...;
 
-// event-time session windows
+// event-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>);
+    
+// event-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withDynamicGap((element) -> {
+        // determine and return session gap
+    }))
+    .<windowed transformation>(<window function>);
 
-// processing-time session windows
+// processing-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>);
+    
+// processing-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(ProcessingTimeSessionWindows.withDynamicGap((element) -> {
+        // determine and return session gap
+    }))
     .<windowed transformation>(<window function>);
 {% endhighlight %}
 </div>
@@ -312,23 +328,46 @@ input
 {% highlight scala %}
 val input: DataStream[T] = ...
 
-// event-time session windows
+// event-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>)
 
-// processing-time session windows
+// event-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
+      override def extract(element: String): Long = {
+        // determine and return session gap
+      }
+    }))
+    .<windowed transformation>(<window function>)
+
+// processing-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+
+
+// processing-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(DynamicProcessingTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
+      override def extract(element: String): Long = {
+        // determine and return session gap
+      }
+    }))
     .<windowed transformation>(<window function>)
 {% endhighlight %}
 </div>
 </div>
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+Static gaps can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
 `Time.minutes(x)`, and so on.
+
+Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` interface.
 
 <span class="label label-danger">Attention</span> Since session windows do not have a fixed start and end,
 they are  evaluated differently than tumbling and sliding windows. Internally, a session window operator
@@ -465,7 +504,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
@@ -685,17 +724,19 @@ A `ProcessWindowFunction` can be defined and used like this:
 DataStream<Tuple2<String, Long>> input = ...;
 
 input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .process(new MyProcessWindowFunction());
+  .keyBy(t -> t.f0)
+  .timeWindow(Time.minutes(5))
+  .process(new MyProcessWindowFunction());
 
 /* ... */
 
-public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<String, Long>, String, String, TimeWindow> {
+public class MyProcessWindowFunction 
+    extends ProcessWindowFunction<Tuple2<String, Long>, String, String, TimeWindow> {
 
-  void process(String key, Context context, Iterable<Tuple<String, Long>> input, Collector<String> out) {
+  @Override
+  public void process(String key, Context context, Iterable<Tuple2<String, Long>> input, Collector<String> out) {
     long count = 0;
-    for (Tuple<String, Long> in: input) {
+    for (Tuple2<String, Long> in: input) {
       count++;
     }
     out.collect("Window: " + context.window() + "count: " + count);
@@ -710,15 +751,15 @@ public class MyProcessWindowFunction implements ProcessWindowFunction<Tuple<Stri
 val input: DataStream[(String, Long)] = ...
 
 input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .process(new MyProcessWindowFunction())
+  .keyBy(_._1)
+  .timeWindow(Time.minutes(5))
+  .process(new MyProcessWindowFunction())
 
 /* ... */
 
 class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
 
-  def apply(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
+  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
     var count = 0L
     for (in <- input) {
       count = count + 1
@@ -739,7 +780,7 @@ The example shows a `ProcessWindowFunction` that counts the elements in a window
 A `ProcessWindowFunction` can be combined with either a `ReduceFunction`, an `AggregateFunction`, or a `FoldFunction` to
 incrementally aggregate elements as they arrive in the window.
 When the window is closed, the `ProcessWindowFunction` will be provided with the aggregated result.
-This allows to incrementally compute windows while having access to the
+This allows it to incrementally compute windows while having access to the
 additional window meta information of the `ProcessWindowFunction`.
 
 <span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
@@ -758,7 +799,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -771,9 +812,9 @@ private static class MyReduceFunction implements ReduceFunction<SensorReading> {
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+    extends ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
 
-  public void apply(String key,
+  public void process(String key,
                     Context context,
                     Iterable<SensorReading> minReadings,
                     Collector<Tuple2<Long, SensorReading>> out) {
@@ -791,7 +832,7 @@ val input: DataStream[SensorReading] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .reduce(
     (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
     ( key: String,
@@ -817,11 +858,11 @@ the average.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-DataStream<Tuple2<String, Long> input = ...;
+DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction());
 
 // Function definitions
@@ -844,7 +885,7 @@ private static class AverageAggregate
 
   @Override
   public Double getResult(Tuple2<Long, Long> accumulator) {
-    return accumulator.f0 / accumulator.f1;
+    return ((double) accumulator.f0) / accumulator.f1;
   }
 
   @Override
@@ -854,9 +895,9 @@ private static class AverageAggregate
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
+    extends ProcessWindowFunction<Double, Tuple2<String, Double>, String, TimeWindow> {
 
-  public void apply(String key,
+  public void process(String key,
                     Context context,
                     Iterable<Double> averages,
                     Collector<Tuple2<String, Double>> out) {
@@ -874,7 +915,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -897,11 +938,7 @@ class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), D
 
 class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
 
-  def apply(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double]): () = {
-    var count = 0L
-    for (in <- input) {
-      count = count + 1
-    }
+  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double]): () = {
     val average = averages.iterator.next()
     out.collect((key, average))
   }
@@ -924,7 +961,7 @@ DataStream<SensorReading> input = ...;
 
 input
   .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
+  .timeWindow(<duration>)
   .fold(new Tuple3<String, Long, Integer>("",0L, 0), new MyFoldFunction(), new MyProcessWindowFunction())
 
 // Function definitions
@@ -934,13 +971,13 @@ private static class MyFoldFunction
 
   public Tuple3<String, Long, Integer> fold(Tuple3<String, Long, Integer> acc, SensorReading s) {
       Integer cur = acc.getField(2);
-      acc.setField(2, cur + 1);
+      acc.setField(cur + 1, 2);
       return acc;
   }
 }
 
 private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
+    extends ProcessWindowFunction<Tuple3<String, Long, Integer>, Tuple3<String, Long, Integer>, String, TimeWindow> {
 
   public void process(String key,
                     Context context,
@@ -960,7 +997,7 @@ val input: DataStream[SensorReading] = ...
 
 input
  .keyBy(<key selector>)
- .timeWindow(<window assigner>)
+ .timeWindow(<duration>)
  .fold (
     ("", 0L, 0),
     (acc: (String, Long, Int), r: SensorReading) => { ("", 0L, acc._3 + 1) },
@@ -1376,7 +1413,6 @@ val globalResults = resultsPerKey
 
 In this example, the results for time window `[0, 5)` from the first operation will also end up in
 time window `[0, 5)` in the subsequent windowed operation. This allows calculating a sum per key
-and then calculating the top-k elements within the same window in the second operation.
 and then calculating the top-k elements within the same window in the second operation.
 
 ## Useful state size considerations

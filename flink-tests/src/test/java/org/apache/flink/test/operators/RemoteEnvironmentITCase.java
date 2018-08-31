@@ -26,10 +26,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.io.GenericInputSplit;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -40,10 +45,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Integration tests for {@link org.apache.flink.api.java.RemoteEnvironment}.
@@ -61,20 +68,46 @@ public class RemoteEnvironmentITCase extends TestLogger {
 
 	private static Configuration configuration;
 
-	private static StandaloneMiniCluster cluster;
+	private static AutoCloseableAsync resource;
+
+	private static String hostname;
+
+	private static int port;
 
 	@BeforeClass
 	public static void setupCluster() throws Exception {
 		configuration = new Configuration();
 
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
+		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
+			configuration.setInteger(WebOptions.PORT, 0);
+			final MiniCluster miniCluster = new MiniCluster(
+				new MiniClusterConfiguration.Builder()
+					.setConfiguration(configuration)
+					.setNumSlotsPerTaskManager(TM_SLOTS)
+					.build());
 
-		cluster = new StandaloneMiniCluster(configuration);
+			miniCluster.start();
+
+			final URI uri = miniCluster.getRestAddress();
+			hostname = uri.getHost();
+			port = uri.getPort();
+
+			configuration.setInteger(WebOptions.PORT, port);
+
+			resource = miniCluster;
+		} else {
+			configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, TM_SLOTS);
+			final StandaloneMiniCluster standaloneMiniCluster = new StandaloneMiniCluster(configuration);
+			hostname = standaloneMiniCluster.getHostname();
+			port = standaloneMiniCluster.getPort();
+
+			resource = standaloneMiniCluster;
+		}
 	}
 
 	@AfterClass
 	public static void tearDownCluster() throws Exception {
-		cluster.close();
+		resource.close();
 	}
 
 	/**
@@ -82,12 +115,13 @@ public class RemoteEnvironmentITCase extends TestLogger {
 	 */
 	@Test(expected = FlinkException.class)
 	public void testInvalidAkkaConfiguration() throws Throwable {
+		assumeTrue(CoreOptions.LEGACY_MODE.equalsIgnoreCase(configuration.getString(CoreOptions.MODE)));
 		Configuration config = new Configuration();
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, INVALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.getHostname(),
-				cluster.getPort(),
+				hostname,
+				port,
 				config
 		);
 		env.getConfig().disableSysoutLogging();
@@ -111,8 +145,8 @@ public class RemoteEnvironmentITCase extends TestLogger {
 		config.setString(AkkaOptions.STARTUP_TIMEOUT, VALID_STARTUP_TIMEOUT);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				cluster.getHostname(),
-				cluster.getPort(),
+				hostname,
+				port,
 				config
 		);
 		env.setParallelism(USER_DOP);

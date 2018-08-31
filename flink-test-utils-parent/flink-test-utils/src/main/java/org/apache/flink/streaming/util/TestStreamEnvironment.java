@@ -70,7 +70,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 		streamGraph.setJobName(jobName);
 		final JobGraph jobGraph = streamGraph.getJobGraph();
 
-		for (Path jarFile: jarFiles) {
+		for (Path jarFile : jarFiles) {
 			jobGraph.addJar(jarFile);
 		}
 

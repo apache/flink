@@ -18,70 +18,93 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.router.RouterHandler;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
-import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLEngine;
+import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
  * An abstract class for netty-based REST server endpoints.
  */
-public abstract class RestServerEndpoint {
+public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
-	public static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Object lock = new Object();
 
-	private final String configuredAddress;
-	private final int configuredPort;
-	private final SSLEngine sslEngine;
+	private final String restAddress;
+	private final String restBindAddress;
+	private final int restBindPort;
+	@Nullable
+	private final SSLEngineFactory sslEngineFactory;
+	private final int maxContentLength;
+
+	protected final Path uploadDir;
+	protected final Map<String, String> responseHeaders;
+
+	private final CompletableFuture<Void> terminationFuture;
 
 	private ServerBootstrap bootstrap;
 	private Channel serverChannel;
-	private String restAddress;
+	private String restBaseUrl;
 
-	private volatile boolean started;
+	private State state = State.CREATED;
 
-	public RestServerEndpoint(RestServerEndpointConfiguration configuration) {
+	public RestServerEndpoint(RestServerEndpointConfiguration configuration) throws IOException {
 		Preconditions.checkNotNull(configuration);
-		this.configuredAddress = configuration.getEndpointBindAddress();
-		this.configuredPort = configuration.getEndpointBindPort();
-		this.sslEngine = configuration.getSslEngine();
 
-		this.restAddress = null;
+		this.restAddress = configuration.getRestAddress();
+		this.restBindAddress = configuration.getRestBindAddress();
+		this.restBindPort = configuration.getRestBindPort();
+		this.sslEngineFactory = configuration.getSslEngineFactory();
 
-		this.started = false;
+		this.uploadDir = configuration.getUploadDir();
+		createUploadDir(uploadDir, log);
+
+		this.maxContentLength = configuration.getMaxContentLength();
+		this.responseHeaders = configuration.getResponseHeaders();
+
+		terminationFuture = new CompletableFuture<>();
 	}
 
 	/**
@@ -98,12 +121,9 @@ public abstract class RestServerEndpoint {
 	 *
 	 * @throws Exception if we cannot start the RestServerEndpoint
 	 */
-	public void start() throws Exception {
+	public final void start() throws Exception {
 		synchronized (lock) {
-			if (started) {
-				// RestServerEndpoint already started
-				return;
-			}
+			Preconditions.checkState(state == State.CREATED, "The RestServerEndpoint cannot be restarted.");
 
 			log.info("Starting rest endpoint.");
 
@@ -132,23 +152,25 @@ public abstract class RestServerEndpoint {
 
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new RouterHandler(router);
+					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslEngine != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					if (sslEngineFactory != null) {
+						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
 					}
 
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
-						.addLast(new HttpObjectAggregator(MAX_REQUEST_SIZE_BYTES))
-						.addLast(handler.name(), handler)
-						.addLast(new PipelineErrorHandler(log));
+						.addLast(new FileUploadHandler(uploadDir))
+						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
+						.addLast(new ChunkedWriteHandler())
+						.addLast(handler.getName(), handler)
+						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
 			};
 
-			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
-			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-server-netty-boss"));
+			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new ExecutorThreadFactory("flink-rest-server-netty-worker"));
 
 			bootstrap = new ServerBootstrap();
 			bootstrap
@@ -157,83 +179,122 @@ public abstract class RestServerEndpoint {
 				.childHandler(initializer);
 
 			final ChannelFuture channel;
-			if (configuredAddress == null) {
-				channel = bootstrap.bind(configuredPort);
+			if (restBindAddress == null) {
+				channel = bootstrap.bind(restBindPort);
 			} else {
-				channel = bootstrap.bind(configuredAddress, configuredPort);
+				channel = bootstrap.bind(restBindAddress, restBindPort);
 			}
 			serverChannel = channel.syncUninterruptibly().channel();
 
-			InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-			String address = bindAddress.getAddress().getHostAddress();
-			int port = bindAddress.getPort();
+			final InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
+			final String advertisedAddress;
+			if (bindAddress.getAddress().isAnyLocalAddress()) {
+				advertisedAddress = this.restAddress;
+			} else {
+				advertisedAddress = bindAddress.getAddress().getHostAddress();
+			}
+			final int port = bindAddress.getPort();
 
-			log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
+			log.info("Rest endpoint listening at {}:{}", advertisedAddress, port);
 
 			final String protocol;
 
-			if (sslEngine != null) {
+			if (sslEngineFactory != null) {
 				protocol = "https://";
 			} else {
 				protocol = "http://";
 			}
 
-			restAddress = protocol + address + ':' + port;
+			restBaseUrl = protocol + advertisedAddress + ':' + port;
 
-			restAddressFuture.complete(restAddress);
+			restAddressFuture.complete(restBaseUrl);
 
-			started = true;
+			state = State.RUNNING;
+
+			startInternal();
 		}
 	}
+
+	/**
+	 * Hook to start sub class specific services.
+	 *
+	 * @throws Exception if an error occurred
+	 */
+	protected abstract void startInternal() throws Exception;
 
 	/**
 	 * Returns the address on which this endpoint is accepting requests.
 	 *
-	 * @return address on which this endpoint is accepting requests
+	 * @return address on which this endpoint is accepting requests or null if none
 	 */
+	@Nullable
 	public InetSocketAddress getServerAddress() {
-		Preconditions.checkState(started, "The RestServerEndpoint has not been started yet.");
-		Channel server = this.serverChannel;
+		synchronized (lock) {
+			Preconditions.checkState(state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+			Channel server = this.serverChannel;
 
-		if (server != null) {
-			try {
-				return ((InetSocketAddress) server.localAddress());
-			} catch (Exception e) {
-				log.error("Cannot access local server address", e);
+			if (server != null) {
+				try {
+					return ((InetSocketAddress) server.localAddress());
+				} catch (Exception e) {
+					log.error("Cannot access local server address", e);
+				}
 			}
-		}
 
-		return null;
+			return null;
+		}
 	}
 
 	/**
-	 * Returns the address of the REST server endpoint. Since the address is only known
-	 * after the endpoint is started, it is returned as a future which is completed
-	 * with the REST address at start up.
+	 * Returns the base URL of the REST server endpoint.
 	 *
-	 * @return REST address of this endpoint
+	 * @return REST base URL of this endpoint
 	 */
-	public String getRestAddress() {
-		Preconditions.checkState(started, "The RestServerEndpoint has not been started yet.");
-		return restAddress;
+	public String getRestBaseUrl() {
+		synchronized (lock) {
+			Preconditions.checkState(state != State.CREATED, "The RestServerEndpoint has not been started yet.");
+			return restBaseUrl;
+		}
+	}
+
+	@Override
+	public CompletableFuture<Void> closeAsync() {
+		synchronized (lock) {
+			log.info("Shutting down rest endpoint.");
+
+			if (state == State.RUNNING) {
+				final CompletableFuture<Void> shutDownFuture = shutDownInternal();
+
+				shutDownFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							terminationFuture.completeExceptionally(throwable);
+						} else {
+							terminationFuture.complete(null);
+						}
+					});
+				state = State.SHUTDOWN;
+			} else if (state == State.CREATED) {
+				terminationFuture.complete(null);
+				state = State.SHUTDOWN;
+			}
+
+			return terminationFuture;
+		}
 	}
 
 	/**
 	 * Stops this REST server endpoint.
+	 *
+	 * @return Future which is completed once the shut down has been finished.
 	 */
-	public void shutdown(Time timeout) {
+	protected CompletableFuture<Void> shutDownInternal() {
 
 		synchronized (lock) {
-			if (!started) {
-				// RestServerEndpoint has not been started
-				return;
-			}
-
-			log.info("Shutting down rest endpoint.");
 
 			CompletableFuture<?> channelFuture = new CompletableFuture<>();
-			if (this.serverChannel != null) {
-				this.serverChannel.close().addListener(finished -> {
+			if (serverChannel != null) {
+				serverChannel.close().addListener(finished -> {
 					if (finished.isSuccess()) {
 						channelFuture.complete(null);
 					} else {
@@ -242,13 +303,19 @@ public abstract class RestServerEndpoint {
 				});
 				serverChannel = null;
 			}
-			CompletableFuture<?> groupFuture = new CompletableFuture<>();
-			CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
+
+			final CompletableFuture<Void> channelTerminationFuture = new CompletableFuture<>();
 
 			channelFuture.thenRun(() -> {
+				CompletableFuture<?> groupFuture = new CompletableFuture<>();
+				CompletableFuture<?> childGroupFuture = new CompletableFuture<>();
+				final Time gracePeriod = Time.seconds(10L);
+
 				if (bootstrap != null) {
-					if (bootstrap.group() != null) {
-						bootstrap.group().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+					final ServerBootstrapConfig config = bootstrap.config();
+					final EventLoopGroup group = config.group();
+					if (group != null) {
+						group.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									groupFuture.complete(null);
@@ -256,9 +323,13 @@ public abstract class RestServerEndpoint {
 									groupFuture.completeExceptionally(finished.cause());
 								}
 							});
+					} else {
+						groupFuture.complete(null);
 					}
-					if (bootstrap.childGroup() != null) {
-						bootstrap.childGroup().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+
+					final EventLoopGroup childGroup = config.childGroup();
+					if (childGroup != null) {
+						childGroup.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									childGroupFuture.complete(null);
@@ -266,43 +337,83 @@ public abstract class RestServerEndpoint {
 									childGroupFuture.completeExceptionally(finished.cause());
 								}
 							});
+					} else {
+						childGroupFuture.complete(null);
 					}
+
 					bootstrap = null;
 				} else {
 					// complete the group futures since there is nothing to stop
 					groupFuture.complete(null);
 					childGroupFuture.complete(null);
 				}
+
+				CompletableFuture<Void> combinedFuture = FutureUtils.completeAll(Arrays.asList(groupFuture, childGroupFuture));
+
+				combinedFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							channelTerminationFuture.completeExceptionally(throwable);
+						} else {
+							channelTerminationFuture.complete(null);
+						}
+					});
 			});
 
-			try {
-				CompletableFuture.allOf(groupFuture, childGroupFuture).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
-				log.info("Rest endpoint shutdown complete.");
-			} catch (Exception e) {
-				log.warn("Rest endpoint shutdown failed.", e);
-			}
-
-			restAddress = null;
-			started = false;
+			return channelTerminationFuture;
 		}
 	}
 
 	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler) {
 		switch (specificationHandler.f0.getHttpMethod()) {
 			case GET:
-				router.GET(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addGet(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case POST:
-				router.POST(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPost(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case DELETE:
-				router.DELETE(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addDelete(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			case PATCH:
-				router.PATCH(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPatch(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
 			default:
 				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
+		}
+	}
+
+	/**
+	 * Creates the upload dir if needed.
+	 */
+	@VisibleForTesting
+	static void createUploadDir(final Path uploadDir, final Logger log) throws IOException {
+		if (!Files.exists(uploadDir)) {
+			log.warn("Upload directory {} does not exist, or has been deleted externally. " +
+				"Previously uploaded files are no longer available.", uploadDir);
+			checkAndCreateUploadDir(uploadDir, log);
+		}
+	}
+
+	/**
+	 * Checks whether the given directory exists and is writable. If it doesn't exist, this method
+	 * will attempt to create it.
+	 *
+	 * @param uploadDir directory to check
+	 * @param log logger used for logging output
+	 * @throws IOException if the directory does not exist and cannot be created, or if the
+	 *                     directory isn't writable
+	 */
+	private static synchronized void checkAndCreateUploadDir(final Path uploadDir, final Logger log) throws IOException {
+		if (Files.exists(uploadDir) && Files.isWritable(uploadDir)) {
+			log.info("Using directory {} for file uploads.", uploadDir);
+		} else if (Files.isWritable(Files.createDirectories(uploadDir))) {
+			log.info("Created directory {} for file uploads.", uploadDir);
+		} else {
+			log.warn("Upload directory {} cannot be created or is not writable.", uploadDir);
+			throw new IOException(
+				String.format("Upload directory %s cannot be created or is not writable.",
+					uploadDir));
 		}
 	}
 
@@ -383,5 +494,11 @@ public abstract class RestServerEndpoint {
 				return n1 - n2;
 			}
 		}
+	}
+
+	private enum State {
+		CREATED,
+		RUNNING,
+		SHUTDOWN
 	}
 }

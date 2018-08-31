@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+
 import javax.annotation.Nullable;
 
 import java.util.concurrent.ThreadFactory;
@@ -27,13 +29,14 @@ import java.util.concurrent.ThreadFactory;
  * thread group, and set them to daemon mode.
  */
 public class DispatcherThreadFactory implements ThreadFactory {
-	
+
 	private final ThreadGroup group;
-	
+
 	private final String threadName;
 
+	@Nullable
 	private final ClassLoader classLoader;
-	
+
 	/**
 	 * Creates a new thread factory.
 	 *
@@ -67,6 +70,7 @@ public class DispatcherThreadFactory implements ThreadFactory {
 			t.setContextClassLoader(classLoader);
 		}
 		t.setDaemon(true);
+		t.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
 		return t;
 	}
 }

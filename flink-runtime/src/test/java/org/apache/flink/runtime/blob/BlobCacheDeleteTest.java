@@ -109,8 +109,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -187,8 +187,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -241,8 +241,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 		File directory = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -319,8 +319,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 

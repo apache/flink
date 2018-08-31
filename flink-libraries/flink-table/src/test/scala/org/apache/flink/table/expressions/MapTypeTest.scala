@@ -196,6 +196,34 @@ class MapTypeTest extends MapTypeTestBase {
       "f3.cardinality()",
       "CARDINALITY(f3)",
       "2")
+
+    testAllApis(
+      'f2.at("a").isNotNull,
+      "f2.at('a').isNotNull",
+      "f2['a'] IS NOT NULL",
+      "true"
+    )
+
+    testAllApis(
+      'f2.at("a").isNull,
+      "f2.at('a').isNull",
+      "f2['a'] IS NULL",
+      "false"
+    )
+
+    testAllApis(
+      'f2.at("c").isNotNull,
+      "f2.at('c').isNotNull",
+      "f2['c'] IS NOT NULL",
+      "false"
+    )
+
+    testAllApis(
+      'f2.at("c").isNull,
+      "f2.at('c').isNull",
+      "f2['c'] IS NULL",
+      "true"
+    )
   }
 
   @Test

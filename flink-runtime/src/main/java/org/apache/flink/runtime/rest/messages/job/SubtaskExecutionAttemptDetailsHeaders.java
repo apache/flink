@@ -36,7 +36,7 @@ public class SubtaskExecutionAttemptDetailsHeaders implements MessageHeaders<Emp
 	private static final SubtaskExecutionAttemptDetailsHeaders INSTANCE = new SubtaskExecutionAttemptDetailsHeaders();
 
 	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/%s",
+		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/:%s",
 		JobIDPathParameter.KEY,
 		JobVertexIdPathParameter.KEY,
 		SubtaskIndexPathParameter.KEY,
@@ -74,5 +74,10 @@ public class SubtaskExecutionAttemptDetailsHeaders implements MessageHeaders<Emp
 
 	public static SubtaskExecutionAttemptDetailsHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns details of an execution attempt of a subtask. Multiple execution attempts happen in case of failure/recovery.";
 	}
 }

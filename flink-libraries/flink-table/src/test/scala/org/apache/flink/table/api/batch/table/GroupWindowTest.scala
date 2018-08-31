@@ -449,4 +449,49 @@ class GroupWindowTest extends TableTestBase {
 
     util.verifyTable(windowedTable, expected)
   }
+
+  @Test
+  def testDecomposableAggFunctions(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String, Long)]('rowtime, 'a, 'b, 'c)
+
+    val windowedTable = table
+      .window(Tumble over 15.minutes on 'rowtime as 'w)
+      .groupBy('w)
+      .select('c.varPop, 'c.varSamp, 'c.stddevPop, 'c.stddevSamp, 'w.start, 'w.end)
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetWindowAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "c", "rowtime",
+              "*(c, c) AS $f2", "*(c, c) AS $f3", "*(c, c) AS $f4", "*(c, c) AS $f5")
+          ),
+          term("window", TumblingGroupWindow('w, 'rowtime, 900000.millis)),
+          term("select",
+            "SUM($f2) AS $f0",
+            "SUM(c) AS $f1",
+            "COUNT(c) AS $f2",
+            "SUM($f3) AS $f3",
+            "SUM($f4) AS $f4",
+            "SUM($f5) AS $f5",
+            "start('w) AS TMP_4",
+            "end('w) AS TMP_5")
+        ),
+        term("select",
+          "CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS TMP_0",
+          "CAST(/(-($f3, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1)))) AS TMP_1",
+          "CAST(POWER(/(-($f4, /(*($f1, $f1), $f2)), $f2), 0.5)) AS TMP_2",
+          "CAST(POWER(/(-($f5, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
+            "AS TMP_3",
+          "TMP_4",
+          "TMP_5")
+      )
+
+    util.verifyTable(windowedTable, expected)
+  }
 }

@@ -116,7 +116,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			if (typesArray == null) {
 				// no types provided
 				for (int index = 0; index < row.getArity(); index++) {
-					LOG.warn("Unknown column type for column %s. Best effort approach to set its value: %s.", index + 1, row.getField(index));
+					LOG.warn("Unknown column type for column {}. Best effort approach to set its value: {}.", index + 1, row.getField(index));
 					upload.setObject(index + 1, row.getField(index));
 				}
 			} else {
@@ -181,7 +181,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 								break;
 							default:
 								upload.setObject(index + 1, row.getField(index));
-								LOG.warn("Unmanaged sql type (%s) for column %s. Best effort approach to set its value: %s.",
+								LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to set its value: {}.",
 									typesArray[index], index + 1, row.getField(index));
 								// case java.sql.Types.SQLXML
 								// case java.sql.Types.ARRAY:

@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
@@ -140,7 +140,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 			elementCounter++;
 		}
 
-		OperatorStateHandles latestSnapshot = testHarness.snapshot(snapshotCount++, 0);
+		OperatorSubtaskState latestSnapshot = testHarness.snapshot(snapshotCount++, 0);
 		testHarness.notifyOfCompletedCheckpoint(snapshotCount - 1);
 
 		for (int x = 0; x < 20; x++) {
@@ -195,11 +195,11 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		}
 
 		// snapshot at checkpoint 0 for testHarness1 and testHarness 2
-		OperatorStateHandles snapshot1 = testHarness1.snapshot(snapshotCount, 0);
-		OperatorStateHandles snapshot2 = testHarness2.snapshot(snapshotCount, 0);
+		OperatorSubtaskState snapshot1 = testHarness1.snapshot(snapshotCount, 0);
+		OperatorSubtaskState snapshot2 = testHarness2.snapshot(snapshotCount, 0);
 
 		// merge the two partial states
-		OperatorStateHandles mergedSnapshot = AbstractStreamOperatorTestHarness
+		OperatorSubtaskState mergedSnapshot = AbstractStreamOperatorTestHarness
 			.repackageState(snapshot1, snapshot2);
 
 		testHarness1.close();
@@ -255,7 +255,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
 		}
 
 		// this will be the state that will be split between the two new operators
-		OperatorStateHandles snapshot = testHarness1.snapshot(++snapshotCount, 0);
+		OperatorSubtaskState snapshot = testHarness1.snapshot(++snapshotCount, 0);
 
 		testHarness1.close();
 

@@ -19,16 +19,16 @@
 package org.apache.flink.table.runtime.operators
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 
 /**
-  * A [[KeyedProcessOperator]] that supports holding back watermarks with a static delay.
+  * A [[LegacyKeyedProcessOperator]] that supports holding back watermarks with a static delay.
   */
 class KeyedProcessOperatorWithWatermarkDelay[KEY, IN, OUT](
     private val function: ProcessFunction[IN, OUT],
     private var watermarkDelay: Long = 0L)
-  extends KeyedProcessOperator[KEY, IN, OUT](function) {
+  extends LegacyKeyedProcessOperator[KEY, IN, OUT](function) {
 
   /** emits watermark without delay */
   def emitWithoutDelay(mark: Watermark): Unit = output.emitWatermark(mark)

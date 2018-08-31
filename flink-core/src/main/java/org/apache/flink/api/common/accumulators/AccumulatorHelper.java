@@ -19,7 +19,12 @@
 package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -27,42 +32,56 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
+/**
+ * Helper functions for the interaction with {@link Accumulator}.
+ */
 @Internal
 public class AccumulatorHelper {
+	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorHelper.class);
 
 	/**
 	 * Merge two collections of accumulators. The second will be merged into the
 	 * first.
-	 * 
+	 *
 	 * @param target
 	 *            The collection of accumulators that will be updated
 	 * @param toMerge
 	 *            The collection of accumulators that will be merged into the
 	 *            other
 	 */
-	public static void mergeInto(Map<String, Accumulator<?, ?>> target, Map<String, Accumulator<?, ?>> toMerge) {
+	public static void mergeInto(Map<String, OptionalFailure<Accumulator<?, ?>>> target, Map<String, Accumulator<?, ?>> toMerge) {
 		for (Map.Entry<String, Accumulator<?, ?>> otherEntry : toMerge.entrySet()) {
-			Accumulator<?, ?> ownAccumulator = target.get(otherEntry.getKey());
+			OptionalFailure<Accumulator<?, ?>> ownAccumulator = target.get(otherEntry.getKey());
 			if (ownAccumulator == null) {
 				// Create initial counter (copy!)
-				target.put(otherEntry.getKey(), otherEntry.getValue().clone());
+				target.put(
+					otherEntry.getKey(),
+					wrapUnchecked(otherEntry.getKey(), () -> otherEntry.getValue().clone()));
+			}
+			else if (ownAccumulator.isFailure()) {
+				continue;
 			}
 			else {
+				Accumulator<?, ?> accumulator = ownAccumulator.getUnchecked();
 				// Both should have the same type
-				AccumulatorHelper.compareAccumulatorTypes(otherEntry.getKey(),
-						ownAccumulator.getClass(), otherEntry.getValue().getClass());
+				compareAccumulatorTypes(otherEntry.getKey(),
+					accumulator.getClass(), otherEntry.getValue().getClass());
 				// Merge target counter with other counter
-				mergeSingle(ownAccumulator, otherEntry.getValue());
+
+				target.put(
+					otherEntry.getKey(),
+					wrapUnchecked(otherEntry.getKey(), () -> mergeSingle(accumulator, otherEntry.getValue().clone())));
 			}
 		}
 	}
 
 	/**
-	 * Workaround method for type safety
+	 * Workaround method for type safety.
 	 */
-	private static <V, R extends Serializable> void mergeSingle(Accumulator<?, ?> target,
-															Accumulator<?, ?> toMerge) {
+	private static <V, R extends Serializable> Accumulator<V, R> mergeSingle(Accumulator<?, ?> target,
+																			 Accumulator<?, ?> toMerge) {
 		@SuppressWarnings("unchecked")
 		Accumulator<V, R> typedTarget = (Accumulator<V, R>) target;
 
@@ -70,18 +89,19 @@ public class AccumulatorHelper {
 		Accumulator<V, R> typedToMerge = (Accumulator<V, R>) toMerge;
 
 		typedTarget.merge(typedToMerge);
+
+		return typedTarget;
 	}
 
 	/**
 	 * Compare both classes and throw {@link UnsupportedOperationException} if
-	 * they differ
+	 * they differ.
 	 */
 	@SuppressWarnings("rawtypes")
-	public static void compareAccumulatorTypes(Object name,
-												Class<? extends Accumulator> first,
-												Class<? extends Accumulator> second)
-			throws UnsupportedOperationException
-	{
+	public static void compareAccumulatorTypes(
+			Object name,
+			Class<? extends Accumulator> first,
+			Class<? extends Accumulator> second) throws UnsupportedOperationException {
 		if (first == null || second == null) {
 			throw new NullPointerException();
 		}
@@ -102,14 +122,25 @@ public class AccumulatorHelper {
 
 	/**
 	 * Transform the Map with accumulators into a Map containing only the
-	 * results
+	 * results.
 	 */
-	public static Map<String, Object> toResultMap(Map<String, Accumulator<?, ?>> accumulators) {
-		Map<String, Object> resultMap = new HashMap<String, Object>();
+	public static Map<String, OptionalFailure<Object>> toResultMap(Map<String, Accumulator<?, ?>> accumulators) {
+		Map<String, OptionalFailure<Object>> resultMap = new HashMap<>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulators.entrySet()) {
-			resultMap.put(entry.getKey(), entry.getValue().getLocalValue());
+			resultMap.put(entry.getKey(), wrapUnchecked(entry.getKey(), () -> entry.getValue().getLocalValue()));
 		}
 		return resultMap;
+	}
+
+	private static <R> OptionalFailure<R> wrapUnchecked(String name, Supplier<R> supplier) {
+		return OptionalFailure.createFrom(() -> {
+			try {
+				return supplier.get();
+			} catch (RuntimeException ex) {
+				LOG.error("Unexpected error while handling accumulator [" + name + "]", ex);
+				throw new FlinkException(ex);
+			}
+		});
 	}
 
 	public static String getResultsFormatted(Map<String, Object> map) {
@@ -134,7 +165,7 @@ public class AccumulatorHelper {
 	public static Map<String, Accumulator<?, ?>> copy(Map<String, Accumulator<?, ?>> accumulators) {
 		Map<String, Accumulator<?, ?>> result = new HashMap<String, Accumulator<?, ?>>();
 
-		for(Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){
+		for (Map.Entry<String, Accumulator<?, ?>> entry: accumulators.entrySet()){
 			result.put(entry.getKey(), entry.getValue().clone());
 		}
 
@@ -150,19 +181,19 @@ public class AccumulatorHelper {
 	 * @throws IOException
 	 * @throws ClassNotFoundException
 	 */
-	public static Map<String, Object> deserializeAccumulators(
-			Map<String, SerializedValue<Object>> serializedAccumulators, ClassLoader loader)
-			throws IOException, ClassNotFoundException {
+	public static Map<String, OptionalFailure<Object>> deserializeAccumulators(
+			Map<String, SerializedValue<OptionalFailure<Object>>> serializedAccumulators,
+			ClassLoader loader) throws IOException, ClassNotFoundException {
 
 		if (serializedAccumulators == null || serializedAccumulators.isEmpty()) {
 			return Collections.emptyMap();
 		}
 
-		Map<String, Object> accumulators = new HashMap<>(serializedAccumulators.size());
+		Map<String, OptionalFailure<Object>> accumulators = new HashMap<>(serializedAccumulators.size());
 
-		for (Map.Entry<String, SerializedValue<Object>> entry : serializedAccumulators.entrySet()) {
+		for (Map.Entry<String, SerializedValue<OptionalFailure<Object>>> entry : serializedAccumulators.entrySet()) {
 
-			Object value = null;
+			OptionalFailure<Object> value = null;
 			if (entry.getValue() != null) {
 				value = entry.getValue().deserializeValue(loader);
 			}
@@ -172,5 +203,4 @@ public class AccumulatorHelper {
 
 		return accumulators;
 	}
-
 }

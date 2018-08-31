@@ -18,41 +18,47 @@
 
 package org.apache.flink.api.common.typeinfo;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
-import org.apache.flink.api.common.functions.InvalidTypesException;
-import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Type information for arrays boxed primitive types.
+ *
+ * @param <T> The type (class) of the array itself.
+ * @param <C> The type (class) of the array component.
+ */
 @Public
 public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final BasicArrayTypeInfo<String[], String> STRING_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<String[], String>(String[].class, BasicTypeInfo.STRING_TYPE_INFO);
-	
-	public static final BasicArrayTypeInfo<Boolean[], Boolean> BOOLEAN_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Boolean[], Boolean>(Boolean[].class, BasicTypeInfo.BOOLEAN_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Byte[], Byte> BYTE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Byte[], Byte>(Byte[].class, BasicTypeInfo.BYTE_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Short[], Short> SHORT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Short[], Short>(Short[].class, BasicTypeInfo.SHORT_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Integer[], Integer> INT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Integer[], Integer>(Integer[].class, BasicTypeInfo.INT_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Long[], Long> LONG_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Long[], Long>(Long[].class, BasicTypeInfo.LONG_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Float[], Float> FLOAT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Float[], Float>(Float[].class, BasicTypeInfo.FLOAT_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Double[], Double> DOUBLE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Double[], Double>(Double[].class, BasicTypeInfo.DOUBLE_TYPE_INFO);
-	public static final BasicArrayTypeInfo<Character[], Character> CHAR_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<Character[], Character>(Character[].class, BasicTypeInfo.CHAR_TYPE_INFO);
-	
+	public static final BasicArrayTypeInfo<String[], String> STRING_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(String[].class, BasicTypeInfo.STRING_TYPE_INFO);
+
+	public static final BasicArrayTypeInfo<Boolean[], Boolean> BOOLEAN_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Boolean[].class, BasicTypeInfo.BOOLEAN_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Byte[], Byte> BYTE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Byte[].class, BasicTypeInfo.BYTE_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Short[], Short> SHORT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Short[].class, BasicTypeInfo.SHORT_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Integer[], Integer> INT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Integer[].class, BasicTypeInfo.INT_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Long[], Long> LONG_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Long[].class, BasicTypeInfo.LONG_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Float[], Float> FLOAT_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Float[].class, BasicTypeInfo.FLOAT_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Double[], Double> DOUBLE_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Double[].class, BasicTypeInfo.DOUBLE_TYPE_INFO);
+	public static final BasicArrayTypeInfo<Character[], Character> CHAR_ARRAY_TYPE_INFO = new BasicArrayTypeInfo<>(Character[].class, BasicTypeInfo.CHAR_TYPE_INFO);
+
 	// --------------------------------------------------------------------------------------------
 
 	private final Class<T> arrayClass;
 	private final TypeInformation<C> componentInfo;
-	
+
 	private BasicArrayTypeInfo(Class<T> arrayClass, BasicTypeInfo<C> componentInfo) {
 		this.arrayClass = checkNotNull(arrayClass);
 		this.componentInfo = checkNotNull(componentInfo);
@@ -77,7 +83,7 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 	public int getArity() {
 		return 1;
 	}
-	
+
 	@Override
 	@PublicEvolving
 	public int getTotalFields() {
@@ -114,7 +120,7 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		if (componentInfo.getTypeClass().equals(String.class)) {
 			return (TypeSerializer<T>) StringArraySerializer.INSTANCE;
 		} else {
-			return (TypeSerializer<T>) new GenericArraySerializer<C>(
+			return (TypeSerializer<T>) new GenericArraySerializer<>(
 				this.componentInfo.getTypeClass(),
 				this.componentInfo.createSerializer(executionConfig));
 		}
@@ -138,7 +144,6 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return Objects.hash(arrayClass, componentInfo);
 	}
 
-
 	@Override
 	public boolean canEqual(Object obj) {
 		return obj instanceof BasicArrayTypeInfo;
@@ -146,7 +151,7 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 
 	@Override
 	public String toString() {
-		return this.getClass().getSimpleName()+"<"+this.componentInfo+">";
+		return this.getClass().getSimpleName() + "<" + componentInfo + ">";
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -162,7 +167,7 @@ public final class BasicArrayTypeInfo<T, C> extends TypeInformation<T> {
 		return (BasicArrayTypeInfo<X, C>) TYPES.get(type);
 	}
 
-	private static final Map<Class<?>, BasicArrayTypeInfo<?, ?>> TYPES = new HashMap<Class<?>, BasicArrayTypeInfo<?, ?>>();
+	private static final Map<Class<?>, BasicArrayTypeInfo<?, ?>> TYPES = new HashMap<>();
 
 	static {
 		TYPES.put(String[].class, STRING_ARRAY_TYPE_INFO);

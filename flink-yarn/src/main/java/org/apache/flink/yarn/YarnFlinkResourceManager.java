@@ -47,10 +47,8 @@ import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -614,56 +612,6 @@ public class YarnFlinkResourceManager extends FlinkResourceManager<RegisteredYar
 					return FinalApplicationStatus.UNDEFINED;
 			}
 		}
-	}
-
-	/**
-	 * Looks up the getContainersFromPreviousAttempts method on RegisterApplicationMasterResponse
-	 * once and saves the method. This saves computation time on the sequent calls.
-	 */
-	private static class RegisterApplicationMasterResponseReflector {
-
-		private Logger logger;
-		private Method method;
-
-		public RegisterApplicationMasterResponseReflector(Logger log) {
-			this.logger = log;
-
-			try {
-				method = RegisterApplicationMasterResponse.class
-					.getMethod("getContainersFromPreviousAttempts");
-
-			} catch (NoSuchMethodException e) {
-				// that happens in earlier Hadoop versions
-				logger.info("Cannot reconnect to previously allocated containers. " +
-					"This YARN version does not support 'getContainersFromPreviousAttempts()'");
-			}
-		}
-
-		/**
-		 * Checks if a YARN application still has registered containers. If the application master
-		 * registered at the ResourceManager for the first time, this list will be empty. If the
-		 * application master registered a repeated time (after a failure and recovery), this list
-		 * will contain the containers that were previously allocated.
-		 *
-		 * @param response The response object from the registration at the ResourceManager.
-		 * @return A list with containers from previous application attempt.
-		 */
-		private List<Container> getContainersFromPreviousAttempts(RegisterApplicationMasterResponse response) {
-			if (method != null && response != null) {
-				try {
-					@SuppressWarnings("unchecked")
-					List<Container> list = (List<Container>) method.invoke(response);
-					if (list != null && !list.isEmpty()) {
-						return list;
-					}
-				} catch (Throwable t) {
-					logger.error("Error invoking 'getContainersFromPreviousAttempts()'", t);
-				}
-			}
-
-			return Collections.emptyList();
-		}
-
 	}
 
 	// ------------------------------------------------------------------------

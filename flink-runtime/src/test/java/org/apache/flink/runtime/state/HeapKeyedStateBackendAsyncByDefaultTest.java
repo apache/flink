@@ -20,51 +20,49 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
-import java.io.IOException;
+import static org.junit.Assert.assertTrue;
 
 /**
- * This tests that all heap-based {@link StateBackend}s create {@link KeyedStateBackend}s that use asynchronous
- * snapshots by default.
+ * This tests that all heap-based state backends use asynchronous snapshots by default.
  */
 public class HeapKeyedStateBackendAsyncByDefaultTest {
 
+	@Rule
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
+	@Test
+	public void testConfigOptionDefaultsToAsync() {
+		assertTrue(CheckpointingOptions.ASYNC_SNAPSHOTS.defaultValue());
+	}
+
 	@Test
 	public void testFsStateBackendDefaultsToAsync() throws Exception {
-		TemporaryFolder temporaryFolder = new TemporaryFolder();
-		temporaryFolder.create();
+		FsStateBackend backend = new FsStateBackend(tmpFolder.newFolder().toURI());
+		assertTrue(backend.isUsingAsynchronousSnapshots());
 
-		File folder = temporaryFolder.newFolder();
-
-		try {
-			// This backend has two constructors that use a default value for async snapshots.
-			FsStateBackend fsStateBackend = new FsStateBackend(folder.toURI());
-			validateSupportForAsyncSnapshots(fsStateBackend);
-
-			fsStateBackend = new FsStateBackend(folder.toURI(), 1024);
-			validateSupportForAsyncSnapshots(fsStateBackend);
-		} finally {
-			folder.delete();
-			temporaryFolder.delete();
-		}
+		validateSupportForAsyncSnapshots(backend);
 	}
 
 	@Test
 	public void testMemoryStateBackendDefaultsToAsync() throws Exception {
-		MemoryStateBackend memoryStateBackend = new MemoryStateBackend();
-		validateSupportForAsyncSnapshots(memoryStateBackend);
+		MemoryStateBackend backend = new MemoryStateBackend();
+		assertTrue(backend.isUsingAsynchronousSnapshots());
+
+		validateSupportForAsyncSnapshots(backend);
 	}
 
-	private void validateSupportForAsyncSnapshots(AbstractStateBackend backend) throws IOException {
+	private void validateSupportForAsyncSnapshots(StateBackend backend) throws Exception {
 
 		AbstractKeyedStateBackend<Integer> keyedStateBackend = backend.createKeyedStateBackend(
 			new DummyEnvironment("Test", 1, 0),
@@ -73,14 +71,13 @@ public class HeapKeyedStateBackendAsyncByDefaultTest {
 			IntSerializer.INSTANCE,
 			1,
 			new KeyGroupRange(0, 0),
-			null
+			null,
+			TtlTimeProvider.DEFAULT
 		);
 
-		try {
-			Assert.assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());
-		} finally {
-			IOUtils.closeQuietly(keyedStateBackend);
-			keyedStateBackend.dispose();
-		}
+		assertTrue(keyedStateBackend.supportsAsynchronousSnapshots());
+
+		IOUtils.closeQuietly(keyedStateBackend);
+		keyedStateBackend.dispose();
 	}
 }

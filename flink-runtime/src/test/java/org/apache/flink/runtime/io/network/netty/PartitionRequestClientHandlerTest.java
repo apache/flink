@@ -25,9 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
@@ -42,27 +40,18 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -120,11 +109,11 @@ public class PartitionRequestClientHandlerTest {
 		// An empty buffer of size 0
 		final Buffer emptyBuffer = TestBufferFactory.createBuffer(0);
 
-		final int backlog = 2;
+		final int backlog = -1;
 		final BufferResponse receivedBuffer = createBufferResponse(
 			emptyBuffer, 0, inputChannel.getInputChannelId(), backlog);
 
-		final CreditBasedClientHandler client = new CreditBasedClientHandler();
+		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
 
 		// Read the empty buffer
@@ -144,14 +133,13 @@ public class PartitionRequestClientHandlerTest {
 		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
 			final int numExclusiveBuffers = 2;
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
 
-			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
 
 			final int backlog = 2;
@@ -160,7 +148,6 @@ public class PartitionRequestClientHandlerTest {
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 			assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
-			assertEquals(2, inputChannel.getSenderBacklog());
 		} finally {
 			// Release all the buffer resources
 			inputGate.releaseAllResources();
@@ -168,28 +155,6 @@ public class PartitionRequestClientHandlerTest {
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
 		}
-	}
-
-	/**
-	 * Verifies that {@link RemoteInputChannel#onError(Throwable)} is called when a
-	 * {@link BufferResponse} is received but no available buffer in input channel.
-	 */
-	@Test
-	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
-		final SingleInputGate inputGate = createSingleInputGate();
-		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
-
-		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
-		handler.addInputChannel(inputChannel);
-
-		assertEquals("There should be no buffers available in the channel.",
-			0, inputChannel.getNumberOfAvailableBuffers());
-
-		final BufferResponse bufferResponse = createBufferResponse(
-			TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
-		handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
-
-		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
 	}
 
 	/**
@@ -240,158 +205,6 @@ public class PartitionRequestClientHandlerTest {
 		client.cancelRequestFor(inputChannel.getInputChannelId());
 	}
 
-	/**
-	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline for notifying credits,
-	 * and verifies the behaviour of credit notification by triggering channel's writability changed.
-	 */
-	@Test
-	public void testNotifyCreditAvailable() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate();
-		final RemoteInputChannel inputChannel1 = createRemoteInputChannel(inputGate);
-		final RemoteInputChannel inputChannel2 = createRemoteInputChannel(inputGate);
-		inputGate.setInputChannel(inputChannel1.getPartitionId().getPartitionId(), inputChannel1);
-		inputGate.setInputChannel(inputChannel2.getPartitionId().getPartitionId(), inputChannel2);
-		try {
-			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
-			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
-
-			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
-			final EmbeddedChannel channel = new EmbeddedChannel(handler);
-
-			// The PartitionRequestClient is tied to PartitionRequestClientHandler currently, so we
-			// have to add input channels in CreditBasedClientHandler explicitly
-			inputChannel1.requestSubpartition(0);
-			inputChannel2.requestSubpartition(0);
-			handler.addInputChannel(inputChannel1);
-			handler.addInputChannel(inputChannel2);
-
-			// The buffer response will take one available buffer from input channel, and it will trigger
-			// requesting (backlog + numExclusiveBuffers -  numAvailableBuffers) floating buffers
-			final BufferResponse bufferResponse1 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel1.getInputChannelId(), 1);
-			final BufferResponse bufferResponse2 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel2.getInputChannelId(), 1);
-			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse1);
-			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse2);
-
-			// The PartitionRequestClient is tied to PartitionRequestClientHandler currently, so we
-			// have to notify credit available in CreditBasedClientHandler explicitly
-			handler.notifyCreditAvailable(inputChannel1);
-			handler.notifyCreditAvailable(inputChannel2);
-
-			assertEquals(2, inputChannel1.getUnannouncedCredit());
-			assertEquals(2, inputChannel2.getUnannouncedCredit());
-
-			channel.runPendingTasks();
-
-			// The two input channels should notify credits via writable channel
-			assertTrue(channel.isWritable());
-			Object readFromOutbound = channel.readOutbound();
-			assertThat(readFromOutbound, instanceOf(AddCredit.class));
-			assertEquals(2, ((AddCredit) readFromOutbound).credit);
-			readFromOutbound = channel.readOutbound();
-			assertThat(readFromOutbound, instanceOf(AddCredit.class));
-			assertEquals(2, ((AddCredit) readFromOutbound).credit);
-			assertNull(channel.readOutbound());
-
-			final int highWaterMark = channel.config().getWriteBufferHighWaterMark();
-			// Set the writer index to the high water mark to ensure that all bytes are written
-			// to the wire although the buffer is "empty".
-			ByteBuf channelBlockingBuffer = Unpooled.buffer(highWaterMark).writerIndex(highWaterMark);
-			channel.write(channelBlockingBuffer);
-
-			// Trigger notify credits available via buffer response on the condition of un-writable channel
-			final BufferResponse bufferResponse3 = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 1, inputChannel1.getInputChannelId(), 1);
-			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
-			handler.notifyCreditAvailable(inputChannel1);
-
-			assertEquals(1, inputChannel1.getUnannouncedCredit());
-			assertEquals(0, inputChannel2.getUnannouncedCredit());
-
-			channel.runPendingTasks();
-
-			// The input channel will not notify credits via un-writable channel
-			assertFalse(channel.isWritable());
-			assertNull(channel.readOutbound());
-
-			// Flush the buffer to make the channel writable again
-			channel.flush();
-			assertSame(channelBlockingBuffer, channel.readOutbound());
-
-			// The input channel should notify credits via channel's writability changed event
-			assertTrue(channel.isWritable());
-			readFromOutbound = channel.readOutbound();
-			assertThat(readFromOutbound, instanceOf(AddCredit.class));
-			assertEquals(1, ((AddCredit) readFromOutbound).credit);
-			assertEquals(0, inputChannel1.getUnannouncedCredit());
-			assertEquals(0, inputChannel2.getUnannouncedCredit());
-
-			// no more messages
-			assertNull(channel.readOutbound());
-		} finally {
-			// Release all the buffer resources
-			inputGate.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-		}
-	}
-
-	/**
-	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, but {@link AddCredit}
-	 * message is not sent actually when this input channel is released.
-	 */
-	@Test
-	public void testNotifyCreditAvailableAfterReleased() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate();
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
-		try {
-			final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
-			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
-
-			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
-			final EmbeddedChannel channel = new EmbeddedChannel(handler);
-
-			// The PartitionRequestClient is tied to PartitionRequestClientHandler currently, so we
-			// have to add input channels in CreditBasedClientHandler explicitly
-			inputChannel.requestSubpartition(0);
-			handler.addInputChannel(inputChannel);
-
-			// Trigger request floating buffers via buffer response to notify credits available
-			final BufferResponse bufferResponse = createBufferResponse(
-				TestBufferFactory.createBuffer(32), 0, inputChannel.getInputChannelId(), 1);
-			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
-
-			assertEquals(2, inputChannel.getUnannouncedCredit());
-
-			// The PartitionRequestClient is tied to PartitionRequestClientHandler currently, so we
-			// have to notify credit available in CreditBasedClientHandler explicitly
-			handler.notifyCreditAvailable(inputChannel);
-
-			// Release the input channel
-			inputGate.releaseAllResources();
-
-			channel.runPendingTasks();
-
-			// It will not notify credits for released input channel
-			assertNull(channel.readOutbound());
-		} finally {
-			// Release all the buffer resources
-			inputGate.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-		}
-	}
-
 	// ---------------------------------------------------------------------------------------------
 
 	/**
@@ -399,16 +212,17 @@ public class PartitionRequestClientHandlerTest {
 	 *
 	 * @return The new created single input gate.
 	 */
-	private SingleInputGate createSingleInputGate() {
+	static SingleInputGate createSingleInputGate() {
 		return new SingleInputGate(
 			"InputGate",
 			new JobID(),
 			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			ResultPartitionType.PIPELINED,
 			0,
 			1,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
 	}
 
 	/**
@@ -417,27 +231,58 @@ public class PartitionRequestClientHandlerTest {
 	 * @param inputGate The input gate owns the created input channel.
 	 * @return The new created remote input channel.
 	 */
-	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		final PartitionRequestClient partitionRequestClient = mock(PartitionRequestClient.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-			.thenReturn(partitionRequestClient);
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
+		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
+	}
 
-		return new RemoteInputChannel(
+	/**
+	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @param client The client is used to send partition request.
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
+		return createRemoteInputChannel(inputGate, client, 0, 0);
+	}
+
+	/**
+	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @param client The client is used to send partition request.
+	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
+	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
+	 * @return The new created remote input channel.
+	 */
+	static RemoteInputChannel createRemoteInputChannel(
+			SingleInputGate inputGate,
+			PartitionRequestClient client,
+			int initialBackoff,
+			int maxBackoff) throws Exception {
+		final ConnectionManager connectionManager = mock(ConnectionManager.class);
+		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
+			.thenReturn(client);
+
+		ResultPartitionID partitionId = new ResultPartitionID();
+		RemoteInputChannel inputChannel = new RemoteInputChannel(
 			inputGate,
 			0,
-			new ResultPartitionID(),
+			partitionId,
 			mock(ConnectionID.class),
 			connectionManager,
-			0,
-			0,
+			initialBackoff,
+			maxBackoff,
 			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+
+		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
+		return inputChannel;
 	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.
 	 */
-	private BufferResponse createBufferResponse(
+	static BufferResponse createBufferResponse(
 			Buffer buffer,
 			int sequenceNumber,
 			InputChannelID receivingChannelId,

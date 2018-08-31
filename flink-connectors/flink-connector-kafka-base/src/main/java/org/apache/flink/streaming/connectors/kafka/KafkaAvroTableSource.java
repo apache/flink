@@ -20,24 +20,14 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.AvroRowDeserializationSchema;
-import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sources.DefinedFieldMapping;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.types.Row;
 
-import org.apache.avro.Schema;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.specific.SpecificRecordBase;
-import org.apache.avro.util.Utf8;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -46,13 +36,15 @@ import java.util.Properties;
  *
  * <p>The version-specific Kafka consumers need to extend this class and
  * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ *
+ * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+ *             with descriptors for schema and format instead. Descriptors allow for
+ *             implementation-agnostic definition of tables. See also
+ *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
  */
+@Deprecated
 @Internal
-public abstract class KafkaAvroTableSource extends KafkaTableSource implements DefinedFieldMapping {
-
-	private final Class<? extends SpecificRecordBase> avroRecordClass;
-
-	private Map<String, String> fieldMapping;
+public abstract class KafkaAvroTableSource extends KafkaTableSource {
 
 	/**
 	 * Creates a generic Kafka Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
@@ -61,7 +53,12 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 	 * @param properties       Properties for the Kafka consumer.
 	 * @param schema           Schema of the produced table.
 	 * @param avroRecordClass  Class of the Avro record that is read from the Kafka topic.
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	protected KafkaAvroTableSource(
 		String topic,
 		Properties properties,
@@ -69,79 +66,18 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 		Class<? extends SpecificRecordBase> avroRecordClass) {
 
 		super(
+			schema,
 			topic,
 			properties,
-			schema,
-			convertToRowTypeInformation(avroRecordClass));
-
-		this.avroRecordClass = avroRecordClass;
-	}
-
-	@Override
-	public Map<String, String> getFieldMapping() {
-		return fieldMapping;
+			new AvroRowDeserializationSchema(avroRecordClass));
 	}
 
 	@Override
 	public String explainSource() {
-		return "KafkaAvroTableSource(" + this.avroRecordClass.getSimpleName() + ")";
-	}
-
-	@Override
-	protected AvroRowDeserializationSchema getDeserializationSchema() {
-		return new AvroRowDeserializationSchema(avroRecordClass);
-	}
-
-	//////// SETTERS FOR OPTIONAL PARAMETERS
-
-	/**
-	 * Configures a field mapping for this TableSource.
-	 *
-	 * @param fieldMapping The field mapping.
-	 */
-	protected void setFieldMapping(Map<String, String> fieldMapping) {
-		this.fieldMapping = fieldMapping;
+		return "KafkaAvroTableSource";
 	}
 
 	//////// HELPER METHODS
-
-	/**
-	 * Converts the extracted AvroTypeInfo into a RowTypeInfo nested structure with deterministic field order.
-	 * Replaces generic Utf8 with basic String type information.
-	 */
-	@SuppressWarnings("unchecked")
-	private static <T extends SpecificRecordBase> TypeInformation<Row> convertToRowTypeInformation(Class<T> avroClass) {
-		final AvroTypeInfo<T> avroTypeInfo = new AvroTypeInfo<>(avroClass);
-		// determine schema to retrieve deterministic field order
-		final Schema schema = SpecificData.get().getSchema(avroClass);
-		return (TypeInformation<Row>) convertToTypeInformation(avroTypeInfo, schema);
-	}
-
-	/**
-	 * Recursively converts extracted AvroTypeInfo into a RowTypeInfo nested structure with deterministic field order.
-	 * Replaces generic Utf8 with basic String type information.
-	 */
-	private static TypeInformation<?> convertToTypeInformation(TypeInformation<?> extracted, Schema schema) {
-		if (schema.getType() == Schema.Type.RECORD) {
-			final List<Schema.Field> fields = schema.getFields();
-			final AvroTypeInfo<?> avroTypeInfo = (AvroTypeInfo<?>) extracted;
-
-			final TypeInformation<?>[] types = new TypeInformation<?>[fields.size()];
-			final String[] names = new String[fields.size()];
-			for (int i = 0; i < fields.size(); i++) {
-				final Schema.Field field = fields.get(i);
-				types[i] = convertToTypeInformation(avroTypeInfo.getTypeAt(field.name()), field.schema());
-				names[i] = field.name();
-			}
-			return new RowTypeInfo(types, names);
-		} else if (extracted instanceof GenericTypeInfo<?>) {
-			final GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) extracted;
-			if (genericTypeInfo.getTypeClass() == Utf8.class) {
-				return BasicTypeInfo.STRING_TYPE_INFO;
-			}
-		}
-		return extracted;
-	}
 
 	/**
 	 * Abstract builder for a {@link KafkaAvroTableSource} to be extended by builders of subclasses of
@@ -149,7 +85,13 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 	 *
 	 * @param <T> Type of the KafkaAvroTableSource produced by the builder.
 	 * @param <B> Type of the KafkaAvroTableSource.Builder subclass.
+	 *
+	 * @deprecated Use the {@link org.apache.flink.table.descriptors.Kafka} descriptor together
+	 *             with descriptors for schema and format instead. Descriptors allow for
+	 *             implementation-agnostic definition of tables. See also
+	 *             {@link org.apache.flink.table.api.TableEnvironment#connect(ConnectorDescriptor)}.
 	 */
+	@Deprecated
 	protected abstract static class Builder<T extends KafkaAvroTableSource, B extends KafkaAvroTableSource.Builder>
 		extends KafkaTableSource.Builder<T, B> {
 
@@ -162,7 +104,9 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 		 *
 		 * @param avroClass The class of the Avro records that are read from the Kafka topic.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B forAvroRecordClass(Class<? extends SpecificRecordBase> avroClass) {
 			this.avroClass = avroClass;
 			return builder();
@@ -178,7 +122,9 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 		 *
 		 * @param schemaToAvroMapping A mapping from schema fields to Avro fields.
 		 * @return The builder.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		public B withTableToAvroMapping(Map<String, String> schemaToAvroMapping) {
 			this.fieldMapping = schemaToAvroMapping;
 			return builder();
@@ -188,7 +134,9 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 		 * Returns the configured Avro class.
 		 *
 		 * @return The configured Avro class.
+		 * @deprecated Use table descriptors instead of implementation-specific builders.
 		 */
+		@Deprecated
 		protected Class<? extends SpecificRecordBase> getAvroRecordClass() {
 			return this.avroClass;
 		}

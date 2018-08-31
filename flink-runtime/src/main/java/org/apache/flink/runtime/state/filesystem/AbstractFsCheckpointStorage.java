@@ -23,13 +23,16 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nullable;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -54,6 +57,9 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 	/** The name of the metadata files in checkpoints / savepoints. */
 	public static final String METADATA_FILE_NAME = "_metadata";
+
+	/** The magic number that is put in front of any reference. */
+	private static final byte[] REFERENCE_MAGIC_NUMBER = new byte[] { 0x05, 0x5F, 0x3F, 0x18 };
 
 	// ------------------------------------------------------------------------
 	//  Fields and properties
@@ -99,7 +105,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	}
 
 	@Override
-	public StreamStateHandle resolveCheckpoint(String checkpointPointer) throws IOException {
+	public CompletedCheckpointStorageLocation resolveCheckpoint(String checkpointPointer) throws IOException {
 		return resolveCheckpointPointer(checkpointPointer);
 	}
 
@@ -119,7 +125,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @throws IOException Thrown if the target directory could not be created.
 	 */
 	@Override
-	public FsCheckpointStorageLocation initializeLocationForSavepoint(
+	public CheckpointStorageLocation initializeLocationForSavepoint(
 			@SuppressWarnings("unused") long checkpointId,
 			@Nullable String externalLocationPointer) throws IOException {
 
@@ -147,7 +153,10 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 			try {
 				if (fs.mkdirs(path)) {
-					return new FsCheckpointStorageLocation(fs, path, path, path);
+					// we make the path qualified, to make it independent of default schemes and authorities
+					final Path qp = path.makeQualified(fs);
+
+					return createSavepointLocation(fs, qp);
 				}
 			} catch (Exception e) {
 				latestException = e;
@@ -156,6 +165,8 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 		throw new IOException("Failed to create savepoint directory at " + savepointBasePath, latestException);
 	}
+
+	protected abstract CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Creating and resolving paths
@@ -197,7 +208,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @throws IOException Thrown, if the pointer cannot be resolved, the file system not accessed, or
 	 *                     the pointer points to a location that does not seem to be a checkpoint/savepoint.
 	 */
-	protected static StreamStateHandle resolveCheckpointPointer(String checkpointPointer) throws IOException {
+	protected static CompletedCheckpointStorageLocation resolveCheckpointPointer(String checkpointPointer) throws IOException {
 		checkNotNull(checkpointPointer, "checkpointPointer");
 		checkArgument(!checkpointPointer.isEmpty(), "empty checkpoint pointer");
 
@@ -231,10 +242,12 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 		}
 
 		// if we are here, the file / directory exists
+		final Path checkpointDir;
 		final FileStatus metadataFileStatus;
 
 		// If this is a directory, we need to find the meta data file
 		if (status.isDir()) {
+			checkpointDir = status.getPath();
 			final Path metadataFilePath = new Path(path, METADATA_FILE_NAME);
 			try {
 				metadataFileStatus = fs.getFileStatus(metadataFilePath);
@@ -249,8 +262,78 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 			// this points to a file and we either do no name validation, or
 			// the name is actually correct, so we can return the path
 			metadataFileStatus = status;
+			checkpointDir = status.getPath().getParent();
 		}
 
-		return new FileStateHandle(metadataFileStatus.getPath(), metadataFileStatus.getLen());
+		final FileStateHandle metaDataFileHandle = new FileStateHandle(
+				metadataFileStatus.getPath(), metadataFileStatus.getLen());
+
+		final String pointer = checkpointDir.makeQualified(fs).toString();
+
+		return new FsCompletedCheckpointStorageLocation(
+				fs,
+				checkpointDir,
+				metaDataFileHandle,
+				pointer);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Encoding / Decoding of References
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Encodes the given path as a reference in bytes. The path is encoded as a UTF-8 string
+	 * and prepended as a magic number.
+	 *
+	 * @param path The path to encode.
+	 * @return The location reference.
+	 */
+	public static CheckpointStorageLocationReference encodePathAsReference(Path path) {
+		byte[] refBytes = path.toString().getBytes(StandardCharsets.UTF_8);
+		byte[] bytes = new byte[REFERENCE_MAGIC_NUMBER.length + refBytes.length];
+
+		System.arraycopy(REFERENCE_MAGIC_NUMBER, 0, bytes, 0, REFERENCE_MAGIC_NUMBER.length);
+		System.arraycopy(refBytes, 0, bytes, REFERENCE_MAGIC_NUMBER.length, refBytes.length);
+
+		return new CheckpointStorageLocationReference(bytes);
+	}
+
+	/**
+	 * Decodes the given reference into a path. This method validates that the reference bytes start with
+	 * the correct magic number (as written by {@link #encodePathAsReference(Path)}) and converts
+	 * the remaining bytes back to a proper path.
+	 *
+	 * @param reference The bytes representing the reference.
+	 * @return The path decoded from the reference.
+	 *
+	 * @throws IllegalArgumentException Thrown, if the bytes do not represent a proper reference.
+	 */
+	public static Path decodePathFromReference(CheckpointStorageLocationReference reference) {
+		if (reference.isDefaultReference()) {
+			throw new IllegalArgumentException("Cannot decode default reference");
+		}
+
+		final byte[] bytes = reference.getReferenceBytes();
+		final int headerLen = REFERENCE_MAGIC_NUMBER.length;
+
+		if (bytes.length > headerLen) {
+			// compare magic number
+			for (int i = 0; i < headerLen; i++) {
+				if (bytes[i] != REFERENCE_MAGIC_NUMBER[i]) {
+					throw new IllegalArgumentException("Reference starts with the wrong magic number");
+				}
+			}
+
+			// covert to string and path
+			try {
+				return new Path(new String(bytes, headerLen, bytes.length - headerLen, StandardCharsets.UTF_8));
+			}
+			catch (Exception e) {
+				throw new IllegalArgumentException("Reference cannot be decoded to a path", e);
+			}
+		}
+		else {
+			throw new IllegalArgumentException("Reference too short.");
+		}
 	}
 }

@@ -21,17 +21,18 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -39,12 +40,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.equalTo;
@@ -53,8 +51,6 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link JobExecutionResultHandler}.
@@ -65,23 +61,15 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 
 	private JobExecutionResultHandler jobExecutionResultHandler;
 
-	@Mock
-	private RestfulGateway mockRestfulGateway;
-
 	private HandlerRequest<EmptyRequestBody, JobMessageParameters> testRequest;
 
 	@Before
 	public void setUp() throws Exception {
-		MockitoAnnotations.initMocks(this);
+		final TestingRestfulGateway testingRestfulGateway = TestingRestfulGateway.newBuilder().build();
 
 		jobExecutionResultHandler = new JobExecutionResultHandler(
 			CompletableFuture.completedFuture("localhost:12345"),
-			new GatewayRetriever<RestfulGateway>() {
-				@Override
-				public CompletableFuture<RestfulGateway> getFuture() {
-					return CompletableFuture.completedFuture(mockRestfulGateway);
-				}
-			},
+			() -> CompletableFuture.completedFuture(testingRestfulGateway),
 			Time.seconds(10),
 			Collections.emptyMap());
 
@@ -94,12 +82,14 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 
 	@Test
 	public void testResultInProgress() throws Exception {
-		when(mockRestfulGateway.isJobExecutionResultPresent(any(JobID.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(false));
+		final TestingRestfulGateway testingRestfulGateway = TestingRestfulGateway.newBuilder()
+			.setRequestJobStatusFunction(
+				jobId -> CompletableFuture.completedFuture(JobStatus.RUNNING))
+			.build();
 
 		final JobExecutionResultResponseBody responseBody = jobExecutionResultHandler.handleRequest(
 			testRequest,
-			mockRestfulGateway).get();
+			testingRestfulGateway).get();
 
 		assertThat(
 			responseBody.getStatus().getId(),
@@ -108,18 +98,29 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 
 	@Test
 	public void testCompletedResult() throws Exception {
-		when(mockRestfulGateway.isJobExecutionResultPresent(any(JobID.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(true));
+		final JobStatus jobStatus = JobStatus.FINISHED;
+		final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()
+			.setJobID(TEST_JOB_ID)
+			.setState(jobStatus)
+			.build();
 
-		when(mockRestfulGateway.getJobExecutionResult(any(JobID.class), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new JobResult.Builder()
-				.jobId(TEST_JOB_ID)
-				.netRuntime(Long.MAX_VALUE)
-				.build()));
+		final TestingRestfulGateway testingRestfulGateway = TestingRestfulGateway.newBuilder()
+			.setRequestJobStatusFunction(
+				jobId -> {
+					assertThat(jobId, equalTo(TEST_JOB_ID));
+					return CompletableFuture.completedFuture(jobStatus);
+				})
+			.setRequestJobResultFunction(
+				jobId -> {
+					assertThat(jobId, equalTo(TEST_JOB_ID));
+					return CompletableFuture.completedFuture(JobResult.createFrom(executionGraph));
+				}
+			)
+			.build();
 
 		final JobExecutionResultResponseBody responseBody = jobExecutionResultHandler.handleRequest(
 			testRequest,
-			mockRestfulGateway).get();
+			testingRestfulGateway).get();
 
 		assertThat(
 			responseBody.getStatus().getId(),
@@ -129,25 +130,16 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 
 	@Test
 	public void testPropagateFlinkJobNotFoundExceptionAsRestHandlerException() throws Exception {
-		assertPropagateAsRestHandlerException(
-			new CompletionException(new FlinkJobNotFoundException(new JobID())));
-	}
-
-	@Test
-	public void testPropagateJobExecutionResultGoneExceptionAsRestHandlerException() throws Exception {
-		assertPropagateAsRestHandlerException(
-			new CompletionException(new JobExecutionResultGoneException(new JobID())));
-	}
-
-	private void assertPropagateAsRestHandlerException(final Exception exception) throws Exception {
-		when(mockRestfulGateway.isJobExecutionResultPresent(any(JobID.class), any(Time.class)))
-			.thenReturn(FutureUtils.completedExceptionally(
-				exception));
+		final TestingRestfulGateway testingRestfulGateway = TestingRestfulGateway.newBuilder()
+			.setRequestJobStatusFunction(
+				jobId -> FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId))
+			)
+			.build();
 
 		try {
 			jobExecutionResultHandler.handleRequest(
 				testRequest,
-				mockRestfulGateway).get();
+				testingRestfulGateway).get();
 			fail("Expected exception not thrown");
 		} catch (final ExecutionException e) {
 			final Throwable cause = ExceptionUtils.stripCompletionException(e.getCause());
@@ -157,5 +149,4 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 				equalTo(HttpResponseStatus.NOT_FOUND));
 		}
 	}
-
 }

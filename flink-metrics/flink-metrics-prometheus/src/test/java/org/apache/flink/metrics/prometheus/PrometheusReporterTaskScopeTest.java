@@ -90,9 +90,9 @@ public class PrometheusReporterTaskScopeTest {
 	}
 
 	@After
-	public void shutdownRegistry() {
+	public void shutdownRegistry() throws Exception {
 		if (registry != null) {
-			registry.shutdown();
+			registry.shutdown().get();
 		}
 	}
 

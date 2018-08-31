@@ -21,54 +21,38 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rest.NotFoundException;
-import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
+import org.apache.flink.runtime.rest.handler.async.AbstractAsynchronousOperationHandlers;
+import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.SavepointTriggerIdPathParameter;
+import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointResponseBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
-import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.types.Either;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
-import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * HTTP handlers for asynchronous triggering of savepoints.
  *
  * <p>Drawing savepoints is a potentially long-running operation. To avoid blocking HTTP
  * connections, savepoints must be drawn in two steps. First, an HTTP request is issued to trigger
- * the savepoint asynchronously. The request will be assigned a {@link SavepointTriggerId},
+ * the savepoint asynchronously. The request will be assigned a {@link TriggerId},
  * which is returned in the response body. Next, the returned id should be used to poll the status
  * of the savepoint until it is finished.
  *
@@ -103,15 +87,12 @@ import static java.util.Objects.requireNonNull;
  *         "id": "COMPLETED"
  *     },
  *     "savepoint": {
- *         "request-id": "7d273f5a62eb4730b9dea8e833733c1e",
  *         "location": "/tmp/savepoint-d9813b-8a68e674325b"
  *     }
  * }
  * </pre>
  */
-public class SavepointHandlers {
-
-	private final CompletedSavepointCache completedSavepointCache = new CompletedSavepointCache();
+public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<AsynchronousJobOperationKey, String> {
 
 	@Nullable
 	private final String defaultSavepointDir;
@@ -123,8 +104,7 @@ public class SavepointHandlers {
 	/**
 	 * HTTP handler to trigger savepoints.
 	 */
-	public class SavepointTriggerHandler
-			extends AbstractRestHandler<RestfulGateway, SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+	public class SavepointTriggerHandler extends TriggerHandler<RestfulGateway, SavepointTriggerRequestBody, SavepointTriggerMessageParameters> {
 
 		public SavepointTriggerHandler(
 				final CompletableFuture<String> localRestAddress,
@@ -135,39 +115,34 @@ public class SavepointHandlers {
 		}
 
 		@Override
-		protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(
-				@Nonnull final HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request,
-				@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-
+		protected CompletableFuture<String> triggerOperation(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request, RestfulGateway gateway) throws RestHandlerException {
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 			final String requestedTargetDirectory = request.getRequestBody().getTargetDirectory();
 
 			if (requestedTargetDirectory == null && defaultSavepointDir == null) {
-				return FutureUtils.completedExceptionally(
-					new RestHandlerException(
+				throw new RestHandlerException(
 						String.format("Config key [%s] is not set. Property [%s] must be provided.",
 							CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
 							SavepointTriggerRequestBody.FIELD_NAME_TARGET_DIRECTORY),
-						HttpResponseStatus.BAD_REQUEST));
+						HttpResponseStatus.BAD_REQUEST);
 			}
 
+			final boolean cancelJob = request.getRequestBody().isCancelJob();
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
-			final CompletableFuture<String> savepointLocationFuture =
-				gateway.triggerSavepoint(jobId, targetDirectory, RpcUtils.INF_TIMEOUT);
-			final SavepointTriggerId savepointTriggerId = new SavepointTriggerId();
-			completedSavepointCache.registerOngoingSavepoint(
-				SavepointKey.of(savepointTriggerId, jobId),
-				savepointLocationFuture);
-			return CompletableFuture.completedFuture(
-				new SavepointTriggerResponseBody(savepointTriggerId));
+			return gateway.triggerSavepoint(jobId, targetDirectory, cancelJob, RpcUtils.INF_TIMEOUT);
+		}
+
+		@Override
+		protected AsynchronousJobOperationKey createOperationKey(HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request) {
+			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+			return AsynchronousJobOperationKey.of(new TriggerId(), jobId);
 		}
 	}
 
 	/**
 	 * HTTP handler to query for the status of the savepoint.
 	 */
-	public class SavepointStatusHandler
-			extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, SavepointResponseBody, SavepointStatusMessageParameters> {
+	public class SavepointStatusHandler extends StatusHandler<RestfulGateway, SavepointInfo, SavepointStatusMessageParameters> {
 
 		public SavepointStatusHandler(
 				final CompletableFuture<String> localRestAddress,
@@ -178,159 +153,20 @@ public class SavepointHandlers {
 		}
 
 		@Override
-		protected CompletableFuture<SavepointResponseBody> handleRequest(
-				@Nonnull final HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
-				@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-
+		protected AsynchronousJobOperationKey getOperationKey(HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request) {
+			final TriggerId triggerId = request.getPathParameter(TriggerIdPathParameter.class);
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-			final SavepointTriggerId savepointTriggerId = request.getPathParameter(
-				SavepointTriggerIdPathParameter.class);
-			final Either<Throwable, String> savepointLocationOrError;
-			try {
-				savepointLocationOrError = completedSavepointCache.get(SavepointKey.of(
-					savepointTriggerId, jobId));
-			} catch (UnknownSavepointKeyException e) {
-				return FutureUtils.completedExceptionally(
-					new NotFoundException("Savepoint not found. Savepoint trigger id: " +
-						savepointTriggerId + ", job id: " + jobId));
-			}
-
-			if (savepointLocationOrError != null) {
-				if (savepointLocationOrError.isLeft()) {
-					return CompletableFuture.completedFuture(new SavepointResponseBody(
-						QueueStatus.completed(),
-						new SavepointInfo(savepointTriggerId, null, new SerializedThrowable(
-							savepointLocationOrError.left()))));
-				} else {
-					final String externalPointer = savepointLocationOrError.right();
-					return CompletableFuture.completedFuture(new SavepointResponseBody(
-						QueueStatus.completed(),
-						new SavepointInfo(savepointTriggerId, externalPointer, null)));
-				}
-			} else {
-				return CompletableFuture.completedFuture(SavepointResponseBody.inProgress());
-			}
-		}
-	}
-
-	/**
-	 * Cache to manage ongoing savepoints.
-	 *
-	 * <p>The cache allows to register ongoing savepoints by calling
-	 * {@link #registerOngoingSavepoint(SavepointKey, CompletableFuture)}, where the
-	 * {@code CompletableFuture} contains the savepoint location. Completed savepoints will be
-	 * removed from the cache automatically after a fixed timeout.
-	 */
-	@ThreadSafe
-	static class CompletedSavepointCache {
-
-		private static final long COMPLETED_SAVEPOINTS_CACHE_DURATION_SECONDS = 300;
-
-		/**
-		 * Stores SavepointKeys of ongoing savepoint.
-		 * If the savepoint completes, it will be moved to {@link #completedSavepoints}.
-		 */
-		private final Set<SavepointKey> registeredSavepointTriggers = ConcurrentHashMap.newKeySet();
-
-		/** Caches the location of completed savepoint. */
-		private final Cache<SavepointKey, Either<Throwable, String>> completedSavepoints =
-			CacheBuilder.newBuilder()
-				.expireAfterWrite(COMPLETED_SAVEPOINTS_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
-				.build();
-
-		/**
-		 * Registers an ongoing savepoint with the cache.
-		 * @param savepointLocationFuture A future containing the savepoint location.
-		 */
-		void registerOngoingSavepoint(
-				final SavepointKey savepointKey,
-				final CompletableFuture<String> savepointLocationFuture) {
-			registeredSavepointTriggers.add(savepointKey);
-			savepointLocationFuture.whenComplete((savepointLocation, error) -> {
-				if (error == null) {
-					completedSavepoints.put(savepointKey, Either.Right(savepointLocation));
-				} else {
-					completedSavepoints.put(savepointKey, Either.Left(error));
-				}
-				registeredSavepointTriggers.remove(savepointKey);
-			});
-		}
-
-		/**
-		 * Returns the savepoint location or a {@code Throwable} if the {@code CompletableFuture}
-		 * finished, otherwise {@code null}.
-		 *
-		 * @throws UnknownSavepointKeyException If the savepoint is not found, and there is no ongoing
-		 *                                   savepoint under the provided key.
-		 */
-		@Nullable
-		Either<Throwable, String> get(
-				final SavepointKey savepointKey) throws UnknownSavepointKeyException {
-			Either<Throwable, String> savepointLocationOrError = null;
-			if (!registeredSavepointTriggers.contains(savepointKey)
-				&& (savepointLocationOrError = completedSavepoints.getIfPresent(savepointKey)) == null) {
-				throw new UnknownSavepointKeyException(savepointKey);
-			}
-			return savepointLocationOrError;
-		}
-	}
-
-	/**
-	 * A pair of {@link JobID} and {@link SavepointTriggerId} used as a key to a hash based
-	 * collection.
-	 *
-	 * @see CompletedSavepointCache
-	 */
-	@Immutable
-	static class SavepointKey {
-
-		private final SavepointTriggerId savepointTriggerId;
-
-		private final JobID jobId;
-
-		private SavepointKey(final SavepointTriggerId savepointTriggerId, final JobID jobId) {
-			this.savepointTriggerId = requireNonNull(savepointTriggerId);
-			this.jobId = requireNonNull(jobId);
-		}
-
-		private static SavepointKey of(final SavepointTriggerId savepointTriggerId, final JobID jobId) {
-			return new SavepointKey(savepointTriggerId, jobId);
+			return AsynchronousJobOperationKey.of(triggerId, jobId);
 		}
 
 		@Override
-		public boolean equals(final Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			final SavepointKey that = (SavepointKey) o;
-
-			if (!savepointTriggerId.equals(that.savepointTriggerId)) {
-				return false;
-			}
-			return jobId.equals(that.jobId);
+		protected SavepointInfo exceptionalOperationResultResponse(Throwable throwable) {
+			return new SavepointInfo(null, new SerializedThrowable(throwable));
 		}
 
 		@Override
-		public int hashCode() {
-			int result = savepointTriggerId.hashCode();
-			result = 31 * result + jobId.hashCode();
-			return result;
-		}
-	}
-
-	/**
-	 * Exception that indicates that there is no ongoing or completed savepoint for a given
-	 * {@link JobID} and {@link SavepointTriggerId} pair.
-	 */
-	static class UnknownSavepointKeyException extends FlinkException {
-		private static final long serialVersionUID = 1L;
-
-		UnknownSavepointKeyException(final SavepointKey savepointKey) {
-			super("No ongoing savepoints for " + savepointKey);
+		protected SavepointInfo operationResultResponse(String operationResult) {
+			return new SavepointInfo(operationResult, null);
 		}
 	}
 }

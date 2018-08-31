@@ -22,17 +22,19 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Mockito.mock;
@@ -40,7 +42,7 @@ import static org.mockito.Mockito.mock;
 public class StateSnapshotCompressionTest extends TestLogger {
 
 	@Test
-	public void testCompressionConfiguration() throws Exception {
+	public void testCompressionConfiguration() {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setUseSnapshotCompression(true);
@@ -52,7 +54,10 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 			Assert.assertTrue(
@@ -73,7 +78,10 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 			Assert.assertTrue(
@@ -112,14 +120,15 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 
 		try {
 
-			InternalValueState<VoidNamespace, String> state =
-				stateBackend.createValueState(
-					new VoidNamespaceSerializer(),
-					stateDescriptor);
+			InternalValueState<String, VoidNamespace, String> state =
+				stateBackend.createInternalState(new VoidNamespaceSerializer(), stateDescriptor);
 
 			stateBackend.setCurrentKey("A");
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
@@ -134,10 +143,11 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 			state.update("45");
 			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4 * 1024 * 1024);
-			RunnableFuture<KeyedStateHandle> snapshot =
-				stateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpoint());
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
+				stateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			snapshot.run();
-			stateHandle = snapshot.get();
+			SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
+			stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
 
 		} finally {
 			IOUtils.closeQuietly(stateBackend);
@@ -153,12 +163,15 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			TestLocalRecoveryConfig.disabled(),
+			mock(HeapPriorityQueueSetFactory.class),
+			TtlTimeProvider.DEFAULT);
 		try {
 
-			stateBackend.restore(Collections.singletonList(stateHandle));
+			stateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
-			InternalValueState<VoidNamespace, String> state = stateBackend.createValueState(
+			InternalValueState<String, VoidNamespace, String> state = stateBackend.createInternalState(
 				new VoidNamespaceSerializer(),
 				stateDescriptor);
 

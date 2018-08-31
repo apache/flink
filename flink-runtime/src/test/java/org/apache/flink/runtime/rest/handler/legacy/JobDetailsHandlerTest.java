@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for the JobDetailsHandler.
  */
-public class JobDetailsHandlerTest {
+public class JobDetailsHandlerTest extends TestLogger {
 
 	@Test
 	public void testArchiver() throws Exception {

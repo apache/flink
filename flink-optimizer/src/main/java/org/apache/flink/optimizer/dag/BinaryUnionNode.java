@@ -54,6 +54,15 @@ public class BinaryUnionNode extends TwoInputNode {
 	}
 
 	@Override
+	public void addOutgoingConnection(DagConnection connection) {
+		// ensure that union nodes have not more than one outgoing connection.
+		if (this.getOutgoingConnections() != null && this.getOutgoingConnections().size() > 0) {
+			throw new CompilerException("BinaryUnionNode may only have a single outgoing connection.");
+		}
+		super.addOutgoingConnection(connection);
+	}
+
+	@Override
 	public String getOperatorName() {
 		return "Union";
 	}

@@ -66,4 +66,9 @@ public final class DashboardConfigurationHeaders implements MessageHeaders<Empty
 	public static DashboardConfigurationHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the configuration of the WebUI.";
+	}
 }

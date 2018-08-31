@@ -23,12 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
-
 import java.io.File;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Configuration object containing values for the rest handler configuration.
@@ -41,25 +36,20 @@ public class RestHandlerConfiguration {
 
 	private final Time timeout;
 
-	private final File tmpDir;
-
-	private final Map<String, String> responseHeaders;
+	private final File webUiDir;
 
 	public RestHandlerConfiguration(
 			long refreshInterval,
 			int maxCheckpointStatisticCacheEntries,
 			Time timeout,
-			File tmpDir,
-			Map<String, String> responseHeaders) {
+			File webUiDir) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
 		this.maxCheckpointStatisticCacheEntries = maxCheckpointStatisticCacheEntries;
 
 		this.timeout = Preconditions.checkNotNull(timeout);
-		this.tmpDir = Preconditions.checkNotNull(tmpDir);
-
-		this.responseHeaders = Preconditions.checkNotNull(responseHeaders);
+		this.webUiDir = Preconditions.checkNotNull(webUiDir);
 	}
 
 	public long getRefreshInterval() {
@@ -74,12 +64,8 @@ public class RestHandlerConfiguration {
 		return timeout;
 	}
 
-	public File getTmpDir() {
-		return tmpDir;
-	}
-
-	public Map<String, String> getResponseHeaders() {
-		return Collections.unmodifiableMap(responseHeaders);
+	public File getWebUiDir() {
+		return webUiDir;
 	}
 
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
@@ -89,18 +75,13 @@ public class RestHandlerConfiguration {
 
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 
-		final String rootDir = "flink-web-" + UUID.randomUUID();
-		final File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
-
-		final Map<String, String> responseHeaders = Collections.singletonMap(
-			HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
-			configuration.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
+		final String rootDir = "flink-web-ui";
+		final File webUiDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
 
 		return new RestHandlerConfiguration(
 			refreshInterval,
 			maxCheckpointStatisticCacheEntries,
 			timeout,
-			tmpDir,
-			responseHeaders);
+			webUiDir);
 	}
 }

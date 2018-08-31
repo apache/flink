@@ -61,7 +61,7 @@ public abstract class Slot {
 	/** State where all tasks in this slot have been canceled and the slot been given back to the instance */
 	private static final int RELEASED = 2;
 
-	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
+	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (by legacy code)
 	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0L, 0L);
 	protected static final SlotRequestId NO_SLOT_REQUEST_ID = new SlotRequestId(0L, 0L);
 	protected static final SlotSharingGroupId NO_SLOT_SHARING_GROUP_ID = new SlotSharingGroupId(0L, 0L);
@@ -92,7 +92,7 @@ public abstract class Slot {
 	/**
 	 * Base constructor for slots.
 	 * 
-	 * <p>This is the old way of constructing slots, prior to the FLIP-6 resource management refactoring.
+	 * <p>This is the old way of constructing slots by the legacy code
 	 * 
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from

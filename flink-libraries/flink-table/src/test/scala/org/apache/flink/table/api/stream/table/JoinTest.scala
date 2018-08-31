@@ -58,7 +58,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "InnerJoin")
         ),
@@ -189,7 +189,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "LeftOuterJoin")
         ),
@@ -261,7 +261,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "RightOuterJoin")
         ),
@@ -333,7 +333,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           term("joinType", "FullOuterJoin")
         ),
@@ -403,7 +403,7 @@ class JoinTest extends TableTestBase {
             term("select", "d", "e", "rrtime")
           ),
           term("where", "AND(=(a, d), >=(lrtime, -(rrtime, 300000))," +
-            " <(lrtime, DATETIME_PLUS(rrtime, 3000)))"),
+            " <(lrtime, +(rrtime, 3000)))"),
           term("join", "a", "lrtime", "d", "e", "rrtime"),
           // Since we filter on attributes of the left table after the join, the left outer join
           // will be automatically optimized to inner join.
@@ -413,5 +413,188 @@ class JoinTest extends TableTestBase {
       )
     util.verifyTable(resultTable, expected)
   }
+  
+  @Test
+  def testLeftOuterJoinEquiPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
 
+    val joined = t.leftOuterJoin(s, 'a === 'z).select('b, 'y)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "=(a, z)"),
+        term("join", "a", "b", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinEquiAndLocalPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
+
+    val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "AND(=(a, z), <(b, 2))"),
+        term("join", "a", "b", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinEquiAndNonEquiPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
+
+    val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        streamTableNode(1),
+        term("where", "AND(=(a, z), <(b, x))"),
+        term("join", "a", "b", "x", "y", "z"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
+
+    val joined = t.rightOuterJoin(s, 'a === 'z).select('b, 'y)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "y", "z")
+        ),
+        term("where", "=(a, z)"),
+        term("join", "a", "b", "y", "z"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiAndLocalPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
+
+    val joined = t.rightOuterJoin(s, 'a === 'z && 'x < 2).select('b, 'x)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(1),
+          term("select", "x", "z")
+        ),
+        term("where", "AND(=(a, z), <(x, 2))"),
+        term("join", "a", "b", "x", "z"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "x")
+    )
+
+    util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testRightOuterJoinEquiAndNonEquiPred(): Unit = {
+    val util = streamTestUtil()
+    val t = util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
+    val s = util.addTable[(Long, String, Int)]("S", 'x, 'y, 'z)
+
+    val joined = t.rightOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      binaryNode(
+        "DataStreamJoin",
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b")
+        ),
+        streamTableNode(1),
+        term("where", "AND(=(a, z), <(b, x))"),
+        term("join", "a", "b", "x", "y", "z"),
+        term("joinType", "RightOuterJoin")
+      ),
+      term("select", "b", "y")
+    )
+
+    util.verifyTable(joined, expected)
+  }
 }

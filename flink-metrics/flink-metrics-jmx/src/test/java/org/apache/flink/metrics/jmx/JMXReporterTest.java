@@ -145,7 +145,7 @@ public class JMXReporterTest extends TestLogger {
 		rep1.notifyOfRemovedMetric(g2, "rep2", null);
 
 		mg.close();
-		reg.shutdown();
+		reg.shutdown().get();
 	}
 
 	/**
@@ -219,7 +219,7 @@ public class JMXReporterTest extends TestLogger {
 		rep1.close();
 		rep2.close();
 		mg.close();
-		reg.shutdown();
+		reg.shutdown().get();
 	}
 
 	/**
@@ -266,7 +266,7 @@ public class JMXReporterTest extends TestLogger {
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 		}
 	}
@@ -306,7 +306,7 @@ public class JMXReporterTest extends TestLogger {
 
 		} finally {
 			if (registry != null) {
-				registry.shutdown();
+				registry.shutdown().get();
 			}
 		}
 	}

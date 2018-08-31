@@ -19,12 +19,11 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import java.io.Serializable;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Options for performing the checkpoint.
@@ -38,72 +37,70 @@ public class CheckpointOptions implements Serializable {
 	private static final long serialVersionUID = 5010126558083292915L;
 
 	/** Type of the checkpoint. */
-	@Nonnull
 	private final CheckpointType checkpointType;
 
 	/** Target location for the checkpoint. */
-	@Nullable
-	private final String targetLocation;
+	private final CheckpointStorageLocationReference targetLocation;
 
-	private CheckpointOptions(
-			@Nonnull CheckpointType checkpointType,
-			@Nullable  String targetLocation) {
+	public CheckpointOptions(
+			CheckpointType checkpointType,
+			CheckpointStorageLocationReference targetLocation) {
+
 		this.checkpointType = checkNotNull(checkpointType);
-		this.targetLocation = targetLocation;
+		this.targetLocation = checkNotNull(targetLocation);
 	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Returns the type of checkpoint to perform.
-	 *
-	 * @return Type of checkpoint to perform.
 	 */
-	@Nonnull
 	public CheckpointType getCheckpointType() {
 		return checkpointType;
 	}
 
 	/**
-	 * Returns a custom target location or <code>null</code> if none
-	 * was specified.
-	 *
-	 * @return A custom target location or <code>null</code>.
+	 * Returns the target location for the checkpoint.
 	 */
-	@Nullable
-	public String getTargetLocation() {
+	public CheckpointStorageLocationReference getTargetLocation() {
 		return targetLocation;
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public int hashCode() {
+		return 31 * targetLocation.hashCode() + checkpointType.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		else if (obj != null && obj.getClass() == CheckpointOptions.class) {
+			final CheckpointOptions that = (CheckpointOptions) obj;
+			return this.checkpointType == that.checkpointType &&
+					this.targetLocation.equals(that.targetLocation);
+		}
+		else {
+			return false;
+		}
 	}
 
 	@Override
 	public String toString() {
-		return "CheckpointOptions(" + checkpointType + ")";
+		return "CheckpointOptions: " + checkpointType + " @ " + targetLocation;
 	}
 
 	// ------------------------------------------------------------------------
-
-	private static final CheckpointOptions CHECKPOINT = new CheckpointOptions(CheckpointType.CHECKPOINT, null);
-
-	public static CheckpointOptions forCheckpoint() {
-		return CHECKPOINT;
-	}
-
-	public static CheckpointOptions forSavepoint(String targetDirectory) {
-		checkNotNull(targetDirectory, "targetDirectory");
-		return new CheckpointOptions(CheckpointType.SAVEPOINT, targetDirectory);
-	}
-
+	//  Factory methods
 	// ------------------------------------------------------------------------
 
-	/**
-	 *  The type of checkpoint to perform.
-	 */
-	public enum CheckpointType {
+	private static final CheckpointOptions CHECKPOINT_AT_DEFAULT_LOCATION =
+			new CheckpointOptions(CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
 
-		/** A full checkpoint. */
-		CHECKPOINT,
-
-		/** A savepoint. */
-		SAVEPOINT;
-
+	public static CheckpointOptions forCheckpointWithDefaultLocation() {
+		return CHECKPOINT_AT_DEFAULT_LOCATION;
 	}
-
 }

@@ -150,14 +150,15 @@ class LaunchCoordinator(
     case Event(offers: ResourceOffers, data: GatherData) =>
       val leases = offers.offers().asScala.map(new Offer(_))
       if(LOG.isInfoEnabled) {
-        val (cpus, mem) = leases.foldLeft((0.0,0.0)) {
-          (z,o) => (z._1 + o.cpuCores(), z._2 + o.memoryMB())
+        val (cpus, gpus, mem) = leases.foldLeft((0.0,0.0,0.0)) {
+          (z,o) => (z._1 + o.cpuCores(), z._2 + o.gpus(), z._3 + o.memoryMB())
         }
-        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus:")
+        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus, $gpus gpus:")
         for(l <- leases) {
           val reservations = l.getResources.asScala.map(_.getRole).toSet
           LOG.info(
-            s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB, ${l.cpuCores()} cpus" +
+            s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB," +
+            s" ${l.cpuCores()} cpus, ${l.gpus()} gpus" +
             s" for ${reservations.mkString("[", ",", "]")}")
         }
       }
@@ -178,7 +179,8 @@ class LaunchCoordinator(
         LOG.info("Resources considered: (note: expired offers not deducted from below)")
         for(vm <- optimizer.getVmCurrentStates.asScala) {
           val lease = vm.getCurrAvailableResources
-          LOG.info(s"  ${vm.getHostname} has ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus")
+          LOG.info(s"  ${vm.getHostname} has ${lease.memoryMB()} MB," +
+            s" ${lease.cpuCores()} cpus, ${lease.getScalarValue("gpus")} gpus")
         }
       }
       log.debug(result.toString)

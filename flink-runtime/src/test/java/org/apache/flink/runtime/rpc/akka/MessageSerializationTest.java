@@ -18,25 +18,30 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -44,7 +49,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests that akka rpc invocation messages are properly serialized and errors reported
  */
-@Category(Flip6.class)
 public class MessageSerializationTest extends TestLogger {
 	private static ActorSystem actorSystem1;
 	private static ActorSystem actorSystem2;
@@ -67,15 +71,17 @@ public class MessageSerializationTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void teardown() {
-		akkaRpcService1.stopService();
-		akkaRpcService2.stopService();
+	public static void teardown() throws InterruptedException, ExecutionException, TimeoutException {
+		final Collection<CompletableFuture<?>> terminationFutures = new ArrayList<>(4);
 
-		actorSystem1.shutdown();
-		actorSystem2.shutdown();
+		terminationFutures.add(akkaRpcService1.stopService());
+		terminationFutures.add(FutureUtils.toJava(actorSystem1.terminate()));
+		terminationFutures.add(akkaRpcService2.stopService());
+		terminationFutures.add(FutureUtils.toJava(actorSystem2.terminate()));
 
-		actorSystem1.awaitTermination();
-		actorSystem2.awaitTermination();
+		FutureUtils
+			.waitForAll(terminationFutures)
+			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -183,6 +189,11 @@ public class MessageSerializationTest extends TestLogger {
 		@Override
 		public void foobar(Object object) throws InterruptedException {
 			queue.put(object);
+		}
+
+		@Override
+		public CompletableFuture<Void> postStop() {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

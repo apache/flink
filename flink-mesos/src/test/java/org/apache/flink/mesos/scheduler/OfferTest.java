@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
 import static org.apache.flink.mesos.Utils.cpus;
 import static org.apache.flink.mesos.Utils.disk;
+import static org.apache.flink.mesos.Utils.gpus;
 import static org.apache.flink.mesos.Utils.mem;
 import static org.apache.flink.mesos.Utils.network;
 import static org.apache.flink.mesos.Utils.ports;
@@ -97,6 +98,12 @@ public class OfferTest extends TestLogger {
 	public void testCpuCores() {
 		Offer offer = new Offer(offer(resources(cpus(1.0)), attrs()));
 		Assert.assertEquals(1.0, offer.cpuCores(), EPSILON);
+	}
+
+	@Test
+	public void testGPUs() {
+		Offer offer = new Offer(offer(resources(gpus(1.0)), attrs()));
+		Assert.assertEquals(1.0, offer.gpus(), EPSILON);
 	}
 
 	@Test

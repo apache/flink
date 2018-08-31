@@ -25,12 +25,12 @@ steps are required to keep the shading correct:
   }
 ```
   - copy `core-default.xml` to `src/main/resources/core-default-shaded.xml` and
-    - change every occurence of `org.apache.hadoop` into `org.apache.flink.fs.s3hadoop.shaded.org.apache.hadoop`
+    - change every occurrence of `org.apache.hadoop` into `org.apache.flink.fs.s3hadoop.shaded.org.apache.hadoop`
   - copy `core-site.xml` to `src/test/resources/core-site.xml` (as is)
 2. verify the shaded jar:
   - does not contain any unshaded classes except for `org.apache.flink.fs.s3hadoop.S3FileSystemFactory`
   - all other classes should be under `org.apache.flink.fs.s3hadoop.shaded`
-  - there should be a `META-INF/services/org.apache.flink.fs.s3hadoop.S3FileSystemFactory` file pointing to the `org.apache.flink.fs.s3hadoop.S3FileSystemFactory` class
+  - there should be a `META-INF/services/org.apache.flink.core.fs.FileSystemFactory` file pointing to two classes: `org.apache.flink.fs.s3hadoop.S3FileSystemFactory` and `org.apache.flink.fs.s3hadoop.S3AFileSystemFactory`
   - other service files under `META-INF/services` should have their names and contents in the relocated `org.apache.flink.fs.s3hadoop.shaded` package
   - contains a `core-default-shaded.xml` file
   - does not contain a `core-default.xml` or `core-site.xml` file

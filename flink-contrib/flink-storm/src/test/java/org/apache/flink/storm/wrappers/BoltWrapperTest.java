@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -31,12 +32,12 @@ import org.apache.flink.storm.util.AbstractTest;
 import org.apache.flink.storm.util.SplitStreamType;
 import org.apache.flink.storm.util.StormConfig;
 import org.apache.flink.storm.util.TestDummyBolt;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.util.MockStreamConfig;
 
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -158,7 +159,7 @@ public class BoltWrapperTest extends AbstractTest {
 		PowerMockito.whenNew(SetupOutputFieldsDeclarer.class).withNoArguments().thenReturn(declarer);
 
 		final BoltWrapper wrapper = new BoltWrapper(bolt, (Fields) null);
-		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
+		wrapper.setup(createMockStreamTask(), new MockStreamConfig(), mock(Output.class));
 		wrapper.open();
 
 		wrapper.processElement(record);
@@ -194,7 +195,7 @@ public class BoltWrapperTest extends AbstractTest {
 		}
 
 		final BoltWrapper wrapper = new BoltWrapper(bolt, null, raw);
-		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), output);
+		wrapper.setup(createMockStreamTask(), new MockStreamConfig(), output);
 		wrapper.open();
 
 		final SplitStreamType splitRecord = new SplitStreamType<Integer>();
@@ -247,7 +248,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 			final IRichBolt bolt = mock(IRichBolt.class);
 			BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
-			wrapper.setup(createMockStreamTask(execConfig), new StreamConfig(new Configuration()), mock(Output.class));
+			wrapper.setup(createMockStreamTask(execConfig), new MockStreamConfig(), mock(Output.class));
 
 			wrapper.open();
 			verify(bolt).prepare(any(Map.class), any(TopologyContext.class), any(OutputCollector.class));
@@ -260,7 +261,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 			final IRichBolt bolt = mock(IRichBolt.class);
 			BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
-			wrapper.setup(createMockStreamTask(execConfig), new StreamConfig(new Configuration()), mock(Output.class));
+			wrapper.setup(createMockStreamTask(execConfig), new MockStreamConfig(), mock(Output.class));
 
 			wrapper.open();
 			verify(bolt).prepare(same(stormConfig), any(TopologyContext.class), any(OutputCollector.class));
@@ -277,7 +278,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 			TestDummyBolt testBolt = new TestDummyBolt();
 			BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(testBolt);
-			wrapper.setup(createMockStreamTask(execConfig), new StreamConfig(new Configuration()), mock(Output.class));
+			wrapper.setup(createMockStreamTask(execConfig), new MockStreamConfig(), mock(Output.class));
 
 			wrapper.open();
 			for (Entry<String, String> entry : cfg.toMap().entrySet()) {
@@ -304,7 +305,7 @@ public class BoltWrapperTest extends AbstractTest {
 		final IRichBolt bolt = mock(IRichBolt.class);
 		BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
 
-		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
+		wrapper.setup(createMockStreamTask(), new MockStreamConfig(), mock(Output.class));
 		wrapper.open();
 
 		verify(bolt).prepare(any(Map.class), any(TopologyContext.class), isNotNull(OutputCollector.class));
@@ -321,7 +322,7 @@ public class BoltWrapperTest extends AbstractTest {
 
 		final BoltWrapper<Object, Object> wrapper = new BoltWrapper<Object, Object>(bolt);
 
-		wrapper.setup(createMockStreamTask(), new StreamConfig(new Configuration()), mock(Output.class));
+		wrapper.setup(createMockStreamTask(), new MockStreamConfig(), mock(Output.class));
 
 		wrapper.close();
 		wrapper.dispose();
@@ -375,11 +376,13 @@ public class BoltWrapperTest extends AbstractTest {
 		when(env.getMetricGroup()).thenReturn(UnregisteredMetricGroups.createUnregisteredTaskMetricGroup());
 		when(env.getTaskManagerInfo()).thenReturn(new TestingTaskManagerRuntimeInfo());
 
+		final CloseableRegistry closeableRegistry = new CloseableRegistry();
 		StreamTask<?, ?> mockTask = mock(StreamTask.class);
 		when(mockTask.getCheckpointLock()).thenReturn(new Object());
-		when(mockTask.getConfiguration()).thenReturn(new StreamConfig(new Configuration()));
+		when(mockTask.getConfiguration()).thenReturn(new MockStreamConfig());
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(execConfig);
+		when(mockTask.getCancelables()).thenReturn(closeableRegistry);
 
 		return mockTask;
 	}

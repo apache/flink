@@ -19,11 +19,13 @@
 package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.util.FlinkRuntimeException;
 
 /**
  * A utility class for describing generic types. It can be used to obtain a type information via:
- * 
+ *
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = TypeInformation.of(new TypeHint<Tuple2<String, Long>>(){});
  * }</pre>
@@ -31,27 +33,27 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
  * <pre>{@code
  * TypeInformation<Tuple2<String, Long>> info = new TypeHint<Tuple2<String, Long>>(){}.getTypeInfo();
  * }</pre>
- * 
+ *
  * @param <T> The type information to hint.
  */
 @Public
 public abstract class TypeHint<T> {
-	
-	/** The type information described by the hint */
+
+	/** The type information described by the hint. */
 	private final TypeInformation<T> typeInfo;
 
 	/**
 	 * Creates a hint for the generic type in the class signature.
 	 */
 	public TypeHint() {
-		this.typeInfo = TypeExtractor.createTypeInfo(this, TypeHint.class, getClass(), 0);
-	}
-
-	/**
-	 * Creates a hint for the generic type in the class signature.
-	 */
-	public TypeHint(Class<?> baseClass, Object instance, int genericParameterPos) {
-		this.typeInfo = TypeExtractor.createTypeInfo(instance, baseClass, instance.getClass(), genericParameterPos);
+		try {
+			this.typeInfo = TypeExtractor.createTypeInfo(
+					this, TypeHint.class, getClass(), 0);
+		}
+		catch (InvalidTypesException e) {
+			throw new FlinkRuntimeException("The TypeHint is using a generic variable." +
+					"This is not supported, generic types must be fully specified for the TypeHint.");
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -73,7 +75,7 @@ public abstract class TypeHint<T> {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj == this || 
+		return obj == this ||
 			obj instanceof TypeHint && this.typeInfo.equals(((TypeHint<?>) obj).typeInfo);
 	}
 

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
@@ -54,7 +53,7 @@ object UpdatingPlanChecker {
 
     override def visit(node: RelNode, ordinal: Int, parent: RelNode): Unit = {
       node match {
-        case s: DataStreamRel if s.producesUpdates =>
+        case s: DataStreamRel if s.producesUpdates || s.producesRetractions =>
           isAppendOnly = false
         case _ =>
           super.visit(node, ordinal, parent)
@@ -149,45 +148,39 @@ object UpdatingPlanChecker {
           }
 
         case j: DataStreamJoin =>
-          val joinType = j.getJoinType
-          joinType match {
-            case JoinRelType.INNER =>
-              // get key(s) for inner join
-              val lInKeys = visit(j.getLeft)
-              val rInKeys = visit(j.getRight)
-              if (lInKeys.isEmpty || rInKeys.isEmpty) {
-                None
-              } else {
-                // Output of inner join must have keys if left and right both contain key(s).
-                // Key groups from both side will be merged by join equi-predicates
-                val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
-                val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames
-                val joinNames = j.getRowType.getFieldNames
+          // get key(s) for join
+          val lInKeys = visit(j.getLeft)
+          val rInKeys = visit(j.getRight)
+          if (lInKeys.isEmpty || rInKeys.isEmpty) {
+            None
+          } else {
+            // Output of join must have keys if left and right both contain key(s).
+            // Key groups from both side will be merged by join equi-predicates
+            val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
+            val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames
+            val joinNames = j.getRowType.getFieldNames
 
-                // if right field names equal to left field names, calcite will rename right
-                // field names. For example, T1(pk, a) join T2(pk, b), calcite will rename T2(pk, b)
-                // to T2(pk0, b).
-                val rInNamesToJoinNamesMap = rInNames
-                  .zip(joinNames.subList(lInNames.size, joinNames.length))
-                  .toMap
+            // if right field names equal to left field names, calcite will rename right
+            // field names. For example, T1(pk, a) join T2(pk, b), calcite will rename T2(pk, b)
+            // to T2(pk0, b).
+            val rInNamesToJoinNamesMap = rInNames
+              .zip(joinNames.subList(lInNames.size, joinNames.length))
+              .toMap
 
-                val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
-                  .map(lInNames.get(_))
-                val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
-                  .map(rInNames.get(_))
-                  .map(rInNamesToJoinNamesMap(_))
+            val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
+              .map(lInNames.get(_))
+            val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
+              .map(rInNames.get(_))
+              .map(rInNamesToJoinNamesMap(_))
 
-                val inKeys: Seq[(String, String)] = lInKeys.get ++ rInKeys.get
-                    .map(e => (rInNamesToJoinNamesMap(e._1), rInNamesToJoinNamesMap(e._2)))
+            val inKeys: Seq[(String, String)] = lInKeys.get ++ rInKeys.get
+              .map(e => (rInNamesToJoinNamesMap(e._1), rInNamesToJoinNamesMap(e._2)))
 
-                getOutputKeysForInnerJoin(
-                  joinNames,
-                  inKeys,
-                  lJoinKeys.zip(rJoinKeys)
-                )
-              }
-            case _ =>
-              throw new UnsupportedOperationException(s"Unsupported join type '$joinType'")
+            getOutputKeysForNonWindowJoin(
+              joinNames,
+              inKeys,
+              lJoinKeys.zip(rJoinKeys)
+            )
           }
         case _: DataStreamRel =>
           // anything else does not forward keys, so we can stop
@@ -196,14 +189,14 @@ object UpdatingPlanChecker {
     }
 
     /**
-      * Get output keys for non-window inner join according to it's inputs.
+      * Get output keys for non-window join according to it's inputs.
       *
       * @param inNames  Field names of join
       * @param inKeys   Input keys of join
-      * @param joinKeys JoinKeys of inner join
-      * @return Return output keys of inner join
+      * @param joinKeys JoinKeys of join
+      * @return Return output keys of join
       */
-    def getOutputKeysForInnerJoin(
+    def getOutputKeysForNonWindowJoin(
         inNames: Seq[String],
         inKeys: Seq[(String, String)],
         joinKeys: Seq[(String, String)])

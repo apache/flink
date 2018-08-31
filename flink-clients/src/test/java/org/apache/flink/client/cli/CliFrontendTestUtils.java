@@ -41,6 +41,8 @@ public class CliFrontendTestUtils {
 
 	public static final int TEST_JOB_MANAGER_PORT = 55443;
 
+	private static final PrintStream previousSysout = System.out;
+
 	public static String getTestJarPath() throws FileNotFoundException, MalformedURLException {
 		File f = new File("target/maven-test-jar.jar");
 		if (!f.exists()) {
@@ -66,6 +68,10 @@ public class CliFrontendTestUtils {
 
 	public static void pipeSystemOutToNull() {
 		System.setOut(new PrintStream(new BlackholeOutputSteam()));
+	}
+
+	public static void restoreSystemOut() {
+		System.setOut(previousSysout);
 	}
 
 	private static final class BlackholeOutputSteam extends java.io.OutputStream {

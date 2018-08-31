@@ -23,8 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -38,33 +38,19 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 	private static final long serialVersionUID = 4620415814639230247L;
 
 	// ------------------------------------------------------------------------
-	//  State Backend - Persisting Byte Storage
-	// ------------------------------------------------------------------------
-
-	@Override
-	public abstract CheckpointStreamFactory createStreamFactory(
-			JobID jobId,
-			String operatorIdentifier) throws IOException;
-
-	@Override
-	public abstract CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
-			String operatorIdentifier,
-			@Nullable String targetLocation) throws IOException;
-
-	// ------------------------------------------------------------------------
 	//  State Backend - State-Holding Backends
 	// ------------------------------------------------------------------------
 
 	@Override
 	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException;
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry,
+		TtlTimeProvider ttlTimeProvider) throws IOException;
 
 	@Override
 	public abstract OperatorStateBackend createOperatorStateBackend(

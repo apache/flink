@@ -61,7 +61,7 @@ public final class TupleSerializerConfigSnapshot<T> extends CompositeTypeSeriali
 		super.read(in);
 
 		try (final DataInputViewStream inViewWrapper = new DataInputViewStream(in)) {
-			tupleClass = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader());
+			tupleClass = InstantiationUtil.deserializeObject(inViewWrapper, getUserCodeClassLoader(), true);
 		} catch (ClassNotFoundException e) {
 			throw new IOException("Could not find requested tuple class in classpath.", e);
 		}

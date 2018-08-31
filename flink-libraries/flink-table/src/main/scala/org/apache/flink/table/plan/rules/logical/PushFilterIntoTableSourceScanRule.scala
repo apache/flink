@@ -24,9 +24,8 @@ import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
@@ -51,16 +50,14 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
-    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
     val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource[_]]
-    pushFilterIntoScan(call, calc, scan, tableSourceTable, filterableSource, description)
+    pushFilterIntoScan(call, calc, scan, filterableSource, description)
   }
 
   private def pushFilterIntoScan(
       call: RelOptRuleCall,
       calc: FlinkLogicalCalc,
       scan: FlinkLogicalTableSourceScan,
-      tableSourceTable: TableSourceTable[_],
       filterableSource: FilterableTableSource[_],
       description: String): Unit = {
 

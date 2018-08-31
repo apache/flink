@@ -18,15 +18,30 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
+
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 public class SchedulerTest extends TestLogger {
@@ -87,5 +102,34 @@ public class SchedulerTest extends TestLogger {
 		assertFalse(i1.isAlive());
 		assertFalse(i2.isAlive());
 		assertFalse(i3.isAlive());
+	}
+
+	/**
+	 * Tests that the Scheduler times out uncompleted slot futures.
+	 */
+	@Test
+	public void testSlotAllocationTimeout() throws Exception {
+		final Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+
+		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph();
+
+		final Map<ExecutionAttemptID, Execution> registeredExecutions = executionGraph.getRegisteredExecutions();
+
+		assertThat(registeredExecutions.values(), Matchers.not(Matchers.empty()));
+
+		final Execution execution = registeredExecutions.values().iterator().next();
+
+		final CompletableFuture<LogicalSlot> slotFuture = scheduler.allocateSlot(
+			new ScheduledUnit(
+				execution),
+			true,
+			SlotProfile.noRequirements(),
+			Time.milliseconds(1L));
+
+		try {
+			slotFuture.get();
+		} catch (ExecutionException ee) {
+			assertThat(ExceptionUtils.stripExecutionException(ee), Matchers.instanceOf(TimeoutException.class));
+		}
 	}
 }

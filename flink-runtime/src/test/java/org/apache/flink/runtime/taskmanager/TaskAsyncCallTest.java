@@ -29,7 +29,6 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -54,8 +53,10 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -78,7 +79,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class TaskAsyncCallTest {
+public class TaskAsyncCallTest extends TestLogger {
 
 	/** Number of expected checkpoints. */
 	private static int numCalls;
@@ -129,7 +130,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
 			}
 
 			triggerLatch.await();
@@ -150,7 +151,7 @@ public class TaskAsyncCallTest {
 			awaitLatch.await();
 
 			for (int i = 1; i <= numCalls; i++) {
-				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
 				task.notifyCheckpointComplete(i);
 			}
 
@@ -194,7 +195,7 @@ public class TaskAsyncCallTest {
 
 			awaitLatch.await();
 
-			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint());
+			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation());
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
 
@@ -255,11 +256,11 @@ public class TaskAsyncCallTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			new TaskStateSnapshot(),
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
 			mock(BroadcastVariableManager.class),
+			new TestTaskStateManager(),
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
@@ -279,7 +280,7 @@ public class TaskAsyncCallTest {
 
 		private volatile Exception error;
 
-		public CheckpointsInOrderInvokable(Environment environment, TaskStateSnapshot initialState) {
+		public CheckpointsInOrderInvokable(Environment environment) {
 			super(environment);
 		}
 
@@ -289,7 +290,7 @@ public class TaskAsyncCallTest {
 
 			// wait forever (until canceled)
 			synchronized (this) {
-				while (error == null && lastCheckpointId < numCalls) {
+				while (error == null) {
 					wait();
 				}
 			}
@@ -352,8 +353,8 @@ public class TaskAsyncCallTest {
 	 */
 	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable implements StoppableTask {
 
-		public ContextClassLoaderInterceptingInvokable(Environment environment, TaskStateSnapshot initialState) {
-			super(environment, initialState);
+		public ContextClassLoaderInterceptingInvokable(Environment environment) {
+			super(environment);
 		}
 
 		@Override

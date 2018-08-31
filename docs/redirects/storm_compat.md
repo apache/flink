@@ -1,5 +1,5 @@
 ---
-title: "Storm Compatability"
+title: "Storm Compatibility"
 layout: redirect
 redirect: /dev/libs/storm_compatibility.html
 permalink: /apis/streaming/storm_compatibility.html

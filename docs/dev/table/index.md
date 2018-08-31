@@ -2,7 +2,7 @@
 title: "Table API & SQL"
 nav-id: tableapi
 nav-parent_id: dev
-is_beta: true
+is_beta: false
 nav-show_overview: true
 nav-pos: 35
 ---

@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -47,8 +48,8 @@ import java.util.UUID;
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
  * mechanism and can provide exactly-once guarantees; depending on the storage backend and sink/committer implementation.
- * <p/>
- * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
+ *
+ * <p>Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
  * checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
@@ -65,7 +66,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	protected final TypeSerializer<IN> serializer;
 
 	private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
-	private transient CheckpointStreamFactory checkpointStreamFactory;
+	private transient CheckpointStorage checkpointStorage;
 
 	private transient ListState<PendingCheckpoint> checkpointedState;
 
@@ -116,8 +117,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		committer.setOperatorId(id);
 		committer.open();
 
-		checkpointStreamFactory = getContainingTask()
-			.createCheckpointStreamFactory(this);
+		checkpointStorage = getContainingTask().getCheckpointStorage();
 
 		cleanRestoredHandles();
 	}
@@ -204,8 +204,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
-		super.notifyOfCompletedCheckpoint(checkpointId);
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		super.notifyCheckpointComplete(checkpointId);
 
 		synchronized (pendingCheckpoints) {
 
@@ -274,7 +274,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		IN value = element.getValue();
 		// generate initial operator state
 		if (out == null) {
-			out = checkpointStreamFactory.createCheckpointStateOutputStream(0, 0);
+			out = checkpointStorage.createTaskOwnedStateStream();
 		}
 		serializer.serialize(value, new DataOutputViewStreamWrapper(out));
 	}

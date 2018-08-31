@@ -23,8 +23,10 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -67,49 +70,53 @@ public class RestoreStreamTaskTest extends TestLogger {
 
 	@Test
 	public void testRestore() throws Exception {
+
 		OperatorID headOperatorID = new OperatorID(42L, 42L);
 		OperatorID tailOperatorID = new OperatorID(44L, 44L);
-		AcknowledgeStreamMockEnvironment environment1 = createRunAndCheckpointOperatorChain(
+
+		JobManagerTaskRestore restore = createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
 			Optional.empty());
 
-		assertEquals(2, environment1.getCheckpointStateHandles().getSubtaskStateMappings().size());
+		TaskStateSnapshot stateHandles = restore.getTaskStateSnapshot();
 
-		TaskStateSnapshot stateHandles = environment1.getCheckpointStateHandles();
+		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
-		AcknowledgeStreamMockEnvironment environment2 = createRunAndCheckpointOperatorChain(
+		createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
-			Optional.of(stateHandles));
+			Optional.of(restore));
 
 		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
 
 	@Test
 	public void testRestoreHeadWithNewId() throws Exception {
+
 		OperatorID tailOperatorID = new OperatorID(44L, 44L);
-		AcknowledgeStreamMockEnvironment environment1 = createRunAndCheckpointOperatorChain(
+
+		JobManagerTaskRestore restore = createRunAndCheckpointOperatorChain(
 			new OperatorID(42L, 42L),
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
 			Optional.empty());
 
-		assertEquals(2, environment1.getCheckpointStateHandles().getSubtaskStateMappings().size());
+		TaskStateSnapshot stateHandles = restore.getTaskStateSnapshot();
 
-		TaskStateSnapshot stateHandles = environment1.getCheckpointStateHandles();
+		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
-		AcknowledgeStreamMockEnvironment environment2 = createRunAndCheckpointOperatorChain(
+		createRunAndCheckpointOperatorChain(
 			new OperatorID(4242L, 4242L),
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
-			Optional.of(stateHandles));
+			Optional.of(restore));
 
 		assertEquals(Collections.singleton(tailOperatorID), RESTORED_OPERATORS);
 	}
@@ -118,23 +125,22 @@ public class RestoreStreamTaskTest extends TestLogger {
 	public void testRestoreTailWithNewId() throws Exception {
 		OperatorID headOperatorID = new OperatorID(42L, 42L);
 
-		AcknowledgeStreamMockEnvironment environment1 = createRunAndCheckpointOperatorChain(
+		JobManagerTaskRestore restore = createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			new OperatorID(44L, 44L),
 			new CounterOperator(),
 			Optional.empty());
 
-		assertEquals(2, environment1.getCheckpointStateHandles().getSubtaskStateMappings().size());
+		TaskStateSnapshot stateHandles = restore.getTaskStateSnapshot();
+		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
-		TaskStateSnapshot stateHandles = environment1.getCheckpointStateHandles();
-
-		AcknowledgeStreamMockEnvironment environment2 = createRunAndCheckpointOperatorChain(
+		createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			new OperatorID(4444L, 4444L),
 			new CounterOperator(),
-			Optional.of(stateHandles));
+			Optional.of(restore));
 
 		assertEquals(Collections.singleton(headOperatorID), RESTORED_OPERATORS);
 	}
@@ -144,14 +150,16 @@ public class RestoreStreamTaskTest extends TestLogger {
 		OperatorID headOperatorID = new OperatorID(42L, 42L);
 		OperatorID tailOperatorID = new OperatorID(44L, 44L);
 
-		AcknowledgeStreamMockEnvironment environment1 = createRunAndCheckpointOperatorChain(
+		JobManagerTaskRestore restore = createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
 			Optional.empty());
 
-		assertEquals(2, environment1.getCheckpointStateHandles().getSubtaskStateMappings().size());
+		TaskStateSnapshot stateHandles = restore.getTaskStateSnapshot();
+
+		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
 		// test empty state in case of scale up
 		OperatorSubtaskState emptyHeadOperatorState = StateAssignmentOperation.operatorSubtaskStateFrom(
@@ -161,15 +169,14 @@ public class RestoreStreamTaskTest extends TestLogger {
 			Collections.emptyMap(),
 			Collections.emptyMap());
 
-		TaskStateSnapshot stateHandles = environment1.getCheckpointStateHandles();
 		stateHandles.putSubtaskStateByOperatorID(headOperatorID, emptyHeadOperatorState);
 
-		AcknowledgeStreamMockEnvironment environment2 = createRunAndCheckpointOperatorChain(
+		createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new CounterOperator(),
 			tailOperatorID,
 			new CounterOperator(),
-			Optional.of(stateHandles));
+			Optional.of(restore));
 
 		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
@@ -179,33 +186,32 @@ public class RestoreStreamTaskTest extends TestLogger {
 		OperatorID headOperatorID = new OperatorID(42L, 42L);
 		OperatorID tailOperatorID = new OperatorID(44L, 44L);
 
-		AcknowledgeStreamMockEnvironment environment1 = createRunAndCheckpointOperatorChain(
+		JobManagerTaskRestore restore = createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new StatelessOperator(),
 			tailOperatorID,
 			new CounterOperator(),
 			Optional.empty());
 
-		assertEquals(2, environment1.getCheckpointStateHandles().getSubtaskStateMappings().size());
+		TaskStateSnapshot stateHandles = restore.getTaskStateSnapshot();
+		assertEquals(2, stateHandles.getSubtaskStateMappings().size());
 
-		TaskStateSnapshot stateHandles = environment1.getCheckpointStateHandles();
-
-		AcknowledgeStreamMockEnvironment environment2 = createRunAndCheckpointOperatorChain(
+		createRunAndCheckpointOperatorChain(
 			headOperatorID,
 			new StatelessOperator(),
 			tailOperatorID,
 			new CounterOperator(),
-			Optional.of(stateHandles));
+			Optional.of(restore));
 
 		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
 
-	private AcknowledgeStreamMockEnvironment createRunAndCheckpointOperatorChain(
-			OperatorID headId,
-			OneInputStreamOperator<String, String> headOperator,
-			OperatorID tailId,
-			OneInputStreamOperator<String, String> tailOperator,
-			Optional<TaskStateSnapshot> stateHandles) throws Exception {
+	private JobManagerTaskRestore createRunAndCheckpointOperatorChain(
+		OperatorID headId,
+		OneInputStreamOperator<String, String> headOperator,
+		OperatorID tailId,
+		OneInputStreamOperator<String, String> tailOperator,
+		Optional<JobManagerTaskRestore> restore) throws Exception {
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<>(
@@ -218,39 +224,56 @@ public class RestoreStreamTaskTest extends TestLogger {
 			.chain(tailId, tailOperator, StringSerializer.INSTANCE)
 			.finish();
 
-		AcknowledgeStreamMockEnvironment environment = new AcknowledgeStreamMockEnvironment(
+		if (restore.isPresent()) {
+			JobManagerTaskRestore taskRestore = restore.get();
+			testHarness.setTaskStateSnapshot(
+				taskRestore.getRestoreCheckpointId(),
+				taskRestore.getTaskStateSnapshot());
+		}
+
+		StreamMockEnvironment environment = new StreamMockEnvironment(
 			testHarness.jobConfig,
 			testHarness.taskConfig,
 			testHarness.executionConfig,
 			testHarness.memorySize,
 			new MockInputSplitProvider(),
-			testHarness.bufferSize);
+			testHarness.bufferSize,
+			testHarness.taskStateManager);
 
-		testHarness.invoke(environment, stateHandles.orElse(null));
+		testHarness.invoke(environment);
 		testHarness.waitForTaskRunning();
 
 		OneInputStreamTask<String, String> streamTask = testHarness.getTask();
 
 		processRecords(testHarness);
-		triggerCheckpoint(testHarness, environment, streamTask);
+		triggerCheckpoint(testHarness, streamTask);
+
+		TestTaskStateManager taskStateManager = testHarness.taskStateManager;
+
+		JobManagerTaskRestore jobManagerTaskRestore = new JobManagerTaskRestore(
+			taskStateManager.getReportedCheckpointId(),
+			taskStateManager.getLastJobManagerTaskStateSnapshot());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
-
-		return environment;
+		return jobManagerTaskRestore;
 	}
 
 	private void triggerCheckpoint(
 			OneInputStreamTaskTestHarness<String, String> testHarness,
-			AcknowledgeStreamMockEnvironment environment,
 			OneInputStreamTask<String, String> streamTask) throws Exception {
+
 		long checkpointId = 1L;
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, 1L);
 
-		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint())) {}
+		testHarness.taskStateManager.setWaitForReportLatch(new OneShotLatch());
 
-		environment.getCheckpointLatch().await();
-		assertEquals(checkpointId, environment.getCheckpointId());
+		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())) {}
+
+		testHarness.taskStateManager.getWaitForReportLatch().await();
+		long reportedCheckpointId = testHarness.taskStateManager.getReportedCheckpointId();
+
+		assertEquals(checkpointId, reportedCheckpointId);
 	}
 
 	private void processRecords(OneInputStreamTaskTestHarness<String, String> testHarness) throws Exception {

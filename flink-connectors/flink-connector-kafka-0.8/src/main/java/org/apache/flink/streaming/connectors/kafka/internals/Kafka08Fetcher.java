@@ -48,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -98,6 +97,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long autoCommitInterval,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -107,6 +107,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				runtimeContext.getProcessingTimeService(),
 				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 				runtimeContext.getUserCodeClassLoader(),
+				consumerMetricGroup,
 				useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
@@ -178,12 +179,6 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				periodicCommitter.start();
 			}
 
-			// register offset metrics
-			if (useMetrics) {
-				final MetricGroup kafkaMetricGroup = runtimeContext.getMetricGroup().addGroup(KAFKA_CONSUMER_METRICS_GROUP);
-				addOffsetStateGauge(kafkaMetricGroup);
-			}
-
 			// Main loop polling elements from the unassignedPartitions queue to the threads
 			while (running) {
 				// re-throw any exception from the concurrent fetcher threads
@@ -194,7 +189,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				// special marker into the queue
 				List<KafkaTopicPartitionState<TopicAndPartition>> partitionsToAssign =
 						unassignedPartitionsQueue.getBatchBlocking(5000);
-				partitionsToAssign.remove(MARKER);
+				// note: if there are more markers, remove them all
+				partitionsToAssign.removeIf(MARKER::equals);
 
 				if (!partitionsToAssign.isEmpty()) {
 					LOG.info("Assigning {} partitions to broker threads", partitionsToAssign.size());

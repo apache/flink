@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.docs.Documentation;
+
 /**
  * A collection of all configuration options that relate to checkpoints
  * and savepoints.
@@ -29,14 +31,17 @@ public class CheckpointingOptions {
 	// ------------------------------------------------------------------------
 
 	/** The state backend to be used to store and checkpoint state. */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 			.key("state.backend")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDescription("The state backend to be used to store and checkpoint state.");
 
 	/** The maximum number of completed checkpoints to retain.*/
 	public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS = ConfigOptions
 			.key("state.checkpoints.num-retained")
-			.defaultValue(1);
+			.defaultValue(1)
+			.withDescription("The maximum number of completed checkpoints to retain.");
 
 	/** Option whether the state backend should use an asynchronous snapshot method where
 	 * possible and configurable.
@@ -45,7 +50,10 @@ public class CheckpointingOptions {
 	 * asynchronous snapshots, and ignore this option. */
 	public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS = ConfigOptions
 			.key("state.backend.async")
-			.defaultValue(true);
+			.defaultValue(true)
+			.withDescription("Option whether the state backend should use an asynchronous snapshot method where" +
+				" possible and configurable. Some state backends may not support asynchronous snapshots, or only support" +
+				" asynchronous snapshots, and ignore this option.");
 
 	/** Option whether the state backend should create incremental checkpoints,
 	 * if possible. For an incremental checkpoint, only a diff from the previous
@@ -55,7 +63,25 @@ public class CheckpointingOptions {
 	 * this option.*/
 	public static final ConfigOption<Boolean> INCREMENTAL_CHECKPOINTS = ConfigOptions
 			.key("state.backend.incremental")
-			.defaultValue(false);
+			.defaultValue(false)
+			.withDescription("Option whether the state backend should create incremental checkpoints, if possible. For" +
+				" an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the" +
+				" complete checkpoint state. Some state backends may not support incremental checkpoints and ignore" +
+				" this option.");
+
+	/**
+	 * This option configures local recovery for this state backend. By default, local recovery is deactivated.
+	 */
+	public static final ConfigOption<Boolean> LOCAL_RECOVERY = ConfigOptions
+		.key("state.backend.local-recovery")
+		.defaultValue(false);
+
+	/**
+	 * The config parameter defining the root directories for storing file-based state for local recovery.
+	 */
+	public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS = ConfigOptions
+		.key("taskmanager.state.local.root-dirs")
+		.noDefaultValue();
 
 	// ------------------------------------------------------------------------
 	//  Options specific to the file-system-based state backends
@@ -63,30 +89,30 @@ public class CheckpointingOptions {
 
 	/** The default directory for savepoints. Used by the state backends that write
 	 * savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
 			.key("state.savepoints.dir")
 			.noDefaultValue()
-			.withDeprecatedKeys("savepoints.state.backend.fs.dir");
+			.withDeprecatedKeys("savepoints.state.backend.fs.dir")
+			.withDescription("The default directory for savepoints. Used by the state backends that write savepoints to" +
+				" file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).");
 
-	/** The default directory used for checkpoints. Used by the state backends that write
-	 * checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend). */
+	/** The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem.
+	 * The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).*/
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_FAULT_TOLERANCE)
 	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
 			.key("state.checkpoints.dir")
-			.noDefaultValue();
+			.noDefaultValue()
+			.withDeprecatedKeys("state.backend.fs.checkpointdir")
+			.withDescription("The default directory used for storing the data files and meta data of checkpoints " +
+				"in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes" +
+				"(i.e. all TaskManagers and JobManagers).");
 
 	/** The minimum size of state data files. All state chunks smaller than that
 	 * are stored inline in the root checkpoint metadata file. */
 	public static final ConfigOption<Integer> FS_SMALL_FILE_THRESHOLD = ConfigOptions
 			.key("state.backend.fs.memory-threshold")
-			.defaultValue(1024);
-
-	// ------------------------------------------------------------------------
-	//  Options specific to the RocksDB state backend
-	// ------------------------------------------------------------------------
-
-	/** The local directory (on the TaskManager) where RocksDB puts its files. */
-	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
-			.key("state.backend.rocksdb.localdir")
-			.noDefaultValue()
-			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir");
+			.defaultValue(1024)
+			.withDescription("The minimum size of state data files. All state chunks smaller than that are stored" +
+				" inline in the root checkpoint metadata file.");
 }

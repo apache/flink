@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -42,7 +40,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
@@ -61,7 +59,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the SAVEPOINT command.
  */
-public class CliFrontendSavepointTest extends TestLogger {
+public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 	private static PrintStream stdOut;
 	private static PrintStream stdErr;
@@ -137,8 +135,9 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
-				new Configuration(),
-				new TestingHighAvailabilityServices()));
+				getConfiguration(),
+				new TestingHighAvailabilityServices(),
+				false));
 
 			String[] parameters = { "invalid job id" };
 			try {
@@ -196,7 +195,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 		String savepointPath = "expectedSavepointPath";
 
 		ClusterClient clusterClient = new DisposeSavepointClusterClient(
-			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()));
+			(String path) -> CompletableFuture.completedFuture(Acknowledge.get()), getConfiguration());
 
 		try {
 
@@ -225,10 +224,10 @@ public class CliFrontendSavepointTest extends TestLogger {
 		final CompletableFuture<String> disposeSavepointFuture = new CompletableFuture<>();
 
 		final DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient(
-			(String savepointPath, Time timeout) -> {
+			(String savepointPath) -> {
 				disposeSavepointFuture.complete(savepointPath);
 				return CompletableFuture.completedFuture(Acknowledge.get());
-			});
+			}, getConfiguration());
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -260,7 +259,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		Exception testException = new Exception("expectedTestException");
 
-		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
+		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path) -> FutureUtils.completedExceptionally(testException), getConfiguration());
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -285,17 +284,17 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 	private static final class DisposeSavepointClusterClient extends StandaloneClusterClient {
 
-		private final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
+		private final Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
-			super(new Configuration(), new TestingHighAvailabilityServices());
+		DisposeSavepointClusterClient(Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction, Configuration configuration) {
+			super(configuration, new TestingHighAvailabilityServices(), false);
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}
 
 		@Override
-		public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
-			return disposeSavepointFunction.apply(savepointPath, timeout);
+		public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
+			return disposeSavepointFunction.apply(savepointPath);
 		}
 	}
 

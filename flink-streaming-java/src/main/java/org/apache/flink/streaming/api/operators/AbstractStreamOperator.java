@@ -28,31 +28,28 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
+import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -63,20 +60,18 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.util.LatencyStats;
+import org.apache.flink.util.CloseableIterable;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.io.Closeable;
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for all stream operators. Operators that contain a user function should extend the class
@@ -94,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 @PublicEvolving
 public abstract class AbstractStreamOperator<OUT>
-		implements StreamOperator<OUT>, Serializable, KeyContext {
+		implements StreamOperator<OUT>, Serializable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -117,11 +112,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/** The runtime context for UDFs. */
 	private transient StreamingRuntimeContext runtimeContext;
-
-	// ----------------- general state -------------------
-
-	/** The factory that give this operator access to checkpoint storage. */
-	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	// ---------------- key/value state ------------------
 
@@ -157,11 +147,11 @@ public abstract class AbstractStreamOperator<OUT>
 	/** Metric group for the operator. */
 	protected transient OperatorMetricGroup metrics;
 
-	protected transient LatencyGauge latencyGauge;
+	protected transient LatencyStats latencyStats;
 
 	// ---------------- time handler ------------------
 
-	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
+	protected transient InternalTimeServiceManager<?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -177,10 +167,11 @@ public abstract class AbstractStreamOperator<OUT>
 
 	@Override
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+		final Environment environment = containingTask.getEnvironment();
 		this.container = containingTask;
 		this.config = config;
 		try {
-			OperatorMetricGroup operatorMetricGroup = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
+			OperatorMetricGroup operatorMetricGroup = environment.getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
 			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
 			if (config.isChainStart()) {
 				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
@@ -194,15 +185,22 @@ public abstract class AbstractStreamOperator<OUT>
 			this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 			this.output = output;
 		}
-		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
-		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
-		if (historySize <= 0) {
-			LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
-			historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
+
+		try {
+			Configuration taskManagerConfig = environment.getTaskManagerInfo().getConfiguration();
+			int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
+			if (historySize <= 0) {
+				LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
+				historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
+			}
+			TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
+			this.latencyStats = new LatencyStats(jobMetricGroup.addGroup("latency"), historySize, container.getIndexInSubtaskGroup(), getOperatorID());
+		} catch (Exception e) {
+			LOG.warn("An error occurred while instantiating latency metrics.", e);
+			this.latencyStats = new LatencyStats(UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"), 1, 0, new OperatorID());
 		}
 
-		latencyGauge = this.metrics.gauge("latency", new LatencyGauge(historySize));
-		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
+		this.runtimeContext = new StreamingRuntimeContext(this, environment, container.getAccumulatorMap());
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
@@ -214,49 +212,56 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final void initializeState(OperatorSubtaskState stateHandles) throws Exception {
+	public final void initializeState() throws Exception {
 
-		Collection<KeyedStateHandle> keyedStateHandlesRaw = null;
-		Collection<OperatorStateHandle> operatorStateHandlesRaw = null;
-		Collection<OperatorStateHandle> operatorStateHandlesBackend = null;
+		final TypeSerializer<?> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
 
-		boolean restoring = (null != stateHandles);
+		final StreamTask<?, ?> containingTask =
+			Preconditions.checkNotNull(getContainingTask());
+		final CloseableRegistry streamTaskCloseableRegistry =
+			Preconditions.checkNotNull(containingTask.getCancelables());
+		final StreamTaskStateInitializer streamTaskStateManager =
+			Preconditions.checkNotNull(containingTask.createStreamTaskStateInitializer());
 
-		initKeyedState(); //TODO we should move the actual initialization of this from StreamTask to this class
-
-		if (getKeyedStateBackend() != null && timeServiceManager == null) {
-			timeServiceManager = new InternalTimeServiceManager<>(
-				getKeyedStateBackend().getNumberOfKeyGroups(),
-				getKeyedStateBackend().getKeyGroupRange(),
+		final StreamOperatorStateContext context =
+			streamTaskStateManager.streamOperatorStateContext(
+				getOperatorID(),
+				getClass().getSimpleName(),
 				this,
-				getRuntimeContext().getProcessingTimeService());
+				keySerializer,
+				streamTaskCloseableRegistry);
+
+		this.operatorStateBackend = context.operatorStateBackend();
+		this.keyedStateBackend = context.keyedStateBackend();
+
+		if (keyedStateBackend != null) {
+			this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
 		}
 
-		if (restoring) {
+		timeServiceManager = context.internalTimerServiceManager();
 
-			//pass directly
-			operatorStateHandlesBackend = stateHandles.getManagedOperatorState();
-			operatorStateHandlesRaw = stateHandles.getRawOperatorState();
+		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = context.rawKeyedStateInputs();
+		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = context.rawOperatorStateInputs();
 
-			if (null != getKeyedStateBackend()) {
-				//only use the keyed state if it is meant for us (aka head operator)
-				keyedStateHandlesRaw = stateHandles.getRawKeyedState();
-			}
-		}
-
-		checkpointStreamFactory = container.createCheckpointStreamFactory(this);
-
-		initOperatorState(operatorStateHandlesBackend);
-
-		StateInitializationContext initializationContext = new StateInitializationContextImpl(
-				restoring, // information whether we restore or start for the first time
+		try {
+			StateInitializationContext initializationContext = new StateInitializationContextImpl(
+				context.isRestored(), // information whether we restore or start for the first time
 				operatorStateBackend, // access to operator state backend
 				keyedStateStore, // access to keyed state backend
-				keyedStateHandlesRaw, // access to keyed state stream
-				operatorStateHandlesRaw, // access to operator state stream
-				getContainingTask().getCancelables()); // access to register streams for canceling
+				keyedStateInputs, // access to keyed state stream
+				operatorStateInputs); // access to operator state stream
 
-		initializeState(initializationContext);
+			initializeState(initializationContext);
+		} finally {
+			closeFromRegistry(operatorStateInputs, streamTaskCloseableRegistry);
+			closeFromRegistry(keyedStateInputs, streamTaskCloseableRegistry);
+		}
+	}
+
+	private static void closeFromRegistry(Closeable closeable, CloseableRegistry registry) {
+		if (registry.unregisterCloseable(closeable)) {
+			IOUtils.closeQuietly(closeable);
+		}
 	}
 
 	/**
@@ -269,39 +274,6 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void open() throws Exception {}
-
-	private void initKeyedState() {
-		try {
-			TypeSerializer<Object> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
-			// create a keyed state backend if there is keyed state, as indicated by the presence of a key serializer
-			if (null != keySerializer) {
-				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
-						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
-						container.getEnvironment().getTaskInfo().getIndexOfThisSubtask());
-
-				this.keyedStateBackend = container.createKeyedStateBackend(
-						keySerializer,
-						// The maximum parallelism == number of key group
-						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
-						subTaskKeyGroupRange);
-
-				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
-			}
-
-		} catch (Exception e) {
-			throw new IllegalStateException("Could not initialize keyed state backend.", e);
-		}
-	}
-
-	private void initOperatorState(Collection<OperatorStateHandle> operatorStateHandles) {
-		try {
-			// create an operator state backend
-			this.operatorStateBackend = container.createOperatorStateBackend(this, operatorStateHandles);
-		} catch (Exception e) {
-			throw new IllegalStateException("Could not initialize operator state backend.", e);
-		}
-	}
 
 	/**
 	 * This method is called after all records have been added to the operators via the methods
@@ -328,24 +300,66 @@ public abstract class AbstractStreamOperator<OUT>
 	@Override
 	public void dispose() throws Exception {
 
-		if (operatorStateBackend != null) {
-			operatorStateBackend.dispose();
+		Exception exception = null;
+
+		StreamTask<?, ?> containingTask = getContainingTask();
+		CloseableRegistry taskCloseableRegistry = containingTask != null ?
+			containingTask.getCancelables() :
+			null;
+
+		try {
+			if (taskCloseableRegistry == null ||
+				taskCloseableRegistry.unregisterCloseable(operatorStateBackend)) {
+				operatorStateBackend.close();
+			}
+		} catch (Exception e) {
+			exception = e;
 		}
 
-		if (keyedStateBackend != null) {
-			keyedStateBackend.dispose();
+		try {
+			if (taskCloseableRegistry == null ||
+				taskCloseableRegistry.unregisterCloseable(keyedStateBackend)) {
+				keyedStateBackend.close();
+			}
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			if (operatorStateBackend != null) {
+				operatorStateBackend.dispose();
+			}
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		try {
+			if (keyedStateBackend != null) {
+				keyedStateBackend.dispose();
+			}
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
+
+		if (exception != null) {
+			throw exception;
 		}
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		// the default implementation does nothing and accepts the checkpoint
+		// this is purely for subclasses to override
+	}
+
+	@Override
+	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
+			CheckpointStreamFactory factory) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
-		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
-
-		CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
+		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
@@ -388,7 +402,11 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that provides information and means required for taking a snapshot
 	 */
 	public void snapshotState(StateSnapshotContext context) throws Exception {
-		if (getKeyedStateBackend() != null) {
+		final KeyedStateBackend<?> keyedStateBackend = getKeyedStateBackend();
+		//TODO all of this can be removed once heap-based timers are integrated with RocksDB incremental snapshots
+		if (keyedStateBackend instanceof AbstractKeyedStateBackend &&
+			((AbstractKeyedStateBackend<?>) keyedStateBackend).requiresLegacySynchronousTimerSnapshots()) {
+
 			KeyedStateCheckpointOutputStream out;
 
 			try {
@@ -426,52 +444,13 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @param context context that allows to register different states.
 	 */
 	public void initializeState(StateInitializationContext context) throws Exception {
-		if (getKeyedStateBackend() != null) {
-			KeyGroupsList localKeyGroupRange = getKeyedStateBackend().getKeyGroupRange();
 
-			// and then initialize the timer services
-			for (KeyGroupStatePartitionStreamProvider streamProvider : context.getRawKeyedStateInputs()) {
-				int keyGroupIdx = streamProvider.getKeyGroupId();
-
-				checkArgument(localKeyGroupRange.contains(keyGroupIdx),
-					"Key Group " + keyGroupIdx + " does not belong to the local range.");
-
-				timeServiceManager.restoreStateForKeyGroup(
-					new DataInputViewStreamWrapper(streamProvider.getStream()),
-					keyGroupIdx, getUserCodeClassloader());
-			}
-		}
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
 		if (keyedStateBackend != null) {
 			keyedStateBackend.notifyCheckpointComplete(checkpointId);
-		}
-	}
-
-	/**
-	 * Returns a checkpoint stream factory for the provided options.
-	 *
-	 * <p>For {@link CheckpointType#CHECKPOINT} this returns the shared
-	 * factory of this operator.
-	 *
-	 * <p>For {@link CheckpointType#SAVEPOINT} it creates a custom factory per
-	 * savepoint.
-	 *
-	 * @param checkpointOptions Options for the checkpoint
-	 * @return Checkpoint stream factory for the checkpoints
-	 * @throws IOException Failures while creating a new stream factory are forwarded
-	 */
-	@VisibleForTesting
-	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
-		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-		if (checkpointType == CheckpointType.CHECKPOINT) {
-			return checkpointStreamFactory;
-		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());
-		} else {
-			throw new IllegalStateException("Unknown checkpoint type " + checkpointType);
 		}
 	}
 
@@ -674,7 +653,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
 		// all operators are tracking latencies
-		this.latencyGauge.reportLatency(marker, false);
+		this.latencyStats.reportLatency(marker);
 
 		// everything except sinks forwards latency markers
 		this.output.emitLatencyMarker(marker);
@@ -682,131 +661,10 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ----------------------- Helper classes -----------------------
 
-
-	/**
-	 * The gauge uses a HashMap internally to avoid classloading issues when accessing
-	 * the values using JMX.
-	 */
-	protected static class LatencyGauge implements Gauge<Map<String, HashMap<String, Double>>> {
-		private final Map<LatencySourceDescriptor, DescriptiveStatistics> latencyStats = new HashMap<>();
-		private final int historySize;
-
-		LatencyGauge(int historySize) {
-			this.historySize = historySize;
-		}
-
-		public void reportLatency(LatencyMarker marker, boolean isSink) {
-			LatencySourceDescriptor sourceDescriptor = LatencySourceDescriptor.of(marker, !isSink);
-			DescriptiveStatistics sourceStats = latencyStats.get(sourceDescriptor);
-			if (sourceStats == null) {
-				// 512 element window (4 kb)
-				sourceStats = new DescriptiveStatistics(this.historySize);
-				latencyStats.put(sourceDescriptor, sourceStats);
-			}
-			long now = System.currentTimeMillis();
-			sourceStats.addValue(now - marker.getMarkedTime());
-		}
-
-		@Override
-		public Map<String, HashMap<String, Double>> getValue() {
-			while (true) {
-				try {
-					Map<String, HashMap<String, Double>> ret = new HashMap<>();
-					for (Map.Entry<LatencySourceDescriptor, DescriptiveStatistics> source : latencyStats.entrySet()) {
-						HashMap<String, Double> sourceStatistics = new HashMap<>(6);
-						sourceStatistics.put("max", source.getValue().getMax());
-						sourceStatistics.put("mean", source.getValue().getMean());
-						sourceStatistics.put("min", source.getValue().getMin());
-						sourceStatistics.put("p50", source.getValue().getPercentile(50));
-						sourceStatistics.put("p95", source.getValue().getPercentile(95));
-						sourceStatistics.put("p99", source.getValue().getPercentile(99));
-						ret.put(source.getKey().toString(), sourceStatistics);
-					}
-					return ret;
-					// Concurrent access onto the "latencyStats" map could cause
-					// ConcurrentModificationExceptions. To avoid unnecessary blocking
-					// of the reportLatency() method, we retry this operation until
-					// it succeeds.
-				} catch (ConcurrentModificationException ignore) {
-					LOG.debug("Unable to report latency statistics", ignore);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Identifier for a latency source.
-	 */
-	private static class LatencySourceDescriptor {
-		/**
-		 * A unique ID identifying a logical source in Flink.
-		 */
-		private final int vertexID;
-
-		/**
-		 * Identifier for parallel subtasks of a logical source.
-		 */
-		private final int subtaskIndex;
-
-		/**
-		 * Creates a {@code LatencySourceDescriptor} from a given {@code LatencyMarker}.
-		 *
-		 * @param marker The latency marker to extract the LatencySourceDescriptor from.
-		 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies
-		 *      from all the parallel instances of a source as the same.
-		 * @return A LatencySourceDescriptor for the given marker.
-		 */
-		public static LatencySourceDescriptor of(LatencyMarker marker, boolean ignoreSubtaskIndex) {
-			if (ignoreSubtaskIndex) {
-				return new LatencySourceDescriptor(marker.getVertexID(), -1);
-			} else {
-				return new LatencySourceDescriptor(marker.getVertexID(), marker.getSubtaskIndex());
-			}
-
-		}
-
-		private LatencySourceDescriptor(int vertexID, int subtaskIndex) {
-			this.vertexID = vertexID;
-			this.subtaskIndex = subtaskIndex;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			LatencySourceDescriptor that = (LatencySourceDescriptor) o;
-
-			if (vertexID != that.vertexID) {
-				return false;
-			}
-			return subtaskIndex == that.subtaskIndex;
-		}
-
-		@Override
-		public int hashCode() {
-			int result = vertexID;
-			result = 31 * result + subtaskIndex;
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return "LatencySourceDescriptor{" +
-					"vertexID=" + vertexID +
-					", subtaskIndex=" + subtaskIndex +
-					'}';
-		}
-	}
-
 	/**
 	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
 	 */
-	public class CountingOutput implements Output<StreamRecord<OUT>> {
+	public static class CountingOutput<OUT> implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
 
@@ -876,9 +734,11 @@ public abstract class AbstractStreamOperator<OUT>
 		checkTimerServiceInitialization();
 
 		// the following casting is to overcome type restrictions.
-		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
-		InternalTimeServiceManager<K, N> keyedTimeServiceHandler = (InternalTimeServiceManager<K, N>) timeServiceManager;
-		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
+		KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+		TypeSerializer<K> keySerializer = keyedStateBackend.getKeySerializer();
+		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
+		TimerSerializer<K, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
+		return keyedTimeServiceHandler.getInternalTimerService(name, timerSerializer, triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {

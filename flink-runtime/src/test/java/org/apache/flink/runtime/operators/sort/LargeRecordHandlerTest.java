@@ -24,12 +24,13 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Test;
 
 public class LargeRecordHandlerTest {
@@ -55,7 +57,7 @@ public class LargeRecordHandlerTest {
 			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
 			
 			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>) 
-					TypeInfoParser.<Tuple2<Long, String>>parse("Tuple2<Long, String>");
+					TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
@@ -106,8 +108,8 @@ public class LargeRecordHandlerTest {
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
 			final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
 			
-			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>) 
-					TypeInfoParser.<Tuple2<Long, String>>parse("Tuple2<Long, String>");
+			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>)
+					TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
@@ -192,8 +194,8 @@ public class LargeRecordHandlerTest {
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
 			final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
 			
-			final TupleTypeInfo<Tuple3<Long, String, Byte>> typeInfo = (TupleTypeInfo<Tuple3<Long, String, Byte>>) 
-					TypeInfoParser.<Tuple3<Long, String, Byte>>parse("Tuple3<Long, String, Byte>");
+			final TupleTypeInfo<Tuple3<Long, String, Byte>> typeInfo = (TupleTypeInfo<Tuple3<Long, String, Byte>>)
+					TypeInformation.of(new TypeHint<Tuple3<Long, String, Byte>>(){});
 
 			final TypeSerializer<Tuple3<Long, String, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
 			final TypeComparator<Tuple3<Long, String, Byte>> comparator = typeInfo.createComparator(

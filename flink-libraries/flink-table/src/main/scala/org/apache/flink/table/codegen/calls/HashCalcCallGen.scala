@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen.calls
 import org.apache.commons.codec.Charsets
 import org.apache.commons.codec.binary.Hex
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallWithStmtIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
@@ -31,12 +32,44 @@ class HashCalcCallGen(algName: String) extends CallGenerator {
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
 
-    val md = codeGenerator.addReusableMessageDigest(algName)
+    val (initStmt, md) = operands.size match {
+
+      // for function calls of MD5, SHA1, SHA224, SHA256, SHA384, SHA512
+      case 1 =>
+        (None, codeGenerator.addReusableMessageDigest(algName))
+
+      // for function calls of SHA2 with constant bit length
+      case 2 if operands(1).literal =>
+        (None, codeGenerator.addReusableSha2MessageDigest(operands(1)))
+
+      // for function calls of SHA2 with variable bit length
+      case 2 =>
+        val messageDigest = newName("messageDigest")
+        val bitLen = operands(1).resultTerm
+        val init =
+          s"""
+            |final java.security.MessageDigest $messageDigest;
+            |if ($bitLen == 224 || $bitLen == 256 || $bitLen == 384 || $bitLen == 512) {
+            |  try {
+            |    $messageDigest = java.security.MessageDigest.getInstance("SHA-" + $bitLen);
+            |  } catch (java.security.NoSuchAlgorithmException e) {
+            |    throw new RuntimeException(
+            |      "Algorithm for 'SHA-" + $bitLen + "' is not available.", e);
+            |  }
+            |} else {
+            |  throw new RuntimeException("Unsupported algorithm.");
+            |}
+            |""".stripMargin
+        (Some(init), messageDigest)
+    }
 
     generateCallWithStmtIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
       (terms) =>
         val auxiliaryStmt =
-          s"$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));"
+          s"""
+            |${initStmt.getOrElse("")}
+            |$md.update(${terms.head}.getBytes(${classOf[Charsets].getCanonicalName}.UTF_8));
+            |""".stripMargin
         val result = s"${classOf[Hex].getCanonicalName}.encodeHexString($md.digest())"
         (Some(auxiliaryStmt), result)
     }

@@ -20,8 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -55,28 +57,24 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Cancel the given job.
-	 *
-	 * @param jobId identifying the job to cancel
-	 * @param timeout of the operation
-	 * @return A future acknowledge if the cancellation succeeded
-	 */
-	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
-
-	/**
-	 * Stop the given job.
-	 *
-	 * @param jobId identifying the job to stop
-	 * @param timeout of the operation
-	 * @return A future acknowledge if the stopping succeeded
-	 */
-	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
-
-	/**
 	 * Returns the port of the blob server.
 	 *
 	 * @param timeout of the operation
 	 * @return A future integer of the blob server port
 	 */
 	CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph, then
+	 * the future is completed with a {@link FlinkJobNotFoundException}.
+	 *
+	 * <p>Note: We enforce that the returned future contains a {@link ArchivedExecutionGraph} unlike
+	 * the super interface.
+	 *
+	 * @param jobId identifying the job whose AccessExecutionGraph is requested
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the AccessExecutionGraph for the given jobId, otherwise {@link FlinkJobNotFoundException}
+	 */
+	@Override
+	CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
 }

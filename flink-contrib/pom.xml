@@ -27,7 +27,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.5-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,7 +40,6 @@ under the License.
 		<module>flink-storm</module>
 		<module>flink-storm-examples</module>
 		<module>flink-connector-wikiedits</module>
-		<module>flink-statebackend-rocksdb</module>
 	</modules>
 
 	<dependencies>

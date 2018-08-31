@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 
 import java.io.IOException;
@@ -30,16 +28,19 @@ import java.io.IOException;
  */
 public interface RecordSerializer<T extends IOReadableWritable> {
 
+	/**
+	 * Status of the serialization result.
+	 */
 	enum SerializationResult {
 		PARTIAL_RECORD_MEMORY_SEGMENT_FULL(false, true),
 		FULL_RECORD_MEMORY_SEGMENT_FULL(true, true),
 		FULL_RECORD(true, false);
-		
+
 		private final boolean isFullRecord;
 
 		private final boolean isFullBuffer;
-		
-		private SerializationResult(boolean isFullRecord, boolean isFullBuffer) {
+
+		SerializationResult(boolean isFullRecord, boolean isFullBuffer) {
 			this.isFullRecord = isFullRecord;
 			this.isFullBuffer = isFullBuffer;
 		}
@@ -71,7 +72,6 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @param record the record to serialize
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
-	 * @throws IOException
 	 */
 	SerializationResult addRecord(T record) throws IOException;
 
@@ -82,46 +82,16 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @param bufferBuilder the new target buffer to use
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
-	 * @throws IOException
 	 */
-	SerializationResult setNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
+	SerializationResult continueWritingWithNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
 
 	/**
-	 * Retrieves the current target buffer and sets its size to the actual
-	 * number of written bytes.
-	 *
-	 * After calling this method, a new target buffer is required to continue
-	 * writing (see {@link #setNextBufferBuilder(BufferBuilder)}).
-	 *
-	 * @return the target buffer that was used
-	 */
-	Buffer getCurrentBuffer();
-
-	/**
-	 * Resets the target buffer to <tt>null</tt>.
-	 *
-	 * <p><strong>NOTE:</strong> After calling this method, <strong>a new target
-	 * buffer is required to continue writing</strong> (see
-	 * {@link #setNextBufferBuilder(BufferBuilder)}).</p>
-	 */
-	void clearCurrentBuffer();
-
-	/**
-	 * Resets the target buffer to <tt>null</tt> and resets internal state set
-	 * up for the record to serialize.
-	 *
-	 * <p><strong>NOTE:</strong> After calling this method, a <strong>new record
-	 * and a new target buffer is required to start writing again</strong>
-	 * (see {@link #setNextBufferBuilder(BufferBuilder)}). If you want to continue
-	 * with the current record, use {@link #clearCurrentBuffer()} instead.</p>
+	 * Clear and release internal state.
 	 */
 	void clear();
 
 	/**
-	 * Determines whether data is left, either in the current target buffer or
-	 * in any internal state set up for the record to serialize.
-	 *
-	 * @return <tt>true</tt> if some data is present
+	 * @return <tt>true</tt> if has some serialized data pending copying to the result {@link BufferBuilder}.
 	 */
-	boolean hasData();
+	boolean hasSerializedData();
 }

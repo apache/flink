@@ -24,7 +24,16 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
+import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -145,8 +154,43 @@ public class CheckpointConfigInfo implements ResponseBody {
 	/**
 	 * Processing mode.
 	 */
+	@JsonSerialize(using = ProcessingModeSerializer.class)
+	@JsonDeserialize(using = ProcessingModeDeserializer.class)
 	public enum ProcessingMode {
 		AT_LEAST_ONCE,
 		EXACTLY_ONCE
 	}
+
+	/**
+	 * JSON deserializer for {@link ProcessingMode}.
+	 */
+	public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
+
+		public ProcessingModeSerializer() {
+			super(ProcessingMode.class);
+		}
+
+		@Override
+		public void serialize(ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
+			throws IOException {
+			generator.writeString(mode.name().toLowerCase());
+		}
+	}
+
+	/**
+	 * Processing mode deserializer.
+	 */
+	public static class ProcessingModeDeserializer extends StdDeserializer<ProcessingMode> {
+
+		public ProcessingModeDeserializer() {
+			super(ProcessingMode.class);
+		}
+
+		@Override
+		public ProcessingMode deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+			throws IOException {
+			return ProcessingMode.valueOf(jsonParser.getValueAsString().toUpperCase());
+		}
+	}
+
 }

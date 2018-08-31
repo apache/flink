@@ -43,13 +43,13 @@ import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -72,6 +72,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
+	public static final String PARALLELISM_AUTO_MAX_ERROR_MESSAGE =
+		"PARALLELISM_AUTO_MAX is no longer supported. Please specify a concrete value for the parallelism.";
 
 	/**
 	 * Builds the ExecutionGraph from the JobGraph.
@@ -87,11 +89,53 @@ public class ExecutionGraphBuilder {
 			SlotProvider slotProvider,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
-			Time timeout,
+			Time rpcTimeout,
+			RestartStrategy restartStrategy,
+			MetricGroup metrics,
+			BlobWriter blobWriter,
+			Time allocationTimeout,
+			Logger log)
+		throws JobExecutionException, JobException {
+
+		return buildGraph(
+			prior,
+			jobGraph,
+			jobManagerConfig,
+			futureExecutor,
+			ioExecutor,
+			slotProvider,
+			classLoader,
+			recoveryFactory,
+			rpcTimeout,
+			restartStrategy,
+			metrics,
+			-1,
+			blobWriter,
+			allocationTimeout,
+			log);
+	}
+
+	/**
+	 * Builds the ExecutionGraph from the JobGraph.
+	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
+	 * graph exists, then the JobGraph will become attach to a new empty execution graph.
+	 */
+	@Deprecated
+	public static ExecutionGraph buildGraph(
+			@Nullable ExecutionGraph prior,
+			JobGraph jobGraph,
+			Configuration jobManagerConfig,
+			ScheduledExecutorService futureExecutor,
+			Executor ioExecutor,
+			SlotProvider slotProvider,
+			ClassLoader classLoader,
+			CheckpointRecoveryFactory recoveryFactory,
+			Time rpcTimeout,
 			RestartStrategy restartStrategy,
 			MetricGroup metrics,
 			int parallelismForAutoMax,
 			BlobWriter blobWriter,
+			Time allocationTimeout,
 			Logger log)
 		throws JobExecutionException, JobException {
 
@@ -119,12 +163,13 @@ public class ExecutionGraphBuilder {
 					jobInformation,
 					futureExecutor,
 					ioExecutor,
-					timeout,
+					rpcTimeout,
 					restartStrategy,
 					failoverStrategy,
 					slotProvider,
 					classLoader,
-					blobWriter);
+					blobWriter,
+					allocationTimeout);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}
@@ -157,7 +202,14 @@ public class ExecutionGraphBuilder {
 			}
 
 			if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
-				vertex.setParallelism(parallelismForAutoMax);
+				if (parallelismForAutoMax < 0) {
+					throw new JobSubmissionException(
+						jobId,
+						PARALLELISM_AUTO_MAX_ERROR_MESSAGE);
+				}
+				else {
+					vertex.setParallelism(parallelismForAutoMax);
+				}
 			}
 
 			try {

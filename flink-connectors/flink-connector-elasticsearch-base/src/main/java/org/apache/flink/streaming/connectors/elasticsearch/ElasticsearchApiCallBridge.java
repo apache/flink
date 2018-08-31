@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.client.Client;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -37,17 +37,28 @@ import java.util.Map;
  * <p>Implementations are allowed to be stateful. For example, for Elasticsearch 1.x, since connecting via an embedded node
  * is allowed, the call bridge will hold reference to the created embedded node. Each instance of the sink will hold
  * exactly one instance of the call bridge, and state cleanup is performed when the sink is closed.
+ *
+ * @param <C> The Elasticsearch client, that implements {@link AutoCloseable}.
  */
 @Internal
-public interface ElasticsearchApiCallBridge extends Serializable {
+public interface ElasticsearchApiCallBridge<C extends AutoCloseable> extends Serializable {
 
 	/**
-	 * Creates an Elasticsearch {@link Client}.
+	 * Creates an Elasticsearch client implementing {@link AutoCloseable}.
 	 *
 	 * @param clientConfig The configuration to use when constructing the client.
 	 * @return The created client.
 	 */
-	Client createClient(Map<String, String> clientConfig);
+	C createClient(Map<String, String> clientConfig) throws IOException;
+
+	/**
+	 * Creates a {@link BulkProcessor.Builder} for creating the bulk processor.
+	 *
+	 * @param client the Elasticsearch client.
+	 * @param listener the bulk processor listender.
+	 * @return the bulk processor builder.
+	 */
+	BulkProcessor.Builder createBulkProcessorBuilder(C client, BulkProcessor.Listener listener);
 
 	/**
 	 * Extracts the cause of failure of a bulk item action.
@@ -71,6 +82,8 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	/**
 	 * Perform any necessary state cleanup.
 	 */
-	void cleanup();
+	default void cleanup() {
+		// nothing to cleanup by default
+	}
 
 }

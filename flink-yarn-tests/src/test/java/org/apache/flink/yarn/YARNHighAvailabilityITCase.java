@@ -55,6 +55,8 @@ import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.junit.Assume.assumeTrue;
+
 /**
  * Tests that verify correct HA behavior.
  */
@@ -104,10 +106,16 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	 */
 	@Test
 	public void testMultipleAMKill() throws Exception {
+		assumeTrue("This test only works with the old actor based code.", !isNewMode);
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		final Configuration configuration = GlobalConfiguration.loadConfiguration();
-		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
+		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(
+			configuration,
+			getYarnConfiguration(),
+			confDirPath,
+			getYarnClient(),
+			true);
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
@@ -125,7 +133,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			"@@" + CheckpointingOptions.CHECKPOINTS_DIRECTORY + "=" + fsStateHandlePath + "/checkpoints" +
 			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
 
-		ClusterClient<ApplicationId> yarnCluster = null;
+		ClusterClient<ApplicationId> yarnClusterClient = null;
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
@@ -139,10 +147,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			.createClusterSpecification();
 
 		try {
-			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
+			yarnClusterClient = flinkYarnClient.deploySessionCluster(clusterSpecification);
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				yarnCluster.getFlinkConfiguration(),
+				yarnClusterClient.getFlinkConfiguration(),
 				Executors.directExecutor(),
 				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
@@ -193,8 +201,10 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 			}};
 		} finally {
-			if (yarnCluster != null) {
-				yarnCluster.shutdown();
+			if (yarnClusterClient != null) {
+				log.info("Shutting down the Flink Yarn application.");
+				yarnClusterClient.shutDownCluster();
+				yarnClusterClient.shutdown();
 			}
 
 			if (highAvailabilityServices != null) {

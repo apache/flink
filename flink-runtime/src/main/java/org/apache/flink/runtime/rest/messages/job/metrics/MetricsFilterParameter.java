@@ -36,13 +36,17 @@ public class MetricsFilterParameter extends MessageQueryParameter<String> {
 	}
 
 	@Override
-	public String convertValueFromString(String value) {
-		return value;
-	}
-
-	@Override
 	public String convertStringToValue(String value) {
 		return value;
 	}
 
+	@Override
+	public String convertValueToString(String value) {
+		return value;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Comma-separated list of string values to select specific metrics.";
+	}
 }

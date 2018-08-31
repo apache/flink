@@ -117,8 +117,8 @@ public class BlobCacheRetriesTest extends TestLogger {
 
 		try (
 			BlobServer server = new TestingFailingBlobServer(config, blobStore, 2);
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 
@@ -200,8 +200,8 @@ public class BlobCacheRetriesTest extends TestLogger {
 
 		try (
 			BlobServer server = new TestingFailingBlobServer(config, blobStore, 0, 10);
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
+			BlobCacheService cache = new BlobCacheService(config, new VoidBlobStore(), new InetSocketAddress("localhost", server.getPort())
+			)) {
 
 			server.start();
 

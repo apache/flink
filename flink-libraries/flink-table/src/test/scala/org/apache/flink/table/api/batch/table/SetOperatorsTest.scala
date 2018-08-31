@@ -102,6 +102,7 @@ class SetOperatorsTest extends TableTestBase {
         batchTableNode(0),
         term("select", "CASE(>(c, 0), b, null) AS _c0")
       ),
+      term("all", "true"),
       term("union", "a")
     )
 
@@ -130,6 +131,7 @@ class SetOperatorsTest extends TableTestBase {
         batchTableNode(0),
         term("select", "b")
       ),
+      term("all", "true"),
       term("union", "a")
     )
 
@@ -165,6 +167,7 @@ class SetOperatorsTest extends TableTestBase {
             term("select", "a", "b", "c"),
             term("where", ">(a, 0)")
           ),
+          term("all", "true"),
           term("union", "a", "b", "c")
         ),
         term("groupBy", "b"),
@@ -238,6 +241,7 @@ class SetOperatorsTest extends TableTestBase {
         batchTableNode(1),
         term("select", "b", "c")
       ),
+      term("all", "true"),
       term("union", "b", "c")
     )
 

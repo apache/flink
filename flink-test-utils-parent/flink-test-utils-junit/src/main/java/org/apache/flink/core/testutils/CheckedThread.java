@@ -34,8 +34,6 @@ public abstract class CheckedThread extends Thread {
 	/** The error thrown from the main work method. */
 	private volatile Throwable error;
 
-	private volatile boolean finished = false;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -78,9 +76,6 @@ public abstract class CheckedThread extends Thread {
 		catch (Throwable t) {
 			error = t;
 		}
-		finally {
-			finished = true;
-		}
 	}
 
 	/**
@@ -102,8 +97,19 @@ public abstract class CheckedThread extends Thread {
 	 * exceptions thrown from the {@link #go()} method.
 	 */
 	public void sync(long timeout) throws Exception {
-		join(timeout);
+		trySync(timeout);
 		checkFinished();
+	}
+
+	/**
+	 * Waits with timeout until the thread is completed and checks whether any error
+	 * occurred during the execution.
+	 *
+	 * <p>This method blocks like {@link #join()}, but performs an additional check for
+	 * exceptions thrown from the {@link #go()} method.
+	 */
+	public void trySync(long timeout) throws Exception {
+		join(timeout);
 		checkError();
 	}
 
@@ -123,7 +129,7 @@ public abstract class CheckedThread extends Thread {
 	}
 
 	private void checkFinished() throws Exception {
-		if (!finished) {
+		if (getState() != State.TERMINATED) {
 			throw new Exception(String.format(
 				"%s[name = %s] has not finished!",
 				this.getClass().getSimpleName(),

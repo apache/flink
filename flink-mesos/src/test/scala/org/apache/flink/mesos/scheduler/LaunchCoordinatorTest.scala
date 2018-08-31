@@ -80,6 +80,7 @@ class LaunchCoordinatorTest
         override def getNetworkMbps: Double = 0.0
         override def getDisk: Double = 0.0
         override def getPorts: Int = 1
+        override def getScalarRequests = Collections.singletonMap("gpus", 1.0)
         override def getCustomNamedResources: java.util.Map[String, NamedResourceSetRequest] =
           Collections.emptyMap[String, NamedResourceSetRequest]
         override def getSoftConstraints: java.util.List[_ <: VMTaskFitnessCalculator] = null

@@ -34,7 +34,7 @@ case class SymbolExpression(symbol: TableSymbol) extends LeafExpression {
   override private[flink] def resultType: TypeInformation[_] =
     throw new UnsupportedOperationException("This should not happen. A symbol has no result type.")
 
-  def toExpr = this // triggers implicit conversion
+  def toExpr: SymbolExpression = this // triggers implicit conversion
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     // dirty hack to pass Java enums to Java from Scala
@@ -84,7 +84,9 @@ object TimeIntervalUnit extends TableSymbols {
 
   val YEAR = Value(TimeUnitRange.YEAR)
   val YEAR_TO_MONTH = Value(TimeUnitRange.YEAR_TO_MONTH)
+  val QUARTER = Value(TimeUnitRange.QUARTER)
   val MONTH = Value(TimeUnitRange.MONTH)
+  val WEEK = Value(TimeUnitRange.WEEK)
   val DAY = Value(TimeUnitRange.DAY)
   val DAY_TO_HOUR = Value(TimeUnitRange.DAY_TO_HOUR)
   val DAY_TO_MINUTE = Value(TimeUnitRange.DAY_TO_MINUTE)

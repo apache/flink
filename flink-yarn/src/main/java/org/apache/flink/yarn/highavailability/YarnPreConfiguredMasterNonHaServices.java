@@ -199,6 +199,17 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	}
 
 	@Override
+	public LeaderElectionService getWebMonitorLeaderElectionService() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
+		}
+		finally {
+			exit();
+		}
+	}
+
+	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
 		enter();
 		try {
@@ -215,6 +226,17 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 		try {
 			return new StandaloneLeaderRetrievalService(defaultJobManagerAddress, DEFAULT_LEADER_ID);
 		} finally {
+			exit();
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		enter();
+		try {
+			throw new UnsupportedOperationException();
+		}
+		finally {
 			exit();
 		}
 	}

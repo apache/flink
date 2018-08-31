@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.KAFKA_CONSUMER_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -83,10 +82,11 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long autoWatermarkInterval,
 			ClassLoader userCodeClassLoader,
 			String taskNameWithSubtasks,
-			MetricGroup metricGroup,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
+			MetricGroup subtaskMetricGroup,
+			MetricGroup consumerMetricGroup,
 			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
@@ -96,24 +96,23 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				processingTimeProvider,
 				autoWatermarkInterval,
 				userCodeClassLoader,
+				consumerMetricGroup,
 				useMetrics);
 
 		this.deserializer = deserializer;
 		this.handover = new Handover();
-
-		final MetricGroup kafkaMetricGroup = metricGroup.addGroup(KAFKA_CONSUMER_METRICS_GROUP);
-		addOffsetStateGauge(kafkaMetricGroup);
 
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
 				handover,
 				kafkaProperties,
 				unassignedPartitionsQueue,
-				kafkaMetricGroup,
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				consumerMetricGroup,
+				subtaskMetricGroup);
 	}
 
 	// ------------------------------------------------------------------------

@@ -25,7 +25,7 @@ import org.apache.flink.table.sources.FieldComputer
 /**
   * Provides the an expression to extract the timestamp for a rowtime attribute.
   */
-abstract class TimestampExtractor extends FieldComputer[Long] {
+abstract class TimestampExtractor extends FieldComputer[Long] with Serializable {
 
   /** Timestamp extractors compute the timestamp as Long. */
   override def getReturnType: TypeInformation[Long] = Types.LONG.asInstanceOf[TypeInformation[Long]]

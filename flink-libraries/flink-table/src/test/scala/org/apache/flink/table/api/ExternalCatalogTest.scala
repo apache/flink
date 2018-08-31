@@ -39,7 +39,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val table1 = tableEnv.scan("test", "db1", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")
@@ -59,6 +61,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union", "_c0", "e", "_c2")
     )
 
@@ -69,7 +72,9 @@ class ExternalCatalogTest extends TableTestBase {
   def testBatchSQL(): Unit = {
     val util = batchTestUtil()
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val sqlQuery = "SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 UNION ALL " +
         "(SELECT a * 2, b, c FROM test.db1.tb1)"
@@ -86,6 +91,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS EXPR$0", "b", "c")
       ),
+      term("all", "true"),
       term("union", "EXPR$0", "e", "g"))
 
     util.verifySql(sqlQuery, expected)
@@ -96,7 +102,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = streamTestUtil()
     val tableEnv = util.tableEnv
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = true))
 
     val table1 = tableEnv.scan("test", "db1", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")
@@ -118,6 +126,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceStreamTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union all", "_c0", "e", "_c2")
     )
 
@@ -128,7 +137,9 @@ class ExternalCatalogTest extends TableTestBase {
   def testStreamSQL(): Unit = {
     val util = streamTestUtil()
 
-    util.tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    util.tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = true))
 
     val sqlQuery = "SELECT d * 2, e, g FROM test.db2.tb2 WHERE d < 3 UNION ALL " +
         "(SELECT a * 2, b, c FROM test.db1.tb1)"
@@ -145,6 +156,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceStreamTableNode(table1Path, table1ProjectedFields),
         term("select", "*(a, 2) AS EXPR$0", "b", "c")
       ),
+      term("all", "true"),
       term("union all", "EXPR$0", "e", "g"))
 
     util.verifySql(sqlQuery, expected)
@@ -155,7 +167,9 @@ class ExternalCatalogTest extends TableTestBase {
     val util = batchTestUtil()
     val tableEnv = util.tableEnv
 
-    tableEnv.registerExternalCatalog("test", CommonTestData.getInMemoryTestCatalog)
+    tableEnv.registerExternalCatalog(
+      "test",
+      CommonTestData.getInMemoryTestCatalog(isStreaming = false))
 
     val table1 = tableEnv.scan("test", "tb1")
     val table2 = tableEnv.scan("test", "db2", "tb2")
@@ -175,6 +189,7 @@ class ExternalCatalogTest extends TableTestBase {
         sourceBatchTableNode(table1TopLevelPath, table1ProjectedFields),
         term("select", "*(a, 2) AS _c0", "b", "UPPER(c) AS _c2")
       ),
+      term("all", "true"),
       term("union", "_c0", "e", "_c2")
     )
 
