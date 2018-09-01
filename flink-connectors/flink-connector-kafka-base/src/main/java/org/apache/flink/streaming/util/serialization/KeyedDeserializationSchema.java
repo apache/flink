@@ -22,6 +22,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -33,6 +34,49 @@ import java.util.Map;
  */
 @PublicEvolving
 public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
+	/**
+	 * Kafka record to be deserialized.
+	 * Record consists of key,value pair, topic name, partition offset, headers and a timestamp (if available)
+	 */
+	interface Record {
+		/**
+		 * Returns the key (or null if no key is specified).
+		 * @return the key (or null if no key is specified)
+		 */
+		byte[] key();
+
+		/**
+		 * Returns the message value.
+		 * @return the message value
+		 */
+		byte[] value();
+
+		/**
+		 * Returns the topic this record is received from.
+		 * @return The topic this record is received from
+		 */
+		String topic();
+
+		/**
+		 * Returns the partition from which this record is received.
+		 * @return The partition from which this record is received
+		 */
+		int partition();
+
+		/**
+		 * Returns the position of this record in the corresponding Kafka partition.
+		 * @return The position of this record in the corresponding Kafka partition
+		 */
+		long offset();
+
+		/**
+		 * Returns the Iterable view of Kafka message headers.
+		 * @return the iterable view of Kafka message headers
+		 */
+		default Iterable<Map.Entry<String, byte[]>> headers() {
+			return Collections.emptyList();
+		}
+	}
 
 	/**
 	 * Deserializes the byte message.
@@ -44,7 +88,11 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException;
+	@Deprecated
+	default T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset)
+		throws IOException {
+		throw new RuntimeException("The deserialize method must be implemented");
+	}
 
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
@@ -57,19 +105,13 @@ public interface KeyedDeserializationSchema<T> extends Serializable, ResultTypeQ
 	boolean isEndOfStream(T nextElement);
 
 	/**
-	 * Deserializes the byte message.
+	 * Deserializes the Kafka record.
 	 *
-	 * @param messageKey the key as a byte array (null if no key has been set).
-	 * @param message The message, as a byte array (null if the message was empty or deleted).
-	 * @param topic The name of the topic from which the message has originated.
-	 * @param partition The partition the message has originated from.
-	 * @param offset the offset of the message in the original source (for example the Kafka offset).
-	 * @param headers the headers of the message
+	 * @param record Kafka record to be deserialized.
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	default T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset, Iterable<Map.Entry<String, byte[]>> headers) throws IOException {
-		return deserialize(messageKey, message, topic, partition, offset);
+	default T deserialize(Record record) throws IOException {
+		return deserialize(record.key(), record.value(), record.topic(), record.partition(), record.offset());
 	}
-
 }

@@ -370,8 +370,8 @@ class SimpleConsumerThread<T> extends Thread {
 								keyPayload.get(keyBytes);
 							}
 
-							final T value = deserializer.deserialize(keyBytes, valueBytes,
-									currentPartition.getTopic(), currentPartition.getPartition(), offset);
+							final T value = deserializer.deserialize(
+								new Kafka08ConsumerRecord(keyBytes, valueBytes, currentPartition, offset));
 
 							if (deserializer.isEndOfStream(value)) {
 								// remove partition from subscribed partitions.

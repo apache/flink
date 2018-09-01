@@ -350,9 +350,9 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public Long deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+		public Long deserialize(Record record) throws IOException {
 			cnt++;
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Long e = ser.deserialize(in);
 			return e;
 		}
@@ -537,30 +537,16 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public TestHeadersElement deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-			final TestHeadersElement element = new TestHeadersElement();
-			element.f0 = Longs.fromByteArray(message);
-			element.f1 = messageKey[0];
-			element.f2 = new ArrayList<>(0);
-			return element;
-		}
-
-		@Override
 		public boolean isEndOfStream(TestHeadersElement nextElement) {
 			return nextElement.f0 >= count;
 		}
 
 		@Override
-		public TestHeadersElement deserialize(
-				byte[] messageKey,
-				byte[] message, String topic,
-				int partition,
-				long offset,
-				Iterable<Map.Entry<String, byte[]>> headers) throws IOException {
+		public TestHeadersElement deserialize(Record record) {
 			final TestHeadersElement element = new TestHeadersElement();
-			element.f0 = Longs.fromByteArray(message);
-			element.f1 = messageKey[0];
-			element.f2 = headersAsList(headers);
+			element.f0 = Longs.fromByteArray(record.value());
+			element.f1 = record.key()[0];
+			element.f2 = headersAsList(record.headers());
 			return element;
 		}
 	}

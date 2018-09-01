@@ -40,8 +40,8 @@ public class KeyedDeserializationSchemaWrapper<T> implements KeyedDeserializatio
 	}
 
 	@Override
-	public T deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
-		return deserializationSchema.deserialize(message);
+	public T deserialize(Record record) throws IOException {
+		return deserializationSchema.deserialize(record.value());
 	}
 
 	@Override

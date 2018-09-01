@@ -51,22 +51,22 @@ public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSc
 	}
 
 	@Override
-	public ObjectNode deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+	public ObjectNode deserialize(Record record) throws IOException {
 		if (mapper == null) {
 			mapper = new ObjectMapper();
 		}
 		ObjectNode node = mapper.createObjectNode();
-		if (messageKey != null) {
-			node.set("key", mapper.readValue(messageKey, JsonNode.class));
+		if (record.key() != null) {
+			node.set("key", mapper.readValue(record.key(), JsonNode.class));
 		}
-		if (message != null) {
-			node.set("value", mapper.readValue(message, JsonNode.class));
+		if (record.value() != null) {
+			node.set("value", mapper.readValue(record.value(), JsonNode.class));
 		}
 		if (includeMetadata) {
 			node.putObject("metadata")
-				.put("offset", offset)
-				.put("topic", topic)
-				.put("partition", partition);
+				.put("offset", record.offset())
+				.put("topic", record.topic())
+				.put("partition", record.partition());
 		}
 		return node;
 	}

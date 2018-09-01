@@ -193,7 +193,8 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		long nextExpected = 0;
 
 		@Override
-		public String deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+		public String deserialize(Record record) throws IOException {
+			final long offset = record.offset();
 			if (offset != nextExpected) {
 				numJumps++;
 				nextExpected = offset;

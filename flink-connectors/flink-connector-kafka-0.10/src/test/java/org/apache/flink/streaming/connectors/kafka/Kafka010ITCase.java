@@ -328,9 +328,9 @@ public class Kafka010ITCase extends KafkaConsumerTestBase {
 		}
 
 		@Override
-		public Long deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+		public Long deserialize(Record record) throws IOException {
 			cnt++;
-			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(message));
+			DataInputView in = new DataInputViewStreamWrapper(new ByteArrayInputStream(record.value()));
 			Long e = ser.deserialize(in);
 			return e;
 		}

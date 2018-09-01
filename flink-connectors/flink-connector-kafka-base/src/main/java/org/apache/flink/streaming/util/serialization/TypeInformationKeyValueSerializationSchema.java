@@ -96,16 +96,16 @@ public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDe
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Tuple2<K, V> deserialize(byte[] messageKey, byte[] message, String topic, int partition, long offset) throws IOException {
+	public Tuple2<K, V> deserialize(Record record) throws IOException {
 		K key = null;
 		V value = null;
 
-		if (messageKey != null) {
-			inputDeserializer.setBuffer(messageKey);
+		if (record.key() != null) {
+			inputDeserializer.setBuffer(record.key());
 			key = keySerializer.deserialize(inputDeserializer);
 		}
-		if (message != null) {
-			inputDeserializer.setBuffer(message);
+		if (record.value() != null) {
+			inputDeserializer.setBuffer(record.value());
 			value = valueSerializer.deserialize(inputDeserializer);
 		}
 		return new Tuple2<>(key, value);

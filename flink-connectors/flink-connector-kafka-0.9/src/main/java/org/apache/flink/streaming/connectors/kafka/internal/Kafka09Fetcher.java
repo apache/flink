@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,10 +139,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 							records.records(partition.getKafkaPartitionHandle());
 
 					for (ConsumerRecord<byte[], byte[]> record : partitionRecords) {
-						final T value = deserializer.deserialize(
-								record.key(), record.value(),
-								record.topic(), record.partition(), record.offset(),
-								headersOf(record));
+
+						final T value = deserializer.deserialize(createRecord(record));
 
 						if (deserializer.isEndOfStream(value)) {
 							// end of stream signaled
@@ -208,8 +205,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		return new KafkaConsumerCallBridge09();
 	}
 
-	protected Iterable<Map.Entry<String, byte[]>> headersOf(ConsumerRecord<byte[], byte[]> record) {
-		return Collections.emptyList();
+	protected KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
+		return new Kafka09ConsumerRecord(consumerRecord);
 	}
 
 	// ------------------------------------------------------------------------

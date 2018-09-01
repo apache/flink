@@ -28,16 +28,8 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Function;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -52,17 +44,6 @@ import java.util.Properties;
  */
 @Internal
 public class Kafka011Fetcher<T> extends Kafka010Fetcher<T> {
-	/**
-	 * Wraps {@link Header} as Map.Entry.
-	 */
-	private static final Function<Header, Map.Entry<String, byte[]>> HEADER_TO_MAP_ENTRY_FUNCTION =
-		new Function<Header, Map.Entry<String, byte[]>>() {
-			@Nonnull
-			@Override
-			public Map.Entry<String, byte[]> apply(@Nullable Header header) {
-				return new AbstractMap.SimpleImmutableEntry<>(header.key(), header.value());
-			}
-		};
 
 	public Kafka011Fetcher(
 		SourceFunction.SourceContext<T> sourceContext,
@@ -87,8 +68,8 @@ public class Kafka011Fetcher<T> extends Kafka010Fetcher<T> {
 	}
 
 	@Override
-	protected Iterable<Map.Entry<String, byte[]>> headersOf(ConsumerRecord<byte[], byte[]> record) {
-		return Iterables.transform(record.headers(), HEADER_TO_MAP_ENTRY_FUNCTION);
+	protected KeyedDeserializationSchema.Record createRecord(ConsumerRecord<byte[], byte[]> consumerRecord) {
+		return new Kafka011ConsumerRecord(consumerRecord);
 	}
 
 	@Override
@@ -96,4 +77,3 @@ public class Kafka011Fetcher<T> extends Kafka010Fetcher<T> {
 		return "Kafka 0.11 Fetcher";
 	}
 }
-
