@@ -661,7 +661,7 @@ Content-Type: application/x-java-archive
 
 #### Run a Program (POST)
 
-Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).
+Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `web.upload.dir`).
 
 You can specify the following query parameters (all optional):
 

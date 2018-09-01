@@ -51,7 +51,7 @@
    :high-availability.zookeeper.quorum (zookeeper-quorum test)
    :high-availability.storageDir       (str (:ha-storage-dir test) "/ha")
    :state.savepoints.dir               (str (:ha-storage-dir test) "/savepoints")
-   :web.port                           8081
+   :rest.port                           8081
    :rest.bind-address                  "0.0.0.0"
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
@@ -219,7 +219,7 @@
                                                                       "-Djobmanager.rpc.address=$(hostname -f) "
                                                                       "-Djobmanager.heap.mb=2048 "
                                                                       "-Djobmanager.rpc.port=6123 "
-                                                                      "-Djobmanager.web.port=8081 "
+                                                                      "-rest.port=8081 "
                                                                       "-Dmesos.resourcemanager.tasks.mem=2048 "
                                                                       "-Dtaskmanager.heap.mb=2048 "
                                                                       "-Dtaskmanager.numberOfTaskSlots=2 "
