@@ -126,7 +126,7 @@ parallelism.default: 1
 
 # The address under which the web-based runtime monitor listens.
 #
-#jobmanager.web.address: 0.0.0.0
+#web.address: 0.0.0.0
 
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.
@@ -136,7 +136,7 @@ rest.port: 8081
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
 
-#jobmanager.web.submit.enable: false
+#web.submit.enable: false
 
 #==============================================================================
 # Advanced
