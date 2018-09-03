@@ -19,9 +19,10 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, Types, TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.junit.Test
@@ -44,6 +45,28 @@ class InsertIntoValidationTest {
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
 
     // must fail because table sink has too few fields.
+    tEnv.sqlUpdate(sql)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testorder1(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val t = StreamTestData.getSmall3TupleDataStream(env)
+        .assignAscendingTimestamps(x => x._2)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldNames = Array("d", "e", "f", "t")
+    val fieldTypes = Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
+      .asInstanceOf[Array[TypeInformation[_]]]
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
+
+    val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable order by a"
+    //val sql = "INSERT INTO targetTable SELECT a, 3, 'hi', rowtime FROM sourceTable"
     tEnv.sqlUpdate(sql)
   }
 
