@@ -117,7 +117,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 		// verify head operator metrics
 		{
 			// this only returns the existing group and doesn't create a new one
-			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.addOperator(HEAD_OPERATOR_NAME);
+			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.getOrAddOperator(HEAD_OPERATOR_NAME);
 			final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
 			final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
 			final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
@@ -129,7 +129,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 		// verify chained operator metrics
 		{
 			// this only returns the existing group and doesn't create a new one
-			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.addOperator(CHAINED_OPERATOR_NAME);
+			final OperatorMetricGroup operatorMetricGroup1 = taskMetricGroup.getOrAddOperator(CHAINED_OPERATOR_NAME);
 			final OperatorIOMetricGroup ioMetricGroup = operatorMetricGroup1.getIOMetricGroup();
 			final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
 			final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
