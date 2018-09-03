@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -130,7 +131,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
 	 */
-	private long latencyTrackingInterval = 2000L;
+	private long latencyTrackingInterval = MetricOptions.LATENCY_INTERVAL.defaultValue();
+
+	private boolean isLatencyTrackingConfigured = false;
 
 	/**
 	 * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -232,8 +235,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * Interval for sending latency tracking marks from the sources to the sinks.
 	 * Flink will send latency tracking marks from the sources at the specified interval.
 	 *
-	 * Recommended value: 2000 (2 seconds).
-	 *
 	 * Setting a tracking interval <= 0 disables the latency tracking.
 	 *
 	 * @param interval Interval in milliseconds.
@@ -241,6 +242,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public ExecutionConfig setLatencyTrackingInterval(long interval) {
 		this.latencyTrackingInterval = interval;
+		this.isLatencyTrackingConfigured = true;
 		return this;
 	}
 
@@ -254,12 +256,17 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Returns if latency tracking is enabled
-	 * @return True, if the tracking is enabled, false otherwise.
+	 * @deprecated will be removed in a future version
 	 */
 	@PublicEvolving
+	@Deprecated
 	public boolean isLatencyTrackingEnabled() {
-		return latencyTrackingInterval > 0;
+		return isLatencyTrackingConfigured && latencyTrackingInterval > 0;
+	}
+
+	@Internal
+	public boolean isLatencyTrackingConfigured() {
+		return isLatencyTrackingConfigured;
 	}
 
 	/**

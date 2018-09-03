@@ -13,6 +13,11 @@
             <td>Defines the number of measured latencies to maintain at each operator.</td>
         </tr>
         <tr>
+            <td><h5>metrics.latency.interval</h5></td>
+            <td style="word-wrap: break-word;">2000</td>
+            <td>Defines the interval at which latency tracking marks are emitted from the sources. Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly impact the performance of the cluster.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.&#60;name&#62;.&#60;parameter&#62;</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Configures the parameter &#60;parameter&#62; for the reporter named &#60;name&#62;.</td>

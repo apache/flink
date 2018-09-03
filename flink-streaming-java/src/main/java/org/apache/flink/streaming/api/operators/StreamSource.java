@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -62,12 +64,17 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
-		LatencyMarksEmitter latencyEmitter = null;
-		if (getExecutionConfig().isLatencyTrackingEnabled()) {
+		final Configuration configuration = this.getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
+		final long latencyTrackingInterval = getExecutionConfig().isLatencyTrackingConfigured()
+			? getExecutionConfig().getLatencyTrackingInterval()
+			: configuration.getLong(MetricOptions.LATENCY_INTERVAL);
+
+		LatencyMarksEmitter<OUT> latencyEmitter = null;
+		if (latencyTrackingInterval > 0) {
 			latencyEmitter = new LatencyMarksEmitter<>(
 				getProcessingTimeService(),
 				collector,
-				getExecutionConfig().getLatencyTrackingInterval(),
+				latencyTrackingInterval,
 				this.getOperatorID(),
 				getRuntimeContext().getIndexOfThisSubtask());
 		}

@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -103,6 +104,13 @@ public class MetricOptions {
 		key("metrics.scope.operator")
 			.defaultValue("<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
 			.withDescription("Defines the scope format string that is applied to all metrics scoped to an operator.");
+
+	public static final ConfigOption<Long> LATENCY_INTERVAL =
+		key("metrics.latency.interval")
+			.defaultValue(2000L)
+			.withDescription("Defines the interval at which latency tracking marks are emitted from the sources." +
+				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
+				" impact the performance of the cluster.");
 
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
