@@ -134,11 +134,11 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	//  operators and cleanup
 	// ------------------------------------------------------------------------
 
-	public OperatorMetricGroup addOperator(String name) {
-		return addOperator(OperatorID.fromJobVertexID(vertexId), name);
+	public OperatorMetricGroup getOrAddOperator(String name) {
+		return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), name);
 	}
 
-	public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
+	public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
 		if (name != null && name.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
 			LOG.warn("The operator name {} exceeded the {} characters length limit and was truncated.", name, METRICS_OPERATOR_NAME_MAX_LENGTH);
 			name = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
