@@ -49,7 +49,7 @@ class InsertIntoValidationTest {
   }
 
   @Test(expected = classOf[TableException])
-  def testorder1(): Unit = {
+  def testNonTimeOrderByInsert(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -66,7 +66,6 @@ class InsertIntoValidationTest {
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
     val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable order by a"
-    //val sql = "INSERT INTO targetTable SELECT a, 3, 'hi', rowtime FROM sourceTable"
     tEnv.sqlUpdate(sql)
   }
 
