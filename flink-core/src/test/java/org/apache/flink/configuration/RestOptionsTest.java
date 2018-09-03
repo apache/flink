@@ -46,7 +46,7 @@ public class RestOptionsTest extends TestLogger {
 	public void testBindAddressSecondDeprecatedKey() {
 		final Configuration configuration = new Configuration();
 		final String expectedAddress = "foobar";
-		configuration.setString("web.address", expectedAddress);
+		configuration.setString("jobmanager.web.address", expectedAddress);
 
 		final String actualAddress = configuration.getString(RestOptions.BIND_ADDRESS);
 

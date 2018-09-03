@@ -51,7 +51,7 @@
    :high-availability.zookeeper.quorum (zookeeper-quorum test)
    :high-availability.storageDir       (str (:ha-storage-dir test) "/ha")
    :state.savepoints.dir               (str (:ha-storage-dir test) "/savepoints")
-   :rest.port                           8081
+   :rest.port                          8081
    :rest.bind-address                  "0.0.0.0"
    :taskmanager.numberOfTaskSlots      taskmanager-slots
    :yarn.application-attempts          99999
