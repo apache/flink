@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.stream.sql.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
