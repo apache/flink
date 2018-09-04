@@ -17,26 +17,13 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.io.NonParallelInput;
-import org.apache.flink.api.common.io.RichInputFormat;
-import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
-
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.datastax.driver.mapping.Result;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -44,45 +31,21 @@ import java.io.IOException;
  * InputFormat to read data from Apache Cassandra and generate a custom Cassandra annotated object.
  * @param <OUT> type of inputClass
  */
-public class CassandraPojoInputFormat<OUT> extends RichInputFormat<OUT, InputSplit> implements NonParallelInput {
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
+public class CassandraPojoInputFormat<OUT> extends CassandraInputFormatBase<OUT> {
 
-	private final String query;
-	private final ClusterBuilder builder;
-
-	private transient Cluster cluster;
-	private transient Session session;
 	private transient Result<OUT> resultSet;
 	private Class<OUT> inputClass;
 
 	public CassandraPojoInputFormat(String query, ClusterBuilder builder, Class<OUT> inputClass) {
-		Preconditions.checkArgument(!Strings.isNullOrEmpty(query), "Query cannot be null or empty");
-		Preconditions.checkArgument(builder != null, "Builder cannot be null");
+		super(query, builder);
+
 		Preconditions.checkArgument(inputClass != null, "InputClass cannot be null");
 
-		this.query = query;
-		this.builder = builder;
 		this.inputClass = inputClass;
 	}
 
 	@Override
-	public void configure(Configuration parameters) {
-		this.cluster = builder.getCluster();
-	}
-
-	@Override
-	public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
-		return cachedStatistics;
-	}
-
-	/**
-	 * Opens a Session and executes the query.
-	 *
-	 * @param ignored
-	 * @throws IOException
-	 */
-	@Override
-	public void open(InputSplit ignored) throws IOException {
+	public void open(InputSplit split) throws IOException {
 		this.session = cluster.connect();
 		MappingManager manager = new MappingManager(session);
 
@@ -99,38 +62,5 @@ public class CassandraPojoInputFormat<OUT> extends RichInputFormat<OUT, InputSpl
 	@Override
 	public OUT nextRecord(OUT reuse) throws IOException {
 		return resultSet.one();
-	}
-
-	@Override
-	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		GenericInputSplit[] split = {new GenericInputSplit(0, 1)};
-		return split;
-	}
-
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(InputSplit[] inputSplits) {
-		return new DefaultInputSplitAssigner(inputSplits);
-	}
-
-	/**
-	 * Closes all resources used.
-	 */
-	@Override
-	public void close() throws IOException {
-		try {
-			if (session != null) {
-				session.close();
-			}
-		} catch (Exception e) {
-			LOG.error("Error while closing session.", e);
-		}
-
-		try {
-			if (cluster != null) {
-				cluster.close();
-			}
-		} catch (Exception e) {
-			LOG.error("Error while closing cluster.", e);
-		}
 	}
 }
