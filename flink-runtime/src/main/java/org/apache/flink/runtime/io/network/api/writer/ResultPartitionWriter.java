@@ -57,6 +57,20 @@ public interface ResultPartitionWriter {
 	void flushAll();
 
 	/**
+	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in all local subpartitions.
+	 */
+	default void flushAllLocal() {
+		flushAll();
+	}
+
+	/**
+	 * Set flush timeout for non local subpartitions. Local subpartitions must be flushed manually using
+	 * for example {@link #flushAllLocal()}.
+	 */
+	default void setFlushTimeout(long flushTimeout) {
+	}
+
+	/**
 	 * Manually trigger consumption from enqueued {@link BufferConsumer BufferConsumers} in one specified subpartition.
 	 */
 	void flush(int subpartitionIndex);

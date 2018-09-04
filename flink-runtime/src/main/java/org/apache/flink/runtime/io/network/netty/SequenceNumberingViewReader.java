@@ -97,6 +97,11 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	}
 
 	@Override
+	public boolean isBlocked() {
+		return false;
+	}
+
+	@Override
 	public InputChannelID getReceiverId() {
 		return receiverId;
 	}
@@ -140,6 +145,11 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener, Network
 	@Override
 	public void notifyDataAvailable() {
 		requestQueue.notifyReaderNonEmpty(this);
+	}
+
+	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+		requestQueue.registerPeriodicFlush(this, flushTimeout);
 	}
 
 	@Override

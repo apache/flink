@@ -57,6 +57,11 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+		availabilityListener.registerPeriodicFlush(flushTimeout);
+	}
+
+	@Override
 	public void notifySubpartitionConsumed() {
 		releaseAllResources();
 	}

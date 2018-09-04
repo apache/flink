@@ -24,8 +24,14 @@ package org.apache.flink.runtime.io.network.partition;
  */
 public interface BufferAvailabilityListener {
 
+	default boolean isLocal() {
+		return false;
+	}
+
 	/**
 	 * Called whenever there might be new data available.
 	 */
 	void notifyDataAvailable();
+
+	void registerPeriodicFlush(long flushTimeout);
 }

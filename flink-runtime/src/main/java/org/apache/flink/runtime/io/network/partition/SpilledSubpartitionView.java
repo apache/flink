@@ -174,6 +174,10 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+	}
+
+	@Override
 	public void notifySubpartitionConsumed() throws IOException {
 		parent.onConsumedSubpartition();
 	}

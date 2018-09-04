@@ -457,7 +457,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		final PipelinedSubpartition subpartition = createSubpartition();
 
 		TestSubpartitionConsumer consumer = new TestSubpartitionConsumer(isSlowConsumer, consumerCallback);
-		final PipelinedSubpartitionView view = subpartition.createReadView(consumer);
+		final ResultSubpartitionView view = subpartition.createReadView(consumer);
 		consumer.setSubpartitionView(view);
 
 		Future<Boolean> producerResult = executorService.submit(

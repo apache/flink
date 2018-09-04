@@ -25,4 +25,8 @@ class NoOpBufferAvailablityListener implements BufferAvailabilityListener {
 	@Override
 	public void notifyDataAvailable() {
 	}
+
+	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+	}
 }

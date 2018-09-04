@@ -45,6 +45,8 @@ public interface ResultSubpartitionView {
 
 	void notifyDataAvailable();
 
+	void registerPeriodicFlush(long flushTimeout);
+
 	void releaseAllResources() throws IOException;
 
 	void notifySubpartitionConsumed() throws IOException;

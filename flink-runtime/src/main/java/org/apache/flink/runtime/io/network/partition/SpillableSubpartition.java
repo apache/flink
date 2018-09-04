@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A spillable sub partition starts out in-memory and spills to disk if asked
@@ -130,6 +131,14 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+		synchronized (buffers) {
+			checkState(readView != null);
+			readView.registerPeriodicFlush(flushTimeout);
+		}
+	}
+
+	@Override
 	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
 			if (add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true)) {
@@ -189,7 +198,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public ResultSubpartitionView createReadView(BufferAvailabilityListener availabilityListener) throws IOException {
+	public ResultSubpartitionView createReadViewInternal(BufferAvailabilityListener availabilityListener) throws IOException {
 		synchronized (buffers) {
 			if (!isFinished) {
 				throw new IllegalStateException("Subpartition has not been finished yet, " +

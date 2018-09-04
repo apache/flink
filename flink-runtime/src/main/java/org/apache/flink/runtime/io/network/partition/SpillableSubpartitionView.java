@@ -192,6 +192,10 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
+	public void registerPeriodicFlush(long flushTimeout) {
+	}
+
+	@Override
 	public void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
 			SpilledSubpartitionView spilled = spilledView;

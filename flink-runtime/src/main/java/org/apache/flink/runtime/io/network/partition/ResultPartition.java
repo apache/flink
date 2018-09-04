@@ -37,6 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -94,6 +96,19 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	/** The subpartitions of this partition. At least one. */
 	private final ResultSubpartition[] subpartitions;
 
+	/**
+	 * Subset of {@code subpartitions} that are definitely local. We can only determine whether a
+	 * subpartition is local or not once it's read view was created.
+	 */
+	private final ArrayList<ResultSubpartition> localSubpartitions = new ArrayList<>();
+
+	/**
+	 * Subset of {@code subpartitions} that are definitely remote, however once we determined that,
+	 * we haven't yet known about {@link #flushTimeout}. This has to be handled during
+	 * {@link #setFlushTimeout(long)}.
+	 */
+	private final ArrayList<ResultSubpartition> remoteSubpartitionsMissingPeriodicFlushes = new ArrayList<>();
+
 	private final ResultPartitionManager partitionManager;
 
 	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
@@ -112,6 +127,14 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	 * result partition has been released.
 	 */
 	private final AtomicInteger pendingReferences = new AtomicInteger();
+
+	/**
+	 * This should be a {@code private final long} variable, but as it is now, it would be difficult
+	 * to pass this variable through constructor. This is because flushTimeout is defined only in
+	 * streaming, while this class is constructed in Task (flink-runtime). Doing this would probably
+	 * require some larger refactor around {@code StreamTask} and {@code Task}.
+	 */
+	private Optional<Long> flushTimeout = Optional.empty();
 
 	private BufferPool bufferPool;
 
@@ -269,6 +292,25 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	@Override
+	public void flushAllLocal() {
+		for (ResultSubpartition localSubpartition : localSubpartitions) {
+			localSubpartition.flush();
+		}
+	}
+
+	@Override
+	public void setFlushTimeout(long flushTimeout) {
+		checkState(!this.flushTimeout.isPresent(), "Flush timeout can not be set twice");
+		for (ResultSubpartition subpartition: remoteSubpartitionsMissingPeriodicFlushes) {
+			checkState(subpartition.isLocal().isPresent());
+			checkState(!subpartition.isLocal().get());
+			subpartition.registerPeriodicFlush(flushTimeout);
+		}
+		remoteSubpartitionsMissingPeriodicFlushes.clear();
+		this.flushTimeout = Optional.of(flushTimeout);
+	}
+
+	@Override
 	public void flush(int subpartitionIndex) {
 		subpartitions[subpartitionIndex].flush();
 	}
@@ -344,10 +386,20 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 		checkState(refCnt != -1, "Partition released.");
 		checkState(refCnt > 0, "Partition not pinned.");
-
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 
-		ResultSubpartitionView readView = subpartitions[index].createReadView(availabilityListener);
+		ResultSubpartition subpartition = subpartitions[index];
+		ResultSubpartitionView readView = subpartition.createReadView(availabilityListener);
+
+		if (availabilityListener.isLocal()) {
+			localSubpartitions.add(subpartition);
+		} else {
+			if (flushTimeout.isPresent()) {
+				subpartition.registerPeriodicFlush(flushTimeout.get());
+			} else {
+				remoteSubpartitionsMissingPeriodicFlushes.add(subpartition);
+			}
+		}
 
 		LOG.debug("Created {}", readView);
 

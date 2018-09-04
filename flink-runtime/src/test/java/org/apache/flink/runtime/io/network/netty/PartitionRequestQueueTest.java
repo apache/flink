@@ -381,6 +381,10 @@ public class PartitionRequestQueueTest {
 		}
 
 		@Override
+		public void registerPeriodicFlush(long flushTimeout) {
+		}
+
+		@Override
 		public void releaseAllResources() {
 		}
 
