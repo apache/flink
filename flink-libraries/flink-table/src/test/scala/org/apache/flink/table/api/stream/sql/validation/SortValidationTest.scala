@@ -38,7 +38,6 @@ class SortValidationTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, "")
   }
 
-
   // test should fail because time is not the primary order field
   @Test(expected = classOf[TableException])
   def testSortProcessingTimeSecondaryField(): Unit = {
@@ -52,6 +51,14 @@ class SortValidationTest extends TableTestBase {
   def testLimitWithoutSorting(): Unit = {
 
     val sqlQuery = "SELECT a FROM MyTable LIMIT 3"
+    streamUtil.verifySql(sqlQuery, "")
+  }
+
+  // test should fail because time is not order field
+  @Test(expected = classOf[TableException])
+  def testNonTimeSorting(): Unit = {
+
+    val sqlQuery = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable order by a"
     streamUtil.verifySql(sqlQuery, "")
   }
 }

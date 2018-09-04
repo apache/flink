@@ -743,36 +743,6 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   @Test
-  def testInsertIntoMemoryTableOrderBy(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSourceSinkUtil.clear()
-
-    val t = StreamTestData.getSmall3TupleDataStream(env)
-        .assignAscendingTimestamps(x => x._2)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("sourceTable", t)
-
-    val fieldNames = Array("d", "e", "f", "t")
-    val fieldTypes = Array(Types.INT, Types.LONG, Types.STRING, Types.SQL_TIMESTAMP)
-      .asInstanceOf[Array[TypeInformation[_]]]
-    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
-
-    val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime " +
-      "FROM sourceTable order by rowtime, a desc"
-    tEnv.sqlUpdate(sql)
-    env.execute()
-
-    val expected = List(
-      "1,1,Hi,1970-01-01 00:00:00.001",
-      "3,2,Hello world,1970-01-01 00:00:00.002",
-      "2,2,Hello,1970-01-01 00:00:00.002")
-    assertEquals(expected.sorted, MemoryTableSourceSinkUtil.tableDataStrings.sorted)
-  }
-
-  @Test
   def testWriteReadTableSourceSink(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
