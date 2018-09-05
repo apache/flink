@@ -76,7 +76,5 @@ public class BatchPojoExample {
 		inputDS.print();
 
 		env.execute("Write");
-
-
 	}
 }
