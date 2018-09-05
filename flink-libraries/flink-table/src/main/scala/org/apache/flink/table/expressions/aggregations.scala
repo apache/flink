@@ -56,6 +56,8 @@ abstract sealed class Aggregation extends Expression {
 
 case class DistinctAgg(child: Expression) extends Aggregation {
 
+  private[flink] def distinct: Expression = DistinctAgg(child)
+
   override private[flink] def resultType: TypeInformation[_] = child.resultType
 
   override private[flink] def validateInput(): ValidationResult = {

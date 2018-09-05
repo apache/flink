@@ -219,21 +219,6 @@ trait ImplicitExpressionOperations {
   def collect = Collect(expr)
 
   /**
-    * Returns a distinct field reference to a given expression
-    */
-  def distinct: Expression = {
-    expr match {
-      case distinctAgg: DistinctAgg => throw new TableException(
-        s"distinct modifier cannot apply to another distinct aggregation of: $distinctAgg!"
-      )
-      case agg: Aggregation => DistinctAgg(agg)
-      case _ => throw new TableException(
-        "The distinct modifier can only be applied to aggregation expression."
-      )
-    }
-  }
-
-  /**
     * Converts a value to a given type.
     *
     * e.g. "42".cast(Types.INT) leads to 42.
@@ -987,6 +972,7 @@ trait ImplicitExpressionConversions {
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
   implicit def userDefinedAggFunctionConstructor[T: TypeInformation, ACC: TypeInformation]
       (udagg: AggregateFunction[T, ACC]): UDAGGExpression[T, ACC] = UDAGGExpression(udagg)
+  implicit def toDistinct(agg: Aggregation): DistinctAgg = DistinctAgg(agg)
   implicit def toDistinct[T: TypeInformation, ACC: TypeInformation]
       (agg: AggregateFunction[T, ACC]): DistinctAggregateFunction[T, ACC] =
     DistinctAggregateFunction(agg)
