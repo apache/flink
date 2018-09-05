@@ -594,6 +594,13 @@ under the License.
 	<profiles>
 
 		<profile>
+			<id>java9</id>
+			<activation>
+				<jdk>9</jdk>
+			</activation>
+		</profile>
+
+		<profile>
 			<id>fast</id>
 			<activation>
 				<property>
