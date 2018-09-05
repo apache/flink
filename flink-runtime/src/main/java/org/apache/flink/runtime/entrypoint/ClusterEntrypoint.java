@@ -64,6 +64,7 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -91,6 +92,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -328,7 +330,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				dispatcherGatewayRetriever,
 				resourceManagerGatewayRetriever,
 				transientBlobCache,
-				rpcService.getExecutor(),
+				Executors.newFixedThreadPool(8, new ExecutorThreadFactory("Flink-DispatcherRestEndpoint")),
 				new AkkaQueryServiceRetriever(actorSystem, timeout),
 				highAvailabilityServices.getWebMonitorLeaderElectionService());
 
