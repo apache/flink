@@ -25,6 +25,8 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
+
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LiteralTest extends ExpressionTestBase {
@@ -86,6 +88,19 @@ class LiteralTest extends ExpressionTestBase {
       s"Func3(42, '$hello')",
       s"Func3(42, '$hello')",
       s"42 and $hello")
+  }
+
+  @Test
+  def testParseRegularExpression(): Unit = {
+    assertEquals(
+      "foo([\\w]+)",
+      (ExpressionParser.parseExpression("'foothebar'.regexExtract('foo([\\w]+)', 1)"))
+        .asInstanceOf[Call].args(1).asInstanceOf[Literal].value)
+
+    assertEquals(
+      "\\d{3}",
+      (ExpressionParser.parseExpression("'123'.similar('\\d{3}')"))
+        .asInstanceOf[Call].args(1).asInstanceOf[Literal].value)
   }
 
   def testData: Any = {

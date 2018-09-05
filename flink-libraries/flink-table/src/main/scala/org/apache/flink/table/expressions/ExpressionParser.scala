@@ -186,7 +186,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       }
 
   lazy val singleQuoteStringLiteral: Parser[Expression] =
-    ("'" + """([^'\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*""" + "'").r ^^ {
+    ("'" + """([^'\p{Cntrl}]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*""" + "'").r ^^ {
       str => Literal(str.substring(1, str.length - 1))
     }
 
