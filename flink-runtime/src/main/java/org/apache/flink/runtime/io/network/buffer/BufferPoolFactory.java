@@ -29,7 +29,7 @@ public interface BufferPoolFactory {
 	 * Tries to create a buffer pool, which is guaranteed to provide at least the number of required
 	 * buffers.
 	 *
-	 * <p> The buffer pool is of dynamic size with at least <tt>numRequiredBuffers</tt> buffers.
+	 * <p>The buffer pool is of dynamic size with at least <tt>numRequiredBuffers</tt> buffers.
 	 *
 	 * @param numRequiredBuffers
 	 * 		minimum number of network buffers in this pool
