@@ -598,6 +598,35 @@ under the License.
 			<activation>
 				<jdk>9</jdk>
 			</activation>
+
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-common</artifactId>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+
+					<dependency>
+						<groupId>org.apache.hadoop</groupId>
+						<artifactId>hadoop-common</artifactId>
+						<type>test-jar</type>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
 		</profile>
 
 		<profile>
