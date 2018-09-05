@@ -30,6 +30,7 @@ import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,7 +44,7 @@ import java.util.function.Consumer;
 /**
  * Tests for the {@link LatencyStats}.
  */
-public class LatencyStatsTest {
+public class LatencyStatsTest extends TestLogger {
 
 	private static final OperatorID OPERATOR_ID = new OperatorID();
 	private static final OperatorID SOURCE_ID_1 = new OperatorID();
