@@ -21,8 +21,16 @@ package org.apache.flink.formats.avro.utils;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
+import org.apache.flink.formats.avro.generated.Fixed2;
+import org.apache.flink.formats.avro.generated.SimpleUser;
 import org.apache.flink.formats.avro.generated.User;
 
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
+
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +57,35 @@ public class TestDataGenerator {
 				new HashMap<>(),
 				generateRandomFixed16(rnd),
 				generateRandomUnion(rnd),
-				generateRandomAddress(rnd));
+				generateRandomAddress(rnd),
+				generateRandomBytes(rnd),
+				LocalDate.parse("2014-03-01"),
+				LocalTime.parse("12:12:12"),
+				123456,
+				DateTime.parse("2014-03-01T12:12:12.321Z"),
+				123456L,
+				ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()),
+				new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+	}
+
+	public static SimpleUser generateRandomSimpleUser(Random rnd) {
+		return new SimpleUser(
+				generateRandomString(rnd, 50),
+				rnd.nextBoolean() ? null : rnd.nextInt(),
+				rnd.nextBoolean() ? null : generateRandomString(rnd, 6),
+				rnd.nextBoolean() ? null : rnd.nextLong(),
+				rnd.nextDouble(),
+				null,
+				rnd.nextBoolean(),
+				generateRandomStringList(rnd, 20, 30),
+				generateRandomBooleanList(rnd, 20),
+				rnd.nextBoolean() ? null : generateRandomStringList(rnd, 20, 20),
+				generateRandomColor(rnd),
+				new HashMap<>(),
+				generateRandomFixed16(rnd),
+				generateRandomUnion(rnd),
+				generateRandomAddress(rnd),
+				generateRandomBytes(rnd));
 	}
 
 	public static Colors generateRandomColor(Random rnd) {
@@ -76,6 +112,12 @@ public class TestDataGenerator {
 				generateRandomString(rnd, 20));
 	}
 
+	public static ByteBuffer generateRandomBytes(Random rnd) {
+		final byte[] bytes = new byte[10];
+		rnd.nextBytes(bytes);
+		return ByteBuffer.wrap(bytes);
+	}
+
 	private static List<Boolean> generateRandomBooleanList(Random rnd, int maxEntries) {
 		final int num = rnd.nextInt(maxEntries + 1);
 		ArrayList<Boolean> list = new ArrayList<>();
@@ -97,7 +139,7 @@ public class TestDataGenerator {
 	private static String generateRandomString(Random rnd, int maxLen) {
 		char[] chars = new char[rnd.nextInt(maxLen + 1)];
 		for (int i = 0; i < chars.length; i++) {
-			chars[i] = (char) rnd.nextInt(Character.MAX_VALUE);
+			chars[i] = (char) rnd.nextInt(Character.MIN_SURROGATE);
 		}
 		return new String(chars);
 	}

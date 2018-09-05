@@ -715,7 +715,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 						}
 					}
 				}
-			});
+			}, "Kafka Partition Discovery for " + getRuntimeContext().getTaskNameWithSubtasks());
 
 			discoveryLoopThread.start();
 			kafkaFetcher.runFetchLoop();

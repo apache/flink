@@ -25,6 +25,7 @@ import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameter
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.util.MesosConfiguration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -124,7 +124,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl) throws Exception {
-		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			rmServicesConfiguration,
@@ -135,7 +134,6 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			rpcService,
 			ResourceManager.RESOURCE_MANAGER_NAME,
 			resourceId,
-			rmConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			rmRuntimeServices.getSlotManager(),
@@ -147,8 +145,8 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			mesosServices,
 			schedulerConfiguration,
 			taskManagerParameters,
-			taskManagerContainerSpec
-			);
+			taskManagerContainerSpec,
+			webInterfaceUrl);
 	}
 
 	@Override
@@ -179,6 +177,9 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 				}
 			});
 	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {}
 
 	public static void main(String[] args) {
 		// startup checks and logging

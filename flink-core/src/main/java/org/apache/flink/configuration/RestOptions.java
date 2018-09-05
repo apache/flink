@@ -31,15 +31,16 @@ public class RestOptions {
 	/**
 	 * The address that the server binds itself to.
 	 */
-	public static final ConfigOption<String> REST_BIND_ADDRESS =
+	public static final ConfigOption<String> BIND_ADDRESS =
 		key("rest.bind-address")
 			.noDefaultValue()
+			.withDeprecatedKeys(WebOptions.ADDRESS.key(), ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
 			.withDescription("The address that the server binds itself.");
 
 	/**
 	 * The address that should be used by clients to connect to the server.
 	 */
-	public static final ConfigOption<String> REST_ADDRESS =
+	public static final ConfigOption<String> ADDRESS =
 		key("rest.address")
 			.noDefaultValue()
 			.withDeprecatedKeys(JobManagerOptions.ADDRESS.key())
@@ -48,9 +49,10 @@ public class RestOptions {
 	/**
 	 * The port that the server listens on / the client connects to.
 	 */
-	public static final ConfigOption<Integer> REST_PORT =
+	public static final ConfigOption<Integer> PORT =
 		key("rest.port")
 			.defaultValue(8081)
+			.withDeprecatedKeys("web.port")
 			.withDescription("The port that the server listens on / the client connects to.");
 
 	/**
@@ -94,7 +96,7 @@ public class RestOptions {
 	/**
 	 * The maximum content length that the server will handle.
 	 */
-	public static final ConfigOption<Integer> REST_SERVER_MAX_CONTENT_LENGTH =
+	public static final ConfigOption<Integer> SERVER_MAX_CONTENT_LENGTH =
 		key("rest.server.max-content-length")
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the server will handle.");
@@ -102,7 +104,7 @@ public class RestOptions {
 	/**
 	 * The maximum content length that the client will handle.
 	 */
-	public static final ConfigOption<Integer> REST_CLIENT_MAX_CONTENT_LENGTH =
+	public static final ConfigOption<Integer> CLIENT_MAX_CONTENT_LENGTH =
 		key("rest.client.max-content-length")
 			.defaultValue(104_857_600)
 			.withDescription("The maximum content length in bytes that the client will handle.");

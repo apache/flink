@@ -66,7 +66,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 	}
 
 	@Override
-	public void terminateCluster(StandaloneClusterId clusterId) throws FlinkException {
+	public void killCluster(StandaloneClusterId clusterId) throws FlinkException {
 		throw new UnsupportedOperationException("Cannot terminate a standalone cluster.");
 	}
 

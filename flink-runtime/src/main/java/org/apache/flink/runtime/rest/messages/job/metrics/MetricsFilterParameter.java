@@ -45,4 +45,8 @@ public class MetricsFilterParameter extends MessageQueryParameter<String> {
 		return value;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Comma-separated list of string values to select specific metrics.";
+	}
 }

@@ -221,7 +221,8 @@ public class PartitionRequestClientHandlerTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true);
 	}
 
 	/**

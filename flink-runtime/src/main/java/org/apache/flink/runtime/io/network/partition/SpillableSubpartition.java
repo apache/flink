@@ -93,6 +93,11 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	@Override
 	public synchronized boolean add(BufferConsumer bufferConsumer) throws IOException {
+		return add(bufferConsumer, false);
+	}
+
+	private boolean add(BufferConsumer bufferConsumer, boolean forceFinishRemainingBuffers)
+			throws IOException {
 		checkNotNull(bufferConsumer);
 
 		synchronized (buffers) {
@@ -109,7 +114,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			increaseBuffersInBacklog(bufferConsumer);
 
 			if (spillWriter != null) {
-				spillFinishedBufferConsumers();
+				spillFinishedBufferConsumers(forceFinishRemainingBuffers);
 			}
 		}
 		return true;
@@ -127,7 +132,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	@Override
 	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
-			if (add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE))) {
+			if (add(EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE), true)) {
 				isFinished = true;
 			}
 
@@ -228,11 +233,13 @@ class SpillableSubpartition extends ResultSubpartition {
 				spillWriter = ioManager.createBufferFileWriter(ioManager.createChannel());
 
 				int numberOfBuffers = buffers.size();
-				long spilledBytes = spillFinishedBufferConsumers();
+				long spilledBytes = spillFinishedBufferConsumers(isFinished);
+				int spilledBuffers = numberOfBuffers - buffers.size();
 
-				LOG.debug("Spilling {} bytes for sub partition {} of {}.", spilledBytes, index, parent.getPartitionId());
+				LOG.debug("Spilling {} bytes ({} buffers} for sub partition {} of {}.",
+					spilledBytes, spilledBuffers, index, parent.getPartitionId());
 
-				return numberOfBuffers - buffers.size();
+				return spilledBuffers;
 			}
 		}
 
@@ -241,21 +248,39 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@VisibleForTesting
-	protected long spillFinishedBufferConsumers() throws IOException {
+	long spillFinishedBufferConsumers(boolean forceFinishRemainingBuffers) throws IOException {
 		long spilledBytes = 0;
 
 		while (!buffers.isEmpty()) {
-			BufferConsumer bufferConsumer = buffers.peek();
+			BufferConsumer bufferConsumer = buffers.getFirst();
 			Buffer buffer = bufferConsumer.build();
 			updateStatistics(buffer);
-			spilledBytes += buffer.getSize();
-			spillWriter.writeBlock(buffer);
+			int bufferSize = buffer.getSize();
+			spilledBytes += bufferSize;
 
-			if (bufferConsumer.isFinished()) {
+			// NOTE we may be in the process of finishing the subpartition where any buffer should
+			// be treated as if it was finished!
+			if (bufferConsumer.isFinished() || forceFinishRemainingBuffers) {
+				if (bufferSize > 0) {
+					spillWriter.writeBlock(buffer);
+				} else {
+					// If we skip a buffer for the spill writer, we need to adapt the backlog accordingly
+					decreaseBuffersInBacklog(buffer);
+					buffer.recycleBuffer();
+				}
 				bufferConsumer.close();
 				buffers.poll();
-			}
-			else {
+			} else {
+				// If there is already data, we need to spill it anyway, since we do not get this
+				// slice from the buffer consumer again during the next build.
+				// BEWARE: by doing so, we increase the actual number of buffers in the spill writer!
+				if (bufferSize > 0) {
+					spillWriter.writeBlock(buffer);
+					increaseBuffersInBacklog(bufferConsumer);
+				} else {
+					buffer.recycleBuffer();
+				}
+
 				return spilledBytes;
 			}
 		}

@@ -166,6 +166,39 @@ For convenience, Flink provides the following schemas:
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
     
+3. `AvroDeserializationSchema` which reads data serialized with Avro format using a statically provided schema. It can
+    infer the schema from Avro generated classes (`AvroDeserializationSchema.forSpecific(...)`) or it can work with `GenericRecords`
+    with a manually provided schema (with `AvroDeserializationSchema.forGeneric(...)`). This deserialization schema expects that
+    the serialized records DO NOT contain embedded schema.
+
+    - There is also a version of this schema available that can lookup the writer's schema (schema which was used to write the record) in
+      [Confluent Schema Registry](https://docs.confluent.io/current/schema-registry/docs/index.html). Using these deserialization schema
+      record will be read with the schema that was retrieved from Schema Registry and transformed to a statically provided( either through 
+      `ConfluentRegistryAvroDeserializationSchema.forGeneric(...)` or `ConfluentRegistryAvroDeserializationSchema.forSpecific(...)`).
+
+    <br>To use this deserialization schema one has to add the following additional dependency:
+    
+<div class="codetabs" markdown="1">
+<div data-lang="AvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+<div data-lang="ConfluentRegistryAvroDeserializationSchema" markdown="1">
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro-confluent-registry</artifactId>
+  <version>{{site.version }}</version>
+</dependency>
+{% endhighlight %}
+</div>
+</div>
+
 When encountering a corrupted message that cannot be deserialized for any reason, there
 are two options - either throwing an exception from the `deserialize(...)` method
 which will cause the job to fail and be restarted, or returning `null` to allow
@@ -451,6 +484,11 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
+**Note**: If a watermark assigner depends on records read from Kafka to advance its watermarks (which is commonly the case), all topics and partitions need to have a continuous stream of records. Otherwise, the watermarks of the whole application cannot advance and all time-based operations, such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior. 
+A Flink improvement is planned to prevent this from happening 
+(see [FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](
+https://issues.apache.org/jira/browse/FLINK-5479)).
+In the meanwhile, a possible workaround is to send *heartbeat messages* to all consumed partitions that advance the watermarks of idle partitions.
 
 ## Kafka Producer
 

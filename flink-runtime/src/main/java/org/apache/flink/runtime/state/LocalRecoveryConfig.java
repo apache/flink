@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.Configuration;
-
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nonnull;
 
 /**
@@ -31,57 +26,22 @@ import javax.annotation.Nonnull;
  */
 public class LocalRecoveryConfig {
 
-	/**
-	 * Enum over modes of local recovery:
-	 * <p><ul>
-	 * <li>DISABLED: disables local recovery.
-	 * <li>ENABLE_FILE_BASED: enables local recovery in a variant that is based on local files.
-	 * </ul>
-	 */
-	public enum LocalRecoveryMode {
-		DISABLED,
-		ENABLE_FILE_BASED;
-
-		/**
-		 * Extracts the {@link LocalRecoveryMode} from the given configuration. Defaults to LocalRecoveryMode.DISABLED
-		 * if no configuration value is specified or parsing the value resulted in an exception.
-		 *
-		 * @param configuration the configuration that specifies the value for the local recovery mode.
-		 * @return the local recovery mode as found in the config, or LocalRecoveryMode.DISABLED if no mode was
-		 * configured or the specified mode could not be parsed.
-		 */
-		@Nonnull
-		public static LocalRecoveryMode fromConfig(@Nonnull Configuration configuration) {
-			String localRecoveryConfString = configuration.getString(CheckpointingOptions.LOCAL_RECOVERY);
-			try {
-				return LocalRecoveryConfig.LocalRecoveryMode.valueOf(localRecoveryConfString);
-			} catch (IllegalArgumentException ex) {
-				LoggerFactory.getLogger(LocalRecoveryConfig.class).warn(
-					"Exception while parsing configuration of local recovery mode. Local recovery will be disabled.",
-					ex);
-				return LocalRecoveryConfig.LocalRecoveryMode.DISABLED;
-			}
-		}
-	}
-
 	/** The local recovery mode. */
-	@Nonnull
-	private final LocalRecoveryMode localRecoveryMode;
+	private final boolean localRecoveryEnabled;
 
 	/** Encapsulates the root directories and the subtask-specific path. */
 	@Nonnull
 	private final LocalRecoveryDirectoryProvider localStateDirectories;
 
 	public LocalRecoveryConfig(
-		@Nonnull LocalRecoveryMode localRecoveryMode,
+		boolean localRecoveryEnabled,
 		@Nonnull LocalRecoveryDirectoryProvider directoryProvider) {
-		this.localRecoveryMode = localRecoveryMode;
+		this.localRecoveryEnabled = localRecoveryEnabled;
 		this.localStateDirectories = directoryProvider;
 	}
 
-	@Nonnull
-	public LocalRecoveryMode getLocalRecoveryMode() {
-		return localRecoveryMode;
+	public boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	@Nonnull
@@ -92,7 +52,7 @@ public class LocalRecoveryConfig {
 	@Override
 	public String toString() {
 		return "LocalRecoveryConfig{" +
-			"localRecoveryMode=" + localRecoveryMode +
+			"localRecoveryMode=" + localRecoveryEnabled +
 			", localStateDirectories=" + localStateDirectories +
 			'}';
 	}

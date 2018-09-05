@@ -39,7 +39,9 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extend
 			WorkerType worker,
 			int dataPort,
 			HardwareDescription hardwareDescription) {
-		super(taskExecutorGateway);
+
+		super(worker.getResourceID(), taskExecutorGateway);
+
 		this.worker = Preconditions.checkNotNull(worker);
 		this.dataPort = dataPort;
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);

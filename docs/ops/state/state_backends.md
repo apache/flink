@@ -116,7 +116,8 @@ The RocksDBStateBackend is encouraged for:
 Note that the amount of state that you can keep is only limited by the amount of disk space available.
 This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
 This also means, however, that the maximum throughput that can be achieved will be lower with
-this state backend.
+this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
+on-heap representation as the heap-based backends are doing.
 
 RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
 
@@ -152,11 +153,12 @@ Possible values for the config entry are *jobmanager* (MemoryStateBackend), *fil
 name of the class that implements the state backend factory [FsStateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/filesystem/FsStateBackendFactory.java),
 such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
-In the case where the default state backend is set to *filesystem*, the entry `state.backend.fs.checkpointdir` defines the directory where the checkpoint data will be stored.
+The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
+You can find more details about the checkpoint directory structure [here](checkpoints.html#directory-structure).
 
 A sample section in the configuration file could look as follows:
 
-~~~
+{% highlight yaml %}
 # The backend that will be used to store operator state checkpoints
 
 state.backend: filesystem
@@ -164,7 +166,7 @@ state.backend: filesystem
 
 # Directory for storing checkpoints
 
-state.backend.fs.checkpointdir: hdfs://namenode:40010/flink/checkpoints
-~~~
+state.checkpoints.dir: hdfs://namenode:40010/flink/checkpoints
+{% endhighlight %}
 
 {% top %}

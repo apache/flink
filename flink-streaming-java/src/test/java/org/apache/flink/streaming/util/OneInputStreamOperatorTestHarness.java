@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -54,8 +55,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 		int maxParallelism,
 		int parallelism,
 		int subtaskIndex,
-		TypeSerializer<IN> typeSerializerIn) throws Exception {
-		this(operator, maxParallelism, parallelism, subtaskIndex);
+		TypeSerializer<IN> typeSerializerIn,
+		OperatorID operatorID) throws Exception {
+		this(operator, maxParallelism, parallelism, subtaskIndex, operatorID);
 
 		config.setTypeSerializerIn1(Preconditions.checkNotNull(typeSerializerIn));
 	}
@@ -78,7 +80,16 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, parallelism, subtaskIndex);
+		this(operator, maxParallelism, parallelism, subtaskIndex, new OperatorID());
+	}
+
+	public OneInputStreamOperatorTestHarness(
+			OneInputStreamOperator<IN, OUT> operator,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex,
+			OperatorID operatorID) throws Exception {
+		super(operator, maxParallelism, parallelism, subtaskIndex, operatorID);
 
 		this.oneInputOperator = operator;
 	}

@@ -18,97 +18,61 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.cep.pattern.conditions.IterativeCondition;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.cep.nfa.sharedbuffer.EventId;
+import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import javax.annotation.Nullable;
+
 import java.util.Objects;
 
 /**
- * Helper class which encapsulates the state of the NFA computation. It points to the current state,
- * the last taken event, its occurrence timestamp, the current version and the starting timestamp
+ * Helper class which encapsulates the currentStateName of the NFA computation. It points to the current currentStateName,
+ * the previous entry of the pattern, the current version and the starting timestamp
  * of the overall pattern.
- *
- * @param <T> Type of the input events
  */
-public class ComputationState<T> {
-	// pointer to the NFA state of the computation
-	private final State<T> state;
+public class ComputationState {
+	// pointer to the NFA currentStateName of the computation
+	private final String currentStateName;
 
-	// the last taken event
-	private final T event;
-
-	private final int counter;
-
-	// timestamp of the last taken event
-	private final long timestamp;
-
-	// The current version of the state to discriminate the valid pattern paths in the SharedBuffer
+	// The current version of the currentStateName to discriminate the valid pattern paths in the SharedBuffer
 	private final DeweyNumber version;
 
 	// Timestamp of the first element in the pattern
 	private final long startTimestamp;
 
-	private final State<T> previousState;
+	@Nullable
+	private final NodeId previousBufferEntry;
 
-	private final ConditionContext conditionContext;
+	@Nullable
+	private final EventId startEventID;
 
 	private ComputationState(
-			final NFA<T> nfa,
-			final State<T> currentState,
-			final State<T> previousState,
-			final T event,
-			final int counter,
-			final long timestamp,
+			final String currentState,
+			@Nullable final NodeId previousBufferEntry,
 			final DeweyNumber version,
+			@Nullable final EventId startEventID,
 			final long startTimestamp) {
-		this.state = currentState;
-		this.event = event;
-		this.counter = counter;
-		this.timestamp = timestamp;
+		this.currentStateName = currentState;
 		this.version = version;
 		this.startTimestamp = startTimestamp;
-		this.previousState = previousState;
-		this.conditionContext = new ConditionContext(nfa, this);
+		this.previousBufferEntry = previousBufferEntry;
+		this.startEventID = startEventID;
 	}
 
-	public int getCounter() {
-		return counter;
+	public EventId getStartEventID() {
+		return startEventID;
 	}
 
-	public ConditionContext getConditionContext() {
-		return conditionContext;
-	}
-
-	public boolean isFinalState() {
-		return state.isFinal();
-	}
-
-	public boolean isStartState() {
-		return state.isStart() && event == null;
-	}
-
-	public long getTimestamp() {
-		return timestamp;
+	public NodeId getPreviousBufferEntry() {
+		return previousBufferEntry;
 	}
 
 	public long getStartTimestamp() {
 		return startTimestamp;
 	}
 
-	public State<T> getState() {
-		return state;
-	}
-
-	public State<T> getPreviousState() {
-		return previousState;
-	}
-
-	public T getEvent() {
-		return event;
+	public String getCurrentStateName() {
+		return currentStateName;
 	}
 
 	public DeweyNumber getVersion() {
@@ -119,103 +83,46 @@ public class ComputationState<T> {
 	public boolean equals(Object obj) {
 		if (obj instanceof ComputationState) {
 			ComputationState other = (ComputationState) obj;
-			return Objects.equals(state, other.state) &&
-				Objects.equals(event, other.event) &&
-				counter == other.counter &&
-				timestamp == other.timestamp &&
+			return Objects.equals(currentStateName, other.currentStateName) &&
 				Objects.equals(version, other.version) &&
 				startTimestamp == other.startTimestamp &&
-				Objects.equals(previousState, other.previousState);
-
+				Objects.equals(startEventID, other.startEventID) &&
+				Objects.equals(previousBufferEntry, other.previousBufferEntry);
 		} else {
 			return false;
 		}
 	}
 
 	@Override
+	public String toString() {
+		return "ComputationState{" +
+			"currentStateName='" + currentStateName + '\'' +
+			", version=" + version +
+			", startTimestamp=" + startTimestamp +
+			", previousBufferEntry=" + previousBufferEntry +
+			", startEventID=" + startEventID +
+			'}';
+	}
+
+	@Override
 	public int hashCode() {
-		return Objects.hash(state, event, counter, timestamp, version, startTimestamp, previousState);
+		return Objects.hash(currentStateName, version, startTimestamp, startEventID, previousBufferEntry);
 	}
 
-	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state) {
-		Preconditions.checkArgument(state.isStart());
-		return new ComputationState<>(nfa, state, null, null, 0, -1L, new DeweyNumber(1), -1L);
+	public static ComputationState createStartState(final String state) {
+		return createStartState(state, new DeweyNumber(1));
 	}
 
-	public static <T> ComputationState<T> createStartState(final NFA<T> nfa, final State<T> state, final DeweyNumber version) {
-		Preconditions.checkArgument(state.isStart());
-		return new ComputationState<>(nfa, state, null, null, 0, -1L, version, -1L);
+	public static ComputationState createStartState(final String state, final DeweyNumber version) {
+		return createState(state, null, version, -1L, null);
 	}
 
-	public static <T> ComputationState<T> createState(
-			final NFA<T> nfa,
-			final State<T> currentState,
-			final State<T> previousState,
-			final T event,
-			final int counter,
-			final long timestamp,
+	public static ComputationState createState(
+			final String currentState,
+			final NodeId previousEntry,
 			final DeweyNumber version,
-			final long startTimestamp) {
-		return new ComputationState<>(nfa, currentState, previousState, event, counter, timestamp, version, startTimestamp);
-	}
-
-	public boolean isStopState() {
-		return state.isStop();
-	}
-
-	/**
-	 * The context used when evaluating this computation state.
-	 */
-	public class ConditionContext implements IterativeCondition.Context<T> {
-
-		private static final long serialVersionUID = -6733978464782277795L;
-
-		/**
-		 * A flag indicating if we should recompute the matching pattern, so that
-		 * the {@link IterativeCondition iterative condition} can be evaluated.
-		 */
-		private boolean shouldUpdate;
-
-		/** The current computation state. */
-		private transient ComputationState<T> computationState;
-
-		/** The owning {@link NFA} of this computation state. */
-		private final NFA<T> nfa;
-
-		/**
-		 * The matched pattern so far. A condition will be evaluated over this
-		 * pattern. This is evaluated <b>only once</b>, as this is an expensive
-		 * operation that traverses a path in the {@link SharedBuffer}.
-		 */
-		private transient Map<String, List<T>> matchedEvents;
-
-		public ConditionContext(NFA<T> nfa, ComputationState<T> computationState) {
-			this.nfa = nfa;
-			this.computationState = computationState;
-			this.shouldUpdate = true;
-		}
-
-		@Override
-		public Iterable<T> getEventsForPattern(final String key) {
-			Preconditions.checkNotNull(key);
-
-			// the (partially) matched pattern is computed lazily when this method is called.
-			// this is to avoid any overheads when using a simple, non-iterative condition.
-
-			if (shouldUpdate) {
-				this.matchedEvents = nfa.extractCurrentMatches(computationState);
-				shouldUpdate = false;
-			}
-
-			return new Iterable<T>() {
-				@Override
-				public Iterator<T> iterator() {
-					List<T> elements = matchedEvents.get(key);
-					return elements == null
-							? Collections.EMPTY_LIST.<T>iterator()
-							: elements.iterator();
-				}
-			};
-		}
+			final long startTimestamp,
+			final EventId startEventID) {
+		return new ComputationState(currentState, previousEntry, version, startEventID, startTimestamp);
 	}
 }

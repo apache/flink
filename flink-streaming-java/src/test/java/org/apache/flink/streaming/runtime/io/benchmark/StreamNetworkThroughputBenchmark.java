@@ -59,6 +59,10 @@ public class StreamNetworkThroughputBenchmark {
 		setUp(recordWriters, channels, flushTimeout, false);
 	}
 
+	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
+		setUp(recordWriters, channels, flushTimeout, false, -1, -1);
+	}
+
 	/**
 	 * Initializes the throughput benchmark with the given parameters.
 	 *
@@ -68,9 +72,15 @@ public class StreamNetworkThroughputBenchmark {
 	 * @param channels
 	 * 		number of outgoing channels / receivers
 	 */
-	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
+	public void setUp(
+			int recordWriters,
+			int channels,
+			int flushTimeout,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(recordWriters, channels, localMode);
+		environment.setUp(recordWriters, channels, localMode, senderBufferPoolSize, receiverBufferPoolSize);
 		receiver = environment.createReceiver();
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {

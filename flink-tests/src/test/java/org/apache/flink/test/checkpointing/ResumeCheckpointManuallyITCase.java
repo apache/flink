@@ -28,7 +28,6 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -38,6 +37,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -253,12 +253,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-
-		if (localRecovery) {
-			config.setString(
-				CheckpointingOptions.LOCAL_RECOVERY,
-				LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED.toString());
-		}
+		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, localRecovery);
 
 		// ZooKeeper recovery mode?
 		if (zooKeeperQuorum != null) {
@@ -269,11 +264,11 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 		}
 
 		MiniClusterResource cluster = new MiniClusterResource(
-			new MiniClusterResource.MiniClusterResourceConfiguration(
-				config,
-				NUM_TASK_MANAGERS,
-				SLOTS_PER_TASK_MANAGER),
-			true);
+			new MiniClusterResourceConfiguration.Builder()
+				.setConfiguration(config)
+				.setNumberTaskManagers(NUM_TASK_MANAGERS)
+				.setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
+				.build());
 
 		cluster.before();
 
@@ -344,7 +339,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 	}
 
 	private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client) throws ExecutionException, InterruptedException {
-		while (client.getJobStatus(jobId).get() != JobStatus.CANCELLING) {
+		while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
 			Thread.sleep(50);
 		}
 	}

@@ -53,6 +53,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 	private int pageCount;
 	private int page;
 	private LocalTime lastRetrieval;
+	private int previousResultsPage;
 
 	private static final int DEFAULT_REFRESH_INTERVAL = 3; // every 1s
 	private static final int MIN_REFRESH_INTERVAL = 1; // every 100ms
@@ -66,6 +67,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 		page = LAST_PAGE;
 
 		previousResults = Collections.emptyList();
+		previousResultsPage = 1;
 		results = Collections.emptyList();
 	}
 
@@ -264,7 +266,15 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 				.collect(Collectors.toList());
 
 		// update results
-		previousResults = results;
+		if (previousResultsPage == retrievalPage) {
+			// only use the previous results if the current page number has not changed
+			// this allows for updated results when the key space remains constant
+			previousResults = results;
+		} else {
+			previousResults = null;
+			previousResultsPage = retrievalPage;
+		}
+
 		results = stringRows;
 
 		// check if selected row is still valid
@@ -301,7 +311,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
 	private void gotoPage() {
 		final CliInputView view = new CliInputView(
 			client,
-			CliStrings.INPUT_ENTER_PAGE,
+			CliStrings.INPUT_ENTER_PAGE + " [1 to " + pageCount + "]",
 			(s) -> {
 				// validate input
 				final int newPage;

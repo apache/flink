@@ -20,32 +20,15 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingState;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateBinder;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
-import org.apache.flink.runtime.state.internal.InternalListState;
-import org.apache.flink.runtime.state.internal.InternalMapState;
-import org.apache.flink.runtime.state.internal.InternalReducingState;
-import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.ttl.TtlStateFactory;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -53,7 +36,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -74,35 +56,37 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	protected final TypeSerializer<K> keySerializer;
 
 	/** The currently active key. */
-	protected K currentKey;
+	private K currentKey;
 
-	/** The key group of the currently active key */
+	/** The key group of the currently active key. */
 	private int currentKeyGroup;
 
 	/** So that we can give out state when the user uses the same key. */
-	protected final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
+	private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
-	/** For caching the last accessed partitioned state */
+	/** For caching the last accessed partitioned state. */
 	private String lastName;
 
 	@SuppressWarnings("rawtypes")
 	private InternalKvState lastState;
 
-	/** The number of key-groups aka max parallelism */
+	/** The number of key-groups aka max parallelism. */
 	protected final int numberOfKeyGroups;
 
-	/** Range of key-groups for which this backend is responsible */
+	/** Range of key-groups for which this backend is responsible. */
 	protected final KeyGroupRange keyGroupRange;
 
-	/** KvStateRegistry helper for this task */
+	/** KvStateRegistry helper for this task. */
 	protected final TaskKvStateRegistry kvStateRegistry;
 
-	/** Registry for all opened streams, so they can be closed if the task using this backend is closed */
+	/** Registry for all opened streams, so they can be closed if the task using this backend is closed. */
 	protected CloseableRegistry cancelStreamRegistry;
 
 	protected final ClassLoader userCodeClassLoader;
 
 	private final ExecutionConfig executionConfig;
+
+	private final TtlTimeProvider ttlTimeProvider;
 
 	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
@@ -113,7 +97,8 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		ClassLoader userCodeClassLoader,
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
-		ExecutionConfig executionConfig) {
+		ExecutionConfig executionConfig,
+		TtlTimeProvider ttlTimeProvider) {
 
 		this.kvStateRegistry = kvStateRegistry;
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
@@ -124,6 +109,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		this.keyValueStatesByName = new HashMap<>();
 		this.executionConfig = executionConfig;
 		this.keyGroupCompressionDecorator = determineStreamCompression(executionConfig);
+		this.ttlTimeProvider = Preconditions.checkNotNull(ttlTimeProvider);
 	}
 
 	private StreamCompressionDecorator determineStreamCompression(ExecutionConfig executionConfig) {
@@ -152,89 +138,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 		lastState = null;
 		keyValueStatesByName.clear();
 	}
-
-	/**
-	 * Creates and returns a new {@link ValueState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <T> The type of the value that the {@code ValueState} can store.
-	 */
-	protected abstract <N, T> InternalValueState<K, N, T> createValueState(
-			TypeSerializer<N> namespaceSerializer,
-			ValueStateDescriptor<T> stateDesc) throws Exception;
-
-	/**
-	 * Creates and returns a new {@link ListState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <T> The type of the values that the {@code ListState} can store.
-	 */
-	protected abstract <N, T> InternalListState<K, N, T> createListState(
-			TypeSerializer<N> namespaceSerializer,
-			ListStateDescriptor<T> stateDesc) throws Exception;
-
-	/**
-	 * Creates and returns a new {@link ReducingState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <T> The type of the values that the {@code ListState} can store.
-	 */
-	protected abstract <N, T> InternalReducingState<K, N, T> createReducingState(
-			TypeSerializer<N> namespaceSerializer,
-			ReducingStateDescriptor<T> stateDesc) throws Exception;
-
-	/**
-	 * Creates and returns a new {@link AggregatingState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <T> The type of the values that the {@code ListState} can store.
-	 */
-	protected abstract <N, T, ACC, R> InternalAggregatingState<K, N, T, ACC, R> createAggregatingState(
-			TypeSerializer<N> namespaceSerializer,
-			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception;
-
-	/**
-	 * Creates and returns a new {@link FoldingState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <T> Type of the values folded into the state
-	 * @param <ACC> Type of the value in the state
-	 *
-	 * @deprecated will be removed in a future version
-	 */
-	@Deprecated
-	protected abstract <N, T, ACC> InternalFoldingState<K, N, T, ACC> createFoldingState(
-			TypeSerializer<N> namespaceSerializer,
-			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
-
-	/**
-	 * Creates and returns a new {@link MapState}.
-	 *
-	 * @param namespaceSerializer TypeSerializer for the state namespace.
-	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
-	 *
-	 * @param <N> The type of the namespace.
-	 * @param <UK> Type of the keys in the state
-	 * @param <UV> Type of the values in the state	 *
-	 */
-	protected abstract <N, UK, UV> InternalMapState<K, N, UK, UV, ? extends Map<UK, UV>> createMapState(
-			TypeSerializer<N> namespaceSerializer,
-			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
 
 	/**
 	 * @see KeyedStateBackend
@@ -312,8 +215,6 @@ public abstract class AbstractKeyedStateBackend<K> implements
 					throw new RuntimeException(e);
 				}
 			});
-		} catch (RuntimeException e) {
-			throw e;
 		}
 	}
 
@@ -321,86 +222,44 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * @see KeyedStateBackend
 	 */
 	@Override
+	@SuppressWarnings("unchecked")
 	public <N, S extends State, V> S getOrCreateKeyedState(
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {
-
 		checkNotNull(namespaceSerializer, "Namespace serializer");
+		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
+				"This operation cannot use partitioned state.");
 
-		if (keySerializer == null) {
-			throw new UnsupportedOperationException(
-					"State key serializer has not been configured in the config. " +
-					"This operation cannot use partitioned state.");
+		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
+		if (kvState == null) {
+			if (!stateDescriptor.isSerializerInitialized()) {
+				stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+			}
+			kvState = TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+				namespaceSerializer, stateDescriptor, this, ttlTimeProvider);
+			keyValueStatesByName.put(stateDescriptor.getName(), kvState);
+			publishQueryableStateIfEnabled(stateDescriptor, kvState);
 		}
+		return (S) kvState;
+	}
 
-		if (!stateDescriptor.isSerializerInitialized()) {
-			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-		}
-
-		InternalKvState<K, ?, ?> existing = keyValueStatesByName.get(stateDescriptor.getName());
-		if (existing != null) {
-			@SuppressWarnings("unchecked")
-			S typedState = (S) existing;
-			return typedState;
-		}
-
-		// create a new blank key/value state
-		S state = stateDescriptor.bind(new StateBinder() {
-			@Override
-			public <T> ValueState<T> createValueState(ValueStateDescriptor<T> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createValueState(namespaceSerializer, stateDesc);
-			}
-
-			@Override
-			public <T> ListState<T> createListState(ListStateDescriptor<T> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createListState(namespaceSerializer, stateDesc);
-			}
-
-			@Override
-			public <T> ReducingState<T> createReducingState(ReducingStateDescriptor<T> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createReducingState(namespaceSerializer, stateDesc);
-			}
-
-			@Override
-			public <T, ACC, R> AggregatingState<T, R> createAggregatingState(
-					AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createAggregatingState(namespaceSerializer, stateDesc);
-			}
-
-			@Override
-			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createFoldingState(namespaceSerializer, stateDesc);
-			}
-
-			@Override
-			public <UK, UV> MapState<UK, UV> createMapState(MapStateDescriptor<UK, UV> stateDesc) throws Exception {
-				return AbstractKeyedStateBackend.this.createMapState(namespaceSerializer, stateDesc);
-			}
-
-		});
-
-		@SuppressWarnings("unchecked")
-		InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
-		keyValueStatesByName.put(stateDescriptor.getName(), kvState);
-
-		// Publish queryable state
+	private void publishQueryableStateIfEnabled(
+		StateDescriptor<?, ?> stateDescriptor,
+		InternalKvState<?, ?, ?> kvState) {
 		if (stateDescriptor.isQueryable()) {
 			if (kvStateRegistry == null) {
 				throw new IllegalStateException("State backend has not been initialized for job.");
 			}
-
 			String name = stateDescriptor.getQueryableStateName();
 			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
 		}
-
-		return state;
 	}
 
 	/**
 	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
 	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
 	 *       state backend, or being set on the state directly.
-	 * 
+	 *
 	 * @see KeyedStateBackend
 	 */
 	@SuppressWarnings("unchecked")
@@ -446,7 +305,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	}
 
 	@VisibleForTesting
-	public StreamCompressionDecorator getKeyGroupCompressionDecorator() {
+	StreamCompressionDecorator getKeyGroupCompressionDecorator() {
 		return keyGroupCompressionDecorator;
 	}
 
@@ -454,6 +313,11 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	 * Returns the total number of state entries across all keys/namespaces.
 	 */
 	@VisibleForTesting
-	public abstract int numStateEntries();
+	public abstract int numKeyValueStateEntries();
+
+	// TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
+	public boolean requiresLegacySynchronousTimerSnapshots() {
+		return false;
+	}
 
 }

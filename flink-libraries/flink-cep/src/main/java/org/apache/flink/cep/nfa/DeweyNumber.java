@@ -90,6 +90,10 @@ public class DeweyNumber implements Serializable {
 		}
 	}
 
+	public int getRun() {
+		return deweyNumber[0];
+	}
+
 	public int length() {
 		return deweyNumber.length;
 	}
@@ -191,6 +195,10 @@ public class DeweyNumber implements Serializable {
 		private static final long serialVersionUID = -5086792497034943656L;
 
 		private final IntSerializer elemSerializer = IntSerializer.INSTANCE;
+
+		public static final DeweyNumberSerializer INSTANCE = new DeweyNumberSerializer();
+
+		private DeweyNumberSerializer() {}
 
 		@Override
 		public boolean isImmutableType() {

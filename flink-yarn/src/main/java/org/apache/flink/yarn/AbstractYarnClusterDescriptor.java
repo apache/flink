@@ -143,6 +143,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	private String zookeeperNamespace;
 
+	private String nodeLabel;
+
 	/** Optional Jar file to include in the system class loader of all application nodes
 	 * (for per-job submission). */
 	private final Set<File> userJarFiles = new HashSet<>();
@@ -313,10 +315,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return false;
 	}
 
+	/**
+	 * @deprecated The cluster descriptor should not know about this option.
+	 */
+	@Deprecated
 	public void setDetachedMode(boolean detachedMode) {
 		this.detached = detachedMode;
 	}
 
+	/**
+	 * @deprecated The cluster descriptor should not know about this option.
+	 */
+	@Deprecated
 	public boolean isDetachedMode() {
 		return detached;
 	}
@@ -327,6 +337,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 	public void setZookeeperNamespace(String zookeeperNamespace) {
 		this.zookeeperNamespace = zookeeperNamespace;
+	}
+
+	public String getNodeLabel() {
+		return nodeLabel;
+	}
+
+	public void setNodeLabel(String nodeLabel) {
+		this.nodeLabel = nodeLabel;
 	}
 
 	// -------------------------------------------------------------
@@ -374,8 +392,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
 
-			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
+			flinkConfiguration.setString(RestOptions.ADDRESS, host);
+			flinkConfiguration.setInteger(RestOptions.PORT, rpcPort);
 
 			return createYarnClusterClient(
 				this,
@@ -404,9 +422,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public void terminateCluster(ApplicationId applicationId) throws FlinkException {
+	public void killCluster(ApplicationId applicationId) throws FlinkException {
 		try {
 			yarnClient.killApplication(applicationId);
+			Utils.deleteApplicationFiles(Collections.singletonMap(
+				YarnConfigKeys.FLINK_YARN_FILES,
+				getYarnFilesDir(applicationId).toUri().toString()));
 		} catch (YarnException | IOException e) {
 			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
 		}
@@ -496,7 +517,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
 		}
 
-		final int yarnMinAllocationMB = yarnConfiguration.getInt(yarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 0);
+		final int yarnMinAllocationMB = yarnConfiguration.getInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 0);
 
 		final ClusterSpecification validClusterSpecification;
 		try {
@@ -534,8 +555,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
-		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
-		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
+		flinkConfiguration.setString(RestOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -838,9 +859,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			TaskManagerOptions.NUM_TASK_SLOTS,
 			clusterSpecification.getSlotsPerTaskManager());
 
-		configuration.setInteger(
+		configuration.setString(
 			TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
-			clusterSpecification.getTaskManagerMemoryMB());
+			clusterSpecification.getTaskManagerMemoryMB() + "m");
 
 		// Upload the flink configuration
 		// write out configuration file
@@ -889,8 +910,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		Path yarnFilesDir = new Path(homeDir, ".flink/" + appId + '/');
-
+		final Path yarnFilesDir = getYarnFilesDir(appId);
 		FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
 		fs.setPermission(yarnFilesDir, permission); // set permission for path.
 
@@ -1016,9 +1036,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appContext.setApplicationType("Apache Flink");
 		appContext.setAMContainerSpec(amContainer);
 		appContext.setResource(capability);
+
 		if (yarnQueue != null) {
 			appContext.setQueue(yarnQueue);
 		}
+
+		setApplicationNodeLabel(appContext);
 
 		setApplicationTags(appContext);
 
@@ -1070,11 +1093,22 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
 					"Flink on YARN, use the following command or a YARN web interface to stop " +
 					"it:\nyarn application -kill " + appId + "\nPlease also note that the " +
-					"temporary files of the YARN session in the home directoy will not be removed.");
+					"temporary files of the YARN session in the home directory will not be removed.");
 		}
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;
+	}
+
+	/**
+	 * Returns the Path where the YARN application files should be uploaded to.
+	 *
+	 * @param appId YARN application id
+	 */
+	private Path getYarnFilesDir(final ApplicationId appId) throws IOException {
+		final FileSystem fileSystem = FileSystem.get(yarnConfiguration);
+		final Path homeDir = fileSystem.getHomeDirectory();
+		return new Path(homeDir, ".flink/" + appId + '/');
 	}
 
 	/**
@@ -1155,9 +1189,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					@Override
 					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 						throws IOException {
-
-						if (!(file.getFileName().startsWith("flink-dist") &&
-								file.getFileName().endsWith("jar"))) {
+						String fileName = file.getFileName().toString();
+						if (!(fileName.startsWith("flink-dist") &&
+								fileName.endsWith("jar"))) {
 
 							java.nio.file.Path relativePath = parentPath.relativize(file);
 
@@ -1326,6 +1360,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		reflector.setApplicationTags(appContext, applicationTags);
 	}
 
+	private void setApplicationNodeLabel(final ApplicationSubmissionContext appContext) throws InvocationTargetException,
+		IllegalAccessException {
+
+		if (nodeLabel != null) {
+			final ApplicationSubmissionContextReflector reflector = ApplicationSubmissionContextReflector.getInstance();
+			reflector.setApplicationNodeLabel(appContext, nodeLabel);
+		}
+	}
+
 	/**
 	 * Singleton object which uses reflection to determine whether the {@link ApplicationSubmissionContext}
 	 * supports various methods which, depending on the Hadoop version, may or may not be supported.
@@ -1336,6 +1379,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * - setApplicationTags (>= 2.4.0)
 	 * - setAttemptFailuresValidityInterval (>= 2.6.0)
 	 * - setKeepContainersAcrossApplicationAttempts (>= 2.4.0)
+	 * - setNodeLabelExpression (>= 2.6.0)
 	 */
 	private static class ApplicationSubmissionContextReflector {
 		private static final Logger LOG = LoggerFactory.getLogger(ApplicationSubmissionContextReflector.class);
@@ -1350,15 +1394,19 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		private static final String APPLICATION_TAGS_METHOD_NAME = "setApplicationTags";
 		private static final String ATTEMPT_FAILURES_METHOD_NAME = "setAttemptFailuresValidityInterval";
 		private static final String KEEP_CONTAINERS_METHOD_NAME = "setKeepContainersAcrossApplicationAttempts";
+		private static final String NODE_LABEL_EXPRESSION_NAME = "setNodeLabelExpression";
 
 		private final Method applicationTagsMethod;
 		private final Method attemptFailuresValidityIntervalMethod;
 		private final Method keepContainersMethod;
+		@Nullable
+		private final Method nodeLabelExpressionMethod;
 
 		private ApplicationSubmissionContextReflector(Class<ApplicationSubmissionContext> clazz) {
 			Method applicationTagsMethod;
 			Method attemptFailuresValidityIntervalMethod;
 			Method keepContainersMethod;
+			Method nodeLabelExpressionMethod;
 
 			try {
 				// this method is only supported by Hadoop 2.4.0 onwards
@@ -1395,6 +1443,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 
 			this.keepContainersMethod = keepContainersMethod;
+
+			try {
+				nodeLabelExpressionMethod = clazz.getMethod(NODE_LABEL_EXPRESSION_NAME, String.class);
+				LOG.debug("{} supports method {}.", clazz.getCanonicalName(), NODE_LABEL_EXPRESSION_NAME);
+			} catch (NoSuchMethodException e) {
+				LOG.debug("{} does not support method {}.", clazz.getCanonicalName(), NODE_LABEL_EXPRESSION_NAME);
+				nodeLabelExpressionMethod = null;
+			}
+
+			this.nodeLabelExpressionMethod = nodeLabelExpressionMethod;
 		}
 
 		public void setApplicationTags(
@@ -1409,6 +1467,21 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				LOG.debug("{} does not support method {}. Doing nothing.",
 					appContext.getClass().getCanonicalName(),
 					APPLICATION_TAGS_METHOD_NAME);
+			}
+		}
+
+		public void setApplicationNodeLabel(
+			ApplicationSubmissionContext appContext,
+			String nodeLabel) throws InvocationTargetException, IllegalAccessException {
+			if (nodeLabelExpressionMethod != null) {
+				LOG.debug("Calling method {} of {}.",
+					nodeLabelExpressionMethod.getName(),
+					appContext.getClass().getCanonicalName());
+				nodeLabelExpressionMethod.invoke(appContext, nodeLabel);
+			} else {
+				LOG.debug("{} does not support method {}. Doing nothing.",
+					appContext.getClass().getCanonicalName(),
+					NODE_LABEL_EXPRESSION_NAME);
 			}
 		}
 

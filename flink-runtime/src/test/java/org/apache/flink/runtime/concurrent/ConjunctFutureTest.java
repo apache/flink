@@ -193,7 +193,7 @@ public class ConjunctFutureTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the conjunct future returns upon completion the collection of all future values
+	 * Tests that the conjunct future returns upon completion the collection of all future values.
 	 */
 	@Test
 	public void testConjunctFutureValue() throws ExecutionException, InterruptedException {

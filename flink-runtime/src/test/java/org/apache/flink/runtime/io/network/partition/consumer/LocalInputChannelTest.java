@@ -293,7 +293,8 @@ public class LocalInputChannelTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+			true
 		);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
@@ -490,7 +491,8 @@ public class LocalInputChannelTest {
 					subpartitionIndex,
 					numberOfInputChannels,
 					mock(TaskActions.class),
-					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+					true);
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);

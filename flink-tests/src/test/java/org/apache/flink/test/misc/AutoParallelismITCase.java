@@ -24,12 +24,11 @@ import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.test.util.MiniClusterResource;
-import org.apache.flink.test.util.MiniClusterResource.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterResource.MiniClusterType;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
+import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -56,10 +55,10 @@ public class AutoParallelismITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResourceConfiguration(
-			new Configuration(),
-			NUM_TM,
-			SLOTS_PER_TM));
+		new MiniClusterResourceConfiguration.Builder()
+			.setNumberTaskManagers(NUM_TM)
+			.setNumberSlotsPerTaskManager(SLOTS_PER_TM)
+			.build());
 
 	@Test
 	public void testProgramWithAutoParallelism() throws Exception {
@@ -81,7 +80,7 @@ public class AutoParallelismITCase extends TestLogger {
 			assertEquals(PARALLELISM, resultCollection.size());
 		}
 		catch (Exception ex) {
-			if (MINI_CLUSTER_RESOURCE.getMiniClusterType().equals(MiniClusterType.LEGACY)) {
+			if (MINI_CLUSTER_RESOURCE.getCodebaseType() == TestBaseUtils.CodebaseType.LEGACY) {
 				throw ex;
 			}
 			assertTrue(

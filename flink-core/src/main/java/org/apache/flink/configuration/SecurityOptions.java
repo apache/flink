@@ -21,8 +21,11 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 
 /**
  * The set of configuration options relating to security.
@@ -84,13 +87,40 @@ public class SecurityOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Enable SSL support.
+	 * Enable SSL for internal (rpc, data transport, blob server) and external (HTTP/REST) communication.
+	 *
+	 * @deprecated Use {@link #SSL_INTERNAL_ENABLED} and {@link #SSL_REST_ENABLED} instead.
 	 */
+	@Deprecated
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("security.ssl.enabled")
 			.defaultValue(false)
-			.withDescription("Turns on SSL for internal network communication. This can be optionally overridden by" +
-				" flags defined in different transport modules.");
+			.withDescription("Turns on SSL for internal and external network communication." +
+					"This can be overridden by 'security.ssl.internal.enabled', 'security.ssl.external.enabled'. " +
+					"Specific internal components (rpc, data transport, blob server) may optionally override " +
+					"this through their own settings.");
+
+	/**
+	 * Enable SSL for internal communication (akka rpc, netty data transport, blob server).
+	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	public static final ConfigOption<Boolean> SSL_INTERNAL_ENABLED =
+			key("security.ssl.internal.enabled")
+			.defaultValue(false)
+			.withDescription("Turns on SSL for internal network communication. " +
+					"Optionally, specific components may override this through their own settings " +
+					"(rpc, data transport, REST, etc).");
+
+	/**
+	 * Enable SSL for external REST endpoints.
+	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_SECURITY)
+	public static final ConfigOption<Boolean> SSL_REST_ENABLED =
+			key("security.ssl.rest.enabled")
+			.defaultValue(false)
+			.withDescription("Turns on SSL for external communication via the REST endpoints.");
+
+	// ----------------- certificates (internal + external) -------------------
 
 	/**
 	 * The Java keystore file containing the flink endpoint key and certificate.
@@ -133,6 +163,102 @@ public class SecurityOptions {
 			.noDefaultValue()
 			.withDescription("The secret to decrypt the truststore.");
 
+	// ----------------------- certificates (internal) ------------------------
+
+	/**
+	 * For internal SSL, the Java keystore file containing the private key and certificate.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_KEYSTORE =
+			key("security.ssl.internal.keystore")
+					.noDefaultValue()
+					.withDescription("The Java keystore file with SSL Key and Certificate, " +
+							"to be used Flink's internal endpoints (rpc, data transport, blob server).");
+
+	/**
+	 * For internal SSL, the password to decrypt the keystore file containing the certificate.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_KEYSTORE_PASSWORD =
+			key("security.ssl.internal.keystore-password")
+					.noDefaultValue()
+					.withDescription("The secret to decrypt the keystore file for Flink's " +
+							"for Flink's internal endpoints (rpc, data transport, blob server).");
+
+	/**
+	 * For internal SSL, the password to decrypt the private key.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_KEY_PASSWORD =
+			key("security.ssl.internal.key-password")
+					.noDefaultValue()
+					.withDescription("The secret to decrypt the key in the keystore " +
+							"for Flink's internal endpoints (rpc, data transport, blob server).");
+
+	/**
+	 * For internal SSL, the truststore file containing the public CA certificates to verify the ssl peers.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_TRUSTSTORE =
+			key("security.ssl.internal.truststore")
+					.noDefaultValue()
+					.withDescription("The truststore file containing the public CA certificates to verify the peer " +
+							"for Flink's internal endpoints (rpc, data transport, blob server).");
+
+	/**
+	 * For internal SSL, the secret to decrypt the truststore.
+	 */
+	public static final ConfigOption<String> SSL_INTERNAL_TRUSTSTORE_PASSWORD =
+			key("security.ssl.internal.truststore-password")
+					.noDefaultValue()
+					.withDescription("The password to decrypt the truststore " +
+							"for Flink's internal endpoints (rpc, data transport, blob server).");
+
+	// ----------------------- certificates (external) ------------------------
+
+	/**
+	 * For external (REST) SSL, the Java keystore file containing the private key and certificate.
+	 */
+	public static final ConfigOption<String> SSL_REST_KEYSTORE =
+			key("security.ssl.rest.keystore")
+					.noDefaultValue()
+					.withDescription("The Java keystore file with SSL Key and Certificate, " +
+							"to be used Flink's external REST endpoints.");
+
+	/**
+	 * For external (REST) SSL, the password to decrypt the keystore file containing the certificate.
+	 */
+	public static final ConfigOption<String> SSL_REST_KEYSTORE_PASSWORD =
+			key("security.ssl.rest.keystore-password")
+					.noDefaultValue()
+					.withDescription("The secret to decrypt the keystore file for Flink's " +
+							"for Flink's external REST endpoints.");
+
+	/**
+	 * For external (REST) SSL, the password to decrypt the private key.
+	 */
+	public static final ConfigOption<String> SSL_REST_KEY_PASSWORD =
+			key("security.ssl.rest.key-password")
+					.noDefaultValue()
+					.withDescription("The secret to decrypt the key in the keystore " +
+							"for Flink's external REST endpoints.");
+
+	/**
+	 * For external (REST) SSL, the truststore file containing the public CA certificates to verify the ssl peers.
+	 */
+	public static final ConfigOption<String> SSL_REST_TRUSTSTORE =
+			key("security.ssl.rest.truststore")
+					.noDefaultValue()
+					.withDescription("The truststore file containing the public CA certificates to verify the peer " +
+							"for Flink's external REST endpoints.");
+
+	/**
+	 * For external (REST) SSL, the secret to decrypt the truststore.
+	 */
+	public static final ConfigOption<String> SSL_REST_TRUSTSTORE_PASSWORD =
+			key("security.ssl.rest.truststore-password")
+					.noDefaultValue()
+					.withDescription("The password to decrypt the truststore " +
+							"for Flink's external REST endpoints.");
+
+	// ------------------------ ssl parameters --------------------------------
+
 	/**
 	 * SSL protocol version to be supported.
 	 */
@@ -150,8 +276,12 @@ public class SecurityOptions {
 	public static final ConfigOption<String> SSL_ALGORITHMS =
 		key("security.ssl.algorithms")
 			.defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
-			.withDescription("The comma separated list of standard SSL algorithms to be supported. Read more" +
-				" <a href=\"http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites\">here</a>.");
+			.withDescription(Description.builder()
+				.text("The comma separated list of standard SSL algorithms to be supported. Read more %s",
+					link(
+						"http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites",
+						"here"))
+				.build());
 
 	/**
 	 * Flag to enable/disable hostname verification for the ssl connections.

@@ -172,7 +172,7 @@ trait ImplicitExpressionOperations {
     * If all values are null, 0 is returned.
     */
   def sum0 = Sum0(expr)
-  
+
   /**
     * Returns the minimum value of field across all input values.
     */
@@ -236,7 +236,18 @@ trait ImplicitExpressionOperations {
     */
   def as(name: Symbol, extraNames: Symbol*) = Alias(expr, name.name, extraNames.map(_.name))
 
+  /**
+    * Specifies ascending order of an expression i.e. a field for orderBy call.
+    *
+    * @return ascend expression
+    */
   def asc = Asc(expr)
+
+  /**
+    * Specifies descending order of an expression i.e. a field for orderBy call.
+    *
+    * @return descend expression
+    */
   def desc = Desc(expr)
 
   /**
@@ -296,14 +307,29 @@ trait ImplicitExpressionOperations {
   def exp() = Exp(expr)
 
   /**
-    * Calculates the base 10 logarithm of given value.
+    * Calculates the base 10 logarithm of the given value.
     */
   def log10() = Log10(expr)
 
   /**
-    * Calculates the natural logarithm of given value.
+    * Calculates the base 2 logarithm of the given value.
+    */
+  def log2() = Log2(expr)
+
+  /**
+    * Calculates the natural logarithm of the given value.
     */
   def ln() = Ln(expr)
+
+  /**
+    * Calculates the natural logarithm of the given value.
+    */
+  def log() = Log(null, expr)
+
+  /**
+    * Calculates the logarithm of the given value to the given base.
+    */
+  def log(base: Expression) = Log(base, expr)
 
   /**
     * Calculates the given number raised to the power of the other value.
@@ -390,6 +416,15 @@ trait ImplicitExpressionOperations {
     * numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
     */
   def bin() = Bin(expr)
+
+  /**
+    * Returns a string representation of an integer numeric value or a string in hex format. Returns
+    * null if numeric or string is null.
+    *
+    * E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", and a string "hello,world" leads
+    * to "68656c6c6f2c776f726c64".
+    */
+  def hex() = Hex(expr)
 
   // String operations
 
@@ -529,20 +564,45 @@ trait ImplicitExpressionOperations {
   def overlay(newString: Expression, starting: Expression, length: Expression) =
     Overlay(expr, newString, starting, length)
 
+  /**
+    * Returns the base string decoded with base64.
+    */
+  def fromBase64() = FromBase64(expr)
+
+  /**
+    * Returns the base64-encoded result of the input string.
+    */
+  def toBase64() = ToBase64(expr)
+
+  /**
+    * Returns a string that removes the left whitespaces from the given string.
+    */
+  def ltrim() = LTrim(expr)
+
+  /**
+    * Returns a string that removes the right whitespaces from the given string.
+    */
+  def rtrim() = RTrim(expr)
+
+  /**
+    * Returns a string that repeats the base string n times.
+    */
+  def repeat(n: Expression) = Repeat(expr, n)
+
   // Temporal operations
 
   /**
-    * Parses a date string in the form "yy-mm-dd" to a SQL Date.
+    * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
     */
   def toDate = Cast(expr, SqlTimeTypeInfo.DATE)
 
   /**
-    * Parses a time string in the form "hh:mm:ss" to a SQL Time.
+    * Parses a time string in the form "HH:mm:ss" to a SQL Time.
     */
   def toTime = Cast(expr, SqlTimeTypeInfo.TIME)
 
   /**
-    * Parses a timestamp string in the form "yy-mm-dd hh:mm:ss.fff" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
     */
   def toTimestamp = Cast(expr, SqlTimeTypeInfo.TIMESTAMP)
 
@@ -552,13 +612,6 @@ trait ImplicitExpressionOperations {
     * e.g. "2006-06-05".toDate.extract(DAY) leads to 5
     */
   def extract(timeIntervalUnit: TimeIntervalUnit) = Extract(timeIntervalUnit, expr)
-
-  /**
-    * Returns the quarter of a year from a SQL date.
-    *
-    * e.g. "1994-09-27".toDate.quarter() leads to 3
-    */
-  def quarter() = Quarter(expr)
 
   /**
     * Rounds down a time point to the given unit.
@@ -581,98 +634,126 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of months
     */
-  def year = toMonthInterval(expr, 12)
+  def year: Expression = toMonthInterval(expr, 12)
 
   /**
     * Creates an interval of the given number of years.
     *
     * @return interval of months
     */
-  def years = year
+  def years: Expression = year
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarter: Expression = toMonthInterval(expr, 3)
+
+  /**
+   * Creates an interval of the given number of quarters.
+   *
+   * @return interval of months
+   */
+  def quarters: Expression = quarter
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def month = toMonthInterval(expr, 1)
+  def month: Expression = toMonthInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of months.
     *
     * @return interval of months
     */
-  def months = month
+  def months: Expression = month
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def week: Expression = toMilliInterval(expr, 7 * MILLIS_PER_DAY)
+
+  /**
+    * Creates an interval of the given number of weeks.
+    *
+    * @return interval of milliseconds
+    */
+  def weeks: Expression = week
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def day = toMilliInterval(expr, MILLIS_PER_DAY)
+  def day: Expression = toMilliInterval(expr, MILLIS_PER_DAY)
 
   /**
     * Creates an interval of the given number of days.
     *
     * @return interval of milliseconds
     */
-  def days = day
+  def days: Expression = day
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hour = toMilliInterval(expr, MILLIS_PER_HOUR)
+  def hour: Expression = toMilliInterval(expr, MILLIS_PER_HOUR)
 
   /**
     * Creates an interval of the given number of hours.
     *
     * @return interval of milliseconds
     */
-  def hours = hour
+  def hours: Expression = hour
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minute = toMilliInterval(expr, MILLIS_PER_MINUTE)
+  def minute: Expression = toMilliInterval(expr, MILLIS_PER_MINUTE)
 
   /**
     * Creates an interval of the given number of minutes.
     *
     * @return interval of milliseconds
     */
-  def minutes = minute
+  def minutes: Expression = minute
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def second = toMilliInterval(expr, MILLIS_PER_SECOND)
+  def second: Expression = toMilliInterval(expr, MILLIS_PER_SECOND)
 
   /**
     * Creates an interval of the given number of seconds.
     *
     * @return interval of milliseconds
     */
-  def seconds = second
+  def seconds: Expression = second
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def milli = toMilliInterval(expr, 1)
+  def milli: Expression = toMilliInterval(expr, 1)
 
   /**
     * Creates an interval of the given number of milliseconds.
     *
     * @return interval of milliseconds
     */
-  def millis = milli
+  def millis: Expression = milli
 
   // Row interval type
 
@@ -681,7 +762,7 @@ trait ImplicitExpressionOperations {
     *
     * @return interval of rows
     */
-  def rows = toRowInterval(expr)
+  def rows: Expression = toRowInterval(expr)
 
   // Advanced type helper functions
 
@@ -763,11 +844,64 @@ trait ImplicitExpressionOperations {
   def sha1() = Sha1(expr)
 
   /**
+    * Returns the SHA-224 hash of the string argument; null if string is null.
+    *
+    * @return string of 56 hexadecimal digits or null
+    */
+  def sha224() = Sha224(expr)
+
+  /**
     * Returns the SHA-256 hash of the string argument; null if string is null.
     *
     * @return string of 64 hexadecimal digits or null
     */
   def sha256() = Sha256(expr)
+
+  /**
+    * Returns the SHA-384 hash of the string argument; null if string is null.
+    *
+    * @return string of 96 hexadecimal digits or null
+    */
+  def sha384() = Sha384(expr)
+
+  /**
+    * Returns the SHA-512 hash of the string argument; null if string is null.
+    *
+    * @return string of 128 hexadecimal digits or null
+    */
+  def sha512() = Sha512(expr)
+
+  /**
+    * Returns the hash for the given string expression using the SHA-2 family of hash
+    * functions (SHA-224, SHA-256, SHA-384, or SHA-512).
+    *
+    * @param hashLength bit length of the result (either 224, 256, 384, or 512)
+    * @return string or null if one of the arguments is null.
+    */
+  def sha2(hashLength: Expression) = Sha2(expr, hashLength)
+
+  /**
+    * Returns true if the given expression is between lowerBound and upperBound (both inclusive).
+    * False otherwise. The parameters must be numeric types or identical comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def between(lowerBound: Expression, upperBound: Expression) =
+    Between(expr, lowerBound, upperBound)
+
+  /**
+    * Returns true if the given expression is not between lowerBound and upperBound (both
+    * inclusive). False otherwise. The parameters must be numeric types or identical
+    * comparable types.
+    *
+    * @param lowerBound numeric or comparable expression
+    * @param upperBound numeric or comparable expression
+    * @return boolean or null
+    */
+  def notBetween(lowerBound: Expression, upperBound: Expression) =
+    NotBetween(expr, lowerBound, upperBound)
 }
 
 /**
@@ -1112,8 +1246,26 @@ object randInteger {
   * Returns NULL if any argument is NULL.
   */
 object concat {
+
+  /**
+    * Returns the string that results from concatenating the arguments.
+    * Returns NULL if any argument is NULL.
+    */
   def apply(string: Expression, strings: Expression*): Expression = {
     Concat(Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Calculates the arc tangent of a given coordinate.
+  */
+object atan2 {
+
+  /**
+    * Calculates the arc tangent of a given coordinate.
+    */
+  def apply(y: Expression, x: Expression): Expression = {
+    Atan2(y, x)
   }
 }
 
@@ -1127,6 +1279,25 @@ object concat {
 object concat_ws {
   def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
     ConcatWs(separator, Seq(string) ++ strings)
+  }
+}
+
+/**
+  * Returns an UUID (Universally Unique Identifier) string (e.g.,
+  * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+  * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+  * generator.
+  */
+object uuid {
+
+  /**
+    * Returns an UUID (Universally Unique Identifier) string (e.g.,
+    * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+    * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
+    * generator.
+    */
+  def apply(): Expression = {
+    UUID()
   }
 }
 

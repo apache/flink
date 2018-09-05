@@ -31,11 +31,10 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +44,6 @@ import static org.mockito.Mockito.mock;
 /**
  * resourceManager HA test, including grant leadership and revoke leadership
  */
-@Category(New.class)
 public class ResourceManagerHATest extends TestLogger {
 
 	@Test
@@ -66,10 +64,6 @@ public class ResourceManagerHATest extends TestLogger {
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
 
 		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
-
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
-			Time.seconds(5L),
-			Time.seconds(5L));
 
 		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(
 			Time.seconds(5L),
@@ -93,7 +87,6 @@ public class ResourceManagerHATest extends TestLogger {
 				rpcService,
 				FlinkResourceManager.RESOURCE_MANAGER_NAME,
 				rmResourceId,
-				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManager(),

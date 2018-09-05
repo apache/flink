@@ -35,7 +35,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.utils.MemoryTableSinkUtil
+import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -54,16 +54,16 @@ class TableSinkITCase extends AbstractTestBase {
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    MemoryTableSinkUtil.clear
+    MemoryTableSourceSinkUtil.clear
 
     val input = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(r => r._2)
     val fieldNames = Array("d", "e", "t")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.SQL_TIMESTAMP, Types.LONG)
-    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+    val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val results = input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
+    input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
@@ -75,7 +75,7 @@ class TableSinkITCase extends AbstractTestBase {
       "Comment#14,1970-01-01 00:00:00.006,6",
       "Comment#15,1970-01-01 00:00:00.006,6").mkString("\n")
 
-    TestBaseUtils.compareResultAsText(MemoryTableSinkUtil.results.asJava, expected)
+    TestBaseUtils.compareResultAsText(MemoryTableSourceSinkUtil.tableData.asJava, expected)
   }
 
   @Test
@@ -96,7 +96,7 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    val results = input.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
       .writeToSink(new CsvTableSink(path))
@@ -142,6 +142,27 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.02,5,29",
       "1970-01-01 00:00:00.025,2,12")
       .sorted
+    assertEquals(expected, result)
+  }
+
+  @Test
+  def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val ds1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    ds1.join(ds2).where('b === 'e)
+      .select('c, 'g)
+      .writeToSink(new TestAppendSink)
+
+    env.execute()
+
+    val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
+    val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt").sorted
     assertEquals(expected, result)
   }
 
@@ -677,11 +698,10 @@ object RowCollector {
   /** Converts a list of upsert messages into a list of final results. */
   def upsertResults(results: List[JTuple2[JBool, Row]], keys: Array[Int]): List[String] = {
 
-    def getKeys(r: Row): List[String] =
-      keys.foldLeft(List[String]())((k, i) => r.getField(i).toString :: k)
+    def getKeys(r: Row): Row = Row.project(r, keys)
 
-    val upserted = results.foldLeft(Map[String, String]()){ (o: Map[String, String], r) =>
-      val key = getKeys(r.f1).mkString("")
+    val upserted = results.foldLeft(Map[Row, String]()){ (o: Map[Row, String], r) =>
+      val key = getKeys(r.f1)
       if (r.f0) {
         o + (key -> r.f1.toString)
       } else {

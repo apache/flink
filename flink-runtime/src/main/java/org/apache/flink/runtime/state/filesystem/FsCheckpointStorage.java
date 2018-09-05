@@ -126,7 +126,7 @@ public class FsCheckpointStorage extends AbstractFsCheckpointStorage {
 			final Path path = decodePathFromReference(reference);
 
 			return new FsCheckpointStorageLocation(
-					fileSystem,
+					path.getFileSystem(),
 					path,
 					path,
 					path,

@@ -43,13 +43,11 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -60,7 +58,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
 
-@Category(New.class)
 public class ResourceManagerJobMasterTest extends TestLogger {
 
 	private TestingRpcService rpcService;
@@ -272,9 +269,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 
 		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
-			Time.seconds(5L),
-			Time.seconds(5L));
 		MetricRegistryImpl metricRegistry = mock(MetricRegistryImpl.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
@@ -291,7 +285,6 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			rpcService,
 			FlinkResourceManager.RESOURCE_MANAGER_NAME,
 			rmResourceId,
-			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			slotManager,

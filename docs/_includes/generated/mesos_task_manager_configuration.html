@@ -10,12 +10,17 @@
         <tr>
             <td><h5>mesos.constraints.hard.hostattribute</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>Constraints for task placement on mesos.</td>
+            <td>Constraints for task placement on Mesos based on agent attributes. Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target mesos agents. Example: az:eu-west-1a,series:t2</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.bootstrap-cmd</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>A command which is executed before the TaskManager is started.</td>
+        </tr>
+        <tr>
+            <td><h5>mesos.resourcemanager.tasks.container.docker.force-pull-image</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Instruct the docker containerizer to forcefully pull the image rather than reuse a cached version.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.container.docker.parameters</h5></td>
@@ -45,12 +50,12 @@
         <tr>
             <td><h5>mesos.resourcemanager.tasks.gpus</h5></td>
             <td style="word-wrap: break-word;">0</td>
-            <td></td>
+            <td>GPUs to assign to the Mesos workers.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.hostname</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td></td>
+            <td>Optional value to define the TaskManager’s hostname. The pattern _TASK_ is replaced by the actual id of the Mesos task. This can be used to configure the TaskManager to use Mesos DNS (e.g. _TASK_.flink-service.mesos) for name lookups.</td>
         </tr>
         <tr>
             <td><h5>mesos.resourcemanager.tasks.mem</h5></td>
@@ -63,9 +68,14 @@
             <td></td>
         </tr>
         <tr>
+            <td><h5>mesos.resourcemanager.tasks.uris</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>A comma separated list of URIs of custom artifacts to be downloaded into the sandbox of Mesos workers.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.numberOfTaskSlots</h5></td>
             <td style="word-wrap: break-word;">1</td>
-            <td></td>
+            <td>The number of parallel operator or user function instances that a single TaskManager can run. If this value is larger than 1, a single TaskManager takes multiple instances of a function or operator. That way, the TaskManager can utilize multiple CPU cores, but at the same time, the available memory is divided between the different operator or function instances. This value is typically proportional to the number of physical CPU cores that the TaskManager's machine has (e.g., equal to the number of cores, or half the number of cores).</td>
         </tr>
     </tbody>
 </table>

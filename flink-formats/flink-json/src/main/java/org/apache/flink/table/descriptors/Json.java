@@ -20,6 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.typeutils.TypeStringUtils;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
@@ -81,7 +82,7 @@ public class Json extends FormatDescriptor {
 	 *
 	 * @param schemaType type information that describes the schema
 	 */
-	public Json schema(TypeInformation<?> schemaType) {
+	public Json schema(TypeInformation<Row> schemaType) {
 		Preconditions.checkNotNull(schemaType);
 		this.schema = TypeStringUtils.writeTypeInfo(schemaType);
 		this.jsonSchema = null;
@@ -95,8 +96,8 @@ public class Json extends FormatDescriptor {
 	 * <p>This allows for defining schema information only once.
 	 *
 	 * <p>The names, types, and field order of the format are determined by the table's
-	 * schema. Time attributes are ignored. A "from" definition is interpreted as a field renaming
-	 * in the format.
+	 * schema. Time attributes are ignored if their origin is not a field. A "from" definition
+	 * is interpreted as a field renaming in the format.
 	 */
 	public Json deriveSchema() {
 		this.deriveSchema = true;

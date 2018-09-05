@@ -27,12 +27,13 @@ import org.apache.flink.annotation.Public;
  */
 @Public
 @FunctionalInterface
-public interface RunnableWithException {
+public interface RunnableWithException extends ThrowingRunnable<Exception> {
 
 	/**
 	 * The work method.
 	 *
 	 * @throws Exception Exceptions may be thrown.
 	 */
+	@Override
 	void run() throws Exception;
 }

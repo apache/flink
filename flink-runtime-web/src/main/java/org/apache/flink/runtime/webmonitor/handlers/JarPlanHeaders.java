@@ -65,4 +65,9 @@ public class JarPlanHeaders implements MessageHeaders<EmptyRequestBody, JobPlanI
 	public static JarPlanHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the dataflow plan of a job contained in a jar previously uploaded via '" + JarUploadHeaders.URL + "'.";
+	}
 }

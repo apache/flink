@@ -879,12 +879,12 @@ public class DataStreamTest extends TestLogger {
 		bcStream.process(
 				new KeyedBroadcastProcessFunction<String, Long, String, String>() {
 					@Override
-					public void processBroadcastElement(String value, KeyedContext ctx, Collector<String> out) throws Exception {
+					public void processBroadcastElement(String value, Context ctx, Collector<String> out) throws Exception {
 						// do nothing
 					}
 
 					@Override
-					public void processElement(Long value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+					public void processElement(Long value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 						// do nothing
 					}
 				});
@@ -970,6 +970,10 @@ public class DataStreamTest extends TestLogger {
 
 		StreamEdge splitEdge = env.getStreamGraph().getStreamEdges(unionFilter.getId(), sink.getTransformation().getId()).get(0);
 		assertEquals("a", splitEdge.getSelectedNames().get(0));
+
+		DataStreamSink<Integer> sinkWithIdentifier = select.print("identifier");
+		StreamEdge newSplitEdge = env.getStreamGraph().getStreamEdges(unionFilter.getId(), sinkWithIdentifier.getTransformation().getId()).get(0);
+		assertEquals("a", newSplitEdge.getSelectedNames().get(0));
 
 		ConnectedStreams<Integer, Integer> connect = map.connect(flatMap);
 		CoMapFunction<Integer, Integer, String> coMapper = new CoMapFunction<Integer, Integer, String>() {

@@ -74,15 +74,13 @@ private class FlinkLogicalAggregateConverter
 
     // we do not support these functions natively
     // they have to be converted using the AggregateReduceFunctionsRule
-    val supported = agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
+    agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {
       // we support AVG
       case SqlKind.AVG => true
       // but none of the other AVG agg functions
       case k if SqlKind.AVG_AGG_FUNCTIONS.contains(k) => false
       case _ => true
     }
-
-    !agg.containsDistinctCall() && supported
   }
 
   override def convert(rel: RelNode): RelNode = {

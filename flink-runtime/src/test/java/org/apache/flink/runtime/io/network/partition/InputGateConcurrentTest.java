@@ -66,7 +66,8 @@ public class InputGateConcurrentTest {
 				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0, numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0; i < numChannels; i++) {
 			LocalInputChannel channel = new LocalInputChannel(gate, i, new ResultPartitionID(),
@@ -102,7 +103,8 @@ public class InputGateConcurrentTest {
 				0,
 				numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0; i < numChannels; i++) {
 			RemoteInputChannel channel = new RemoteInputChannel(
@@ -151,7 +153,8 @@ public class InputGateConcurrentTest {
 				0,
 				numChannels,
 				mock(TaskActions.class),
-				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
+				true);
 
 		for (int i = 0, local = 0; i < numChannels; i++) {
 			if (localOrRemote.get(i)) {

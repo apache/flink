@@ -61,46 +61,6 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testDistinct(): Unit = {
-    val sql = "SELECT DISTINCT a, b, c FROM MyTable"
-
-    val expected =
-      unaryNode(
-        "DataStreamGroupAggregate",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a, b, c")
-        ),
-        term("groupBy", "a, b, c"),
-        term("select", "a, b, c")
-      )
-    streamUtil.verifySql(sql, expected)
-  }
-
-  // TODO: this query should be optimized to only have a single DataStreamGroupAggregate
-  // TODO: reopen this until FLINK-7144 fixed
-  @Ignore
-  @Test
-  def testDistinctAfterAggregate(): Unit = {
-    val sql = "SELECT DISTINCT a FROM MyTable GROUP BY a, b, c"
-
-    val expected =
-      unaryNode(
-        "DataStreamGroupAggregate",
-        unaryNode(
-          "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "a")
-        ),
-        term("groupBy", "a"),
-        term("select", "a")
-      )
-    streamUtil.verifySql(sql, expected)
-  }
-
-
-  @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
     streamUtil.addFunction("udag", new MyAgg)
     val call = streamUtil

@@ -71,6 +71,9 @@ object AsyncDataStream {
       override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
         asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper(resultFuture))
       }
+      override def timeout(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.timeout(input, new JavaResultFutureWrapper(resultFuture))
+      }
     }
 
     val outType : TypeInformation[OUT] = implicitly[TypeInformation[OUT]]
@@ -197,6 +200,9 @@ object AsyncDataStream {
     val javaAsyncFunction = new JavaAsyncFunction[IN, OUT] {
       override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
         asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper[OUT](resultFuture))
+      }
+      override def timeout(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
       }
     }
 

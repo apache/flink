@@ -18,25 +18,20 @@
 
 package org.apache.flink.table.client.config;
 
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableSourceDescriptor;
+import org.apache.flink.table.descriptors.TableDescriptor;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Configuration of a table source. Parses an entry in the `sources` list of an environment
- * file and translates to table descriptor properties.
+ * Configuration of a table source.
  */
-public class Source extends TableSourceDescriptor {
+public class Source implements TableDescriptor {
 
 	private String name;
 	private Map<String, String> properties;
 
-	private static final String NAME = "name";
-
-	private Source(String name, Map<String, String> properties) {
+	protected Source(String name, Map<String, String> properties) {
 		this.name = name;
 		this.properties = properties;
 	}
@@ -47,19 +42,6 @@ public class Source extends TableSourceDescriptor {
 
 	public Map<String, String> getProperties() {
 		return properties;
-	}
-
-	public static Source create(Map<String, Object> config) {
-		if (!config.containsKey(NAME)) {
-			throw new SqlClientException("The 'name' attribute of a table source is missing.");
-		}
-		final Object name = config.get(NAME);
-		if (name == null || !(name instanceof String) || ((String) name).length() <= 0) {
-			throw new SqlClientException("Invalid table source name '" + name + "'.");
-		}
-		final Map<String, Object> properties = new HashMap<>(config);
-		properties.remove(NAME);
-		return new Source((String) name, ConfigUtil.normalizeYaml(properties));
 	}
 
 	// --------------------------------------------------------------------------------------------

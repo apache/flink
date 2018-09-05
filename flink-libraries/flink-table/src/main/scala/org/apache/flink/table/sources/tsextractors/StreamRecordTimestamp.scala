@@ -42,6 +42,15 @@ final class StreamRecordTimestamp extends TimestampExtractor {
   override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
     org.apache.flink.table.expressions.StreamRecordTimestamp()
   }
+
+  override def equals(obj: Any): Boolean = obj match {
+    case _: StreamRecordTimestamp => true
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    classOf[StreamRecordTimestamp].hashCode()
+  }
 }
 
 object StreamRecordTimestamp {

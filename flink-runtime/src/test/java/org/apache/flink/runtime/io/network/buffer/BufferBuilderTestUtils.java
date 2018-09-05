@@ -47,6 +47,10 @@ public class BufferBuilderTestUtils {
 		BufferBuilder bufferBuilder = new BufferBuilder(
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE);
+		return fillBufferBuilder(bufferBuilder, dataSize);
+	}
+
+	public static BufferBuilder fillBufferBuilder(BufferBuilder bufferBuilder, int dataSize) {
 		bufferBuilder.appendAndCommit(ByteBuffer.allocate(dataSize));
 		return bufferBuilder;
 	}

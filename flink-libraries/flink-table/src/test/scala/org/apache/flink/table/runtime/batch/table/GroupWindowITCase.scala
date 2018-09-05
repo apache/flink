@@ -97,6 +97,7 @@ class GroupWindowITCase(
     val table = env
       .fromCollection(data)
       .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+      .select('int, 'long, 'string) // keep this select to enforce that the 'string key comes last
 
     val windowedTable = table
       .window(Tumble over 5.milli on 'long as 'w)
@@ -271,6 +272,7 @@ class GroupWindowITCase(
     val table = env
       .fromCollection(data)
       .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+      .select('int, 'long, 'string) // keep this select to enforce that the 'string key comes last
 
     val windowedTable = table
       .window(Slide over 10.milli every 5.milli on 'long as 'w)

@@ -90,7 +90,7 @@ public class PackagedProgramUtils {
 			try {
 				jobGraph.addJar(new Path(url.toURI()));
 			} catch (URISyntaxException e) {
-				throw new ProgramInvocationException("Invalid URL for jar file: " + url + '.', e);
+				throw new ProgramInvocationException("Invalid URL for jar file: " + url + '.', jobGraph.getJobID(), e);
 			}
 		}
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -41,7 +42,9 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -122,8 +125,18 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+		Configuration configuration = new Configuration();
+		configuration.setString(
+			RocksDBOptions.TIMER_SERVICE_FACTORY,
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+		backend = backend.configure(configuration);
 		backend.setDbStoragePath(dbPath);
 		return backend;
+	}
+
+	@Override
+	protected boolean isSerializerPresenceRequiredOnRestore() {
+		return false;
 	}
 
 	// small safety net for instance cleanups, so that no native objects are left
@@ -178,6 +191,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		allCreatedCloseables = new ArrayList<>();
 
 		keyedStateBackend.db = spy(keyedStateBackend.db);
+		keyedStateBackend.initializeSnapshotStrategy(null);
 
 		doAnswer(new Answer<Object>() {
 
@@ -234,7 +248,9 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
 				enableIncrementalCheckpointing,
-				TestLocalRecoveryConfig.disabled());
+				TestLocalRecoveryConfig.disabled(),
+				RocksDBStateBackend.PriorityQueueStateType.HEAP,
+				TtlTimeProvider.DEFAULT);
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
@@ -341,7 +357,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			assertNotNull(keyedStateHandle);
 			assertTrue(keyedStateHandle.getStateSize() > 0);
 			assertEquals(2, keyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
-			assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
+
+			for (BlockingCheckpointOutputStream stream : testStreamFactory.getAllCreatedStreams()) {
+				assertTrue(stream.isClosed());
+			}
+
 			asyncSnapshotThread.join();
 			verifyRocksObjectsReleased();
 		} finally {
@@ -363,7 +383,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			runStateUpdates();
 			snapshot.cancel(true);
 			blocker.trigger(); // allow checkpointing to start writing
-			assertTrue(testStreamFactory.getLastCreatedStream().isClosed());
+
+			for (BlockingCheckpointOutputStream stream : testStreamFactory.getAllCreatedStreams()) {
+				assertTrue(stream.isClosed());
+			}
+
 			waiter.await(); // wait for snapshot stream writing to run
 			try {
 				snapshot.get();

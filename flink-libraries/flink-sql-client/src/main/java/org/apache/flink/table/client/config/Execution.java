@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 
 import java.util.Collections;
@@ -46,21 +48,21 @@ public class Execution {
 
 	public boolean isStreamingExecution() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
+			properties.get(PropertyStrings.EXECUTION_TYPE),
 			PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING);
 	}
 
 	public boolean isBatchExecution() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_TYPE, PropertyStrings.EXECUTION_TYPE_VALUE_STREAMING),
+			properties.get(PropertyStrings.EXECUTION_TYPE),
 			PropertyStrings.EXECUTION_TYPE_VALUE_BATCH);
 	}
 
 	public TimeCharacteristic getTimeCharacteristic() {
-		final String s = properties.getOrDefault(
+		final String characteristic = properties.getOrDefault(
 			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC,
 			PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME);
-		switch (s) {
+		switch (characteristic) {
 			case PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_EVENT_TIME:
 				return TimeCharacteristic.EventTime;
 			case PropertyStrings.EXECUTION_TIME_CHARACTERISTIC_VALUE_PROCESSING_TIME:
@@ -70,12 +72,16 @@ public class Execution {
 		}
 	}
 
+	public long getPeriodicWatermarksInterval() {
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_PERIODIC_WATERMARKS_INTERVAL, Long.toString(200L)));
+	}
+
 	public long getMinStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MIN_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public long getMaxStateRetention() {
-		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(Long.MIN_VALUE)));
+		return Long.parseLong(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_STATE_RETENTION, Long.toString(0)));
 	}
 
 	public int getParallelism() {
@@ -86,10 +92,59 @@ public class Execution {
 		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_PARALLELISM, Integer.toString(128)));
 	}
 
+	public int getMaxTableResultRows() {
+		return Integer.parseInt(properties.getOrDefault(PropertyStrings.EXECUTION_MAX_TABLE_RESULT_ROWS, Integer.toString(1_000_000)));
+	}
+
+	public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
+		final String restartStrategy = properties.getOrDefault(
+			PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE,
+			PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FALLBACK);
+		switch (restartStrategy) {
+			case PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE_VALUE_NONE:
+				return RestartStrategies.noRestart();
+			case PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FIXED_DELAY:
+				final int attempts = Integer.parseInt(
+					properties.getOrDefault(
+						PropertyStrings.EXECUTION_RESTART_STRATEGY_ATTEMPTS,
+						Integer.toString(Integer.MAX_VALUE)));
+				final long fixedDelay = Long.parseLong(
+					properties.getOrDefault(
+						PropertyStrings.EXECUTION_RESTART_STRATEGY_DELAY,
+						Long.toString(10_000)));
+				return RestartStrategies.fixedDelayRestart(attempts, fixedDelay);
+			case PropertyStrings.EXECUTION_RESTART_STRATEGY_TYPE_VALUE_FAILURE_RATE:
+				final int failureRate = Integer.parseInt(
+					properties.getOrDefault(
+						PropertyStrings.EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL,
+						Integer.toString(1)));
+				final long failureInterval = Long.parseLong(
+					properties.getOrDefault(
+						PropertyStrings.EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL,
+						Long.toString(60_000)));
+				final long attemptDelay = Long.parseLong(
+					properties.getOrDefault(
+						PropertyStrings.EXECUTION_RESTART_STRATEGY_DELAY,
+						Long.toString(10_000)));
+				return RestartStrategies.failureRateRestart(
+					failureRate,
+					Time.milliseconds(failureInterval),
+					Time.milliseconds(attemptDelay));
+			default:
+				return RestartStrategies.fallBackRestart();
+		}
+	}
+
 	public boolean isChangelogMode() {
 		return Objects.equals(
-			properties.getOrDefault(PropertyStrings.EXECUTION_RESULT_MODE, PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG),
+			properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
 			PropertyStrings.EXECUTION_RESULT_MODE_VALUE_CHANGELOG);
+	}
+
+	public boolean isTableMode() {
+		return Objects.equals(
+				properties.get(PropertyStrings.EXECUTION_RESULT_MODE),
+				PropertyStrings.EXECUTION_RESULT_MODE_VALUE_TABLE);
 	}
 
 	public Map<String, String> toProperties() {

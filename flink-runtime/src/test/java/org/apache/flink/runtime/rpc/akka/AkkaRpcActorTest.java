@@ -28,7 +28,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -38,7 +37,6 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -51,7 +49,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(New.class)
+import scala.concurrent.Await;
+
 public class AkkaRpcActorTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -143,35 +142,6 @@ public class AkkaRpcActorTest extends TestLogger {
 		assertThat("The new foobar value should have been returned.", actualValue, Is.is(expectedValue));
 
 		rpcEndpoint.shutDown();
-	}
-
-	/**
-	 * Tests that we receive a RpcConnectionException when calling a rpc method (with return type)
-	 * on a wrong rpc endpoint.
-	 *
-	 * @throws Exception
-	 */
-	@Test
-	public void testWrongGatewayEndpointConnection() throws Exception {
-		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
-
-		rpcEndpoint.start();
-
-		CompletableFuture<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
-
-		WrongRpcGateway gateway = futureGateway.get(timeout.getSize(), timeout.getUnit());
-
-		// since it is a tell operation we won't receive a RpcConnectionException, it's only logged
-		gateway.tell("foobar");
-
-		CompletableFuture<Boolean> result = gateway.barfoo();
-
-		try {
-			result.get(timeout.getSize(), timeout.getUnit());
-			fail("We expected a RpcConnectionException.");
-		} catch (ExecutionException executionException) {
-			assertTrue(executionException.getCause() instanceof RpcConnectionException);
-		}
 	}
 
 	/**
@@ -291,8 +261,8 @@ public class AkkaRpcActorTest extends TestLogger {
 
 			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} finally {
-			rpcActorSystem.shutdown();
-			rpcActorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+			rpcActorSystem.terminate();
+			Await.ready(rpcActorSystem.whenTerminated(), FutureUtils.toFiniteDuration(timeout));
 		}
 	}
 
@@ -327,13 +297,8 @@ public class AkkaRpcActorTest extends TestLogger {
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------
 
-	private interface DummyRpcGateway extends RpcGateway {
+	interface DummyRpcGateway extends RpcGateway {
 		CompletableFuture<Integer> foobar();
-	}
-
-	private interface WrongRpcGateway extends RpcGateway {
-		CompletableFuture<Boolean> barfoo();
-		void tell(String message);
 	}
 
 	private static class TestRpcEndpoint extends RpcEndpoint {
@@ -348,7 +313,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
-	private static class DummyRpcEndpoint extends TestRpcEndpoint implements DummyRpcGateway {
+	static class DummyRpcEndpoint extends TestRpcEndpoint implements DummyRpcGateway {
 
 		private volatile int _foobar = 42;
 

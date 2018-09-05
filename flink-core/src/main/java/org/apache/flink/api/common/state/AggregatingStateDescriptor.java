@@ -93,13 +93,6 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 		this.aggFunction = checkNotNull(aggFunction);
 	}
 
-	// ------------------------------------------------------------------------
-
-	@Override
-	public AggregatingState<IN, OUT> bind(StateBinder stateBinder) throws Exception {
-		return stateBinder.createAggregatingState(this);
-	}
-
 	/**
 	 * Returns the aggregate function to be used for the state.
 	 */

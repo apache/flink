@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
@@ -32,16 +31,12 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
@@ -54,6 +49,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscov
 import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -743,7 +739,7 @@ public class FlinkKafkaConsumerBaseTest {
 			int totalNumSubtasks) throws Exception {
 
 		// run setup procedure in operator life cycle
-		consumer.setRuntimeContext(new MockRuntimeContext(isCheckpointingEnabled, totalNumSubtasks, subtaskIndex));
+		consumer.setRuntimeContext(new MockStreamingRuntimeContext(isCheckpointingEnabled, totalNumSubtasks, subtaskIndex));
 		consumer.initializeState(new MockFunctionInitializationContext(isRestored, new MockOperatorStateStore(restoredListState)));
 		consumer.open(new Configuration());
 	}
@@ -817,65 +813,6 @@ public class FlinkKafkaConsumerBaseTest {
 
 		private int getCommitCount() {
 			return commitCount;
-		}
-	}
-
-	private static class MockRuntimeContext extends StreamingRuntimeContext {
-
-		private final boolean isCheckpointingEnabled;
-
-		private final int numParallelSubtasks;
-		private final int subtaskIndex;
-
-		private MockRuntimeContext(
-				boolean isCheckpointingEnabled,
-				int numParallelSubtasks,
-				int subtaskIndex) {
-
-			super(
-				new MockStreamOperator(),
-				new MockEnvironment(
-					"mockTask",
-					4 * MemoryManager.DEFAULT_PAGE_SIZE,
-					null,
-					16,
-					new TestTaskStateManager()),
-				Collections.emptyMap());
-
-			this.isCheckpointingEnabled = isCheckpointingEnabled;
-			this.numParallelSubtasks = numParallelSubtasks;
-			this.subtaskIndex = subtaskIndex;
-		}
-
-		@Override
-		public MetricGroup getMetricGroup() {
-			return new UnregisteredMetricsGroup();
-		}
-
-		@Override
-		public boolean isCheckpointingEnabled() {
-			return isCheckpointingEnabled;
-		}
-
-		@Override
-		public int getIndexOfThisSubtask() {
-			return subtaskIndex;
-		}
-
-		@Override
-		public int getNumberOfParallelSubtasks() {
-			return numParallelSubtasks;
-		}
-
-		// ------------------------------------------------------------------------
-
-		private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
-			private static final long serialVersionUID = -1153976702711944427L;
-
-			@Override
-			public ExecutionConfig getExecutionConfig() {
-				return new ExecutionConfig();
-			}
 		}
 	}
 

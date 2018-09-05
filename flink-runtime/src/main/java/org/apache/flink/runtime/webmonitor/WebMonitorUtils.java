@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -219,7 +220,7 @@ public final class WebMonitorUtils {
 	 * @throws FlinkException if the web submission extension could not be loaded
 	 */
 	public static WebMonitorExtension loadWebSubmissionExtension(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+			GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
 			CompletableFuture<String> restAddressFuture,
 			Time timeout,
 			Map<String, String> responseHeaders,

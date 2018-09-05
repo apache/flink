@@ -194,7 +194,7 @@ public class StreamGraphGenerator {
 			alreadyTransformed.put(transform, transformedIds);
 		}
 
-		if (transform.getBufferTimeout() > 0) {
+		if (transform.getBufferTimeout() >= 0) {
 			streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
 		}
 		if (transform.getUid() != null) {
@@ -466,9 +466,11 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code SourceTransformation}.
 	 */
 	private <T> Collection<Integer> transformSource(SourceTransformation<T> source) {
-		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), new ArrayList<Integer>());
+		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
+
 		streamGraph.addSource(source.getId(),
 				slotSharingGroup,
+				source.getCoLocationGroupKey(),
 				source.getOperator(),
 				null,
 				source.getOutputType(),
@@ -493,6 +495,7 @@ public class StreamGraphGenerator {
 
 		streamGraph.addSink(sink.getId(),
 				slotSharingGroup,
+				sink.getCoLocationGroupKey(),
 				sink.getOperator(),
 				sink.getInput().getOutputType(),
 				null,
@@ -535,6 +538,7 @@ public class StreamGraphGenerator {
 
 		streamGraph.addOperator(transform.getId(),
 				slotSharingGroup,
+				transform.getCoLocationGroupKey(),
 				transform.getOperator(),
 				transform.getInputType(),
 				transform.getOutputType(),
@@ -580,6 +584,7 @@ public class StreamGraphGenerator {
 		streamGraph.addCoOperator(
 				transform.getId(),
 				slotSharingGroup,
+				transform.getCoLocationGroupKey(),
 				transform.getOperator(),
 				transform.getInputType1(),
 				transform.getInputType2(),

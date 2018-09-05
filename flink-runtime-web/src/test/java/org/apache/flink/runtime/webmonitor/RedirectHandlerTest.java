@@ -22,7 +22,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
+import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
+import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
@@ -31,9 +34,6 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -90,7 +90,7 @@ public class RedirectHandlerTest extends TestLogger {
 			gatewayRetriever,
 			timeout);
 
-		router.GET(restPath, testingHandler);
+		router.addGet(restPath, testingHandler);
 		WebFrontendBootstrap bootstrap = new WebFrontendBootstrap(
 			router,
 			log,
@@ -148,10 +148,10 @@ public class RedirectHandlerTest extends TestLogger {
 		}
 
 		@Override
-		protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, RestfulGateway gateway) throws Exception {
+		protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, RestfulGateway gateway) throws Exception {
 			Assert.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
 			HttpResponse response = HandlerRedirectUtils.getResponse(HttpResponseStatus.OK, RESPONSE_MESSAGE);
-			KeepAliveWrite.flush(channelHandlerContext.channel(), routed.request(), response);
+			KeepAliveWrite.flush(channelHandlerContext.channel(), routedRequest.getRequest(), response);
 		}
 	}
 

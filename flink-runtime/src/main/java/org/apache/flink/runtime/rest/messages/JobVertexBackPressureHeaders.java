@@ -65,4 +65,9 @@ public class JobVertexBackPressureHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexBackPressureHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns back-pressure information for a job, and may initiate back-pressure sampling if necessary.";
+	}
 }

@@ -28,11 +28,13 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
+import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -47,10 +49,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
-import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -125,19 +125,19 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception {
-		final HttpRequest request = routed.request();
+	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, T gateway) throws Exception {
+		final HttpRequest request = routedRequest.getRequest();
 		final String requestPath;
 
 		// make sure we request the "index.html" in case there is a directory request
-		if (routed.path().endsWith("/")) {
-			requestPath = routed.path() + "index.html";
+		if (routedRequest.getPath().endsWith("/")) {
+			requestPath = routedRequest.getPath() + "index.html";
 		}
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routed.path().equals("/jobmanager/log") || routed.path().equals("/jobmanager/stdout")) {
+		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
 			requestPath = "";
 		} else {
-			requestPath = routed.path();
+			requestPath = routedRequest.getPath();
 		}
 
 		respondToRequest(channelHandlerContext, request, requestPath);
@@ -184,7 +184,12 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 				} finally {
 					if (!success) {
 						logger.debug("Unable to load requested file {} from classloader", requestPath);
-						sendError(ctx, NOT_FOUND);
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							request,
+							new ErrorResponseBody(String.format("Unable to load requested file %s.", requestPath)),
+							NOT_FOUND,
+							responseHeaders);
 						return;
 					}
 				}
@@ -192,12 +197,22 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 		}
 
 		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				responseHeaders);
 			return;
 		}
 
 		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				responseHeaders);
 			return;
 		}
 
@@ -231,7 +246,12 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			raf = new RandomAccessFile(file, "r");
 		}
 		catch (FileNotFoundException e) {
-			sendError(ctx, NOT_FOUND);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				HttpResponseStatus.NOT_FOUND,
+				responseHeaders);
 			return;
 		}
 
@@ -271,7 +291,12 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 		} catch (Exception e) {
 			raf.close();
 			logger.error("Failed to serve file.", e);
-			sendError(ctx, INTERNAL_SERVER_ERROR);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("Internal server error."),
+				INTERNAL_SERVER_ERROR,
+				responseHeaders);
 		}
 	}
 
@@ -279,28 +304,18 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
 		if (ctx.channel().isActive()) {
 			logger.error("Caught exception", cause);
-			sendError(ctx, INTERNAL_SERVER_ERROR);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				false,
+				new ErrorResponseBody("Internal server error."),
+				INTERNAL_SERVER_ERROR,
+				Collections.emptyMap());
 		}
 	}
 
 	// ------------------------------------------------------------------------
 	//  Utilities to encode headers and responses
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Writes a simple  error response message.
-	 *
-	 * @param ctx    The channel context to write the response to.
-	 * @param status The response status.
-	 */
-	public static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
-		FullHttpResponse response = new DefaultFullHttpResponse(
-				HTTP_1_1, status, Unpooled.copiedBuffer("Failure: " + status + "\r\n", CharsetUtil.UTF_8));
-		response.headers().set(CONTENT_TYPE, "text/plain; charset=UTF-8");
-
-		// close the connection as soon as the error message is sent.
-		ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-	}
 
 	/**
 	 * Send the "304 Not Modified" response. This response can be used when the

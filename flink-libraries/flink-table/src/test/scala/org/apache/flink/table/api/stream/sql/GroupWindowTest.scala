@@ -161,7 +161,7 @@ class GroupWindowTest extends TableTestBase {
             "rowtime('w$) AS w$rowtime",
             "proctime('w$) AS w$proctime")
         ),
-        term("select", "EXPR$0", "DATETIME_PLUS(w$end, 60000) AS EXPR$1")
+        term("select", "EXPR$0", "+(w$end, 60000) AS EXPR$1")
       )
 
     streamUtil.verifySql(sql, expected)

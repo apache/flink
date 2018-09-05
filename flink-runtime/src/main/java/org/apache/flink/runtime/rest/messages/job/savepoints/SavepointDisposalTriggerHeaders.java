@@ -64,4 +64,9 @@ public class SavepointDisposalTriggerHeaders extends AsynchronousOperationTrigge
 	public static SavepointDisposalTriggerHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Triggers the desposal of a savepoint.";
+	}
 }

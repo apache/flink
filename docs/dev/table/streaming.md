@@ -84,13 +84,13 @@ The following figure visualizes the relationship of streams, dynamic tables, and
 
 In the following, we will explain the concepts of dynamic tables and continuous queries with a stream of click events that have the following schema:
 
-```
+{% highlight plain %}
 [ 
   user:  VARCHAR,   // the name of the user
   cTime: TIMESTAMP, // the time when the URL was accessed
   url:   VARCHAR    // the URL that was accessed by the user
 ]
-```
+{% endhighlight %}
 
 ### Defining a Table on a Stream
 
@@ -507,7 +507,7 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // obtain query configuration from TableEnvironment
 StreamQueryConfig qConfig = tableEnv.queryConfig();
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12));
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 // define query
 Table result = ...
@@ -531,7 +531,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // obtain query configuration from TableEnvironment
 val qConfig: StreamQueryConfig = tableEnv.queryConfig
 // set query parameters
-qConfig.withIdleStateRetentionTime(Time.hours(12))
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 // define query
 val result: Table = ???
@@ -557,9 +557,9 @@ Many queries aggregate or join records on one or more key attributes. When such 
 
 For example the following query computes the number of clicks per session.
 
-```
+{% highlight sql %}
 SELECT sessionId, COUNT(*) FROM clicks GROUP BY sessionId;
-```
+{% endhighlight %}
 
 The `sessionId` attribute is used as a grouping key and the continuous query maintains a count for each `sessionId` it observes. The `sessionId` attribute is evolving over time and `sessionId` values are only active until the session ends, i.e., for a limited period of time. However, the continuous query cannot know about this property of `sessionId` and expects that every `sessionId` value can occur at any point of time. It maintains a count for each observed `sessionId` value. Consequently, the total state size of the query is continuously growing as more and more `sessionId` values are observed. 
 
@@ -579,10 +579,8 @@ The parameters are specified as follows:
 
 StreamQueryConfig qConfig = ...
 
-// set idle state retention time: min = 12 hour, max = 16 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(16));
-// set idle state retention time. min = max = 12 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12);
+// set idle state retention time: min = 12 hours, max = 24 hours
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24));
 
 {% endhighlight %}
 </div>
@@ -591,16 +589,14 @@ qConfig.withIdleStateRetentionTime(Time.hours(12);
 
 val qConfig: StreamQueryConfig = ???
 
-// set idle state retention time: min = 12 hour, max = 16 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(16))
-// set idle state retention time. min = max = 12 hours
-qConfig.withIdleStateRetentionTime(Time.hours(12)
+// set idle state retention time: min = 12 hours, max = 24 hours
+qConfig.withIdleStateRetentionTime(Time.hours(12), Time.hours(24))
 
 {% endhighlight %}
 </div>
 </div>
 
-Configuring different minimum and maximum idle state retention times is more efficient because it reduces the internal book-keeping of a query for when to remove state.
+Cleaning up state requires additional bookkeeping which becomes less expensive for larger differences of `minTime` and `maxTime`. The difference between `minTime` and `maxTime` must be at least 5 minutes.
 
 {% top %}
 

@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -120,7 +120,7 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<!--Remove the external jar test code from the test-classes directory since it musn't be in the
+			<!--Remove the external jar test code from the test-classes directory since it mustn't be in the
 			classpath when running the tests to actually test whether the user code class loader
 			is properly used.-->
 			<plugin>

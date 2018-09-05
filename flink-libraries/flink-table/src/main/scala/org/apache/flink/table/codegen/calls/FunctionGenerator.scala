@@ -146,6 +146,42 @@ object FunctionGenerator {
     STRING_TYPE_INFO,
     BuiltInMethod.OVERLAY.method)
 
+  addSqlFunctionMethod(
+    FROM_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.FROMBASE64)
+
+  addSqlFunctionMethod(
+    TO_BASE64,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.TOBASE64)
+
+  addSqlFunctionMethod(
+    UUID,
+    Seq(),
+    STRING_TYPE_INFO,
+    BuiltInMethods.UUID)
+
+  addSqlFunctionMethod(
+    LTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.LTRIM.method)
+
+  addSqlFunctionMethod(
+    RTRIM,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethod.RTRIM.method)
+
+  addSqlFunctionMethod(
+    REPEAT,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.REPEAT)
+
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -155,6 +191,12 @@ object FunctionGenerator {
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LOG10)
+
+  addSqlFunctionMethod(
+    LOG2,
+    Seq(DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.LOG2)
 
   addSqlFunctionMethod(
     LN,
@@ -301,6 +343,18 @@ object FunctionGenerator {
     BuiltInMethods.ATAN_DEC)
 
   addSqlFunctionMethod(
+    ATAN2,
+    Seq(DOUBLE_TYPE_INFO, DOUBLE_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DOUBLE_DOUBLE)
+
+  addSqlFunctionMethod(
+    ATAN2,
+    Seq(BIG_DEC_TYPE_INFO, BIG_DEC_TYPE_INFO),
+    DOUBLE_TYPE_INFO,
+    BuiltInMethods.ATAN2_DEC_DEC)
+
+  addSqlFunctionMethod(
     DEGREES,
     Seq(DOUBLE_TYPE_INFO),
     DOUBLE_TYPE_INFO,
@@ -424,6 +478,18 @@ object FunctionGenerator {
     Seq(LONG_TYPE_INFO),
     STRING_TYPE_INFO,
     BuiltInMethods.BIN)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_LONG)
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.HEX,
+    Seq(STRING_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.HEX_STRING)
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
@@ -560,9 +626,33 @@ object FunctionGenerator {
   )
 
   addSqlFunction(
+    ScalarSqlFunctions.SHA224,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-224")
+  )
+
+  addSqlFunction(
     ScalarSqlFunctions.SHA256,
     Seq(STRING_TYPE_INFO),
     new HashCalcCallGen("SHA-256")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA384,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-384")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA512,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-512")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA2,
+    Seq(STRING_TYPE_INFO, INT_TYPE_INFO),
+    new HashCalcCallGen("SHA-2")
   )
 
   // ----------------------------------------------------------------------------------------------

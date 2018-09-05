@@ -238,6 +238,11 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		}
 
 		@Override
+		public String getDescription() {
+			return "";
+		}
+
+		@Override
 		public Class<EmptyRequestBody> getRequestClass() {
 			return EmptyRequestBody.class;
 		}
@@ -292,6 +297,11 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 		@Override
 		public String getTargetRestEndpointURL() {
 			return "foobar";
+		}
+
+		@Override
+		public String getDescription() {
+			return "";
 		}
 	}
 

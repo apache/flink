@@ -27,15 +27,15 @@ import org.apache.flink.runtime.security.modules.SecurityModule;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link YarnTaskManagerRunnerFactory}.

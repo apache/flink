@@ -39,9 +39,9 @@ import org.apache.flink.util.Collector;
  *
  * <p>The user has to implement two methods:
  * <ol>
- *     <li>the {@link #processBroadcastElement(Object, KeyedContext, Collector)} which will be applied to
+ *     <li>the {@link #processBroadcastElement(Object, Context, Collector)} which will be applied to
  *     each element in the broadcast side
- *     <li> and the {@link #processElement(Object, KeyedReadOnlyContext, Collector)} which will be applied to the
+ *     <li> and the {@link #processElement(Object, ReadOnlyContext, Collector)} which will be applied to the
  *     non-broadcasted/keyed side.
  * </ol>
  *
@@ -71,7 +71,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * The context is only valid during the invocation of this method, do not store it.
 	 *
 	 * @param value The stream element.
-	 * @param ctx A {@link KeyedReadOnlyContext} that allows querying the timestamp of the element,
+	 * @param ctx A {@link ReadOnlyContext} that allows querying the timestamp of the element,
 	 *            querying the current processing/event time and iterating the broadcast state
 	 *            with <b>read-only</b> access.
 	 *            The context is only valid during the invocation of this method, do not store it.
@@ -79,7 +79,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processElement(final IN1 value, final KeyedReadOnlyContext ctx, final Collector<OUT> out) throws Exception;
+	public abstract void processElement(final IN1 value, final ReadOnlyContext ctx, final Collector<OUT> out) throws Exception;
 
 	/**
 	 * This method is called for each element in the
@@ -102,7 +102,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * @throws Exception The function may throw exceptions which cause the streaming program
 	 *                   to fail and go into recovery.
 	 */
-	public abstract void processBroadcastElement(final IN2 value, final KeyedContext ctx, final Collector<OUT> out) throws Exception;
+	public abstract void processBroadcastElement(final IN2 value, final Context ctx, final Collector<OUT> out) throws Exception;
 
 	/**
 	 * Called when a timer set using {@link TimerService} fires.
@@ -130,7 +130,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * this also allows to apply a {@link KeyedStateFunction} to the (local) states of all active keys
 	 * in the your backend.
 	 */
-	public abstract class KeyedContext extends Context {
+	public abstract class Context extends BaseBroadcastProcessFunction.Context {
 
 		/**
 		 * Applies the provided {@code function} to the state
@@ -152,18 +152,24 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 	 * this also allows to get a <b>read-only</b> {@link Iterable} over the elements stored in the
 	 * broadcast state and a {@link TimerService} for querying time and registering timers.
 	 */
-	public abstract class KeyedReadOnlyContext extends ReadOnlyContext {
+	public abstract class ReadOnlyContext extends BaseBroadcastProcessFunction.ReadOnlyContext {
 
 		/**
 		 * A {@link TimerService} for querying time and registering timers.
 		 */
 		public abstract TimerService timerService();
+
+
+		/**
+		 * Get key of the element being processed.
+		 */
+		public abstract KS getCurrentKey();
 	}
 
 	/**
 	 * Information available in an invocation of {@link #onTimer(long, OnTimerContext, Collector)}.
 	 */
-	public abstract class OnTimerContext extends KeyedReadOnlyContext {
+	public abstract class OnTimerContext extends ReadOnlyContext {
 
 		/**
 		 * The {@link TimeDomain} of the firing timer, i.e. if it is
@@ -174,6 +180,7 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> extends B
 		/**
 		 * Get the key of the firing timer.
 		 */
+		@Override
 		public abstract KS getCurrentKey();
 	}
 }

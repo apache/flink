@@ -24,13 +24,11 @@ import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.File;
 import java.util.Collections;
@@ -38,7 +36,6 @@ import java.util.Collections;
 /**
  * IT case for the {@link AvroExternalJarProgram}.
  */
-@Category(New.class)
 public class AvroExternalJarProgramITCase extends TestLogger {
 
 	private static final String JAR_FILE = "maven-test-jar.jar";

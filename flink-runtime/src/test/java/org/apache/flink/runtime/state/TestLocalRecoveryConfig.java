@@ -28,7 +28,7 @@ public class TestLocalRecoveryConfig {
 	private static final LocalRecoveryDirectoryProvider INSTANCE = new TestDummyLocalDirectoryProvider();
 
 	public static LocalRecoveryConfig disabled() {
-		return new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.DISABLED, INSTANCE);
+		return new LocalRecoveryConfig(false, INSTANCE);
 	}
 
 	public static class TestDummyLocalDirectoryProvider implements LocalRecoveryDirectoryProvider {

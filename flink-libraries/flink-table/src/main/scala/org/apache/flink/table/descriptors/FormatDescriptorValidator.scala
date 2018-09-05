@@ -34,6 +34,11 @@ class FormatDescriptorValidator extends DescriptorValidator {
 object FormatDescriptorValidator {
 
   /**
+    * Prefix for format-related properties.
+    */
+  val FORMAT = "format"
+
+  /**
     * Key for describing the type of the format. Usually used for factory discovery.
     */
   val FORMAT_TYPE = "format.type"

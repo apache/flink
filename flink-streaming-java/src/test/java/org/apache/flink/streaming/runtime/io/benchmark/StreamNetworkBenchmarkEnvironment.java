@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -59,6 +60,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 
 /**
  * Context for network benchmarks executed by the external
@@ -66,7 +68,8 @@ import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
  */
 public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
-	private static final int BUFFER_SIZE = TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue();
+	private static final int BUFFER_SIZE =
+		checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes());
 
 	private static final int NUM_SLOTS_AND_THREADS = 1;
 
@@ -93,21 +96,45 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
 
 	protected ResultPartitionID[] partitionIds;
 
-	public void setUp(int writers, int channels, boolean localMode) throws Exception {
+	/**
+	 * Sets up the environment including buffer pools and netty threads.
+	 *
+	 * @param writers
+	 * 		number of writers
+	 * @param channels
+	 * 		outgoing channels per writer
+	 * @param localMode
+	 * 		only local channels?
+	 * @param senderBufferPoolSize
+	 * 		buffer pool size for the sender (set to <tt>-1</tt> for default)
+	 * @param receiverBufferPoolSize
+	 * 		buffer pool size for the receiver (set to <tt>-1</tt> for default)
+	 */
+	public void setUp(
+			int writers,
+			int channels,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
 		this.localMode = localMode;
 		this.channels = channels;
 		this.partitionIds = new ResultPartitionID[writers];
+		if (senderBufferPoolSize == -1) {
+			senderBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
+		if (receiverBufferPoolSize == -1) {
+			receiverBufferPoolSize = Math.max(2048, writers * channels * 4);
+		}
 
 		ioManager = new IOManagerAsync();
 
-		int bufferPoolSize = Math.max(2048, writers * channels * 4);
-		senderEnv = createNettyNetworkEnvironment(bufferPoolSize);
+		senderEnv = createNettyNetworkEnvironment(senderBufferPoolSize);
 		senderEnv.start();
-		if (localMode) {
+		if (localMode && senderBufferPoolSize == receiverBufferPoolSize) {
 			receiverEnv = senderEnv;
 		}
 		else {
-			receiverEnv = createNettyNetworkEnvironment(bufferPoolSize);
+			receiverEnv = createNettyNetworkEnvironment(receiverBufferPoolSize);
 			receiverEnv.start();
 		}
 

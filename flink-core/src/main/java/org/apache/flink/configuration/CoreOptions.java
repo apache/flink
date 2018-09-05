@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -172,6 +173,28 @@ public class CoreOptions {
 			" TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh," +
 			" stop-zookeeper-quorum.sh).");
 
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_HADOOP_CONF_DIR = ConfigOptions
+		.key("env.hadoop.conf.dir")
+		.noDefaultValue()
+		.withDescription("Path to hadoop configuration directory. It is required to read HDFS and/or YARN" +
+			" configuration. You can also set it via environment variable.");
+
+	/**
+	 * This options is here only for documentation generation, it is only
+	 * evaluated in the shell scripts.
+	 */
+	@SuppressWarnings("unused")
+	public static final ConfigOption<String> FLINK_YARN_CONF_DIR = ConfigOptions
+		.key("env.yarn.conf.dir")
+		.noDefaultValue()
+		.withDescription("Path to yarn configuration directory. It is required to run flink on YARN. You can also" +
+			" set it via environment variable.");
+
 	// ------------------------------------------------------------------------
 	//  generic io
 	// ------------------------------------------------------------------------
@@ -180,6 +203,7 @@ public class CoreOptions {
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
+	@Documentation.OverrideDefault("'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
 	public static final ConfigOption<String> TMP_DIRS =
 		key("io.tmp.dirs")
 			.defaultValue(System.getProperty("java.io.tmpdir"))
@@ -189,6 +213,7 @@ public class CoreOptions {
 	//  program
 	// ------------------------------------------------------------------------
 
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_PARALLELISM_SLOTS)
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(1);

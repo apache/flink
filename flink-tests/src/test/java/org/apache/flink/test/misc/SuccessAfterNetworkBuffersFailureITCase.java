@@ -33,6 +33,7 @@ import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -52,15 +53,16 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 
 	@ClassRule
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			2,
-			8));
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(2)
+			.setNumberSlotsPerTaskManager(8)
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 80L);
-		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 1024);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
+		config.setInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS, 800);
 		return config;
 	}
 
@@ -134,13 +136,16 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		// set number of bulk iterations for KMeans algorithm
 		IterativeDataSet<KMeans.Centroid> loop = centroids.iterate(20);
 
+		// add some re-partitions to increase network buffer use
 		DataSet<KMeans.Centroid> newCentroids = points
 				// compute closest centroid for each point
 				.map(new KMeans.SelectNearestCenter()).withBroadcastSet(loop, "centroids")
-						// count and sum point coordinates for each centroid
+				.rebalance()
+				// count and sum point coordinates for each centroid
 				.map(new KMeans.CountAppender())
 				.groupBy(0).reduce(new KMeans.CentroidAccumulator())
-						// compute new centroids from point counts and coordinate sums
+				// compute new centroids from point counts and coordinate sums
+				.rebalance()
 				.map(new KMeans.CentroidAverager());
 
 		// feed new centroids back into next iteration

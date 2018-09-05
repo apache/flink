@@ -26,11 +26,11 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
-import static org.junit.Assert.fail;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
+
+import static org.junit.Assert.fail;
 
 /**
  * Base class for tests for {@link ParameterTool}.

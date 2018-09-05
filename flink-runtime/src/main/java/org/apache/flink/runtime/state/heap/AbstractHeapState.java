@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -34,41 +33,44 @@ import org.apache.flink.util.Preconditions;
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <SV> The type of the values in the state.
- * @param <S> The type of State
- * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> implements InternalKvState<K, N, SV> {
+public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, N, SV> {
 
 	/** Map containing the actual key/value pairs. */
 	protected final StateTable<K, N, SV> stateTable;
-
-	/** This holds the name of the state and can create an initial default value for the state. */
-	protected final SD stateDesc;
 
 	/** The current namespace, which the access methods will refer to. */
 	protected N currentNamespace;
 
 	protected final TypeSerializer<K> keySerializer;
 
+	protected final TypeSerializer<SV> valueSerializer;
+
 	protected final TypeSerializer<N> namespaceSerializer;
+
+	private final SV defaultValue;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
-	protected AbstractHeapState(
-			SD stateDesc,
+	AbstractHeapState(
 			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
+			TypeSerializer<SV> valueSerializer,
+			TypeSerializer<N> namespaceSerializer,
+			SV defaultValue) {
 
-		this.stateDesc = stateDesc;
 		this.stateTable = Preconditions.checkNotNull(stateTable, "State table must not be null.");
 		this.keySerializer = keySerializer;
+		this.valueSerializer = valueSerializer;
 		this.namespaceSerializer = namespaceSerializer;
+		this.defaultValue = defaultValue;
 		this.currentNamespace = null;
 	}
 
@@ -113,5 +115,13 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	@VisibleForTesting
 	public StateTable<K, N, SV> getStateTable() {
 		return stateTable;
+	}
+
+	protected SV getDefaultValue() {
+		if (defaultValue != null) {
+			return valueSerializer.copy(defaultValue);
+		} else {
+			return null;
+		}
 	}
 }

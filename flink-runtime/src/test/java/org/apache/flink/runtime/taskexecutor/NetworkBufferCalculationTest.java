@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.testutils.category.LegacyAndNew;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.net.InetAddress;
+import java.util.Optional;
 
+import static org.apache.flink.util.MathUtils.checkedDownCast;
 import static org.junit.Assert.assertEquals;
 
 /**
  * Tests the network buffer calculation from heap size.
  */
-@Category(LegacyAndNew.class)
 public class NetworkBufferCalculationTest extends TestLogger {
 
 	/**
@@ -46,13 +45,13 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	public void calculateNetworkBufFromHeapSize() throws Exception {
 		TaskManagerServicesConfiguration tmConfig;
 
-		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
+		tmConfig = getTmConfig(Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			TaskManagerServices.calculateNetworkBufferMemory(tmConfig, 900L << 20)); // 900MB
 
-		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
+		tmConfig = getTmConfig(Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
@@ -90,7 +89,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			networkBufFraction,
 			networkBufMin,
 			networkBufMax,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue(),
+			checkedDownCast(MemorySize.parse(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue()).getBytes()),
 			null,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
@@ -102,7 +101,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			InetAddress.getLoopbackAddress(),
 			new String[] {},
 			new String[] {},
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			networkConfig,
 			QueryableStateConfiguration.disabled(),
 			1,
@@ -110,6 +109,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 			memType,
 			false,
 			managedMemoryFraction,
-			0);
+			0,
+			Optional.empty());
 	}
 }

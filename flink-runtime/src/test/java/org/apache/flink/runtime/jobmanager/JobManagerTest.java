@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -133,6 +132,7 @@ import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
 
@@ -640,8 +640,8 @@ public class JobManagerTest extends TestLogger {
 				leaderId);
 
 		Configuration tmConfig = new Configuration();
-		tmConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
-		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+		tmConfig.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 8);
 
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
 			tmConfig,
@@ -941,7 +941,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue(savepointFile.exists());
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -957,7 +957,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1131,7 +1131,7 @@ public class JobManagerTest extends TestLogger {
 			}
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1244,7 +1244,7 @@ public class JobManagerTest extends TestLogger {
 			assertEquals(1, targetDirectory.listFiles().length);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1260,7 +1260,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.result(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1300,7 +1300,7 @@ public class JobManagerTest extends TestLogger {
 			archiver = new AkkaActorGateway(master._2(), leaderId);
 
 			Configuration tmConfig = new Configuration();
-			tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
+			tmConfig.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 4);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 				tmConfig,
@@ -1417,7 +1417,7 @@ public class JobManagerTest extends TestLogger {
 			assertTrue("Unexpected response: " + response, response instanceof JobSubmitSuccess);
 		} finally {
 			if (actorSystem != null) {
-				actorSystem.shutdown();
+				actorSystem.terminate();
 			}
 
 			if (archiver != null) {
@@ -1433,7 +1433,7 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			if (actorSystem != null) {
-				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+				Await.ready(actorSystem.whenTerminated(), TestingUtils.TESTING_TIMEOUT());
 			}
 		}
 	}
@@ -1517,8 +1517,8 @@ public class JobManagerTest extends TestLogger {
 
 		} finally {
 			// cleanup the actor system and with it all of the started actors if not already terminated
-			actorSystem.shutdown();
-			actorSystem.awaitTermination();
+			actorSystem.terminate();
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
 		}
 	}
 

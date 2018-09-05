@@ -19,33 +19,31 @@
 package org.apache.flink.test.classloading;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -56,21 +54,17 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.isA;
-import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test job classloader.
@@ -95,22 +89,21 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
-	@ClassRule
-	public static final TemporaryFolder FOLDER = new TemporaryFolder();
+
+	private static final TemporaryFolder FOLDER = new TemporaryFolder();
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
-	private static TestingCluster testCluster;
+	private static MiniCluster testCluster;
 
-	private static int parallelism;
+	private static final int parallelism = 4;
 
 	@BeforeClass
 	public static void setUp() throws Exception {
+		FOLDER.create();
+
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
-		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
-		parallelism = 4;
 
 		// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
 		config.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
@@ -121,16 +114,29 @@ public class ClassLoaderITCase extends TestLogger {
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY,
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
-		testCluster = new TestingCluster(config, false);
+		// required as we otherwise run out of memory
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
+
+		testCluster = new MiniCluster(
+			new MiniClusterConfiguration.Builder()
+				.setNumTaskManagers(2)
+				.setNumSlotsPerTaskManager(2)
+				.setConfiguration(config)
+			.build()
+		);
 		testCluster.start();
 	}
 
 	@AfterClass
-	public static void tearDown() throws Exception {
+	public static void tearDownClass() throws Exception {
 		if (testCluster != null) {
-			testCluster.stop();
+			testCluster.close();
 		}
+		FOLDER.delete();
+	}
 
+	@After
+	public void tearDown() throws Exception {
 		TestStreamEnvironment.unsetAsContext();
 		TestEnvironment.unsetAsContext();
 	}
@@ -202,15 +208,27 @@ public class ClassLoaderITCase extends TestLogger {
 			Collections.singleton(new Path(STREAMING_CHECKPOINTED_PROG_JAR_FILE)),
 			Collections.<URL>emptyList());
 
-		// Program should terminate with a 'SuccessException':
-		// we can not access the SuccessException here when executing the tests with maven, because its not available in the jar.
-		expectedException.expectCause(
-			Matchers.<Throwable>hasProperty("cause",
-				hasProperty("class",
-					hasProperty("canonicalName", equalTo(
-						"org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException")))));
+		try {
+			streamingCheckpointedProg.invokeInteractiveModeForExecution();
+		} catch (Exception e) {
+			// Program should terminate with a 'SuccessException':
+			// the exception class is contained in the user-jar, but is not present on the maven classpath
+			// the deserialization of the exception should thus fail here
+			try {
+				Optional<Throwable> exception = ExceptionUtils.findThrowable(e,
+					candidate -> candidate.getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"));
 
-		streamingCheckpointedProg.invokeInteractiveModeForExecution();
+				// if we reach this point we either failed due to another exception,
+				// or the deserialization of the user-exception did not fail
+				if (!exception.isPresent()) {
+					throw e;
+				} else {
+					Assert.fail("Deserialization of user exception should have failed.");
+				}
+			} catch (NoClassDefFoundError expected) {
+				// expected
+			}
+		}
 	}
 
 	@Test
@@ -234,15 +252,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@Test
 	public void testUserCodeTypeJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
-		int port = testCluster.getLeaderRPCPort();
-
-		// test FLINK-3633
-		final PackagedProgram userCodeTypeProg = new PackagedProgram(
-			new File(USERCODETYPE_JAR_PATH),
-			new String[] { USERCODETYPE_JAR_PATH,
-				"localhost",
-				String.valueOf(port),
-			});
+		PackagedProgram userCodeTypeProg = new PackagedProgram(new File(USERCODETYPE_JAR_PATH));
 
 		TestEnvironment.setAsContext(
 			testCluster,
@@ -282,6 +292,8 @@ public class ClassLoaderITCase extends TestLogger {
 	 */
 	@Test
 	public void testDisposeSavepointWithCustomKvState() throws Exception {
+		ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), testCluster);
+
 		Deadline deadline = new FiniteDuration(100, TimeUnit.SECONDS).fromNow();
 
 		File checkpointDir = FOLDER.newFolder();
@@ -324,19 +336,18 @@ public class ClassLoaderITCase extends TestLogger {
 		// The job ID
 		JobID jobId = null;
 
-		ActorGateway jm = testCluster.getLeaderGateway(deadline.timeLeft());
-
 		LOG.info("Waiting for job status running.");
 
 		// Wait for running job
 		while (jobId == null && deadline.hasTimeLeft()) {
-			Future<Object> jobsFuture = jm.ask(JobManagerMessages.getRequestRunningJobsStatus(), deadline.timeLeft());
-			RunningJobsStatus runningJobs = (RunningJobsStatus) Await.result(jobsFuture, deadline.timeLeft());
 
-			for (JobStatusMessage runningJob : runningJobs.getStatusMessages()) {
-				jobId = runningJob.getJobId();
-				LOG.info("Job running. ID: " + jobId);
-				break;
+			Collection<JobStatusMessage> jobs = clusterClient.listJobs().get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			for (JobStatusMessage job : jobs) {
+				if (job.getJobState() == JobStatus.RUNNING) {
+					jobId = job.getJobId();
+					LOG.info("Job running. ID: " + jobId);
+					break;
+				}
 			}
 
 			// Retry if job is not available yet
@@ -345,52 +356,25 @@ public class ClassLoaderITCase extends TestLogger {
 			}
 		}
 
-		LOG.info("Wait for all tasks to be running.");
-		Future<Object> allRunning = jm.ask(new WaitForAllVerticesToBeRunning(jobId), deadline.timeLeft());
-		Await.ready(allRunning, deadline.timeLeft());
-		LOG.info("All tasks are running.");
-
 		// Trigger savepoint
 		String savepointPath = null;
 		for (int i = 0; i < 20; i++) {
 			LOG.info("Triggering savepoint (" + (i + 1) + "/20).");
-			Future<Object> savepointFuture = jm.ask(new TriggerSavepoint(jobId, Option.<String>empty()), deadline.timeLeft());
-
-			Object savepointResponse = Await.result(savepointFuture, deadline.timeLeft());
-
-			if (savepointResponse.getClass() == TriggerSavepointSuccess.class) {
-				savepointPath = ((TriggerSavepointSuccess) savepointResponse).savepointPath();
-				LOG.info("Triggered savepoint. Path: " + savepointPath);
-			} else if (savepointResponse.getClass() == JobManagerMessages.TriggerSavepointFailure.class) {
-				Throwable cause = ((JobManagerMessages.TriggerSavepointFailure) savepointResponse).cause();
+			try {
+				savepointPath = clusterClient.triggerSavepoint(jobId, null)
+					.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			} catch (Exception cause) {
 				LOG.info("Failed to trigger savepoint. Retrying...", cause);
 				// This can fail if the operators are not opened yet
 				Thread.sleep(500);
-			} else {
-				throw new IllegalStateException("Unexpected response to TriggerSavepoint");
 			}
 		}
 
 		assertNotNull("Failed to trigger savepoint", savepointPath);
 
-		// Dispose savepoint
-		LOG.info("Disposing savepoint at " + savepointPath);
-		Future<Object> disposeFuture = jm.ask(new DisposeSavepoint(savepointPath), deadline.timeLeft());
-		Object disposeResponse = Await.result(disposeFuture, deadline.timeLeft());
+		clusterClient.disposeSavepoint(savepointPath).get();
 
-		if (disposeResponse.getClass() == JobManagerMessages.getDisposeSavepointSuccess().getClass()) {
-			// Success :-)
-			LOG.info("Disposed savepoint at " + savepointPath);
-		} else if (disposeResponse instanceof DisposeSavepointFailure) {
-			throw new IllegalStateException("Failed to dispose savepoint " + disposeResponse);
-		} else {
-			throw new IllegalStateException("Unexpected response to DisposeSavepoint");
-		}
-
-		// Cancel job, wait for success
-		Future<?> cancelFuture = jm.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft());
-		Object response = Await.result(cancelFuture, deadline.timeLeft());
-		assertTrue("Unexpected response: " + response, response instanceof JobManagerMessages.CancellationSuccess);
+		clusterClient.cancel(jobId);
 
 		// make sure, the execution is finished to not influence other test methods
 		invokeThread.join(deadline.timeLeft().toMillis());

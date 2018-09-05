@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
@@ -50,8 +53,6 @@ import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
-import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
-import org.apache.flink.runtime.rest.messages.BlobServerPortResponseBody;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -88,7 +89,6 @@ import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
@@ -100,17 +100,18 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.apache.commons.cli.CommandLine;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -148,7 +149,6 @@ import static org.mockito.Mockito.when;
  * <p>These tests verify that the client uses the appropriate headers for each
  * request, properly constructs the request bodies/parameters and processes the responses correctly.
  */
-@Category(New.class)
 public class RestClusterClientTest extends TestLogger {
 
 	private static final String REST_ADDRESS = "http://localhost:1234";
@@ -224,7 +224,6 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testJobSubmitCancelStop() throws Exception {
-		TestBlobServerPortHandler portHandler = new TestBlobServerPortHandler();
 		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
 		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
 		TestJobExecutionResultHandler testJobExecutionResultHandler =
@@ -235,15 +234,12 @@ public class RestClusterClientTest extends TestLogger {
 					.build()));
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			portHandler,
 			submitHandler,
 			terminationHandler,
 			testJobExecutionResultHandler)) {
 
-			Assert.assertFalse(portHandler.portRetrieved);
 			Assert.assertFalse(submitHandler.jobSubmitted);
 			restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
-			Assert.assertTrue(portHandler.portRetrieved);
 			Assert.assertTrue(submitHandler.jobSubmitted);
 
 			Assert.assertFalse(terminationHandler.jobCanceled);
@@ -262,11 +258,9 @@ public class RestClusterClientTest extends TestLogger {
 	@Test
 	public void testDetachedJobSubmission() throws Exception {
 
-		final TestBlobServerPortHandler testBlobServerPortHandler = new TestBlobServerPortHandler();
 		final TestJobSubmitHandler testJobSubmitHandler = new TestJobSubmitHandler();
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
-			testBlobServerPortHandler,
 			testJobSubmitHandler)) {
 
 			restClusterClient.setDetached(true);
@@ -278,20 +272,6 @@ public class RestClusterClientTest extends TestLogger {
 			assertThat(jobSubmissionResult.getJobID(), is(jobId));
 		}
 
-	}
-
-	private class TestBlobServerPortHandler extends TestHandler<EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
-		private volatile boolean portRetrieved = false;
-
-		private TestBlobServerPortHandler() {
-			super(BlobServerPortHeaders.getInstance());
-		}
-
-		@Override
-		protected CompletableFuture<BlobServerPortResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-			portRetrieved = true;
-			return CompletableFuture.completedFuture(new BlobServerPortResponseBody(12000));
-		}
 	}
 
 	private class TestJobSubmitHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
@@ -368,7 +348,7 @@ public class RestClusterClientTest extends TestLogger {
 	public void testSubmitJobAndWaitForExecutionResult() throws Exception {
 		final TestJobExecutionResultHandler testJobExecutionResultHandler =
 			new TestJobExecutionResultHandler(
-				new RestHandlerException("should trigger retry", HttpResponseStatus.NOT_FOUND),
+				new RestHandlerException("should trigger retry", HttpResponseStatus.SERVICE_UNAVAILABLE),
 				JobExecutionResultResponseBody.inProgress(),
 				JobExecutionResultResponseBody.created(new JobResult.Builder()
 					.jobId(jobId)
@@ -388,7 +368,6 @@ public class RestClusterClientTest extends TestLogger {
 
 		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
 			testJobExecutionResultHandler,
-			new TestBlobServerPortHandler(),
 			new TestJobSubmitHandler())) {
 
 			JobExecutionResult jobExecutionResult;
@@ -674,6 +653,135 @@ public class RestClusterClientTest extends TestLogger {
 				assertEquals(true, accumulators.containsKey("testKey"));
 				assertEquals("testValue", accumulators.get("testKey").get().toString());
 			}
+		}
+	}
+
+	/**
+	 * Tests that command line options override the configuration settings.
+	 */
+	@Test
+	public void testRESTManualConfigurationOverride() throws Exception {
+		final String configuredHostname = "localhost";
+		final int configuredPort = 1234;
+		final Configuration configuration = new Configuration();
+
+		configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
+		configuration.setInteger(JobManagerOptions.PORT, configuredPort);
+		configuration.setString(RestOptions.ADDRESS, configuredHostname);
+		configuration.setInteger(RestOptions.PORT, configuredPort);
+
+		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+
+		final String manualHostname = "123.123.123.123";
+		final int manualPort = 4321;
+		final String[] args = {"-m", manualHostname + ':' + manualPort};
+
+		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
+		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+
+		final RestClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+
+		URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
+		assertThat(webMonitorBaseUrl.getHost(), equalTo(manualHostname));
+		assertThat(webMonitorBaseUrl.getPort(), equalTo(manualPort));
+	}
+
+	/**
+	 * Tests that the send operation is being retried.
+	 */
+	@Test
+	public void testRetriableSendOperationIfConnectionErrorOrServiceUnavailable() throws Exception {
+		final PingRestHandler pingRestHandler = new PingRestHandler(
+			FutureUtils.completedExceptionally(new RestHandlerException("test exception", HttpResponseStatus.SERVICE_UNAVAILABLE)),
+			CompletableFuture.completedFuture(EmptyResponseBody.getInstance()));
+
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(pingRestHandler)) {
+			final AtomicBoolean firstPollFailed = new AtomicBoolean();
+			failHttpRequest = (messageHeaders, messageParameters, requestBody) ->
+				messageHeaders instanceof PingRestHandlerHeaders && !firstPollFailed.getAndSet(true);
+
+			restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
+		}
+	}
+
+	/**
+	 * Tests that the send operation is not being retried when receiving a NOT_FOUND return code.
+	 */
+	@Test
+	public void testSendIsNotRetriableIfHttpNotFound() throws Exception {
+		final String exceptionMessage = "test exception";
+		final PingRestHandler pingRestHandler = new PingRestHandler(
+			FutureUtils.completedExceptionally(new RestHandlerException(exceptionMessage, HttpResponseStatus.NOT_FOUND)));
+
+		try (final TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(pingRestHandler)) {
+			try {
+				restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
+				fail("The rest request should have failed.");
+			}  catch (Exception e) {
+				assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
+			}
+		}
+	}
+
+	private class PingRestHandler extends TestHandler<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		private final Queue<CompletableFuture<EmptyResponseBody>> responseQueue;
+
+		private PingRestHandler(CompletableFuture<EmptyResponseBody> ... responses) {
+			super(PingRestHandlerHeaders.INSTANCE);
+			responseQueue = new ArrayDeque<>(Arrays.asList(responses));
+		}
+
+		@Override
+		protected CompletableFuture<EmptyResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			final CompletableFuture<EmptyResponseBody> result = responseQueue.poll();
+
+			if (result != null) {
+				return result;
+			} else {
+				return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+			}
+		}
+	}
+
+	private static final class PingRestHandlerHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+
+		static final PingRestHandlerHeaders INSTANCE = new PingRestHandlerHeaders();
+
+		@Override
+		public Class<EmptyResponseBody> getResponseClass() {
+			return EmptyResponseBody.class;
+		}
+
+		@Override
+		public HttpResponseStatus getResponseStatusCode() {
+			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public String getDescription() {
+			return "foobar";
+		}
+
+		@Override
+		public Class<EmptyRequestBody> getRequestClass() {
+			return EmptyRequestBody.class;
+		}
+
+		@Override
+		public EmptyMessageParameters getUnresolvedMessageParameters() {
+			return EmptyMessageParameters.getInstance();
+		}
+
+		@Override
+		public HttpMethodWrapper getHttpMethod() {
+			return HttpMethodWrapper.GET;
+		}
+
+		@Override
+		public String getTargetRestEndpointURL() {
+			return "/foobar";
 		}
 	}
 

@@ -28,14 +28,14 @@
             <td>Option whether the state backend should create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Some state backends may not support incremental checkpoints and ignore this option.</td>
         </tr>
         <tr>
-            <td><h5>state.backend.rocksdb.localdir</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>The local directory (on the TaskManager) where RocksDB puts its files.</td>
+            <td><h5>state.backend.local-recovery</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td></td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>The default directory used for checkpoints. Used by the state backends that write checkpoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).</td>
+            <td>The default directory used for storing the data files and meta data of checkpoints in a Flink supported filesystem. The storage path must be accessible from all participating processes/nodes(i.e. all TaskManagers and JobManagers).</td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.num-retained</h5></td>
@@ -46,6 +46,11 @@
             <td><h5>state.savepoints.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The default directory for savepoints. Used by the state backends that write savepoints to file systems (MemoryStateBackend, FsStateBackend, RocksDBStateBackend).</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.state.local.root-dirs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td></td>
         </tr>
     </tbody>
 </table>

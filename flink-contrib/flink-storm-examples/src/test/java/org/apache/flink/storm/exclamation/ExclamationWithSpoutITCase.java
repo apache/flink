@@ -19,30 +19,23 @@
 package org.apache.flink.storm.exclamation;
 
 import org.apache.flink.storm.exclamation.util.ExclamationData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.AbstractTestBase;
+
+import org.junit.Test;
 
 /**
  * Test for the ExclamationWithSpout example.
  */
-public class ExclamationWithSpoutITCase extends StreamingProgramTestBase {
+public class ExclamationWithSpoutITCase extends AbstractTestBase {
 
-	protected String textPath;
-	protected String resultPath;
+	@Test
+	public void testProgram() throws Exception {
+		String textPath = createTempFile("text.txt", WordCountData.TEXT);
+		String resultPath = getTempDirPath("result");
 
-	@Override
-	protected void preSubmit() throws Exception {
-		this.textPath = this.createTempFile("text.txt", WordCountData.TEXT);
-		this.resultPath = this.getTempDirPath("result");
-	}
+		ExclamationWithSpout.main(new String[]{textPath, resultPath});
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(ExclamationData.TEXT_WITH_EXCLAMATIONS, this.resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		ExclamationWithSpout.main(new String[]{this.textPath, this.resultPath});
+		compareResultsByLinesInMemory(ExclamationData.TEXT_WITH_EXCLAMATIONS, resultPath);
 	}
 }

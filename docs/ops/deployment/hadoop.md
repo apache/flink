@@ -40,8 +40,8 @@ running inside YARN will be started with the Hadoop classpaths, but it can
 happen that the Hadoop dependencies must be in the classpath when submitting a
 job to YARN. For this, it's usually enough to do a
 
-```
+{% highlight bash %}
 export HADOOP_CLASSPATH=`hadoop classpath`
-```
+{% endhighlight %}
 
 in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.

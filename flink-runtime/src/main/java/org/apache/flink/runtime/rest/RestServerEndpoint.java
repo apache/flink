@@ -22,32 +22,34 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.RouterHandler;
+import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.rest.handler.router.RouterHandler;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Handler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
-import org.apache.flink.shaded.netty4.io.netty.util.concurrent.DefaultThreadFactory;
+import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -60,9 +62,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * An abstract class for netty-based REST server endpoints.
@@ -76,7 +76,8 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 	private final String restAddress;
 	private final String restBindAddress;
 	private final int restBindPort;
-	private final SSLEngine sslEngine;
+	@Nullable
+	private final SSLEngineFactory sslEngineFactory;
 	private final int maxContentLength;
 
 	protected final Path uploadDir;
@@ -96,7 +97,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 		this.restAddress = configuration.getRestAddress();
 		this.restBindAddress = configuration.getRestBindAddress();
 		this.restBindPort = configuration.getRestBindPort();
-		this.sslEngine = configuration.getSslEngine();
+		this.sslEngineFactory = configuration.getSslEngineFactory();
 
 		this.uploadDir = configuration.getUploadDir();
 		createUploadDir(uploadDir, log);
@@ -144,32 +145,32 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				RestHandlerUrlComparator.INSTANCE);
 
 			handlers.forEach(handler -> {
-				log.debug("Register handler {} under {}@{}.", handler.f1, handler.f0.getHttpMethod(), handler.f0.getTargetRestEndpointURL());
-				registerHandler(router, handler);
+				registerHandler(router, handler, log);
 			});
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 				@Override
 				protected void initChannel(SocketChannel ch) {
-					Handler handler = new RouterHandler(router, responseHeaders);
+					RouterHandler handler = new RouterHandler(router, responseHeaders);
 
 					// SSL should be the first handler in the pipeline
-					if (sslEngine != null) {
-						ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
+					if (sslEngineFactory != null) {
+						ch.pipeline().addLast("ssl", new SslHandler(sslEngineFactory.createSSLEngine()));
 					}
 
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
 						.addLast(new FileUploadHandler(uploadDir))
 						.addLast(new FlinkHttpObjectAggregator(maxContentLength, responseHeaders))
-						.addLast(handler.name(), handler)
+						.addLast(new ChunkedWriteHandler())
+						.addLast(handler.getName(), handler)
 						.addLast(new PipelineErrorHandler(log, responseHeaders));
 				}
 			};
 
-			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("flink-rest-server-netty-boss"));
-			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("flink-rest-server-netty-worker"));
+			NioEventLoopGroup bossGroup = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-server-netty-boss"));
+			NioEventLoopGroup workerGroup = new NioEventLoopGroup(0, new ExecutorThreadFactory("flink-rest-server-netty-worker"));
 
 			bootstrap = new ServerBootstrap();
 			bootstrap
@@ -198,7 +199,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 			final String protocol;
 
-			if (sslEngine != null) {
+			if (sslEngineFactory != null) {
 				protocol = "https://";
 			} else {
 				protocol = "http://";
@@ -311,8 +312,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 				final Time gracePeriod = Time.seconds(10L);
 
 				if (bootstrap != null) {
-					if (bootstrap.group() != null) {
-						bootstrap.group().shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
+					final ServerBootstrapConfig config = bootstrap.config();
+					final EventLoopGroup group = config.group();
+					if (group != null) {
+						group.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									groupFuture.complete(null);
@@ -324,8 +327,9 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 						groupFuture.complete(null);
 					}
 
-					if (bootstrap.childGroup() != null) {
-						bootstrap.childGroup().shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
+					final EventLoopGroup childGroup = config.childGroup();
+					if (childGroup != null) {
+						childGroup.shutdownGracefully(0L, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS)
 							.addListener(finished -> {
 								if (finished.isSuccess()) {
 									childGroupFuture.complete(null);
@@ -346,51 +350,51 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 				CompletableFuture<Void> combinedFuture = FutureUtils.completeAll(Arrays.asList(groupFuture, childGroupFuture));
 
-				// TODO: Temporary fix to circumvent shutdown bug in Netty < 4.0.33
-				// See: https://github.com/netty/netty/issues/4357
-				FutureUtils.orTimeout(combinedFuture, gracePeriod.toMilliseconds(), TimeUnit.MILLISECONDS);
-
-				combinedFuture
-					.exceptionally(
-						(Throwable throwable) -> {
-							if (throwable instanceof TimeoutException) {
-								// We ignore timeout exceptions because they indicate that Netty's shut down deadlocked
-								log.info("Could not properly shut down Netty. Continue shut down of RestServerEndpoint.");
-								return null;
-							} else {
-								throw new CompletionException(ExceptionUtils.stripCompletionException(throwable));
-							}
-						})
-					.whenComplete(
-						(Void ignored, Throwable throwable) -> {
-							if (throwable != null) {
-								channelTerminationFuture.completeExceptionally(throwable);
-							} else {
-								channelTerminationFuture.complete(null);
-							}
-						});
+				combinedFuture.whenComplete(
+					(Void ignored, Throwable throwable) -> {
+						if (throwable != null) {
+							channelTerminationFuture.completeExceptionally(throwable);
+						} else {
+							channelTerminationFuture.complete(null);
+						}
+					});
 			});
 
 			return channelTerminationFuture;
 		}
 	}
 
-	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler) {
-		switch (specificationHandler.f0.getHttpMethod()) {
+	private static void registerHandler(Router router, Tuple2<RestHandlerSpecification, ChannelInboundHandler> specificationHandler, Logger log) {
+		final String handlerURL = specificationHandler.f0.getTargetRestEndpointURL();
+		// setup versioned urls
+		for (final RestAPIVersion supportedVersion : specificationHandler.f0.getSupportedAPIVersions()) {
+			final String versionedHandlerURL = '/' + supportedVersion.getURLVersionPrefix() + handlerURL;
+			log.debug("Register handler {} under {}@{}.", specificationHandler.f1, specificationHandler.f0.getHttpMethod(), versionedHandlerURL);
+			registerHandler(router, versionedHandlerURL, specificationHandler.f0.getHttpMethod(), specificationHandler.f1);
+			if (supportedVersion.isDefaultVersion()) {
+				// setup unversioned url for convenience and backwards compatibility
+				log.debug("Register handler {} under {}@{}.", specificationHandler.f1, specificationHandler.f0.getHttpMethod(), handlerURL);
+				registerHandler(router, handlerURL, specificationHandler.f0.getHttpMethod(), specificationHandler.f1);
+			}
+		}
+	}
+
+	private static void registerHandler(Router router, String handlerURL, HttpMethodWrapper httpMethod, ChannelInboundHandler handler) {
+		switch (httpMethod) {
 			case GET:
-				router.GET(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addGet(handlerURL, handler);
 				break;
 			case POST:
-				router.POST(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPost(handlerURL, handler);
 				break;
 			case DELETE:
-				router.DELETE(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addDelete(handlerURL, handler);
 				break;
 			case PATCH:
-				router.PATCH(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				router.addPatch(handlerURL, handler);
 				break;
 			default:
-				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
+				throw new RuntimeException("Unsupported http method: " + httpMethod + '.');
 		}
 	}
 
@@ -448,13 +452,22 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
 		private static final Comparator<String> CASE_INSENSITIVE_ORDER = new CaseInsensitiveOrderComparator();
 
+		private static final Comparator<RestAPIVersion> API_VERSION_ORDER = new RestAPIVersion.RestAPIVersionComparator();
+
 		static final RestHandlerUrlComparator INSTANCE = new RestHandlerUrlComparator();
 
 		@Override
 		public int compare(
 				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o1,
 				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o2) {
-			return CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
+			final int urlComparisonResult = CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
+			if (urlComparisonResult != 0) {
+				return urlComparisonResult;
+			} else {
+				return API_VERSION_ORDER.compare(
+					Collections.min(o1.f0.getSupportedAPIVersions()),
+					Collections.min(o2.f0.getSupportedAPIVersions()));
+			}
 		}
 
 		/**

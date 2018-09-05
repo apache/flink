@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class StandaloneRunningJobsRegistry implements RunningJobsRegistry {
 
-	/** The currently running jobs */
+	/** The currently running jobs. */
 	private final HashMap<JobID, JobSchedulingStatus> jobStatus = new HashMap<>();
 
 	@Override
@@ -54,7 +54,7 @@ public class StandaloneRunningJobsRegistry implements RunningJobsRegistry {
 	@Override
 	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
 		checkNotNull(jobID);
-		
+
 		synchronized (jobStatus) {
 			JobSchedulingStatus status = jobStatus.get(jobID);
 			return status == null ? JobSchedulingStatus.PENDING : status;

@@ -34,7 +34,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
@@ -722,7 +721,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 		env.getConfig().disableSysoutLogging();
 
-		TypeInformation<Tuple2<Long, String>> longStringType = TypeInfoParser.parse("Tuple2<Long, String>");
+		TypeInformation<Tuple2<Long, String>> longStringType =
+				TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 		TypeInformationSerializationSchema<Tuple2<Long, String>> sourceSchema =
 				new TypeInformationSerializationSchema<>(longStringType, env.getConfig());
@@ -1233,7 +1233,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		createTestTopic(topic, parallelism, 1);
 
-		final TypeInformation<Tuple2<Long, byte[]>> longBytesInfo = TypeInfoParser.parse("Tuple2<Long, byte[]>");
+		final TypeInformation<Tuple2<Long, byte[]>> longBytesInfo =
+				TypeInformation.of(new TypeHint<Tuple2<Long, byte[]>>(){});
 
 		final TypeInformationSerializationSchema<Tuple2<Long, byte[]>> serSchema =
 				new TypeInformationSerializationSchema<>(longBytesInfo, new ExecutionConfig());
@@ -1581,7 +1582,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		env1.getConfig().disableSysoutLogging();
 		env1.disableOperatorChaining(); // let the source read everything into the network buffers
 
-		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>"), env1.getConfig());
+		TypeInformationSerializationSchema<Tuple2<Integer, Integer>> schema = new TypeInformationSerializationSchema<>(
+				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}), env1.getConfig());
+
 		DataStream<Tuple2<Integer, Integer>> fromKafka = env1.addSource(kafkaServer.getConsumer(topic, schema, standardProps));
 		fromKafka.flatMap(new FlatMapFunction<Tuple2<Integer, Integer>, Void>() {
 			@Override
@@ -1686,7 +1689,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final int finalCount;
 		int count = 0;
 
-		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		TypeInformation<Tuple2<Integer, Integer>> ti = TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){});
 		TypeSerializer<Tuple2<Integer, Integer>> ser = ti.createSerializer(new ExecutionConfig());
 
 		public FixedNumberDeserializationSchema(int finalCount) {
@@ -1734,7 +1737,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 		final int finalCount = finalCountTmp;
 
-		final TypeInformation<Tuple2<Integer, Integer>> intIntTupleType = TypeInfoParser.parse("Tuple2<Integer, Integer>");
+		final TypeInformation<Tuple2<Integer, Integer>> intIntTupleType =
+				TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){});
 
 		final TypeInformationSerializationSchema<Tuple2<Integer, Integer>> deser =
 			new TypeInformationSerializationSchema<>(intIntTupleType, env.getConfig());
@@ -2234,7 +2238,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		private final TypeSerializer<Tuple2<Integer, Integer>> ts;
 
 		public Tuple2WithTopicSchema(ExecutionConfig ec) {
-			ts = TypeInfoParser.<Tuple2<Integer, Integer>>parse("Tuple2<Integer, Integer>").createSerializer(ec);
+			ts = TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}).createSerializer(ec);
 		}
 
 		@Override
@@ -2251,7 +2255,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public TypeInformation<Tuple3<Integer, Integer, String>> getProducedType() {
-			return TypeInfoParser.parse("Tuple3<Integer, Integer, String>");
+			return TypeInformation.of(new TypeHint<Tuple3<Integer, Integer, String>>(){});
 		}
 
 		@Override

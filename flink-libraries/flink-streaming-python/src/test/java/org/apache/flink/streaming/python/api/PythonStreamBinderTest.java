@@ -24,9 +24,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.Test;
 import org.python.core.PyException;
 
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ import java.util.List;
 /**
  * Tests for the {@link PythonStreamBinder}.
  */
-public class PythonStreamBinderTest extends StreamingProgramTestBase {
+public class PythonStreamBinderTest extends AbstractTestBase {
 
 	private static Path getBaseTestPythonDir() {
 		FileSystem fs = new LocalFileSystem();
@@ -60,9 +61,9 @@ public class PythonStreamBinderTest extends StreamingProgramTestBase {
 		return files;
 	}
 
-	@Override
+	@Test
 	public void testProgram() throws Exception {
-		Path testEntryPoint = new Path(getBaseTestPythonDir(), "examples/word_count.py");
+		Path testEntryPoint = new Path(getBaseTestPythonDir(), "run_all_tests.py");
 		List<String> testFiles = findTestFiles();
 
 		Preconditions.checkState(testFiles.size() > 0, "No test files were found in {}.", getBaseTestPythonDir());

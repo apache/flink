@@ -48,6 +48,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   // Keyword
   lazy val AS: Keyword = Keyword("as")
   lazy val CAST: Keyword = Keyword("cast")
+  lazy val ASC: Keyword = Keyword("asc")
+  lazy val DESC: Keyword = Keyword("desc")
   lazy val NULL: Keyword = Keyword("Null")
   lazy val IF: Keyword = Keyword("?")
   lazy val TO_DATE: Keyword = Keyword("toDate")
@@ -57,10 +59,15 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val EXTRACT: Keyword = Keyword("extract")
   lazy val FLOOR: Keyword = Keyword("floor")
   lazy val CEIL: Keyword = Keyword("ceil")
+  lazy val LOG: Keyword = Keyword("log")
   lazy val YEARS: Keyword = Keyword("years")
   lazy val YEAR: Keyword = Keyword("year")
+  lazy val QUARTERS: Keyword = Keyword("quarters")
+  lazy val QUARTER: Keyword = Keyword("quarter")
   lazy val MONTHS: Keyword = Keyword("months")
   lazy val MONTH: Keyword = Keyword("month")
+  lazy val WEEKS: Keyword = Keyword("weeks")
+  lazy val WEEK: Keyword = Keyword("week")
   lazy val DAYS: Keyword = Keyword("days")
   lazy val DAY: Keyword = Keyword("day")
   lazy val HOURS: Keyword = Keyword("hours")
@@ -211,6 +218,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   // suffix operators
 
+  lazy val suffixAsc : PackratParser[Expression] =
+    composite <~ "." ~ ASC ~ opt("()") ^^ { e => Asc(e) }
+
+  lazy val suffixDesc : PackratParser[Expression] =
+    composite <~ "." ~ DESC ~ opt("()") ^^ { e => Desc(e) }
+
   lazy val suffixCast: PackratParser[Expression] =
     composite ~ "." ~ CAST ~ "(" ~ dataType ~ ")" ^^ {
     case e ~ _ ~ _ ~ _ ~ dt ~ _ => Cast(e, dt)
@@ -246,6 +259,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ => TemporalCeil(unit, operand)
     }
 
+  // required because op.log(base) changes order of a parameters
+  lazy val suffixLog: PackratParser[Expression] =
+    composite ~ "." ~ LOG ~ "(" ~ expression ~ ")" ^^ {
+      case operand ~ _ ~ _ ~ _ ~ base ~ _ => Log(base, operand)
+    }
+
   lazy val suffixFunctionCall: PackratParser[Expression] =
     composite ~ "." ~ functionIdent ~ "(" ~ repsep(expression, ",") ~ ")" ^^ {
     case operand ~ _ ~ name ~ _ ~ args ~ _ => Call(name.toUpperCase, operand :: args)
@@ -266,12 +285,16 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     composite <~ "." ~ TO_TIME ~ opt("()") ^^ { e => Cast(e, SqlTimeTypeInfo.TIME) }
 
   lazy val suffixTimeInterval : PackratParser[Expression] =
-    composite ~ "." ~ (YEARS | MONTHS | DAYS | HOURS | MINUTES | SECONDS | MILLIS |
-      YEAR | MONTH | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
+    composite ~ "." ~ (YEARS | QUARTERS | MONTHS | WEEKS | DAYS |  HOURS | MINUTES |
+      SECONDS | MILLIS | YEAR | QUARTER | MONTH | WEEK | DAY | HOUR | MINUTE | SECOND | MILLI) ^^ {
 
     case expr ~ _ ~ (YEARS.key | YEAR.key) => toMonthInterval(expr, 12)
 
+    case expr ~ _ ~ (QUARTERS.key | QUARTER.key) => toMonthInterval(expr, 3)
+
     case expr ~ _ ~ (MONTHS.key | MONTH.key) => toMonthInterval(expr, 1)
+
+    case expr ~ _ ~ (WEEKS.key | WEEKS.key) => toMilliInterval(expr, 7 * MILLIS_PER_DAY)
 
     case expr ~ _ ~ (DAYS.key | DAY.key) => toMilliInterval(expr, MILLIS_PER_DAY)
 
@@ -307,6 +330,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     // expressions that need special expression conversion
     suffixAs | suffixTimeInterval | suffixRowInterval | suffixToTimestamp | suffixToTime |
     suffixToDate |
+    // expression for log
+    suffixLog |
+    // expression for ordering
+    suffixAsc | suffixDesc |
     // expressions that take enumerations
     suffixCast | suffixTrim | suffixTrimWithoutArgs | suffixExtract | suffixFloor | suffixCeil |
     // expressions that take literals

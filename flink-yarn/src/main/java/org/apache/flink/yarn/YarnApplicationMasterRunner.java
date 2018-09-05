@@ -21,7 +21,6 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -42,7 +41,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -59,7 +57,8 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import akka.actor.Terminated;
+import akka.dispatch.OnComplete;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -68,18 +67,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import scala.Option;
 import scala.Some;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.runtime.concurrent.Executors.directExecutionContext;
 import static org.apache.flink.yarn.Utils.require;
 
 /**
@@ -171,21 +173,7 @@ public class YarnApplicationMasterRunner {
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			SecurityConfiguration sc;
-
-			//To support Yarn Secure Integration Test Scenario
-			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if (krb5Conf.exists() && krb5Conf.canRead()) {
-				String krb5Path = krb5Conf.getAbsolutePath();
-				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-				sc = new SecurityConfiguration(flinkConfig,
-					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
-			} else {
-				sc = new SecurityConfiguration(flinkConfig);
-			}
+			SecurityConfiguration sc = new SecurityConfiguration(flinkConfig);
 
 			SecurityUtils.install(sc);
 
@@ -419,11 +407,14 @@ public class YarnApplicationMasterRunner {
 			}
 
 			if (actorSystem != null) {
-				try {
-					actorSystem.shutdown();
-				} catch (Throwable tt) {
-					LOG.error("Error shutting down actor system", tt);
-				}
+				actorSystem.terminate().onComplete(
+					new OnComplete<Terminated>() {
+						public void onComplete(Throwable failure, Terminated result) {
+							if (failure != null) {
+								LOG.error("Error shutting down actor system", failure);
+							}
+						}
+					}, directExecutionContext());
 			}
 
 			futureExecutor.shutdownNow();
@@ -436,7 +427,11 @@ public class YarnApplicationMasterRunner {
 		LOG.info("YARN Application Master started");
 
 		// wait until everything is done
-		actorSystem.awaitTermination();
+		try {
+			Await.ready(actorSystem.whenTerminated(), Duration.Inf());
+		} catch (InterruptedException | TimeoutException e) {
+			LOG.error("Error shutting down actor system", e);
+		}
 
 		// if we get here, everything work out jolly all right, and we even exited smoothly
 		if (webMonitor != null) {
@@ -540,16 +535,8 @@ public class YarnApplicationMasterRunner {
 			ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
 			ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
-		// configure local directory
-		if (configuration.contains(CoreOptions.TMP_DIRS)) {
-			log.info("Overriding YARN's temporary file directories with those " +
-				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
-		}
-		else {
-			final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
-			log.info("Setting directories for temporary files to: {}", localDirs);
-			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
-		}
+		final String localDirs = ENV.get(Environment.LOCAL_DIRS.key());
+		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
 
 		return configuration;
 	}

@@ -64,13 +64,13 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ConsumerWithException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -118,13 +118,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private final JobManagerMetricGroup jobManagerMetricGroup;
 
+	private final HistoryServerArchivist historyServerArchivist;
+
 	@Nullable
 	private final String metricQueryServicePath;
 
 	@Nullable
 	protected final String restAddress;
 
-	private CompletableFuture<Void> orphanedJobManagerRunnersTerminationFuture = CompletableFuture.completedFuture(null);
+	private final Map<JobID, CompletableFuture<Void>> jobManagerTerminationFutures;
 
 	public Dispatcher(
 			RpcService rpcService,
@@ -140,7 +142,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			ArchivedExecutionGraphStore archivedExecutionGraphStore,
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
-			@Nullable String restAddress) throws Exception {
+			@Nullable String restAddress,
+			HistoryServerArchivist historyServerArchivist) throws Exception {
 		super(rpcService, endpointId);
 
 		this.configuration = Preconditions.checkNotNull(configuration);
@@ -165,9 +168,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		this.restAddress = restAddress;
 
+		this.historyServerArchivist = Preconditions.checkNotNull(historyServerArchivist);
+
 		this.archivedExecutionGraphStore = Preconditions.checkNotNull(archivedExecutionGraphStore);
 
 		this.jobManagerRunnerFactory = Preconditions.checkNotNull(jobManagerRunnerFactory);
+
+		this.jobManagerTerminationFutures = new HashMap<>(2);
 	}
 
 	//------------------------------------------------------
@@ -178,11 +185,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public CompletableFuture<Void> postStop() {
 		log.info("Stopping dispatcher {}.", getAddress());
 
-		final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
-
-		final CompletableFuture<Void> allJobManagerRunnersTerminationFuture = FutureUtils.completeAll(Arrays.asList(
-			jobManagerRunnersTerminationFuture,
-			orphanedJobManagerRunnersTerminationFuture));
+		final CompletableFuture<Void> allJobManagerRunnersTerminationFuture = terminateJobManagerRunnersAndGetTerminationFuture();
 
 		return FutureUtils.runAfterwards(
 			allJobManagerRunnersTerminationFuture,
@@ -233,20 +236,26 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		final JobID jobId = jobGraph.getJobID();
 
 		log.info("Submitting job {} ({}).", jobId, jobGraph.getName());
+		final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus;
 
 		try {
-			final RunningJobsRegistry.JobSchedulingStatus jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
+			jobSchedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
+		} catch (IOException e) {
+			return FutureUtils.completedExceptionally(new FlinkException(String.format("Failed to retrieve job scheduling status for job %s.", jobId), e));
+		}
 
-			if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE || jobManagerRunners.containsKey(jobId)) {
-				return FutureUtils.completedExceptionally(
-					new JobSubmissionException(jobId, String.format("Job has already been submitted and is in state %s.", jobSchedulingStatus)));
-			} else {
-				persistAndRunJob(jobGraph);
+		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE || jobManagerRunners.containsKey(jobId)) {
+			return FutureUtils.completedExceptionally(
+				new JobSubmissionException(jobId, String.format("Job has already been submitted and is in state %s.", jobSchedulingStatus)));
+		} else {
+			final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(jobId, jobGraph, this::persistAndRunJob)
+				.thenApply(ignored -> Acknowledge.get());
 
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			}
-		} catch (Exception e) {
-			return FutureUtils.completedExceptionally(new FlinkException(String.format("Failed to submit job %s.", jobId), e));
+			return persistAndRunFuture.exceptionally(
+				(Throwable throwable) -> {
+					throw new CompletionException(
+						new JobSubmissionException(jobId, "Failed to submit job.", throwable));
+				});
 		}
 	}
 
@@ -317,9 +326,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
-		if (jobManagerRunners.isEmpty()) {
-			log.info("empty");
-		}
 		return CompletableFuture.completedFuture(
 			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
 	}
@@ -518,6 +524,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				jobMasterGateway.triggerSavepoint(targetDirectory, cancelJob, timeout));
 	}
 
+	@Override
+	public CompletableFuture<Acknowledge> shutDownCluster() {
+		shutDown();
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
 	/**
 	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
 	 * the data will also be removed from HA.
@@ -525,39 +537,84 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 * @param jobId JobID identifying the job to clean up
 	 * @param cleanupHA True iff HA data shall also be cleaned up
 	 */
-	private void removeJob(JobID jobId, boolean cleanupHA) {
+	private void removeJobAndRegisterTerminationFuture(JobID jobId, boolean cleanupHA) {
+		final CompletableFuture<Void> cleanupFuture = removeJob(jobId, cleanupHA);
+
+		registerJobManagerRunnerTerminationFuture(jobId, cleanupFuture);
+	}
+
+	private void registerJobManagerRunnerTerminationFuture(JobID jobId, CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
+		Preconditions.checkState(!jobManagerTerminationFutures.containsKey(jobId));
+
+		jobManagerTerminationFutures.put(jobId, jobManagerRunnerTerminationFuture);
+
+		// clean up the pending termination future
+		jobManagerRunnerTerminationFuture.thenRunAsync(
+			() -> {
+				final CompletableFuture<Void> terminationFuture = jobManagerTerminationFutures.remove(jobId);
+
+				//noinspection ObjectEquality
+				if (terminationFuture != null && terminationFuture != jobManagerRunnerTerminationFuture) {
+					jobManagerTerminationFutures.put(jobId, terminationFuture);
+				}
+			},
+			getUnfencedMainThreadExecutor());
+	}
+
+	private CompletableFuture<Void> removeJob(JobID jobId, boolean cleanupHA) {
 		JobManagerRunner jobManagerRunner = jobManagerRunners.remove(jobId);
 
+		final CompletableFuture<Void> jobManagerRunnerTerminationFuture;
 		if (jobManagerRunner != null) {
-			final CompletableFuture<Void> jobManagerRunnerTerminationFuture = jobManagerRunner.closeAsync();
-			registerOrphanedJobManagerTerminationFuture(jobManagerRunnerTerminationFuture);
+			jobManagerRunnerTerminationFuture = jobManagerRunner.closeAsync();
+		} else {
+			jobManagerRunnerTerminationFuture = CompletableFuture.completedFuture(null);
 		}
 
-		jobManagerMetricGroup.removeJob(jobId);
+		return jobManagerRunnerTerminationFuture.thenRunAsync(
+			() -> {
+				jobManagerMetricGroup.removeJob(jobId);
 
-		if (cleanupHA) {
-			try {
-				submittedJobGraphStore.removeJobGraph(jobId);
-			} catch (Exception e) {
-				log.warn("Could not properly remove job {} from submitted job graph store.", jobId);
-			}
-		}
+				boolean cleanupHABlobs = false;
+				if (cleanupHA) {
+					try {
+						submittedJobGraphStore.removeJobGraph(jobId);
 
-		// TODO: remove job related files from blob server
+						// only clean up the HA blobs if we could remove the job from HA storage
+						cleanupHABlobs = true;
+					} catch (Exception e) {
+						log.warn("Could not properly remove job {} from submitted job graph store.", jobId, e);
+					}
+
+					try {
+						runningJobsRegistry.clearJob(jobId);
+					} catch (IOException e) {
+						log.warn("Could not properly remove job {} from the running jobs registry.", jobId, e);
+					}
+				}
+
+				blobServer.cleanupJob(jobId, cleanupHABlobs);
+			},
+			getRpcService().getExecutor());
 	}
 
 	/**
 	 * Terminate all currently running {@link JobManagerRunner}.
-	 *
-	 * @return Future which is completed once all {@link JobManagerRunner} have terminated
 	 */
-	private CompletableFuture<Void> terminateJobManagerRunners() {
+	private void terminateJobManagerRunners() {
 		log.info("Stopping all currently running jobs of dispatcher {}.", getAddress());
-		final List<CompletableFuture<Void>> terminationFutures = jobManagerRunners.values().stream()
-			.map(JobManagerRunner::closeAsync)
-			.collect(Collectors.toList());
 
-		return FutureUtils.completeAll(terminationFutures);
+		final HashSet<JobID> jobsToRemove = new HashSet<>(jobManagerRunners.keySet());
+
+		for (JobID jobId : jobsToRemove) {
+			removeJobAndRegisterTerminationFuture(jobId, false);
+		}
+	}
+
+	private CompletableFuture<Void> terminateJobManagerRunnersAndGetTerminationFuture() {
+		terminateJobManagerRunners();
+		final Collection<CompletableFuture<Void>> values = jobManagerTerminationFutures.values();
+		return FutureUtils.completeAll(values);
 	}
 
 	/**
@@ -605,6 +662,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		log.info("Job {} reached globally terminal state {}.", archivedExecutionGraph.getJobID(), archivedExecutionGraph.getState());
 
+		archiveExecutionGraph(archivedExecutionGraph);
+
+		final JobID jobId = archivedExecutionGraph.getJobID();
+
+		removeJobAndRegisterTerminationFuture(jobId, true);
+	}
+
+	private void archiveExecutionGraph(ArchivedExecutionGraph archivedExecutionGraph) {
 		try {
 			archivedExecutionGraphStore.put(archivedExecutionGraph);
 		} catch (IOException e) {
@@ -615,27 +680,30 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				e);
 		}
 
-		final JobID jobId = archivedExecutionGraph.getJobID();
+		final CompletableFuture<Acknowledge> executionGraphFuture = historyServerArchivist.archiveExecutionGraph(archivedExecutionGraph);
 
-		removeJob(jobId, true);
+		executionGraphFuture.whenComplete(
+			(Acknowledge ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					log.info(
+						"Could not archive completed job {}({}) to the history server.",
+						archivedExecutionGraph.getJobName(),
+						archivedExecutionGraph.getJobID(),
+						throwable);
+				}
+			});
 	}
 
 	protected void jobNotFinished(JobID jobId) {
 		log.info("Job {} was not finished by JobManager.", jobId);
 
-		removeJob(jobId, false);
+		removeJobAndRegisterTerminationFuture(jobId, false);
 	}
 
 	private void jobMasterFailed(JobID jobId, Throwable cause) {
 		// we fail fatally in case of a JobMaster failure in order to restart the
 		// dispatcher to recover the jobs again. This only works in HA mode, though
 		onFatalError(new FlinkException(String.format("JobMaster for job %s failed.", jobId), cause));
-	}
-
-	private void registerOrphanedJobManagerTerminationFuture(CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
-		orphanedJobManagerRunnersTerminationFuture = FutureUtils.completeAll(Arrays.asList(
-			orphanedJobManagerRunnersTerminationFuture,
-			jobManagerRunnerTerminationFuture));
 	}
 
 	private CompletableFuture<JobMasterGateway> getJobMasterGatewayFuture(JobID jobId) {
@@ -692,30 +760,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	 */
 	@Override
 	public void grantLeadership(final UUID newLeaderSessionID) {
-		final DispatcherId dispatcherId = new DispatcherId(newLeaderSessionID);
-		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), dispatcherId);
+		log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), newLeaderSessionID);
 
 		final CompletableFuture<Collection<JobGraph>> recoveredJobsFuture = recoverJobs();
 
-		final CompletableFuture<Void> fencingTokenFuture = recoveredJobsFuture.thenAcceptAsync(
-			(Collection<JobGraph> recoveredJobs) -> {
-				setNewFencingToken(dispatcherId);
-
-				for (JobGraph recoveredJob : recoveredJobs) {
-					try {
-						runJob(recoveredJob);
-					} catch (Exception e) {
-						throw new CompletionException(
-							new FlinkException(
-								String.format("Failed to recover job %s.", recoveredJob.getJobID()),
-								e));
-					}
-				}
-			},
+		final CompletableFuture<Boolean> fencingTokenFuture = recoveredJobsFuture.thenComposeAsync(
+			(Collection<JobGraph> recoveredJobs) -> tryAcceptLeadershipAndRunJobs(newLeaderSessionID, recoveredJobs),
 			getUnfencedMainThreadExecutor());
 
-		final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenRunAsync(
-			() -> leaderElectionService.confirmLeaderSessionID(newLeaderSessionID),
+		final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenAcceptAsync(
+			(Boolean confirmLeadership) -> {
+				if (confirmLeadership) {
+					leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
+				}
+			},
 			getRpcService().getExecutor());
 
 		confirmationFuture.whenComplete(
@@ -724,6 +782,44 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					onFatalError(ExceptionUtils.stripCompletionException(throwable));
 				}
 			});
+	}
+
+	private CompletableFuture<Boolean> tryAcceptLeadershipAndRunJobs(UUID newLeaderSessionID, Collection<JobGraph> recoveredJobs) {
+		final DispatcherId dispatcherId = DispatcherId.fromUuid(newLeaderSessionID);
+
+		if (leaderElectionService.hasLeadership(newLeaderSessionID)) {
+			log.debug("Dispatcher {} accepted leadership with fencing token {}. Start recovered jobs.", getAddress(), dispatcherId);
+			setNewFencingToken(dispatcherId);
+
+			Collection<CompletableFuture<Void>> runFutures = new ArrayList<>(recoveredJobs.size());
+
+			for (JobGraph recoveredJob : recoveredJobs) {
+				final CompletableFuture<Void> runFuture = waitForTerminatingJobManager(recoveredJob.getJobID(), recoveredJob, this::runJob);
+				runFutures.add(runFuture);
+			}
+
+			return FutureUtils.waitForAll(runFutures).thenApply(ignored -> true);
+		} else {
+			log.debug("Dispatcher {} lost leadership before accepting it. Stop recovering jobs for fencing token {}.", getAddress(), dispatcherId);
+			return CompletableFuture.completedFuture(false);
+		}
+	}
+
+	private CompletableFuture<Void> waitForTerminatingJobManager(JobID jobId, JobGraph jobGraph, ConsumerWithException<JobGraph, ?> action) {
+		final CompletableFuture<Void> jobManagerTerminationFuture = jobManagerTerminationFutures
+			.getOrDefault(jobId, CompletableFuture.completedFuture(null))
+			.exceptionally((Throwable throwable) -> {
+				throw new CompletionException(
+					new DispatcherException(
+						String.format("Termination of previous JobManager for job %s failed. Cannot submit job under the same job id.", jobId),
+						throwable)); });
+
+		return jobManagerTerminationFuture.thenRunAsync(
+			() -> {
+				jobManagerTerminationFutures.remove(jobId);
+				action.accept(jobGraph);
+			},
+			getMainThreadExecutor());
 	}
 
 	private void setNewFencingToken(@Nullable DispatcherId dispatcherId) {
@@ -736,9 +832,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private void clearDispatcherState() {
-		final CompletableFuture<Void> jobManagerRunnersTerminationFuture = terminateJobManagerRunners();
-		registerOrphanedJobManagerTerminationFuture(jobManagerRunnersTerminationFuture);
-		jobManagerRunners.clear();
+		terminateJobManagerRunners();
 	}
 
 	/**
@@ -770,27 +864,31 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public void onAddedJobGraph(final JobID jobId) {
-		getRpcService().execute(() -> {
-			final SubmittedJobGraph submittedJobGraph;
-			try {
-				submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
-			} catch (final Exception e) {
-				log.error("Could not recover job graph for job {}.", jobId, e);
-				return;
-			}
-			runAsync(() -> {
-				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
+		final CompletableFuture<SubmittedJobGraph> recoveredJob = getRpcService().execute(
+			() -> submittedJobGraphStore.recoverJobGraph(jobId));
+
+		final CompletableFuture<Acknowledge> submissionFuture = recoveredJob.thenComposeAsync(
+			(SubmittedJobGraph submittedJobGraph) -> submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT),
+			getMainThreadExecutor());
+
+		submissionFuture.whenComplete(
+			(Acknowledge acknowledge, Throwable throwable) -> {
+				if (throwable != null) {
+					onFatalError(
+						new DispatcherException(
+							String.format("Could not start the added job %s", jobId),
+							ExceptionUtils.stripCompletionException(throwable)));
+				}
 			});
-		});
 	}
 
 	@Override
 	public void onRemovedJobGraph(final JobID jobId) {
 		runAsync(() -> {
 			try {
-				removeJob(jobId, false);
+				removeJobAndRegisterTerminationFuture(jobId, false);
 			} catch (final Exception e) {
-				log.error("Could not remove job {}.", jobId, e);
+				onFatalError(new DispatcherException(String.format("Could not remove job %s.", jobId), e));
 			}
 		});
 	}

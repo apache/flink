@@ -924,7 +924,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					fieldName = inViewWrapper.readUTF();
 
 					inWithPos.setPosition(fieldSerializerOffsets[i * 2]);
-					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
+					fieldSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(fieldSerializerOffsets[i * 2 + 1]);
 					fieldSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
@@ -950,7 +950,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					inWithPos.setPosition(registeredSerializerOffsets[i * 2]);
-					registeredSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
+					registeredSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(registeredSerializerOffsets[i * 2 + 1]);
 					registeredSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());
@@ -976,7 +976,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 					}
 
 					inWithPos.setPosition(cachedSerializerOffsets[i * 2]);
-					cachedSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader());
+					cachedSubclassSerializer = TypeSerializerSerializationUtil.tryReadSerializer(inViewWrapper, getUserCodeClassLoader(), true);
 
 					inWithPos.setPosition(cachedSerializerOffsets[i * 2 + 1]);
 					cachedSubclassSerializerConfigSnapshot = TypeSerializerSerializationUtil.readSerializerConfigSnapshot(inViewWrapper, getUserCodeClassLoader());

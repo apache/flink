@@ -25,14 +25,18 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -45,12 +49,13 @@ import static org.junit.Assert.assertThat;
  */
 public class RestClientTest extends TestLogger {
 
+	private static final String unroutableIp = "10.255.255.1";
+
 	@Test
 	public void testConnectionTimeout() throws Exception {
 		final Configuration config = new Configuration();
 		config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
 		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
-		final String unroutableIp = "10.255.255.1";
 		try {
 			restClient.sendRequest(
 				unroutableIp,
@@ -64,6 +69,27 @@ public class RestClientTest extends TestLogger {
 			assertThat(throwable, instanceOf(ConnectTimeoutException.class));
 			assertThat(throwable.getMessage(), containsString(unroutableIp));
 		}
+	}
+
+	@Test
+	public void testInvalidVersionRejection() throws Exception {
+		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), Executors.directExecutor());
+
+		try {
+			CompletableFuture<EmptyResponseBody> invalidVersionResponse = restClient.sendRequest(
+				unroutableIp,
+				80,
+				new TestMessageHeaders(),
+				EmptyMessageParameters.getInstance(),
+				EmptyRequestBody.getInstance(),
+				Collections.emptyList(),
+				RestAPIVersion.V0
+			);
+			Assert.fail("The request should have been rejected due to a version mismatch.");
+		} catch (IllegalArgumentException e) {
+			// expected
+		}
+
 	}
 
 	private static class TestMessageHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
@@ -81,6 +107,11 @@ public class RestClientTest extends TestLogger {
 		@Override
 		public HttpResponseStatus getResponseStatusCode() {
 			return HttpResponseStatus.OK;
+		}
+
+		@Override
+		public String getDescription() {
+			return "";
 		}
 
 		@Override

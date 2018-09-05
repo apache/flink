@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -36,7 +37,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import java.io.IOException;
@@ -61,8 +61,6 @@ class NettyServer {
 
 	private ChannelFuture bindFuture;
 
-	private SSLContext serverSSLContext = null;
-
 	private InetSocketAddress localAddress;
 
 	NettyServer(NettyConfig config) {
@@ -73,7 +71,7 @@ class NettyServer {
 	void init(final NettyProtocol protocol, NettyBufferPool nettyBufferPool) throws IOException {
 		checkState(bootstrap == null, "Netty server has already been initialized.");
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new ServerBootstrap();
 
@@ -138,8 +136,9 @@ class NettyServer {
 		}
 
 		// SSL related configuration
+		final SSLEngineFactory sslEngineFactory;
 		try {
-			serverSSLContext = config.createServerSSLContext();
+			sslEngineFactory = config.createServerSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty Server", e);
 		}
@@ -151,10 +150,8 @@ class NettyServer {
 		bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
 			@Override
 			public void initChannel(SocketChannel channel) throws Exception {
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					config.setSSLVerAndCipherSuites(sslEngine);
-					sslEngine.setUseClientMode(false);
+				if (sslEngineFactory != null) {
+					SSLEngine sslEngine = sslEngineFactory.createSSLEngine();
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
 
@@ -170,8 +167,8 @@ class NettyServer {
 
 		localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", (end - start), bindFuture.channel().localAddress().toString());
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms). Listening on SocketAddress {}.", duration, localAddress);
 	}
 
 	NettyConfig getConfig() {
@@ -187,7 +184,7 @@ class NettyServer {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 		if (bindFuture != null) {
 			bindFuture.channel().close().awaitUninterruptibly();
 			bindFuture = null;
@@ -199,8 +196,8 @@ class NettyServer {
 			}
 			bootstrap = null;
 		}
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {

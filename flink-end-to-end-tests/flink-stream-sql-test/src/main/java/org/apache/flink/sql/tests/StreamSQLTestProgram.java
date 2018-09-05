@@ -19,6 +19,8 @@
 package org.apache.flink.sql.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -46,6 +48,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * End-to-end test for Stream SQL queries.
@@ -71,6 +74,10 @@ public class StreamSQLTestProgram {
 		String outputPath = params.getRequired("outputPath");
 
 		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		sEnv.setRestartStrategy(RestartStrategies.fixedDelayRestart(
+			3,
+			Time.of(10, TimeUnit.SECONDS)
+		));
 		sEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		sEnv.enableCheckpointing(4000);
 		sEnv.getConfig().setAutoWatermarkInterval(1000);

@@ -364,7 +364,7 @@ public final class ExceptionUtils {
 
 		Throwable t = throwable;
 		while (t != null) {
-			if (t.getMessage().contains(searchMessage)) {
+			if (t.getMessage() != null && t.getMessage().contains(searchMessage)) {
 				return Optional.of(t);
 			} else {
 				t = t.getCause();

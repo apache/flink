@@ -24,7 +24,11 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URL;
@@ -43,11 +47,13 @@ import java.util.List;
  * and allows for managing queries via console.
  *
  * <p>For debugging in an IDE you can execute the main method of this class using:
- * "embedded --defaults /path/to/-sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
+ * "embedded --defaults /path/to/sql-client-defaults.yaml --jar /path/to/target/flink-sql-client-*.jar"
  *
  * <p>Make sure that the FLINK_CONF_DIR environment variable is set.
  */
 public class SqlClient {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SqlClient.class);
 
 	private final boolean isEmbedded;
 	private final CliOptions options;
@@ -89,18 +95,52 @@ public class SqlClient {
 				context = new SessionContext(options.getSessionId(), sessionEnv);
 			}
 
+			// validate the environment (defaults and session)
+			validateEnvironment(context, executor);
+
 			// add shutdown hook
 			Runtime.getRuntime().addShutdownHook(new EmbeddedShutdownThread(context, executor));
 
-			// start CLI
-			final CliClient cli = new CliClient(context, executor);
-			cli.open();
+			// do the actual work
+			openCli(context, executor);
 		} else {
 			throw new SqlClientException("Gateway mode is not supported yet.");
 		}
 	}
 
+	/**
+	 * Opens the CLI client for executing SQL statements.
+	 *
+	 * @param context session context
+	 * @param executor executor
+	 */
+	private void openCli(SessionContext context, Executor executor) {
+		final CliClient cli = new CliClient(context, executor);
+		// interactive CLI mode
+		if (options.getUpdateStatement() == null) {
+			cli.open();
+		}
+		// execute single update statement
+		else {
+			final boolean success = cli.submitUpdate(options.getUpdateStatement());
+			if (!success) {
+				throw new SqlClientException("Could not submit given SQL update statement to cluster.");
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
+
+	private static void validateEnvironment(SessionContext context, Executor executor) {
+		System.out.print("Validating current environment...");
+		try {
+			executor.validateSession(context);
+			System.out.println("done.");
+		} catch (SqlExecutionException e) {
+			throw new SqlClientException(
+				"The configured environment is invalid. Please check your environment files again.", e);
+		}
+	}
 
 	private static void shutdown(SessionContext context, Executor executor) {
 		System.out.println();
@@ -117,6 +157,7 @@ public class SqlClient {
 		}
 
 		System.out.println("Reading session environment from: " + envUrl);
+		LOG.info("Using session environment file: {}", envUrl);
 		try {
 			return Environment.parse(envUrl);
 		} catch (IOException e) {
@@ -148,11 +189,13 @@ public class SqlClient {
 						// make space in terminal
 						System.out.println();
 						System.out.println();
+						LOG.error("SQL Client must stop.", e);
 						throw e;
 					} catch (Throwable t) {
 						// make space in terminal
 						System.out.println();
 						System.out.println();
+						LOG.error("SQL Client must stop. Unexpected exception. This is a bug. Please consider filing an issue.", t);
 						throw new SqlClientException("Unexpected exception. This is a bug. Please consider filing an issue.", t);
 					}
 				}

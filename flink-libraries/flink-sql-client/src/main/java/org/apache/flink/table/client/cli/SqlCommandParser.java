@@ -18,6 +18,13 @@
 
 package org.apache.flink.table.client.cli;
 
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Simple parser for determining the type of command and its parameters.
  */
@@ -27,83 +34,122 @@ public final class SqlCommandParser {
 		// private
 	}
 
-	public static SqlCommandCall parse(String stmt) {
-		String trimmed = stmt.trim();
+	public static Optional<SqlCommandCall> parse(String stmt) {
+		// normalize
+		stmt = stmt.trim();
 		// remove ';' at the end because many people type it intuitively
-		if (trimmed.endsWith(";")) {
-			trimmed = trimmed.substring(0, trimmed.length() - 1);
+		if (stmt.endsWith(";")) {
+			stmt = stmt.substring(0, stmt.length() - 1).trim();
 		}
+
+		// parse
 		for (SqlCommand cmd : SqlCommand.values()) {
-			int pos = 0;
-			int tokenCount = 0;
-			for (String token : trimmed.split("\\s")) {
-				pos += token.length() + 1; // include space character
-				// check for content
-				if (token.length() > 0) {
-					// match
-					if (tokenCount < cmd.tokens.length && token.equalsIgnoreCase(cmd.tokens[tokenCount])) {
-						if (tokenCount == cmd.tokens.length - 1) {
-							return new SqlCommandCall(
-								cmd,
-								splitOperands(cmd, trimmed, trimmed.substring(Math.min(pos, trimmed.length())))
-							);
-						}
-					} else {
-						// next sql command
-						break;
-					}
-					tokenCount++; // check next token
+			final Matcher matcher = cmd.pattern.matcher(stmt);
+			if (matcher.matches()) {
+				final String[] groups = new String[matcher.groupCount()];
+				for (int i = 0; i < groups.length; i++) {
+					groups[i] = matcher.group(i + 1);
 				}
+				return cmd.operandConverter.apply(groups)
+					.map((operands) -> new SqlCommandCall(cmd, operands));
 			}
 		}
-		return null;
-	}
-
-	private static String[] splitOperands(SqlCommand cmd, String originalCall, String operands) {
-		switch (cmd) {
-			case SET:
-				final int delimiter = operands.indexOf('=');
-				if (delimiter < 0) {
-					return new String[] {};
-				} else {
-					return new String[] {operands.substring(0, delimiter), operands.substring(delimiter + 1)};
-				}
-			case SELECT:
-				return new String[] {originalCall};
-			default:
-				return new String[] {operands};
-		}
+		return Optional.empty();
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	private static final Function<String[], Optional<String[]>> NO_OPERANDS =
+		(operands) -> Optional.of(new String[0]);
+
+	private static final Function<String[], Optional<String[]>> SINGLE_OPERAND =
+		(operands) -> Optional.of(new String[]{operands[0]});
+
+	private static final int DEFAULT_PATTERN_FLAGS = Pattern.CASE_INSENSITIVE | Pattern.DOTALL;
 
 	/**
 	 * Supported SQL commands.
 	 */
 	enum SqlCommand {
-		QUIT("quit"),
-		EXIT("exit"),
-		CLEAR("clear"),
-		HELP("help"),
-		SHOW_TABLES("show tables"),
-		DESCRIBE("describe"),
-		EXPLAIN("explain"),
-		SELECT("select"),
-		SET("set"),
-		RESET("reset"),
-		SOURCE("source");
+		QUIT(
+			"(QUIT|EXIT)",
+			NO_OPERANDS),
 
-		public final String command;
-		public final String[] tokens;
+		CLEAR(
+			"CLEAR",
+			NO_OPERANDS),
 
-		SqlCommand(String command) {
-			this.command = command;
-			this.tokens = command.split(" ");
+		HELP(
+			"HELP",
+			NO_OPERANDS),
+
+		SHOW_TABLES(
+			"SHOW\\s+TABLES",
+			NO_OPERANDS),
+
+		SHOW_FUNCTIONS(
+			"SHOW\\s+FUNCTIONS",
+			NO_OPERANDS),
+
+		DESCRIBE(
+			"DESCRIBE\\s+(.*)",
+			SINGLE_OPERAND),
+
+		EXPLAIN(
+			"EXPLAIN\\s+(.*)",
+			SINGLE_OPERAND),
+
+		SELECT(
+			"(SELECT.*)",
+			SINGLE_OPERAND),
+
+		INSERT_INTO(
+			"(INSERT\\s+INTO.*)",
+			SINGLE_OPERAND),
+
+		CREATE_VIEW(
+			"CREATE\\s+VIEW\\s+(\\S+)\\s+AS\\s+(.*)",
+			(operands) -> {
+				if (operands.length < 2) {
+					return Optional.empty();
+				}
+				return Optional.of(new String[]{operands[0], operands[1]});
+			}),
+
+		DROP_VIEW(
+			"DROP\\s+VIEW\\s+(.*)",
+			SINGLE_OPERAND),
+
+		SET(
+			"SET(\\s+(\\S+)\\s*=(.*))?", // whitespace is only ignored on the left side of '='
+			(operands) -> {
+				if (operands.length < 3) {
+					return Optional.empty();
+				} else if (operands[0] == null) {
+					return Optional.of(new String[0]);
+				}
+				return Optional.of(new String[]{operands[1], operands[2]});
+			}),
+
+		RESET(
+			"RESET",
+			NO_OPERANDS),
+
+		SOURCE(
+			"SOURCE\\s+(.*)",
+			SINGLE_OPERAND);
+
+		public final Pattern pattern;
+		public final Function<String[], Optional<String[]>> operandConverter;
+
+		SqlCommand(String matchingRegex, Function<String[], Optional<String[]>> operandConverter) {
+			this.pattern = Pattern.compile(matchingRegex, DEFAULT_PATTERN_FLAGS);
+			this.operandConverter = operandConverter;
 		}
 
 		@Override
 		public String toString() {
-			return command.toUpperCase();
+			return super.toString().replace('_', ' ');
 		}
 	}
 
@@ -117,6 +163,34 @@ public final class SqlCommandParser {
 		public SqlCommandCall(SqlCommand command, String[] operands) {
 			this.command = command;
 			this.operands = operands;
+		}
+
+		public SqlCommandCall(SqlCommand command) {
+			this(command, new String[0]);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			SqlCommandCall that = (SqlCommandCall) o;
+			return command == that.command && Arrays.equals(operands, that.operands);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Objects.hash(command);
+			result = 31 * result + Arrays.hashCode(operands);
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return command + "(" + Arrays.toString(operands) + ")";
 		}
 	}
 }

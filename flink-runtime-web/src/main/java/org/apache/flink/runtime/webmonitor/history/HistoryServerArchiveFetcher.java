@@ -23,8 +23,13 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
+import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
 
@@ -39,8 +44,12 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -162,7 +171,10 @@ class HistoryServerArchiveFetcher {
 									String json = archive.getJson();
 
 									File target;
-									if (path.equals("/joboverview")) {
+									if (path.equals(JobsOverviewHeaders.URL)) {
+										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
+									} else if (path.equals("/joboverview")) { // legacy path
+										json = convertLegacyJobOverview(json);
 										target = new File(webOverviewDir, jobID + JSON_FILE_ENDING);
 									} else {
 										target = new File(webDir, path + JSON_FILE_ENDING);
@@ -211,7 +223,7 @@ class HistoryServerArchiveFetcher {
 						}
 					}
 					if (updateOverview) {
-						updateJobOverview(webDir);
+						updateJobOverview(webOverviewDir, webDir);
 					}
 				}
 			} catch (Exception e) {
@@ -219,6 +231,47 @@ class HistoryServerArchiveFetcher {
 			}
 			numFinishedPolls.countDown();
 		}
+	}
+
+	private static String convertLegacyJobOverview(String legacyOverview) throws IOException {
+		JsonNode root = mapper.readTree(legacyOverview);
+		JsonNode finishedJobs = root.get("finished");
+		JsonNode job = finishedJobs.get(0);
+
+		JobID jobId = JobID.fromHexString(job.get("jid").asText());
+		String name = job.get("name").asText();
+		JobStatus state = JobStatus.valueOf(job.get("state").asText());
+
+		long startTime = job.get("start-time").asLong();
+		long endTime = job.get("end-time").asLong();
+		long duration = job.get("duration").asLong();
+		long lastMod = job.get("last-modification").asLong();
+
+		JsonNode tasks = job.get("tasks");
+		int numTasks = tasks.get("total").asInt();
+		int pending = tasks.get("pending").asInt();
+		int running = tasks.get("running").asInt();
+		int finished = tasks.get("finished").asInt();
+		int canceling = tasks.get("canceling").asInt();
+		int canceled = tasks.get("canceled").asInt();
+		int failed = tasks.get("failed").asInt();
+
+		int[] tasksPerState = new int[ExecutionState.values().length];
+		// pending is a mix of CREATED/SCHEDULED/DEPLOYING
+		// to maintain the correct number of task states we have to pick one of them
+		tasksPerState[ExecutionState.SCHEDULED.ordinal()] = pending;
+		tasksPerState[ExecutionState.RUNNING.ordinal()] = running;
+		tasksPerState[ExecutionState.FINISHED.ordinal()] = finished;
+		tasksPerState[ExecutionState.CANCELING.ordinal()] = canceling;
+		tasksPerState[ExecutionState.CANCELED.ordinal()] = canceled;
+		tasksPerState[ExecutionState.FAILED.ordinal()] = failed;
+
+		JobDetails jobDetails = new JobDetails(jobId, name, startTime, endTime, duration, state, lastMod, tasksPerState, numTasks);
+		MultipleJobsDetails multipleJobsDetails = new MultipleJobsDetails(Collections.singleton(jobDetails));
+
+		StringWriter sw = new StringWriter();
+		mapper.writeValue(sw, multipleJobsDetails);
+		return sw.toString();
 	}
 
 	/**
@@ -230,26 +283,17 @@ class HistoryServerArchiveFetcher {
 	 *
 	 * <p>For the display in the HistoryServer WebFrontend we have to combine these overviews.
 	 */
-	private static void updateJobOverview(File webDir) {
-		File webOverviewDir = new File(webDir, "overviews");
-		try (JsonGenerator gen = jacksonFactory.createGenerator(HistoryServer.createOrGetFile(webDir, "joboverview"))) {
-			gen.writeStartObject();
-			gen.writeArrayFieldStart("running");
-			gen.writeEndArray();
-			gen.writeArrayFieldStart("finished");
-
+	private static void updateJobOverview(File webOverviewDir, File webDir) {
+		try (JsonGenerator gen = jacksonFactory.createGenerator(HistoryServer.createOrGetFile(webDir, JobsOverviewHeaders.URL))) {
 			File[] overviews = new File(webOverviewDir.getPath()).listFiles();
 			if (overviews != null) {
+				Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
 				for (File overview : overviews) {
-					JsonNode root = mapper.readTree(overview);
-					JsonNode finished = root.get("finished");
-					JsonNode job = finished.get(0);
-					mapper.writeTree(gen, job);
+					MultipleJobsDetails subJobs = mapper.readValue(overview, MultipleJobsDetails.class);
+					allJobs.addAll(subJobs.getJobs());
 				}
+				mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
 			}
-
-			gen.writeEndArray();
-			gen.writeEndObject();
 		} catch (IOException ioe) {
 			LOG.error("Failed to update job overview.", ioe);
 		}

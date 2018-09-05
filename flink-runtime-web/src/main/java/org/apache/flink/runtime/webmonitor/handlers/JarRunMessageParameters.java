@@ -31,17 +31,17 @@ import java.util.Collections;
  */
 public class JarRunMessageParameters extends MessageParameters {
 
-	private final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
+	public final JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-	private final ProgramArgsQueryParameter programArgsQueryParameter = new ProgramArgsQueryParameter();
+	public final ProgramArgsQueryParameter programArgsQueryParameter = new ProgramArgsQueryParameter();
 
-	private final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
+	public final EntryClassQueryParameter entryClassQueryParameter = new EntryClassQueryParameter();
 
-	private final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
+	public final ParallelismQueryParameter parallelismQueryParameter = new ParallelismQueryParameter();
 
-	private final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();
+	public final AllowNonRestoredStateQueryParameter allowNonRestoredStateQueryParameter = new AllowNonRestoredStateQueryParameter();
 
-	private final SavepointPathQueryParameter savepointPathQueryParameter = new SavepointPathQueryParameter();
+	public final SavepointPathQueryParameter savepointPathQueryParameter = new SavepointPathQueryParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -40,6 +41,8 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Mini Dispatcher which is instantiated as the dispatcher component by the {@link JobClusterEntrypoint}.
  *
@@ -51,6 +54,8 @@ import java.util.concurrent.CompletableFuture;
 public class MiniDispatcher extends Dispatcher {
 
 	private final JobClusterEntrypoint.ExecutionMode executionMode;
+
+	private final CompletableFuture<ApplicationStatus> jobTerminationFuture;
 
 	public MiniDispatcher(
 			RpcService rpcService,
@@ -66,6 +71,7 @@ public class MiniDispatcher extends Dispatcher {
 			JobManagerRunnerFactory jobManagerRunnerFactory,
 			FatalErrorHandler fatalErrorHandler,
 			@Nullable String restAddress,
+			HistoryServerArchivist historyServerArchivist,
 			JobGraph jobGraph,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
@@ -82,9 +88,15 @@ public class MiniDispatcher extends Dispatcher {
 			archivedExecutionGraphStore,
 			jobManagerRunnerFactory,
 			fatalErrorHandler,
-			restAddress);
+			restAddress,
+			historyServerArchivist);
 
-		this.executionMode = executionMode;
+		this.executionMode = checkNotNull(executionMode);
+		this.jobTerminationFuture = new CompletableFuture<>();
+	}
+
+	public CompletableFuture<ApplicationStatus> getJobTerminationFuture() {
+		return jobTerminationFuture;
 	}
 
 	@Override
@@ -109,7 +121,12 @@ public class MiniDispatcher extends Dispatcher {
 
 		if (executionMode == ClusterEntrypoint.ExecutionMode.NORMAL) {
 			// terminate the MiniDispatcher once we served the first JobResult successfully
-			jobResultFuture.whenComplete((JobResult ignored, Throwable throwable) -> shutDown());
+			jobResultFuture.thenAccept((JobResult result) -> {
+				ApplicationStatus status = result.getSerializedThrowable().isPresent() ?
+						ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
+
+				jobTerminationFuture.complete(status);
+			});
 		}
 
 		return jobResultFuture;
@@ -121,7 +138,7 @@ public class MiniDispatcher extends Dispatcher {
 
 		if (executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
 			// shut down since we don't have to wait for the execution result retrieval
-			shutDown();
+			jobTerminationFuture.complete(ApplicationStatus.fromJobStatus(archivedExecutionGraph.getState()));
 		}
 	}
 
@@ -130,6 +147,6 @@ public class MiniDispatcher extends Dispatcher {
 		super.jobNotFinished(jobId);
 
 		// shut down since we have done our job
-		shutDown();
+		jobTerminationFuture.complete(ApplicationStatus.UNKNOWN);
 	}
 }

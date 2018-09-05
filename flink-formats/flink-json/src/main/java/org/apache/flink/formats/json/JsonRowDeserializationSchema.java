@@ -38,6 +38,7 @@ import java.lang.reflect.Array;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Objects;
 
 /**
  * Deserialization schema from JSON to Flink types.
@@ -84,10 +85,9 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 * @see <a href="http://json-schema.org/">http://json-schema.org/</a>
 	 */
 	public JsonRowDeserializationSchema(String jsonSchema) {
-		this(JsonSchemaConverter.convert(jsonSchema));
+		this(JsonRowSchemaConverter.convert(jsonSchema));
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
 		try {
@@ -117,6 +117,23 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	 */
 	public void setFailOnMissingField(boolean failOnMissingField) {
 		this.failOnMissingField = failOnMissingField;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final JsonRowDeserializationSchema that = (JsonRowDeserializationSchema) o;
+		return failOnMissingField == that.failOnMissingField && Objects.equals(typeInfo, that.typeInfo);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(typeInfo, failOnMissingField);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -21,8 +21,12 @@ package org.apache.flink.streaming.connectors.kafka;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_VERSION_VALUE_011;
 
 /**
- * Tests for {@link Kafka011JsonTableSourceFactory}.
+ * Tests for legacy Kafka011JsonTableSourceFactory.
+ *
+ * @deprecated Ensures backwards compatibility with Flink 1.5. Can be removed once we
+ *             drop support for format-specific table sources.
  */
+@Deprecated
 public class Kafka011JsonTableSourceFactoryTest extends KafkaJsonTableSourceFactoryTestBase {
 
 	@Override

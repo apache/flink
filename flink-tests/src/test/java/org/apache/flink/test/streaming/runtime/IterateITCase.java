@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -428,7 +429,7 @@ public class IterateITCase extends AbstractTestBase {
 				ConnectedIterativeStreams<Integer, String> coIt = env.fromElements(0, 0)
 						.map(noOpIntMap).name("ParallelizeMap")
 						.iterate(2000 * timeoutScale)
-						.withFeedbackType("String");
+						.withFeedbackType(Types.STRING);
 
 				try {
 					coIt.keyBy(1, 2);

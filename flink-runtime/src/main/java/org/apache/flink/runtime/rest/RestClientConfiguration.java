@@ -20,13 +20,12 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -37,18 +36,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public final class RestClientConfiguration {
 
 	@Nullable
-	private final SSLEngine sslEngine;
+	private final SSLEngineFactory sslEngineFactory;
 
 	private final long connectionTimeout;
 
 	private final int maxContentLength;
 
 	private RestClientConfiguration(
-			@Nullable final SSLEngine sslEngine,
+			@Nullable final SSLEngineFactory sslEngineFactory,
 			final long connectionTimeout,
 			final int maxContentLength) {
 		checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
-		this.sslEngine = sslEngine;
+		this.sslEngineFactory = sslEngineFactory;
 		this.connectionTimeout = connectionTimeout;
 		this.maxContentLength = maxContentLength;
 	}
@@ -58,9 +57,9 @@ public final class RestClientConfiguration {
 	 *
 	 * @return SSLEngine that the REST client endpoint should use, or null if SSL was disabled
 	 */
-
-	public SSLEngine getSslEngine() {
-		return sslEngine;
+	@Nullable
+	public SSLEngineFactory getSslEngineFactory() {
+		return sslEngineFactory;
 	}
 
 	/**
@@ -90,25 +89,21 @@ public final class RestClientConfiguration {
 	public static RestClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
 		Preconditions.checkNotNull(config);
 
-		SSLEngine sslEngine = null;
-		boolean enableSSL = config.getBoolean(SecurityOptions.SSL_ENABLED);
-		if (enableSSL) {
+		final SSLEngineFactory sslEngineFactory;
+		if (SSLUtils.isRestSSLEnabled(config)) {
 			try {
-				SSLContext sslContext = SSLUtils.createSSLServerContext(config);
-				if (sslContext != null) {
-					sslEngine = sslContext.createSSLEngine();
-					SSLUtils.setSSLVerAndCipherSuites(sslEngine, config);
-					sslEngine.setUseClientMode(false);
-				}
+				sslEngineFactory = SSLUtils.createRestClientSSLEngineFactory(config);
 			} catch (Exception e) {
-				throw new ConfigurationException("Failed to initialize SSLContext for the web frontend", e);
+				throw new ConfigurationException("Failed to initialize SSLContext for the REST client", e);
 			}
+		} else {
+			sslEngineFactory = null;
 		}
 
 		final long connectionTimeout = config.getLong(RestOptions.CONNECTION_TIMEOUT);
 
-		int maxContentLength = config.getInteger(RestOptions.REST_CLIENT_MAX_CONTENT_LENGTH);
+		int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
 
-		return new RestClientConfiguration(sslEngine, connectionTimeout, maxContentLength);
+		return new RestClientConfiguration(sslEngineFactory, connectionTimeout, maxContentLength);
 	}
 }

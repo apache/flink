@@ -36,12 +36,19 @@ import org.apache.flink.runtime.rest.messages.JobVertexDetailsInfo;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +57,7 @@ import java.util.concurrent.Executor;
 /**
  * Request handler for the job vertex details.
  */
-public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters> {
+public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters> implements JsonArchivist {
 	private final MetricFetcher<? extends RestfulGateway> metricFetcher;
 
 	public JobVertexDetailsHandler(
@@ -85,6 +92,24 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 			throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
 		}
 
+		return createJobVertexDetailsInfo(jobVertex, jobID, metricFetcher);
+	}
+
+	@Override
+	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		Collection<? extends AccessExecutionJobVertex> vertices = graph.getAllVertices().values();
+		List<ArchivedJson> archive = new ArrayList<>(vertices.size());
+		for (AccessExecutionJobVertex task : vertices) {
+			ResponseBody json = createJobVertexDetailsInfo(task, graph.getJobID(), null);
+			String path = getMessageHeaders().getTargetRestEndpointURL()
+				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+				.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString());
+			archive.add(new ArchivedJson(path, json));
+		}
+		return archive;
+	}
+
+	private static JobVertexDetailsInfo createJobVertexDetailsInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher<?> metricFetcher) {
 		List<JobVertexDetailsInfo.VertexTaskDetail> subtasks = new ArrayList<>();
 		final long now = System.currentTimeMillis();
 		int num = 0;

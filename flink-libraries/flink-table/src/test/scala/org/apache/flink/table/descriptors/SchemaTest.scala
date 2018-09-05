@@ -61,7 +61,10 @@ class SchemaTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new SchemaValidator(isStreamEnvironment = true)
+    new SchemaValidator(
+      isStreamEnvironment = true,
+      supportsSourceTimestamps = true,
+      supportsSourceWatermarks = true)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {

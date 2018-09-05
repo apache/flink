@@ -84,7 +84,14 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     resolvedNode.expressionPostOrderTransform {
       case a: Attribute if !a.valid =>
         val from = children.flatMap(_.output).map(_.name).mkString(", ")
-        failValidation(s"Cannot resolve [${a.name}] given input [$from].")
+        // give helpful error message for null literals
+        if (a.name == "null") {
+          failValidation(s"Cannot resolve field [${a.name}] given input [$from]. If you want to " +
+            s"express a null literal, use 'Null(TYPE)' for typed null expressions. " +
+            s"For example: Null(INT)")
+        } else {
+          failValidation(s"Cannot resolve field [${a.name}] given input [$from].")
+        }
 
       case e: Expression if e.validateInput().isFailure =>
         failValidation(s"Expression $e failed on input check: " +

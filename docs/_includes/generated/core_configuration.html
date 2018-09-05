@@ -8,9 +8,14 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>classloader.parent-first-patterns</h5></td>
-            <td style="word-wrap: break-word;">"java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback"</td>
-            <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name.</td>
+            <td><h5>classloader.parent-first-patterns.additional</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name. These patterns are appended to "classloader.parent-first-patterns.default".</td>
+        </tr>
+        <tr>
+            <td><h5>classloader.parent-first-patterns.default</h5></td>
+            <td style="word-wrap: break-word;">"java.;<wbr>scala.;<wbr>org.apache.flink.;<wbr>com.esotericsoftware.kryo;<wbr>org.apache.hadoop.;<wbr>javax.annotation.;<wbr>org.slf4j;<wbr>org.apache.log4j;<wbr>org.apache.logging;<wbr>org.apache.commons.logging;<wbr>ch.qos.logback"</td>
+            <td>A (semicolon-separated) list of patterns that specifies which classes should always be resolved through the parent ClassLoader first. A pattern is a simple prefix that is checked against the fully qualified class name. This setting should generally not be modified. To add another pattern we recommend to use "classloader.parent-first-patterns.additional" instead.</td>
         </tr>
         <tr>
             <td><h5>classloader.resolve-order</h5></td>
@@ -19,13 +24,13 @@
         </tr>
         <tr>
             <td><h5>io.tmp.dirs</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
+            <td style="word-wrap: break-word;">'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty("java.io.tmpdir") in standalone.</td>
             <td></td>
         </tr>
         <tr>
             <td><h5>mode</h5></td>
-            <td style="word-wrap: break-word;">"flip6"</td>
-            <td>Switch to select the execution mode. Possible values are 'flip6' and 'old'.</td>
+            <td style="word-wrap: break-word;">"new"</td>
+            <td>Switch to select the execution mode. Possible values are 'new' and 'legacy'.</td>
         </tr>
         <tr>
             <td><h5>parallelism.default</h5></td>

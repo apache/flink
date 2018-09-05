@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -42,7 +42,9 @@ import org.apache.flink.runtime.dispatcher.ArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MiniDispatcher;
+import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -83,8 +85,6 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -243,6 +243,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 						LOG.info("Could not properly terminate the Dispatcher.", throwable);
 					}
 
+					// This is the general shutdown path. If a separate more specific shutdown was
+					// already triggered, this will do nothing
 					shutDownAndTerminate(
 						SUCCESS_RETURN_CODE,
 						ApplicationStatus.SUCCEEDED,
@@ -306,14 +308,14 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				DispatcherGateway.class,
-				DispatcherId::new,
+				DispatcherId::fromUuid,
 				10,
 				Time.milliseconds(50L));
 
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 				rpcService,
 				ResourceManagerGateway.class,
-				ResourceManagerId::new,
+				ResourceManagerId::fromUuid,
 				10,
 				Time.milliseconds(50L));
 
@@ -344,7 +346,12 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				clusterInformation,
 				webMonitorEndpoint.getRestBaseUrl());
 
-			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, rpcService.getAddress());
+			jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+				metricRegistry,
+				rpcService.getAddress(),
+				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+
+			final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);
 
 			dispatcher = createDispatcher(
 				configuration,
@@ -357,7 +364,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 				metricRegistry.getMetricQueryServicePath(),
 				archivedExecutionGraphStore,
 				this,
-				webMonitorEndpoint.getRestBaseUrl());
+				webMonitorEndpoint.getRestBaseUrl(),
+				historyServerArchivist);
 
 			LOG.debug("Starting ResourceManager.");
 			resourceManager.start();
@@ -539,9 +547,9 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		final Configuration resultConfiguration = new Configuration(Preconditions.checkNotNull(configuration));
 
 		final String webTmpDir = configuration.getString(WebOptions.TMP_DIR);
-		final Path uniqueWebTmpDir = Paths.get(webTmpDir, "flink-web-" + UUID.randomUUID());
+		final File uniqueWebTmpDir = new File(webTmpDir, "flink-web-" + UUID.randomUUID());
 
-		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.toAbsolutePath().toString());
+		resultConfiguration.setString(WebOptions.TMP_DIR, uniqueWebTmpDir.getAbsolutePath());
 
 		return resultConfiguration;
 	}
@@ -580,7 +588,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return terminationFuture;
 	}
 
-	private void shutDownAndTerminate(
+	protected void shutDownAndTerminate(
 		int returnCode,
 		ApplicationStatus applicationStatus,
 		@Nullable String diagnostics,
@@ -657,7 +665,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		@Nullable String metricQueryServicePath,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
-		@Nullable String restAddress) throws Exception;
+		@Nullable String restAddress,
+		HistoryServerArchivist historyServerArchivist) throws Exception;
 
 	protected abstract ResourceManager<?> createResourceManager(
 		Configuration configuration,
@@ -683,30 +692,20 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		Configuration configuration,
 		ScheduledExecutor scheduledExecutor) throws IOException;
 
-	protected static ClusterConfiguration parseArguments(String[] args) {
-		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+	protected static EntrypointClusterConfiguration parseArguments(String[] args) throws FlinkParseException {
+		final CommandLineParser<EntrypointClusterConfiguration> clusterConfigurationParser = new CommandLineParser<>(new EntrypointClusterConfigurationParserFactory());
 
-		final String configDir = parameterTool.get("configDir", "");
-
-		final int restPort;
-
-		final String portKey = "webui-port";
-		if (parameterTool.has(portKey)) {
-			restPort = Integer.valueOf(parameterTool.get(portKey));
-		} else {
-			restPort = -1;
-		}
-
-		return new ClusterConfiguration(configDir, restPort);
+		return clusterConfigurationParser.parse(args);
 	}
 
-	protected static Configuration loadConfiguration(ClusterConfiguration clusterConfiguration) {
-		final Configuration configuration = GlobalConfiguration.loadConfiguration(clusterConfiguration.getConfigDir());
+	protected static Configuration loadConfiguration(EntrypointClusterConfiguration entrypointClusterConfiguration) {
+		final Configuration dynamicProperties = ConfigurationUtils.createConfiguration(entrypointClusterConfiguration.getDynamicProperties());
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
 
-		final int restPort = clusterConfiguration.getRestPort();
+		final int restPort = entrypointClusterConfiguration.getRestPort();
 
 		if (restPort >= 0) {
-			configuration.setInteger(RestOptions.REST_PORT, restPort);
+			configuration.setInteger(RestOptions.PORT, restPort);
 		}
 
 		return configuration;

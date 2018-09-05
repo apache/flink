@@ -26,6 +26,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -63,6 +63,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -86,12 +87,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>All the allocation or the slot offering will be identified by self generated AllocationID, we will use it to
  * eliminate ambiguities.
  *
- * TODO : Make pending requests location preference aware
+ * <p>TODO : Make pending requests location preference aware
  * TODO : Make pass location preferences to ResourceManager when sending a slot request
  */
 public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedSlotActions {
 
+	/** The interval (in milliseconds) in which the SlotPool writes its slot distribution on debug level. */
+	private static final int STATUS_LOG_INTERVAL_MS = 60_000;
+
 	private final JobID jobId;
+
+	private final SchedulingStrategy schedulingStrategy;
 
 	private final ProviderAndOwner providerAndOwner;
 
@@ -132,10 +138,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
-	protected SlotPool(RpcService rpcService, JobID jobId) {
+	protected SlotPool(RpcService rpcService, JobID jobId, SchedulingStrategy schedulingStrategy) {
 		this(
 			rpcService,
 			jobId,
+			schedulingStrategy,
 			SystemClock.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
 			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
@@ -144,6 +151,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	public SlotPool(
 			RpcService rpcService,
 			JobID jobId,
+			SchedulingStrategy schedulingStrategy,
 			Clock clock,
 			Time rpcTimeout,
 			Time idleSlotTimeout) {
@@ -151,6 +159,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		super(rpcService);
 
 		this.jobId = checkNotNull(jobId);
+		this.schedulingStrategy = checkNotNull(schedulingStrategy);
 		this.clock = checkNotNull(clock);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 		this.idleSlotTimeout = checkNotNull(idleSlotTimeout);
@@ -197,6 +206,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
+
+		if (log.isDebugEnabled()) {
+			scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+		}
 	}
 
 	@Override
@@ -211,7 +224,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// release all registered slots by releasing the corresponding TaskExecutors
 		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
-			releaseTaskManagerInternal(taskManagerResourceId);
+			final FlinkException cause = new FlinkException(
+				"Releasing TaskManager " + taskManagerResourceId + ", because of stopping of SlotPool");
+			releaseTaskManagerInternal(taskManagerResourceId, cause);
 		}
 
 		clear();
@@ -303,25 +318,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	@Override
 	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestId slotRequestId,
-			ScheduledUnit scheduledUnit,
-			SlotProfile slotProfile,
-			boolean allowQueuedScheduling,
-			Time timeout) {
-
-		return internalAllocateSlot(
-			slotRequestId,
-			scheduledUnit,
-			slotProfile,
-			allowQueuedScheduling,
-			timeout);
-	}
-
-	private CompletableFuture<LogicalSlot> internalAllocateSlot(
-			SlotRequestId slotRequestId,
 			ScheduledUnit task,
 			SlotProfile slotProfile,
 			boolean allowQueuedScheduling,
 			Time allocationTimeout) {
+
+		log.debug("Received slot request [{}] for task: {}", slotRequestId, task.getTaskToExecute());
+
 		final SlotSharingGroupId slotSharingGroupId = task.getSlotSharingGroupId();
 
 		if (slotSharingGroupId != null) {
@@ -513,7 +516,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		// check first whether we have a resolved root slot which we can use
 		SlotSharingManager.MultiTaskSlotLocality multiTaskSlotLocality = slotSharingManager.getResolvedRootSlot(
 			groupId,
-			slotProfile.matcher());
+			schedulingStrategy,
+			slotProfile);
 
 		if (multiTaskSlotLocality != null && multiTaskSlotLocality.getLocality() == Locality.LOCAL) {
 			return multiTaskSlotLocality;
@@ -682,7 +686,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		checkNotNull(resourceManagerGateway);
 		checkNotNull(pendingRequest);
 
-		log.info("Requesting slot with profile {} from resource manager (request = {}).", pendingRequest.getResourceProfile(), pendingRequest.getSlotRequestId());
+		log.info("Requesting new slot [{}] and profile {} from resource manager.", pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile());
 
 		final AllocationID allocationId = new AllocationID();
 
@@ -719,7 +723,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
 		} else {
 			if (log.isDebugEnabled()) {
-				log.debug("Unregistered slot request {} failed.", slotRequestID, failure);
+				log.debug("Unregistered slot request [{}] failed.", slotRequestID, failure);
 			}
 		}
 	}
@@ -727,7 +731,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	private void stashRequestWaitingForResourceManager(final PendingRequest pendingRequest) {
 
 		log.info("Cannot serve slot request, no ResourceManager connected. " +
-				"Adding as pending request {}",  pendingRequest.getSlotRequestId());
+				"Adding as pending request [{}]",  pendingRequest.getSlotRequestId());
 
 		waitingForResourceManager.put(pendingRequest.getSlotRequestId(), pendingRequest);
 	}
@@ -738,7 +742,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	@Override
 	public CompletableFuture<Acknowledge> releaseSlot(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
-		log.debug("Releasing slot with slot request id {}.", slotRequestId, cause);
+		log.debug("Releasing slot [{}] because: {}", slotRequestId, cause != null ? cause.getMessage() : "null");
 
 		if (slotSharingGroupId != null) {
 			final SlotSharingManager multiTaskSlotManager = slotSharingManagers.get(slotSharingGroupId);
@@ -749,7 +753,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				if (taskSlot != null) {
 					taskSlot.release(cause);
 				} else {
-					log.debug("Could not find slot {} in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
+					log.debug("Could not find slot [{}] in slot sharing group {}. Ignoring release slot request.", slotRequestId, slotSharingGroupId);
 				}
 			} else {
 				log.debug("Could not find slot sharing group {}. Ignoring release slot request.", slotSharingGroupId);
@@ -763,12 +767,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
 
 				if (allocatedSlot != null) {
-					// sanity check
-					if (allocatedSlot.releasePayload(cause)) {
-						tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
-					}
+					allocatedSlot.releasePayload(cause);
+					tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 				} else {
-					log.debug("There is no allocated slot with slot request id {}. Ignoring the release slot request.", slotRequestId);
+					log.debug("There is no allocated slot [{}]. Ignoring the release slot request.", slotRequestId);
 				}
 			}
 		}
@@ -799,18 +801,18 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	}
 
 	private void failPendingRequest(PendingRequest pendingRequest, Exception e) {
-		Preconditions.checkNotNull(pendingRequest);
-		Preconditions.checkNotNull(e);
+		checkNotNull(pendingRequest);
+		checkNotNull(e);
 
 		if (!pendingRequest.getAllocatedSlotFuture().isDone()) {
-			log.info("Failing pending request {}.", pendingRequest.getSlotRequestId());
+			log.info("Failing pending slot request [{}]: {}", pendingRequest.getSlotRequestId(), e.getMessage());
 			pendingRequest.getAllocatedSlotFuture().completeExceptionally(e);
 		}
 	}
 
 	@Nullable
 	private SlotAndLocality pollAndAllocateSlot(SlotRequestId slotRequestId, SlotProfile slotProfile) {
-		SlotAndLocality slotFromPool = availableSlots.poll(slotProfile);
+		SlotAndLocality slotFromPool = availableSlots.poll(schedulingStrategy, slotProfile);
 
 		if (slotFromPool != null) {
 			allocatedSlots.add(slotRequestId, slotFromPool.getSlot());
@@ -831,7 +833,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
 
 		if (pendingRequest != null) {
-			log.debug("Fulfilling pending request [{}] early with returned slot [{}]",
+			log.debug("Fulfilling pending slot request [{}] early with returned slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
@@ -875,17 +877,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		List<CompletableFuture<Optional<SlotOffer>>> acceptedSlotOffers = offers.stream().map(
 			offer -> {
 				CompletableFuture<Optional<SlotOffer>> acceptedSlotOffer = offerSlot(
-					taskManagerLocation,
-					taskManagerGateway,
-					offer)
+						taskManagerLocation,
+						taskManagerGateway,
+						offer)
 					.thenApply(
-						(acceptedSlot) -> {
-							if (acceptedSlot) {
-								return Optional.of(offer);
-							} else {
-								return Optional.empty();
-							}
-						});
+						(acceptedSlot) -> acceptedSlot ? Optional.of(offer) : Optional.empty()
+					);
 
 				return acceptedSlotOffer;
 			}
@@ -893,18 +890,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		CompletableFuture<Collection<Optional<SlotOffer>>> optionalSlotOffers = FutureUtils.combineAll(acceptedSlotOffers);
 
-		CompletableFuture<Collection<SlotOffer>> resultingSlotOffers = optionalSlotOffers.thenApply(
-			collection -> {
-				Collection<SlotOffer> slotOffers = collection
-					.stream()
-					.flatMap(
-						opt -> opt.map(Stream::of).orElseGet(Stream::empty))
-					.collect(Collectors.toList());
-
-				return slotOffers;
-			});
-
-		return resultingSlotOffers;
+		return optionalSlotOffers.thenApply(collection -> collection.stream()
+				.flatMap(opt -> opt.map(Stream::of).orElseGet(Stream::empty))
+				.collect(Collectors.toList()));
 	}
 
 	/**
@@ -923,6 +911,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			final TaskManagerLocation taskManagerLocation,
 			final TaskManagerGateway taskManagerGateway,
 			final SlotOffer slotOffer) {
+
 		validateRunsInMainThread();
 
 		// check if this TaskManager is valid
@@ -936,12 +925,31 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 
 		// check whether we have already using this slot
-		if (allocatedSlots.contains(allocationID) || availableSlots.contains(allocationID)) {
-			log.debug("Received repeated offer for slot [{}]. Ignoring.", allocationID);
+		AllocatedSlot existingSlot;
+		if ((existingSlot = allocatedSlots.get(allocationID)) != null ||
+			(existingSlot = availableSlots.get(allocationID)) != null) {
 
-			// return true here so that the sender will get a positive acknowledgement to the retry
-			// and mark the offering as a success
-			return CompletableFuture.completedFuture(true);
+			// we need to figure out if this is a repeated offer for the exact same slot,
+			// or another offer that comes from a different TaskManager after the ResourceManager
+			// re-tried the request
+
+			// we write this in terms of comparing slot IDs, because the Slot IDs are the identifiers of
+			// the actual slots on the TaskManagers
+			// Note: The slotOffer should have the SlotID
+			final SlotID existingSlotId = existingSlot.getSlotId();
+			final SlotID newSlotId = new SlotID(taskManagerLocation.getResourceID(), slotOffer.getSlotIndex());
+
+			if (existingSlotId.equals(newSlotId)) {
+				log.info("Received repeated offer for slot [{}]. Ignoring.", allocationID);
+
+				// return true here so that the sender will get a positive acknowledgement to the retry
+				// and mark the offering as a success
+				return CompletableFuture.completedFuture(true);
+			} else {
+				// the allocation has been fulfilled by another slot, reject the offer so the task executor
+				// will offer the slot to the resource manager
+				return CompletableFuture.completedFuture(false);
+			}
 		}
 
 		final AllocatedSlot allocatedSlot = new AllocatedSlot(
@@ -962,7 +970,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				allocatedSlots.remove(pendingRequest.getSlotRequestId());
 				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 			} else {
-				log.debug("Fulfilled slot request {} with allocated slot {}.", pendingRequest.getSlotRequestId(), allocationID);
+				log.debug("Fulfilled slot request [{}] with allocated slot [{}].", pendingRequest.getSlotRequestId(), allocationID);
 			}
 		}
 		else {
@@ -1003,7 +1011,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			failPendingRequest(pendingRequest, cause);
 		}
 		else if (availableSlots.tryRemove(allocationID)) {
-			log.debug("Failed available slot [{}] with ", allocationID, cause);
+			log.debug("Failed available slot [{}].", allocationID, cause);
 		}
 		else {
 			AllocatedSlot allocatedSlot = allocatedSlots.remove(allocationID);
@@ -1013,7 +1021,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				allocatedSlot.releasePayload(cause);
 			}
 			else {
-				log.debug("Outdated request to fail slot [{}] with ", allocationID, cause);
+				log.trace("Outdated request to fail slot [{}].", allocationID, cause);
 			}
 		}
 		// TODO: add some unit tests when the previous two are ready, the allocation may failed at any phase
@@ -1043,11 +1051,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * when we find some TaskManager becomes "dead" or "abnormal", and we decide to not using slots from it anymore.
 	 *
 	 * @param resourceId The id of the TaskManager
+	 * @param cause for the releasing of the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId) {
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId, final Exception cause) {
 		if (registeredTaskManagers.remove(resourceId)) {
-			releaseTaskManagerInternal(resourceId);
+			releaseTaskManagerInternal(resourceId, cause);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1059,13 +1068,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	@VisibleForTesting
 	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
-		log.info("Pending slot request {} timed out.", slotRequestId);
+		log.info("Pending slot request [{}] timed out.", slotRequestId);
 		removePendingRequest(slotRequestId);
 	}
 
-	private void releaseTaskManagerInternal(final ResourceID resourceId) {
-		final FlinkException cause = new FlinkException("Releasing TaskManager " + resourceId + '.');
-
+	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
 		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
 
 		for (AllocatedSlot allocatedSlot : removedSlots) {
@@ -1102,7 +1109,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			final AllocationID allocationID = expiredSlot.getAllocationId();
 			if (availableSlots.tryRemove(allocationID)) {
 
-				log.info("Releasing idle slot {}.", allocationID);
+				log.info("Releasing idle slot [{}].", allocationID);
 				final CompletableFuture<Acknowledge> freeSlotFuture = expiredSlot.getTaskManagerGateway().freeSlot(
 					allocationID,
 					cause,
@@ -1112,12 +1119,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 					(Acknowledge ignored, Throwable throwable) -> {
 						if (throwable != null) {
 							if (registeredTaskManagers.contains(expiredSlot.getTaskManagerId())) {
-								log.debug("Releasing slot {} of registered TaskExecutor {} failed. " +
+								log.debug("Releasing slot [{}] of registered TaskExecutor {} failed. " +
 									"Trying to fulfill a different slot request.", allocationID, expiredSlot.getTaskManagerId(),
 									throwable);
 								tryFulfillSlotRequestOrMakeAvailable(expiredSlot);
 							} else {
-								log.debug("Releasing slot {} failed and owning TaskExecutor {} is no " +
+								log.debug("Releasing slot [{}] failed and owning TaskExecutor {} is no " +
 									"longer registered. Discarding slot.", allocationID, expiredSlot.getTaskManagerId());
 							}
 						}
@@ -1144,6 +1151,41 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 	//  Methods for tests
 	// ------------------------------------------------------------------------
+
+	private void scheduledLogStatus() {
+		log.debug(printStatus());
+		scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+	}
+
+	private String printStatus() {
+		validateRunsInMainThread();
+
+		final StringBuilder builder = new StringBuilder(1024).append("Slot Pool Status:\n");
+
+		builder.append("\tstatus: ");
+		if (resourceManagerGateway != null) {
+			builder.append("connected to ").append(resourceManagerGateway.getAddress()).append('\n');
+		} else {
+			builder.append("unconnected and waiting for ResourceManager ")
+					.append(waitingForResourceManager)
+					.append('\n');
+		}
+
+		builder.append("\tregistered TaskManagers: ").append(registeredTaskManagers).append('\n');
+
+		builder.append("\tavailable slots: ").append(availableSlots.printAllSlots()).append('\n');
+		builder.append("\tallocated slots: ").append(allocatedSlots.printAllSlots()).append('\n');
+
+		builder.append("\tpending requests: ").append(pendingRequests.values()).append('\n');
+
+		builder.append("\tsharing groups: {\n");
+		for (Entry<SlotSharingGroupId, SlotSharingManager> manager : slotSharingManagers.entrySet()) {
+			builder.append("\t -------- ").append(manager.getKey()).append(" --------\n");
+			builder.append(manager.getValue());
+		}
+		builder.append("\t}\n");
+		return builder.toString();
+	}
 
 	@VisibleForTesting
 	protected AllocatedSlots getAllocatedSlots() {
@@ -1301,6 +1343,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			allocatedSlotsByTaskManager.clear();
 		}
 
+		String printAllSlots() {
+			return allocatedSlotsByTaskManager.values().toString();
+		}
+
 		@VisibleForTesting
 		boolean containResource(final ResourceID resourceID) {
 			return allocatedSlotsByTaskManager.containsKey(resourceID);
@@ -1384,6 +1430,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			return availableSlots.containsKey(slotId);
 		}
 
+		AllocatedSlot get(AllocationID allocationID) {
+			SlotAndTimestamp slotAndTimestamp = availableSlots.get(allocationID);
+			if (slotAndTimestamp != null) {
+				return slotAndTimestamp.slot();
+			} else {
+				return null;
+			}
+		}
+
 		/**
 		 * Poll a slot which matches the required resource profile. The polling tries to satisfy the
 		 * location preferences, by TaskManager and by host.
@@ -1392,16 +1447,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		 *
 		 * @return Slot which matches the resource profile, null if we can't find a match
 		 */
-		SlotAndLocality poll(SlotProfile slotProfile) {
+		SlotAndLocality poll(SchedulingStrategy schedulingStrategy, SlotProfile slotProfile) {
 			// fast path if no slots are available
 			if (availableSlots.isEmpty()) {
 				return null;
 			}
-
-			SlotProfile.ProfileToSlotContextMatcher matcher = slotProfile.matcher();
 			Collection<SlotAndTimestamp> slotAndTimestamps = availableSlots.values();
 
-			SlotAndLocality matchingSlotAndLocality = matcher.findMatchWithLocality(
+			SlotAndLocality matchingSlotAndLocality = schedulingStrategy.findMatchWithLocality(
+				slotProfile,
 				slotAndTimestamps.stream(),
 				SlotAndTimestamp::slot,
 				(SlotAndTimestamp slot) -> slot.slot().getResourceProfile().isMatching(slotProfile.getResourceProfile()),
@@ -1479,6 +1533,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			if (!tryRemove(slotId)) {
 				throw new IllegalStateException("slot not contained");
 			}
+		}
+
+		String printAllSlots() {
+			return availableSlots.values().toString();
 		}
 
 		@VisibleForTesting
@@ -1593,6 +1651,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		public ResourceProfile getResourceProfile() {
 			return resourceProfile;
+		}
+
+		@Override
+		public String toString() {
+			return "PendingRequest{" +
+					"slotRequestId=" + slotRequestId +
+					", resourceProfile=" + resourceProfile +
+					", allocatedSlotFuture=" + allocatedSlotFuture +
+					'}';
 		}
 	}
 

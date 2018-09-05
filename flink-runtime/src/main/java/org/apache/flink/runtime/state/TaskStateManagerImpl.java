@@ -136,11 +136,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			}
 		}
 
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Operator {} has remote state {} from job manager and local state alternatives {} from local " +
-					"state store {}.",
-				operatorID, jobManagerSubtaskState, alternativesByPriority, localStateStore);
-		}
+		LOG.debug("Operator {} has remote state {} from job manager and local state alternatives {} from local " +
+				"state store {}.", operatorID, jobManagerSubtaskState, alternativesByPriority, localStateStore);
 
 		PrioritizedOperatorSubtaskState.Builder builder = new PrioritizedOperatorSubtaskState.Builder(
 			jobManagerSubtaskState,

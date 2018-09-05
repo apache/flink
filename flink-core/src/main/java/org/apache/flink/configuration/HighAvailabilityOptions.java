@@ -21,6 +21,8 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -42,6 +44,7 @@ public class HighAvailabilityOptions {
 	 * A value of "NONE" signals no highly available setup.
 	 * To enable high-availability, set this mode to "ZOOKEEPER".
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_MODE =
 			key("high-availability")
 			.defaultValue("NONE")
@@ -63,6 +66,7 @@ public class HighAvailabilityOptions {
 	/**
 	 * File system path (URI) where Flink persists metadata in high-availability setups.
 	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_HIGH_AVAILABILITY)
 	public static final ConfigOption<String> HA_STORAGE_PATH =
 			key("high-availability.storageDir")
 			.noDefaultValue()
@@ -154,7 +158,9 @@ public class HighAvailabilityOptions {
 			key("high-availability.zookeeper.path.mesos-workers")
 			.defaultValue("/mesos-workers")
 			.withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-			.withDescription("ZooKeeper root path (ZNode) for Mesos workers.");
+			.withDescription(Description.builder()
+				.text("The ZooKeeper root path for persisting the Mesos worker information.")
+				.build());
 
 	// ------------------------------------------------------------------------
 	//  ZooKeeper Client Settings

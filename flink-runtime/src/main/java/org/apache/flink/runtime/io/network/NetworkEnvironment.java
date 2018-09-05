@@ -157,6 +157,10 @@ public class NetworkEnvironment {
 		return partitionRequestMaxBackoff;
 	}
 
+	public boolean isCreditBased() {
+		return enableCreditBased;
+	}
+
 	public KvStateRegistry getKvStateRegistry() {
 		return kvStateRegistry;
 	}
@@ -234,10 +238,9 @@ public class NetworkEnvironment {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
 					extraNetworkBuffersPerGate : Integer.MAX_VALUE;
 
-				// Create a buffer pool for floating buffers and assign exclusive buffers to input channels directly
-				bufferPool = networkBufferPool.createBufferPool(extraNetworkBuffersPerGate,
-					maxNumberOfMemorySegments);
+				// assign exclusive buffers to input channels directly and use the rest for floating buffers
 				gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+				bufferPool = networkBufferPool.createBufferPool(0, maxNumberOfMemorySegments);
 			} else {
 				maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
 					gate.getNumberOfInputChannels() * networkBuffersPerChannel +

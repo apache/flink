@@ -97,7 +97,7 @@ public class JvmExitOnFatalErrorTest {
 		// this test works only on linux
 		assumeTrue(OperatingSystem.isLinux());
 
-		// to check what went wrong (when the test hangs) uncomment this line 
+		// to check what went wrong (when the test hangs) uncomment this line
 //		ProcessEntryPoint.main(new String[0]);
 
 		final KillOnFatalErrorProcess testProcess = new KillOnFatalErrorProcess();
@@ -133,7 +133,7 @@ public class JvmExitOnFatalErrorTest {
 		public String getEntryPointClassName() {
 			return ProcessEntryPoint.class.getName();
 		}
-	} 
+	}
 
 	// ------------------------------------------------------------------------
 
@@ -219,7 +219,7 @@ public class JvmExitOnFatalErrorTest {
 							blobService.getPermanentBlobService(),
 							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 							new String[0]),
-						new FileCache(tmInfo.getTmpDirectories()),
+						new FileCache(tmInfo.getTmpDirectories(), blobService.getPermanentBlobService()),
 						tmInfo,
 						UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 						new NoOpResultPartitionConsumableNotifier(),

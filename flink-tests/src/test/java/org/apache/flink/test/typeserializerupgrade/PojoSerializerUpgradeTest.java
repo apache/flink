@@ -37,12 +37,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -351,18 +351,17 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
-		try (final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			new TestTaskStateManager(),
-			16,
-			1,
-			0,
-			classLoader)) {
+		try (final MockEnvironment environment =
+				new MockEnvironmentBuilder()
+					.setTaskName("test task")
+					.setMemorySize(32 * 1024)
+					.setInputSplitProvider(new MockInputSplitProvider())
+					.setBufferSize(256)
+					.setTaskConfiguration(taskConfiguration)
+					.setExecutionConfig(executionConfig)
+					.setMaxParallelism(16)
+					.setUserCodeClassLoader(classLoader)
+					.build()) {
 
 			OneInputStreamOperatorTestHarness<Long, Long> harness = null;
 			try {
@@ -412,7 +411,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		return compiler.run(null, null, null, sourceFile.getPath());
+		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
 	}
 
 	private static final class StatefulMapper extends RichMapFunction<Long, Long> implements CheckpointedFunction {

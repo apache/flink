@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -36,13 +36,9 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
@@ -50,29 +46,21 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- DataSetAllroundTestProgram -->
 					<execution>
 						<id>DataSetAllroundTestProgram</id>
 						<phase>package</phase>
 						<goals>
-							<goal>jar</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
 							<finalName>DataSetAllroundTestProgram</finalName>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.batch.tests.DataSetAllroundTestProgram</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/batch/tests/DataSetAllroundTestProgram.class</include>
-								<include>org/apache/flink/batch/tests/DataSetAllroundTestProgram$*.class</include>
-							</includes>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.batch.tests.DataSetAllroundTestProgram</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>

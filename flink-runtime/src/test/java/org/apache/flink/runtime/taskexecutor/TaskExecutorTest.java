@@ -21,7 +21,11 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -29,6 +33,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -59,9 +64,9 @@ import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
-import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -75,8 +80,9 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
+import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
@@ -88,7 +94,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.testutils.category.New;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -97,7 +103,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.ArgumentCaptor;
@@ -106,6 +111,8 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -116,18 +123,25 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -139,7 +153,9 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@Category(New.class)
+/**
+ * Tests for the {@link TaskExecutor}.
+ */
 public class TaskExecutorTest extends TestLogger {
 
 	@Rule
@@ -236,7 +252,7 @@ public class TaskExecutorTest extends TestLogger {
 			CompletableFuture.completedFuture(new JMTMRegistrationSuccess(jmResourceId)));
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -295,20 +311,20 @@ public class TaskExecutorTest extends TestLogger {
 		TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway(
 			rmLeaderId,
 			rmResourceId,
-			heartbeatInterval,
 			rmAddress,
 			rmAddress);
 
 		final TaskExecutorRegistrationSuccess registrationResponse = new TaskExecutorRegistrationSuccess(
 			new InstanceID(),
 			rmResourceId,
-			heartbeatInterval,
 			new ClusterInformation("localhost", 1234));
 
 		final CompletableFuture<ResourceID> taskExecutorRegistrationFuture = new CompletableFuture<>();
+		final CountDownLatch registrationAttempts = new CountDownLatch(2);
 		rmGateway.setRegisterTaskExecutorFunction(
 			registration -> {
 				taskExecutorRegistrationFuture.complete(registration.f1);
+				registrationAttempts.countDown();
 				return CompletableFuture.completedFuture(registrationResponse);
 			});
 
@@ -325,7 +341,7 @@ public class TaskExecutorTest extends TestLogger {
 		HeartbeatServices heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -356,6 +372,9 @@ public class TaskExecutorTest extends TestLogger {
 
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
 			assertThat(taskExecutorDisconnectFuture.get(heartbeatTimeout * 50L, TimeUnit.MILLISECONDS), equalTo(taskManagerLocation.getResourceID()));
+
+			// the TaskExecutor should try to reconnect to the RM
+			registrationAttempts.await();
 
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
@@ -405,20 +424,31 @@ public class TaskExecutorTest extends TestLogger {
 		final long verificationTimeout = 1000L;
 		final long heartbeatTimeout = 10000L;
 		final String rmAddress = "rm";
-		final ResourceID rmResourceId = new ResourceID(rmAddress);
 		final UUID rmLeaderId = UUID.randomUUID();
 
 		// register the mock resource manager gateway
-		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
-		when(rmGateway.registerTaskExecutor(
-			anyString(), any(ResourceID.class), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
-			.thenReturn(
-				CompletableFuture.completedFuture(
-					new TaskExecutorRegistrationSuccess(
-						new InstanceID(),
-						rmResourceId,
-						10L,
-						new ClusterInformation("localhost", 1234))));
+		final TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway();
+		final CompletableFuture<ResourceID> taskExecutorRegistrationFuture = new CompletableFuture<>();
+		final ResourceID rmResourceId = rmGateway.getOwnResourceId();
+		final CompletableFuture<RegistrationResponse> registrationResponse = CompletableFuture.completedFuture(
+			new TaskExecutorRegistrationSuccess(
+				new InstanceID(),
+				rmResourceId,
+				new ClusterInformation("localhost", 1234)));
+
+		rmGateway.setRegisterTaskExecutorFunction(stringResourceIDIntegerHardwareDescriptionTuple4 -> {
+            taskExecutorRegistrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
+            return registrationResponse;
+        });
+
+		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
+		rmGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+            initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        });
+
+		final CompletableFuture<SlotReport> heartbeatSlotReportFuture = new CompletableFuture<>();
+		rmGateway.setTaskExecutorHeartbeatConsumer((resourceID, slotReport) -> heartbeatSlotReportFuture.complete(slotReport));
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
@@ -460,7 +490,7 @@ public class TaskExecutorTest extends TestLogger {
 		);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -490,8 +520,8 @@ public class TaskExecutorTest extends TestLogger {
 			resourceManagerLeaderRetriever.notifyListener(rmAddress, rmLeaderId);
 
 			// register resource manager success will trigger monitoring heartbeat target between tm and rm
-			verify(rmGateway, timeout(verificationTimeout).atLeast(1)).registerTaskExecutor(
-				eq(taskManager.getAddress()), eq(taskManagerLocation.getResourceID()), eq(slotReport1), anyInt(), any(HardwareDescription.class), any(Time.class));
+			assertThat(taskExecutorRegistrationFuture.get(), equalTo(taskManagerLocation.getResourceID()));
+			assertThat(initialSlotReportFuture.get(), equalTo(slotReport1));
 
 			verify(heartbeatManager, timeout(verificationTimeout)).monitorTarget(any(ResourceID.class), any(HeartbeatTarget.class));
 
@@ -500,20 +530,13 @@ public class TaskExecutorTest extends TestLogger {
 			// trigger the heartbeat asynchronously
 			taskExecutorGateway.heartbeatFromResourceManager(rmResourceId);
 
-			ArgumentCaptor<SlotReport> slotReportArgumentCaptor = ArgumentCaptor.forClass(SlotReport.class);
-
 			// wait for heartbeat response
-			verify(rmGateway, timeout(verificationTimeout)).heartbeatFromTaskManager(
-				eq(taskManagerLocation.getResourceID()),
-				slotReportArgumentCaptor.capture());
-
-			SlotReport actualSlotReport = slotReportArgumentCaptor.getValue();
+			SlotReport actualSlotReport = heartbeatSlotReportFuture.get();
 
 			// the new slot report should be reported
 			assertEquals(slotReport2, actualSlotReport);
 		} finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -528,9 +551,9 @@ public class TaskExecutorTest extends TestLogger {
 		// register a mock resource manager gateway
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 		when(rmGateway.registerTaskExecutor(
-					anyString(), any(ResourceID.class), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
+					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
-				new InstanceID(), resourceManagerResourceId, 10L, new ClusterInformation("localhost", 1234))));
+				new InstanceID(), resourceManagerResourceId, new ClusterInformation("localhost", 1234))));
 
 		rpc.registerGateway(resourceManagerAddress, rmGateway);
 
@@ -545,7 +568,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -570,7 +593,7 @@ public class TaskExecutorTest extends TestLogger {
 			String taskManagerAddress = taskManager.getAddress();
 
 			verify(rmGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), eq(slotReport), anyInt(), any(HardwareDescription.class), any(Time.class));
+					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
 		}
 		finally {
 			taskManager.shutDown();
@@ -592,13 +615,13 @@ public class TaskExecutorTest extends TestLogger {
 		ResourceManagerGateway rmGateway2 = mock(ResourceManagerGateway.class);
 
 		when(rmGateway1.registerTaskExecutor(
-					anyString(), any(ResourceID.class), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
+					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, 10L, new ClusterInformation("localhost", 1234))));
+				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId1, new ClusterInformation("localhost", 1234))));
 		when(rmGateway2.registerTaskExecutor(
-					anyString(), any(ResourceID.class), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
+					anyString(), any(ResourceID.class), anyInt(), any(HardwareDescription.class), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(
-				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, 10L, new ClusterInformation("localhost", 1234))));
+				new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId2, new ClusterInformation("localhost", 1234))));
 
 		rpc.registerGateway(address1, rmGateway1);
 		rpc.registerGateway(address2, rmGateway2);
@@ -608,7 +631,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(taskSlotTable.createSlotReport(any(ResourceID.class))).thenReturn(slotReport);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -639,7 +662,7 @@ public class TaskExecutorTest extends TestLogger {
 			resourceManagerLeaderRetriever.notifyListener(address1, leaderId1);
 
 			verify(rmGateway1, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), any(SlotReport.class), anyInt(), any(HardwareDescription.class), any(Time.class));
+					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader 
@@ -649,7 +672,7 @@ public class TaskExecutorTest extends TestLogger {
 			resourceManagerLeaderRetriever.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), eq(slotReport), anyInt(), any(HardwareDescription.class), any(Time.class));
+					eq(taskManagerAddress), eq(taskManagerLocation.getResourceID()), anyInt(), any(HardwareDescription.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 		}
 		finally {
@@ -729,7 +752,7 @@ public class TaskExecutorTest extends TestLogger {
 		when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -784,7 +807,7 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that a TaskManager detects a job leader for which has reserved slots. Upon detecting
+	 * Tests that a TaskManager detects a job leader for which it has reserved slots. Upon detecting
 	 * the job leader, it will offer all reserved slots to the JobManager.
 	 */
 	@Test
@@ -795,18 +818,14 @@ public class TaskExecutorTest extends TestLogger {
 
 		final String resourceManagerAddress = "rm";
 		final ResourceManagerId resourceManagerLeaderId = ResourceManagerId.generate();
-		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 
-		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
-		final InstanceID registrationId = new InstanceID();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		CompletableFuture<Void> initialSlotReportFuture = new CompletableFuture<>();
+		resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+            initialSlotReportFuture.complete(null);
+            return CompletableFuture.completedFuture(Acknowledge.get());
 
-		when(resourceManagerGateway.registerTaskExecutor(
-			any(String.class),
-			eq(taskManagerLocation.getResourceID()),
-			any(SlotReport.class),
-			anyInt(),
-			any(HardwareDescription.class),
-			any(Time.class))).thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234))));
+        });
 
 		final String jobManagerAddress = "jm";
 		final UUID jobManagerLeaderId = UUID.randomUUID();
@@ -832,7 +851,7 @@ public class TaskExecutorTest extends TestLogger {
 		final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -862,6 +881,9 @@ public class TaskExecutorTest extends TestLogger {
 			// tell the task manager about the rm leader
 			resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, resourceManagerLeaderId.toUUID());
 
+			// wait for the initial slot report
+			initialSlotReportFuture.get();
+
 			// request slots from the task manager under the given allocation id
 			CompletableFuture<Acknowledge> slotRequestAck = tmGateway.requestSlot(
 				slotId,
@@ -882,8 +904,7 @@ public class TaskExecutorTest extends TestLogger {
 					(Collection<SlotOffer>)Matchers.argThat(contains(slotOffer)),
 					any(Time.class));
 		} finally {
-			taskManager.shutDown();
-			taskManager.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(taskManager, timeout);
 		}
 	}
 
@@ -899,7 +920,6 @@ public class TaskExecutorTest extends TestLogger {
 
 		final String resourceManagerAddress = "rm";
 		final UUID resourceManagerLeaderId = UUID.randomUUID();
-		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 
 		final String jobManagerAddress = "jm";
 		final UUID jobManagerLeaderId = UUID.randomUUID();
@@ -907,16 +927,20 @@ public class TaskExecutorTest extends TestLogger {
 		resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, resourceManagerLeaderId);
 		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobManagerLeaderId);
 
-		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final ResourceID resourceManagerResourceId = resourceManagerGateway.getOwnResourceId();
 		final InstanceID registrationId = new InstanceID();
 
-		when(resourceManagerGateway.registerTaskExecutor(
-			any(String.class),
-			eq(taskManagerLocation.getResourceID()),
-			any(SlotReport.class),
-			anyInt(),
-			any(HardwareDescription.class),
-			any(Time.class))).thenReturn(CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234))));
+		final CompletableFuture<ResourceID> registrationFuture = new CompletableFuture<>();
+		resourceManagerGateway.setRegisterTaskExecutorFunction(
+			stringResourceIDIntegerHardwareDescriptionTuple4 -> {
+                registrationFuture.complete(stringResourceIDIntegerHardwareDescriptionTuple4.f1);
+                return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, new ClusterInformation("localhost", 1234)));
+            }
+		);
+
+		final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture = new CompletableFuture<>();
+		resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
 
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 
@@ -942,7 +966,7 @@ public class TaskExecutorTest extends TestLogger {
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -967,14 +991,7 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			taskManager.start();
 
-			// wait for the registration at the ResourceManager
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
-				eq(taskManager.getAddress()),
-				eq(taskManagerLocation.getResourceID()),
-				any(SlotReport.class),
-				anyInt(),
-				any(HardwareDescription.class),
-				any(Time.class));
+			assertThat(registrationFuture.get(), equalTo(taskManagerLocation.getResourceID()));
 
 			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
 			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
@@ -983,10 +1000,11 @@ public class TaskExecutorTest extends TestLogger {
 			// been properly started.
 			jobLeaderService.addJob(jobId, jobManagerAddress);
 
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).notifySlotAvailable(
-				eq(registrationId),
-				eq(new SlotID(taskManagerLocation.getResourceID(), 1)),
-				eq(allocationId2));
+			final Tuple3<InstanceID, SlotID, AllocationID> instanceIDSlotIDAllocationIDTuple3 = availableSlotFuture.get();
+
+			final Tuple3<InstanceID, SlotID, AllocationID> expectedResult = Tuple3.of(registrationId, new SlotID(taskManagerLocation.getResourceID(), 1), allocationId2);
+
+			assertThat(instanceIDSlotIDAllocationIDTuple3, equalTo(expectedResult));
 
 			assertTrue(taskSlotTable.existsActiveSlot(jobId, allocationId1));
 			assertFalse(taskSlotTable.existsActiveSlot(jobId, allocationId2));
@@ -1008,7 +1026,6 @@ public class TaskExecutorTest extends TestLogger {
 
 		final String resourceManagerAddress = "rm";
 		final UUID resourceManagerLeaderId = UUID.randomUUID();
-		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
 
 		final String jobManagerAddress = "jm";
 		final JobMasterId jobMasterId = JobMasterId.generate();
@@ -1016,17 +1033,10 @@ public class TaskExecutorTest extends TestLogger {
 		resourceManagerLeaderRetriever.notifyListener(resourceManagerAddress, resourceManagerLeaderId);
 		jobManagerLeaderRetriever.notifyListener(jobManagerAddress, jobMasterId.toUUID());
 
-		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
-		final InstanceID registrationId = new InstanceID();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
-		when(resourceManagerGateway.registerTaskExecutor(
-			any(String.class),
-			eq(taskManagerLocation.getResourceID()),
-			any(SlotReport.class),
-			anyInt(),
-			any(HardwareDescription.class),
-			any(Time.class))).thenReturn(
-				CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(registrationId, resourceManagerResourceId, 1000L, new ClusterInformation("localhost", 1234))));
+		final CompletableFuture<Tuple3<InstanceID, SlotID, AllocationID>> availableSlotFuture = new CompletableFuture<>();
+		resourceManagerGateway.setNotifySlotAvailableConsumer(availableSlotFuture::complete);
 
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 
@@ -1074,7 +1084,7 @@ public class TaskExecutorTest extends TestLogger {
 		final NetworkEnvironment networkMock = mock(NetworkEnvironment.class, Mockito.RETURNS_MOCKS);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1161,10 +1171,8 @@ public class TaskExecutorTest extends TestLogger {
 			// acknowledge the offered slots
 			offerResultFuture.complete(Collections.singleton(offer1));
 
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).notifySlotAvailable(
-				eq(registrationId),
-				eq(new SlotID(taskManagerLocation.getResourceID(), 1)),
-				any(AllocationID.class));
+			final Tuple3<InstanceID, SlotID, AllocationID> instanceIDSlotIDAllocationIDTuple3 = availableSlotFuture.get();
+			assertThat(instanceIDSlotIDAllocationIDTuple3.f1, equalTo(new SlotID(taskManagerLocation.getResourceID(), 1)));
 
 			assertTrue(taskSlotTable.existsActiveSlot(jobId, allocationId1));
 			assertFalse(taskSlotTable.existsActiveSlot(jobId, allocationId2));
@@ -1193,7 +1201,7 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTableMock = spy(new JobManagerTable());
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1260,14 +1268,13 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingResourceManagerGateway rmGateway = new TestingResourceManagerGateway(
 			ResourceManagerId.generate(),
 			rmResourceID,
-			heartbeatInterval,
 			rmAddress,
 			rmAddress);
 
 		rpc.registerGateway(rmAddress, rmGateway);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1323,7 +1330,7 @@ public class TaskExecutorTest extends TestLogger {
 			timerService);
 
 		TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
+			false,
 			new File[]{tmp.newFolder()},
 			Executors.directExecutor());
 
@@ -1345,6 +1352,11 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+			final CompletableFuture<Void> initialSlotReport = new CompletableFuture<>();
+			resourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
+                initialSlotReport.complete(null);
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            });
 			final ResourceManagerId resourceManagerId = resourceManagerGateway.getFencingToken();
 
 			rpc.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
@@ -1369,6 +1381,9 @@ public class TaskExecutorTest extends TestLogger {
 			final JobLeaderService jobLeaderService = taskManagerServices.getJobLeaderService();
 			assertThat(jobLeaderService.containsJob(jobId), is(false));
 
+			// wait for the initial slot report
+			initialSlotReport.get();
+
 			taskExecutorGateway.requestSlot(
 				slotId,
 				jobId,
@@ -1389,6 +1404,290 @@ public class TaskExecutorTest extends TestLogger {
 		} finally {
 			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
 		}
+	}
+
+	@Test
+	public void testMaximumRegistrationDuration() throws Exception {
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "10 ms");
+
+		final TaskExecutor taskExecutor = createTaskExecutor(new TaskManagerServicesBuilder().build());
+
+		taskExecutor.start();
+
+		try {
+			final Throwable error = testingFatalErrorHandler.getErrorFuture().get();
+			assertThat(error, is(notNullValue()));
+			assertThat(ExceptionUtils.stripExecutionException(error), instanceOf(RegistrationTimeoutException.class));
+
+			testingFatalErrorHandler.clearError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Test
+	public void testMaximumRegistrationDurationAfterConnectionLoss() throws Exception {
+		configuration.setString(TaskManagerOptions.REGISTRATION_TIMEOUT, "100 ms");
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+
+		final long heartbeatInterval = 10L;
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			taskManagerServices,
+			new HeartbeatServices(heartbeatInterval, 10L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		taskExecutor.start();
+
+		final CompletableFuture<ResourceID> registrationFuture = new CompletableFuture<>();
+		final OneShotLatch secondRegistration = new OneShotLatch();
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+				tuple -> {
+					if (registrationFuture.complete(tuple.f1)) {
+						return CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(
+							new InstanceID(),
+							testingResourceManagerGateway.getOwnResourceId(),
+							new ClusterInformation("localhost", 1234)));
+					} else {
+						secondRegistration.trigger();
+						return CompletableFuture.completedFuture(new RegistrationResponse.Decline("Only the first registration should succeed."));
+					}
+				}
+			);
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), UUID.randomUUID());
+
+			final ResourceID registrationResourceId = registrationFuture.get();
+
+			assertThat(registrationResourceId, equalTo(taskManagerServices.getTaskManagerLocation().getResourceID()));
+
+			secondRegistration.await();
+
+			final Throwable error = testingFatalErrorHandler.getErrorFuture().get();
+			assertThat(error, is(notNullValue()));
+			assertThat(ExceptionUtils.stripExecutionException(error), instanceOf(RegistrationTimeoutException.class));
+
+			testingFatalErrorHandler.clearError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that we ignore slot requests if the TaskExecutor is not
+	 * registered at a ResourceManager.
+	 */
+	@Test
+	public void testIgnoringSlotRequestsIfNotRegistered() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder().setTaskSlotTable(taskSlotTable).build();
+
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		taskExecutor.start();
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+
+			final CompletableFuture<RegistrationResponse> registrationFuture = new CompletableFuture<>();
+			final CompletableFuture<ResourceID> taskExecutorResourceIdFuture = new CompletableFuture<>();
+
+			testingResourceManagerGateway.setRegisterTaskExecutorFunction(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5 -> {
+                taskExecutorResourceIdFuture.complete(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5.f1);
+                return registrationFuture;
+            });
+
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			final ResourceID resourceId = taskExecutorResourceIdFuture.get();
+
+			final SlotID slotId = new SlotID(resourceId, 0);
+			final CompletableFuture<Acknowledge> slotRequestResponse = taskExecutorGateway.requestSlot(slotId, jobId, new AllocationID(), "foobar", testingResourceManagerGateway.getFencingToken(), timeout);
+
+			try {
+				slotRequestResponse.get();
+				fail("We should not be able to request slots before the TaskExecutor is registered at the ResourceManager.");
+			} catch (ExecutionException ee) {
+				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(TaskManagerException.class));
+			}
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the TaskExecutor tries to reconnect to a ResourceManager from which it
+	 * was explicitly disconnected.
+	 */
+	@Test
+	public void testReconnectionAttemptIfExplicitlyDisconnected() throws Exception {
+		final long heartbeatInterval = 1000L;
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TaskExecutor taskExecutor = new TaskExecutor(
+			rpc,
+			TaskManagerConfiguration.fromConfiguration(configuration),
+			haServices,
+			new TaskManagerServicesBuilder()
+				.setTaskSlotTable(taskSlotTable)
+				.setTaskManagerLocation(taskManagerLocation)
+				.build(),
+			new HeartbeatServices(heartbeatInterval, 1000L),
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			dummyBlobCacheService,
+			testingFatalErrorHandler);
+
+		taskExecutor.start();
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final ClusterInformation clusterInformation = new ClusterInformation("foobar", 1234);
+			final CompletableFuture<RegistrationResponse> registrationResponseFuture = CompletableFuture.completedFuture(new TaskExecutorRegistrationSuccess(new InstanceID(), ResourceID.generate(), clusterInformation));
+			final BlockingQueue<ResourceID> registrationQueue = new ArrayBlockingQueue<>(1);
+
+			testingResourceManagerGateway.setRegisterTaskExecutorFunction(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5 -> {
+				registrationQueue.offer(stringResourceIDSlotReportIntegerHardwareDescriptionTuple5.f1);
+				return registrationResponseFuture;
+			});
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			final ResourceID firstRegistrationAttempt = registrationQueue.take();
+
+			assertThat(firstRegistrationAttempt, equalTo(taskManagerLocation.getResourceID()));
+
+			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+			assertThat(registrationQueue, is(empty()));
+
+			taskExecutorGateway.disconnectResourceManager(new FlinkException("Test exception"));
+
+			final ResourceID secondRegistrationAttempt = registrationQueue.take();
+
+			assertThat(secondRegistrationAttempt, equalTo(taskManagerLocation.getResourceID()));
+
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the {@link TaskExecutor} sends the initial slot report after it
+	 * registered at the ResourceManager.
+	 */
+	@Test
+	public void testInitialSlotReport() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(taskSlotTable)
+			.setTaskManagerLocation(taskManagerLocation)
+			.build();
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		taskExecutor.start();
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+			final CompletableFuture<ResourceID> initialSlotReportFuture = new CompletableFuture<>();
+
+			testingResourceManagerGateway.setSendSlotReportFunction(
+				resourceIDInstanceIDSlotReportTuple3 -> {
+                    initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f0);
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                }
+			);
+
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			assertThat(initialSlotReportFuture.get(), equalTo(taskManagerLocation.getResourceID()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the {@link TaskExecutor} tries to reconnect if the initial slot report
+	 * fails.
+	 */
+	@Test
+	public void testInitialSlotReportFailure() throws Exception {
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Collections.singleton(ResourceProfile.UNKNOWN), timerService);
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
+			.setTaskSlotTable(taskSlotTable)
+			.setTaskManagerLocation(taskManagerLocation)
+			.build();
+		final TaskExecutor taskExecutor = createTaskExecutor(taskManagerServices);
+
+		taskExecutor.start();
+
+		try {
+			final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+
+			final BlockingQueue<CompletableFuture<Acknowledge>> responseQueue = new ArrayBlockingQueue<>(2);
+			testingResourceManagerGateway.setSendSlotReportFunction(
+				resourceIDInstanceIDSlotReportTuple3 -> {
+					try {
+						return responseQueue.take();
+					} catch (InterruptedException e) {
+						return FutureUtils.completedExceptionally(e);
+					}
+				});
+
+			final CompletableFuture<RegistrationResponse> registrationResponse = CompletableFuture.completedFuture(
+				new TaskExecutorRegistrationSuccess(
+					new InstanceID(),
+					testingResourceManagerGateway.getOwnResourceId(),
+					new ClusterInformation("foobar", 1234)	));
+
+			final CountDownLatch numberRegistrations = new CountDownLatch(2);
+
+			testingResourceManagerGateway.setRegisterTaskExecutorFunction(new Function<Tuple4<String, ResourceID, Integer, HardwareDescription>, CompletableFuture<RegistrationResponse>>() {
+				@Override
+				public CompletableFuture<RegistrationResponse> apply(Tuple4<String, ResourceID, Integer, HardwareDescription> stringResourceIDIntegerHardwareDescriptionTuple4) {
+					numberRegistrations.countDown();
+					return registrationResponse;
+				}
+			});
+
+			responseQueue.offer(FutureUtils.completedExceptionally(new FlinkException("Test exception")));
+			responseQueue.offer(CompletableFuture.completedFuture(Acknowledge.get()));
+
+			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
+
+			//wait for the second registration attempt
+			numberRegistrations.await();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+		}
+	}
+
+	@Nonnull
+	private TaskExecutor createTaskExecutor(TaskManagerServices taskManagerServices) {
+		return new TaskExecutor(
+                rpc,
+                TaskManagerConfiguration.fromConfiguration(configuration),
+                haServices,
+                taskManagerServices,
+                new HeartbeatServices(1000L, 1000L),
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                dummyBlobCacheService,
+                testingFatalErrorHandler);
 	}
 
 	private static final class StartStopNotifyingLeaderRetrievalService implements LeaderRetrievalService {

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
@@ -69,6 +70,56 @@ public class CoBroadcastWithKeyedOperatorTest {
 					BasicTypeInfo.STRING_TYPE_INFO,
 					BasicTypeInfo.INT_TYPE_INFO
 			);
+
+	@Test
+	public void testKeyQuerying() throws Exception {
+
+		class KeyQueryingProcessFunction extends KeyedBroadcastProcessFunction<Integer, Tuple2<Integer, String>, String, String> {
+
+			@Override
+			public void processElement(
+				Tuple2<Integer, String> value,
+				ReadOnlyContext ctx,
+				Collector<String> out) throws Exception {
+				assertTrue("Did not get expected key.", ctx.getCurrentKey().equals(value.f0));
+
+				// we check that we receive this output, to ensure that the assert was actually checked
+				out.collect(value.f1);
+
+			}
+
+			@Override
+			public void processBroadcastElement(
+				String value,
+				Context ctx,
+				Collector<String> out) throws Exception {
+
+			}
+		}
+
+		CoBroadcastWithKeyedOperator<Integer, Tuple2<Integer, String>, String, String> operator =
+			new CoBroadcastWithKeyedOperator<>(new KeyQueryingProcessFunction(), Collections.emptyList());
+
+		try (
+			TwoInputStreamOperatorTestHarness<Tuple2<Integer, String>, String, String> testHarness =
+				new KeyedTwoInputStreamOperatorTestHarness<>(operator, (in) -> in.f0 , null, BasicTypeInfo.INT_TYPE_INFO)) {
+
+			testHarness.setup();
+			testHarness.open();
+
+			testHarness.processElement1(new StreamRecord<>(Tuple2.of(5, "5"), 12L));
+			testHarness.processElement1(new StreamRecord<>(Tuple2.of(42, "42"), 13L));
+
+			ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+			expectedOutput.add(new StreamRecord<>("5", 12L));
+			expectedOutput.add(new StreamRecord<>("42", 13L));
+
+			TestHarnessUtil.assertOutputEquals(
+				"Output was not correct.",
+				expectedOutput,
+				testHarness.getOutput());
+		}
+	}
 
 	/** Test the iteration over the keyed state on the broadcast side. */
 	@Test
@@ -139,7 +190,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			ctx.applyToKeyedState(
 					listStateDesc,
@@ -158,7 +209,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			getRuntimeContext().getListState(listStateDesc).add(value);
 		}
 	}
@@ -216,12 +267,12 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(timerTS);
 			out.collect("NON-BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
@@ -289,12 +340,12 @@ public class CoBroadcastWithKeyedOperatorTest {
 		};
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.output(BROADCAST_TAG, "BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			ctx.output(NON_BROADCAST_TAG, "NON-BR:" + value + " WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
 		}
 	}
@@ -380,14 +431,14 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			final String key = value + "." + keyPostfix;
 			ctx.getBroadcastState(STATE_DESCRIPTOR).put(key, value);
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			Iterable<Map.Entry<String, Integer>> broadcastStateIt = ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries();
 			Iterator<Map.Entry<String, Integer>> iter = broadcastStateIt.iterator();
 
@@ -621,7 +672,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+		public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			// put an element in the broadcast state
 			for (String k : keysToRegister) {
 				ctx.getBroadcastState(STATE_DESCRIPTOR).put(k, value);
@@ -629,7 +680,7 @@ public class CoBroadcastWithKeyedOperatorTest {
 		}
 
 		@Override
-		public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+		public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 			for (Map.Entry<String, Integer> entry : ctx.getBroadcastState(STATE_DESCRIPTOR).immutableEntries()) {
 				out.collect(entry.toString());
 			}
@@ -652,12 +703,12 @@ public class CoBroadcastWithKeyedOperatorTest {
 							private final ValueStateDescriptor<String> valueState = new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
 
 							@Override
-							public void processBroadcastElement(Integer value, KeyedContext ctx, Collector<String> out) throws Exception {
+							public void processBroadcastElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 								getRuntimeContext().getState(valueState).value(); // this should fail
 							}
 
 							@Override
-							public void processElement(String value, KeyedReadOnlyContext ctx, Collector<String> out) throws Exception {
+							public void processElement(String value, ReadOnlyContext ctx, Collector<String> out) throws Exception {
 								// do nothing
 							}
 						})

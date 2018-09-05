@@ -51,10 +51,10 @@ public class TaskExecutorLocalStateStoresManager {
 	 * this. Maps from allocation id to all the subtask's local state stores.
 	 */
 	@GuardedBy("lock")
-	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> taskStateStoresByAllocationID;
+	private final Map<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> taskStateStoresByAllocationID;
 
 	/** The configured mode for local recovery on this task manager. */
-	private final LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode;
+	private final boolean localRecoveryEnabled;
 
 	/** This is the root directory for all local state of this task manager / executor. */
 	private final File[] localStateRootDirectories;
@@ -71,24 +71,25 @@ public class TaskExecutorLocalStateStoresManager {
 	private boolean closed;
 
 	public TaskExecutorLocalStateStoresManager(
-		@Nonnull LocalRecoveryConfig.LocalRecoveryMode localRecoveryMode,
+		boolean localRecoveryEnabled,
 		@Nonnull File[] localStateRootDirectories,
 		@Nonnull Executor discardExecutor) throws IOException {
 
 		this.taskStateStoresByAllocationID = new HashMap<>();
-		this.localRecoveryMode = localRecoveryMode;
+		this.localRecoveryEnabled = localRecoveryEnabled;
 		this.localStateRootDirectories = localStateRootDirectories;
 		this.discardExecutor = discardExecutor;
 		this.lock = new Object();
 		this.closed = false;
 
 		for (File localStateRecoveryRootDir : localStateRootDirectories) {
-			if (!localStateRecoveryRootDir.exists()) {
 
-				if (!localStateRecoveryRootDir.mkdirs()) {
-					throw new IOException("Could not create root directory for local recovery: " +
-						localStateRecoveryRootDir);
-				}
+			if (!localStateRecoveryRootDir.exists()
+				&& !localStateRecoveryRootDir.mkdirs()
+				// we double check for exists in case another task created the directory concurrently.
+				&& !localStateRecoveryRootDir.exists()) {
+				throw new IOException("Could not create root directory for local recovery: " +
+					localStateRecoveryRootDir);
 			}
 		}
 
@@ -110,7 +111,7 @@ public class TaskExecutorLocalStateStoresManager {
 					"register a new TaskLocalStateStore.");
 			}
 
-			Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> taskStateManagers =
+			Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> taskStateManagers =
 				this.taskStateStoresByAllocationID.get(allocationID);
 
 			if (taskStateManagers == null) {
@@ -125,7 +126,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
-			TaskLocalStateStoreImpl taskLocalStateStore = taskStateManagers.get(taskKey);
+			OwnedTaskLocalStateStore taskLocalStateStore = taskStateManagers.get(taskKey);
 
 			if (taskLocalStateStore == null) {
 
@@ -139,27 +140,31 @@ public class TaskExecutorLocalStateStoresManager {
 					subtaskIndex);
 
 				LocalRecoveryConfig localRecoveryConfig =
-					new LocalRecoveryConfig(localRecoveryMode, directoryProvider);
+					new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
 
-				taskLocalStateStore = new TaskLocalStateStoreImpl(
-					jobId,
-					allocationID,
-					jobVertexID,
-					subtaskIndex,
-					localRecoveryConfig,
-					discardExecutor);
+				taskLocalStateStore = localRecoveryConfig.isLocalRecoveryEnabled() ?
+
+						// Real store implementation if local recovery is enabled
+						new TaskLocalStateStoreImpl(
+							jobId,
+							allocationID,
+							jobVertexID,
+							subtaskIndex,
+							localRecoveryConfig,
+							discardExecutor) :
+
+						// NOP implementation if local recovery is disabled
+						new NoOpTaskLocalStateStoreImpl(localRecoveryConfig);
 
 				taskStateManagers.put(taskKey, taskLocalStateStore);
 
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Registered new local state store with configuration {} for {} - {} - {} under allocation id {}.",
-						localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
-				}
+
+				LOG.debug("Registered new local state store with configuration {} for {} - {} - {} under allocation " +
+						"id {}.", localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
+
 			} else {
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("Found existing local state store for {} - {} - {} under allocation id {}.",
-						jobId, jobVertexID, subtaskIndex, allocationID);
-				}
+				LOG.debug("Found existing local state store for {} - {} - {} under allocation id {}: {}",
+					jobId, jobVertexID, subtaskIndex, allocationID, taskLocalStateStore);
 			}
 
 			return taskLocalStateStore;
@@ -172,7 +177,7 @@ public class TaskExecutorLocalStateStoresManager {
 			LOG.debug("Releasing local state under allocation id {}.", allocationID);
 		}
 
-		Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl> cleanupLocalStores;
+		Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> cleanupLocalStores;
 
 		synchronized (lock) {
 			if (closed) {
@@ -190,7 +195,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 	public void shutdown() {
 
-		HashMap<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> toRelease;
+		HashMap<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> toRelease;
 
 		synchronized (lock) {
 
@@ -207,7 +212,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 		LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
 
-		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStoreImpl>> entry :
+		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> entry :
 			toRelease.entrySet()) {
 
 			doRelease(entry.getValue().values());
@@ -216,8 +221,8 @@ public class TaskExecutorLocalStateStoresManager {
 	}
 
 	@VisibleForTesting
-	public LocalRecoveryConfig.LocalRecoveryMode getLocalRecoveryMode() {
-		return localRecoveryMode;
+	boolean isLocalRecoveryEnabled() {
+		return localRecoveryEnabled;
 	}
 
 	@VisibleForTesting
@@ -239,11 +244,11 @@ public class TaskExecutorLocalStateStoresManager {
 		return allocationDirectories;
 	}
 
-	private void doRelease(Iterable<TaskLocalStateStoreImpl> toRelease) {
+	private void doRelease(Iterable<OwnedTaskLocalStateStore> toRelease) {
 
 		if (toRelease != null) {
 
-			for (TaskLocalStateStoreImpl stateStore : toRelease) {
+			for (OwnedTaskLocalStateStore stateStore : toRelease) {
 				try {
 					stateStore.dispose();
 				} catch (Exception disposeEx) {

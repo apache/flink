@@ -168,6 +168,8 @@ object FunctionCatalog {
     "isNotTrue" -> classOf[IsNotTrue],
     "isNotFalse" -> classOf[IsNotFalse],
     "if" -> classOf[If],
+    "between" -> classOf[Between],
+    "notBetween" -> classOf[NotBetween],
 
     // aggregate functions
     "avg" -> classOf[Avg],
@@ -200,6 +202,12 @@ object FunctionCatalog {
     "concat_ws" -> classOf[ConcatWs],
     "lpad" -> classOf[Lpad],
     "rpad" -> classOf[Rpad],
+    "fromBase64" -> classOf[FromBase64],
+    "toBase64" -> classOf[ToBase64],
+    "uuid" -> classOf[UUID],
+    "ltrim" -> classOf[LTrim],
+    "rtrim" -> classOf[RTrim],
+    "repeat" -> classOf[Repeat],
 
     // math functions
     "plus" -> classOf[Plus],
@@ -211,7 +219,9 @@ object FunctionCatalog {
     "exp" -> classOf[Exp],
     "floor" -> classOf[Floor],
     "log10" -> classOf[Log10],
+    "log2" -> classOf[Log2],
     "ln" -> classOf[Ln],
+    "log" -> classOf[Log],
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
     "sqrt" -> classOf[Sqrt],
@@ -223,6 +233,7 @@ object FunctionCatalog {
     "asin" -> classOf[Asin],
     "acos" -> classOf[Acos],
     "atan" -> classOf[Atan],
+    "atan2" -> classOf[Atan2],
     "degrees" -> classOf[Degrees],
     "radians" -> classOf[Radians],
     "sign" -> classOf[Sign],
@@ -232,6 +243,7 @@ object FunctionCatalog {
     "rand" -> classOf[Rand],
     "randInteger" -> classOf[RandInteger],
     "bin" -> classOf[Bin],
+    "hex" -> classOf[Hex],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -272,7 +284,11 @@ object FunctionCatalog {
     // crypto hash
     "md5" -> classOf[Md5],
     "sha1" -> classOf[Sha1],
-    "sha256" -> classOf[Sha256]
+    "sha224" -> classOf[Sha224],
+    "sha256" -> classOf[Sha256],
+    "sha384" -> classOf[Sha384],
+    "sha512" -> classOf[Sha512],
+    "sha2" -> classOf[Sha2]
   )
 
   /**
@@ -390,6 +406,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.MOD,
     SqlStdOperatorTable.LN,
     SqlStdOperatorTable.LOG10,
+    ScalarSqlFunctions.LOG2,
     SqlStdOperatorTable.ABS,
     SqlStdOperatorTable.EXP,
     SqlStdOperatorTable.NULLIF,
@@ -414,6 +431,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ASIN,
     SqlStdOperatorTable.ACOS,
     SqlStdOperatorTable.ATAN,
+    SqlStdOperatorTable.ATAN2,
     SqlStdOperatorTable.DEGREES,
     SqlStdOperatorTable.RADIANS,
     SqlStdOperatorTable.SIGN,
@@ -425,13 +443,24 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.CONCAT,
     ScalarSqlFunctions.CONCAT_WS,
     ScalarSqlFunctions.BIN,
+    ScalarSqlFunctions.HEX,
     SqlStdOperatorTable.TIMESTAMP_ADD,
     ScalarSqlFunctions.LOG,
     ScalarSqlFunctions.LPAD,
     ScalarSqlFunctions.RPAD,
     ScalarSqlFunctions.MD5,
     ScalarSqlFunctions.SHA1,
+    ScalarSqlFunctions.SHA224,
     ScalarSqlFunctions.SHA256,
+    ScalarSqlFunctions.SHA384,
+    ScalarSqlFunctions.SHA512,
+    ScalarSqlFunctions.SHA2,
+    ScalarSqlFunctions.FROM_BASE64,
+    ScalarSqlFunctions.TO_BASE64,
+    ScalarSqlFunctions.UUID,
+    ScalarSqlFunctions.LTRIM,
+    ScalarSqlFunctions.RTRIM,
+    ScalarSqlFunctions.REPEAT,
 
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,

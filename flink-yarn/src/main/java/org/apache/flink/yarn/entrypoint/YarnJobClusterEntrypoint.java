@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -51,6 +51,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Entry point for Yarn per-job clusters.
@@ -91,7 +92,6 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			FatalErrorHandler fatalErrorHandler,
 			ClusterInformation clusterInformation,
 			@Nullable String webInterfaceUrl) throws Exception {
-		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
 			rmServicesConfiguration,
@@ -104,7 +104,6 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			resourceId,
 			configuration,
 			System.getenv(),
-			rmConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
 			rmRuntimeServices.getSlotManager(),
@@ -130,6 +129,17 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 			throw new FlinkException("Could not load the JobGraph from file.", e);
 		}
 	}
+
+	@Override
+	protected void registerShutdownActions(CompletableFuture<ApplicationStatus> terminationFuture) {
+		terminationFuture.thenAccept((status) ->
+			shutDownAndTerminate(status.processExitCode(), status, null, true));
+	}
+
+	// ------------------------------------------------------------------------
+	//  The executable entry point for the Yarn Application Master Process
+	//  for a single Flink job.
+	// ------------------------------------------------------------------------
 
 	public static void main(String[] args) {
 		// startup checks and logging

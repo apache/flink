@@ -84,6 +84,8 @@ class Rowtime extends Descriptor {
     * time interval.
     *
     * Emits watermarks which are the maximum observed timestamp minus the specified delay.
+    *
+    * @param delay delay in milliseconds
     */
   def watermarksPeriodicBounded(delay: Long): Rowtime = {
     watermarkStrategy = Some(new BoundedOutOfOrderTimestamps(delay))
@@ -92,7 +94,7 @@ class Rowtime extends Descriptor {
 
   /**
     * Sets a built-in watermark strategy which indicates the watermarks should be preserved from the
-    * underlying DataStream API and thus preserves the assigned timestamps from the source.
+    * underlying DataStream API and thus preserves the assigned watermarks from the source.
     */
   def watermarksFromSource(): Rowtime = {
     watermarkStrategy = Some(PreserveWatermarks.INSTANCE)

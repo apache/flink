@@ -35,9 +35,9 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITTED_OFFSETS_METRICS_GAUGE;
@@ -240,6 +240,8 @@ public abstract class AbstractFetcher<T, KPH> {
 		}
 
 		for (KafkaTopicPartitionState<KPH> newPartitionState : newPartitionStates) {
+			// the ordering is crucial here; first register the state holder, then
+			// push it to the partitions queue to be read
 			subscribedPartitionStates.add(newPartitionState);
 			unassignedPartitionsQueue.add(newPartitionState);
 		}
@@ -507,7 +509,9 @@ public abstract class AbstractFetcher<T, KPH> {
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
-		List<KafkaTopicPartitionState<KPH>> partitionStates = new LinkedList<>();
+		// CopyOnWrite as adding discovered partitions could happen in parallel
+		// while different threads iterate the partitions list
+		List<KafkaTopicPartitionState<KPH>> partitionStates = new CopyOnWriteArrayList<>();
 
 		switch (timestampWatermarkMode) {
 			case NO_TIMESTAMPS_WATERMARKS: {

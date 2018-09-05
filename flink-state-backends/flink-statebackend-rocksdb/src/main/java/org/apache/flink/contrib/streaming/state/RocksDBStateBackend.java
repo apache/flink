@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -59,6 +60,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -76,6 +78,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
 
+	/**
+	 * The options to chose for the type of priority queue state.
+	 */
+	public enum PriorityQueueStateType {
+		HEAP,
+		ROCKSDB
+	}
+
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
@@ -83,6 +93,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** The number of (re)tries for loading the RocksDB JNI library. */
 	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
+	/** Flag whether the native library has been loaded. */
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
@@ -96,7 +107,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Null if not yet set, in which case the configuration values will be used.
 	 * The configuration defaults to the TaskManager's temp directories. */
 	@Nullable
-	private Path[] localRocksDbDirectories;
+	private File[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
@@ -107,6 +118,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** This determines if incremental checkpointing is enabled. */
 	private final TernaryBoolean enableIncrementalCheckpointing;
+
+	/** This determines the type of priority queue state. */
+	private final PriorityQueueStateType priorityQueueStateType;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -169,6 +183,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
+	@SuppressWarnings("deprecation")
 	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
 		this(new FsStateBackend(checkpointDataUri));
 	}
@@ -186,6 +201,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
+	@SuppressWarnings("deprecation")
 	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
 		this(new FsStateBackend(checkpointDataUri), enableIncrementalCheckpointing);
 	}
@@ -218,6 +234,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend, TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		// for now, we use still the heap-based implementation as default
+		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 	}
 
 	/**
@@ -253,12 +271,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
 			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
+		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
+
+		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
+			PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase()) : original.priorityQueueStateType;
+
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
 			this.localRocksDbDirectories = original.localRocksDbDirectories;
 		}
 		else {
-			final String rocksdbLocalPaths = config.getString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES);
+			final String rocksdbLocalPaths = config.getString(RocksDBOptions.LOCAL_DIRECTORIES);
 			if (rocksdbLocalPaths != null) {
 				String[] directories = rocksdbLocalPaths.split(",|" + File.pathSeparator);
 
@@ -326,16 +349,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		}
 		else {
 			List<File> dirs = new ArrayList<>(localRocksDbDirectories.length);
-			String errorMessage = "";
+			StringBuilder errorMessage = new StringBuilder();
 
-			for (Path path : localRocksDbDirectories) {
-				File f = new File(path.toUri().getPath());
+			for (File f : localRocksDbDirectories) {
 				File testDir = new File(f, UUID.randomUUID().toString());
 				if (!testDir.mkdirs()) {
-					String msg = "Local DB files directory '" + path
+					String msg = "Local DB files directory '" + f
 							+ "' does not exist and cannot be created. ";
 					LOG.error(msg);
-					errorMessage += msg;
+					errorMessage.append(msg);
 				} else {
 					dirs.add(f);
 				}
@@ -389,7 +411,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry,
+			TtlTimeProvider ttlTimeProvider) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -420,7 +443,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				keyGroupRange,
 				env.getExecutionConfig(),
 				isIncrementalCheckpointsEnabled(),
-				localRecoveryConfig);
+				localRecoveryConfig,
+				priorityQueueStateType,
+				ttlTimeProvider);
 	}
 
 	@Override
@@ -455,9 +480,13 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
-	 * Sets the paths across which the local RocksDB database files are distributed on the local
-	 * file system. Setting these paths overrides the default behavior, where the
-	 * files are stored across the configured temp directories.
+	 * Sets the directories in which the local RocksDB database puts its files (like SST and
+	 * metadata files). These directories do not need to be persistent, they can be ephemeral,
+	 * meaning that they are lost on a machine failure, because state in RocksDB is persisted
+	 * in checkpoints.
+	 *
+	 * <p>If nothing is configured, these directories default to the TaskManager's local
+	 * temporary file directories.
 	 *
 	 * <p>Each distinct state will be stored in one path, but when the state backend creates
 	 * multiple states, they will store their files on different paths.
@@ -475,17 +504,41 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			throw new IllegalArgumentException("empty paths");
 		}
 		else {
-			Path[] pp = new Path[paths.length];
+			File[] pp = new File[paths.length];
 
 			for (int i = 0; i < paths.length; i++) {
-				if (paths[i] == null) {
+				final String rawPath = paths[i];
+				final String path;
+
+				if (rawPath == null) {
 					throw new IllegalArgumentException("null path");
 				}
+				else {
+					// we need this for backwards compatibility, to allow URIs like 'file:///'...
+					URI uri = null;
+					try {
+						uri = new Path(rawPath).toUri();
+					}
+					catch (Exception e) {
+						// cannot parse as a path
+					}
 
-				pp[i] = new Path(paths[i]);
-				String scheme = pp[i].toUri().getScheme();
-				if (scheme != null && !scheme.equalsIgnoreCase("file")) {
-					throw new IllegalArgumentException("Path " + paths[i] + " has a non local scheme");
+					if (uri != null && uri.getScheme() != null) {
+						if ("file".equalsIgnoreCase(uri.getScheme())) {
+							path = uri.getPath();
+						}
+						else {
+							throw new IllegalArgumentException("Path " + rawPath + " has a non-local scheme");
+						}
+					}
+					else {
+						path = rawPath;
+					}
+				}
+
+				pp[i] = new File(path);
+				if (!pp[i].isAbsolute()) {
+					throw new IllegalArgumentException("Relative paths are not supported");
 				}
 			}
 
@@ -494,8 +547,15 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	}
 
 	/**
+	 * Gets the configured local DB storage paths, or null, if none were configured.
 	 *
-	 * @return The configured DB storage paths, or null, if none were configured.
+	 * <p>Under these directories on the TaskManager, RocksDB stores its SST files and
+	 * metadata files. These directories do not need to be persistent, they can be ephermeral,
+	 * meaning that they are lost on a machine failure, because state in RocksDB is persisted
+	 * in checkpoints.
+	 *
+	 * <p>If nothing is configured, these directories default to the TaskManager's local
+	 * temporary file directories.
 	 */
 	public String[] getDbStoragePaths() {
 		if (localRocksDbDirectories == null) {

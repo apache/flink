@@ -42,7 +42,7 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	/**
 	 * Meta information of the state, including state name, assignment mode, and serializer.
 	 */
-	private RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo;
+	private RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo;
 
 	/**
 	 * The internal map the holds the elements of the state.
@@ -54,11 +54,11 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	 */
 	private final MapSerializer<K, V> internalMapCopySerializer;
 
-	HeapBroadcastState(RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo) {
+	HeapBroadcastState(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
 		this(stateMetaInfo, new HashMap<>());
 	}
 
-	private HeapBroadcastState(final RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo, final Map<K, V> internalMap) {
+	private HeapBroadcastState(final RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo, final Map<K, V> internalMap) {
 
 		this.stateMetaInfo = Preconditions.checkNotNull(stateMetaInfo);
 		this.backingMap = Preconditions.checkNotNull(internalMap);
@@ -66,16 +66,16 @@ public class HeapBroadcastState<K, V> implements BackendWritableBroadcastState<K
 	}
 
 	private HeapBroadcastState(HeapBroadcastState<K, V> toCopy) {
-		this(toCopy.stateMetaInfo, toCopy.internalMapCopySerializer.copy(toCopy.backingMap));
+		this(toCopy.stateMetaInfo.deepCopy(), toCopy.internalMapCopySerializer.copy(toCopy.backingMap));
 	}
 
 	@Override
-	public void setStateMetaInfo(RegisteredBroadcastBackendStateMetaInfo<K, V> stateMetaInfo) {
+	public void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo) {
 		this.stateMetaInfo = stateMetaInfo;
 	}
 
 	@Override
-	public RegisteredBroadcastBackendStateMetaInfo<K, V> getStateMetaInfo() {
+	public RegisteredBroadcastStateBackendMetaInfo<K, V> getStateMetaInfo() {
 		return stateMetaInfo;
 	}
 

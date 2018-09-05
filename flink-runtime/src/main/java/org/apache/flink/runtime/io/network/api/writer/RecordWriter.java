@@ -71,6 +71,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private Counter numBytesOut = new SimpleCounter();
 
+	private Counter numBuffersOut = new SimpleCounter();
+
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
 	}
@@ -150,7 +152,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		}
 	}
 
-	public BufferConsumer broadcastEvent(AbstractEvent event) throws IOException {
+	public void broadcastEvent(AbstractEvent event) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
 			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
 				RecordSerializer<T> serializer = serializers[targetChannel];
@@ -164,7 +166,6 @@ public class RecordWriter<T extends IOReadableWritable> {
 			if (flushAlways) {
 				flushAll();
 			}
-			return eventBufferConsumer;
 		}
 	}
 
@@ -185,6 +186,7 @@ public class RecordWriter<T extends IOReadableWritable> {
      */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
 		numBytesOut = metrics.getNumBytesOutCounter();
+		numBuffersOut = metrics.getNumBuffersOutCounter();
 	}
 
 	/**
@@ -201,6 +203,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		bufferBuilders[targetChannel] = Optional.empty();
 
 		numBytesOut.inc(bufferBuilder.finish());
+		numBuffersOut.inc();
 		serializer.clear();
 		return true;
 	}

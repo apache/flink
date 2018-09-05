@@ -88,7 +88,7 @@ object TestingUtils {
   def startTestingCluster(numSlots: Int, numTMs: Int = 1,
                           timeout: String = DEFAULT_AKKA_ASK_TIMEOUT): TestingCluster = {
     val config = new Configuration()
-    config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots)
+    config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numSlots)
     config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTMs)
     config.setString(AkkaOptions.ASK_TIMEOUT, timeout)
 
@@ -262,7 +262,7 @@ object TestingUtils {
 
     val resultingConfiguration = new Configuration()
 
-    resultingConfiguration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 10L)
+    resultingConfiguration.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "10m")
 
     resultingConfiguration.addAll(configuration)
 

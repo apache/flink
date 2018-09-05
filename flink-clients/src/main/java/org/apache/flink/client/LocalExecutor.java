@@ -28,6 +28,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 import java.util.List;
 
@@ -126,7 +128,9 @@ public class LocalExecutor extends PlanExecutor {
 		final JobExecutorService newJobExecutorService;
 		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
 
-			configuration.setInteger(RestOptions.REST_PORT, 0);
+			if (!configuration.contains(RestOptions.PORT)) {
+				configuration.setInteger(RestOptions.PORT, 0);
+			}
 
 			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 				.setConfiguration(configuration)
@@ -134,16 +138,16 @@ public class LocalExecutor extends PlanExecutor {
 					configuration.getInteger(
 						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
 						ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
-				.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+				.setRpcServiceSharing(RpcServiceSharing.SHARED)
 				.setNumSlotsPerTaskManager(
 					configuration.getInteger(
-						ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1))
+						TaskManagerOptions.NUM_TASK_SLOTS, 1))
 				.build();
 
 			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 			miniCluster.start();
 
-			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
+			configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().getPort());
 
 			newJobExecutorService = miniCluster;
 		} else {
@@ -218,7 +222,7 @@ public class LocalExecutor extends PlanExecutor {
 
 			try {
 				// TODO: Set job's default parallelism to max number of slots
-				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
 				final int numTaskManagers = jobExecutorServiceConfiguration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 				plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 
@@ -263,7 +267,7 @@ public class LocalExecutor extends PlanExecutor {
 
 	private Configuration createConfiguration() {
 		Configuration newConfiguration = new Configuration();
-		newConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
+		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, getTaskManagerNumSlots());
 		newConfiguration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, isDefaultOverwriteFiles());
 
 		newConfiguration.addAll(baseConfiguration);

@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -38,7 +39,10 @@ public class WebOptions {
 
 	/**
 	 * The port for the runtime monitor web-frontend server.
+	 *
+	 * @deprecated Use {@link RestOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final ConfigOption<Integer> PORT =
 		key("web.port")
 			.defaultValue(8081)
@@ -72,6 +76,7 @@ public class WebOptions {
 	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 */
+	@Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
 	public static final ConfigOption<String> TMP_DIR =
 		key("web.tmpdir")
 			.defaultValue(System.getProperty("java.io.tmpdir"))

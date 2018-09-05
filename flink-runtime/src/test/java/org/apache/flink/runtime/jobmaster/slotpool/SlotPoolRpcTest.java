@@ -46,7 +46,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -55,7 +54,6 @@ import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
@@ -72,7 +70,6 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the SlotPool using a proper RPC setup.
  */
-@Category(New.class)
 public class SlotPoolRpcTest extends TestLogger {
 
 	private static RpcService rpcService;
@@ -110,6 +107,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		final SlotPool pool = new SlotPool(
 			rpcService,
 			jid,
+			LocationPreferenceSchedulingStrategy.getInstance(),
 			SystemClock.getInstance(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime()
@@ -358,6 +356,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			super(
 				rpcService,
 				jobId,
+				LocationPreferenceSchedulingStrategy.getInstance(),
 				clock,
 				rpcTimeout,
 				idleSlotTimeout);

@@ -57,7 +57,7 @@ public abstract class CliView<OP extends Enum<OP>, OUT> {
 
 	protected int offsetY;
 
-	private boolean isRunning;
+	private volatile boolean isRunning;
 
 	private Thread inputThread;
 

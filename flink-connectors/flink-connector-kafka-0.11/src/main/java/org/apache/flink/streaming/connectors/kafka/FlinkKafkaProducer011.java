@@ -651,6 +651,17 @@ public class FlinkKafkaProducer011<IN>
 		if (currentTransaction != null) {
 			// to avoid exceptions on aborting transactions with some pending records
 			flush(currentTransaction);
+
+			// normal abort for AT_LEAST_ONCE and NONE do not clean up resources because of producer reusing, thus
+			// we need to close it manually
+			switch (semantic) {
+				case EXACTLY_ONCE:
+					break;
+				case AT_LEAST_ONCE:
+				case NONE:
+					currentTransaction.producer.close();
+					break;
+			}
 		}
 		try {
 			super.close();
@@ -826,7 +837,7 @@ public class FlinkKafkaProducer011<IN>
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
-			getRuntimeContext().getTaskName(),
+			getRuntimeContext().getTaskName() + "-" + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID(),
 			getRuntimeContext().getIndexOfThisSubtask(),
 			getRuntimeContext().getNumberOfParallelSubtasks(),
 			kafkaProducersPoolSize,
@@ -905,6 +916,7 @@ public class FlinkKafkaProducer011<IN>
 		for (String transactionalId : transactionalIds) {
 			try (FlinkKafkaProducer<byte[], byte[]> kafkaProducer =
 					initTransactionalProducer(transactionalId, false)) {
+				// it suffice to call initTransactions - this will abort any lingering transactions
 				kafkaProducer.initTransactions();
 			}
 		}

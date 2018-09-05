@@ -22,14 +22,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
-import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -38,7 +35,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@Category(New.class)
 public class AvailableSlotsTest extends TestLogger {
 
 	static final ResourceProfile DEFAULT_TESTING_PROFILE = new ResourceProfile(1.0, 512);
@@ -99,9 +95,9 @@ public class AvailableSlotsTest extends TestLogger {
 		assertTrue(availableSlots.contains(slot1.getAllocationId()));
 		assertTrue(availableSlots.containsTaskManager(resource1));
 
-		assertNull(availableSlots.poll(SlotProfile.noLocality(DEFAULT_TESTING_BIG_PROFILE)));
+		assertNull(availableSlots.poll(LocationPreferenceSchedulingStrategy.getInstance(), SlotProfile.noLocality(DEFAULT_TESTING_BIG_PROFILE)));
 
-		SlotAndLocality slotAndLocality = availableSlots.poll(SlotProfile.noLocality(DEFAULT_TESTING_PROFILE));
+		SlotAndLocality slotAndLocality = availableSlots.poll(LocationPreferenceSchedulingStrategy.getInstance(), SlotProfile.noLocality(DEFAULT_TESTING_PROFILE));
 		assertEquals(slot1, slotAndLocality.getSlot());
 		assertEquals(0, availableSlots.size());
 		assertFalse(availableSlots.contains(slot1.getAllocationId()));

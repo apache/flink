@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -668,6 +668,11 @@ under the License.
 		<profile>
 			<!-- MapR build profile -->
 			<id>mapr</id>
+			<activation>
+				<property>
+					<name>mapr</name>
+				</property>
+			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>org.apache.hadoop</groupId>

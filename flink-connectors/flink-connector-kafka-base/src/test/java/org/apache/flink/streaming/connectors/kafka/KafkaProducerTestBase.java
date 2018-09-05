@@ -24,9 +24,9 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -116,7 +116,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			expectedTopicsToNumPartitions.put(defaultTopic, defaultTopicPartitions);
 			expectedTopicsToNumPartitions.put(dynamicTopic, dynamicTopicPartitions);
 
-			TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInfoParser.parse("Tuple2<Long, String>");
+			TypeInformation<Tuple2<Long, String>> longStringInfo = TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
@@ -303,7 +303,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 */
 	@Test
 	public void testExactlyOnceRegularSink() throws Exception {
-		testExactlyOnce(true);
+		testExactlyOnce(true, 1);
 	}
 
 	/**
@@ -311,20 +311,22 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	 */
 	@Test
 	public void testExactlyOnceCustomOperator() throws Exception {
-		testExactlyOnce(false);
+		testExactlyOnce(false, 1);
 	}
 
 	/**
 	 * This test sets KafkaProducer so that it will  automatically flush the data and
 	 * and fails the broker to check whether flushed records since last checkpoint were not duplicated.
 	 */
-	protected void testExactlyOnce(boolean regularSink) throws Exception {
-		final String topic = regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator";
+	protected void testExactlyOnce(boolean regularSink, int sinksCount) throws Exception {
+		final String topic = (regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator") + sinksCount;
 		final int partition = 0;
 		final int numElements = 1000;
 		final int failAfterElements = 333;
 
-		createTestTopic(topic, 1, 1);
+		for (int i = 0; i < sinksCount; i++) {
+			createTestTopic(topic + i, 1, 1);
+		}
 
 		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper(schema);
@@ -346,32 +348,35 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			.addSource(new IntegerSource(numElements))
 			.map(new FailingIdentityMapper<Integer>(failAfterElements));
 
-		FlinkKafkaPartitioner<Integer> partitioner = new FlinkKafkaPartitioner<Integer>() {
-			@Override
-			public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
-				return partition;
+		for (int i = 0; i < sinksCount; i++) {
+			FlinkKafkaPartitioner<Integer> partitioner = new FlinkKafkaPartitioner<Integer>() {
+				@Override
+				public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+					return partition;
+				}
+			};
+
+			if (regularSink) {
+				StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic + i, keyedSerializationSchema, properties, partitioner);
+				inputStream.addSink(kafkaSink.getUserFunction());
+			} else {
+				kafkaServer.produceIntoKafka(inputStream, topic + i, keyedSerializationSchema, properties, partitioner);
 			}
-		};
-		if (regularSink) {
-			StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, partitioner);
-			inputStream.addSink(kafkaSink.getUserFunction());
-		}
-		else {
-			kafkaServer.produceIntoKafka(inputStream, topic, keyedSerializationSchema, properties, partitioner);
 		}
 
 		FailingIdentityMapper.failedBefore = false;
 		TestUtils.tryExecute(env, "Exactly once test");
 
-		// assert that before failure we successfully snapshot/flushed all expected elements
-		assertExactlyOnceForTopic(
-			properties,
-			topic,
-			partition,
-			expectedElements,
-			KAFKA_READ_TIMEOUT);
-
-		deleteTestTopic(topic);
+		for (int i = 0; i < sinksCount; i++) {
+			// assert that before failure we successfully snapshot/flushed all expected elements
+			assertExactlyOnceForTopic(
+				properties,
+				topic + i,
+				partition,
+				expectedElements,
+				KAFKA_READ_TIMEOUT);
+			deleteTestTopic(topic + i);
+		}
 	}
 
 	private List<Integer> getIntegersSequence(int size) {

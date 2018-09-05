@@ -69,4 +69,9 @@ public final class JobsOverviewHeaders implements MessageHeaders<EmptyRequestBod
 	public static JobsOverviewHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns an overview over all jobs.";
+	}
 }

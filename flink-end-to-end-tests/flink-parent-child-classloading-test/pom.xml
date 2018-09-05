@@ -24,7 +24,7 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.6-SNAPSHOT</version>
+		<version>1.7-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -37,13 +37,9 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
@@ -51,52 +47,21 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
-
+				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- ClassLoaderTestProgram -->
 					<execution>
 						<id>ClassLoaderTestProgram</id>
 						<phase>package</phase>
 						<goals>
-							<goal>jar</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<classifier>ClassLoaderTestProgram</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.tests.ClassLoaderTestProgram</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/tests/ClassLoaderTestProgram.class</include>
-								<include>org/apache/flink/runtime/taskmanager/TaskManager.class</include>
-								<include>.version.properties</include>
-							</includes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!--simplify the name of the testing JARs for referring to them in the end-to-end test scripts-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>rename</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<target>
-								<copy file="${project.basedir}/target/flink-parent-child-classloading-test_${scala.binary.version}-${project.version}-ClassLoaderTestProgram.jar" tofile="${project.basedir}/target/ClassLoaderTestProgram.jar" />
-							</target>
+							<finalName>ClassLoaderTestProgram</finalName>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.tests.ClassLoaderTestProgram</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>

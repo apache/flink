@@ -25,7 +25,7 @@ under the License.
 Flink has a monitoring API that can be used to query status and statistics of running jobs, as well as recent completed jobs.
 This monitoring API is used by Flink's own dashboard, but is designed to be used also by custom monitoring tools.
 
-The monitoring API is a REST-ful API that accepts HTTP GET requests and responds with JSON data.
+The monitoring API is a REST-ful API that accepts HTTP requests and responds with JSON data.
 
 * This will be replaced by the TOC
 {:toc}
@@ -33,21 +33,47 @@ The monitoring API is a REST-ful API that accepts HTTP GET requests and responds
 
 ## Overview
 
-The monitoring API is backed by a web server that runs as part of the *JobManager*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `jobmanager.web.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
+The monitoring API is backed by a web server that runs as part of the *Dispatcher*. By default, this server listens at post `8081`, which can be configured in `flink-conf.yaml` via `rest.port`. Note that the monitoring API web server and the web dashboard web server are currently the same and thus run together at the same port. They respond to different HTTP URLs, though.
 
-In the case of multiple JobManagers (for high availability), each JobManager will run its own instance of the monitoring API, which offers information about completed and running job while that JobManager was elected the cluster leader.
+In the case of multiple Dispatchers (for high availability), each Dispatcher will run its own instance of the monitoring API, which offers information about completed and running job while that Dispatcher was elected the cluster leader.
 
 
 ## Developing
 
-The REST API backend is in the `flink-runtime-web` project. The core class is `org.apache.flink.runtime.webmonitor.WebRuntimeMonitor`, which sets up the server and the request routing.
+The REST API backend is in the `flink-runtime` project. The core class is `org.apache.flink.runtime.webmonitor.WebMonitorEndpoint`, which sets up the server and the request routing.
 
 We use *Netty* and the *Netty Router* library to handle REST requests and translate URLs. This choice was made because this combination has lightweight dependencies, and the performance of Netty HTTP is very good.
 
-To add new requests, one needs to add a new *request handler* class. A good example to look at is the `org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler`. After creating the handler, the handler needs to be registered with the request router in `org.apache.flink.runtime.webmonitor.WebRuntimeMonitor`.
+To add new requests, one needs to
+* add a new `MessageHeaders` class which serves as an interface for the new request,
+* add a new `AbstractRestHandler` class which handles the request according to the added `MessageHeaders` class,
+* add the handler to `org.apache.flink.runtime.webmonitor.WebMonitorEndpoint#initializeHandlers()`.
+
+A good example is the `org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler` that uses the `org.apache.flink.runtime.rest.messages.JobExceptionsHeaders`.
 
 
-## Available Requests
+## API
+
+The REST API is versioned, with specific versions being queryable by prefixing the url with the version prefix. Prefixes are always of the form `v[version_number]`.
+For example, to access version 1 of `/foo/bar` one would query `/v1/foo/bar`.
+
+If no version is specified Flink will default to the *oldest* version supporting the request.
+
+Querying unsupported/non-existing versions will return a 404 error.
+
+<span class="label label-danger">Attention</span> REST API versioning is *not* active if the cluster runs in [legacy mode](../ops/config.html#mode). For this case please refer to the legacy API below.
+
+<div class="codetabs" markdown="1">
+
+<div data-lang="v1" markdown="1">
+#### Dispatcher
+
+{% include generated/rest_v1_dispatcher.html %}
+</div>
+
+<div data-lang="legacy" markdown="1">
+
+This section is only relevant if the cluster runs in [legacy mode](../ops/config.html#mode).
 
 Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8081/jobs`, below we list only the *path* part of the URLs.
 
@@ -77,7 +103,7 @@ Values in angle brackets are variables, for example `http://hostname:8081/jobs/<
   - `/jars/:jarid/run`
 
 
-### General
+#### General
 
 **`/config`**
 
@@ -85,7 +111,7 @@ Some information about the monitoring API and the server setup.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "refresh-interval": 3000,
   "timezone-offset": 3600000,
@@ -93,7 +119,7 @@ Sample Result:
   "flink-version": "{{ site.version }}",
   "flink-revision": "8124545 @ 16.09.2015 @ 15:38:42 CEST"
 }
-~~~
+{% endhighlight %}
 
 **`/overview`**
 
@@ -101,7 +127,7 @@ Simple summary of the Flink cluster status.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "taskmanagers": 17,
   "slots-total": 68,
@@ -111,17 +137,17 @@ Sample Result:
   "jobs-cancelled": 1,
   "jobs-failed": 0
 }
-~~~
+{% endhighlight %}
 
-### Overview of Jobs
+#### Overview of Jobs
 
 **`/jobs/overview`**
 
-Jobs, grouped by status, each with a small summary of its status.
+An overview over all jobs with a small summary.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "jobs":[
     {
@@ -148,9 +174,9 @@ Sample Result:
       ...
     }]
 }
-~~~
+{% endhighlight %}
 
-### Details of a Running or Completed Job
+#### Details of a Running or Completed Job
 
 **`/jobs/<jobid>`**
 
@@ -158,7 +184,7 @@ Summary of one job, listing dataflow plan, status, timestamps of state transitio
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "jid": "ab78dcdbb1db025539e30217ec54ee16",
   "name": "WordCount Example",
@@ -201,7 +227,7 @@ Sample Result:
     // see plan details below
   }
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices`**
 
@@ -214,7 +240,7 @@ The user-defined execution config used by the job.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "jid": "ab78dcdbb1db025539e30217ec54ee16",
   "name": "WordCount Example",
@@ -225,7 +251,7 @@ Sample Result:
     "object-reuse-mode": false
   }
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/exceptions`**
 
@@ -234,7 +260,7 @@ The `truncated` flag defines whether more exceptions occurred, but are not liste
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "root-exception": "java.io.IOException: File already exists:/tmp/abzs/2\n\tat org.apache.flink.core.fs.local.LocalFileSystem. ...",
   "all-exceptions": [ {
@@ -248,7 +274,7 @@ Sample Result:
   } ],
   "truncated":false
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/accumulators`**
 
@@ -256,7 +282,7 @@ The aggregated user accumulators plus job accumulators.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "job-accumulators":[],
   "user-task-accumulators": [ {
@@ -270,7 +296,7 @@ Sample Result:
     "value": "LongCounter 37500000"
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>`**
 
@@ -278,7 +304,7 @@ Information about one specific vertex, with a summary for each of its subtasks.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "id": "dceafe2df1f57a1206fcb907cb38ad97",
   "name": "CHAIN DataSource -> Map -> FlatMap -> Combine(SUM(1))",
@@ -308,7 +334,7 @@ Sample Result:
     }
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/subtasktimes`**
 
@@ -317,7 +343,7 @@ These can be used, for example, to create time-line comparisons between subtasks
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "id": "dceafe2df1f57a1206fcb907cb38ad97",
   "name": "CHAIN DataSource -> Map -> Combine(SUM(1))",
@@ -338,7 +364,7 @@ Sample Result:
     }
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/taskmanagers`**
 
@@ -346,7 +372,7 @@ TaskManager statistics for one specific vertex. This is an aggregation of subtas
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "id": "fe20bcc29b87cdc76589ca42114c2499",
   "name": "Reduce (SUM(1), at main(WordCount.java:72)",
@@ -377,7 +403,7 @@ Sample Result:
     }
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/accumulators`**
 
@@ -385,7 +411,7 @@ The aggregated user-defined accumulators, for a specific vertex.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "id": "dceafe2df1f57a1206fcb907cb38ad97",
   "user-accumulators": [ {
@@ -394,7 +420,7 @@ Sample Result:
     "name": "genwords", "type": "LongCounter", "value": "LongCounter 75000000"
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/subtasks/accumulators`**
 
@@ -403,7 +429,7 @@ request `/jobs/<jobid>/vertices/<vertexid>/accumulators`.
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "id": "dceafe2df1f57a1206fcb907cb38ad97",
   "parallelism": 2,
@@ -427,7 +453,7 @@ Sample Result:
     } ]
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>`**
 
@@ -440,7 +466,7 @@ Summary of a specific execution attempt of a specific subtask. Multiple executio
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "subtask": 0,
   "status": "FINISHED",
@@ -453,7 +479,7 @@ Sample Result:
     "read-bytes": 0, "write-bytes": 12684375, "read-records": 0, "write-records": 1153125
   }
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`**
 
@@ -461,7 +487,7 @@ The accumulators collected for one specific subtask during one specific executio
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "subtask": 0,
   "attempt": 0,
@@ -474,7 +500,7 @@ Sample Result:
   "name": "avglen", "type": "DoubleCounter", "value": "DoubleCounter 102.527162"
   } ]
 }
-~~~
+{% endhighlight %}
 
 **`/jobs/<jobid>/plan`**
 
@@ -482,7 +508,7 @@ The dataflow plan of a job. The plan is also included in the job summary (`/jobs
 
 Sample Result:
 
-~~~
+{% highlight json %}
 {
   "jid":"ab78dcdbb1db025539e30217ec54ee16",
   "name":"WordCount Example",
@@ -558,17 +584,17 @@ Sample Result:
     }
   } ]
 }
-~~~
+{% endhighlight %}
 
-### Job Cancellation
+#### Job Cancellation
 
-#### Cancel Job
+##### Cancel Job
 
 `DELETE` request to **`/jobs/:jobid/cancel`**.
 
 Triggers job cancellation, result on success is `{}`.
 
-#### Cancel Job with Savepoint
+##### Cancel Job with Savepoint
 
 Triggers a savepoint and cancels the job after the savepoint succeeds.
 
@@ -580,75 +606,75 @@ Since savepoints can take some time to complete this operation happens asynchron
 
 Sample Trigger Result:
 
-~~~
+{% highlight json %}
 {
   "status": "accepted",
   "request-id": 1,
   "location": "/jobs/:jobid/cancel-with-savepoint/in-progress/1"
 }
-~~~
+{% endhighlight %}
 
-##### Monitoring Progress
+###### Monitoring Progress
 
 The progress of the cancellation has to be monitored by the user at
 
-~~~
+{% highlight json %}
 /jobs/:jobid/cancel-with-savepoint/in-progress/:requestId
-~~~
+{% endhighlight %}
 
 The request ID is returned by the trigger result.
 
-###### In-Progress
+####### In-Progress
 
-~~~
+{% highlight json %}
 {
   "status": "in-progress",
   "request-id": 1
 }
-~~~
+{% endhighlight %}
 
-###### Success
+####### Success
 
-~~~
+{% highlight json %}
 {
   "status": "success",
   "request-id": 1,
   "savepoint-path": "<savepointPath>"
 }
-~~~
+{% endhighlight %}
 
 The `savepointPath` points to the external path of the savepoint, which can be used to resume the savepoint.
 
-###### Failed
+####### Failed
 
-~~~
+{% highlight json %}
 {
   "status": "failed",
   "request-id": 1,
   "cause": "<error message>"
 }
-~~~
+{% endhighlight %}
 
-### Submitting Programs
+#### Submitting Programs
 
 It is possible to upload, run, and list Flink programs via the REST APIs and web frontend.
 
-#### Upload a new JAR file
+##### Upload a new JAR file
 
 Send a `POST` request to `/jars/upload` with your jar file sent as multi-part data under the `jarfile` file.
 Also make sure that the multi-part data includes the `Content-Type` of the file itself, some http libraries do not add the header by default.
 
 The multi-part payload should start like
 
-```
+{% highlight plain %}
 ------BoundaryXXXX
 Content-Disposition: form-data; name="jarfile"; filename="YourFileName.jar"
 Content-Type: application/x-java-archive
-```
+{% endhighlight %}
 
-#### Run a Program (POST)
+##### Run a Program (POST)
 
-Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `jobmanager.web.upload.dir`).
+Send a `POST` request to `/jars/:jarid/run`. The `jarid` parameter is the file name of the program JAR in the configured web frontend upload directory (configuration key `web.upload.dir`).
 
 You can specify the following query parameters (all optional):
 
@@ -664,18 +690,18 @@ If the call succeeds, you will get a response with the ID of the submitted job.
 
 Request:
 
-~~~
+{% highlight bash %}
 POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
-~~~
+{% endhighlight %}
 
 Response:
 
-~~~
+{% highlight json %}
 {"jobid": "869a9868d49c679e7355700e0857af85"}
-~~~
-
-### Dispatcher
-
-{% include generated/rest_dispatcher.html %}
+{% endhighlight %}
 
 {% top %}
+</div>
+
+</div>
+

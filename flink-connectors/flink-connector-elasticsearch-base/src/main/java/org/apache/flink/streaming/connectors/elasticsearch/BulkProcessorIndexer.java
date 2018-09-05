@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,12 +48,32 @@ class BulkProcessorIndexer implements RequestIndexer {
 	}
 
 	@Override
-	public void add(ActionRequest... actionRequests) {
-		for (ActionRequest actionRequest : actionRequests) {
+	public void add(DeleteRequest... deleteRequests) {
+		for (DeleteRequest deleteRequest : deleteRequests) {
 			if (flushOnCheckpoint) {
 				numPendingRequestsRef.getAndIncrement();
 			}
-			this.bulkProcessor.add(actionRequest);
+			this.bulkProcessor.add(deleteRequest);
+		}
+	}
+
+	@Override
+	public void add(IndexRequest... indexRequests) {
+		for (IndexRequest indexRequest : indexRequests) {
+			if (flushOnCheckpoint) {
+				numPendingRequestsRef.getAndIncrement();
+			}
+			this.bulkProcessor.add(indexRequest);
+		}
+	}
+
+	@Override
+	public void add(UpdateRequest... updateRequests) {
+		for (UpdateRequest updateRequest : updateRequests) {
+			if (flushOnCheckpoint) {
+				numPendingRequestsRef.getAndIncrement();
+			}
+			this.bulkProcessor.add(updateRequest);
 		}
 	}
 }

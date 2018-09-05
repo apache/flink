@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.net.SSLEngineFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
@@ -72,6 +73,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.JobVertexMetricsHand
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.TaskManagerMetricsHandler;
+import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.handlers.legacy.JarAccessDeniedHandler;
 import org.apache.flink.runtime.webmonitor.handlers.legacy.JarDeleteHandler;
 import org.apache.flink.runtime.webmonitor.handlers.legacy.JarListHandler;
@@ -87,12 +89,9 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLContext;
 
 import java.io.File;
 import java.io.IOException;
@@ -129,8 +128,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	/** Service which retrieves the currently leading JobManager and opens a JobManagerGateway. */
 	private final LeaderGatewayRetriever<JobManagerGateway> retriever;
-
-	private final SSLContext serverSSLContext;
 
 	private final CompletableFuture<String> localRestAddress = new CompletableFuture<>();
 
@@ -234,17 +231,17 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// --------------------------------------------------------------------
 
 		// Config to enable https access to the web-ui
-		boolean enableSSL = config.getBoolean(WebOptions.SSL_ENABLED) && SSLUtils.getSSLEnabled(config);
-
+		final SSLEngineFactory sslFactory;
+		final boolean enableSSL = SSLUtils.isRestSSLEnabled(config) && config.getBoolean(WebOptions.SSL_ENABLED);
 		if (enableSSL) {
 			LOG.info("Enabling ssl for the web frontend");
 			try {
-				serverSSLContext = SSLUtils.createSSLServerContext(config);
+				sslFactory = SSLUtils.createRestServerSSLEngineFactory(config);
 			} catch (Exception e) {
 				throw new IOException("Failed to initialize SSLContext for the web frontend", e);
 			}
 		} else {
-			serverSSLContext = null;
+			sslFactory = null;
 		}
 		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, scheduledExecutor, timeout);
 
@@ -320,14 +317,14 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		router
 			// log and stdout
-			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
+			.addGet("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
 				new StaticFileServerHandler<>(
 					retriever,
 					localRestAddress,
 					timeout,
 					logFiles.logFile))
 
-			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
+			.addGet("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
@@ -376,7 +373,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		}
 
 		// this handler serves all the static contents
-		router.GET("/:*", new StaticFileServerHandler<>(
+		router.addGet("/:*", new StaticFileServerHandler<>(
 			retriever,
 			localRestAddress,
 			timeout,
@@ -385,7 +382,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// add shutdown hook for deleting the directories and remaining temp files on shutdown
 		ShutdownHookUtil.addShutdownHook(this::cleanup, getClass().getSimpleName(), LOG);
 
-		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
+		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, sslFactory, configuredAddress, configuredPort, config);
 
 		localRestAddress.complete(netty.getRestAddress());
 	}
@@ -515,7 +512,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void get(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.GET(path, handler);
+			router.addGet(path, handler);
 		}
 	}
 
@@ -525,7 +522,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void delete(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.DELETE(path, handler);
+			router.addDelete(path, handler);
 		}
 	}
 
@@ -535,7 +532,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private static <T extends ChannelInboundHandler & WebHandler> void post(Router router, T handler) {
 		for (String path : handler.getPaths()) {
-			router.POST(path, handler);
+			router.addPost(path, handler);
 		}
 	}
 

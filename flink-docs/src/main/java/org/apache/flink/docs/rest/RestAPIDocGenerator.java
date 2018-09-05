@@ -20,6 +20,7 @@ package org.apache.flink.docs.rest;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -53,6 +55,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -67,6 +71,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /**
  * Generator for the Rest API documentation.
@@ -118,13 +124,24 @@ public class RestAPIDocGenerator {
 	public static void main(String[] args) throws IOException {
 		String outputDirectory = args[0];
 
-		createHtmlFile(new DocumentingDispatcherRestEndpoint(), Paths.get(outputDirectory, "rest_dispatcher.html"));
+		for (final RestAPIVersion apiVersion : RestAPIVersion.values()) {
+			if (apiVersion == RestAPIVersion.V0) {
+				// this version exists only for testing purposes
+				continue;
+			}
+			createHtmlFile(
+				new DocumentingDispatcherRestEndpoint(),
+				apiVersion,
+				Paths.get(outputDirectory, "rest_" + apiVersion.getURLVersionPrefix() + "_dispatcher.html"));
+		}
 	}
 
-	private static void createHtmlFile(DocumentingRestEndpoint restEndpoint, Path outputFile) throws IOException {
+	private static void createHtmlFile(DocumentingRestEndpoint restEndpoint, RestAPIVersion apiVersion, Path outputFile) throws IOException {
 		StringBuilder html = new StringBuilder();
 
-		List<MessageHeaders> specs = restEndpoint.getSpecs();
+		List<MessageHeaders> specs = restEndpoint.getSpecs().stream()
+			.filter(spec -> spec.getSupportedAPIVersions().contains(apiVersion))
+			.collect(Collectors.toList());
 		specs.forEach(spec -> html.append(createHtmlEntry(spec)));
 
 		Files.deleteIfExists(outputFile);
@@ -147,14 +164,14 @@ public class RestAPIDocGenerator {
 			sb.append("<table class=\"table table-bordered\">\n");
 			sb.append("  <tbody>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td class=\"text-left\" colspan=\"2\"><strong>" + spec.getTargetRestEndpointURL() + "</strong></td>\n");
+			sb.append("      <td class=\"text-left\" colspan=\"2\"><h5><strong>" + spec.getTargetRestEndpointURL() + "</strong></h5></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
 			sb.append("      <td class=\"text-left\" style=\"width: 20%\">Verb: <code>" + spec.getHttpMethod() + "</code></td>\n");
 			sb.append("      <td class=\"text-left\">Response code: <code>" + spec.getResponseStatusCode() + "</code></td>\n");
 			sb.append("    </tr>\n");
 			sb.append("    <tr>\n");
-			sb.append("      <td colspan=\"2\">" + "description" + "</td>\n");
+			sb.append("      <td colspan=\"2\">" + escapeCharacters(spec.getDescription()) + "</td>\n");
 			sb.append("    </tr>\n");
 		}
 		if (!pathParameterList.isEmpty()) {
@@ -221,7 +238,7 @@ public class RestAPIDocGenerator {
 			pathParameterList.append(
 				String.format("<li><code>%s</code> - %s</li>\n",
 					messagePathParameter.getKey(),
-					"description")
+					messagePathParameter.getDescription())
 			));
 		return pathParameterList.toString();
 	}
@@ -235,7 +252,7 @@ public class RestAPIDocGenerator {
 					String.format("<li><code>%s</code> (%s): %s</li>\n",
 						parameter.getKey(),
 						parameter.isMandatory() ? "mandatory" : "optional",
-						"description")
+						parameter.getDescription())
 				));
 		return queryParameterList.toString();
 	}
@@ -313,7 +330,9 @@ public class RestAPIDocGenerator {
 
 		static {
 			config = new Configuration();
-			config.setString(RestOptions.REST_ADDRESS, "localhost");
+			config.setString(RestOptions.ADDRESS, "localhost");
+			// necessary for loading the web-submission extension
+			config.setString(JobManagerOptions.ADDRESS, "localhost");
 			try {
 				restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
 			} catch (ConfigurationException e) {
@@ -364,7 +383,7 @@ public class RestAPIDocGenerator {
 			}
 
 			@Override
-			public boolean hasLeadership() {
+			public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
 				return false;
 			}
 		}

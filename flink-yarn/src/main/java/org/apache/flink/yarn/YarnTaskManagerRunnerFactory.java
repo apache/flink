@@ -21,19 +21,17 @@ package org.apache.flink.yarn;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.slf4j.Logger;
@@ -41,7 +39,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -124,15 +121,7 @@ public class YarnTaskManagerRunnerFactory {
 		final String remoteKeytabPrincipal = envs.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 		LOG.info("TM: remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
 
-		// configure local directory
-		if (configuration.contains(CoreOptions.TMP_DIRS)) {
-			LOG.info("Overriding YARN's temporary file directories with those " +
-				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
-		}
-		else {
-			LOG.info("Setting directories for temporary files to: {}", localDirs);
-			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
-		}
+		BootstrapTools.updateTmpDirectoriesInConfiguration(configuration, localDirs);
 
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
@@ -155,25 +144,7 @@ public class YarnTaskManagerRunnerFactory {
 		}
 
 		try {
-			SecurityConfiguration sc;
-
-			//To support Yarn Secure Integration Test Scenario
-			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
-			if (krb5Conf.exists() && krb5Conf.canRead()) {
-				String krb5Path = krb5Conf.getAbsolutePath();
-				LOG.info("KRB5 Conf: {}", krb5Path);
-				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
-				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-
-				sc = new SecurityConfiguration(configuration,
-					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
-
-			} else {
-				sc = new SecurityConfiguration(configuration);
-
-			}
-
+			SecurityConfiguration sc = new SecurityConfiguration(configuration);
 			SecurityUtils.install(sc);
 
 			return new Runner(configuration, resourceId, taskManager);

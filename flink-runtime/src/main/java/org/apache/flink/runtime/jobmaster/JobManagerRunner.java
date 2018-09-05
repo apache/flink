@@ -33,6 +33,8 @@ import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobScheduli
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolFactory;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -147,6 +149,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 
 			this.leaderGatewayFuture = new CompletableFuture<>();
 
+			final SlotPoolFactory slotPoolFactory = DefaultSlotPoolFactory.fromConfiguration(
+				configuration,
+				rpcService);
+
 			// now start the JobManager
 			this.jobMaster = new JobMaster(
 				rpcService,
@@ -154,6 +160,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 				resourceId,
 				jobGraph,
 				haServices,
+				slotPoolFactory,
 				jobManagerSharedServices,
 				heartbeatServices,
 				blobServer,
@@ -219,6 +226,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 							throwable = ExceptionUtils.firstOrSuppressed(t, ExceptionUtils.stripCompletionException(throwable));
 						}
 
+						final LibraryCacheManager libraryCacheManager = jobManagerSharedServices.getLibraryCacheManager();
+						libraryCacheManager.unregisterJob(jobGraph.getJobID());
+
 						if (throwable != null) {
 							terminationFuture.completeExceptionally(
 								new FlinkException("Could not properly shut down the JobManagerRunner", throwable));
@@ -246,8 +256,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	 */
 	@Override
 	public void jobReachedGloballyTerminalState(ArchivedExecutionGraph executionGraph) {
-		// complete the result future with the terminal execution graph
 		unregisterJobFromHighAvailability();
+		// complete the result future with the terminal execution graph
 		resultFuture.complete(executionGraph);
 	}
 
@@ -337,7 +347,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, A
 	}
 
 	private void confirmLeaderSessionIdIfStillLeader(UUID leaderSessionId, CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture) {
-		if (leaderElectionService.hasLeadership()) {
+		if (leaderElectionService.hasLeadership(leaderSessionId)) {
 			currentLeaderGatewayFuture.complete(jobMaster.getSelfGateway(JobMasterGateway.class));
 			leaderElectionService.confirmLeaderSessionID(leaderSessionId);
 		} else {

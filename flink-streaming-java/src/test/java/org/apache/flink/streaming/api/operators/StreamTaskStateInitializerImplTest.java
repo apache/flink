@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -94,7 +95,7 @@ public class StreamTaskStateInitializerImplTest {
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
+		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -138,7 +139,8 @@ public class StreamTaskStateInitializerImplTest {
 				String operatorIdentifier,
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups, KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
+				TaskKvStateRegistry kvStateRegistry,
+				TtlTimeProvider ttlTimeProvider) throws Exception {
 				return mock(AbstractKeyedStateBackend.class);
 			}
 
@@ -194,7 +196,7 @@ public class StreamTaskStateInitializerImplTest {
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
-		InternalTimeServiceManager<?, ?> timeServiceManager = stateContext.internalTimerServiceManager();
+		InternalTimeServiceManager<?> timeServiceManager = stateContext.internalTimerServiceManager();
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = stateContext.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = stateContext.rawOperatorStateInputs();
 
@@ -271,7 +273,7 @@ public class StreamTaskStateInitializerImplTest {
 				stateBackend,
 				processingTimeService) {
 				@Override
-				protected <K> InternalTimeServiceManager<?, K> internalTimeServiceManager(
+				protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 					AbstractKeyedStateBackend<K> keyedStatedBackend,
 					KeyContext keyContext,
 					Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {

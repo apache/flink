@@ -24,13 +24,13 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
@@ -40,6 +40,7 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
+import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -89,7 +90,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -229,7 +229,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 			final Time rpcTimeout = miniClusterConfiguration.getRpcTimeout();
 			final int numTaskManagers = miniClusterConfiguration.getNumTaskManagers();
-			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED;
+			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED;
 
 			try {
 				initializeIOFormatClasses(configuration);
@@ -324,13 +324,13 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 					jobManagerRpcService,
 					DispatcherGateway.class,
-					DispatcherId::new,
+					DispatcherId::fromUuid,
 					20,
 					Time.milliseconds(20L));
 				final RpcGatewayRetriever<ResourceManagerId, ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
 					jobManagerRpcService,
 					ResourceManagerGateway.class,
-					ResourceManagerId::new,
+					ResourceManagerId::fromUuid,
 					20,
 					Time.milliseconds(20L));
 
@@ -355,7 +355,12 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for JobManger");
 
-				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, "localhost");
+				this.jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
+					metricRegistry,
+					"localhost",
+					ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
+
+				final HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, dispatcherRestEndpoint);
 
 				dispatcher = new StandaloneDispatcher(
 					jobManagerRpcService,
@@ -370,7 +375,8 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 					new MemoryArchivedExecutionGraphStore(),
 					Dispatcher.DefaultJobManagerRunnerFactory.INSTANCE,
 					new ShutDownFatalErrorHandler(),
-					dispatcherRestEndpoint.getRestBaseUrl());
+					dispatcherRestEndpoint.getRestBaseUrl(),
+					historyServerArchivist);
 
 				dispatcher.start();
 
@@ -637,7 +643,9 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		// from the ResourceManager
 		jobGraph.setAllowQueuedScheduling(true);
 
-		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJarFiles(dispatcherGateway, jobGraph);
+		final CompletableFuture<InetSocketAddress> blobServerAddressFuture = createBlobServerAddress(dispatcherGateway);
+
+		final CompletableFuture<Void> jarUploadFuture = uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);
 
 		final CompletableFuture<Acknowledge> acknowledgeCompletableFuture = jarUploadFuture.thenCompose(
 			(Void ack) -> dispatcherGateway.submitJob(jobGraph, rpcTimeout));
@@ -669,32 +677,19 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
-	private CompletableFuture<Void> uploadAndSetJarFiles(final DispatcherGateway currentDispatcherGateway, final JobGraph job) {
-		List<Path> userJars = job.getUserJars();
-		if (!userJars.isEmpty()) {
-			CompletableFuture<List<PermanentBlobKey>> jarUploadFuture = uploadJarFiles(currentDispatcherGateway, job.getJobID(), job.getUserJars());
-			return jarUploadFuture.thenAccept(blobKeys -> {
-					for (PermanentBlobKey blobKey : blobKeys) {
-						job.addBlob(blobKey);
-					}
-				});
-		} else {
-			LOG.debug("No jars to upload for job {}.", job.getJobID());
-			return CompletableFuture.completedFuture(null);
-		}
+	private CompletableFuture<Void> uploadAndSetJobFiles(final CompletableFuture<InetSocketAddress> blobServerAddressFuture, final JobGraph job) {
+		return blobServerAddressFuture.thenAccept(blobServerAddress -> {
+			try {
+				ClientUtils.extractAndUploadJobGraphFiles(job, () -> new BlobClient(blobServerAddress, miniClusterConfiguration.getConfiguration()));
+			} catch (FlinkException e) {
+				throw new CompletionException(e);
+			}
+		});
 	}
 
-	private CompletableFuture<List<PermanentBlobKey>> uploadJarFiles(final DispatcherGateway currentDispatcherGateway, final JobID jobId, final List<Path> jars) {
+	private CompletableFuture<InetSocketAddress> createBlobServerAddress(final DispatcherGateway currentDispatcherGateway) {
 		return currentDispatcherGateway.getBlobServerPort(rpcTimeout)
-			.thenApply(blobServerPort -> {
-				InetSocketAddress blobServerAddress = new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort);
-
-				try {
-					return BlobClient.uploadJarFiles(blobServerAddress, miniClusterConfiguration.getConfiguration(), jobId, jars);
-				} catch (IOException ioe) {
-					throw new CompletionException(new FlinkException("Could not upload job jar files.", ioe));
-				}
-			});
+			.thenApply(blobServerPort -> new InetSocketAddress(currentDispatcherGateway.getHostname(), blobServerPort));
 	}
 
 	// ------------------------------------------------------------------------
@@ -900,7 +895,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	@Nonnull
 	private CompletionStage<Void> terminateRpcServices() {
 		final int numRpcServices;
-		if (miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+		if (miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED) {
 			numRpcServices = 1;
 		} else {
 			numRpcServices = 1 + 2 + miniClusterConfiguration.getNumTaskManagers(); // common, JM, RM, TMs
@@ -911,7 +906,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		synchronized (lock) {
 			rpcTerminationFutures.add(commonRpcService.stopService());
 
-			if (miniClusterConfiguration.getRpcServiceSharing() != MiniClusterConfiguration.RpcServiceSharing.SHARED) {
+			if (miniClusterConfiguration.getRpcServiceSharing() != RpcServiceSharing.SHARED) {
 				rpcTerminationFutures.add(jobManagerRpcService.stopService());
 				rpcTerminationFutures.add(resourceManagerRpcService.stopService());
 

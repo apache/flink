@@ -78,6 +78,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -243,7 +244,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** atomic flag that makes sure the invokable is canceled exactly once upon error. */
 	private final AtomicBoolean invokableHasBeenCanceled;
 
-	/** The invokable of this task, if initialized. */
+	/** The invokable of this task, if initialized. All accesses must copy the reference and
+	 * check for null, as this field is cleared as part of the disposal logic. */
+	@Nullable
 	private volatile AbstractInvokable invokable;
 
 	/** The current execution state of the task. */
@@ -310,7 +313,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				taskInformation.getMaxNumberOfSubtaks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
-				attemptNumber);
+				attemptNumber,
+				String.valueOf(slotAllocationId));
 
 		this.jobId = jobInformation.getJobId();
 		this.vertexId = taskInformation.getJobVertexId();
@@ -472,6 +476,12 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		return taskCancellationTimeout;
 	}
 
+	@Nullable
+	@VisibleForTesting
+	AbstractInvokable getInvokable() {
+		return invokable;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Task Execution
 	// ------------------------------------------------------------------------
@@ -630,14 +640,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
 						DistributedCache.readFileInfoFromConfig(jobConfiguration)) {
 					LOG.info("Obtaining local cache file for '{}'.", entry.getKey());
-					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId);
+					Future<Path> cp = fileCache.createTmpFile(entry.getKey(), entry.getValue(), jobId, executionId);
 					distributedCacheEntries.put(entry.getKey(), cp);
 				}
 			}
 			catch (Exception e) {
 				throw new Exception(
-					String.format("Exception while adding files to distributed cache of task %s (%s).", taskNameWithSubtask, executionId),
-					e);
+					String.format("Exception while adding files to distributed cache of task %s (%s).", taskNameWithSubtask, executionId), e);
 			}
 
 			if (isCanceledOrFailed()) {
@@ -762,7 +771,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					if (current == ExecutionState.RUNNING || current == ExecutionState.DEPLOYING) {
 						if (t instanceof CancelTaskException) {
 							if (transitionState(current, ExecutionState.CANCELED)) {
-								cancelInvokable();
+								cancelInvokable(invokable);
 
 								notifyObservers(ExecutionState.CANCELED, null);
 								break;
@@ -773,7 +782,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 								// proper failure of the task. record the exception as the root cause
 								String errorMessage = String.format("Execution of %s (%s) failed.", taskNameWithSubtask, executionId);
 								failureCause = t;
-								cancelInvokable();
+								cancelInvokable(invokable);
 
 								notifyObservers(ExecutionState.FAILED, new Exception(errorMessage, t));
 								break;
@@ -808,6 +817,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			try {
 				LOG.info("Freeing task resources for {} ({}).", taskNameWithSubtask, executionId);
 
+				// clear the reference to the invokable. this helps guard against holding references
+				// to the invokable and its structures in cases where this Task object is still referenced
+				this.invokable = null;
+
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release
 				ExecutorService dispatcher = this.asyncCallDispatcher;
@@ -825,10 +838,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
+				fileCache.releaseJob(jobId, executionId);
 				blobService.getPermanentBlobService().releaseJob(jobId);
-
-				// remove all files in the distributed cache
-				removeCachedFiles(distributedCacheEntries, fileCache);
 
 				// close and de-activate safety net for task thread
 				LOG.info("Ensuring all FileSystem streams are closed for task {}", this);
@@ -869,26 +880,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			throw new Exception("No user code classloader available.");
 		}
 		return userCodeClassLoader;
-	}
-
-	private void removeCachedFiles(Map<String, Future<Path>> entries, FileCache fileCache) {
-		// cancel and release all distributed cache files
-		try {
-			for (Map.Entry<String, Future<Path>> entry : entries.entrySet()) {
-				String name = entry.getKey();
-				try {
-					fileCache.deleteTmpFile(name, jobId);
-				}
-				catch (Exception e) {
-					// unpleasant, but we continue
-					LOG.error("Distributed Cache could not remove cached file registered under '"
-							+ name + "'.", e);
-				}
-			}
-		}
-		catch (Throwable t) {
-			LOG.error("Error while removing cached local files from distributed cache.");
-		}
 	}
 
 	private void notifyFinalState() {
@@ -946,18 +937,20 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * @throws IllegalStateException if the {@link Task} is not yet running
 	 */
 	public void stopExecution() {
+		// copy reference to stack, to guard against concurrent setting to null
+		final AbstractInvokable invokable = this.invokable;
+
 		if (invokable != null) {
-			LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
 			if (invokable instanceof StoppableTask) {
-				Runnable runnable = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							((StoppableTask) invokable).stop();
-						} catch (RuntimeException e) {
-							LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, e);
-							taskManagerActions.failTask(executionId, e);
-						}
+				LOG.info("Attempting to stop task {} ({}).", taskNameWithSubtask, executionId);
+				final StoppableTask stoppable = (StoppableTask) invokable;
+
+				Runnable runnable = () -> {
+					try {
+						stoppable.stop();
+					} catch (Throwable t) {
+						LOG.error("Stopping task {} ({}) failed.", taskNameWithSubtask, executionId, t);
+						taskManagerActions.failTask(executionId, t);
 					}
 				};
 				executeAsyncCallRunnable(runnable, String.format("Stopping source task %s (%s).", taskNameWithSubtask, executionId));
@@ -967,7 +960,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		} else {
 			throw new IllegalStateException(
 				String.format(
-					"Cannot stop task %s (%s) because it is not yet running.",
+					"Cannot stop task %s (%s) because it is not running.",
 					taskNameWithSubtask,
 					executionId));
 		}
@@ -1032,6 +1025,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				if (transitionState(ExecutionState.RUNNING, targetState, cause)) {
 					// we are canceling / failing out of the running state
 					// we need to cancel the invokable
+
+					// copy reference to guard against concurrent null-ing out the reference
+					final AbstractInvokable invokable = this.invokable;
+
 					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 						this.failureCause = cause;
 						notifyObservers(
@@ -1068,19 +1065,22 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 						// the periodic interrupting thread - a different thread than the canceller, in case
 						// the application code does blocking stuff in its cancellation paths.
-						Runnable interrupter = new TaskInterrupter(
-								LOG,
-								executingThread,
-								taskNameWithSubtask,
-								taskCancellationInterval);
+						if (invokable.shouldInterruptOnCancel()) {
+							Runnable interrupter = new TaskInterrupter(
+									LOG,
+									invokable,
+									executingThread,
+									taskNameWithSubtask,
+									taskCancellationInterval);
 
-						Thread interruptingThread = new Thread(
-								executingThread.getThreadGroup(),
-								interrupter,
-								String.format("Canceler/Interrupts for %s (%s).", taskNameWithSubtask, executionId));
-						interruptingThread.setDaemon(true);
-						interruptingThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
-						interruptingThread.start();
+							Thread interruptingThread = new Thread(
+									executingThread.getThreadGroup(),
+									interrupter,
+									String.format("Canceler/Interrupts for %s (%s).", taskNameWithSubtask, executionId));
+							interruptingThread.setDaemon(true);
+							interruptingThread.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
+							interruptingThread.start();
+						}
 
 						// if a cancellation timeout is set, the watchdog thread kills the process
 						// if graceful cancellation does not succeed
@@ -1382,9 +1382,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private void cancelInvokable() {
+	private void cancelInvokable(AbstractInvokable invokable) {
 		// in case of an exception during execution, we still call "cancel()" on the task
-		if (invokable != null && this.invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
+		if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
 			try {
 				invokable.cancel();
 			}
@@ -1536,8 +1536,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 					}
 				}
 
-				// send the initial interruption signal
-				executer.interrupt();
+				// send the initial interruption signal, if requested
+				if (invokable.shouldInterruptOnCancel()) {
+					executer.interrupt();
+				}
 			}
 			catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalError(t);
@@ -1554,6 +1556,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		/** The logger to report on the fatal condition. */
 		private final Logger log;
 
+		/** The invokable task. */
+		private final AbstractInvokable task;
+
 		/** The executing task thread that we wait for to terminate. */
 		private final Thread executerThread;
 
@@ -1565,11 +1570,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		TaskInterrupter(
 				Logger log,
+				AbstractInvokable task,
 				Thread executerThread,
 				String taskName,
 				long interruptIntervalMillis) {
 
 			this.log = log;
+			this.task = task;
 			this.executerThread = executerThread;
 			this.taskName = taskName;
 			this.interruptIntervalMillis = interruptIntervalMillis;
@@ -1585,7 +1592,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// log stack trace where the executing thread is stuck and
 				// interrupt the running thread periodically while it is still alive
-				while (executerThread.isAlive()) {
+				while (task.shouldInterruptOnCancel() && executerThread.isAlive()) {
 					// build the stack trace of where the thread is stuck, for the log
 					StackTraceElement[] stack = executerThread.getStackTrace();
 					StringBuilder bld = new StringBuilder();
