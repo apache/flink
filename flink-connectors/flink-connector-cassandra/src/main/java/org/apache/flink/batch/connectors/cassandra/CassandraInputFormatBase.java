@@ -17,8 +17,6 @@
 
 package org.apache.flink.batch.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.RichInputFormat;
@@ -27,9 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
-import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
