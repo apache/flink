@@ -1595,6 +1595,9 @@ under the License.
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
+							<includeModules>
+								<includeModule>.*flink.*</includeModule>
+							</includeModules>
 						</parameter>
 						<dependencies>
 							<dependency>
