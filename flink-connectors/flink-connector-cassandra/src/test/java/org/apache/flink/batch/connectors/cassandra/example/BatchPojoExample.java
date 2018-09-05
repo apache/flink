@@ -62,19 +62,9 @@ public class BatchPojoExample {
 			}
 		}));
 
-		env.execute("Write");
-
-		/*DataSet<Tuple2<Integer, String>> inputDS = env
-			.createInput(new CassandraInputFormat<Tuple2<Integer, String>>(SELECT_QUERY, new ClusterBuilder() {
-				@Override
-				protected Cluster buildCluster(Cluster.Builder builder) {
-					return builder.addContactPoints("127.0.0.1").build();
-				}
-			}), TupleTypeInfo.of(new TypeHint<Tuple2<Integer, String>>() {
-			}));
-
-		inputDS.print();*/
-
+		/*
+		 *	This is for the purpose of showing an example of creating a DataSet using CassandraPojoInputFormat.
+		 */
 		DataSet<CustomCassandraAnnotatedPojo> inputDS = env
 			.createInput(new CassandraPojoInputFormat<>(SELECT_QUERY, new ClusterBuilder() {
 				@Override
@@ -83,13 +73,10 @@ public class BatchPojoExample {
 				}
 			}, CustomCassandraAnnotatedPojo.class));
 
-		/*DataSet<String> testStep = inputDS.map(new MapFunction<CustomCassandraAnnotatedPojo, String>() {
-			@Override
-			public String map(CustomCassandraAnnotatedPojo value) throws Exception {
-				return "numberVal: " + value.getNumber() + ", stringsVal: " + value.getStrings();
-			}
-		});*/
+		inputDS.print();
 
-		//testStep.print();
+		env.execute("Write");
+
+
 	}
 }

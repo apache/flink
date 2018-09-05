@@ -33,6 +33,8 @@ import java.io.IOException;
  */
 public class CassandraPojoInputFormat<OUT> extends CassandraInputFormatBase<OUT> {
 
+	private static final long serialVersionUID = 1992091320180905115L;
+
 	private transient Result<OUT> resultSet;
 	private Class<OUT> inputClass;
 

@@ -42,7 +42,7 @@ public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputForma
 	/**
 	 * Opens a Session and executes the query.
 	 *
-	 * @param ignored
+	 * @param ignored because parameter is not parallelizable.
 	 * @throws IOException
 	 */
 	@Override
