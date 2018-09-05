@@ -195,7 +195,7 @@ public abstract class AbstractStreamOperator<OUT>
 				historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
 			}
 
-			final String configuredGranularity = taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARIY);
+			final String configuredGranularity = taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
 			LatencyStats.Granularity granularity;
 			try {
 				granularity = LatencyStats.Granularity.valueOf(configuredGranularity.toUpperCase(Locale.ROOT));
@@ -204,7 +204,7 @@ public abstract class AbstractStreamOperator<OUT>
 				LOG.warn(
 					"Configured value {} option for {} is invalid. Defaulting to {}.",
 					configuredGranularity,
-					MetricOptions.LATENCY_SOURCE_GRANULARIY.key(),
+					MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
 					granularity);
 			}
 			TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();

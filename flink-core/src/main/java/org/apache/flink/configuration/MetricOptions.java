@@ -113,7 +113,7 @@ public class MetricOptions {
 				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
 				" impact the performance of the cluster.");
 
-	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARIY =
+	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
 		key("metrics.latency.granularity")
 			.defaultValue("operator")
 			.withDescription(Description.builder()
