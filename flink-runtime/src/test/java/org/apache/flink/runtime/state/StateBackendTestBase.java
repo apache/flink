@@ -2913,18 +2913,41 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(new HashMap<Integer, String>() {{ put(103, "103"); put(1031, "1031"); put(1032, "1032"); }},
 				getSerializedMap(restoredKvState2, "3", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 
-		// [FLINK-10267] validate arbitrary iterator access not throwing IllegalStateException
+		backend.dispose();
+	}
+
+	/**
+	 * Verify iterator of {@link MapState} supporting arbitrary access, see [FLINK-10267] to know more details.
+	 */
+	@Test
+	public void testMapStateIteratorArbitraryAccess() throws Exception {
+		MapStateDescriptor<Integer, Long> kvId = new MapStateDescriptor<>("id", Integer.class, Long.class);
+
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
 		try {
-			backend.setCurrentKey("4");
-			for (int i = 0; i < 200; i++) {
-				restored2.put(i, String.valueOf(200 + i));
+			MapState<Integer, Long> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			backend.setCurrentKey(1);
+			int stateSize = 2048;
+			for (int i = 0; i < stateSize; i++) {
+				state.put(i, i * 2L);
 			}
-			iterator = restored2.iterator();
+			Iterator<Map.Entry<Integer, Long>> iterator = state.iterator();
+			int iteratorCount = 0;
 			while (iterator.hasNext()) {
-				iterator.next();
+				Map.Entry<Integer, Long> entry = iterator.next();
+				assertEquals(iteratorCount, (int) entry.getKey());
 				iterator.hasNext();
 				iterator.remove();
+				try {
+					iterator.remove();
+					fail();
+				} catch (IllegalStateException e) {
+					// ignore expected exception
+				}
+				iteratorCount++;
 			}
+			assertEquals(stateSize, iteratorCount);
 		} finally {
 			backend.dispose();
 		}
