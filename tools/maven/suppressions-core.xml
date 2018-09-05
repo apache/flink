@@ -76,7 +76,7 @@ under the License.
 		checks="AvoidStarImport|ArrayTypeStyle|Regexp"/>
 
 	<suppress
-		files="(.*)api[/\\]common[/\\](distributions|restartstrategy)[/\\](.*)"
+		files="(.*)api[/\\]common[/\\]distributions[/\\](.*)"
 		checks="NewlineAtEndOfFile|RegexpSingleline|TodoComment|RedundantImport|ImportOrder|RedundantModifier|JavadocMethod|JavadocParagraph|JavadocType|JavadocStyle|PackageName|TypeNameCheck|ConstantNameCheck|StaticVariableNameCheck|MemberNameCheck|MethodNameCheck|ParameterName|LocalFinalVariableName|LocalVariableName|LeftCurly|UpperEll|FallThrough|reliefPattern|SimplifyBooleanExpression|EmptyStatement|ModifierOrder|EmptyLineSeparator|WhitespaceAround|WhitespaceAfter|NoWhitespaceAfter|NoWhitespaceBefore|OperatorWrap|ParenPad"/>
 
 	<suppress
