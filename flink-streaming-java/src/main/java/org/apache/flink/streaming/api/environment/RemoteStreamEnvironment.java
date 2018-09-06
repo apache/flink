@@ -29,6 +29,7 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.slf4j.Logger;
@@ -200,6 +201,8 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		configuration.setString(JobManagerOptions.ADDRESS, host);
 		configuration.setInteger(JobManagerOptions.PORT, port);
+
+		configuration.setInteger(RestOptions.PORT, port);
 
 		final ClusterClient<?> client;
 		try {
