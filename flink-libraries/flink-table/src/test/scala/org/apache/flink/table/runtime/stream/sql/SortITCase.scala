@@ -116,7 +116,7 @@ class SortITCase extends StreamingWithStateTestBase {
     MemoryTableSourceSinkUtil.clear()
 
     val t = StreamTestData.getSmall3TupleDataStream(env)
-        .assignAscendingTimestamps(x => x._2)
+      .assignAscendingTimestamps(x => x._2)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("sourceTable", t)
 

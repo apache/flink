@@ -58,7 +58,7 @@ class SortValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testNonTimeSorting(): Unit = {
 
-    val sqlQuery = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable order by a"
+    val sqlQuery = "INSERT INTO targetTable SELECT a, b, c, rowtime FROM sourceTable ORDER BY a"
     streamUtil.verifySql(sqlQuery, "")
   }
 }
