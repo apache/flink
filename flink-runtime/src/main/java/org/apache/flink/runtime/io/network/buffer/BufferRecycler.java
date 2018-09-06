@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+/**
+ * Interface for recycling {@link MemorySegment}s.
+ */
 public interface BufferRecycler {
 
 	/**

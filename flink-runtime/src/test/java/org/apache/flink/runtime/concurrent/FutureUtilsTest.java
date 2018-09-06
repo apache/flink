@@ -535,7 +535,7 @@ public class FutureUtilsTest extends TestLogger {
 			final FlinkException suppressedException;
 
 			if (actual.equals(testException1)) {
-				 suppressedException = testException2;
+				suppressedException = testException2;
 			} else {
 				suppressedException = testException1;
 			}

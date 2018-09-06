@@ -1614,7 +1614,7 @@ In object-reuse enabled mode, Flink's runtime minimizes the number of object ins
    <tr>
       <td><strong>Emitting Input Objects</strong></td>
       <td>
-        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).</td>
+        You <strong>must not</strong> emit input objects, except for input objects of MapFunction, FlatMapFunction, MapPartitionFunction, GroupReduceFunction, GroupCombineFunction, CoGroupFunction, and InputFormat.next(reuse).
       </td>
    </tr>
    <tr>

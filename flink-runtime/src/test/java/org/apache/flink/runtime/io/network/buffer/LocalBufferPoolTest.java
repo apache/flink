@@ -50,17 +50,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
+/**
+ * Tests for the {@link LocalBufferPool}.
+ */
 public class LocalBufferPoolTest extends TestLogger {
 
-	private final static int numBuffers = 1024;
+	private static final int numBuffers = 1024;
 
-	private final static int memorySegmentSize = 128;
+	private static final int memorySegmentSize = 128;
 
 	private NetworkBufferPool networkBufferPool;
 
 	private BufferPool localBufferPool;
 
-	private final static ExecutorService executor = Executors.newCachedThreadPool();
+	private static final ExecutorService executor = Executors.newCachedThreadPool();
 
 	@Before
 	public void setupLocalBufferPool() {
