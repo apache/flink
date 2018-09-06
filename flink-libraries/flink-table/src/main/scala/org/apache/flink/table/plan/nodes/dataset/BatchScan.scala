@@ -22,6 +22,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonScan
@@ -47,7 +48,7 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
       f == TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
     // conversion
-    if (inputType != internalType || hasTimeIndicator) {
+    if (!internalType.asInstanceOf[RowTypeInfo].schemaEquals(inputType) || hasTimeIndicator) {
 
       val function = generateConversionMapper(
         config,

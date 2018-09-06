@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
@@ -50,11 +51,12 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
       f == TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER ||
       f == TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER)
 
-    if (input.getType == cRowType && !hasTimeIndicator) {
+    if (inputType == cRowType && !hasTimeIndicator) {
       // input is already a CRow with correct type
       input.asInstanceOf[DataStream[CRow]]
 
-    } else if (input.getType == internalType && !hasTimeIndicator) {
+    } else if (internalType.asInstanceOf[RowTypeInfo].schemaEquals(inputType) &&
+      !hasTimeIndicator) {
       // input is already of correct type. Only need to wrap it as CRow
       input.asInstanceOf[DataStream[Row]].map(new RichMapFunction[Row, CRow] {
         @transient private var outCRow: CRow = null

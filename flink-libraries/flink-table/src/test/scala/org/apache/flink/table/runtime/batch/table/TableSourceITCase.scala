@@ -742,6 +742,42 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testTableSourceScanWithConversion(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = Seq(
+      Row.of(new JLong(11L), new JLong(21L), new JLong(31L)),
+      Row.of(new JLong(12L), new JLong(22L), new JLong(32L)),
+      Row.of(new JLong(13L), new JLong(23L), new JLong(33L)),
+      Row.of(new JLong(14L), new JLong(24L), new JLong(34L))
+    )
+
+    val fieldNames = Array("a", "b", "c")
+    val schema = new TableSchema(
+      fieldNames,
+      Array(Types.LONG, Types.LONG, Types.LONG))
+    val rowType = new RowTypeInfo(
+      Array(Types.LONG, Types.LONG, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
+      fieldNames)
+
+    val tableSource = new TestSimpleTableSource[Row](schema, rowType, data)
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val results = tEnv.scan(tableName)
+      .select('c, 'a, 'b)
+      .collect()
+    val expected = Seq(
+      "31,11,21",
+      "32,12,22",
+      "33,13,23",
+      "34,14,24").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+  }
+
   private def makeRow(fields: Any*): Row = {
     val row = new Row(fields.length)
     val addField = (value: Any, pos: Int) => row.setField(pos, value)

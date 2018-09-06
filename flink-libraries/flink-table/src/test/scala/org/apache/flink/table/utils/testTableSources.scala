@@ -223,5 +223,25 @@ class TestPreserveWMTableSource[T](
   override def getReturnType: TypeInformation[T] = returnType
 
   override def getTableSchema: TableSchema = tableSchema
+}
 
+
+class TestSimpleTableSource[T](
+    tableSchema: TableSchema,
+    returnType: TypeInformation[T],
+    values: Seq[T])
+  extends StreamTableSource[T]
+    with BatchTableSource[T] {
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
+    execEnv.fromCollection(values.asJava, returnType)
+  }
+
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[T] = {
+    execEnv.fromCollection(values.asJava, returnType)
+  }
+
+  override def getReturnType: TypeInformation[T] = returnType
+
+  override def getTableSchema: TableSchema = tableSchema
 }
