@@ -127,7 +127,7 @@ class SortITCase extends StreamingWithStateTestBase {
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
     val sql = "INSERT INTO targetTable SELECT a, b, c, rowtime " +
-      "FROM sourceTable order by rowtime, a desc"
+      "FROM sourceTable ORDER BY rowtime, a desc"
     tEnv.sqlUpdate(sql)
     env.execute()
 
