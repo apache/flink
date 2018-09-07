@@ -290,7 +290,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		int mem = resourceProfile.getMemoryInMB() < 0 ? defaultTaskManagerMemoryMB : resourceProfile.getMemoryInMB();
 		int vcore = resourceProfile.getCpuCores() < 1 ? defaultCpus : (int) resourceProfile.getCpuCores();
 		Resource capability = Resource.newInstance(mem, vcore);
-		requestYarnContainer(capability, priority);
+		internalRequestYarnContainer(capability, priority);
 	}
 
 	@Override
@@ -375,7 +375,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 						workerNodeMap.remove(resourceId);
 						resourceManagerClient.releaseAssignedContainer(container.getId());
 						// and ask for a new one
-						requestYarnContainer(container.getResource(), container.getPriority());
+						internalRequestYarnContainer(container.getResource(), container.getPriority());
 					}
 				} else {
 					// return the excessive containers
