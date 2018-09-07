@@ -58,7 +58,11 @@ import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Java representation of a running Flink cluster within YARN.
+ *
+ * @deprecated This class is for legacy(non FLIP-6) codebase. Its replacement is
+ * {@link org.apache.flink.yarn.cli.FlinkYarnSessionCli}.
  */
+@Deprecated
 public class YarnClusterClient extends ClusterClient<ApplicationId> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClient.class);
@@ -234,7 +238,7 @@ public class YarnClusterClient extends ClusterClient<ApplicationId> {
 
 	@Override
 	public boolean isDetached() {
-		return super.isDetached() || clusterDescriptor.isDetachedMode();
+		return super.isDetached();
 	}
 
 	/**

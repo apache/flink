@@ -44,6 +44,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 
+import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -120,21 +122,17 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 	@Test
 	public void testCorrectSettingOfDetachedMode() throws Exception {
-		String[] params =
-			new String[] {"-yd"};
-
-		FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
+		final FlinkYarnSessionCli yarnCLI = new FlinkYarnSessionCli(
 			new Configuration(),
 			tmp.getRoot().getAbsolutePath(),
 			"y",
 			"yarn");
 
-		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
+		CommandLine commandLine = yarnCLI.parseCommandLineOptions(new String[] {"-yd"}, true);
+		assertTrue(commandLine.hasOption(YARN_DETACHED_OPTION.getOpt()));
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
-
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertTrue(descriptor.isDetachedMode());
+		commandLine = yarnCLI.parseCommandLineOptions(new String[] {"-d"}, true);
+		assertTrue(commandLine.hasOption(DETACHED_OPTION.getOpt()));
 	}
 
 	@Test

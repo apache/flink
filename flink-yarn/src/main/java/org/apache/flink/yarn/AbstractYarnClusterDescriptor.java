@@ -106,7 +106,8 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
- * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
+ * The descriptor with deployment information for spawning or resuming
+ * a {@link org.apache.flink.yarn.cli.FlinkYarnSessionCli}.
  */
 public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
@@ -136,8 +137,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	protected List<File> shipFiles = new LinkedList<>();
 
 	private final Configuration flinkConfiguration;
-
-	private boolean detached;
 
 	private String customName;
 
@@ -313,22 +312,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 		return false;
-	}
-
-	/**
-	 * @deprecated The cluster descriptor should not know about this option.
-	 */
-	@Deprecated
-	public void setDetachedMode(boolean detachedMode) {
-		this.detached = detachedMode;
-	}
-
-	/**
-	 * @deprecated The cluster descriptor should not know about this option.
-	 */
-	@Deprecated
-	public boolean isDetachedMode() {
-		return detached;
 	}
 
 	public String getZookeeperNamespace() {
@@ -997,7 +980,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_HOME_DIR, homeDir.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_CLIENT_SHIP_FILES, envShipFileList.toString());
 		appMasterEnv.put(YarnConfigKeys.ENV_SLOTS, String.valueOf(clusterSpecification.getSlotsPerTaskManager()));
-		appMasterEnv.put(YarnConfigKeys.ENV_DETACHED, String.valueOf(detached));
 		appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
 		appMasterEnv.put(YarnConfigKeys.FLINK_YARN_FILES, yarnFilesDir.toUri().toString());
 
@@ -1088,13 +1070,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			lastAppState = appState;
 			Thread.sleep(250);
 		}
-		// print the application id for user to cancel themselves.
-		if (isDetachedMode()) {
-			LOG.info("The Flink YARN client has been started in detached mode. In order to stop " +
-					"Flink on YARN, use the following command or a YARN web interface to stop " +
-					"it:\nyarn application -kill " + appId + "\nPlease also note that the " +
-					"temporary files of the YARN session in the home directory will not be removed.");
-		}
+
 		// since deployment was successful, remove the hook
 		ShutdownHookUtil.removeShutdownHook(deploymentFailureHook, getClass().getSimpleName(), LOG);
 		return report;

@@ -36,7 +36,6 @@ import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConf
 /**
  * Base class for {@link CustomCommandLine} implementations which specify a JobManager address and
  * a ZooKeeper namespace.
- *
  */
 public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<T> {
 
