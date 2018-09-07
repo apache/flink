@@ -16,26 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.execution;
-
-import org.apache.flink.runtime.throwable.ThrowableAnnotation;
-import org.apache.flink.runtime.throwable.ThrowableType;
+package org.apache.flink.runtime.throwable;
 
 /**
- * Exception thrown in order to suppress job restarts.
- *
- * <p>This exception acts as a wrapper around the real cause and suppresses
- * job restarts. The JobManager will <strong>not</strong> restart a job, which
- * fails with this Exception.
+ * Enum for the classification of {@link Throwable} objects into failure/recovery classes.
  */
-@ThrowableAnnotation(ThrowableType.NonRecoverableError)
-public class SuppressRestartsException extends RuntimeException {
+public enum ThrowableType {
 
-	private static final long serialVersionUID = 221873676920848349L;
+	/**
+	 * This indicates error that would not succeed even with retry, such as DivideZeroException.
+	 * No recovery attempt should happen for such an error. Instead, the job should fail immediately.
+	 */
+	NonRecoverableError,
 
-	public SuppressRestartsException(Throwable cause) {
-		super("Unrecoverable failure. This suppresses job restarts. Please check the " +
-				"stack trace for the root cause.", cause);
-	}
+	/**
+	 * Data consumption error, which indicates that we should revoke the producer.
+	 * */
+	PartitionDataMissingError,
 
+	/**
+	 * This indicates an error related to the  running environment, such as hardware error, service issue, in which
+	 * case we should consider blacklisting the machine.
+	 * */
+	EnvironmentError,
+
+	/**
+	 * This indicates a problem that is recoverable.
+	 * */
+	RecoverableError
 }
