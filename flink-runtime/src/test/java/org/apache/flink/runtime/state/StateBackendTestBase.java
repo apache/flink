@@ -117,6 +117,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -2928,7 +2929,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		try {
 			MapState<Integer, Long> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 			backend.setCurrentKey(1);
-			int stateSize = 2048;
+			int stateSize = 4096;
 			for (int i = 0; i < stateSize; i++) {
 				state.put(i, i * 2L);
 			}
@@ -2937,13 +2938,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			while (iterator.hasNext()) {
 				Map.Entry<Integer, Long> entry = iterator.next();
 				assertEquals(iteratorCount, (int) entry.getKey());
-				iterator.hasNext();
-				iterator.remove();
-				try {
-					iterator.remove();
-					fail();
-				} catch (IllegalStateException e) {
-					// ignore expected exception
+				switch (ThreadLocalRandom.current().nextInt() % 3) {
+					case 0: // remove twice
+						iterator.remove();
+						try {
+							iterator.remove();
+							fail();
+						} catch (IllegalStateException e) {
+							// ignore expected exception
+						}
+						break;
+					case 1: // hasNext -> remove
+						iterator.hasNext();
+						iterator.remove();
+						break;
+					case 2: // nothing to do
+						break;
 				}
 				iteratorCount++;
 			}

@@ -541,12 +541,11 @@ class RocksDBMapState<K, N, UK, UV>
 
 		@Override
 		public void remove() {
-			if (currentEntry == null) {
+			if (currentEntry == null || currentEntry.deleted) {
 				throw new IllegalStateException("The remove operation must be called after a valid next operation.");
 			}
 
 			currentEntry.remove();
-			currentEntry = null;
 		}
 
 		final RocksDBMapEntry nextEntry() {
@@ -584,7 +583,7 @@ class RocksDBMapState<K, N, UK, UV>
 				 * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
 				 * the currentEntry points to the last returned entry, and at that time, we will start
 				 * the iterating from currentEntry if reloading cache is needed.
- 				 */
+				 */
 				byte[] startBytes = (currentEntry == null ? keyPrefixBytes : currentEntry.rawKeyBytes);
 
 				cacheEntries.clear();
@@ -596,7 +595,7 @@ class RocksDBMapState<K, N, UK, UV>
 				 * If the entry pointing to the current position is not removed, it will be the first entry in the
 				 * new iterating. Skip it to avoid redundant access in such cases.
 				 */
-				if (currentEntry != null) {
+				if (currentEntry != null && !currentEntry.deleted) {
 					iterator.next();
 				}
 
