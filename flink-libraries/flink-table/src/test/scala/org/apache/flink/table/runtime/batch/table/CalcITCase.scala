@@ -550,30 +550,34 @@ class CalcITCase(
   }
 
   @Test
-  def testUDFWithUnicodeParameter(): Unit = {
+  def testFunctionWithUnicodeParameters(): Unit = {
     val data = List(
-      ("a\u0001b", "c\"d", "e\\\"\u0004f"),
+      ("a\u0001b", "c\"d", "e\\\"\u0004f"), // uses Java/Scala escaping
       ("x\u0001y", "y\"z", "z\\\"\u0004z")
     )
+
     val env = ExecutionEnvironment.getExecutionEnvironment
+
     val tEnv = TableEnvironment.getTableEnvironment(env)
+
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)
+
+     // uses Java/Scala escaping
     val ds = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
-             .select(splitUDF0('a, "\u0001", 0) as 'a0,
-                     splitUDF1('a, "\u0001", 0) as 'a1,
-                     splitUDF0('b, "\"", 1) as 'b0,
-                     splitUDF1('b, "\"", 1) as 'b1,
-                     splitUDF0('c, "\\\"\u0004", 0) as 'c0,
-                     splitUDF1('c, "\\\"\u0004", 0) as 'c1
-             )
+      .select(
+        splitUDF0('a, "\u0001", 0) as 'a0,
+        splitUDF1('a, "\u0001", 0) as 'a1,
+        splitUDF0('b, "\"", 1) as 'b0,
+        splitUDF1('b, "\"", 1) as 'b1,
+        splitUDF0('c, "\\\"\u0004", 0) as 'c0,
+        splitUDF1('c, "\\\"\u0004", 0) as 'c1)
+
     val results = ds.collect()
-    val expected = List(
-      "a,a,d,d,e,e", "x,x,z,z,z,z"
-    ).mkString("\n")
+
+    val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
-
 }
 
 object CalcITCase {

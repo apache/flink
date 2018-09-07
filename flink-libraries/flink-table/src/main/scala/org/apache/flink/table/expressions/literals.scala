@@ -104,11 +104,6 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
           SqlParserPos.ZERO)
         relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
 
-      case BasicTypeInfo.STRING_TYPE_INFO =>
-        relBuilder.getRexBuilder.makeLiteral(
-          StringEscapeUtils.escapeJava(value.asInstanceOf[String])
-        )
-
       case _ => relBuilder.literal(value)
     }
   }

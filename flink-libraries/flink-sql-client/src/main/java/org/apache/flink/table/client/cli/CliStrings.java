@@ -50,15 +50,15 @@ public final class CliStrings {
 		.append(formatCommand(SqlCommand.EXPLAIN, "Describes the execution plan of a query or table with the given name."))
 		.append(formatCommand(SqlCommand.SELECT, "Executes a SQL SELECT query on the Flink cluster."))
 		.append(formatCommand(SqlCommand.INSERT_INTO, "Inserts the results of a SQL SELECT query into a declared table sink."))
-		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>'"))
-		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>'"))
+		.append(formatCommand(SqlCommand.CREATE_VIEW, "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
+		.append(formatCommand(SqlCommand.DROP_VIEW, "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
 		.append(formatCommand(SqlCommand.SOURCE, "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
-		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>'. Use 'SET' for listing all properties."))
+		.append(formatCommand(SqlCommand.SET, "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
 		.append(formatCommand(SqlCommand.RESET, "Resets all session configuration properties."))
 		.style(AttributedStyle.DEFAULT.underline())
 		.append("\nHint")
 		.style(AttributedStyle.DEFAULT)
-		.append(": Use '\\' for multi-line commands.")
+		.append(": Make sure that a statement ends with ';' for finalizing (multi-line) statements.")
 		.toAttributedString();
 
 	public static final String MESSAGE_WELCOME;
@@ -104,7 +104,7 @@ public final class CliStrings {
 			"   | |    | | | | | |   <   ____) | |__| | |____  | |____| | |  __/ | | | |_ \n" +
 			"   |_|    |_|_|_| |_|_|\\_\\ |_____/ \\___\\_\\______|  \\_____|_|_|\\___|_| |_|\\__|\n" +
 			"          \n" +
-			"        Welcome! Enter HELP to list all available commands. QUIT to exit.\n\n";
+			"        Welcome! Enter 'HELP;' to list all available commands. 'QUIT;' to exit.\n\n";
 	}
 
 	public static final String MESSAGE_QUIT = "Exiting " + CliStrings.CLI_NAME + "...";

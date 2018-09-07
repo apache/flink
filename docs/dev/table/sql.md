@@ -204,6 +204,11 @@ Flink SQL uses a lexical policy for identifier (table, attribute, function names
 - After which, identifiers are matched case-sensitively.
 - Unlike Java, back-ticks allow identifiers to contain non-alphanumeric characters (e.g. <code>"SELECT a AS `my field` FROM t"</code>).
 
+String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`). Duplicate a single quote for escaping (e.g., `SELECT 'It''s me.'`). Unicode characters are supported in string literals. If explicit unicode code points are required, use the following syntax:
+
+- Use the backslash (`\`) as escaping character (default): `SELECT U&'\263A'`
+- Use a custom escaping character: `SELECT U&'#263A' UESCAPE '#'`
+
 {% top %}
 
 Operations

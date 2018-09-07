@@ -61,7 +61,7 @@ By default, the SQL Client will read its configuration from the environment file
 Once the CLI has been started, you can use the `HELP` command to list all available SQL statements. For validating your setup and cluster connection, you can enter your first SQL query and press the `Enter` key to execute it:
 
 {% highlight sql %}
-SELECT 'Hello World'
+SELECT 'Hello World';
 {% endhighlight %}
 
 This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
@@ -71,19 +71,19 @@ The CLI supports **two modes** for maintaining and visualizing results.
 The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
 
 {% highlight text %}
-SET execution.result-mode=table
+SET execution.result-mode=table;
 {% endhighlight %}
 
 The **changelog mode** does not materialize results and visualizes the result stream that is produced by a [continuous query](streaming.html#dynamic-tables--continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 {% highlight text %}
-SET execution.result-mode=changelog
+SET execution.result-mode=changelog;
 {% endhighlight %}
 
 You can use the following query to see both result modes in action:
 
 {% highlight sql %}
-SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name 
+SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
 {% endhighlight %}
 
 This query performs a bounded word count example.
@@ -494,13 +494,13 @@ Similar to table sources and sinks, views defined in a session environment file 
 Views can also be created within a CLI session using the `CREATE VIEW` statement:
 
 {% highlight text %}
-CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource
+CREATE VIEW MyNewView AS SELECT MyField2 FROM MyTableSource;
 {% endhighlight %}
 
 Views created within a CLI session can also be removed again using the `DROP VIEW` statement:
 
 {% highlight text %}
-DROP VIEW MyNewView
+DROP VIEW MyNewView;
 {% endhighlight %}
 
 <span class="label label-danger">Attention</span> The definition of views is limited to the mentioned syntax above. Defining a schema for views or escape whitespaces in table names will be supported in future versions.
