@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
 
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
@@ -46,7 +47,7 @@ import java.util.concurrent.Callable;
  */
 public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOSecuredITCase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOSecuredITCase.class);
 
 	@BeforeClass
 	public static void setup() {
@@ -58,10 +59,27 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-fifo-secured");
 
-		SecureTestEnvironment.prepare(tmp);
+		SecureTestEnvironment.prepare(TEMPORARY_FOLDER);
 
-		populateYarnSecureConfigurations(YARN_CONFIGURATION, SecureTestEnvironment.getHadoopServicePrincipal(),
-				SecureTestEnvironment.getTestKeytab());
+		final String principal = SecureTestEnvironment.getHadoopServicePrincipal();
+		final String keytab = SecureTestEnvironment.getTestKeytab();
+
+		// Populate Yarn secure configurations.
+
+		YARN_CONFIGURATION.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
+		YARN_CONFIGURATION.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
+
+		YARN_CONFIGURATION.set(YarnConfiguration.RM_KEYTAB, keytab);
+		YARN_CONFIGURATION.set(YarnConfiguration.RM_PRINCIPAL, principal);
+		YARN_CONFIGURATION.set(YarnConfiguration.NM_KEYTAB, keytab);
+		YARN_CONFIGURATION.set(YarnConfiguration.NM_PRINCIPAL, principal);
+
+		YARN_CONFIGURATION.set(YarnConfiguration.RM_WEBAPP_SPNEGO_USER_NAME_KEY, principal);
+		YARN_CONFIGURATION.set(YarnConfiguration.RM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY, keytab);
+		YARN_CONFIGURATION.set(YarnConfiguration.NM_WEBAPP_SPNEGO_USER_NAME_KEY, principal);
+		YARN_CONFIGURATION.set(YarnConfiguration.NM_WEBAPP_SPNEGO_KEYTAB_FILE_KEY, keytab);
+
+		YARN_CONFIGURATION.set("hadoop.security.auth_to_local", "RULE:[1:$1] RULE:[2:$1]");
 
 		Configuration flinkConfig = new Configuration();
 		flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB,

@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -55,11 +54,10 @@ public class YARNITCase extends YarnTestBase {
 	public void testPerJobMode() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		final YarnClient yarnClient = getYarnClient();
 
 		try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
 			configuration,
-			getYarnConfiguration(),
+			YARN_CONFIGURATION,
 			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
 			yarnClient,
 			true)) {
