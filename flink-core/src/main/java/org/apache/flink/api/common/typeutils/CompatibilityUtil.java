@@ -23,8 +23,13 @@ import javax.annotation.Nullable;
 
 /**
  * Utilities related to serializer compatibility.
+ *
+ * @deprecated this utility class still uses the old serializer compatibility interfaces, and
+ *             is therefore deprecated. See {@link TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)}
+ *             and {@link TypeSerializerSchemaCompatibility}.
  */
 @Internal
+@Deprecated
 public class CompatibilityUtil {
 
 	/**

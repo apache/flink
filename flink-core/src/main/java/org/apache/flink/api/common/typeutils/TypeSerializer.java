@@ -214,6 +214,9 @@ public abstract class TypeSerializer<T> implements Serializable {
 	 * @param configSnapshot configuration snapshot of a preceding serializer for the same managed state
 	 *
 	 * @return the determined compatibility result (cannot be {@code null}).
+	 *
+	 * @deprecated TODO this method will be removed in later follow-up commits (see FLINK-9377).
 	 */
+	@Deprecated
 	public abstract CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot<?> configSnapshot);
 }

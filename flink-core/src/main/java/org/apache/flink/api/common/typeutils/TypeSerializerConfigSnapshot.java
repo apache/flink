@@ -40,8 +40,8 @@ import java.io.IOException;
  *
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are available,
  *   they need to be checked whether or not they are compatible to read the data written by the previous serializer.
- *   This is performed by providing the serializer configuration snapshots in checkpoints to the corresponding
- *   new serializers.</li>
+ *   This is performed by providing the new serializer to the correspondibng serializer configuration
+ *   snapshots in checkpoints.</li>
  *
  *   <li><strong>Factory for a read serializer when schema conversion is required:<strong> in the case that new
  *   serializers are not compatible to read previous data, a schema conversion process executed across all data
@@ -108,6 +108,25 @@ public abstract class TypeSerializerConfigSnapshot<T> extends VersionedIOReadabl
 	@Internal
 	public final void setSerializer(TypeSerializer<T> serializer) {
 		this.serializer = Preconditions.checkNotNull(serializer);
+	}
+
+	/**
+	 * Checks whether a new serializer is compatible to read data written be the originating serializer of this
+	 * config snapshot; i.e. whether or not a new serializer is compatible with the previous serializer.
+	 *
+	 * @param newSerializer the new serializer to check against for schema compatibility.
+	 *
+	 * @return the resolve schema compatibility result.
+	 */
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<?> newSerializer) {
+		@SuppressWarnings("unchecked")
+		TypeSerializer<T> castedSerializer = ((TypeSerializer<T>) newSerializer);
+
+		if (castedSerializer.ensureCompatibility(this).isRequiresMigration()) {
+			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+		} else {
+			return TypeSerializerSchemaCompatibility.compatibleAfterReconfiguration(castedSerializer);
+		}
 	}
 
 	@Override
