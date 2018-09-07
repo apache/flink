@@ -106,19 +106,4 @@ class TemporalTableJoinValidationTest extends TableTestBase {
 
     util.explain(result)
   }
-
-  @Test
-  def testEventTimeIndicators(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      "Event time temporal joins are not yet supported.")
-
-    val rates = ratesHistory.createTemporalTableFunction('rowtime, 'currency)
-
-    val result = orders
-      .join(rates('o_rowtime), "currency = o_currency")
-      .select("o_amount * rate").as("rate")
-
-    util.explain(result)
-  }
 }
