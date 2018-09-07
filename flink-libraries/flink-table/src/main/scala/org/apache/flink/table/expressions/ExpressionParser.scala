@@ -185,13 +185,18 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
           }
       }
 
-  lazy val singleQuoteStringLiteral: Parser[Expression] =
-    ("'" + """([^'\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*""" + "'").r ^^ {
-      str => Literal(str.substring(1, str.length - 1))
-    }
+  // string with single quotes such as 'It''s me.'
+  lazy val singleQuoteStringLiteral: Parser[Expression] = "'((?:''|[^'])*)'".r ^^ {
+    str =>
+      val escaped = str.substring(1, str.length - 1).replace("''", "'")
+      Literal(escaped)
+  }
 
-  lazy val stringLiteralFlink: PackratParser[Expression] = super.stringLiteral ^^ {
-    str => Literal(str.substring(1, str.length - 1))
+  // string with double quotes such as "I ""like"" dogs."
+  lazy val doubleQuoteStringLiteral: PackratParser[Expression] = "\"((?:\"\"|[^\"])*)\"".r ^^ {
+    str =>
+      val escaped = str.substring(1, str.length - 1).replace("\"\"", "\"")
+      Literal(escaped)
   }
 
   lazy val boolLiteral: PackratParser[Expression] = (TRUE | FALSE) ^^ {
@@ -203,7 +208,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val literalExpr: PackratParser[Expression] =
-    numberLiteral | stringLiteralFlink | singleQuoteStringLiteral | boolLiteral
+    numberLiteral | doubleQuoteStringLiteral | singleQuoteStringLiteral | boolLiteral
 
   lazy val fieldReference: PackratParser[NamedExpression] = (STAR | ident) ^^ {
     sym => UnresolvedFieldReference(sym)

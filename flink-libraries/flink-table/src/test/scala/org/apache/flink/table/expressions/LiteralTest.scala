@@ -20,8 +20,8 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
@@ -86,6 +86,72 @@ class LiteralTest extends ExpressionTestBase {
       s"Func3(42, '$hello')",
       s"Func3(42, '$hello')",
       s"42 and $hello")
+  }
+
+  @Test
+  def testStringLiterals(): Unit = {
+    testAllApis(
+      ">\n<", // for Table API we rely on Java/Scala escape sequences
+      "'>\n<'",
+      "'>\\n<'", // however, the SQL parser can parse escaped sequences
+      ">\n<")
+
+    testAllApis(
+      ">\u263A<",
+      "'>\u263A<'",
+      "'>\\u263A<'",
+      ">\u263A<")
+
+    testAllApis(
+      ">\u263A<",
+      "'>\u263A<'",
+      "'>\\u263A<'",
+      ">\u263A<")
+
+    testAllApis(
+      ">\\<",
+      "'>\\<'",
+      "'>\\\\<'",
+      ">\\<")
+
+    testAllApis(
+      ">'<",
+      "'>''<'",
+      "'>''<'",
+      ">'<")
+
+    testAllApis(
+      " ",
+      "' '",
+      "' '",
+      " ")
+
+    testAllApis(
+      "",
+      "''",
+      "''",
+      "")
+
+    testAllApis(
+      ">foo([\\w]+)<",
+      "'>foo([\\w]+)<'",
+      "'>foo([\\\\w]+)<'",
+      ">foo([\\w]+)<")
+
+    testTableApi(
+      ">\\'\n<",
+      "\">\\'\n<\"",
+      ">\\'\n<")
+
+    testTableApi(
+      "It's me.",
+      "'It''s me.'",
+      "It's me.")
+
+    testTableApi(
+      """I "like" dogs.""",
+      """"I ""like"" dogs."""",
+      """I "like" dogs.""")
   }
 
   def testData: Any = {
