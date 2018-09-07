@@ -19,7 +19,6 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -111,6 +110,14 @@ public class MetricOptions {
 			.withDescription("Defines the interval at which latency tracking marks are emitted from the sources." +
 				" Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly" +
 				" impact the performance of the cluster.");
+
+	public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
+		key("metrics.latency.granularity")
+			.defaultValue("subtask")
+			.withDescription("Defines the granularity of latency metrics. Accepted values are " +
+					"\"single\"(Track latency without differentiating between sources and subtasks), " +
+					"\"operator\"(Track latency while differentiating between sources, but not subtasks) and " +
+					"\"subtask\"(Track latency while differentiating between sources and subtasks).");
 
 	/** The number of measured latencies to maintain at each operator. */
 	public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
