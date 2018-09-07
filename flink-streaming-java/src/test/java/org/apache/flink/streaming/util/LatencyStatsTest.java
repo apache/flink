@@ -150,17 +150,26 @@ public class LatencyStatsTest extends TestLogger {
 
 	private static void assertName(final String registrationName) {
 		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("operator_id." + OPERATOR_ID + ".operator_subtask_index." + OPERATOR_SUBTASK_INDEX + ".latency", sanitizedName);
+		Assert.assertEquals("operator_id." + OPERATOR_ID +
+			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
+			".latency", sanitizedName);
 	}
 
 	private static void assertName(final String registrationName, final OperatorID sourceId) {
 		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("source_id." + sourceId + ".operator_id." + OPERATOR_ID + ".operator_subtask_index." + OPERATOR_SUBTASK_INDEX + ".latency", sanitizedName);
+		Assert.assertEquals("source_id." + sourceId +
+			".operator_id." + OPERATOR_ID +
+			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
+			".latency", sanitizedName);
 	}
 
 	private static void assertName(final String registrationName, final OperatorID sourceId, final int sourceIndex) {
 		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("source_id." + sourceId + ".source_subtask_index." + sourceIndex + ".operator_id." + OPERATOR_ID + ".operator_subtask_index." + OPERATOR_SUBTASK_INDEX + ".latency", sanitizedName);
+		Assert.assertEquals("source_id." + sourceId +
+			".source_subtask_index." + sourceIndex +
+			".operator_id." + OPERATOR_ID +
+			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
+			".latency", sanitizedName);
 	}
 
 	private static class TestMetricRegistry implements MetricRegistry {

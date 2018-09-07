@@ -208,10 +208,19 @@ public abstract class AbstractStreamOperator<OUT>
 					granularity);
 			}
 			TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
-			this.latencyStats = new LatencyStats(jobMetricGroup.addGroup("latency"), historySize, container.getIndexInSubtaskGroup(), getOperatorID(), granularity);
+			this.latencyStats = new LatencyStats(jobMetricGroup.addGroup("latency"),
+				historySize,
+				container.getIndexInSubtaskGroup(),
+				getOperatorID(),
+				granularity);
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating latency metrics.", e);
-			this.latencyStats = new LatencyStats(UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"), 1, 0, new OperatorID(), LatencyStats.Granularity.SINGLE);
+			this.latencyStats = new LatencyStats(
+				UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"),
+				1,
+				0,
+				new OperatorID(),
+				LatencyStats.Granularity.SINGLE);
 		}
 
 		this.runtimeContext = new StreamingRuntimeContext(this, environment, container.getAccumulatorMap());

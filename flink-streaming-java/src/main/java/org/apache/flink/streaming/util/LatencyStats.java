@@ -36,7 +36,12 @@ public class LatencyStats {
 	private final OperatorID operatorId;
 	private final Granularity granularity;
 
-	public LatencyStats(MetricGroup metricGroup, int historySize, int subtaskIndex, OperatorID operatorID, Granularity granularity) {
+	public LatencyStats(
+			MetricGroup metricGroup,
+			int historySize,
+			int subtaskIndex,
+			OperatorID operatorID,
+			Granularity granularity) {
 		this.metricGroup = metricGroup;
 		this.historySize = historySize;
 		this.subtaskIndex = subtaskIndex;
@@ -72,7 +77,11 @@ public class LatencyStats {
 			}
 
 			@Override
-			MetricGroup createSourceMetricGroups(MetricGroup base, LatencyMarker marker, OperatorID operatorId, int operatorSubtaskIndex) {
+			MetricGroup createSourceMetricGroups(
+					MetricGroup base,
+					LatencyMarker marker,
+					OperatorID operatorId,
+					int operatorSubtaskIndex) {
 				return base;
 			}
 		},
@@ -83,7 +92,11 @@ public class LatencyStats {
 			}
 
 			@Override
-			MetricGroup createSourceMetricGroups(MetricGroup base, LatencyMarker marker, OperatorID operatorId, int operatorSubtaskIndex) {
+			MetricGroup createSourceMetricGroups(
+					MetricGroup base,
+					LatencyMarker marker,
+					OperatorID operatorId,
+					int operatorSubtaskIndex) {
 				return base
 					.addGroup("source_id", String.valueOf(marker.getOperatorId()));
 			}
@@ -95,7 +108,11 @@ public class LatencyStats {
 			}
 
 			@Override
-			MetricGroup createSourceMetricGroups(MetricGroup base, LatencyMarker marker, OperatorID operatorId, int operatorSubtaskIndex) {
+			MetricGroup createSourceMetricGroups(
+					MetricGroup base,
+					LatencyMarker marker,
+					OperatorID operatorId,
+					int operatorSubtaskIndex) {
 				return base
 					.addGroup("source_id", String.valueOf(marker.getOperatorId()))
 					.addGroup("source_subtask_index", String.valueOf(marker.getSubtaskIndex()));
