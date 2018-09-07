@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -69,24 +70,35 @@ public class FailoverRegion {
 	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.RUNNING;
 
+	/**the failed count of this region*/
+	private final SimpleCounter failCount;
 
-	public FailoverRegion(ExecutionGraph executionGraph, Executor executor, List<ExecutionVertex> connectedExecutions) {
+	/** whether we can restart region*/
+	private final boolean canRestartRegion;
+
+	public FailoverRegion(ExecutionGraph executionGraph, Executor executor, List<ExecutionVertex> connectedExecutions, boolean canRestartRegion) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.executor = checkNotNull(executor);
 		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
-
+		this.failCount = new SimpleCounter();
+		this.canRestartRegion = canRestartRegion;
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
 	}
 
 	public void onExecutionFail(Execution taskExecution, Throwable cause) {
 		// TODO: check if need to failover the preceding region
-		if (!executionGraph.getRestartStrategy().canRestart()) {
+		if (!this.canRestartRegion) {
 			// delegate the failure to a global fail that will check the restart strategy and not restart
 			executionGraph.failGlobal(cause);
 		}
 		else {
 			cancel(taskExecution.getGlobalModVersion());
+			failCount.inc();
 		}
+	}
+
+	public long getFailCount(){
+		return failCount.getCount();
 	}
 
 	private void allVerticesInTerminalState(long globalModVersionOfFailover) {
@@ -118,7 +130,7 @@ public class FailoverRegion {
 
 	// Notice the region to failover, 
 	private void failover(long globalModVersionOfFailover) {
-		if (!executionGraph.getRestartStrategy().canRestart()) {
+		if (!this.canRestartRegion) {
 			executionGraph.failGlobal(new FlinkException("RestartStrategy validate fail"));
 		}
 		else {

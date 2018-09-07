@@ -50,14 +50,16 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	private static final Logger LOG = LoggerFactory.getLogger(RestartPipelinedRegionStrategy.class);
 
 	/** The execution graph on which this FailoverStrategy works */
-	private final ExecutionGraph executionGraph;
+	protected final ExecutionGraph executionGraph;
 
 	/** The executor used for future actions */
-	private final Executor executor;
+	protected final Executor executor;
 
 	/** Fast lookup from vertex to failover region */
-	private final HashMap<ExecutionVertex, FailoverRegion> vertexToRegion;
+	protected final HashMap<ExecutionVertex, FailoverRegion> vertexToRegion;
 
+	/** whether we can restart region*/
+	private final boolean canRestartRegion;
 
 	/**
 	 * Creates a new failover strategy to restart pipelined regions that works on the given
@@ -66,7 +68,18 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 */
 	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph) {
-		this(executionGraph, executionGraph.getFutureExecutor());
+		this(executionGraph, executionGraph.getFutureExecutor(), executionGraph.getRestartStrategy().canRestart());
+	}
+
+	/**
+	 * Creates a new failover strategy to restart pipelined regions that works on the given
+	 * execution graph and uses the given executor to call restart actions.
+	 *
+	 * @param executionGraph The execution graph on which this FailoverStrategy will work
+	 * @param executor  The executor used for future actions
+	 */
+	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph, Executor executor) {
+		this(executionGraph, executor, executionGraph.getRestartStrategy().canRestart());
 	}
 
 	/**
@@ -76,10 +89,11 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 	 * @param executionGraph The execution graph on which this FailoverStrategy will work
 	 * @param executor  The executor used for future actions
 	 */
-	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph, Executor executor) {
+	public RestartPipelinedRegionStrategy(ExecutionGraph executionGraph, Executor executor,  boolean canRestartRegion) {
 		this.executionGraph = checkNotNull(executionGraph);
 		this.executor = checkNotNull(executor);
 		this.vertexToRegion = new HashMap<>();
+		this.canRestartRegion = canRestartRegion;
 	}
 
 	// ------------------------------------------------------------------------
@@ -88,6 +102,13 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 
 	@Override
 	public void onTaskFailure(Execution taskExecution, Throwable cause) {
+
+		if (!this.canRestartRegion) {
+			// delegate the failure to a global fail that will check the restart strategy and not restart
+			executionGraph.failGlobal(cause);
+			return;
+		}
+
 		final ExecutionVertex ev = taskExecution.getVertex();
 		final FailoverRegion failoverRegion = vertexToRegion.get(ev);
 
@@ -209,7 +230,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 				executionGraph.getJobName(), executionGraph.getJobID());
 
 		for (List<ExecutionVertex> region : distinctRegions.keySet()) {
-			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, executor, region);
+			final FailoverRegion failoverRegion = new FailoverRegion(executionGraph, executor, region, this.canRestartRegion);
 			for (ExecutionVertex ev : region) {
 				this.vertexToRegion.put(ev, failoverRegion);
 			}
@@ -232,7 +253,7 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 			}
 		}
 
-		final FailoverRegion singleRegion = new FailoverRegion(executionGraph, executor, allVertices);
+		final FailoverRegion singleRegion = new FailoverRegion(executionGraph, executor, allVertices, this.canRestartRegion);
 		for (ExecutionVertex ev : allVertices) {
 			vertexToRegion.put(ev, singleRegion);
 		}

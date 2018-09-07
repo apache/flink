@@ -62,6 +62,12 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
 	private final HashMap<SlotRequestId, SlotContext> allocatedSlots;
 
+	private final TaskManagerGateway taskManagerGateway;
+
+	public TaskManagerGateway getTaskManagerGateway() {
+		return taskManagerGateway;
+	}
+
 	public SimpleSlotProvider(JobID jobId, int numSlots) {
 		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
 	}
@@ -71,7 +77,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 		checkArgument(numSlots >= 0, "numSlots must be >= 0");
 
 		this.slots = new ArrayDeque<>(numSlots);
-
+		this.taskManagerGateway = taskManagerGateway;
 		for (int i = 0; i < numSlots; i++) {
 			SimpleSlotContext as = new SimpleSlotContext(
 				new AllocationID(),
