@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions
 import java.lang.{StringBuilder, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 
+import org.apache.commons.codec.Charsets
 import org.apache.commons.codec.binary.{Base64, Hex}
 import org.apache.commons.lang3.StringUtils
 
@@ -207,12 +208,12 @@ object ScalarFunctions {
   /**
     * Returns the base string decoded with base64.
     */
-  def fromBase64(str: String): String = new String(Base64.decodeBase64(str))
+  def fromBase64(str: String): String = new String(Base64.decodeBase64(str), Charsets.UTF_8)
 
   /**
     * Returns the base64-encoded result of the input string.
     */
-  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes())
+  def toBase64(base: String): String = Base64.encodeBase64String(base.getBytes(Charsets.UTF_8))
 
   /**
     * Returns the hex string of a long argument.
@@ -222,7 +223,7 @@ object ScalarFunctions {
   /**
     * Returns the hex string of a string argument.
     */
-  def hex(x: String): String = Hex.encodeHexString(x.getBytes).toUpperCase()
+  def hex(x: String): String = Hex.encodeHexString(x.getBytes(Charsets.UTF_8)).toUpperCase()
 
   /**
     * Returns an UUID string using Java utilities.
