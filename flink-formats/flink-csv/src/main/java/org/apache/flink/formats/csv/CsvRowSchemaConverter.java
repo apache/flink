@@ -31,7 +31,7 @@ import com.fasterxml.jackson.dataformat.csv.CsvSchema.Column;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
 
 /**
  * Converting functions that related to {@link CsvSchema}.
@@ -40,31 +40,30 @@ import java.util.List;
  * sorts out instances of {@link TypeInformation} and convert them to
  * one of CsvSchema's types.
  */
-public class CsvRowSchemaConverter {
+public final class CsvRowSchemaConverter {
 
 	/**
 	 * Types that can be converted to ColumnType.NUMBER.
 	 */
-	private static final List<TypeInformation<?>> NUMBER_TYPES =
-		Arrays.asList(Types.LONG, Types.INT, Types.DOUBLE, Types.FLOAT,
-			Types.BIG_DEC, Types.BIG_INT);
+	private static final HashSet<TypeInformation<?>> NUMBER_TYPES =
+		new HashSet<>(Arrays.asList(Types.LONG, Types.INT, Types.DOUBLE, Types.FLOAT,
+			Types.BIG_DEC, Types.BIG_INT));
 
 	/**
 	 * Types that can be converted to ColumnType.STRING.
 	 */
-	private static final List<TypeInformation<?>> STRING_TYPES =
-		Arrays.asList(Types.STRING, Types.SQL_DATE, Types.SQL_TIME, Types.SQL_TIMESTAMP);
+	private static final HashSet<TypeInformation<?>> STRING_TYPES =
+		new HashSet<>(Arrays.asList(Types.STRING, Types.SQL_DATE,
+			Types.SQL_TIME, Types.SQL_TIMESTAMP));
 
 	/**
 	 * Types that can be converted to ColumnType.BOOLEAN.
 	 */
-	private static final List<TypeInformation<?>> BOOLEAN_TYPES =
-		Collections.singletonList(Types.BOOLEAN);
+	private static final HashSet<TypeInformation<?>> BOOLEAN_TYPES =
+		new HashSet<>(Collections.singletonList(Types.BOOLEAN));
 
 	/**
 	 * Convert {@link RowTypeInfo} to {@link CsvSchema}.
-	 * @param rowType
-	 * @return {@link CsvSchema}
 	 */
 	public static CsvSchema rowTypeToCsvSchema(RowTypeInfo rowType) {
 		Builder builder = new CsvSchema.Builder();
@@ -79,8 +78,6 @@ public class CsvRowSchemaConverter {
 	/**
 	 * Convert {@link TypeInformation} to {@link CsvSchema.ColumnType}
 	 * based on their catogories.
-	 * @param info
-	 * @return {@link CsvSchema.ColumnType}
 	 */
 	private static CsvSchema.ColumnType convertType(TypeInformation<?> info) {
 		if (STRING_TYPES.contains(info)) {
@@ -97,7 +94,7 @@ public class CsvRowSchemaConverter {
 			((PrimitiveArrayTypeInfo) info).getComponentType() == Types.BYTE) {
 			return CsvSchema.ColumnType.STRING;
 		} else {
-				throw new RuntimeException("Unable to support " + info.toString()
+			throw new RuntimeException("Unable to support " + info.toString()
 					+ " yet");
 		}
 	}

@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.csv;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -29,7 +29,9 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
@@ -51,8 +53,8 @@ import java.sql.Timestamp;
  *
  * <p>Failure during deserialization are forwarded as wrapped IOExceptions.
  */
-@PublicEvolving
-public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
+@Public
+public final class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 
 	/** Schema describing the input csv data. */
 	private CsvSchema csvSchema;
@@ -60,26 +62,27 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 	/** Type information describing the input csv data. */
 	private TypeInformation<Row> rowTypeInfo;
 
-	/** CsvMapper used to write {@link JsonNode} into bytes. */
-	private CsvMapper csvMapper = new CsvMapper();
+	/** ObjectReader used to read message, it will be changed when csvSchema is changed. */
+	private ObjectReader objectReader;
 
 	/** Charset for byte[]. */
 	private String charset = "UTF-8";
 
-
 	/**
 	 * Create a csv row DeserializationSchema with given {@link TypeInformation}.
 	 */
-	CsvRowDeserializationSchema(TypeInformation<Row> rowTypeInfo) {
+	public CsvRowDeserializationSchema(TypeInformation<Row> rowTypeInfo) {
 		Preconditions.checkNotNull(rowTypeInfo, "rowTypeInfo must not be null !");
+		CsvMapper csvMapper = new CsvMapper();
 		this.rowTypeInfo = rowTypeInfo;
 		this.csvSchema = CsvRowSchemaConverter.rowTypeToCsvSchema((RowTypeInfo) rowTypeInfo);
+		this.objectReader = csvMapper.readerFor(JsonNode.class).with(csvSchema);
+		this.setNullValue("null");
 	}
 
 	@Override
 	public Row deserialize(byte[] message) throws IOException {
-		JsonNode root = csvMapper.readerFor(JsonNode.class)
-			.with(csvSchema).readValue(message);
+		JsonNode root = objectReader.readValue(message);
 		return convertRow(root, (RowTypeInfo) rowTypeInfo);
 	}
 
@@ -93,12 +96,6 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 		return rowTypeInfo;
 	}
 
-	/**
-	 *
-	 * @param root json node that contains a row's data.
-	 * @param rowTypeInfo type information for root.
-	 * @return result row
-	 */
 	private Row convertRow(JsonNode root, RowTypeInfo rowTypeInfo) {
 		String[] fields = rowTypeInfo.getFieldNames();
 		TypeInformation<?>[] types = rowTypeInfo.getFieldTypes();
@@ -112,12 +109,6 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 		return row;
 	}
 
-	/**
-	 *
-	 * @param node array node that contains a row's data.
-	 * @param rowTypeInfo type information for node.
-	 * @return result row
-	 */
 	private Row convertRow(ArrayNode node, RowTypeInfo rowTypeInfo) {
 		TypeInformation[] types = rowTypeInfo.getFieldTypes();
 		String[] fields = rowTypeInfo.getFieldNames();
@@ -135,6 +126,9 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 	 * @return converted object
 	 */
 	private Object convert(JsonNode node, TypeInformation<?> info) {
+		if (node instanceof NullNode) {
+			return null;
+		}
 		if (info == Types.STRING) {
 			return node.asText();
 		} else if (info == Types.LONG) {
@@ -154,7 +148,7 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 		} else if (info == Types.SQL_TIME) {
 			return Time.valueOf(node.asText());
 		} else if (info == Types.SQL_TIMESTAMP) {
-			return Timestamp.valueOf((String) node.asText());
+			return Timestamp.valueOf(node.asText());
 		} else if (info == Types.BOOLEAN) {
 			return node.asBoolean();
 		} else if (info instanceof RowTypeInfo) {
@@ -169,11 +163,6 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 		}
 	}
 
-	/**
-	 * @param node array node used to convert array.
-	 * @param elementType type information of array elements.
-	 * @return result array
-	 */
 	private Object[] convertArray(ArrayNode node, TypeInformation<?> elementType) {
 		final Object[] array = (Object[]) Array.newInstance(elementType.getTypeClass(), node.size());
 		for (int i = 0; i < node.size(); i++) {
@@ -203,14 +192,22 @@ public class CsvRowDeserializationSchema implements DeserializationSchema<Row> {
 
 	public void setArrayElementDelimiter(String s) {
 		this.csvSchema = this.csvSchema.rebuild().setArrayElementSeparator(s).build();
+		this.objectReader = objectReader.with(csvSchema);
 	}
 
 	public void setQuoteCharacter(char c) {
 		this.csvSchema = this.csvSchema.rebuild().setQuoteChar(c).build();
+		this.objectReader = objectReader.with(csvSchema);
 	}
 
 	public void setEscapeCharacter(char c) {
 		this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
+		this.objectReader = objectReader.with(csvSchema);
+	}
+
+	public void setNullValue(String s) {
+		this.csvSchema = this.csvSchema.rebuild().setNullValue(s).build();
+		this.objectReader = objectReader.with(csvSchema);
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.Csv;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -64,6 +65,21 @@ public class CsvRowFormatFactoryTest extends TestLogger {
 				))
 				.arrayElementDelim("^^")
 				.escapeCharacter('c')
+		);
+		testSchemaSerializationSchema(properties);
+		testSchemaDeserializationSchema(properties);
+	}
+
+	@Test
+	public void testDerived() {
+		final Map<String, String> properties = toMap(
+			new Schema()
+				.field("a", Types.STRING())
+				.field("b", Types.INT())
+				.field("c", Types.ROW(
+					new String[]{"a", "b", "c"},
+					new TypeInformation[]{Types.STRING(), Types.INT(), Types.BOOLEAN()}
+				)), new Csv().derived(true)
 		);
 		testSchemaSerializationSchema(properties);
 		testSchemaDeserializationSchema(properties);

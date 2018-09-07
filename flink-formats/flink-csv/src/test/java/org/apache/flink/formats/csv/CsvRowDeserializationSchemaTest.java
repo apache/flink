@@ -33,6 +33,7 @@ import java.sql.Timestamp;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * Testing for {@link CsvRowDeserializationSchema}.
@@ -120,6 +121,21 @@ public class CsvRowDeserializationSchemaTest extends TestLogger {
 		Row result = schema.deserialize(bytes);
 
 		assertEquals("abc", new String((byte[]) result.getField(0), StandardCharsets.UTF_16));
+	}
+
+	@Test
+	public void testNull() throws IOException {
+		final TypeInformation<Row> rowTypeInfo = Types.ROW(
+			new String[]{"a"},
+			new TypeInformation[]{Types.STRING()}
+		);
+
+		final byte[] bytes = "123".getBytes();
+
+		final CsvRowDeserializationSchema deserializationSchema = new CsvRowDeserializationSchema(rowTypeInfo);
+		deserializationSchema.setNullValue("123");
+		final Row row = deserializationSchema.deserialize(bytes);
+		assertNull(row.getField(0));
 	}
 
 	@Test(expected = IllegalArgumentException.class)

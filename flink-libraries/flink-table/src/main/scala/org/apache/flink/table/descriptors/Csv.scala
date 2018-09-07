@@ -41,6 +41,7 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
   private var arrayElementDelim: Option[String] = None
   private var escapeCharacter: Option[Character] = None
   private var bytesCharset: Option[String] = None
+  private var derived: Option[Boolean] = None
 
   /**
     * Sets the field delimiter, "," by default.
@@ -164,6 +165,14 @@ class Csv extends FormatDescriptor(FORMAT_TYPE_VALUE, version = 1) {
     */
   def bytesCharset(charset: String): Csv = {
     this.bytesCharset = Some(charset)
+    this
+  }
+
+  /**
+    * Set true if format schema derives from table schema.
+    */
+  def derived(derived: Boolean): Csv = {
+    this.derived = Some(derived)
     this
   }
 

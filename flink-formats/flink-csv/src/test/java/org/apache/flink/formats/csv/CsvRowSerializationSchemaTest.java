@@ -42,17 +42,18 @@ public class CsvRowSerializationSchemaTest extends TestLogger {
 
 	@Test
 	public void testSerializeAndDeserialize() throws IOException {
-		final String[] fields = new String[]{"a", "b", "c", "d", "e", "f", "g"};
+		final String[] fields = new String[]{"a", "b", "c", "d", "e", "f", "g", "h"};
 		final TypeInformation[] types = new TypeInformation[]{
 			Types.BOOLEAN(), Types.STRING(), Types.INT(), Types.DECIMAL(),
 			Types.SQL_TIMESTAMP(), PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
 			Types.ROW(
 				new String[]{"g1", "g2"},
-				new TypeInformation[]{Types.STRING(), Types.LONG()})
+				new TypeInformation[]{Types.STRING(), Types.LONG()}),
+			Types.STRING()
 		};
 		final TypeInformation<Row> rowSchema = Types.ROW(fields, types);
-		Row row = new Row(7);
-		Row nestedRow = new Row(2);
+		final Row row = new Row(8);
+		final Row nestedRow = new Row(2);
 		nestedRow.setField(0, "z\"xcv");
 		nestedRow.setField(1, 123L);
 		row.setField(0, true);
@@ -62,6 +63,7 @@ public class CsvRowSerializationSchemaTest extends TestLogger {
 		row.setField(4, new Timestamp(System.currentTimeMillis()));
 		row.setField(5, "qwecxcr".getBytes());
 		row.setField(6, nestedRow);
+		row.setField(7, null);
 
 		final Row resultRow = serializeAndDeserialize(rowSchema, row);
 		assertEquals(row, resultRow);
@@ -171,6 +173,21 @@ public class CsvRowSerializationSchemaTest extends TestLogger {
 
 		bytes = serializationSchema.serialize(row2);
 		assertEquals(row2, deserializationSchema.deserialize(bytes));
+	}
+
+	@Test
+	public void testNull() {
+		final TypeInformation<Row> rowTypeInfo = Types.ROW(
+			new String[]{"a"},
+			new TypeInformation[]{Types.STRING()}
+		);
+		final Row row = new Row(1);
+		row.setField(0, null);
+
+		final CsvRowSerializationSchema serializationSchema = new CsvRowSerializationSchema(rowTypeInfo);
+		serializationSchema.setNullValue("123");
+		byte[] bytes = serializationSchema.serialize(row);
+		assertArrayEquals("123\n".getBytes(), bytes);
 	}
 
 	@Test(expected = RuntimeException.class)

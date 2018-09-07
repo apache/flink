@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.csv;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -51,8 +51,8 @@ import java.sql.Timestamp;
  *
  * <p>Result <code>byte[]</code> messages can be deserialized using {@link CsvRowDeserializationSchema}.
  */
-@PublicEvolving
-public class CsvRowSerializationSchema implements SerializationSchema<Row> {
+@Public
+public final class CsvRowSerializationSchema implements SerializationSchema<Row> {
 
 	/** Schema describing the input csv data. */
 	private CsvSchema csvSchema;
@@ -77,6 +77,7 @@ public class CsvRowSerializationSchema implements SerializationSchema<Row> {
 		Preconditions.checkNotNull(rowTypeInfo, "rowTypeInfo must not be null !");
 		this.rowTypeInfo = rowTypeInfo;
 		this.csvSchema = CsvRowSchemaConverter.rowTypeToCsvSchema((RowTypeInfo) rowTypeInfo);
+		this.setNullValue("null");
 	}
 
 	@Override
@@ -121,6 +122,9 @@ public class CsvRowSerializationSchema implements SerializationSchema<Row> {
 	 * @return result after converting.
 	 */
 	private JsonNode convert(ContainerNode<?> container, Object obj, TypeInformation info, Boolean nested) {
+		if (obj == null) {
+			return container.nullNode();
+		}
 		if (info == Types.STRING) {
 			return container.textNode((String) obj);
 		} else if (info == Types.LONG) {
@@ -132,7 +136,7 @@ public class CsvRowSerializationSchema implements SerializationSchema<Row> {
 		} else if (info == Types.FLOAT) {
 			return container.numberNode((Float) obj);
 		} else if (info == Types.BIG_DEC) {
-			return container.numberNode(BigDecimal.valueOf(Double.valueOf(String.valueOf(obj))));
+			return container.numberNode(new BigDecimal(String.valueOf(obj)));
 		} else if (info == Types.BIG_INT) {
 			return container.numberNode(BigInteger.valueOf(Long.valueOf(String.valueOf(obj))));
 		} else if (info == Types.SQL_DATE) {
@@ -216,6 +220,10 @@ public class CsvRowSerializationSchema implements SerializationSchema<Row> {
 
 	public void setEscapeCharacter(char c) {
 		this.csvSchema = this.csvSchema.rebuild().setEscapeChar(c).build();
+	}
+
+	public void setNullValue(String s) {
+		this.csvSchema = this.csvSchema.rebuild().setNullValue(s).build();
 	}
 
 	@Override

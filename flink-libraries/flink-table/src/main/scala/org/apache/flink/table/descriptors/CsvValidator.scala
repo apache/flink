@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.descriptors
 
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.CsvValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE
 
@@ -36,9 +37,23 @@ class CsvValidator extends FormatDescriptorValidator {
     properties.validateString(FORMAT_ARRAY_ELEMENT_DELIMITER, isOptional = true, minLen = 1)
     properties.validateString(FORMAT_ESCAPE_CHARACTER, isOptional = true, minLen = 1, maxLen = 1)
     properties.validateString(FORMAT_BYTES_CHARSET, isOptional = true, minLen = 1)
+    properties.validateString(FORMAT_NULL_VALUE, isOptional = true, minLen = 1)
     properties.validateBoolean(FORMAT_IGNORE_FIRST_LINE, isOptional = true)
     properties.validateBoolean(FORMAT_IGNORE_PARSE_ERRORS, isOptional = true)
-    properties.validateTableSchema(FORMAT_FIELDS, isOptional = false)
+    properties.validateBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA, isOptional = true)
+
+    val tableSchema = properties.getOptionalTableSchema(FORMAT_FIELDS)
+    val derived = properties.getOptionalBoolean(
+      FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA).orElse(false)
+    if (derived && tableSchema.isPresent) {
+      throw new ValidationException(
+        "Format cannot define a schema and derive from the table's schema at the same time.")
+    } else if (tableSchema.isPresent) {
+      properties.validateTableSchema(FORMAT_FIELDS, isOptional = false)
+    } else if (!tableSchema.isPresent && derived) {
+      throw new ValidationException(
+        "A definition of a schema or derive from the table's schema is required.")
+    }
   }
 }
 
@@ -55,4 +70,5 @@ object CsvValidator {
   val FORMAT_ARRAY_ELEMENT_DELIMITER = "format.array-element-delimiter"
   val FORMAT_ESCAPE_CHARACTER = "format.escape-character"
   val FORMAT_BYTES_CHARSET = "format.bytes-charset"
+  val FORMAT_NULL_VALUE = "format.null-value"
 }

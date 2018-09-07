@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.descriptors.CsvValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptorValidator;
+import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.types.Row;
@@ -37,7 +38,7 @@ import java.util.Map;
  * Table format for providing configured instances of CSV-to-row {@link SerializationSchema}
  * and {@link DeserializationSchema}.
  */
-public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
+public final class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 	DeserializationSchemaFactory<Row>  {
 
 	@Override
@@ -50,7 +51,7 @@ public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 
 	@Override
 	public boolean supportsSchemaDerivation() {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -63,6 +64,9 @@ public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 		properties.add(CsvValidator.FORMAT_QUOTE_CHARACTER());
 		properties.add(CsvValidator.FORMAT_ESCAPE_CHARACTER());
 		properties.add(CsvValidator.FORMAT_BYTES_CHARSET());
+		properties.add(CsvValidator.FORMAT_NULL_VALUE());
+		properties.add(SchemaValidator.SCHEMA() + ".#." + SchemaValidator.SCHEMA_TYPE());
+		properties.add(SchemaValidator.SCHEMA() + ".#." + SchemaValidator.SCHEMA_NAME());
 		return properties;
 	}
 
@@ -83,6 +87,8 @@ public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 		descriptorProperties.getOptionalCharacter(CsvValidator.FORMAT_ESCAPE_CHARACTER())
 			.ifPresent(schema::setEscapeCharacter);
 		descriptorProperties.getOptionalString(CsvValidator.FORMAT_BYTES_CHARSET())
+			.ifPresent(schema::setCharset);
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_VALUE())
 			.ifPresent(schema::setCharset);
 
 		return new CsvRowDeserializationSchema(createTypeInformation(descriptorProperties));
@@ -106,6 +112,8 @@ public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 			.ifPresent(schema::setEscapeCharacter);
 		descriptorProperties.getOptionalString(CsvValidator.FORMAT_BYTES_CHARSET())
 			.ifPresent(schema::setCharset);
+		descriptorProperties.getOptionalString(CsvValidator.FORMAT_NULL_VALUE())
+			.ifPresent(schema::setCharset);
 
 		return new CsvRowSerializationSchema(createTypeInformation(descriptorProperties));
 	}
@@ -122,10 +130,14 @@ public class CsvRowFormatFactory implements SerializationSchemaFactory<Row>,
 
 	/**
 	 * Create a {@link TypeInformation} based on the "format-fields" in {@link CsvValidator}.
-	 * @param descriptorProperties
+	 * @param descriptorProperties descriptor properties
 	 * @return {@link TypeInformation}
 	 */
 	private static TypeInformation<Row> createTypeInformation(DescriptorProperties descriptorProperties) {
-		return descriptorProperties.getTableSchema(CsvValidator.FORMAT_FIELDS()).toRowType();
+		if (descriptorProperties.getOptionalTableSchema(CsvValidator.FORMAT_FIELDS()).isPresent()) {
+			return descriptorProperties.getTableSchema(CsvValidator.FORMAT_FIELDS()).toRowType();
+		} else {
+			return SchemaValidator.deriveFormatFields(descriptorProperties).toRowType();
+		}
 	}
 }
