@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>metrics.latency.granularity</h5></td>
+            <td style="word-wrap: break-word;">"subtask"</td>
+            <td>Defines the granularity of latency metrics. Accepted values are:<ul><li>single - Track latency without differentiating between sources and subtasks.</li><li>operator - Track latency while differentiating between sources, but not subtasks.</li><li>subtask - Track latency while differentiating between sources and subtasks.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>metrics.latency.history-size</h5></td>
             <td style="word-wrap: break-word;">128</td>
             <td>Defines the number of measured latencies to maintain at each operator.</td>
