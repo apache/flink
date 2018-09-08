@@ -302,9 +302,7 @@ public class DispatcherHATest extends TestLogger {
 		}
 
 		@Override
-		public void releaseJobGraph(JobID jobId) throws Exception {
-			throw new UnsupportedOperationException("Should not be called.");
-		}
+		public void releaseJobGraph(JobID jobId) throws Exception {}
 
 		@Override
 		public Collection<JobID> getJobIds() throws Exception {

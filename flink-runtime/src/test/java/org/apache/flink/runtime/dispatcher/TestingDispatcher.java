@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -73,16 +72,20 @@ class TestingDispatcher extends Dispatcher {
 			VoidHistoryServerArchivist.INSTANCE);
 	}
 
-	@VisibleForTesting
 	void completeJobExecution(ArchivedExecutionGraph archivedExecutionGraph) {
 		runAsync(
 			() -> jobReachedGloballyTerminalState(archivedExecutionGraph));
 	}
 
-	@VisibleForTesting
-	public CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
+	CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
 		return callAsyncWithoutFencing(
 			() -> getJobTerminationFuture(jobId),
+			timeout).thenCompose(Function.identity());
+	}
+
+	CompletableFuture<Void> getRecoverOperationFuture(@Nonnull Time timeout) {
+		return callAsyncWithoutFencing(
+			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
 	}
 }
