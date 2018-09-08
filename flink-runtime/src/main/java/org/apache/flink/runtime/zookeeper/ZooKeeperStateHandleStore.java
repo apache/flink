@@ -526,22 +526,13 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 				client.create().withMode(CreateMode.EPHEMERAL).forPath(getLockPath(path));
 			} catch (KeeperException.NodeExistsException ignored) {
 				// we have already created the lock
-			} catch (KeeperException.NoNodeException e) {
-				throw new Exception("Cannot lock the node " + path + " since it does not exist.", e);
 			}
 		}
 
 		boolean success = false;
 
 		try {
-			byte[] data;
-
-			try {
-				data = client.getData().forPath(path);
-			} catch (Exception e) {
-				throw new Exception("Failed to retrieve state handle data under " + path +
-					" from ZooKeeper.", e);
-			}
+			byte[] data = client.getData().forPath(path);
 
 			try {
 				RetrievableStateHandle<T> retrievableStateHandle = InstantiationUtil.deserializeObject(
