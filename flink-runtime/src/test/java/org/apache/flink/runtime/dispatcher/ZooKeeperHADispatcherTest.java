@@ -127,59 +127,60 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 		final CuratorFramework otherClient = ZooKeeperUtils.startCuratorFramework(configuration);
 
-		final TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices();
-		testingHighAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
+		try(final TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices()) {
+			testingHighAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
 
-		final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(
-			otherClient,
-			configuration);
+			final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(
+				otherClient,
+				configuration);
 
-		otherSubmittedJobGraphStore.start(NoOpSubmittedJobGraphListener.INSTANCE);
+			otherSubmittedJobGraphStore.start(NoOpSubmittedJobGraphListener.INSTANCE);
 
-		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		testingHighAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
+			final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
+			testingHighAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
 
-		final TestingDispatcher dispatcher = createDispatcher(testingHighAvailabilityServices);
+			final TestingDispatcher dispatcher = createDispatcher(testingHighAvailabilityServices);
 
-		dispatcher.start();
+			dispatcher.start();
 
-		try {
-			final DispatcherId expectedLeaderId = DispatcherId.generate();
-			leaderElectionService.isLeader(expectedLeaderId.toUUID()).get();
+			try {
+				final DispatcherId expectedLeaderId = DispatcherId.generate();
+				leaderElectionService.isLeader(expectedLeaderId.toUUID()).get();
 
-			final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+				final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-			final JobGraph nonEmptyJobGraph = DispatcherHATest.createNonEmptyJobGraph();
-			final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT);
-			submissionFuture.get();
+				final JobGraph nonEmptyJobGraph = DispatcherHATest.createNonEmptyJobGraph();
+				final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT);
+				submissionFuture.get();
 
-			Collection<JobID> jobIds = otherSubmittedJobGraphStore.getJobIds();
+				Collection<JobID> jobIds = otherSubmittedJobGraphStore.getJobIds();
 
-			final JobID jobId = nonEmptyJobGraph.getJobID();
-			assertThat(jobIds, Matchers.contains(jobId));
+				final JobID jobId = nonEmptyJobGraph.getJobID();
+				assertThat(jobIds, Matchers.contains(jobId));
 
-			leaderElectionService.notLeader();
+				leaderElectionService.notLeader();
 
-			// wait for the job to properly terminate
-			final CompletableFuture<Void> jobTerminationFuture = dispatcher.getJobTerminationFuture(jobId, TIMEOUT);
-			jobTerminationFuture.get();
+				// wait for the job to properly terminate
+				final CompletableFuture<Void> jobTerminationFuture = dispatcher.getJobTerminationFuture(jobId, TIMEOUT);
+				jobTerminationFuture.get();
 
-			// recover the job
-			final SubmittedJobGraph submittedJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobId);
+				// recover the job
+				final SubmittedJobGraph submittedJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobId);
 
-			assertThat(submittedJobGraph, Matchers.is(Matchers.notNullValue()));
+				assertThat(submittedJobGraph, Matchers.is(Matchers.notNullValue()));
 
-			// check that the other submitted job graph store can remove the job graph after the original leader
-			// has lost its leadership
-			otherSubmittedJobGraphStore.removeJobGraph(jobId);
+				// check that the other submitted job graph store can remove the job graph after the original leader
+				// has lost its leadership
+				otherSubmittedJobGraphStore.removeJobGraph(jobId);
 
-			jobIds = otherSubmittedJobGraphStore.getJobIds();
+				jobIds = otherSubmittedJobGraphStore.getJobIds();
 
-			assertThat(jobIds, Matchers.not(Matchers.contains(jobId)));
-		} finally {
-			RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
-			client.close();
-			otherClient.close();
+				assertThat(jobIds, Matchers.not(Matchers.contains(jobId)));
+			} finally {
+				RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+				client.close();
+				otherClient.close();
+			}
 		}
 	}
 
