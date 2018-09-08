@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.function.ConsumerWithException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
@@ -238,25 +239,28 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (completedCheckpoints.size() > maxNumberOfCheckpointsToRetain) {
-			try {
-				final CompletedCheckpoint completedCheckpoint = completedCheckpoints.removeFirst();
-
-				if (tryRemove(completedCheckpoint.getCheckpointID())) {
-					executor.execute(() -> {
-						try {
-							completedCheckpoint.discardOnSubsume();
-						} catch (Exception e) {
-							LOG.warn("Could not discard subsumed completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
-						}
-					});
-
-				}
-			} catch (Exception e) {
-				LOG.warn("Failed to subsume the old checkpoint", e);
-			}
+			final CompletedCheckpoint completedCheckpoint = completedCheckpoints.removeFirst();
+			tryRemoveCompletedCheckpoint(completedCheckpoint, CompletedCheckpoint::discardOnSubsume);
 		}
 
 		LOG.debug("Added {} to {}.", checkpoint, path);
+	}
+
+	private void tryRemoveCompletedCheckpoint(CompletedCheckpoint completedCheckpoint, ConsumerWithException<CompletedCheckpoint, Exception> discardCallback) {
+		try {
+			if (tryRemove(completedCheckpoint.getCheckpointID())) {
+				executor.execute(() -> {
+					try {
+						discardCallback.accept(completedCheckpoint);
+					} catch (Exception e) {
+						LOG.warn("Could not discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), e);
+					}
+				});
+
+			}
+		} catch (Exception e) {
+			LOG.warn("Failed to subsume the old checkpoint", e);
+		}
 	}
 
 	@Override
@@ -291,21 +295,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : completedCheckpoints) {
-				try {
-					if (tryRemove(checkpoint.getCheckpointID())) {
-						executor.execute(
-							() -> {
-								try {
-									checkpoint.discardOnShutdown(jobStatus);
-								} catch (Exception e) {
-									LOG.warn("Could not discard completed checkpoint {} on shutdown.", checkpoint.getCheckpointID(), e);
-								}
-							}
-						);
-					}
-				} catch (Exception e) {
-					LOG.error("Failed to discard checkpoint.", e);
-				}
+				tryRemoveCompletedCheckpoint(
+					checkpoint,
+					completedCheckpoint -> completedCheckpoint.discardOnShutdown(jobStatus));
 			}
 
 			completedCheckpoints.clear();
