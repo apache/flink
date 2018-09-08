@@ -105,70 +105,71 @@ public class ZooKeeperHAJobManagerTest extends TestLogger {
 		configuration.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, ZOO_KEEPER_RESOURCE.getConnectString());
 		configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, TEMPORARY_FOLDER.newFolder().getAbsolutePath());
 
-		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
+		try (TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices()) {
 
-		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
-		highAvailabilityServices.setJobMasterLeaderElectionService(HighAvailabilityServices.DEFAULT_JOB_ID, leaderElectionService);
-		highAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
-		highAvailabilityServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+			final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+			final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
+			highAvailabilityServices.setJobMasterLeaderElectionService(HighAvailabilityServices.DEFAULT_JOB_ID, leaderElectionService);
+			highAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
+			highAvailabilityServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
-		final CuratorFramework otherClient = ZooKeeperUtils.startCuratorFramework(configuration);
-		final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(otherClient, configuration);
-		otherSubmittedJobGraphStore.start(NoOpSubmittedJobGraphListener.INSTANCE);
+			final CuratorFramework otherClient = ZooKeeperUtils.startCuratorFramework(configuration);
+			final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(otherClient, configuration);
+			otherSubmittedJobGraphStore.start(NoOpSubmittedJobGraphListener.INSTANCE);
 
-		ActorRef jobManagerActorRef = null;
-		try {
-			jobManagerActorRef = JobManager.startJobManagerActors(
-				configuration,
-				system,
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				highAvailabilityServices,
-				NoOpMetricRegistry.INSTANCE,
-				Option.empty(),
-				TestingJobManager.class,
-				MemoryArchivist.class)._1();
+			ActorRef jobManagerActorRef = null;
+			try {
+				jobManagerActorRef = JobManager.startJobManagerActors(
+					configuration,
+					system,
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
+					highAvailabilityServices,
+					NoOpMetricRegistry.INSTANCE,
+					Option.empty(),
+					TestingJobManager.class,
+					MemoryArchivist.class)._1();
 
-			waitForActorToBeStarted(jobManagerActorRef, TIMEOUT);
+				waitForActorToBeStarted(jobManagerActorRef, TIMEOUT);
 
-			final ActorGateway jobManager = new AkkaActorGateway(jobManagerActorRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+				final ActorGateway jobManager = new AkkaActorGateway(jobManagerActorRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
-			leaderElectionService.isLeader(HighAvailabilityServices.DEFAULT_LEADER_ID).get();
+				leaderElectionService.isLeader(HighAvailabilityServices.DEFAULT_LEADER_ID).get();
 
-			final JobGraph nonEmptyJobGraph = DispatcherHATest.createNonEmptyJobGraph();
+				final JobGraph nonEmptyJobGraph = DispatcherHATest.createNonEmptyJobGraph();
 
-			final JobManagerMessages.SubmitJob submitJobMessage = new JobManagerMessages.SubmitJob(nonEmptyJobGraph, ListeningBehaviour.DETACHED);
+				final JobManagerMessages.SubmitJob submitJobMessage = new JobManagerMessages.SubmitJob(nonEmptyJobGraph, ListeningBehaviour.DETACHED);
 
-			Await.result(jobManager.ask(submitJobMessage, TIMEOUT), TIMEOUT);
+				Await.result(jobManager.ask(submitJobMessage, TIMEOUT), TIMEOUT);
 
-			Collection<JobID> jobIds = otherSubmittedJobGraphStore.getJobIds();
+				Collection<JobID> jobIds = otherSubmittedJobGraphStore.getJobIds();
 
-			final JobID jobId = nonEmptyJobGraph.getJobID();
-			assertThat(jobIds, contains(jobId));
+				final JobID jobId = nonEmptyJobGraph.getJobID();
+				assertThat(jobIds, contains(jobId));
 
-			// revoke the leadership
-			leaderElectionService.notLeader();
+				// revoke the leadership
+				leaderElectionService.notLeader();
 
-			Await.result(jobManager.ask(TestingJobManagerMessages.getWaitForBackgroundTasksToFinish(), TIMEOUT), TIMEOUT);
+				Await.result(jobManager.ask(TestingJobManagerMessages.getWaitForBackgroundTasksToFinish(), TIMEOUT), TIMEOUT);
 
-			final SubmittedJobGraph recoveredJobGraph = akka.serialization.JavaSerializer.currentSystem().withValue(
-				((ExtendedActorSystem) system),
-				() -> otherSubmittedJobGraphStore.recoverJobGraph(jobId));
+				final SubmittedJobGraph recoveredJobGraph = akka.serialization.JavaSerializer.currentSystem().withValue(
+					((ExtendedActorSystem) system),
+					() -> otherSubmittedJobGraphStore.recoverJobGraph(jobId));
 
-			assertThat(recoveredJobGraph, is(notNullValue()));
+				assertThat(recoveredJobGraph, is(notNullValue()));
 
-			otherSubmittedJobGraphStore.removeJobGraph(jobId);
+				otherSubmittedJobGraphStore.removeJobGraph(jobId);
 
-			jobIds = otherSubmittedJobGraphStore.getJobIds();
+				jobIds = otherSubmittedJobGraphStore.getJobIds();
 
-			assertThat(jobIds, not(contains(jobId)));
-		} finally {
-			client.close();
-			otherClient.close();
+				assertThat(jobIds, not(contains(jobId)));
+			} finally {
+				client.close();
+				otherClient.close();
 
-			if (jobManagerActorRef != null) {
-				ActorUtils.stopActor(jobManagerActorRef);
+				if (jobManagerActorRef != null) {
+					ActorUtils.stopActor(jobManagerActorRef);
+				}
 			}
 		}
 	}
