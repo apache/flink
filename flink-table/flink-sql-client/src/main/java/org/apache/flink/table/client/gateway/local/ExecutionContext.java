@@ -236,6 +236,7 @@ public class ExecutionContext<T> {
 				TableFactoryService.find(StreamTableSourceFactory.class, sourceProperties, classLoader);
 			return factory.createStreamTableSource(sourceProperties);
 		} else if (execution.isBatchExecution()) {
+			sourceProperties = ignoreProperties(sourceProperties, new String[] {"update-mode"});
 			final BatchTableSourceFactory<?> factory = (BatchTableSourceFactory<?>)
 				TableFactoryService.find(BatchTableSourceFactory.class, sourceProperties, classLoader);
 			return factory.createBatchTableSource(sourceProperties);
@@ -249,11 +250,24 @@ public class ExecutionContext<T> {
 				TableFactoryService.find(StreamTableSinkFactory.class, sinkProperties, classLoader);
 			return factory.createStreamTableSink(sinkProperties);
 		} else if (execution.isBatchExecution()) {
+			sinkProperties = ignoreProperties(sinkProperties, new String[] {"update-mode"});
 			final BatchTableSinkFactory<?> factory = (BatchTableSinkFactory<?>)
 				TableFactoryService.find(BatchTableSinkFactory.class, sinkProperties, classLoader);
 			return factory.createBatchTableSink(sinkProperties);
 		}
 		throw new SqlExecutionException("Unsupported execution type for sinks.");
+	}
+
+	private static Map<String, String> ignoreProperties(Map<String, String> properties, String[] ignoreKeys) {
+		//the Map's original type comes from scala's type information,
+		//which did not support remove operation
+		Map<String, String> copiedProperties = new HashMap<>(properties);
+
+		for (String ignoreKey : ignoreKeys) {
+			copiedProperties.remove(ignoreKey);
+		}
+
+		return copiedProperties;
 	}
 
 	// --------------------------------------------------------------------------------------------

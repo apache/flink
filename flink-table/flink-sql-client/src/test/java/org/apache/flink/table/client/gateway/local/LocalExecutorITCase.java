@@ -404,6 +404,55 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testReuseStreamingCsvSourceIBatchExecution() throws Exception {
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_0", url.getPath());
+		replaceVars.put("$VAR_1", "/");
+		replaceVars.put("$VAR_2", "streaming");
+		replaceVars.put("$VAR_3", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		final String query = "SELECT scalarUDF(IntegerField1), StringField1 FROM TableNumber1";
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("47,Hello World");
+		expectedResults.add("27,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("37,Hello World");
+		expectedResults.add("47,Hello World");
+		expectedResults.add("57,Hello World!!!!");
+
+		try {
+			ResultDescriptor desc = executor.executeQuery(session, query);
+			assertTrue(desc.isMaterialized());
+			List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+
+			//switch to batch mode
+			session.setSessionProperty("execution.type", "batch");
+			desc = executor.executeQuery(session, query);
+			assertTrue(desc.isMaterialized());
+			actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+
+			//switch to streaming mode again
+			session.setSessionProperty("execution.type", "streaming");
+			desc = executor.executeQuery(session, query);
+			assertTrue(desc.isMaterialized());
+			actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
+		} finally {
+			executor.stop(session);
+		}
+	}
+
 	private void executeStreamQueryTable(
 			Map<String, String> replaceVars,
 			String query,
