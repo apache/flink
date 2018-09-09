@@ -53,7 +53,7 @@ public class CassandraInputFormat<OUT extends Tuple> extends CassandraInputForma
 
 	@Override
 	public boolean reachedEnd() throws IOException {
-		return false;
+		return resultSet.isExhausted();
 	}
 
 	@Override
