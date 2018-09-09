@@ -127,7 +127,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 		final CuratorFramework otherClient = ZooKeeperUtils.startCuratorFramework(configuration);
 
-		try(final TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices()) {
+		try (final TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices()) {
 			testingHighAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
 
 			final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(
