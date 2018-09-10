@@ -48,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
+import org.rocksdb.Env;
 
 import java.io.File;
 import java.util.Collections;
@@ -380,6 +381,28 @@ public class RocksDBStateBackendConfigTest {
 	// ------------------------------------------------------------------------
 	//  RocksDB Options
 	// ------------------------------------------------------------------------
+
+	@Test
+	public void testSetDefaultEnvInOptions() throws Exception {
+		String checkpointPath = tempFolder.newFolder().toURI().toString();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+
+		rocksDbBackend.setOptions(new OptionsFactory() {
+			@Override
+			public DBOptions createDBOptions(DBOptions currentOptions) {
+				return new DBOptions();
+			}
+
+			@Override
+			public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions) {
+				throw new UnsupportedOperationException();
+			}
+		});
+
+		try (DBOptions options = rocksDbBackend.getDbOptions()) {
+			assertEquals(Env.getDefault(), options.getEnv());
+		}
+	}
 
 	@Test
 	public void testPredefinedOptions() throws Exception {
