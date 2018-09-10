@@ -98,7 +98,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 			final Class<?> mainClass = getClass().getClassLoader().loadClass(jobClassName);
 			return new PackagedProgram(mainClass, programArguments);
 		} catch (ClassNotFoundException | ProgramInvocationException e) {
-			throw new FlinkException("Could not load the provied entrypoint class.", e);
+			throw new FlinkException("Could not load the provided entrypoint class.", e);
 		}
 	}
 
