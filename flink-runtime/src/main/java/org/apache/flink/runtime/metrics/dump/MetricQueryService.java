@@ -40,6 +40,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.MetricDumpSerializer;
 
@@ -69,54 +71,24 @@ public class MetricQueryService extends UntypedActor {
 	private final Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 	private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
 	private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters = new HashMap<>();
+	private ExecutorService threadpool;
+
+	@Override public void preStart() throws Exception {
+		super.preStart();
+		threadpool = Executors.newSingleThreadExecutor();
+	}
 
 	@Override
 	public void postStop() {
 		serializer.close();
+		if (threadpool != null && !threadpool.isShutdown()) {
+			threadpool.shutdownNow();
+		}
 	}
 
 	@Override
 	public void onReceive(Object message) {
-		try {
-			if (message instanceof AddMetric) {
-				AddMetric added = (AddMetric) message;
-
-				String metricName = added.metricName;
-				Metric metric = added.metric;
-				AbstractMetricGroup group = added.group;
-
-				QueryScopeInfo info = group.getQueryServiceMetricInfo(FILTER);
-
-				if (metric instanceof Counter) {
-					counters.put((Counter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Gauge) {
-					gauges.put((Gauge<?>) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Histogram) {
-					histograms.put((Histogram) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				} else if (metric instanceof Meter) {
-					meters.put((Meter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
-				}
-			} else if (message instanceof RemoveMetric) {
-				Metric metric = (((RemoveMetric) message).metric);
-				if (metric instanceof Counter) {
-					this.counters.remove(metric);
-				} else if (metric instanceof Gauge) {
-					this.gauges.remove(metric);
-				} else if (metric instanceof Histogram) {
-					this.histograms.remove(metric);
-				} else if (metric instanceof Meter) {
-					this.meters.remove(metric);
-				}
-			} else if (message instanceof CreateDump) {
-				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
-				getSender().tell(dump, getSelf());
-			} else {
-				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
-				getSender().tell(new Status.Failure(new IOException("MetricQueryServiceActor received an invalid message. " + message.toString())), getSelf());
-			}
-		} catch (Exception e) {
-			LOG.warn("An exception occurred while processing a message.", e);
-		}
+		threadpool.submit(new MetricMessageHandlerRunnable(message, gauges, counters, histograms, meters, getSender(), getSelf(), serializer));
 	}
 
 	/**
@@ -220,5 +192,76 @@ public class MetricQueryService extends UntypedActor {
 
 	private static class CreateDump implements Serializable {
 		private static final CreateDump INSTANCE = new CreateDump();
+	}
+
+	/**
+	 * This runnable executes add metric, remove metric and create dump logic after notified.
+	 */
+	private static final class MetricMessageHandlerRunnable implements Runnable {
+		private final Object message;
+		private final Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges;
+		private final Map<Counter, Tuple2<QueryScopeInfo, String>> counters;
+		private final Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms;
+		private final Map<Meter, Tuple2<QueryScopeInfo, String>> meters;
+		private final ActorRef sender;
+		private final ActorRef self;
+		private final MetricDumpSerializer serializer;
+
+		public MetricMessageHandlerRunnable(Object message, Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges,
+			Map<Counter, Tuple2<QueryScopeInfo, String>> counters, Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms,
+			Map<Meter, Tuple2<QueryScopeInfo, String>> meters, ActorRef sender, ActorRef self,
+			MetricDumpSerializer serializer) {
+			this.message = message;
+			this.gauges = gauges;
+			this.counters = counters;
+			this.histograms = histograms;
+			this.meters = meters;
+			this.sender = sender;
+			this.self = self;
+			this.serializer = serializer;
+		}
+
+		@Override public void run() {
+			try {
+				if (message instanceof AddMetric) {
+					AddMetric added = (AddMetric) message;
+
+					String metricName = added.metricName;
+					Metric metric = added.metric;
+					AbstractMetricGroup group = added.group;
+
+					QueryScopeInfo info = group.getQueryServiceMetricInfo(FILTER);
+
+					if (metric instanceof Counter) {
+						counters.put((Counter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+					} else if (metric instanceof Gauge) {
+						gauges.put((Gauge<?>) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+					} else if (metric instanceof Histogram) {
+						histograms.put((Histogram) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+					} else if (metric instanceof Meter) {
+						meters.put((Meter) metric, new Tuple2<>(info, FILTER.filterCharacters(metricName)));
+					}
+				} else if (message instanceof RemoveMetric) {
+					Metric metric = (((RemoveMetric) message).metric);
+					if (metric instanceof Counter) {
+						this.counters.remove(metric);
+					} else if (metric instanceof Gauge) {
+						this.gauges.remove(metric);
+					} else if (metric instanceof Histogram) {
+						this.histograms.remove(metric);
+					} else if (metric instanceof Meter) {
+						this.meters.remove(metric);
+					}
+				} else if (message instanceof CreateDump) {
+					MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
+					sender.tell(dump, self);
+				} else {
+					LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());
+					sender.tell(new Status.Failure(new IOException("MetricQueryServiceActor received an invalid message. " + message.toString())), self);
+				}
+			} catch (Exception e) {
+				LOG.warn("An exception occurred while processing a message.", e);
+			}
+		}
 	}
 }
