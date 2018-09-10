@@ -199,6 +199,10 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return jobId;
 	}
 
+	public String getOwningTaskName() {
+		return owningTaskName;
+	}
+
 	public ResultPartitionID getPartitionId() {
 		return partitionId;
 	}
