@@ -349,6 +349,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 		checkNotNull(rpcService);
 		checkNotNull(highAvailabilityServices);
 
+		LOG.info("Starting taskManager {}", resourceID);
+
 		InetAddress remoteAddress = InetAddress.getByName(rpcService.getAddress());
 
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
